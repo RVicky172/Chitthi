@@ -1,4 +1,3 @@
-y
 
 # Chitthi – Postcard Studio (React 19.2 + TypeScript)
 
@@ -89,4 +88,5 @@ After changing the code, bump `APP_CACHE` in `public/sw.js` (for example `chitth
 ```bash
 docker compose up -d --build
 ```
+
 # Chitthi
