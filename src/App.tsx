@@ -1,4 +1,5 @@
-import { useEffect, useRef, type JSX } from 'react';
+import { useEffect, useRef, type CSSProperties, type JSX } from 'react';
+import { StepLabel } from './components/common';
 import { CropDialog } from './components/CropDialog';
 import { Header } from './components/Header';
 import { BackPane } from './components/panes/BackPane';
@@ -9,7 +10,7 @@ import { PhotosPane } from './components/panes/PhotosPane';
 import { PrintPane } from './components/panes/PrintPane';
 import { SizePane } from './components/panes/SizePane';
 import { WordsPane } from './components/panes/WordsPane';
-import { Rail } from './components/Rail';
+import { Rail, PANES as STEPS } from './components/Rail';
 import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
 import { Viewer3D } from './components/Viewer3D';
@@ -34,9 +35,9 @@ export default function App() {
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
     backFont = useApp((s) => s.design.back.font);
-  const panel = useRef<HTMLElement>(null),
+  const track = useRef<HTMLDivElement>(null),
     first = useRef(true);
-  const Current = PANES[pane];
+  const idx = STEPS.findIndex(([id]) => id === pane);
 
   // Start-up: history baseline, restore last card's photos, redraw when web fonts arrive.
   useEffect(() => {
@@ -51,14 +52,40 @@ export default function App() {
     void ensureFonts(fontsFor(getState().design)).then(bumpFonts);
   }, [headFont, quoteFont, backFont]);
 
+  // Tab → scroll: glide the snap track to the chosen pane.
   useEffect(() => {
-    if (panel.current) panel.current.scrollTop = 0;
-    if (first.current) {
-      first.current = false;
-      return;
+    const el = track.current;
+    if (!el) return;
+    const left = idx * el.clientWidth;
+    if (Math.abs(el.scrollLeft - left) > 1) {
+      const smooth = !first.current && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
     }
-    if (window.innerWidth <= 860) panel.current?.scrollIntoView({ block: 'start' });
-  }, [pane]);
+    first.current = false;
+  }, [idx]);
+
+  // Scroll → tab: when a swipe settles on a pane, make it the current one.
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    let timer = 0;
+    const settle = () => {
+      clearTimeout(timer);
+      const id = STEPS[Math.round(el.scrollLeft / el.clientWidth)]?.[0];
+      if (id && id !== getState().ui.pane) setUI({ pane: id });
+    };
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(settle, 140);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('scrollend', settle);
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener('scroll', onScroll);
+      el.removeEventListener('scrollend', settle);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -90,8 +117,25 @@ export default function App() {
       <Header />
       <main className="shell">
         <Rail />
-        <section className="panel" ref={panel}>
-          <Current />
+        <section className="panel" aria-label="Step settings">
+          <div className="progress" aria-hidden="true" style={{ '--i': idx } as CSSProperties}>
+            <i />
+          </div>
+          <div className="steps" ref={track}>
+            {STEPS.map(([id, label], i) => {
+              const P = PANES[id];
+              // Only the current pane and its neighbours render, so swipes land on ready content.
+              return (
+                <div key={id} className="slide" role="group" aria-label={label} inert={i !== idx}>
+                  {Math.abs(i - idx) <= 1 && (
+                    <StepLabel.Provider value={id === 'gallery' ? 'Your designs' : `Step ${i + 1} of ${STEPS.length - 1}`}>
+                      <P />
+                    </StepLabel.Provider>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
         <Stage />
       </main>

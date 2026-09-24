@@ -1,4 +1,7 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
+
+/** Small label shown above each pane title, e.g. "Step 2 of 7". */
+export const StepLabel = createContext<string | null>(null);
 
 export function Seg<T extends string>({
   value,
@@ -53,8 +56,10 @@ export function Pane({
   next?: string;
   onNext?: () => void;
 }) {
+  const step = useContext(StepLabel);
   return (
     <div className="pane">
+      {step && <p className="eyebrow">{step}</p>}
       <h2>{title}</h2>
       {lead && <p className="lead">{lead}</p>}
       {children}

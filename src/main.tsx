@@ -6,6 +6,14 @@ import './styles.css';
 
 installFontLinks();
 
+// Apply the saved light/dark choice before first paint; no choice means follow the system.
+try {
+  const theme = localStorage.getItem('chitthi-theme');
+  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+} catch {
+  /* storage blocked */
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
