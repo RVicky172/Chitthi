@@ -1,0 +1,15 @@
+services:
+  chitthi:
+    build: .
+    image: chitthi-postcard-studio:2.0.0
+    container_name: chitthi
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
