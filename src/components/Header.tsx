@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { downloadPrintFile, saveDesign } from '../state/actions';
-import { redo, undo, useApp } from '../state/store';
-import { DownloadIcon, Logo, MoonIcon, RedoIcon, SaveIcon, SunIcon, UndoIcon } from './icons';
+import { PRODUCTS } from '../data/products';
+import { downloadPack, saveDesign, switchProduct } from '../state/actions';
+import { redo, setUI, undo, useApp } from '../state/store';
+import { Seg } from './common';
+import { DownloadIcon, Logo, MoonIcon, RedoIcon, SaveIcon, SunIcon, UndoIcon, ProductIcon } from './icons';
 
 const isDark = () =>
   document.documentElement.dataset.theme
@@ -10,7 +12,8 @@ const isDark = () =>
 
 export function Header() {
   const canUndo = useApp((s) => s.canUndo),
-    canRedo = useApp((s) => s.canRedo);
+    canRedo = useApp((s) => s.canRedo),
+    product = useApp((s) => s.design.product);
   const [busy, setBusy] = useState(false);
   const [dark, setDark] = useState(isDark);
   const toggleTheme = () => {
@@ -26,17 +29,21 @@ export function Header() {
   const download = async () => {
     setBusy(true);
     try {
-      await downloadPrintFile();
+      await downloadPack();
     } finally {
       setBusy(false);
     }
   };
   return (
     <header className="bar">
-      <Logo />
-      <div className="brand">
-        <h1>Chitthi</h1>
-        <p>Postcards and Instax-style prints for every Indian festival, birthday and season</p>
+      <button type="button" className="home" title="Chitthi home" aria-label="Chitthi home" onClick={() => setUI({ screen: 'home' })}>
+        <Logo />
+        <span className="brand">
+          <span className="wordmark">Chitthi</span>
+        </span>
+      </button>
+      <div className="products-switch">
+        <Seg label="What are you making?" value={product} options={PRODUCTS.map((p) => [p.id, p.name, <ProductIcon key={p.id} id={p.id} />])} onChange={switchProduct} />
       </div>
       <div className="acts">
         <button
@@ -68,7 +75,7 @@ export function Header() {
         </button>
         <button type="button" className="btn primary" disabled={busy} onClick={download}>
           <DownloadIcon />
-          <span className="lbl">{busy ? 'Preparing…' : 'Download'}</span>
+          <span className="lbl">{busy ? 'Preparing…' : 'Print pack'}</span>
         </button>
       </div>
     </header>

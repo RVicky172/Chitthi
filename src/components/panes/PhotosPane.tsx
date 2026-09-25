@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { LOOKS } from '../../data/layouts';
 import { cardMM } from '../../engine/design';
-import { MAX_MB, MAX_PHOTOS } from '../../engine/photo';
+import { MAX_MB, maxPhotos } from '../../engine/photo';
 import { photoDpi } from '../../engine/render';
 import { addFiles } from '../../state/actions';
+import { usePhotoSlots } from '../../state/photoSlots';
 import { patchPhoto, setPhotos, setUI, useApp } from '../../state/store';
 import type { LookId } from '../../types';
 import { PhotoThumb } from '../canvases';
+import { PhotoStore } from '../PhotoStore';
 import { Pane } from '../common';
+import { AddPhotoIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
 
 function DpiBadge({ dpi }: { dpi: number | null }) {
   if (dpi === null) return <span className="q">not used in this layout</span>;
@@ -27,6 +30,7 @@ export function PhotosPane() {
   const [over, setOver] = useState(false);
   const { w, h } = cardMM(d);
   const dpis = photoDpi({ d, photos });
+  const { count } = usePhotoSlots();
 
   const take = async (list: FileList | null) => {
     if (list?.length) setMsgs(await addFiles([...list]));
@@ -35,8 +39,8 @@ export function PhotosPane() {
   return (
     <Pane
       title="Photos"
-      lead={`Add up to ${MAX_PHOTOS} photos. The original resolution goes into your print file.`}
-      next="layout"
+      lead={`Add up to ${maxPhotos(d.product)} photos${d.product === 'calendar' ? ', one for each month' : ''}. The original resolution goes into your print file.`}
+      next="size and layout"
       onNext={() => setUI({ pane: 'layout' })}
     >
       <label
@@ -65,6 +69,9 @@ export function PhotosPane() {
             e.target.value = '';
           }}
         />
+        <span className="drop-ico">
+          <AddPhotoIcon />
+        </span>
         <strong>Choose photos or drop them here</strong>
         <span>JPG, PNG or WebP, up to {MAX_MB} MB each</span>
       </label>
@@ -77,6 +84,15 @@ export function PhotosPane() {
           ))}
         </ul>
       )}
+      {count > 0 && (
+        <p className="hint">
+          Your layout holds <b>{count === 1 ? '1 photo' : `${count} photos`}</b>
+          {photos.length < count ? `, add ${count - photos.length} more to fill it.` : '. Tap a photo under the preview to swap it in.'}
+        </p>
+      )}
+      <h3>Photo store</h3>
+      <PhotoStore />
+      {photos.length > 0 && <h3>On this card</h3>}
       <ul className="photos">
         {photos.map((p, i) => (
           <li key={p.id} className="photo">
@@ -97,6 +113,26 @@ export function PhotosPane() {
                   value={p.zoom}
                   onChange={(e) => patchPhoto(p.id, { zoom: +e.target.value })}
                 />
+                <label htmlFor={`x-${p.id}`}>Left–right</label>
+                <input
+                  id={`x-${p.id}`}
+                  type="range"
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  value={p.px}
+                  onChange={(e) => patchPhoto(p.id, { px: +e.target.value })}
+                />
+                <label htmlFor={`y-${p.id}`}>Up–down</label>
+                <input
+                  id={`y-${p.id}`}
+                  type="range"
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  value={p.py}
+                  onChange={(e) => patchPhoto(p.id, { py: +e.target.value })}
+                />
                 <label htmlFor={`l-${p.id}`}>Look</label>
                 <select
                   id={`l-${p.id}`}
@@ -113,17 +149,21 @@ export function PhotosPane() {
               </div>
               <div className="acts">
                 <button type="button" className="sbtn accent" onClick={() => setUI({ cropId: p.id })}>
+                  <CropIcon />
                   Crop
                 </button>
                 <button type="button" className="sbtn" onClick={() => patchPhoto(p.id, { zoom: 1, px: 0, py: 0 })}>
+                  <ResetIcon />
                   Reset position
                 </button>
                 {i > 0 && (
                   <button type="button" className="sbtn" onClick={() => setPhotos([p, ...photos.filter((x) => x.id !== p.id)])}>
+                    <StarIcon />
                     Make first
                   </button>
                 )}
                 <button type="button" className="sbtn" onClick={() => setPhotos(photos.filter((x) => x.id !== p.id))}>
+                  <TrashIcon />
                   Remove
                 </button>
               </div>
@@ -132,7 +172,7 @@ export function PhotosPane() {
         ))}
       </ul>
       {photos.length > 0 && (
-        <p className="hint">Drag a photo on the card to move it. Use Zoom, or scroll over the photo, to enlarge it.</p>
+        <p className="hint">Drag a photo on the card, or use the sliders above, to move it. Zoom enlarges it; with the card focused, arrow keys and + / − work too.</p>
       )}
       <details className="guide" open={!photos.length}>
         <summary>Photo guide</summary>

@@ -2,6 +2,8 @@ import type { LookId, Photo, PhotoMeta } from '../types';
 
 export const MAX_MB = 25;
 export const MAX_PHOTOS = 4;
+/** Photos a design can hold: a 12-month calendar needs one per month (two for two-photo pages). */
+export const maxPhotos = (product: string): number => (product === 'calendar' ? 24 : MAX_PHOTOS);
 const MAX_PIXELS = 16e6; // stays under mobile Safari's canvas limit
 
 /** Returns a user-facing reason when a file can't be used, or null when it's fine. */

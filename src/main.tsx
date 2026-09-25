@@ -1,10 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { installFontLinks } from './lib/fonts';
 import './styles.css';
-
-installFontLinks();
 
 // Apply the saved light/dark choice before first paint; no choice means follow the system.
 try {

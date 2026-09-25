@@ -3,12 +3,24 @@ import { setDesign, setUI, useApp } from '../../state/store';
 import type { HAlign, VAlign } from '../../types';
 import { Check, Pane, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
+import { InstagramIcon } from '../icons';
 
 export function WordsPane() {
   const d = useApp((s) => s.design);
   const t = resolveTheme(d);
   return (
-    <Pane title="Words on the front" next="back of card" onNext={() => setUI({ pane: 'back' })}>
+    <Pane
+      title="Front"
+      lead={
+        d.product === 'calendar'
+          ? 'Month names and dates are added for you in the greeting font. The greeting is used as the title of the year page.'
+          : d.product === 'frame'
+            ? 'Words show under the photo with the “Photo and caption” layout. The Instagram tag shows on every layout.'
+            : undefined
+      }
+      next="back"
+      onNext={() => setUI({ pane: 'back' })}
+    >
       <Check checked={d.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
         Greeting
       </Check>
@@ -40,6 +52,21 @@ export function WordsPane() {
         Signature line
       </Check>
       <input type="text" aria-label="Signature" value={d.sig} onChange={(e) => setDesign({ sig: e.target.value })} />
+      <label className="f">
+        Instagram (shown in the photo’s bottom-right corner)
+        <span className="ig">
+          <InstagramIcon />
+          <input
+            type="text"
+            placeholder="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={d.insta}
+            onChange={(e) => setDesign({ insta: e.target.value.replace(/[@\s]/g, '') })}
+          />
+        </span>
+      </label>
       <h3>Fonts</h3>
       <FontPicker
         label="Greeting font"

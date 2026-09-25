@@ -13,8 +13,8 @@ export function OccasionPane() {
     <Pane
       title="Occasion"
       lead="Occasions add colours, artwork and ready-made wishes. Turn it off for a plain card."
-      next="photos"
-      onNext={() => setUI({ pane: 'photos' })}
+      next="front of card"
+      onNext={() => setUI({ pane: 'words' })}
     >
       <label className="switch">
         <input type="checkbox" checked={d.useOccasion} onChange={(e) => setOccasion(e.target.checked)} />

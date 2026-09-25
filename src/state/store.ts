@@ -9,7 +9,15 @@ export interface UIState {
   guides: boolean;
   pane: PaneId;
   cropId: string | null;
+  /** Photo slot of the current layout that the photo tray fills next. */
+  slot: number;
   viewer: ViewerFaces | null;
+  /** Full-screen gallery of saved designs is open. */
+  gallery: boolean;
+  /** Landing page or the design studio (mirrors the URL hash #/studio). */
+  screen: 'home' | 'studio';
+  /** Calendar month shown in the preview (0-based from the start month). */
+  calPage: number;
   fontTick: number;
 }
 export interface AppState {
@@ -37,7 +45,7 @@ let state: AppState = {
   designId: null,
   canUndo: false,
   canRedo: false,
-  ui: { side: 'front', guides: false, pane: 'size', cropId: null, viewer: null, fontTick: 0 },
+  ui: { side: 'front', guides: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, screen: location.hash.startsWith('#/studio') ? 'studio' : 'home', calPage: 0, fontTick: 0 },
 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());

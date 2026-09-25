@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FONT_CATS, FONTS, fontDef } from '../data/fonts';
-import { ensureFont } from '../lib/fonts';
+import { ensureFont, installFontLinks } from '../lib/fonts';
 import type { FontCat } from '../types';
 
 interface Props {
@@ -20,8 +20,13 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
   const f = fontDef(value);
   const text = (sample.split('\n')[0] || label).slice(0, 34);
 
+  // The closed button shows the current family in its own face; the open list previews every family.
+  useEffect(() => {
+    void ensureFont(value);
+  }, [value]);
   useEffect(() => {
     if (!open) return;
+    installFontLinks();
     const close = (e: MouseEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false);
     };

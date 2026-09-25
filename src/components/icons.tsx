@@ -1,110 +1,83 @@
-import type { PaneId } from '../types';
+import {
+  ArrowRight,
+  Box,
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Crop,
+  Download,
+  Frame,
+  ImagePlus,
+  Images,
+  LayoutGrid,
+  LayoutTemplate,
+  Mail,
+  Moon,
+  Package,
+  Pencil,
+  Plus,
+  Printer,
+  Redo2,
+  RotateCcw,
+  Save,
+  Sparkles,
+  Star,
+  Sun,
+  Trash2,
+  Type,
+  Undo2,
+  X,
+  type LucideProps,
+} from 'lucide-react';
+import type { PaneId, ProductId } from '../types';
 
-const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, viewBox: '0 0 24 24', 'aria-hidden': true } as const;
+/*
+ * App icons: Lucide line icons (24x24 grid, currentColor), one consistent stroke across the app.
+ * They size to their container via CSS (.btn svg = 17px); outside a sized box they default to 24px.
+ */
+const base: LucideProps = { strokeWidth: 1.9, 'aria-hidden': true };
 
+const PANE_ICONS = { photos: Images, layout: LayoutTemplate, occasion: Sparkles, words: Type, back: Mail, print: Printer };
 export const PaneIcon = ({ id }: { id: PaneId }) => {
-  switch (id) {
-    case 'size':
-      return (
-        <svg {...s}>
-          <rect x="3" y="6" width="18" height="12" rx="1.5" />
-          <path d="M7 6v3M11 6v4M15 6v3M19 6v4" />
-        </svg>
-      );
-    case 'occasion':
-      return (
-        <svg {...s}>
-          <path d="M12 3c1.6 3 3 4.2 3 6.4a3 3 0 0 1-6 0C9 7.2 10.4 6 12 3z" />
-          <path d="M4 15h16l-2.2 4.5H6.2z" />
-        </svg>
-      );
-    case 'photos':
-      return (
-        <svg {...s}>
-          <rect x="3" y="5" width="18" height="14" rx="2" />
-          <circle cx="9" cy="10" r="2" />
-          <path d="M21 16l-5-5-8 8" />
-        </svg>
-      );
-    case 'layout':
-      return (
-        <svg {...s}>
-          <rect x="4" y="3" width="7" height="18" rx="1" />
-          <rect x="13" y="3" width="7" height="8" rx="1" />
-          <rect x="13" y="13" width="7" height="8" rx="1" />
-        </svg>
-      );
-    case 'words':
-      return (
-        <svg {...s}>
-          <path d="M5 6h14M12 6v13M9 19h6" />
-        </svg>
-      );
-    case 'back':
-      return (
-        <svg {...s}>
-          <rect x="3" y="5" width="18" height="14" rx="1.5" />
-          <path d="M12 8v8M15 8.5h3v3h-3zM14.5 15h4M5.5 9h4M5.5 12h4" />
-        </svg>
-      );
-    case 'print':
-      return (
-        <svg {...s}>
-          <path d="M7 9V3h10v6" />
-          <rect x="3" y="9" width="18" height="8" rx="2" />
-          <path d="M7 14h10v7H7z" />
-        </svg>
-      );
-    case 'gallery':
-      return (
-        <svg {...s}>
-          <rect x="3" y="3" width="8" height="8" rx="1" />
-          <rect x="13" y="3" width="8" height="8" rx="1" />
-          <rect x="3" y="13" width="8" height="8" rx="1" />
-          <rect x="13" y="13" width="8" height="8" rx="1" />
-        </svg>
-      );
-  }
+  const I = PANE_ICONS[id];
+  return <I {...base} />;
 };
-export const UndoIcon = () => (
-  <svg {...s} strokeWidth={1.9}>
-    <path d="M9 14L4 9l5-5" />
-    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-  </svg>
-);
-export const RedoIcon = () => (
-  <svg {...s} strokeWidth={1.9}>
-    <path d="M15 14l5-5-5-5" />
-    <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
-  </svg>
-);
-export const SaveIcon = () => (
-  <svg {...s} strokeWidth={1.8}>
-    <path d="M5 3h11l3 3v15H5z" />
-    <path d="M8 3v6h8V3M8 21v-7h8v7" />
-  </svg>
-);
-export const DownloadIcon = () => (
-  <svg {...s} strokeWidth={2}>
-    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-  </svg>
-);
-export const CubeIcon = () => (
-  <svg {...s} strokeWidth={1.8}>
-    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
-    <path d="M12 12l8-4.5M12 12L4 7.5M12 12v9" />
-  </svg>
-);
 
-export const SunIcon = () => (
-  <svg {...s} strokeWidth={1.8}>
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-  </svg>
-);
-export const MoonIcon = () => (
-  <svg {...s} strokeWidth={1.8}>
-    <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+const PRODUCT_ICONS = { postcard: Mail, calendar: CalendarDays, frame: Frame };
+export const ProductIcon = ({ id }: { id: ProductId }) => {
+  const I = PRODUCT_ICONS[id];
+  return <I {...base} />;
+};
+
+export const GalleryIcon = () => <LayoutGrid {...base} />;
+export const CheckIcon = () => <Check {...base} strokeWidth={2.6} />;
+export const UndoIcon = () => <Undo2 {...base} />;
+export const RedoIcon = () => <Redo2 {...base} />;
+export const SaveIcon = () => <Save {...base} />;
+export const DownloadIcon = () => <Download {...base} strokeWidth={2.1} />;
+export const CubeIcon = () => <Box {...base} />;
+export const SunIcon = () => <Sun {...base} />;
+export const MoonIcon = () => <Moon {...base} />;
+export const ArrowIcon = () => <ArrowRight {...base} strokeWidth={2.1} />;
+export const PrevIcon = () => <ChevronLeft {...base} strokeWidth={2.2} />;
+export const NextIcon = () => <ChevronRight {...base} strokeWidth={2.2} />;
+export const CloseIcon = () => <X {...base} strokeWidth={2.1} />;
+export const PlusIcon = () => <Plus {...base} strokeWidth={2.1} />;
+export const AddPhotoIcon = () => <ImagePlus {...base} strokeWidth={1.6} />;
+export const CropIcon = () => <Crop {...base} />;
+export const ResetIcon = () => <RotateCcw {...base} />;
+export const StarIcon = () => <Star {...base} />;
+export const TrashIcon = () => <Trash2 {...base} />;
+export const EditIcon = () => <Pencil {...base} />;
+export const PackIcon = () => <Package {...base} />;
+
+/** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
+export const InstagramIcon = () => (
+  <svg width={24} height={24} fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <circle cx="12" cy="12" r="4.2" />
+    <circle cx="17.4" cy="6.6" r="0.6" fill="currentColor" />
   </svg>
 );
 

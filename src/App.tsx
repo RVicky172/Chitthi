@@ -1,44 +1,40 @@
 import { useEffect, useRef, type CSSProperties, type JSX } from 'react';
 import { StepLabel } from './components/common';
 import { CropDialog } from './components/CropDialog';
+import { GalleryDialog } from './components/GalleryDialog';
 import { Header } from './components/Header';
+import { Landing } from './components/Landing';
 import { BackPane } from './components/panes/BackPane';
-import { GalleryPane } from './components/panes/GalleryPane';
 import { LayoutPane } from './components/panes/LayoutPane';
 import { OccasionPane } from './components/panes/OccasionPane';
 import { PhotosPane } from './components/panes/PhotosPane';
 import { PrintPane } from './components/panes/PrintPane';
-import { SizePane } from './components/panes/SizePane';
 import { WordsPane } from './components/panes/WordsPane';
 import { Rail, PANES as STEPS } from './components/Rail';
 import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
 import { Viewer3D } from './components/Viewer3D';
 import { ensureFonts, fontsFor } from './lib/fonts';
-import { restoreWork, saveDesign } from './state/actions';
+import { restoreWork, saveDesign, switchProduct } from './state/actions';
 import { bumpFonts, commit, getState, redo, setUI, undo, useApp } from './state/store';
-import type { PaneId } from './types';
+import type { PaneId, ProductId } from './types';
+
+const PRODUCT_NAMES: Record<ProductId, string> = { postcard: 'postcard', calendar: 'calendar', frame: 'photo frame' };
 
 const PANES: Record<PaneId, () => JSX.Element> = {
-  size: SizePane,
-  occasion: OccasionPane,
   photos: PhotosPane,
   layout: LayoutPane,
+  occasion: OccasionPane,
   words: WordsPane,
   back: BackPane,
   print: PrintPane,
-  gallery: GalleryPane,
 };
 
 export default function App() {
-  const pane = useApp((s) => s.ui.pane);
+  const screen = useApp((s) => s.ui.screen);
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
     backFont = useApp((s) => s.design.back.font);
-  const track = useRef<HTMLDivElement>(null),
-    first = useRef(true);
-  const idx = STEPS.findIndex(([id]) => id === pane);
-
   // Start-up: history baseline, restore last card's photos, redraw when web fonts arrive.
   useEffect(() => {
     commit();
@@ -51,6 +47,56 @@ export default function App() {
   useEffect(() => {
     void ensureFonts(fontsFor(getState().design)).then(bumpFonts);
   }, [headFont, quoteFont, backFont]);
+
+  // The URL hash mirrors the screen, so the browser Back button returns from the studio to the landing page.
+  useEffect(() => {
+    const want = screen === 'studio' ? '#/studio' : '';
+    if ((location.hash.startsWith('#/studio') ? '#/studio' : '') !== want) {
+      if (want) location.hash = want;
+      else history.pushState(null, '', location.pathname + location.search);
+    }
+    window.scrollTo(0, 0);
+  }, [screen]);
+  useEffect(() => {
+    // #/studio/calendar (or /postcard, /frame) opens the studio on that product: shareable links to each product.
+    const onHash = () => {
+      const m = /^#\/studio\/(postcard|calendar|frame)\b/.exec(location.hash);
+      if (m) switchProduct(m[1] as ProductId);
+      setUI({ screen: location.hash.startsWith('#/studio') ? 'studio' : 'home' });
+    };
+    onHash();
+    window.addEventListener('hashchange', onHash);
+    window.addEventListener('popstate', onHash);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener('popstate', onHash);
+    };
+  }, []);
+
+  return (
+    <>
+      {screen === 'home' ? <Landing /> : <Studio />}
+      <CropDialog />
+      <GalleryDialog />
+      <Viewer3D />
+      <Toast />
+    </>
+  );
+}
+
+/** The design studio: step rail, swipeable step panes and the live preview. */
+function Studio() {
+  const pane = useApp((s) => s.ui.pane),
+    product = useApp((s) => s.design.product);
+  const track = useRef<HTMLDivElement>(null),
+    first = useRef(true);
+  const idx = STEPS.findIndex(([id]) => id === pane);
+
+  // Show the side of the card the step is about: Back flips to the back, the design steps flip to the front.
+  useEffect(() => {
+    const side = pane === 'back' ? 'back' : pane === 'print' ? null : 'front';
+    if (side && side !== getState().ui.side) setUI({ side });
+  }, [pane]);
 
   // Tab → scroll: glide the snap track to the chosen pane.
   useEffect(() => {
@@ -116,6 +162,7 @@ export default function App() {
     <>
       <Header />
       <main className="shell">
+        <h1 className="vh">Chitthi studio: {PRODUCT_NAMES[product]}</h1>
         <Rail />
         <section className="panel" aria-label="Step settings">
           <div className="progress" aria-hidden="true" style={{ '--i': idx } as CSSProperties}>
@@ -128,7 +175,7 @@ export default function App() {
               return (
                 <div key={id} className="slide" role="group" aria-label={label} inert={i !== idx}>
                   {Math.abs(i - idx) <= 1 && (
-                    <StepLabel.Provider value={id === 'gallery' ? 'Your designs' : `Step ${i + 1} of ${STEPS.length - 1}`}>
+                    <StepLabel.Provider value={`Step ${i + 1} of ${STEPS.length}`}>
                       <P />
                     </StepLabel.Provider>
                   )}
@@ -139,9 +186,6 @@ export default function App() {
         </section>
         <Stage />
       </main>
-      <CropDialog />
-      <Viewer3D />
-      <Toast />
     </>
   );
 }

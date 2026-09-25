@@ -1,0 +1,132 @@
+{
+  "source": "Pexels",
+  "license": "https://www.pexels.com/license/",
+  "photos": [
+    {
+      "id": "diwali",
+      "file": "diwali.jpg",
+      "alt": "Traditional Diwali diyas casting a warm glow, symbolizing the festival of lights and spiritual warmth.",
+      "photographer": "Sayantan Das",
+      "photographerUrl": "https://www.pexels.com/@sayan4679",
+      "pexelsUrl": "https://www.pexels.com/photo/burning-candles-10182772/",
+      "avgColor": "#1E0B05"
+    },
+    {
+      "id": "holi",
+      "file": "holi.jpg",
+      "alt": "Vibrant portrait of a man covered in colorful powders celebrating Holi outdoors.",
+      "photographer": "Shantanu Kumar",
+      "photographerUrl": "https://www.pexels.com/@theshantanukr",
+      "pexelsUrl": "https://www.pexels.com/photo/colorful-holi-celebration-portrait-33814448/",
+      "avgColor": "#96998E"
+    },
+    {
+      "id": "birthday",
+      "file": "birthday.jpg",
+      "alt": "Young boy celebrating birthday by blowing candles on chocolate cake with raspberries.",
+      "photographer": "Helena Jankovičová Kováčová",
+      "photographerUrl": "https://www.pexels.com/@helen1",
+      "pexelsUrl": "https://www.pexels.com/photo/boy-blowing-candles-on-birthday-cake-at-party-30218071/",
+      "avgColor": "#544325"
+    },
+    {
+      "id": "backwaters",
+      "file": "backwaters.jpg",
+      "alt": "Scenic view of a traditional Kerala houseboat cruising through lush backwaters.",
+      "photographer": "Pritam Sengupta",
+      "photographerUrl": "https://www.pexels.com/@pritam-sengupta-685216574",
+      "pexelsUrl": "https://www.pexels.com/photo/passenger-ship-sailing-on-tropical-river-17928231/",
+      "avgColor": "#737570"
+    },
+    {
+      "id": "himalaya",
+      "file": "himalaya.jpg",
+      "alt": "A breathtaking aerial shot of the snow-covered Himalayan mountains in Himachal Pradesh, India.",
+      "photographer": "Sourabh Narwade",
+      "photographerUrl": "https://www.pexels.com/@daredevil",
+      "pexelsUrl": "https://www.pexels.com/photo/stunning-aerial-view-of-snow-capped-himalayas-30723537/",
+      "avgColor": "#93A2B7"
+    },
+    {
+      "id": "monsoon",
+      "file": "monsoon.jpg",
+      "alt": "Close-up of vibrant green leaves with raindrops, showcasing nature's beauty during monsoon in Meerut, India.",
+      "photographer": "Shivam Gurjar",
+      "photographerUrl": "https://www.pexels.com/@shivamraw",
+      "pexelsUrl": "https://www.pexels.com/photo/close-up-of-wet-green-leaves-9497234/",
+      "avgColor": "#2A3525"
+    },
+    {
+      "id": "beach",
+      "file": "beach.jpg",
+      "alt": "Beautiful sunset over the Arabian Sea at Chapora Beach, India, with a serene ocean view.",
+      "photographer": "Mohit Hambiria",
+      "photographerUrl": "https://www.pexels.com/@mohit-hambiria-92377455",
+      "pexelsUrl": "https://www.pexels.com/photo/sunset-over-arabian-sea-at-chapora-beach-india-28520254/",
+      "avgColor": "#947153"
+    },
+    {
+      "id": "tajmahal",
+      "file": "tajmahal.jpg",
+      "alt": "A captivating view of the Taj Mahal in Agra, showcasing its elegance and the surrounding gardens.",
+      "photographer": "Abdul Raheem",
+      "photographerUrl": "https://www.pexels.com/@abdul-raheem-325933398",
+      "pexelsUrl": "https://www.pexels.com/photo/taj-mahal-in-india-17477652/",
+      "avgColor": "#A5A196"
+    },
+    {
+      "id": "marigold",
+      "file": "marigold.jpg",
+      "alt": "Bright orange marigold flowers in a garden setting, perfect for nature enthusiasts.",
+      "photographer": "Davis Arenas",
+      "photographerUrl": "https://www.pexels.com/@carlosdetrip",
+      "pexelsUrl": "https://www.pexels.com/photo/close-up-shot-of-yellow-flowers-14304140/",
+      "avgColor": "#686A29"
+    },
+    {
+      "id": "desert",
+      "file": "desert.jpg",
+      "alt": "A vibrant scene of a cameleer with a decorated camel at the Pushkar Fair in India.",
+      "photographer": "Harikrishan Jakhar",
+      "photographerUrl": "https://www.pexels.com/@harikrishan-jakhar-518872109",
+      "pexelsUrl": "https://www.pexels.com/photo/cameleer-with-a-camel-19285083/",
+      "avgColor": "#A1A0A8"
+    },
+    {
+      "id": "tea",
+      "file": "tea.jpg",
+      "alt": "A stunning aerial view showcasing lush green tea plantations under a clear blue sky.",
+      "photographer": "Quang Nguyen Vinh",
+      "photographerUrl": "https://www.pexels.com/@quang-nguyen-vinh-222549",
+      "pexelsUrl": "https://www.pexels.com/photo/view-of-a-rolling-landscape-6872257/",
+      "avgColor": "#818D66"
+    },
+    {
+      "id": "lotus",
+      "file": "lotus.jpg",
+      "alt": "Beautiful pink lotus flowers blooming in a tranquil pond setting.",
+      "photographer": "Cuong Duy",
+      "photographerUrl": "https://www.pexels.com/@cuong-duy-249813329",
+      "pexelsUrl": "https://www.pexels.com/photo/pink-lotuses-in-pond-15692311/",
+      "avgColor": "#779073"
+    },
+    {
+      "id": "family",
+      "file": "family.jpg",
+      "alt": "A joyful family portrait featuring parents and their child in a serene park environment.",
+      "photographer": "Gaurav Vishwakarma",
+      "photographerUrl": "https://www.pexels.com/@framesbygaurav",
+      "pexelsUrl": "https://www.pexels.com/photo/happy-family-portrait-in-an-outdoor-park-setting-36061432/",
+      "avgColor": "#68685E"
+    },
+    {
+      "id": "kids",
+      "file": "kids.jpg",
+      "alt": "Lively group of children playing happily outdoors on a street in India during summer.",
+      "photographer": "Vishal Adhikari",
+      "photographerUrl": "https://www.pexels.com/@vishalcreation",
+      "pexelsUrl": "https://www.pexels.com/photo/children-playing-on-a-street-17408540/",
+      "avgColor": "#B2B2AA"
+    }
+  ]
+}

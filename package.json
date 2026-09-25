@@ -4,15 +4,20 @@
   "version": "2.0.0",
   "description": "Design postcards and Instax-style prints for Indian festivals, birthdays and seasons, then download print-ready files.",
   "type": "module",
-  "engines": { "node": ">=20.19" },
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "preview": "vite preview --port 8080"
+    "preview": "vite preview --port 8080",
+    "build:lib": "tsc -p tsconfig.lib.json",
+    "fetch:samples": "node scripts/fetch-samples.mjs"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
+    "lucide-react": "^1.48.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -22,5 +27,6 @@
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "~5.9.3",
     "vite": "^8.3.1"
-  }
+  },
+  "types": "dist-lib/types/index.d.ts"
 }

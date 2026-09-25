@@ -1,27 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { setUI, useApp } from '../state/store';
 import type { PaneId } from '../types';
-import { PaneIcon } from './icons';
+import { CheckIcon, GalleryIcon } from './icons';
 
 export const PANES: [PaneId, string][] = [
-  ['size', 'Size'],
-  ['occasion', 'Occasion'],
   ['photos', 'Photos'],
   ['layout', 'Layout'],
-  ['words', 'Words'],
+  ['occasion', 'Occasion'],
+  ['words', 'Front'],
   ['back', 'Back'],
   ['print', 'Print'],
-  ['gallery', 'Gallery'],
 ];
 
 export function Rail() {
-  const pane = useApp((s) => s.ui.pane);
+  const pane = useApp((s) => s.ui.pane),
+    gallery = useApp((s) => s.ui.gallery);
   const nav = useRef<HTMLElement>(null);
+  const cur = PANES.findIndex(([id]) => id === pane);
 
   // On phones the rail scrolls sideways: keep the current step in view.
   useEffect(() => {
     const el = nav.current,
-      btn = el?.querySelector<HTMLElement>('[aria-current="true"]');
+      btn = el?.querySelector<HTMLElement>('[aria-current="step"]');
     if (!el || !btn || el.scrollWidth <= el.clientWidth) return;
     const left = btn.offsetLeft - (el.clientWidth - btn.offsetWidth) / 2;
     el.scrollTo({ left, behavior: 'smooth' });
@@ -29,14 +29,31 @@ export function Rail() {
 
   return (
     <nav className="rail" aria-label="Steps" ref={nav}>
-      {PANES.map(([id, label]) => (
-        <button key={id} type="button" aria-current={pane === id} onClick={() => setUI({ pane: id })}>
-          <span className="ico">
-            <PaneIcon id={id} />
-          </span>
-          {label}
-        </button>
-      ))}
+      <ol className="stepper">
+        {PANES.map(([id, label], i) => {
+          const state = i < cur ? 'done' : i === cur ? 'now' : 'todo';
+          return (
+            <li key={id} className={state}>
+              <button type="button" aria-current={state === 'now' ? 'step' : undefined} onClick={() => setUI({ pane: id })}>
+                <span className="dot">{state === 'done' ? <CheckIcon /> : i + 1}</span>
+                <span className="lbl">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <button
+        type="button"
+        className="galbtn"
+        aria-haspopup="dialog"
+        aria-expanded={gallery}
+        onClick={() => setUI({ gallery: true })}
+      >
+        <span className="ico">
+          <GalleryIcon />
+        </span>
+        Gallery
+      </button>
     </nav>
   );
 }

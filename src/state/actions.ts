@@ -1,13 +1,14 @@
 import { themeById, PLAIN } from '../data/themes';
-import { cardMM, DEFAULT_DESIGN, mergeDesign, sizeOf } from '../engine/design';
-import { buildPDF, buildPNG } from '../engine/export';
-import { checkFile, loadImage, makePhoto, MAX_PHOTOS, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
+import { cardMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
+import { buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
+import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
 import { renderCard } from '../engine/render';
 import { db } from '../lib/db';
 import { saveFile } from '../lib/download';
 import { ensureFonts, fontsFor } from '../lib/fonts';
 import { toast } from '../lib/toast';
-import type { SavedDesign, Side, SizeDef, ViewerFaces } from '../types';
+import type { Design, Photo, ProductId, SavedDesign, SizeDef, ViewerFaces } from '../types';
+import { storePhotos } from './library';
 import { getState, markPhotosSaved, replaceCard, resetHistory, setDesign, setDesignId, setExp, setPhotos, setUI } from './store';
 
 const input = () => ({ d: getState().design, photos: getState().photos });
@@ -34,7 +35,7 @@ export function selectSize(s: SizeDef): void {
       ...(switchPrint ? { exp: { ...d.exp, format: 'sheet', sheet: 'a4', bleed: '0' } } : {}),
     });
     if (switchPrint) toast('Print file set to an A4 sheet of Instax-style prints. Change it in Print.');
-  } else setDesign({ sizeId: s.id });
+  } else setDesign({ sizeId: s.id, ...(d.product !== 'postcard' && s.native ? { orient: s.native } : {}) });
 }
 
 export const applyInstaxPreset = () => setExp({ format: 'sheet', sheet: 'a4', bleed: '0' });
@@ -42,19 +43,17 @@ export const applyInstaxPreset = () => setExp({ format: 'sheet', sheet: 'a4', bl
 /** Validates and loads files; returns messages to show under the upload area. */
 export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', msg: string][]> {
   const msgs: ['err' | 'warn', string][] = [];
-  const added = [];
-  let room = MAX_PHOTOS - getState().photos.length;
+  const added = [],
+    stored: { name: string; url: string }[] = [];
+  const limit = maxPhotos(getState().design.product);
+  let room = limit - getState().photos.length,
+    full = 0;
   for (const f of files) {
     const err = checkFile(f);
     if (err) {
       msgs.push(['err', err]);
       continue;
     }
-    if (room <= 0) {
-      msgs.push(['err', `${f.name} wasn’t added: a card holds up to ${MAX_PHOTOS} photos. Remove one first.`]);
-      continue;
-    }
-    room--;
     try {
       const url = await readAsDataURL(f),
         img = await loadImage(url);
@@ -63,7 +62,11 @@ export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', ms
           'warn',
           `${f.name} is only ${img.naturalWidth}×${img.naturalHeight} px, so it will look soft beyond a small print. Use the original photo if you have it.`,
         ]);
-      added.push(makePhoto(img, f.name, url));
+      stored.push({ name: f.name, url });
+      if (room > 0) {
+        room--;
+        added.push(makePhoto(img, f.name, url));
+      } else full++;
     } catch {
       msgs.push(['err', `${f.name} couldn’t be read. The file may be damaged or not really a JPG, PNG or WebP.`]);
     }
@@ -73,6 +76,13 @@ export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', ms
     setPhotos([...photos, ...added]);
     if (!photos.length && design.layout === 'text') setDesign({ layout: 'full' });
   }
+  // Every good upload goes into the photo store, including ones the card has no room for.
+  await storePhotos(stored);
+  if (full)
+    msgs.push([
+      'warn',
+      `This design holds up to ${limit} photos, so ${full === 1 ? 'one photo was' : `${full} photos were`} saved to your photo store only. Tap it there to swap it in.`,
+    ]);
   return msgs;
 }
 
@@ -81,8 +91,7 @@ export async function downloadPrintFile(): Promise<void> {
   try {
     await ensureFonts(fontsFor(d));
     if (d.exp.format === 'png') {
-      await downloadPNG('front');
-      if (d.exp.back) await downloadPNG('back');
+      for (const pg of pagesOf(d)) await downloadPNG(pg);
       return;
     }
     const { blob, name } = await buildPDF(input());
@@ -93,15 +102,60 @@ export async function downloadPrintFile(): Promise<void> {
   }
 }
 
-export async function downloadPNG(side: Side): Promise<void> {
+export async function downloadPNG(pg: PrintPage): Promise<void> {
   try {
     await ensureFonts(fontsFor(getState().design));
-    const { blob, name } = await buildPNG(side, input());
+    const { blob, name } = await buildPNG(pg, input());
     saveFile(name, blob);
     toast(`Downloading ${name}`);
   } catch (e) {
     toast(e instanceof Error && e.message ? e.message : 'The image couldn’t be created.');
   }
+}
+
+/** One ZIP with every front and back as separate PNGs, the print PDF and a print-spec text file. */
+export async function downloadPack(onStep?: (msg: string) => void): Promise<void> {
+  try {
+    await ensureFonts(fontsFor(getState().design));
+    const { blob, name } = await buildPack(input(), onStep);
+    saveFile(name, blob);
+    toast(`Downloading ${name}`);
+  } catch (e) {
+    toast(e instanceof Error && e.message ? e.message : 'The print pack couldn’t be created.');
+  }
+}
+
+/* ---------- products ---------- */
+const productKey = (p: ProductId) => `chitthi-product-${p}`;
+
+/**
+ * Switch to another product. Each product keeps its own last design (size, layout, options, words),
+ * so going Postcard → Calendar → Postcard brings the postcard back as it was. Photos are shared.
+ */
+export function switchProduct(p: ProductId): void {
+  const cur = getState().design;
+  if (cur.product === p) return;
+  try {
+    localStorage.setItem(productKey(cur.product), JSON.stringify(cur));
+  } catch {
+    /* storage full or blocked */
+  }
+  let next: Design | null = null;
+  try {
+    const raw = localStorage.getItem(productKey(p));
+    if (raw) next = mergeDesign(JSON.parse(raw));
+  } catch {
+    /* ignore a damaged copy */
+  }
+  replaceCard(next ?? productDesign(p, cur), getState().photos, null);
+  setUI({ side: 'front', slot: 0, calPage: 0 });
+  void ensureFonts(fontsFor(getState().design));
+}
+
+/** From the landing page: open the studio on a product, starting at the first step. */
+export function startProduct(p: ProductId): void {
+  switchProduct(p);
+  setUI({ screen: 'studio', pane: 'photos' });
 }
 
 function faces(longSide: number, quality: number): ViewerFaces {
@@ -169,14 +223,14 @@ export async function openDesign(id: string): Promise<void> {
   design.designName = d.name;
   replaceCard(design, await photosFromMeta(d.photos), d.id);
   await ensureFonts(fontsFor(design));
-  setUI({ pane: 'size', side: 'front' });
+  setUI({ pane: 'photos', side: 'front' });
   toast(`Opened “${d.name}”.`);
 }
 
 export function newCard(): void {
   const cur = getState().design;
-  replaceCard({ ...structuredClone(DEFAULT_DESIGN), exp: cur.exp }, [], null);
-  setUI({ pane: 'size', side: 'front' });
+  replaceCard(productDesign(cur.product, cur), [], null);
+  setUI({ pane: 'photos', side: 'front' });
   toast('New card started. Use Undo to go back.');
 }
 
@@ -239,9 +293,20 @@ export async function restoreWork(): Promise<void> {
     if (!photos.length) return;
     setPhotos(photos);
     markPhotosSaved();
+    void storePhotos(metas.map((m) => ({ name: m.name, url: m.url })));
     resetHistory();
     toast('Your last card is back, photos included.');
   } catch {
     /* nothing saved */
   }
+}
+
+/** Open a gallery sample in the studio: its product, design and photos (which also go into the photo store). */
+export async function openSample(design: Design, photos: Photo[]): Promise<void> {
+  if (getState().design.product !== design.product) switchProduct(design.product);
+  replaceCard(structuredClone(design), photos, null);
+  await ensureFonts(fontsFor(design));
+  setUI({ gallery: false, screen: 'studio', pane: 'photos', side: 'front', slot: 0, calPage: 0 });
+  void storePhotos(photos.map((p) => ({ name: p.name, url: p.url })));
+  toast(`Opened the “${design.designName}” sample. Swap in your own photos from the Photos step.`);
 }

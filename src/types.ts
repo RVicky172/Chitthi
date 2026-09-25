@@ -1,13 +1,15 @@
 export type Orient = 'landscape' | 'portrait';
 export type Side = 'front' | 'back';
 export type FrameStyle = 'white' | 'cream' | 'black' | 'occasion';
+export type ProductId = 'postcard' | 'calendar' | 'frame';
+export type MatWidth = 'none' | 'thin' | 'classic' | 'wide';
 export type VAlign = 'top' | 'middle' | 'bottom';
 export type HAlign = 'left' | 'center' | 'right';
 export type ExportFormat = 'pdf' | 'sheet' | 'png';
 export type SheetId = 'a4' | 'a3' | '1319' | 'letter';
 export type LookId = 'none' | 'vivid' | 'warm' | 'cool' | 'bw' | 'vintage';
 export type ThemeGroup = 'Festivals' | 'Birthdays' | 'Seasons';
-export type PaneId = 'size' | 'occasion' | 'photos' | 'layout' | 'words' | 'back' | 'print' | 'gallery';
+export type PaneId = 'photos' | 'layout' | 'occasion' | 'words' | 'back' | 'print';
 export type FontCat = 'ind' | 'reg' | 'disp' | 'scr' | 'ss';
 export type LayoutId =
   | 'full'
@@ -27,7 +29,20 @@ export type LayoutId =
   | 'collage3'
   | 'mosaic'
   | 'collage4'
-  | 'text';
+  | 'text'
+  /* photo frame prints */
+  | 'frame-single'
+  | 'frame-caption'
+  | 'frame-duo'
+  | 'frame-trio'
+  | 'frame-grid'
+  | 'frame-feature'
+  /* calendars */
+  | 'cal-top'
+  | 'cal-side'
+  | 'cal-full'
+  | 'cal-duo'
+  | 'cal-plain';
 export type PatternName =
   | 'confetti'
   | 'balloons'
@@ -71,7 +86,9 @@ export interface Theme {
 }
 export interface SizeDef {
   id: string;
-  grp: 'Postcards' | 'Instax style' | 'Large and custom';
+  grp: 'Postcards' | 'Instax style' | 'Large and custom' | 'Calendars' | 'Frame prints';
+  /** Products this size is offered for (postcard when omitted). */
+  products?: ProductId[];
   name: string;
   L: number;
   S: number;
@@ -143,7 +160,18 @@ export interface PlainColours {
   gradient: boolean;
 }
 
+export interface CalendarSettings {
+  year: number;
+  /** First month, 0 = January. */
+  start: number;
+  /** A single month page or a full year of pages. */
+  months: 1 | 12;
+  /** 0 = weeks start on Sunday, 1 = Monday. */
+  weekStart: 0 | 1;
+}
+
 export interface Design {
+  product: ProductId;
   sizeId: string;
   custom: { w: number; h: number };
   orient: Orient;
@@ -161,6 +189,8 @@ export interface Design {
   showHeading: boolean;
   showQuote: boolean;
   showSig: boolean;
+  /** Instagram username, stored without the leading @; drawn at the photo's bottom-right corner. */
+  insta: string;
   headFont: string;
   quoteFont: string;
   textScale: number;
@@ -172,6 +202,8 @@ export interface Design {
   ornament: boolean;
   back: BackDesign;
   exp: ExportSettings;
+  cal: CalendarSettings;
+  mat: MatWidth;
   designName: string;
 }
 
@@ -203,6 +235,11 @@ export interface Layout {
   ink: 'frame' | null;
   frame: boolean;
   frameLine: number;
+  /** Photo frame: draw a bevelled mat edge around each photo window. */
+  mat?: boolean;
+  /** Calendar: where the month name and the day grid go. */
+  calTitle?: Rect;
+  calGrid?: Rect;
 }
 export interface RenderInput {
   d: Design;
@@ -210,9 +247,19 @@ export interface RenderInput {
 }
 export interface RenderOpts {
   layout?: LayoutId;
+  /** Calendar month page (0-based from the start month). */
+  page?: number;
   hint?: boolean;
   thumb?: boolean;
   guides?: boolean;
+}
+
+/** A photo kept in the photo store, reusable on any card. */
+export interface StoredPhoto {
+  id: string;
+  name: string;
+  url: string;
+  added: number;
 }
 
 export interface SavedDesign {

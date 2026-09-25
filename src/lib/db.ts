@@ -1,4 +1,4 @@
-import type { PhotoMeta, SavedDesign } from '../types';
+import type { PhotoMeta, SavedDesign, StoredPhoto } from '../types';
 
 /* Everything is stored in the user's own browser (IndexedDB). */
 let dbp: Promise<IDBDatabase> | null = null;
@@ -6,11 +6,12 @@ function open(): Promise<IDBDatabase> {
   if (!dbp) {
     dbp = new Promise((res, rej) => {
       if (!('indexedDB' in window)) return rej(new Error('IndexedDB unavailable'));
-      const r = indexedDB.open('chitthi', 2);
+      const r = indexedDB.open('chitthi', 3);
       r.onupgradeneeded = () => {
         const db = r.result;
         if (!db.objectStoreNames.contains('designs')) db.createObjectStore('designs', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('work')) db.createObjectStore('work', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('library')) db.createObjectStore('library', { keyPath: 'id' });
       };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
@@ -21,7 +22,7 @@ function open(): Promise<IDBDatabase> {
   }
   return dbp;
 }
-function run<T>(store: 'designs' | 'work', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function run<T>(store: 'designs' | 'work' | 'library', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return open().then(
     (db) =>
       new Promise<T>((res, rej) => {
@@ -50,4 +51,8 @@ export const db = {
   getWorkPhotos: () =>
     run<{ id: string; photos: PhotoMeta[] } | undefined>('work', 'readonly', (s) => s.get('photos')).then((r) => r?.photos ?? []),
   putWorkPhotos: (photos: PhotoMeta[]) => run('work', 'readwrite', (s) => s.put({ id: 'photos', photos })),
+  /* photo store: every uploaded photo, kept across cards */
+  libAll: () => run<StoredPhoto[]>('library', 'readonly', (s) => s.getAll()),
+  libPut: (p: StoredPhoto) => run('library', 'readwrite', (s) => s.put(p)),
+  libDel: (id: string) => run('library', 'readwrite', (s) => s.delete(id)),
 };

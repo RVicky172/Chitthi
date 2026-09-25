@@ -1,5 +1,14 @@
 import type { Box, Design, Layout, LayoutId, Rect, Slot } from '../types';
-import { sizeOf } from './design';
+import { cardMM, sizeOf } from './design';
+
+/** Which photo (index into the photo list) fills slot i. Calendars move on through the photos month by month. */
+export const slotPhotoIndex = (i: number, n: number, page = 0, count = 1): number => (n ? (page * count + i) % n : 0);
+
+/** How many photo slots a layout has at the design's current size and orientation. */
+export function slotCount(id: LayoutId, d: Design): number {
+  const { w, h } = cardMM(d);
+  return computeLayout(id, { x: 0, y: 0, w, h, e: 0 }, d).slots.length;
+}
 
 /** Grow a rect that touches the trim edge so it runs into the bleed. */
 function extend(s: Rect, B: Box): Rect {
@@ -302,6 +311,88 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
     case 'text':
       L.text = R(B.x + pad * 1.3, B.y + pad * 1.3, B.w - pad * 2.6, B.h - pad * 2.6);
       break;
+
+    /* ---------- photo frame prints: photo windows cut into a mat ---------- */
+    case 'frame-single':
+    case 'frame-caption':
+    case 'frame-duo':
+    case 'frame-trio':
+    case 'frame-grid':
+    case 'frame-feature': {
+      L.bg = false;
+      L.frame = true;
+      L.ink = 'frame';
+      const mw = m * { none: 0, thin: 0.045, classic: 0.1, wide: 0.16 }[d.mat],
+        gm = mw ? Math.max(mw * 0.45, m * 0.025) : g,
+        win = (r: Rect) => (mw ? plain(r) : rs(r.x, r.y, r.w, r.h));
+      L.mat = mw > 0;
+      // Traditional mats are a little deeper at the bottom; a caption needs its own strip.
+      const cap = id === 'frame-caption' ? Math.max(m * 0.13, mw) : mw ? mw * 0.18 : 0;
+      const A = R(B.x + mw, B.y + mw, B.w - 2 * mw, B.h - 2 * mw - cap);
+      const along = (r: Rect, n: number, horiz: boolean) =>
+        Array.from({ length: n }, (_, i) =>
+          horiz
+            ? R(r.x + i * ((r.w - gm * (n - 1)) / n + gm), r.y, (r.w - gm * (n - 1)) / n, r.h)
+            : R(r.x, r.y + i * ((r.h - gm * (n - 1)) / n + gm), r.w, (r.h - gm * (n - 1)) / n),
+        );
+      if (id === 'frame-single' || id === 'frame-caption') slots = [win(A)];
+      else if (id === 'frame-duo') slots = along(A, 2, land).map(win);
+      else if (id === 'frame-trio') slots = along(A, 3, land).map(win);
+      else if (id === 'frame-grid') {
+        const [top, bot] = along(A, 2, false);
+        slots = [...along(top, 2, true), ...along(bot, 2, true)].map(win);
+      } else {
+        const big = land ? R(A.x, A.y, A.w * 0.62, A.h) : R(A.x, A.y, A.w, A.h * 0.62),
+          rest = land ? R(A.x + big.w + gm, A.y, A.w - big.w - gm, A.h) : R(A.x, A.y + big.h + gm, A.w, A.h - big.h - gm);
+        slots = [win(big), ...along(rest, 2, !land).map(win)];
+      }
+      if (id === 'frame-caption') L.text = R(A.x, A.y + A.h + cap * 0.12, A.w, cap * (mw ? 0.8 : 0.85));
+      break;
+    }
+
+    /* ---------- calendars: photo area plus a month title and day grid ---------- */
+    case 'cal-top':
+    case 'cal-side':
+    case 'cal-full':
+    case 'cal-duo':
+    case 'cal-plain': {
+      L.frame = true;
+      L.bg = false;
+      L.ink = 'frame';
+      let area: Rect; // where the title and grid go
+      if (id === 'cal-top' || id === 'cal-duo') {
+        const ph = B.h * (land ? 0.5 : 0.56);
+        slots =
+          id === 'cal-top'
+            ? [rs(B.x, B.y, B.w, ph)]
+            : [rs(B.x, B.y, (B.w - g) / 2, ph), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, ph)];
+        area = R(B.x + pad, B.y + ph + pad * 0.45, B.w - 2 * pad, B.h - ph - pad * 1.2);
+      } else if (id === 'cal-side') {
+        if (land) {
+          const pw = B.w * 0.5;
+          slots = [rs(B.x, B.y, pw, B.h)];
+          area = R(B.x + pw + pad, B.y + pad, B.w - pw - 2 * pad, B.h - 2 * pad);
+        } else {
+          const ph = B.h * 0.48;
+          slots = [plain(R(B.x + pad, B.y + pad, B.w - 2 * pad, ph))];
+          area = R(B.x + pad, B.y + pad + ph + pad * 0.5, B.w - 2 * pad, B.h - ph - pad * 2.5);
+        }
+      } else if (id === 'cal-full') {
+        slots = [rs(B.x, B.y, B.w, B.h)];
+        L.band = land ? R(B.x + B.w * 0.56, B.y, B.w * 0.44, B.h) : R(B.x, B.y + B.h * 0.6, B.w, B.h * 0.4);
+        area = R(L.band.x + pad * 0.7, L.band.y + pad * 0.6, L.band.w - pad * 1.4, L.band.h - pad * 1.2);
+      } else {
+        // Dates only: occasion artwork around a paper card that holds the month.
+        L.frame = false;
+        L.bg = true;
+        L.paper = R(B.x + pad, B.y + pad * 1.4, B.w - 2 * pad, B.h - pad * 2.4);
+        area = R(L.paper.x + pad * 0.8, L.paper.y + pad * 0.8, L.paper.w - pad * 1.6, L.paper.h - pad * 1.6);
+      }
+      const th = Math.min(area.h * 0.2, area.w * 0.14);
+      L.calTitle = R(area.x, area.y, area.w, th);
+      L.calGrid = R(area.x, area.y + th + u * 1.5, area.w, area.h - th - u * 1.5);
+      break;
+    }
   }
   L.slots = slots.map((s) => ({ ...s, d: s.bleed ? extend(s, B) : { x: s.x, y: s.y, w: s.w, h: s.h } }));
   if (L.band) L.band = extend(L.band, B);
