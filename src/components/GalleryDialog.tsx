@@ -9,6 +9,7 @@ import { Seg } from './common';
 import { CloseIcon, EditIcon, GalleryIcon, TrashIcon } from './icons';
 import { SampleGallery } from './SampleGallery';
 import { Sparkles } from 'lucide-react';
+import { isDesktop } from '../platform/desktop';
 
 const close = () => setUI({ gallery: false });
 
@@ -169,7 +170,7 @@ export function GalleryDialog() {
 
       <div className="galbody">
         {tab === 'samples' && <SampleGallery />}
-        {tab === 'mine' && error && <div className="empty">The gallery isn’t available in this browser.</div>}
+        {tab === 'mine' && error && <div className="empty">The gallery isn’t available {isDesktop ? 'right now' : 'in this browser'}.</div>}
         {tab === 'mine' && !error && !list && (
           <div className="gal" aria-busy="true" aria-label="Loading saved designs">
             {[0, 1, 2, 3].map((i) => (
@@ -217,7 +218,7 @@ export function GalleryDialog() {
           <input
             type="file"
             className="vh"
-            accept=".json,application/json"
+            accept=".json,.chitthi,application/json"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void importBackup(f);

@@ -1,6 +1,7 @@
+import { desktop, type DesktopBridge } from '../platform/desktop';
 import type { PhotoMeta, SavedDesign, StoredPhoto } from '../types';
 
-/* Everything is stored in the user's own browser (IndexedDB). */
+/* In the browser, everything is stored in the user's own browser (IndexedDB). */
 let dbp: Promise<IDBDatabase> | null = null;
 function open(): Promise<IDBDatabase> {
   if (!dbp) {
@@ -40,7 +41,7 @@ function normalise(d: SavedDesign & { state?: unknown }): SavedDesign {
   return d.design ? d : { ...d, design: d.state as SavedDesign['design'] };
 }
 
-export const db = {
+const browserDB = {
   all: () => run<(SavedDesign & { state?: unknown })[]>('designs', 'readonly', (s) => s.getAll()).then((l) => l.map(normalise)),
   get: (id: string) =>
     run<(SavedDesign & { state?: unknown }) | undefined>('designs', 'readonly', (s) => s.get(id)).then((d) =>
@@ -56,3 +57,14 @@ export const db = {
   libPut: (p: StoredPhoto) => run('library', 'readwrite', (s) => s.put(p)),
   libDel: (id: string) => run('library', 'readwrite', (s) => s.delete(id)),
 };
+
+/* The desktop app keeps its own library as files on disk (see electron/main.cjs), separate from any browser. */
+function desktopDB(bridge: DesktopBridge['db']): DesktopBridge['db'] {
+  return {
+    ...bridge,
+    all: () => bridge.all().then((l) => l.map(normalise)),
+    get: (id: string) => bridge.get(id).then((d) => (d ? normalise(d) : undefined)),
+  };
+}
+
+export const db: DesktopBridge['db'] = desktop ? desktopDB(desktop.db) : browserDB;

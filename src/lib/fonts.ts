@@ -1,5 +1,9 @@
 import { FALLBACK, FONTS, FONT_MAP, SAMPLE } from '../data/fonts';
+import { desktop } from '../platform/desktop';
 import type { Design, FontDef } from '../types';
+
+/** File name used for a family's offline stylesheet; scripts/fetch-fonts.mjs uses the same rule. */
+export const fontSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 /*
  * Card fonts (46 Google families) load on demand: one stylesheet per family, added the first time a design,
@@ -14,8 +18,11 @@ function installSheet(f: FontDef): Promise<void> {
   if (!p) {
     const l = document.createElement('link');
     l.rel = 'stylesheet';
+    // The desktop app ships every family offline (npm run fetch:fonts); otherwise use Google Fonts.
     const weights = f.w.length > 1 || f.w[0] !== 400 ? `:wght@${f.w.join(';')}` : '';
-    l.href = `https://fonts.googleapis.com/css2?family=${f.n.replace(/ /g, '+')}${weights}&display=swap`;
+    l.href = desktop?.info.localFonts
+      ? `./fonts/${fontSlug(f.n)}.css`
+      : `https://fonts.googleapis.com/css2?family=${f.n.replace(/ /g, '+')}${weights}&display=swap`;
     p = new Promise<void>((res) => {
       l.onload = () => res();
       l.onerror = () => res();

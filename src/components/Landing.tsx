@@ -10,6 +10,7 @@ import { startProduct } from '../state/actions';
 import { setUI, useApp } from '../state/store';
 import type { Design, Photo, ProductId } from '../types';
 import { GalleryIcon, Logo, ProductIcon } from './icons';
+import { isDesktop } from '../platform/desktop';
 
 /** The sample design each product card shows. */
 function sampleDesign(p: ProductId): Design {
@@ -99,7 +100,7 @@ export function Landing() {
       <main>
         <header className="hero">
           <div className="hero-copy">
-            <p className="kicker">Print studio in your browser</p>
+            <p className="kicker">{isDesktop ? 'Print studio on your computer' : 'Print studio in your browser'}</p>
             <h1>
               Postcards, calendars and framed prints, <em>ready for the print shop.</em>
             </h1>
@@ -118,7 +119,7 @@ export function Landing() {
                 Frame a photo
               </button>
             </div>
-            <p className="hero-note">Free. No account. Your photos never leave this browser.</p>
+            <p className="hero-note">Free. No account. Your photos never leave this {isDesktop ? 'computer' : 'browser'}.</p>
           </div>
           <div className="hero-art" aria-hidden="true">
             <div className="fan f1">
@@ -247,7 +248,7 @@ export function Landing() {
 
       <footer className="lfoot">
         <span>Chitthi · चिट्ठी</span>
-        <span>Everything is made and stored in your browser. Nothing is uploaded.</span>
+        <span>Everything is made and stored {isDesktop ? 'on your computer' : 'in your browser'}. Nothing is uploaded.</span>
       </footer>
     </div>
   );

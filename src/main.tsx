@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { isDesktop } from './platform/desktop';
 import './styles.css';
 
 // Apply the saved light/dark choice before first paint; no choice means follow the system.
@@ -11,14 +12,22 @@ try {
   /* storage blocked */
 }
 
+// The desktop app carries the UI fonts offline; the Google Fonts @import in styles.css covers the web.
+if (window.chitthiDesktop?.info.localFonts) {
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = './fonts/ui.css';
+  document.head.appendChild(l);
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,
 );
 
-// Offline support: only in production builds served over http(s).
-if (import.meta.env.PROD && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+// Offline support: only in production builds served over http(s). The desktop app is offline already.
+if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => undefined);
   });

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { putOnCard, removeStored, useLibrary } from '../state/library';
 import { usePhotoSlots } from '../state/photoSlots';
 import { useApp } from '../state/store';
+import { isDesktop } from '../platform/desktop';
 
 /** Every photo ever uploaded in this browser. Tap one to use it on the card straight away. */
 export function PhotoStore() {
@@ -15,7 +16,7 @@ export function PhotoStore() {
     return () => clearTimeout(t);
   }, [sure]);
 
-  if (error) return <p className="hint">The photo store isn’t available in this browser.</p>;
+  if (error) return <p className="hint">The photo store isn’t available {isDesktop ? 'right now' : 'in this browser'}.</p>;
   if (!list)
     return (
       <ul className="store" aria-busy="true" aria-label="Loading your photo store">

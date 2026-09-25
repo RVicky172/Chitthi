@@ -15,6 +15,7 @@ import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
 import { Viewer3D } from './components/Viewer3D';
 import { ensureFonts, fontsFor } from './lib/fonts';
+import { useDesktopMenu } from './platform/menu';
 import { restoreWork, saveDesign, switchProduct } from './state/actions';
 import { bumpFonts, commit, getState, redo, setUI, undo, useApp } from './state/store';
 import type { PaneId, ProductId } from './types';
@@ -35,6 +36,7 @@ export default function App() {
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
     backFont = useApp((s) => s.design.back.font);
+  useDesktopMenu();
   // Start-up: history baseline, restore last card's photos, redraw when web fonts arrive.
   useEffect(() => {
     commit();

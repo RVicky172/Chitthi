@@ -1,0 +1,69 @@
+# Chitthi desktop packaging (Windows + macOS). See docs/DESKTOP.md for signing and release setup.
+appId: in.chitthi.studio
+productName: Chitthi
+copyright: Copyright © 2026 Chitthi
+
+directories:
+  output: release
+  buildResources: build
+
+# The renderer is already bundled by Vite into dist/; the app only needs that plus the main/preload scripts.
+files:
+  - dist/**
+  - electron/main.cjs
+  - electron/preload.cjs
+  - package.json
+  - '!dist/sw.js'
+
+# Offline card + UI fonts (npm run fetch:fonts), served to the app at app://chitthi/fonts/.
+extraResources:
+  - from: electron/resources/fonts
+    to: fonts
+
+fileAssociations:
+  - ext: chitthi
+    name: Chitthi design
+    description: Chitthi design
+    role: Editor
+    mimeType: application/x-chitthi
+
+# Auto-updates come from GitHub Releases. Update files are only trusted when the build is signed.
+publish:
+  provider: github
+  owner: RVicky172
+  repo: Chitthi
+  releaseType: release
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  # Signing: set CSC_LINK (path or base64 of the .pfx) and CSC_KEY_PASSWORD, or switch to Azure Trusted
+  # Signing by adding `azureSignOptions` here (see docs/DESKTOP.md). Unset = unsigned build. The updater's
+  # publisher check is filled in from the certificate, so unsigned builds can still update each other.
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: Chitthi-Setup-${version}-${arch}.${ext}
+
+mac:
+  category: public.app-category.graphics-design
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip # needed by the auto-updater
+      arch: [x64, arm64]
+  icon: build/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Signing: CSC_LINK / CSC_KEY_PASSWORD with a "Developer ID Application" certificate.
+  # Notarization runs automatically when APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID are set.
+
+dmg:
+  artifactName: Chitthi-${version}-${arch}.${ext}
