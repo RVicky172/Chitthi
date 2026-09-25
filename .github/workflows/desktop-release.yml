@@ -36,17 +36,27 @@ jobs:
 
       - name: Package and sign
         shell: bash
+        # Signing variables are exported only when their secret exists: electron-builder treats an empty CSC_LINK
+        # as a path (the project folder) and fails, so an unset secret must mean an unset variable.
         run: |
           set -o pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then link="$WIN_CSC_LINK"; pass="$WIN_CSC_KEY_PASSWORD"; else link="$MAC_CSC_LINK"; pass="$MAC_CSC_KEY_PASSWORD"; fi
+          [ -n "$link" ] && export CSC_LINK="$link"
+          [ -n "$pass" ] && export CSC_KEY_PASSWORD="$pass"
+          if [ "$RUNNER_OS" = "macOS" ] && [ -n "$NOTARY_APPLE_ID" ]; then
+            export APPLE_ID="$NOTARY_APPLE_ID" APPLE_APP_SPECIFIC_PASSWORD="$NOTARY_PASSWORD" APPLE_TEAM_ID="$NOTARY_TEAM_ID"
+          fi
           npx electron-builder ${{ matrix.platform }} --publish never 2>&1 | tee builder.log
         env:
           # Code signing certificate: base64 .pfx (Windows) or .p12 "Developer ID Application" (macOS).
-          CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WIN_CSC_LINK || secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WIN_CSC_KEY_PASSWORD || secrets.MAC_CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           # macOS notarization.
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       # Surface the end of the packaging log as an annotation, visible on the run summary page.
       - name: Show packaging error
