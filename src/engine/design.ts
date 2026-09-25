@@ -1,3 +1,5 @@
+import { layoutsFor } from '../data/layouts';
+import { PRODUCTS, productOf, sizesFor } from '../data/products';
 import { SIZES } from '../data/sizes';
 import { PLAIN, TH, themeById } from '../data/themes';
 import { FONT_MAP } from '../data/fonts';
@@ -5,6 +7,7 @@ import type { Design, SizeDef, Theme } from '../types';
 import { lum, mix, toHex } from './color';
 
 export const DEFAULT_DESIGN: Design = {
+  product: 'postcard',
   sizeId: '4x6',
   custom: { w: 150, h: 100 },
   orient: 'landscape',
@@ -22,6 +25,7 @@ export const DEFAULT_DESIGN: Design = {
   showHeading: true,
   showQuote: true,
   showSig: true,
+  insta: '',
   headFont: TH[0].hf,
   quoteFont: TH[0].qf,
   textScale: 1,
@@ -33,8 +37,26 @@ export const DEFAULT_DESIGN: Design = {
   ornament: true,
   back: { message: '', font: 'Kalam', from: '', to: '', address: '', pin: '', stamp: true, label: true, tint: true },
   exp: { format: 'pdf', sheet: 'a4', bleed: '3', dpi: '300', quality: 'jpeg', marks: true, back: true },
+  cal: { year: new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0), start: 0, months: 12, weekStart: 1 },
+  mat: 'classic',
   designName: '',
 };
+
+/** A fresh design of the given product, keeping the user's photo-independent choices like export settings. */
+export function productDesign(product: Design['product'], keep?: Design): Design {
+  const def = productOf(product).defaults,
+    base = structuredClone(DEFAULT_DESIGN);
+  return {
+    ...base,
+    ...(keep ? { themeId: keep.themeId, group: keep.group, useOccasion: keep.useOccasion, insta: keep.insta } : {}),
+    product,
+    sizeId: def.sizeId,
+    orient: def.orient,
+    layout: def.layout,
+    frame: def.frame,
+    exp: { ...(keep?.exp ?? base.exp), ...def.exp },
+  };
+}
 
 /** Merge a possibly partial / older saved design onto the defaults. */
 export function mergeDesign(saved: unknown): Design {
@@ -49,7 +71,13 @@ export function mergeDesign(saved: unknown): Design {
     plain: { ...d.plain, ...s.plain },
     back: { ...d.back, ...s.back },
     exp: { ...d.exp, ...s.exp },
+    cal: { ...d.cal, ...s.cal },
   };
+  // Keep the size and layout valid for the product (older saves are all postcards).
+  if (!PRODUCTS.some((p) => p.id === out.product)) out.product = 'postcard';
+  const def = productOf(out.product).defaults;
+  if (!sizesFor(out.product).some((x) => x.id === out.sizeId)) out.sizeId = def.sizeId;
+  if (!layoutsFor(out.product).some(([id]) => id === out.layout)) out.layout = def.layout;
   if (!FONT_MAP[out.headFont]) out.headFont = 'Rozha One';
   if (!FONT_MAP[out.quoteFont]) out.quoteFont = 'Kalam';
   if (!FONT_MAP[out.back.font]) out.back.font = 'Kalam';

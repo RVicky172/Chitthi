@@ -1,12 +1,16 @@
 import { memo, useEffect, useRef } from 'react';
 import { cardMM } from '../engine/design';
 import { renderCard, renderThemeTile } from '../engine/render';
+import { ensureFont } from '../lib/fonts';
 import type { Design, LayoutId, Photo, Theme } from '../types';
 
 export const ThemeTile = memo(function ThemeTile({ theme, fontTick }: { theme: Theme; fontTick: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    if (ref.current) renderThemeTile(ref.current, theme);
+    const draw = () => ref.current && renderThemeTile(ref.current, theme);
+    draw();
+    // Card fonts load on demand: redraw once this theme's heading font has arrived.
+    void ensureFont(theme.hf).then(draw);
   }, [theme, fontTick]);
   return <canvas ref={ref} width={240} height={160} aria-hidden="true" />;
 });

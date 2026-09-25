@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
+import { ArrowIcon } from './icons';
 
 /** Small label shown above each pane title, e.g. "Step 2 of 7". */
 export const StepLabel = createContext<string | null>(null);
@@ -10,14 +11,16 @@ export function Seg<T extends string>({
   label,
 }: {
   value: T;
-  options: [T, string][];
+  /** [value, label] or [value, label, icon] */
+  options: [T, string, ReactNode?][];
   onChange: (v: T) => void;
   label: string;
 }) {
   return (
     <div className="seg" role="group" aria-label={label}>
-      {options.map(([v, l]) => (
+      {options.map(([v, l, icon]) => (
         <button key={v} type="button" aria-pressed={v === value} onClick={() => onChange(v)}>
+          {icon}
           {l}
         </button>
       ))}
@@ -66,6 +69,7 @@ export function Pane({
       {next && onNext && (
         <button type="button" className="btn next" onClick={onNext}>
           Next: {next}
+          <ArrowIcon />
         </button>
       )}
     </div>

@@ -1,0 +1,141 @@
+{
+  "projectId": "bf75b110-53c9-4be0-ba63-d733e81e6527",
+  "shape": "package",
+  "pkg": "chitthi-postcard-studio",
+  "globalName": "Chitthi",
+  "buildCmd": "npm run build:lib",
+  "entry": "./src/index.ts",
+  "tsconfig": "tsconfig.app.json",
+  "cssEntry": "src/styles.css",
+  "docsDir": ".design-sync/docs",
+  "componentSrcMap": {
+    "StepLabel": null,
+    "Seg": "src/components/common.tsx",
+    "Check": "src/components/common.tsx",
+    "Pane": "src/components/common.tsx",
+    "ThemeTile": "src/components/canvases.tsx",
+    "LayoutThumb": "src/components/canvases.tsx",
+    "PhotoThumb": "src/components/canvases.tsx",
+    "PaneIcon": "src/components/icons.tsx",
+    "GalleryIcon": "src/components/icons.tsx",
+    "CheckIcon": "src/components/icons.tsx",
+    "InstagramIcon": "src/components/icons.tsx",
+    "UndoIcon": "src/components/icons.tsx",
+    "RedoIcon": "src/components/icons.tsx",
+    "SaveIcon": "src/components/icons.tsx",
+    "DownloadIcon": "src/components/icons.tsx",
+    "CubeIcon": "src/components/icons.tsx",
+    "SunIcon": "src/components/icons.tsx",
+    "MoonIcon": "src/components/icons.tsx",
+    "Logo": "src/components/icons.tsx",
+    "App": "src/App.tsx",
+    "ArrowIcon": "src/components/icons.tsx",
+    "PrevIcon": "src/components/icons.tsx",
+    "NextIcon": "src/components/icons.tsx",
+    "CloseIcon": "src/components/icons.tsx",
+    "PlusIcon": "src/components/icons.tsx",
+    "AddPhotoIcon": "src/components/icons.tsx",
+    "CropIcon": "src/components/icons.tsx",
+    "ResetIcon": "src/components/icons.tsx",
+    "StarIcon": "src/components/icons.tsx",
+    "TrashIcon": "src/components/icons.tsx",
+    "EditIcon": "src/components/icons.tsx",
+    "PackIcon": "src/components/icons.tsx",
+    "ProductIcon": "src/components/icons.tsx",
+    "SampleGallery": null
+  },
+  "dtsPropsFor": {
+    "Seg": "/** Current value; one of the option keys. */\n  value: string;\n  /** [value, label] pairs, rendered left to right. */\n  options: [string, string][];\n  onChange: (v: string) => void;\n  /** Accessible group label (not shown). */\n  label: string;",
+    "ThemeTile": "/** An occasion theme, e.g. themeById('diwali') or an entry of THEMES. */\n  theme: { id: string; name: string; bg1: string; bg2: string; ink: string; accent: string; hf: string; qf: string; heads: string[]; quotes: string[] };\n  /** Pass getState().ui.fontTick so the tile redraws once web fonts load. */\n  fontTick: number;",
+    "LayoutThumb": "/** Layout id, e.g. 'full', 'arch', 'collage4', 'frame-single', 'cal-top' (see LAYOUTS). */\n  layout: string;\n  /** The design to preview: getState().design or productDesign('postcard'). */\n  design: Record<string, unknown>;\n  /** Photos to fill the slots: getState().photos or samplePhoto(n) items. */\n  photos: unknown[];\n  fontTick: number;",
+    "PhotoThumb": "/** A loaded photo: an item of getState().photos, or samplePhoto(n). */\n  photo: { id: string; name: string; src: CanvasImageSource; sw: number; sh: number };",
+    "PaneIcon": "/** Which studio step to draw. */\n  id: 'photos' | 'layout' | 'occasion' | 'words' | 'back' | 'print';",
+    "ProductIcon": "/** Which product to draw: envelope, calendar or frame. */\n  id: 'postcard' | 'calendar' | 'frame';"
+  },
+  "overrides": {
+    "App": {
+      "cardMode": "single",
+      "viewport": "1400x900"
+    },
+    "Landing": {
+      "cardMode": "single",
+      "viewport": "1300x1700"
+    },
+    "Header": {
+      "cardMode": "single",
+      "viewport": "1220x110"
+    },
+    "Rail": {
+      "cardMode": "single",
+      "viewport": "1000x660"
+    },
+    "Stage": {
+      "cardMode": "single",
+      "viewport": "1000x700"
+    },
+    "PhotoTray": {
+      "cardMode": "single",
+      "viewport": "600x150"
+    },
+    "PhotosPane": {
+      "cardMode": "single",
+      "viewport": "460x1500"
+    },
+    "LayoutPane": {
+      "cardMode": "single",
+      "viewport": "460x1800"
+    },
+    "OccasionPane": {
+      "cardMode": "single",
+      "viewport": "460x1300"
+    },
+    "WordsPane": {
+      "cardMode": "single",
+      "viewport": "460x1500"
+    },
+    "BackPane": {
+      "cardMode": "single",
+      "viewport": "460x1150"
+    },
+    "PrintPane": {
+      "cardMode": "single",
+      "viewport": "460x1350"
+    },
+    "GalleryDialog": {
+      "cardMode": "single",
+      "viewport": "1200x800"
+    },
+    "CropDialog": {
+      "cardMode": "single",
+      "viewport": "1000x780"
+    },
+    "Viewer3D": {
+      "cardMode": "single",
+      "viewport": "1100x750"
+    },
+    "Toast": {
+      "cardMode": "single",
+      "viewport": "640x160"
+    },
+    "PhotoStore": {
+      "cardMode": "single",
+      "viewport": "460x480"
+    },
+    "ThemeTile": {
+      "cardMode": "column"
+    },
+    "LayoutThumb": {
+      "cardMode": "column"
+    },
+    "FontPicker": {
+      "cardMode": "column"
+    },
+    "PhotoThumb": {
+      "cardMode": "column"
+    },
+    "Pane": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}
