@@ -273,7 +273,7 @@ function layoutText(c: Ctx, Z: Rect, base: number, d: Design) {
 function drawText(c: Ctx, L: Layout, t: Theme, B: Box, d: Design): void {
   const Z = L.text;
   if (!Z || Z.w <= 4 || Z.h <= 4) return;
-  let base = Math.min(Z.w * 0.13, Z.h * 0.32) * d.textScale;
+  let base = Math.min(Z.w * 0.13, Z.h * (L.textFill ?? 0.32)) * d.textScale;
   let lay = layoutText(c, Z, base, d);
   for (let k = 0; k < 50 && (lay.total > Z.h || lay.maxW > Z.w * 1.001); k++) {
     base *= 0.93;
@@ -282,19 +282,20 @@ function drawText(c: Ctx, L: Layout, t: Theme, B: Box, d: Design): void {
   const onPhoto = L.onPhoto;
   const color = d.customColor ? d.color : L.ink === 'frame' ? frameInk(d, t) : onPhoto ? '#FFFFFF' : t.ink;
   if (onPhoto && d.scrim) {
-    const e = B.e;
+    // The whole card, or just the photo when the card has other things (a calendar's dates) beside it.
+    const S = L.scrimArea ?? { x: B.x - B.e, y: B.y - B.e, w: B.w + 2 * B.e, h: B.h + 2 * B.e };
     let g: CanvasGradient | string;
     if (d.vAlign === 'bottom') {
-      g = c.createLinearGradient(0, B.y + B.h * 0.3, 0, B.y + B.h + e);
+      g = c.createLinearGradient(0, S.y + S.h * 0.3, 0, S.y + S.h);
       g.addColorStop(0, 'rgba(0,0,0,0)');
       g.addColorStop(1, 'rgba(0,0,0,.62)');
     } else if (d.vAlign === 'top') {
-      g = c.createLinearGradient(0, B.y + B.h * 0.7, 0, B.y - e);
+      g = c.createLinearGradient(0, S.y + S.h * 0.7, 0, S.y);
       g.addColorStop(0, 'rgba(0,0,0,0)');
       g.addColorStop(1, 'rgba(0,0,0,.62)');
     } else g = 'rgba(0,0,0,.3)';
     c.fillStyle = g;
-    c.fillRect(B.x - e, B.y - e, B.w + 2 * e, B.h + 2 * e);
+    c.fillRect(S.x, S.y, S.w, S.h);
   }
   let y = d.vAlign === 'top' ? Z.y : d.vAlign === 'bottom' ? Z.y + Z.h - lay.total : Z.y + (Z.h - lay.total) / 2;
   const ax = d.hAlign === 'left' ? Z.x : d.hAlign === 'right' ? Z.x + Z.w : Z.x + Z.w / 2;
@@ -386,14 +387,29 @@ function drawFront(c: Ctx, B: Box, inp: RenderInput, opts: RenderOpts): Layout {
     c.strokeRect(B.x + f, B.y + f, B.w - 2 * f, B.h - 2 * f);
     c.restore();
   }
-  drawText(c, L, t, B, d);
-  if (L.calGrid) {
-    const { year, month } = calMonth(d, page);
-    drawMonth(c, L.calTitle ?? null, L.calGrid, year, month, d, frameInk(d, t), t.accent, false);
+  const cm = calMonth(d, page);
+  drawText(c, L, t, B, d.product === 'calendar' ? calendarWords(d, cm.month, !!L.calYear, L.onPhoto) : d);
+  if (L.calGrid) drawMonth(c, L.calTitle ?? null, L.calGrid, cm.year, cm.month, d, frameInk(d, t), t.accent);
+  if (L.calYear) {
+    if (L.calTitle) drawYearTitle(c, L.calTitle, d, frameInk(d, t));
+    drawYearGrid(c, L.calYear, d, frameInk(d, t), t.accent);
   }
+  if (L.arc) drawBadge(c, L, t, d);
   const insta = d.insta.replace(/[@\s]/g, '');
   if (insta && !opts.thumb) drawFrontInsta(c, L, B, u, insta, darkInk(t));
   return L;
+}
+
+/**
+ * The words on a calendar page. Each month uses its own caption in place of the greeting (an empty caption keeps
+ * the greeting). Above the month there is room for one line only; on the photo the quote and signature can follow.
+ */
+function calendarWords(d: Design, month: number, yearPage: boolean, onPhoto: boolean): Design {
+  const cap = yearPage ? '' : (d.cal.captions[month] ?? '').trim(),
+    head = cap || (d.showHeading ? d.heading.trim() : '');
+  if (onPhoto) return { ...d, heading: head, showHeading: !!head };
+  const line = head || (d.showQuote ? d.quote.trim() : '');
+  return { ...d, heading: line, showHeading: !!line, showQuote: false, showSig: false, ornament: false };
 }
 
 /** Username tag in the bottom-right corner of the lowest, right-most photo (or the card when there is none). */
@@ -695,137 +711,378 @@ export function calMonth(d: Design, p: number): { year: number; month: number } 
   return { year: d.cal.year + Math.floor(k / 12), month: k % 12 };
 }
 
-/** Month name, weekday row and day grid. `mini` is the compact version used on the year page. Sundays use the accent. */
-function drawMonth(
+const setSpacing = (c: Ctx, v: string) => {
+  // letterSpacing is missing in older canvases; spacing is decoration, so skip it there.
+  if ('letterSpacing' in c) c.letterSpacing = v;
+};
+
+/** Cap height of the current font: centring on it keeps every title on the same baseline, whatever its letters. */
+const capHeight = (c: Ctx) => c.measureText('HJMNS').actualBoundingBoxAscent;
+
+/**
+ * Month title ("March" plus the year in the accent colour on the same baseline). Sized to fit the widest month
+ * name, so every page of the calendar uses exactly the same size and position.
+ */
+function drawMonthTitle(
   c: Ctx,
-  title: Rect | null,
-  G: Rect,
-  year: number,
-  month: number,
+  T: Rect,
+  label: string,
+  year: string | null,
   d: Design,
   ink: string,
   accent: string,
-  mini: boolean,
+  inset: number,
 ): void {
-  const hf = fontDef(d.headFont),
-    ws = d.cal.weekStart,
+  const f = fontDef(d.cal.font || d.headFont);
+  let px = T.h * 0.8;
+  const yearW = () => {
+    if (!year) return 0;
+    c.font = `600 ${px * 0.36}px "Hind",sans-serif`;
+    setSpacing(c, `${px * 0.04}px`);
+    const w = c.measureText(year).width + px * 0.3;
+    setSpacing(c, '0px');
+    return w;
+  };
+  for (let k = 0; k < 40; k++) {
+    c.font = fontStr(f.n, f.hw, px);
+    const widest = Math.max(...MONTHS.map((m) => c.measureText(m).width));
+    if (widest + yearW() <= T.w - inset || px < 4) break;
+    px *= 0.93;
+  }
+  c.font = fontStr(f.n, f.hw, px);
+  const nameW = c.measureText(label).width,
+    base = T.y + T.h / 2 + capHeight(c) / 2,
+    yw = yearW(),
+    x0 = d.cal.titleAlign === 'left' ? T.x + inset : T.x + (T.w - nameW - yw) / 2;
+  c.font = fontStr(f.n, f.hw, px);
+  c.textBaseline = 'alphabetic';
+  c.textAlign = 'left';
+  c.fillStyle = ink;
+  c.fillText(label, x0, base);
+  if (year) {
+    c.font = `600 ${px * 0.36}px "Hind",sans-serif`;
+    setSpacing(c, `${px * 0.04}px`);
+    c.fillStyle = accent;
+    c.fillText(year, x0 + nameW + px * 0.3, base);
+    setSpacing(c, '0px');
+  }
+}
+
+/**
+ * Weekday row and day grid. Month pages always use five rows (a sixth week shares cells, as in "23/30"), so the
+ * grid, and every number in it, sits in the same place on all twelve pages. `mini` is the year-page version.
+ */
+function drawDays(c: Ctx, G: Rect, year: number, month: number, d: Design, ink: string, accent: string, mini: boolean): void {
+  const ws = d.cal.weekStart,
     first = (new Date(year, month, 1).getDay() - ws + 7) % 7,
     days = new Date(year, month + 1, 0).getDate(),
-    rows = Math.ceil((first + days) / 7),
-    names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  c.save();
-  c.textBaseline = 'middle';
-  if (title) {
-    const label = MONTHS[month],
-      tx = mini ? title.x : title.x + title.w / 2;
-    let px = title.h * (mini ? 0.62 : 0.72);
-    c.font = fontStr(hf.n, hf.hw, px);
-    while (c.measureText(label).width > title.w * 0.78 && px > 4) {
-      px *= 0.92;
-      c.font = fontStr(hf.n, hf.hw, px);
-    }
-    c.fillStyle = mini ? accent : ink;
-    c.textAlign = mini ? 'left' : 'center';
-    c.fillText(label, tx, title.y + title.h / 2);
-    if (!mini) {
-      const w = c.measureText(label).width;
-      c.font = `500 ${px * 0.42}px "Hind",sans-serif`;
-      c.fillStyle = accent;
-      c.textAlign = 'left';
-      c.fillText(String(year), tx + w / 2 + px * 0.25, title.y + title.h / 2 + px * 0.12);
-    }
-  }
+    rows = mini ? 6 : 5,
+    names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    corner = !mini && d.cal.numbers === 'corner';
   const cw = G.w / 7,
-    headH = Math.min(G.h * (mini ? 0.16 : 0.1), cw * 0.6),
-    rh = (G.h - headH) / rows;
-  c.textAlign = 'center';
-  c.font = `600 ${Math.min(headH * 0.5, cw * 0.3)}px "Hind",sans-serif`;
+    headH = mini ? Math.min(G.h * 0.15, cw * 0.8) : Math.min(G.h * 0.1, cw * 0.42),
+    rh = (G.h - headH) / rows,
+    padX = cw * 0.13,
+    padY = Math.min(rh, cw) * 0.12,
+    top = G.y + headH;
+  const sunday = (col: number) => (col + ws) % 7 === 0;
+  c.save();
+  // weekday names
+  const hp = mini ? Math.min(headH * 0.62, cw * 0.5) : Math.min(headH * 0.46, cw * 0.2);
+  c.font = `600 ${hp}px "Hind",sans-serif`;
+  c.textBaseline = 'middle';
+  setSpacing(c, mini ? '0px' : `${hp * 0.12}px`);
   for (let i = 0; i < 7; i++) {
     const dow = (i + ws) % 7;
-    c.fillStyle = dow === 0 ? accent : hexA(ink, 0.75);
-    c.fillText(mini ? names[dow][0] : names[dow].toUpperCase(), G.x + cw * (i + 0.5), G.y + headH / 2);
+    c.fillStyle = dow === 0 ? accent : hexA(ink, 0.7);
+    c.textAlign = corner ? 'left' : 'center';
+    c.fillText(mini ? names[dow][0] : names[dow].toUpperCase(), corner ? G.x + cw * i + padX : G.x + cw * (i + 0.5), G.y + headH / 2);
   }
-  if (!mini) {
-    c.strokeStyle = hexA(ink, 0.16);
+  setSpacing(c, '0px');
+  // rules
+  if (!mini && d.cal.grid !== 'none') {
+    c.strokeStyle = hexA(ink, d.cal.grid === 'boxes' ? 0.22 : 0.18);
     c.lineWidth = Math.max(1, Math.min(cw, rh) * 0.012);
+    c.beginPath();
     for (let r = 0; r <= rows; r++) {
-      c.beginPath();
-      c.moveTo(G.x, G.y + headH + r * rh);
-      c.lineTo(G.x + G.w, G.y + headH + r * rh);
-      c.stroke();
+      c.moveTo(G.x, top + r * rh);
+      c.lineTo(G.x + G.w, top + r * rh);
     }
+    if (d.cal.grid === 'boxes')
+      for (let i = 0; i <= 7; i++) {
+        c.moveTo(G.x + cw * i, top);
+        c.lineTo(G.x + cw * i, top + rows * rh);
+      }
+    c.stroke();
   }
-  const np = Math.min(cw, rh) * (mini ? 0.5 : 0.3);
-  c.font = `${mini ? 500 : 600} ${np}px "Hind",sans-serif`;
+  // numbers: one size for every month
+  const np = mini ? Math.min(cw * 0.5, rh * 0.62) : corner ? Math.min(cw * 0.3, rh * 0.36) : Math.min(cw * 0.36, rh * 0.44);
+  const put = (day: number, col: number, row: number, px: number, where: 'tl' | 'br' | 'c') => {
+    c.font = `${mini ? 500 : 600} ${px}px "Hind",sans-serif`;
+    c.fillStyle = sunday(col) ? accent : ink;
+    const x0 = G.x + cw * col,
+      y0 = top + rh * row;
+    if (where === 'c') {
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(String(day), x0 + cw / 2, y0 + rh / 2);
+    } else if (where === 'tl') {
+      c.textAlign = 'left';
+      c.textBaseline = 'top';
+      c.fillText(String(day), x0 + padX, y0 + padY);
+    } else {
+      c.textAlign = 'right';
+      c.textBaseline = 'bottom';
+      c.fillText(String(day), x0 + cw - padX, y0 + rh - padY);
+    }
+  };
   for (let day = 1; day <= days; day++) {
     const k = first + day - 1,
       col = k % 7,
       row = Math.floor(k / 7);
-    c.fillStyle = (col + ws) % 7 === 0 ? accent : ink;
-    if (mini) {
-      c.textAlign = 'center';
-      c.fillText(String(day), G.x + cw * (col + 0.5), G.y + headH + rh * (row + 0.5));
-    } else {
-      c.textAlign = 'left';
-      c.fillText(String(day), G.x + cw * col + np * 0.35, G.y + headH + rh * row + np * 0.75);
+    if (row < rows) {
+      // A cell shared with a sixth-week day gets both numbers, smaller, split by a diagonal.
+      const shared = !mini && row === rows - 1 && k + 7 < first + days;
+      put(day, col, row, shared ? np * 0.78 : np, shared || corner ? 'tl' : 'c');
+      continue;
     }
+    const r = rows - 1;
+    put(day, col, r, np * 0.78, 'br');
+    c.strokeStyle = hexA(ink, 0.25);
+    c.lineWidth = Math.max(1, cw * 0.01);
+    c.beginPath();
+    c.moveTo(G.x + cw * col + cw * 0.28, top + rh * (r + 1) - rh * 0.18);
+    c.lineTo(G.x + cw * (col + 1) - cw * 0.28, top + rh * r + rh * 0.18);
+    c.stroke();
   }
   c.restore();
 }
 
-/** Back of a calendar: the whole year at a glance under the greeting (or the year). */
+/** Month page: title and day grid, aligned to each other (a left title lines up with the first column's numbers). */
+function drawMonth(c: Ctx, title: Rect | null, G: Rect, year: number, month: number, d: Design, ink: string, accent: string): void {
+  c.save();
+  if (title) drawMonthTitle(c, title, MONTHS[month], String(year), d, ink, accent, d.cal.numbers === 'corner' ? (G.w / 7) * 0.13 : 0);
+  drawDays(c, G, year, month, d, ink, accent, false);
+  c.restore();
+}
+
+/** Twelve small months in a grid, from the calendar's start month. Used on the year page and the Year strip. */
+function drawYearGrid(c: Ctx, R: Rect, d: Design, ink: string, accent: string): void {
+  const yearD: Design = { ...d, cal: { ...d.cal, months: 12 } },
+    ratio = R.w / R.h,
+    cols = ratio > 2.4 ? 6 : ratio > 1.05 ? 4 : 3,
+    rows = 12 / cols,
+    gx = R.w * (cols === 6 ? 0.03 : 0.05),
+    gw = (R.w - (cols - 1) * gx) / cols,
+    gy = Math.min(R.h * 0.05, gw * 0.14),
+    gh = (R.h - (rows - 1) * gy) / rows,
+    f = fontDef(d.cal.font || d.headFont),
+    left = d.cal.titleAlign === 'left';
+  // Month names share one size (the widest name decides), so the rows line up.
+  let px = Math.min(gh * 0.13, gw * 0.15);
+  c.font = fontStr(f.n, f.hw, px);
+  while (Math.max(...MONTHS.map((m) => c.measureText(m).width)) > gw * 0.92 && px > 3) {
+    px *= 0.93;
+    c.font = fontStr(f.n, f.hw, px);
+  }
+  const th = px * 1.6;
+  for (let i = 0; i < 12; i++) {
+    const { year, month } = calMonth(yearD, i),
+      x = R.x + (i % cols) * (gw + gx),
+      y = R.y + Math.floor(i / cols) * (gh + gy);
+    c.save();
+    c.font = fontStr(f.n, f.hw, px);
+    c.fillStyle = accent;
+    c.textBaseline = 'alphabetic';
+    c.textAlign = left ? 'left' : 'center';
+    c.fillText(MONTHS[month], left ? x + (gw / 7) * 0.2 : x + gw / 2, y + th / 2 + capHeight(c) / 2);
+    c.restore();
+    drawDays(c, { x, y: y + th, w: gw, h: gh - th }, year, month, d, ink, accent, true);
+  }
+}
+
+/** The year title ("2027", or "2027–28" for a year that starts mid-year). */
+function yearLabel(d: Design): string {
+  const yearD: Design = { ...d, cal: { ...d.cal, months: 12 } },
+    y0 = calMonth(yearD, 0).year,
+    y1 = calMonth(yearD, 11).year;
+  return y0 === y1 ? String(y0) : `${y0}–${String(y1).slice(2)}`;
+}
+
+/** Year strip title: the year, in the month font, aligned like the month titles. */
+function drawYearTitle(c: Ctx, T: Rect, d: Design, ink: string): void {
+  const f = fontDef(d.cal.font || d.headFont),
+    label = yearLabel(d);
+  let px = T.h * 0.85;
+  c.font = fontStr(f.n, f.hw, px);
+  while (c.measureText(label).width > T.w && px > 4) {
+    px *= 0.93;
+    c.font = fontStr(f.n, f.hw, px);
+  }
+  c.save();
+  c.fillStyle = ink;
+  c.textBaseline = 'alphabetic';
+  const left = d.cal.titleAlign === 'left';
+  c.textAlign = left ? 'left' : 'center';
+  c.fillText(label, left ? T.x : T.x + T.w / 2, T.y + T.h / 2 + capHeight(c) / 2);
+  c.restore();
+}
+
+/** Back of a calendar: the whole year at a glance under the greeting (or the year) and an optional subtitle. */
 function drawYearBack(c: Ctx, B: Box, d: Design): void {
   const t = resolveTheme(d),
     u = Math.min(B.w, B.h) / 100,
     e = B.e,
-    land = B.w > B.h * 1.1,
     pad = u * 7,
     ink = darkInk(t),
-    hf = fontDef(d.headFont),
-    yearD: Design = { ...d, cal: { ...d.cal, months: 12 } };
+    f = fontDef(d.cal.font || d.headFont),
+    left = d.cal.titleAlign === 'left',
+    inner = { x: B.x + pad, w: B.w - 2 * pad };
   c.fillStyle = d.back.tint ? mix('#FFFFFF', t.bg1, 0.08) : '#FFFFFF';
   c.fillRect(B.x - e, B.y - e, B.w + 2 * e, B.h + 2 * e);
   c.fillStyle = t.bg1;
   c.fillRect(B.x - e, B.y - e, B.w + 2 * e, u * 2.2 + e);
   c.fillRect(B.x - e, B.y + B.h - u * 2.2, B.w + 2 * e, u * 2.2 + e);
-  const y0 = calMonth(yearD, 0).year,
-    y1 = calMonth(yearD, 11).year,
-    title = (d.showHeading && d.heading.trim()) || (y0 === y1 ? String(y0) : `${y0}–${String(y1).slice(2)}`);
+  const title = (d.showHeading && d.heading.trim()) || yearLabel(d),
+    sub = d.cal.backQuote ? d.quote.trim() : '';
+  c.save();
   c.fillStyle = ink;
-  c.textAlign = 'center';
-  c.textBaseline = 'middle';
+  c.textAlign = left ? 'left' : 'center';
+  c.textBaseline = 'alphabetic';
+  const ax = left ? inner.x : B.x + B.w / 2;
   let px = u * 9;
-  c.font = fontStr(hf.n, hf.hw, px);
-  while (c.measureText(title).width > B.w - 2 * pad && px > u * 3) {
+  c.font = fontStr(f.n, f.hw, px);
+  while (c.measureText(title).width > inner.w && px > u * 3) {
     px *= 0.92;
-    c.font = fontStr(hf.n, hf.hw, px);
+    c.font = fontStr(f.n, f.hw, px);
   }
-  c.fillText(title, B.x + B.w / 2, B.y + pad + px * 0.5);
-  const cols = land ? 4 : 3,
-    rows = 12 / cols,
-    top = B.y + pad + px * 1.5,
-    gx = u * 5,
-    gy = u * 4,
-    gw = (B.w - 2 * pad - (cols - 1) * gx) / cols,
-    gh = (B.y + B.h - pad - top - (rows - 1) * gy) / rows;
-  for (let i = 0; i < 12; i++) {
-    const { year, month } = calMonth(yearD, i),
-      x = B.x + pad + (i % cols) * (gw + gx),
-      y = top + Math.floor(i / cols) * (gh + gy),
-      th = Math.min(gh * 0.16, u * 5);
-    drawMonth(c, { x, y, w: gw, h: th }, { x, y: y + th, w: gw, h: gh - th }, year, month, d, ink, t.accent, true);
+  let y = B.y + pad + capHeight(c);
+  c.fillText(title, ax, y);
+  y += px * 0.35;
+  if (sub) {
+    const qf = fontDef(d.quoteFont);
+    let qp = u * 3.6;
+    c.font = fontStr(qf.n, qf.bw, qp);
+    let lines = wrapLines(c, sub, inner.w);
+    while (lines.length > 2 && qp > u * 2) {
+      qp *= 0.92;
+      c.font = fontStr(qf.n, qf.bw, qp);
+      lines = wrapLines(c, sub, inner.w);
+    }
+    c.fillStyle = hexA(ink, 0.8);
+    for (const l of lines.slice(0, 2)) {
+      y += qp * 1.35;
+      c.fillText(l, ax, y);
+    }
   }
+  c.restore();
+  const top = y + u * 5;
+  drawYearGrid(c, { x: inner.x, y: top, w: inner.w, h: B.y + B.h - pad - top }, d, ink, t.accent);
 }
 
-function drawGuides(c: Ctx, B: Box, pxmm: number): void {
+/** Back of a fridge magnet: the magnetic sheet it is mounted on. */
+function drawMagnetBack(c: Ctx, B: Box): void {
+  const e = B.e,
+    u = Math.min(B.w, B.h) / 100;
+  c.fillStyle = '#2E2C2B';
+  c.fillRect(B.x - e, B.y - e, B.w + 2 * e, B.h + 2 * e);
+  c.strokeStyle = 'rgba(255,255,255,.035)';
+  c.lineWidth = u * 0.6;
+  for (let y = B.y - e; y < B.y + B.h + e; y += u * 1.8) {
+    c.beginPath();
+    c.moveTo(B.x - e, y);
+    c.lineTo(B.x + B.w + e, y);
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(255,255,255,.28)';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.font = `600 ${u * 5}px "Hind",sans-serif`;
+  setSpacing(c, `${u * 0.8}px`);
+  c.fillText('MAGNET', B.x + B.w / 2, B.y + B.h / 2);
+  setSpacing(c, '0px');
+}
+
+/** Letters centred on the top arc of a circle (reading left to right) or on its bottom arc (upright). */
+function drawArcText(c: Ctx, text: string, cx: number, cy: number, r: number, top: boolean): void {
+  const chars = [...text],
+    widths = chars.map((ch) => c.measureText(ch).width),
+    span = widths.reduce((a, b) => a + b, 0) / r;
+  let a = top ? -Math.PI / 2 - span / 2 : Math.PI / 2 + span / 2;
+  chars.forEach((ch, i) => {
+    const w = widths[i] / r,
+      mid = top ? a + w / 2 : a - w / 2;
+    c.save();
+    c.translate(cx + r * Math.cos(mid), cy + r * Math.sin(mid));
+    c.rotate(top ? mid + Math.PI / 2 : mid - Math.PI / 2);
+    c.fillText(ch, 0, 0);
+    c.restore();
+    a = top ? a + w : a - w;
+  });
+}
+
+/** Badge magnet: the greeting on the top arc of the ring, the signature (or quote) on the bottom arc. */
+function drawBadge(c: Ctx, L: Layout, t: Theme, d: Design): void {
+  const A = L.arc;
+  if (!A) return;
+  const f = fontDef(d.headFont),
+    q = fontDef(d.quoteFont),
+    mid = A.r - A.band / 2,
+    arcLen = mid * Math.PI * 0.86;
+  c.save();
+  // A soft ring under the lettering keeps it readable over the occasion artwork.
+  c.fillStyle = hexA(t.bg1, 0.62);
+  c.beginPath();
+  c.arc(A.x, A.y, A.r, 0, Math.PI * 2);
+  c.arc(A.x, A.y, A.r - A.band * 0.82, 0, Math.PI * 2, true);
+  c.fill('evenodd');
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillStyle = d.customColor ? d.color : t.ink;
+  const fit = (txt: string, fam: string, wt: number, max: number) => {
+    let px = A.band * 0.56 * d.textScale;
+    c.font = fontStr(fam, wt, px);
+    while (c.measureText(txt).width > max && px > 3) {
+      px *= 0.93;
+      c.font = fontStr(fam, wt, px);
+    }
+  };
+  const head = d.showHeading ? d.heading.trim() : '',
+    low = (d.showSig && d.sig.trim()) || (d.showQuote && d.quote.trim()) || '';
+  if (head) {
+    fit(head, f.n, f.hw, arcLen);
+    drawArcText(c, head, A.x, A.y, mid, true);
+  }
+  if (low) {
+    fit(low, q.n, q.bw, arcLen * 0.8);
+    drawArcText(c, low, A.x, A.y, mid, false);
+  }
+  // two dots where the arcs meet
+  c.fillStyle = t.accent;
+  for (const s of [-1, 1]) {
+    c.beginPath();
+    c.arc(A.x + s * mid, A.y, A.band * 0.08, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.restore();
+}
+
+function drawGuides(c: Ctx, B: Box, pxmm: number, round = false): void {
   c.save();
   c.lineWidth = Math.max(1, pxmm * 0.2);
   c.setLineDash([pxmm * 1.5, pxmm]);
+  const s = 4 * pxmm,
+    ring = (inset: number) => {
+      c.beginPath();
+      c.arc(B.x + B.w / 2, B.y + B.h / 2, Math.min(B.w, B.h) / 2 - inset, 0, Math.PI * 2);
+      c.stroke();
+    };
   c.strokeStyle = '#E11D48';
-  c.strokeRect(B.x, B.y, B.w, B.h);
-  const s = 4 * pxmm;
+  if (round) ring(0);
+  else c.strokeRect(B.x, B.y, B.w, B.h);
   c.strokeStyle = '#2563EB';
-  c.strokeRect(B.x + s, B.y + s, B.w - 2 * s, B.h - 2 * s);
+  if (round) ring(s);
+  else c.strokeRect(B.x + s, B.y + s, B.w - 2 * s, B.h - 2 * s);
   c.restore();
 }
 
@@ -853,8 +1110,20 @@ export function renderCard(
   if (side === 'front') L = drawFront(c, B, inp, opts);
   else if (inp.d.product === 'calendar') drawYearBack(c, B, inp.d);
   else if (inp.d.product === 'frame') drawFrameBack(c, B, inp.d);
+  else if (inp.d.product === 'magnet') drawMagnetBack(c, B);
   else drawBack(c, B, inp.d);
-  if (opts.guides) drawGuides(c, B, pxmm);
+  const round = sizeOf(inp.d).shape === 'circle';
+  if (round) {
+    // Button magnets are cut round: paper white outside the trim circle plus its bleed ring.
+    c.save();
+    c.beginPath();
+    c.rect(0, 0, W, H);
+    c.arc(B.x + B.w / 2, B.y + B.h / 2, Math.min(B.w, B.h) / 2 + e, 0, Math.PI * 2, true);
+    c.fillStyle = '#FFFFFF';
+    c.fill('evenodd');
+    c.restore();
+  }
+  if (opts.guides) drawGuides(c, B, pxmm, round);
   return L;
 }
 

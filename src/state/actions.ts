@@ -1,8 +1,9 @@
 import { themeById, PLAIN } from '../data/themes';
-import { cardMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
+import { MONTHS } from '../data/products';
+import { calPages, cardMM, cornerMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
 import { buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
-import { renderCard } from '../engine/render';
+import { calMonth, renderCard } from '../engine/render';
 import { db } from '../lib/db';
 import { saveFile } from '../lib/download';
 import { ensureFonts, fontsFor } from '../lib/fonts';
@@ -155,26 +156,43 @@ export function startProduct(p: ProductId): void {
   setUI({ screen: 'studio', pane: 'photos' });
 }
 
-function faces(longSide: number, quality: number): ViewerFaces {
+function faces(longSide: number, quality: number, allPages = false): ViewerFaces {
   const inp = input(),
     { w, h } = cardMM(inp.d),
-    px = longSide / Math.max(w, h);
+    px = longSide / Math.max(w, h),
+    size = sizeOf(inp.d);
   const a = document.createElement('canvas'),
     b = document.createElement('canvas');
-  renderCard(a, 'front', px, 0, inp);
+  // The single-page view opens on the month shown in the preview.
+  const n = calPages(inp.d),
+    page = Math.min(getState().ui.calPage, n - 1);
+  renderCard(a, 'front', px, 0, inp, { page });
   renderCard(b, 'back', px, 0, inp);
-  return {
+  const out: ViewerFaces = {
     front: a.toDataURL('image/jpeg', quality),
     back: b.toDataURL('image/jpeg', quality),
     w,
     h,
-    round: !!sizeOf(inp.d).instax,
+    round: !!size.instax,
+    corner: cornerMM(inp.d) || undefined,
+    circle: size.shape === 'circle' || undefined,
   };
+  if (allPages && n > 1) {
+    // Every month for the all-months views, at a lighter resolution (twelve pages share the screen).
+    const pp = 900 / Math.max(w, h),
+      cv = document.createElement('canvas');
+    out.pages = Array.from({ length: n }, (_, p) => {
+      renderCard(cv, 'front', pp, 0, inp, { page: p });
+      const { month, year } = calMonth(inp.d, p);
+      return { src: cv.toDataURL('image/jpeg', 0.86), label: `${MONTHS[month]} ${year}` };
+    });
+  }
+  return out;
 }
 
 export async function open3D(f?: ViewerFaces): Promise<void> {
   await ensureFonts(fontsFor(getState().design));
-  setUI({ viewer: f ?? faces(1400, 0.9) });
+  setUI({ viewer: f ?? faces(1400, 0.9, true) });
 }
 
 /* ---------- gallery ---------- */

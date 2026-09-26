@@ -100,6 +100,13 @@ export const SAMPLES: SampleDef[] = [
     }),
   },
   {
+    id: 'year-strip',
+    title: 'Year on one page',
+    product: 'calendar',
+    photos: ['tea'],
+    build: (d) => ({ ...withTheme(d, 'monsoon'), layout: 'cal-strip', frame: 'cream', cal: { ...d.cal, start: 0, titleAlign: 'left' } }),
+  },
+  {
     id: 'desk-calendar',
     title: 'Monsoon desk calendar',
     product: 'calendar',
@@ -134,6 +141,27 @@ export const SAMPLES: SampleDef[] = [
     product: 'frame',
     photos: ['kids', 'birthday', 'holi', 'marigold'],
     build: (d) => ({ ...withTheme(d, 'kids'), sizeId: 'fsq8', orient: 'portrait', layout: 'frame-grid', mat: 'classic', frame: 'white' }),
+  },
+  {
+    id: 'polaroid-magnet',
+    title: 'Polaroid magnet',
+    product: 'magnet',
+    photos: ['family'],
+    build: (d) => ({ ...withTheme(d, 'parents'), layout: 'mag-polaroid', frame: 'white', heading: 'Sunday in the park', showQuote: false, showSig: false }),
+  },
+  {
+    id: 'diwali-badge',
+    title: 'Diwali badge',
+    product: 'magnet',
+    photos: ['diwali'],
+    build: (d) => ({ ...withTheme(d, 'diwali'), sizeId: 'mr75', orient: 'portrait', layout: 'mag-badge', sig: 'with love, 2026' }),
+  },
+  {
+    id: 'travel-magnet',
+    title: 'Goa sunsets',
+    product: 'magnet',
+    photos: ['beach'],
+    build: (d) => ({ ...withTheme(d, 'summer'), sizeId: 'm3x3', layout: 'mag-full', heading: 'Goa', vAlign: 'bottom', hAlign: 'left', showQuote: false, showSig: false }),
   },
 ];
 

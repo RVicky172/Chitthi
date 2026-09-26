@@ -12,6 +12,7 @@ export { Header } from './components/Header';
 export { Rail } from './components/Rail';
 export { Stage } from './components/Stage';
 export { PhotoTray } from './components/PhotoTray';
+export { MonthStrip } from './components/MonthStrip';
 
 /* ---------- step panes ---------- */
 export { PhotosPane } from './components/panes/PhotosPane';
@@ -30,6 +31,7 @@ export { Toast } from './components/Toast';
 /* ---------- pickers and media ---------- */
 export { FontPicker } from './components/FontPicker';
 export { PhotoStore } from './components/PhotoStore';
+export { PexelsSearch } from './components/PexelsSearch';
 export { ThemeTile, LayoutThumb, PhotoThumb } from './components/canvases';
 
 /* ---------- primitives ---------- */
@@ -61,6 +63,7 @@ export {
   TrashIcon,
   EditIcon,
   PackIcon,
+  SearchIcon,
   Logo,
 } from './components/icons';
 export { SampleGallery } from './components/SampleGallery';

@@ -83,9 +83,11 @@ export function PrintPane() {
           <Check checked={e.marks} onChange={(marks) => setExp({ marks })}>
             Crop marks
           </Check>
-          <Check checked={e.back} onChange={(back) => setExp({ back })}>
-            Include back ({prod.backLabel.toLowerCase()})
-          </Check>
+          {d.product !== 'magnet' && (
+            <Check checked={e.back} onChange={(back) => setExp({ back })}>
+              Include back ({prod.backLabel.toLowerCase()})
+            </Check>
+          )}
         </div>
       </div>
       <h3>PDF type</h3>
@@ -137,6 +139,7 @@ export function PrintPane() {
         <li>Print at 100% or “actual size”, never “fit to page”.</li>
         <li>{prod.paper}</li>
         {d.product === 'postcard' && <li>For double-sided sheets, choose “flip on long edge”.</li>}
+        {d.product === 'magnet' && <li>Choose “Sheet PDF” to fit as many magnets as possible on one A4 page.</li>}
         <li>Files are RGB. Digital print shops accept this; offset printers convert to CMYK.</li>
       </ul>
     </Pane>

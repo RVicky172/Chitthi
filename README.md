@@ -34,6 +34,8 @@ npm run build      # production build in dist/
 npm run preview    # serve dist/ on http://localhost:8080
 ```
 
+**Pexels photo search.** Put `PEXELS_API_KEY=your-key` in `.env.local` (see `.env.example`; free key at pexels.com/api). The dev and preview servers then answer the in-app search through `./api/pexels/`, adding the key on the server side so it never ends up in the bundle. Builds without that proxy (Docker, desktop) ask each user to paste their own key, which stays in their browser.
+
 ## Project structure
 
 ```
@@ -69,7 +71,10 @@ nginx/                  Server config and security headers
 - **Text:** 46 font families including Gurmukhi, Gujarati, Bengali, Tamil, Malayalam, Kannada, Telugu and Odia
 - **Back of card:** message, address lines, PIN code boxes and stamp box
 - **Print files:** print-shop PDF with bleed and crop marks; sheet PDF (A4, A3, 13×19 in, Letter) lined up for double-sided printing; PNG at 300 dpi
-- **Also:** 3D preview, gallery with backup and restore, undo and redo, automatic saving of the current card including photos, offline support
+- **Calendars:** 12 months or a single month, or the whole year on one page (Year strip); a caption per month above the dates or on the photo; month titles left or centred, dates in the corner or centred, rows, boxes or no lines, and a separate month font. Every page uses the same title size and a five-row grid, so the months line up when bound
+- **Fridge magnets:** 2×2, 2×3, 3×3, 3×4, 2.5×3.5 and 4×6 in with rounded corners, plus 58 mm and 75 mm round button magnets; full photo, photo and caption, mini Polaroid, badge (lettering around the photo), two and four photo, and words-only layouts; many to a sheet
+- **Free photos:** search Pexels from the Photos step, with suggestions from the occasion, the product and the calendar month, filtered to the shape of the selected photo slot
+- **Also:** 3D preview (calendars also as a ring of all twelve months and as a wall calendar you can page through), gallery with backup and restore, undo and redo, automatic saving of the current card including photos, offline support
 
 Keyboard shortcuts: Ctrl+Z undo, Ctrl+Shift+Z redo, Ctrl+S save to gallery, F flip the card.
 

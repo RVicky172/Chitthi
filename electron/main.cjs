@@ -48,8 +48,9 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' data: blob:",
-  "connect-src 'self' data: blob:",
+  // Pexels photo search (with the user's own key) and the photos it downloads.
+  "img-src 'self' data: blob: https://images.pexels.com",
+  "connect-src 'self' data: blob: https://api.pexels.com https://images.pexels.com",
   "object-src 'none'",
   "base-uri 'self'",
   "frame-src 'none'",

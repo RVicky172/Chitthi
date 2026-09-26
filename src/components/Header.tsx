@@ -35,7 +35,7 @@ export function Header() {
         </span>
       </button>
       <div className="products-switch">
-        <Seg label="What are you making?" value={product} options={PRODUCTS.map((p) => [p.id, p.name, <ProductIcon key={p.id} id={p.id} />])} onChange={switchProduct} />
+        <Seg label="What are you making?" value={product} options={PRODUCTS.map((p) => [p.id, p.short, <ProductIcon key={p.id} id={p.id} />])} onChange={switchProduct} />
       </div>
       <div className="acts">
         <button

@@ -41,7 +41,7 @@ export const SIZES: SizeDef[] = [
   },
   { id: 'a5', grp: 'Large and custom', name: 'A5', L: 210, S: 148 },
   { id: 'a4', grp: 'Large and custom', name: 'A4', L: 297, S: 210, tag: 'Poster card' },
-  { id: 'custom', grp: 'Large and custom', name: 'Custom', L: 0, S: 0, products: ['postcard', 'calendar', 'frame'] },
+  { id: 'custom', grp: 'Large and custom', name: 'Custom', L: 0, S: 0, products: ['postcard', 'calendar', 'frame', 'magnet'] },
 
   /* calendars */
   { id: 'cal-a4', grp: 'Calendars', name: 'A4 wall', L: 297, S: 210, tag: 'Most popular', products: ['calendar'], native: 'portrait' },
@@ -59,12 +59,23 @@ export const SIZES: SizeDef[] = [
   { id: 'fa4', grp: 'Frame prints', name: 'A4', L: 297, S: 210, products: ['frame'] },
   { id: 'fa3', grp: 'Frame prints', name: 'A3', L: 420, S: 297, tag: 'Wall frame', products: ['frame'] },
   { id: 'fsq8', grp: 'Frame prints', name: 'Square', L: 203.2, S: 203.2, inch: '8×8 in', products: ['frame'] },
+
+  /* fridge magnets (rounded corners are cut with a 3 mm corner punch after trimming) */
+  { id: 'm2x3', grp: 'Fridge magnets', name: '2×3 in', L: 76.2, S: 50.8, inch: '2×3 in', tag: 'Most popular', products: ['magnet'], native: 'portrait', corner: 3 },
+  { id: 'm2x2', grp: 'Fridge magnets', name: 'Small square', L: 50.8, S: 50.8, inch: '2×2 in', products: ['magnet'], corner: 3 },
+  { id: 'm3x3', grp: 'Fridge magnets', name: 'Square', L: 76.2, S: 76.2, inch: '3×3 in', tag: 'Instagram square', products: ['magnet'], corner: 3 },
+  { id: 'm25x35', grp: 'Fridge magnets', name: 'Card', L: 88.9, S: 63.5, inch: '2.5×3.5 in', products: ['magnet'], native: 'portrait', corner: 3 },
+  { id: 'm3x4', grp: 'Fridge magnets', name: '3×4 in', L: 101.6, S: 76.2, inch: '3×4 in', products: ['magnet'], native: 'portrait', corner: 3 },
+  { id: 'm4x6', grp: 'Fridge magnets', name: 'Photo magnet', L: 152.4, S: 101.6, inch: '4×6 in', tag: 'Big photo', products: ['magnet'], native: 'landscape', corner: 3 },
+  { id: 'mr58', grp: 'Fridge magnets', name: 'Round 58 mm', L: 58, S: 58, tag: 'Button magnet', products: ['magnet'], shape: 'circle' },
+  { id: 'mr75', grp: 'Fridge magnets', name: 'Round 75 mm', L: 75, S: 75, tag: 'Big badge', products: ['magnet'], shape: 'circle' },
 ];
 
-export const SIZE_GROUPS: SizeDef['grp'][] = ['Postcards', 'Instax style', 'Calendars', 'Frame prints', 'Large and custom'];
+export const SIZE_GROUPS: SizeDef['grp'][] = ['Postcards', 'Instax style', 'Calendars', 'Frame prints', 'Fridge magnets', 'Large and custom'];
 
 export function sizeLabel(s: SizeDef): string {
   if (s.id === 'custom') return 'Your own size in mm';
+  if (s.shape === 'circle') return `${Math.round(s.L)} mm across`;
   const mm = `${Math.round(s.S)}×${Math.round(s.L)} mm`;
   return s.inch ? `${s.inch} (${mm})` : mm;
 }

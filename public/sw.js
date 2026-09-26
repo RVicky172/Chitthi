@@ -21,7 +21,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    if (url.pathname === '/healthz') return;
+    if (url.pathname === '/healthz' || url.pathname.includes('/api/')) return; // live data: never cache
     // Pages: network first so updates arrive, cache when offline.
     if (req.mode === 'navigate') {
       event.respondWith(

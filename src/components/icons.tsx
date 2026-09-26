@@ -12,6 +12,7 @@ import {
   Images,
   LayoutGrid,
   LayoutTemplate,
+  Magnet,
   Mail,
   Moon,
   Package,
@@ -21,6 +22,7 @@ import {
   Redo2,
   RotateCcw,
   Save,
+  Search,
   Sparkles,
   Star,
   Sun,
@@ -44,7 +46,7 @@ export const PaneIcon = ({ id }: { id: PaneId }) => {
   return <I {...base} />;
 };
 
-const PRODUCT_ICONS = { postcard: Mail, calendar: CalendarDays, frame: Frame };
+const PRODUCT_ICONS = { postcard: Mail, calendar: CalendarDays, frame: Frame, magnet: Magnet };
 export const ProductIcon = ({ id }: { id: ProductId }) => {
   const I = PRODUCT_ICONS[id];
   return <I {...base} />;
@@ -71,6 +73,7 @@ export const StarIcon = () => <Star {...base} />;
 export const TrashIcon = () => <Trash2 {...base} />;
 export const EditIcon = () => <Pencil {...base} />;
 export const PackIcon = () => <Package {...base} />;
+export const SearchIcon = () => <Search {...base} />;
 
 /** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
 export const InstagramIcon = () => (

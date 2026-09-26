@@ -58,7 +58,8 @@ export function LayoutPane() {
     groups = SIZE_GROUPS.filter((g) => sizes.some((s) => s.grp === g)),
     setCal = (p: Partial<CalendarSettings>) => setDesign({ cal: { ...d.cal, ...p } }),
     thisYear = new Date().getFullYear();
-  const frameLabel = d.product === 'frame' ? 'Mat colour' : d.product === 'calendar' ? 'Paper colour' : 'Frame colour';
+  const frameLabel =
+    d.product === 'frame' ? 'Mat colour' : d.product === 'calendar' ? 'Paper colour' : d.product === 'magnet' ? 'Border colour' : 'Frame colour';
   return (
     <Pane
       title="Size and layout"
@@ -127,7 +128,10 @@ export function LayoutPane() {
               </select>
             </label>
           </div>
-          <div className="inline">
+          {d.layout === 'cal-strip' && (
+            <p className="hint">The Year strip puts all twelve months on one page under your photo.</p>
+          )}
+          <div className="inline" hidden={d.layout === 'cal-strip'}>
             <Seg<'1' | '12'>
               label="Pages"
               value={String(d.cal.months) as '1' | '12'}
@@ -150,7 +154,10 @@ export function LayoutPane() {
               onChange={(v) => setCal({ weekStart: +v as 0 | 1 })}
             />
           </div>
-          <p className="hint">Each month takes the next photos in your list, so upload one photo per month for a full year.</p>
+          <p className="hint">
+            Each month takes the next photos in your list, so add one photo per month for a full year. Pick a month in the
+            strip under the preview to see it, or open the 3D view to see all twelve pages at once.
+          </p>
         </>
       )}
       {d.product === 'frame' && (
@@ -173,6 +180,11 @@ export function LayoutPane() {
       {d.product === 'postcard' && (
         <p className="hint" style={{ marginTop: 2 }}>
           For Polaroid, Instax frame and Photo strip layouts.
+        </p>
+      )}
+      {d.product === 'magnet' && (
+        <p className="hint" style={{ marginTop: 2 }}>
+          For Photo and caption, Mini Polaroid and the gaps between photos.
         </p>
       )}
       <Seg<FrameStyle>

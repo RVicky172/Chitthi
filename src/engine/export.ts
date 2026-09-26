@@ -2,7 +2,7 @@ import { layoutName } from '../data/layouts';
 import { MONTHS, productOf } from '../data/products';
 import { crc32, makeZip, type ZipEntry } from '../lib/zip';
 import type { Design, RenderInput, Side } from '../types';
-import { cardMM, sizeOf } from './design';
+import { calPages, cardMM, sizeOf } from './design';
 import { calMonth, renderCard } from './render';
 
 export const SHEETS: Record<Design['exp']['sheet'], [number, number, string]> = {
@@ -23,19 +23,19 @@ export interface PrintPage {
 
 export function pagesOf(d: Design): PrintPage[] {
   const out: PrintPage[] = [];
-  const n = d.product === 'calendar' ? d.cal.months : 1;
+  const n = calPages(d);
   for (let p = 0; p < n; p++) {
     if (d.product === 'calendar') {
       const { year, month } = calMonth(d, p);
       out.push({
         side: 'front',
         page: p,
-        tag: `front-${String(p + 1).padStart(2, '0')}-${MONTHS[month].toLowerCase()}`,
-        label: `${MONTHS[month]} ${year}`,
+        tag: d.layout === 'cal-strip' ? 'front-year' : `front-${String(p + 1).padStart(2, '0')}-${MONTHS[month].toLowerCase()}`,
+        label: d.layout === 'cal-strip' ? 'Year strip' : `${MONTHS[month]} ${year}`,
       });
     } else out.push({ side: 'front', page: 0, tag: 'front', label: 'Front' });
   }
-  if (d.exp.back) out.push({ side: 'back', page: 0, tag: 'back', label: productOf(d.product).backLabel });
+  if (d.exp.back && d.product !== 'magnet') out.push({ side: 'back', page: 0, tag: 'back', label: productOf(d.product).backLabel });
   return out;
 }
 
@@ -248,9 +248,16 @@ export function printSpec(inp: RenderInput, files: string[]): string {
   if (d.product === 'calendar') {
     const a = calMonth(d, 0),
       z = calMonth(d, d.cal.months - 1);
-    line('Months', `${MONTHS[a.month]} ${a.year}${d.cal.months > 1 ? ` – ${MONTHS[z.month]} ${z.year} (${d.cal.months} pages)` : ' (single page)'}`);
+    const strip = d.layout === 'cal-strip',
+      zz = strip ? calMonth({ ...d, cal: { ...d.cal, months: 12 } }, 11) : z;
+    line(
+      'Months',
+      `${MONTHS[a.month]} ${a.year}${strip ? ` – ${MONTHS[zz.month]} ${zz.year} on one page` : d.cal.months > 1 ? ` – ${MONTHS[z.month]} ${z.year} (${d.cal.months} pages)` : ' (single page)'}`,
+    );
     line('Week starts on', d.cal.weekStart ? 'Monday' : 'Sunday');
   }
+  if (d.product === 'magnet')
+    line('Shape', size.shape === 'circle' ? 'Round: cut on the trim circle' : `Rounded corners, ${size.corner ?? 3} mm radius (corner punch after trimming)`);
   if (d.product === 'frame') line('Mat border', { none: 'None (borderless)', thin: 'Thin', classic: 'Classic', wide: 'Wide' }[d.mat]);
   L.push('', 'DIMENSIONS', '-'.repeat(60));
   line('Trim (final) size', `${round1(w)} × ${round1(h)} mm  (${inch(w)} × ${inch(h)} in)`);
@@ -266,6 +273,7 @@ export function printSpec(inp: RenderInput, files: string[]): string {
   else if (hasBack && d.product === 'calendar')
     line('Sides', 'Single-sided pages: one per month, plus the year-at-a-glance page as the back cover.');
   else if (hasBack) line('Sides', 'Front is the photo print; the back label is optional (print it on the reverse, or as a sticker).');
+  else if (d.product === 'magnet') line('Sides', 'Single-sided print, mounted on magnetic sheet.');
   else line('Sides', 'Single-sided.');
   line('Cutting', b ? `Cut on the trim line, ${bleedText(b)} in from each edge of the file. Crop marks show where.` : 'Files are exactly trim size.');
   if (d.exp.format === 'sheet') {

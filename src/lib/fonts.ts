@@ -53,4 +53,4 @@ export function ensureFont(name: string): Promise<void> {
   return p;
 }
 export const ensureFonts = (names: string[]) => Promise.all([...new Set(names)].map(ensureFont)).then(() => undefined);
-export const fontsFor = (d: Design) => [d.headFont, d.quoteFont, d.back.font, ...FALLBACK];
+export const fontsFor = (d: Design) => [d.headFont, d.quoteFont, d.back.font, ...(d.cal?.font ? [d.cal.font] : []), ...FALLBACK];
