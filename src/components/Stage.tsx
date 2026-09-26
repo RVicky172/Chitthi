@@ -27,7 +27,8 @@ export function Stage() {
   const side = useApp((s) => s.ui.side),
     guides = useApp((s) => s.ui.guides),
     fontTick = useApp((s) => s.ui.fontTick),
-    calPage = useApp((s) => s.ui.calPage);
+    calPage = useApp((s) => s.ui.calPage),
+    loading = useApp((s) => s.ui.loading);
   const isCal = design.product === 'calendar',
     pages = calPages(design),
     page = isCal ? Math.min(calPage, pages - 1) : 0;
@@ -155,7 +156,13 @@ export function Stage() {
           </button>
         </div>
       </div>
-      <div className="cardwrap" ref={wrap}>
+      <div className="cardwrap" ref={wrap} aria-busy={!!loading}>
+        {loading && (
+          <div className="stage-loading" role="status">
+            <span className="spinner" aria-hidden="true" />
+            {loading}
+          </div>
+        )}
         <canvas
           key={flipKey}
           ref={cv}

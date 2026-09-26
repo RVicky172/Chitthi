@@ -3,7 +3,7 @@ import { applyTheme, setOccasion } from '../../state/actions';
 import { setDesign, setPlain, setUI, useApp } from '../../state/store';
 import type { ThemeGroup } from '../../types';
 import { ThemeTile } from '../canvases';
-import { Check, Pane, Seg } from '../common';
+import { Check, Pane, Section, Seg } from '../common';
 
 export function OccasionPane() {
   const d = useApp((s) => s.design),
@@ -25,8 +25,8 @@ export function OccasionPane() {
         </span>
       </label>
       {d.useOccasion ? (
-        <div>
-          <div style={{ marginBottom: 10 }}>
+        <Section id="occasion.themes" title="Occasions" note={theme.name}>
+          <div>
             <Seg<ThemeGroup>
               label="Occasion type"
               value={d.group}
@@ -60,10 +60,9 @@ export function OccasionPane() {
               {theme.name} decorations over full-size photos
             </Check>
           </div>
-        </div>
+        </Section>
       ) : (
-        <div>
-          <h3>Plain card colours</h3>
+        <Section id="occasion.plain" title="Plain card colours">
           <div className="inline" style={{ marginTop: 10 }}>
             {(['bg', 'ink', 'accent'] as const).map((k) => (
               <label key={k} className="f">
@@ -77,7 +76,7 @@ export function OccasionPane() {
               Soft gradient
             </Check>
           </div>
-        </div>
+        </Section>
       )}
     </Pane>
   );

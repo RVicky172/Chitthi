@@ -1,8 +1,10 @@
 import { layoutName } from '../data/layouts';
+import { PRINT_SPECS, QUOTE_QTY } from '../data/printSpecs';
 import { MONTHS, productOf } from '../data/products';
 import { crc32, makeZip, type ZipEntry } from '../lib/zip';
 import type { Design, RenderInput, Side } from '../types';
 import { calPages, cardMM, sizeOf } from './design';
+import { envelopeSpec, envelopeSummary, renderEnvelope, renderEnvelopeTemplate, templateSheet } from './envelope';
 import { calMonth, renderCard } from './render';
 
 export const SHEETS: Record<Design['exp']['sheet'], [number, number, string]> = {
@@ -240,7 +242,7 @@ export function printSpec(inp: RenderInput, files: string[]): string {
     pages = pagesOf(d),
     hasBack = pages.some((p) => p.side === 'back');
   const L: string[] = [];
-  const line = (k: string, v: string) => L.push(`${(k + ':').padEnd(22)}${v}`);
+  const line = (k: string, v: string) => L.push(`${(k ? k + ':' : '').padEnd(22)}${v}`);
   L.push('CHITTHI – PRINT SPECIFICATION', '='.repeat(60), '');
   line('Item', `${prod.name}${d.designName.trim() ? ` – “${d.designName.trim()}”` : ''}`);
   line('Size', `${size.name}, ${d.orient === 'landscape' ? 'horizontal' : 'vertical'}`);
@@ -267,7 +269,14 @@ export function printSpec(inp: RenderInput, files: string[]): string {
   line('Resolution', `${dpi} dpi → ${px(w + 2 * b)} × ${px(h + 2 * b)} px per page`);
   line('Colour', 'sRGB. Digital presses print it as is; offset printers convert to CMYK (expect slightly duller brights).');
   L.push('', 'PRINTING', '-'.repeat(60));
-  line('Paper', prod.paper);
+  const ps = PRINT_SPECS[d.product];
+  line('One piece', ps.piece);
+  line('Material', ps.stock);
+  line('Weight', ps.weight);
+  line('Finish', ps.finish);
+  line('Colour', ps.colour);
+  ps.finishing.forEach((f, i) => line(i ? '' : 'Finishing', f));
+  line('Paper advice', prod.paper);
   line('Scale', 'Print at 100% / actual size. Never “fit to page”.');
   if (hasBack && d.product === 'postcard') line('Sides', 'Double-sided: front on side 1, back on side 2, flip on the LONG edge.');
   else if (hasBack && d.product === 'calendar')
@@ -280,6 +289,18 @@ export function printSpec(inp: RenderInput, files: string[]): string {
     const n = nup(d);
     line('Imposition', `${n.cols * n.rows} up on ${SHEETS[d.exp.sheet][2]} in the sheet PDF (backs mirrored for long-edge duplex).`);
   }
+  if (d.env.on) {
+    const es = envelopeSpec(d),
+      sh = templateSheet(d);
+    L.push('', 'ENVELOPE', '-'.repeat(60));
+    line('Size', envelopeSummary(d));
+    line('Ready-made envelope', `Buy ${es.name} envelopes and print the envelope PDF on them (page 1: address side), or print only the front.`);
+    if (sh)
+      line('Fold your own', `Print the template on ${sh.name} (120–160 gsm), cut on solid lines, fold on dashed lines, glue the bottom flap to the side flaps.`);
+  }
+  L.push('', 'QUOTE', '-'.repeat(60));
+  line('Quote request', `See ${baseName(d)}-QUOTE-REQUEST.pdf: previews, this spec and a price grid`);
+  line('Quantities to price', QUOTE_QTY.join(', ') + ' pieces');
   L.push('', 'FILES IN THIS PACK', '-'.repeat(60));
   for (const f of files) L.push(`  ${f}`);
   L.push(
@@ -290,6 +311,38 @@ export function printSpec(inp: RenderInput, files: string[]): string {
     `Created ${new Date().toLocaleString()} with Chitthi.`,
   );
   return L.join('\n');
+}
+
+/* ---------- envelope ---------- */
+
+const pngBlob = (cv: HTMLCanvasElement) =>
+  new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('The image couldn’t be created.'))), 'image/png'));
+
+/** Envelope front and back at envelope size (page 1 is the address side), to print on a ready-made envelope. */
+export async function buildEnvelopePDF(inp: RenderInput): Promise<{ blob: Blob; name: string }> {
+  const { jsPDF } = await import('jspdf');
+  const s = envelopeSpec(inp.d),
+    px = +inp.d.exp.dpi / 25.4,
+    doc = new jsPDF({ unit: 'mm', format: [s.w, s.h], orientation: 'l', compress: true });
+  (['front', 'back'] as const).forEach((face, i) => {
+    if (i) doc.addPage([s.w, s.h], 'l');
+    const cv = document.createElement('canvas');
+    renderEnvelope(cv, face, px, inp);
+    doc.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, s.w, s.h, `env-${face}`, 'FAST');
+  });
+  return { blob: doc.output('blob'), name: `${baseName(inp.d)}-envelope-print.pdf` };
+}
+
+/** The fold-your-own envelope on its sheet, or null when it's too big for a 13×19 in sheet. */
+export async function buildEnvelopeTemplate(inp: RenderInput): Promise<{ blob: Blob; name: string } | null> {
+  const sheet = templateSheet(inp.d);
+  if (!sheet) return null;
+  const { jsPDF } = await import('jspdf');
+  const cv = document.createElement('canvas');
+  renderEnvelopeTemplate(cv, +inp.d.exp.dpi / 25.4, inp);
+  const doc = new jsPDF({ unit: 'mm', format: [sheet.w, sheet.h], orientation: sheet.w > sheet.h ? 'l' : 'p', compress: true });
+  doc.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, sheet.w, sheet.h, 'env-template', 'FAST');
+  return { blob: doc.output('blob'), name: `${baseName(inp.d)}-envelope-template-${sheet.id}.pdf` };
 }
 
 /** The complete print pack: every front and back as separate PNGs, the print PDF and the spec sheet, in one ZIP. */
@@ -305,6 +358,23 @@ export async function buildPack(inp: RenderInput, onStep?: (msg: string) => void
   onStep?.('Building PDF…');
   const pdf = await buildPDF(inp);
   entries.push({ name: pdf.name, data: pdf.blob });
+  if (inp.d.env.on) {
+    onStep?.('Making the envelope…');
+    await tick();
+    for (const face of ['front', 'back'] as const) {
+      const cv = document.createElement('canvas');
+      renderEnvelope(cv, face, +inp.d.exp.dpi / 25.4, inp);
+      entries.push({ name: `envelope/${baseName(inp.d)}-envelope-${face}.png`, data: await pngBlob(cv) });
+    }
+    const ep = await buildEnvelopePDF(inp);
+    entries.push({ name: `envelope/${ep.name}`, data: ep.blob });
+    const tp = await buildEnvelopeTemplate(inp);
+    if (tp) entries.push({ name: `envelope/${tp.name}`, data: tp.blob });
+  }
+  onStep?.('Writing the quote request…');
+  const { buildQuoteRequest } = await import('./quote');
+  const quote = await buildQuoteRequest(inp);
+  entries.push({ name: quote.name, data: quote.blob });
   const specName = `${baseName(inp.d)}-PRINT-SPEC.txt`;
   entries.push({ name: specName, data: printSpec(inp, [...entries.map((e) => e.name), specName]).replace(/\n/g, '\r\n') });
   onStep?.('Packing…');

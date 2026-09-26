@@ -1,7 +1,8 @@
 import { themeById, PLAIN } from '../data/themes';
 import { MONTHS } from '../data/products';
 import { calPages, cardMM, cornerMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
-import { buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
+import { buildEnvelopePDF, buildEnvelopeTemplate, buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
+import { renderEnvelope } from '../engine/envelope';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
 import { calMonth, renderCard } from '../engine/render';
 import { db } from '../lib/db';
@@ -87,6 +88,31 @@ export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', ms
   return msgs;
 }
 
+/** Photo library upload: checks and keeps the files in the photo store without putting them on the card. */
+export async function addToLibrary(files: File[]): Promise<[kind: 'err' | 'warn', msg: string][]> {
+  const msgs: ['err' | 'warn', string][] = [],
+    stored: { name: string; url: string }[] = [];
+  for (const f of files) {
+    const err = checkFile(f);
+    if (err) {
+      msgs.push(['err', err]);
+      continue;
+    }
+    try {
+      const url = await readAsDataURL(f),
+        img = await loadImage(url);
+      if (Math.min(img.naturalWidth, img.naturalHeight) < 800)
+        msgs.push(['warn', `${f.name} is only ${img.naturalWidth}×${img.naturalHeight} px, so it will look soft beyond a small print.`]);
+      stored.push({ name: f.name, url });
+    } catch {
+      msgs.push(['err', `${f.name} couldn’t be read. The file may be damaged or not really a JPG, PNG or WebP.`]);
+    }
+  }
+  await storePhotos(stored);
+  if (stored.length) toast(`${stored.length === 1 ? '1 photo' : `${stored.length} photos`} added to your library.`);
+  return msgs;
+}
+
 export async function downloadPrintFile(): Promise<void> {
   const d = getState().design;
   try {
@@ -99,6 +125,33 @@ export async function downloadPrintFile(): Promise<void> {
     await saveFile(name, blob);
   } catch (e) {
     toast(e instanceof Error && e.message ? e.message : 'The file couldn’t be created.');
+  }
+}
+
+/** Documents for print shops: a quote request for this design, or the specification catalog for every product. */
+export async function downloadQuote(kind: 'design' | 'catalog'): Promise<void> {
+  try {
+    await ensureFonts(fontsFor(getState().design));
+    const q = await import('../engine/quote');
+    const f = kind === 'design' ? await q.buildQuoteRequest(input()) : await q.buildQuoteCatalog();
+    await saveFile(f.name, f.blob);
+  } catch (e) {
+    toast(e instanceof Error && e.message ? e.message : 'The document couldn’t be created.');
+  }
+}
+
+/** Envelope files on their own: the print-on-envelope PDF or the fold-your-own template. */
+export async function downloadEnvelope(kind: 'pdf' | 'template'): Promise<void> {
+  try {
+    await ensureFonts(fontsFor(getState().design));
+    const f = kind === 'pdf' ? await buildEnvelopePDF(input()) : await buildEnvelopeTemplate(input());
+    if (!f) {
+      toast('This envelope is too big for a printable template. Use the envelope PDF on a ready-made envelope.');
+      return;
+    }
+    await saveFile(f.name, f.blob);
+  } catch (e) {
+    toast(e instanceof Error && e.message ? e.message : 'The envelope file couldn’t be created.');
   }
 }
 
@@ -177,6 +230,17 @@ function faces(longSide: number, quality: number, allPages = false): ViewerFaces
     corner: cornerMM(inp.d) || undefined,
     circle: size.shape === 'circle' || undefined,
   };
+  if (allPages && inp.d.env.on) {
+    // Envelope layers: address side, back without the flap, the flap, and the flap's lining.
+    const cv = document.createElement('canvas'),
+      ep = 1000 / 250,
+      layer = (face: 'front' | 'body' | 'flap' | 'liner') => {
+        const spec = renderEnvelope(cv, face, ep, inp);
+        return { spec, url: face === 'front' || face === 'body' ? cv.toDataURL('image/jpeg', 0.88) : cv.toDataURL('image/png') };
+      };
+    const f = layer('front');
+    out.envelope = { front: f.url, body: layer('body').url, flap: layer('flap').url, liner: layer('liner').url, w: f.spec.w, h: f.spec.h, name: f.spec.name };
+  }
   if (allPages && n > 1) {
     // Every month for the all-months views, at a lighter resolution (twelve pages share the screen).
     const pp = 900 / Math.max(w, h),
@@ -190,9 +254,10 @@ function faces(longSide: number, quality: number, allPages = false): ViewerFaces
   return out;
 }
 
-export async function open3D(f?: ViewerFaces): Promise<void> {
+export async function open3D(f?: ViewerFaces, start?: ViewerFaces['start']): Promise<void> {
   await ensureFonts(fontsFor(getState().design));
-  setUI({ viewer: f ?? faces(1400, 0.9, true) });
+  const v = f ?? faces(1400, 0.9, true);
+  setUI({ viewer: start ? { ...v, start } : v });
 }
 
 /* ---------- gallery ---------- */

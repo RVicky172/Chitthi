@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setUI, useApp } from '../state/store';
 import { Seg } from './common';
 
-type Mode = 'card' | 'ring' | 'wall';
+type Mode = 'card' | 'ring' | 'wall' | 'envelope';
 
 /** Full-screen 3D card you can spin and flip. Calendars can also show every month at once. */
 export function Viewer3D() {
@@ -23,6 +23,8 @@ export function Viewer3D() {
   const many = pages.length > 1;
   const [mode, setMode] = useState<Mode>('card');
   const [cur, setCur] = useState(0); // wall calendar: pages turned so far
+  const [opened, setOpened] = useState(false); // envelope: flap open and card out
+  const env = faces?.envelope;
 
   // All pages in the ring: every month, then the year page on the back.
   const ring = faces ? [...pages, ...(many ? [{ src: faces.back, label: 'Year at a glance' }] : [])] : [];
@@ -33,9 +35,11 @@ export function Viewer3D() {
     const el = dlg.current;
     if (!el) return;
     if (faces) {
-      v.current = { rx: -10, ry: faces.pages && faces.pages.length > 1 ? 0 : -28, target: null, drag: null };
-      setMode(faces.pages && faces.pages.length > 1 ? 'ring' : 'card');
+      const m: Mode = faces.start ?? (faces.pages && faces.pages.length > 1 ? 'ring' : 'card');
+      v.current = { rx: m === 'envelope' ? -12 : -10, ry: m === 'envelope' ? 158 : m === 'ring' ? 0 : -28, target: null, drag: null };
+      setMode(m);
       setCur(0);
+      setOpened(false);
       if (!el.open) el.showModal();
     } else if (el.open) el.close();
   }, [faces]);
@@ -78,7 +82,7 @@ export function Viewer3D() {
           s.ry = s.target;
           s.target = null;
         }
-      } else if (!s.drag && auto && mode !== 'wall') s.ry += mode === 'ring' ? 0.12 : 0.22;
+      } else if (!s.drag && auto && mode !== 'wall' && mode !== 'envelope') s.ry += mode === 'ring' ? 0.12 : 0.22;
       if (card.current) {
         card.current.style.transform = `${pre.current}rotateX(${s.rx}deg) rotateY(${s.ry}deg)`;
         card.current.style.setProperty('--gx', `${(((s.ry % 360) + 360) % 360) / 3.6}%`);
@@ -106,9 +110,27 @@ export function Viewer3D() {
     setMode(m);
     const s = v.current;
     s.target = null;
-    s.rx = m === 'wall' ? -6 : -10;
-    s.ry = m === 'card' ? -28 : m === 'wall' ? -12 : 0;
+    s.rx = m === 'wall' ? -6 : m === 'envelope' ? -12 : -10;
+    s.ry = m === 'card' ? -28 : m === 'wall' ? -12 : m === 'envelope' ? 158 : 0;
+    setOpened(false);
   };
+  const modes: [Mode, string][] = [
+    ...(many
+      ? ([
+          ['ring', 'All months'],
+          ['wall', 'Wall calendar'],
+        ] as [Mode, string][])
+      : []),
+    ['card', many ? 'Single page' : 'Card'],
+    ...(env ? ([['envelope', 'Envelope']] as [Mode, string][]) : []),
+  ];
+  // Envelope size on screen, leaving room above for the card sliding out.
+  const eScale = env ? Math.min((Math.min(size.vw * 0.55, 820)) / env.w, (size.h * 0.72) / env.h) : 0,
+    ew = env ? env.w * eScale : 0,
+    eh = env ? env.h * eScale : 0,
+    portraitCard = !!faces && faces.h > faces.w,
+    cw = faces ? (portraitCard ? faces.h : faces.w) * eScale : 0,
+    ch = faces ? (portraitCard ? faces.w : faces.h) * eScale : 0;
 
   const radius = !faces
     ? 2
@@ -134,21 +156,17 @@ export function Viewer3D() {
     >
       <div className="vbar">
         <h2 id="vTitle">{title}</h2>
-        {many && (
+        {modes.length > 1 && (
           <div className="vmode">
-            <Seg<Mode>
-              label="View"
-              value={mode}
-              options={[
-                ['ring', 'All months'],
-                ['wall', 'Wall calendar'],
-                ['card', 'Single page'],
-              ]}
-              onChange={switchMode}
-            />
+            <Seg<Mode> label="View" value={mode} options={modes} onChange={switchMode} />
           </div>
         )}
-        {mode === 'card' && (
+        {mode === 'envelope' && (
+          <button type="button" className="btn" aria-pressed={opened} onClick={() => setOpened((o) => !o)}>
+            {opened ? 'Close envelope' : 'Open envelope'}
+          </button>
+        )}
+        {(mode === 'card' || mode === 'envelope') && (
           <button
             type="button"
             className="btn"
@@ -160,7 +178,7 @@ export function Viewer3D() {
             Flip card
           </button>
         )}
-        {mode !== 'card' && (
+        {(mode === 'ring' || mode === 'wall') && (
           <span className="vnav">
             <button type="button" className="btn" aria-label="Previous month" disabled={mode === 'wall' && cur === 0} onClick={() => turn(-1)}>
               ‹
@@ -177,7 +195,7 @@ export function Viewer3D() {
             </button>
           </span>
         )}
-        {mode !== 'wall' && (
+        {(mode === 'card' || mode === 'ring') && (
           <label className="check">
             <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Turn slowly
           </label>
@@ -188,7 +206,7 @@ export function Viewer3D() {
           onClick={() => {
             const s = v.current;
             s.rx = mode === 'wall' ? -6 : -10;
-            const home = mode === 'card' ? -28 : mode === 'wall' ? -12 : 0;
+            const home = mode === 'card' ? -28 : mode === 'wall' ? -12 : mode === 'envelope' ? 158 : 0;
             s.target = home + Math.round((s.ry - home) / 360) * 360;
           }}
         >
@@ -225,6 +243,7 @@ export function Viewer3D() {
             const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el instanceof HTMLElement && el.dataset.page);
             if (hit instanceof HTMLElement) face(+(hit.dataset.page ?? 0));
           } else if (mode === 'wall') setCur((c) => (c < pages.length - 1 ? c + 1 : 0));
+          else if (mode === 'envelope') setOpened((o) => !o);
         }}
         onPointerCancel={() => {
           v.current.drag = null;
@@ -276,10 +295,38 @@ export function Viewer3D() {
             })}
           </div>
         )}
+        {faces && env && mode === 'envelope' && (
+          <div className={`venv${opened ? ' open' : ''}`} ref={card} style={{ width: ew, height: eh }}>
+            <div className="face f">
+              <img src={env.front} alt={`Envelope, address side (${env.name})`} />
+              <i className="gloss" />
+            </div>
+            <div className="venv-card" style={{ width: cw, height: ch, left: (ew - cw) / 2, top: (eh - ch) / 2 }}>
+              <div className="venv-slide" style={{ transform: opened ? `translateY(${-ch * 0.5}px)` : 'none' }}>
+                <div className="face f" style={{ transform: 'rotateY(180deg)' }}>
+                  <img
+                    src={faces.front}
+                    alt="The card inside"
+                    style={portraitCard ? { width: ch, height: cw, transform: `translate(${(cw - ch) / 2}px, ${(ch - cw) / 2}px) rotate(-90deg)` } : undefined}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="face b">
+              <img src={env.body} alt="Envelope, back" />
+            </div>
+            <div className="venv-flap" style={{ transform: `rotateY(180deg) translateZ(3px) rotateX(${opened ? 196 : 0}deg)` }}>
+              <img className="out" src={env.flap} alt="" />
+              <img className="in" src={env.liner} alt="" />
+            </div>
+          </div>
+        )}
         <div className="vshadow" ref={shadow} style={{ width: (mode === 'ring' ? pw * 3 : size.w) * 0.85 }} />
       </div>
       <p className="vhint">
-        {mode === 'ring'
+        {mode === 'envelope'
+          ? `${env?.name ?? ''} envelope. Tap it to open, drag to turn it over.`
+          : mode === 'ring'
           ? 'Drag to spin through the year. Tap a month, or use the arrow keys, to bring it to the front.'
           : mode === 'wall'
             ? 'Tap the calendar to turn the page. Drag to tilt it.'

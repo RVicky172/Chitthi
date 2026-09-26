@@ -1,7 +1,7 @@
 # Chitthi desktop packaging (Windows + macOS). See docs/DESKTOP.md for signing and release setup.
 appId: in.chitthi.studio
 productName: Chitthi
-copyright: Copyright © 2026 Chitthi
+copyright: Copyright © 2026 RVicky172 and Chitthi contributors (MIT License)
 
 directories:
   output: release
@@ -13,6 +13,8 @@ files:
   - electron/main.cjs
   - electron/preload.cjs
   - package.json
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
   - '!dist/sw.js'
 
 # Offline card + UI fonts (npm run fetch:fonts), served to the app at app://chitthi/fonts/.
@@ -44,6 +46,7 @@ win:
   # publisher check is filled in from the certificate, so unsigned builds can still update each other.
 
 nsis:
+  license: LICENSE
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

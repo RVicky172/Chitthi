@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import { putOnCard, removeStored, useLibrary } from '../state/library';
 import { usePhotoSlots } from '../state/photoSlots';
-import { useApp } from '../state/store';
+import { dimsOf, fitsSlot, rememberDims, slotInfo, useDimsTick } from '../state/photoFit';
+import { setUI, useApp } from '../state/store';
+import { Check } from './common';
 import { isDesktop } from '../platform/desktop';
 
 /** Every photo ever uploaded in this browser. Tap one to use it on the card straight away. */
 export function PhotoStore() {
   const { list, error } = useLibrary();
-  const photos = useApp((s) => s.photos);
+  const photos = useApp((s) => s.photos),
+    design = useApp((s) => s.design);
+  const [fitOnly, setFitOnly] = useState(false);
+  useDimsTick();
   const { count, active } = usePhotoSlots();
   const [sure, setSure] = useState<string | null>(null);
   useEffect(() => {
@@ -30,13 +35,26 @@ export function PhotoStore() {
   if (!list.length) return <p className="hint">Photos you upload are kept here, ready to use on any card.</p>;
 
   const slotOf = new Map(photos.map((p, i) => [p.url, i < count ? i : -1]));
+  const slot = slotInfo(design, active);
+  const shown = fitOnly && slot ? list.filter((s) => {
+    const d = dimsOf(s.url);
+    return !d || fitsSlot(d.w, d.h, slot.aspect);
+  }) : list;
   return (
     <>
       <p className="hint">
-        Tap a photo to use it{count > 1 ? ` in slot ${active + 1}` : ''}. Photos stay here for your next cards.
+        Tap a photo to use it{count > 1 ? ` in slot ${active + 1}` : ''}. Photos stay here for your next designs.{' '}
+        <button type="button" className="linkbtn" onClick={() => setUI({ library: true })}>
+          Open the photo library
+        </button>
       </p>
+      {slot && (
+        <Check checked={fitOnly} onChange={setFitOnly}>
+          Only photos that suit {count > 1 ? `slot ${active + 1}` : 'the slot'} ({shown.length} of {list.length})
+        </Check>
+      )}
       <ul className="store">
-        {list.map((s) => {
+        {shown.map((s) => {
           const at = slotOf.get(s.url) ?? -2;
           return (
             <li key={s.id}>
@@ -47,7 +65,13 @@ export function PhotoStore() {
                 title={s.name}
                 onClick={() => void putOnCard(s)}
               >
-                <img src={s.url} alt={s.name} loading="lazy" decoding="async" />
+                <img
+                  src={s.url}
+                  alt={s.name}
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={(e) => rememberDims(s.url, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+                />
                 {at >= 0 && <b>{count > 1 ? `Slot ${at + 1}` : 'On card'}</b>}
               </button>
               <button

@@ -3,10 +3,14 @@ import {
   Box,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Crop,
   Download,
+  Expand,
+  Maximize,
+  Minimize,
   Frame,
   ImagePlus,
   Images,
@@ -21,14 +25,17 @@ import {
   Printer,
   Redo2,
   RotateCcw,
+  Ruler,
   Save,
   Search,
+  Settings,
   Sparkles,
   Star,
   Sun,
   Trash2,
   Type,
   Undo2,
+  WandSparkles,
   X,
   type LucideProps,
 } from 'lucide-react';
@@ -53,6 +60,7 @@ export const ProductIcon = ({ id }: { id: ProductId }) => {
 };
 
 export const GalleryIcon = () => <LayoutGrid {...base} />;
+export const PhotosIcon = () => <Images {...base} />;
 export const CheckIcon = () => <Check {...base} strokeWidth={2.6} />;
 export const UndoIcon = () => <Undo2 {...base} />;
 export const RedoIcon = () => <Redo2 {...base} />;
@@ -62,6 +70,9 @@ export const CubeIcon = () => <Box {...base} />;
 export const SunIcon = () => <Sun {...base} />;
 export const MoonIcon = () => <Moon {...base} />;
 export const ArrowIcon = () => <ArrowRight {...base} strokeWidth={2.1} />;
+export const ChevronIcon = () => <ChevronDown {...base} strokeWidth={2.2} />;
+export const ExpandIcon = () => <Expand {...base} />;
+export const FullscreenIcon = ({ on }: { on: boolean }) => (on ? <Minimize {...base} /> : <Maximize {...base} />);
 export const PrevIcon = () => <ChevronLeft {...base} strokeWidth={2.2} />;
 export const NextIcon = () => <ChevronRight {...base} strokeWidth={2.2} />;
 export const CloseIcon = () => <X {...base} strokeWidth={2.1} />;
@@ -73,7 +84,10 @@ export const StarIcon = () => <Star {...base} />;
 export const TrashIcon = () => <Trash2 {...base} />;
 export const EditIcon = () => <Pencil {...base} />;
 export const PackIcon = () => <Package {...base} />;
+export const ArrangeIcon = () => <WandSparkles {...base} />;
 export const SearchIcon = () => <Search {...base} />;
+export const SettingsIcon = () => <Settings {...base} />;
+export const RulerIcon = () => <Ruler {...base} />;
 
 /** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
 export const InstagramIcon = () => (
@@ -91,9 +105,10 @@ export const Logo = () => (
     </defs>
     <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" strokeWidth="3.5" />
     <circle cx="60" cy="60" r="31" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    <text fontFamily="Hind, sans-serif" fontSize="11.5" fontWeight="600" letterSpacing="2.2" fill="currentColor">
-      <textPath href="#ring" startOffset="2%">
-        CHITTHI ✦ POSTCARD STUDIO ✦
+    <text fontFamily="Hind, sans-serif" fontSize="11.5" fontWeight="600" fill="currentColor">
+      {/* Spread evenly round the whole ring (circumference 251): the last ✦ meets the first letter. */}
+      <textPath href="#ring" startOffset="1%" textLength="244" lengthAdjust="spacing">
+        CHITTHI ✦ PRINT STUDIO ✦
       </textPath>
     </text>
     <text x="60" y="68" textAnchor="middle" fontFamily="Rozha One, serif" fontSize="21" fill="currentColor">

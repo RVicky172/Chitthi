@@ -20,6 +20,9 @@ if (window.chitthiDesktop?.info.localFonts) {
   document.head.appendChild(l);
 }
 
+// Development only: the landing page example renderer used by npm run build:showcase.
+if (import.meta.env.DEV && location.search.includes('showcase')) void import('./dev/showcase');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

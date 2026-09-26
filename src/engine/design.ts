@@ -2,7 +2,7 @@ import { layoutsFor } from '../data/layouts';
 import { PRODUCTS, productOf, sizesFor } from '../data/products';
 import { SIZES } from '../data/sizes';
 import { PLAIN, TH, themeById } from '../data/themes';
-import { FONT_MAP } from '../data/fonts';
+import { hasFont } from '../data/fonts';
 import type { Design, SizeDef, Theme } from '../types';
 import { lum, mix, toHex } from './color';
 
@@ -48,10 +48,13 @@ export const DEFAULT_DESIGN: Design = {
     numbers: 'corner',
     grid: 'lines',
     font: '',
+    numFont: '',
+    numBold: true,
     backQuote: false,
   },
   mat: 'classic',
   designName: '',
+  env: { on: true, style: 'pointed', paper: 'occasion', art: true, photo: true, sender: '' },
 };
 
 /** A fresh design of the given product, keeping the user's photo-independent choices like export settings. */
@@ -69,6 +72,8 @@ export function productDesign(product: Design['product'], keep?: Design): Design
     exp: { ...(keep?.exp ?? base.exp), ...def.exp },
     // A magnet is small: one line of words reads better than greeting, quote and signature together.
     ...(product === 'magnet' ? { showQuote: false, vAlign: 'bottom' as const } : {}),
+    // Calendars are wire-bound and usually handed over, so their envelope starts switched off.
+    ...(product === 'calendar' ? { env: { ...base.env, on: false } } : {}),
   };
 }
 
@@ -86,17 +91,19 @@ export function mergeDesign(saved: unknown): Design {
     back: { ...d.back, ...s.back },
     exp: { ...d.exp, ...s.exp },
     cal: { ...d.cal, ...s.cal },
+    env: { ...d.env, ...s.env },
   };
   out.cal.captions = Array.from({ length: 12 }, (_, i) => (typeof out.cal.captions?.[i] === 'string' ? out.cal.captions[i] : ''));
-  if (out.cal.font && !FONT_MAP[out.cal.font]) out.cal.font = '';
+  if (out.cal.font && !hasFont(out.cal.font)) out.cal.font = '';
+  if (out.cal.numFont && !hasFont(out.cal.numFont)) out.cal.numFont = '';
   // Keep the size and layout valid for the product (older saves are all postcards).
   if (!PRODUCTS.some((p) => p.id === out.product)) out.product = 'postcard';
   const def = productOf(out.product).defaults;
   if (!sizesFor(out.product).some((x) => x.id === out.sizeId)) out.sizeId = def.sizeId;
   if (!layoutsFor(out.product).some(([id]) => id === out.layout)) out.layout = def.layout;
-  if (!FONT_MAP[out.headFont]) out.headFont = 'Rozha One';
-  if (!FONT_MAP[out.quoteFont]) out.quoteFont = 'Kalam';
-  if (!FONT_MAP[out.back.font]) out.back.font = 'Kalam';
+  if (!hasFont(out.headFont)) out.headFont = 'Rozha One';
+  if (!hasFont(out.quoteFont)) out.quoteFont = 'Kalam';
+  if (!hasFont(out.back.font)) out.back.font = 'Kalam';
   if (!SIZES.some((x) => x.id === out.sizeId)) out.sizeId = '4x6';
   return out;
 }

@@ -38,7 +38,8 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
   const rs = (x: number, y: number, w: number, h: number): SlotIn => ({ s: 'rect', x, y, w, h, bleed: true });
   const plain = (r: Rect, s: Slot['s'] = 'rect'): SlotIn => ({ s, ...r });
   const right = (x: number) => R(x, B.y + pad, B.x + B.w - x - pad, B.h - pad * 2);
-  const below = (y: number) => R(B.x + pad, y, B.w - pad * 2, B.y + B.h - y - pad);
+  // Words under a photo stop well above the bottom edge, clear of the border artwork many occasions draw there.
+  const below = (y: number) => R(B.x + pad, y, B.w - pad * 2, B.y + B.h - y - pad * 1.75);
   const L: Layout = {
     slots: [],
     text: null,
@@ -312,6 +313,116 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
       L.text = R(B.x + pad * 1.3, B.y + pad * 1.3, B.w - pad * 2.6, B.h - pad * 2.6);
       break;
 
+    /* ---------- modern postcard layouts ---------- */
+    case 'offset': {
+      // A photo with a solid accent block offset behind it, on plain paper.
+      L.frame = true;
+      L.bg = false;
+      L.ink = 'frame';
+      const o = u * 3.2;
+      const ph = land ? R(B.x + pad, B.y + pad, B.w * 0.5, B.h - 2 * pad - o) : R(B.x + pad, B.y + pad, B.w - 2 * pad - o, B.h * 0.55);
+      L.blocks = [{ r: R(ph.x + o, ph.y + o, ph.w, ph.h), c: 'accent' }];
+      slots = [plain(ph)];
+      L.text = land ? right(ph.x + ph.w + o + pad) : below(ph.y + ph.h + o + pad * 0.7);
+      break;
+    }
+    case 'diagonal': {
+      // Two photos split on a slant, words over the lower part.
+      L.frame = true;
+      L.bg = false;
+      L.overlay = true;
+      const k = g * 0.6;
+      if (land) {
+        const a = B.x + B.w * 0.6,
+          b = B.x + B.w * 0.42;
+        slots = [
+          { s: 'poly', ...R(B.x, B.y, a - B.x, B.h), bleed: true, pts: [[B.x, B.y], [a - k, B.y], [b - k, B.y + B.h], [B.x, B.y + B.h]] },
+          { s: 'poly', ...R(b, B.y, B.x + B.w - b, B.h), bleed: true, pts: [[a + k, B.y], [B.x + B.w, B.y], [B.x + B.w, B.y + B.h], [b + k, B.y + B.h]] },
+        ];
+      } else {
+        const a = B.y + B.h * 0.42,
+          b = B.y + B.h * 0.6;
+        slots = [
+          { s: 'poly', ...R(B.x, B.y, B.w, b - B.y), bleed: true, pts: [[B.x, B.y], [B.x + B.w, B.y], [B.x + B.w, a - k], [B.x, b - k]] },
+          { s: 'poly', ...R(B.x, a, B.w, B.y + B.h - a), bleed: true, pts: [[B.x, b + k], [B.x + B.w, a + k], [B.x + B.w, B.y + B.h], [B.x, B.y + B.h]] },
+        ];
+      }
+      L.text = R(B.x + pad, B.y + B.h * 0.58, B.w - 2 * pad, B.h * 0.42 - pad);
+      L.onPhoto = true;
+      L.scrimArea = R(B.x, B.y + B.h * 0.45, B.w, B.h * 0.55);
+      break;
+    }
+    case 'scrapbook': {
+      // Three instant prints, tilted and overlapping, taped onto the occasion background.
+      const ps = land ? Math.min(B.h * 0.46, B.w * 0.23) : Math.min(B.w * 0.36, B.h * 0.24),
+        at = (cx: number, cy: number, rot: number): SlotIn => ({ s: 'rect', ...R(cx - ps / 2, cy - ps / 2, ps, ps), rot, print: true });
+      if (land) {
+        slots = [at(B.x + B.w * 0.16, B.y + B.h * 0.34, -0.1), at(B.x + B.w * 0.43, B.y + B.h * 0.3, 0.07), at(B.x + B.w * 0.29, B.y + B.h * 0.66, -0.03)];
+        L.text = right(B.x + B.w * 0.6);
+      } else {
+        slots = [at(B.x + B.w * 0.3, B.y + B.h * 0.17, -0.09), at(B.x + B.w * 0.7, B.y + B.h * 0.2, 0.08), at(B.x + B.w * 0.47, B.y + B.h * 0.42, -0.02)];
+        L.text = below(B.y + B.h * 0.62);
+      }
+      break;
+    }
+    case 'filmstrip': {
+      // Frames on a dark film strip with sprocket holes.
+      const n = 3;
+      if (land) {
+        const fh = B.h * 0.5,
+          band = R(B.x, B.y + pad * 0.9, B.w, fh),
+          hole = fh * 0.13,
+          fw = (B.w - pad * 2 - g * (n - 1)) / n;
+        L.film = { r: band, vertical: false };
+        slots = Array.from({ length: n }, (_, i) => plain(R(B.x + pad + i * (fw + g), band.y + hole * 1.6, fw, fh - hole * 3.2)));
+        L.text = below(band.y + fh + pad * 0.6);
+      } else {
+        const fw = B.w * 0.46,
+          band = R(B.x + pad * 0.8, B.y, fw, B.h),
+          hole = fw * 0.13,
+          fh = (B.h - pad * 2 - g * (n - 1)) / n;
+        L.film = { r: band, vertical: true };
+        slots = Array.from({ length: n }, (_, i) => plain(R(band.x + hole * 1.6, B.y + pad + i * (fh + g), fw - hole * 3.2, fh)));
+        L.text = right(band.x + fw + pad * 0.8);
+      }
+      break;
+    }
+    case 'minimal': {
+      // A small photo, generous white space and a fine hairline.
+      L.frame = true;
+      L.bg = false;
+      L.ink = 'frame';
+      L.hairline = pad * 0.45;
+      L.textFill = 0.22;
+      if (land) {
+        const ph = R(B.x + B.w * 0.12, B.y + B.h * 0.2, B.w * 0.32, B.h * 0.6);
+        slots = [plain(ph)];
+        L.text = R(B.x + B.w * 0.52, B.y + B.h * 0.2, B.w * 0.36, B.h * 0.6);
+      } else {
+        const pw = B.w * 0.56,
+          ph = R(B.x + (B.w - pw) / 2, B.y + B.h * 0.13, pw, pw * 1.22);
+        slots = [plain(ph)];
+        L.text = R(B.x + B.w * 0.16, ph.y + ph.h + B.h * 0.05, B.w * 0.68, B.y + B.h * 0.88 - (ph.y + ph.h + B.h * 0.05));
+      }
+      break;
+    }
+    case 'twin-arch': {
+      // Two jharokha arches side by side.
+      if (land) {
+        const ah = B.h - pad * 2.4,
+          aw = Math.min(ah * 0.6, B.w * 0.27),
+          y = B.y + (B.h - ah) / 2;
+        slots = [plain(R(B.x + pad * 1.1, y, aw, ah), 'arch'), plain(R(B.x + pad * 1.1 + aw + pad * 0.6, y, aw, ah), 'arch')];
+        L.text = right(B.x + pad * 1.1 + aw * 2 + pad * 1.4);
+      } else {
+        const aw = (B.w - pad * 2.4 - pad * 0.6) / 2,
+          ah = Math.min(aw * 1.55, B.h * 0.56);
+        slots = [plain(R(B.x + pad * 1.2, B.y + pad * 1.3, aw, ah), 'arch'), plain(R(B.x + pad * 1.8 + aw, B.y + pad * 1.3, aw, ah), 'arch')];
+        L.text = below(B.y + pad * 1.3 + ah + pad * 0.7);
+      }
+      break;
+    }
+
     /* ---------- photo frame prints: photo windows cut into a mat ---------- */
     case 'frame-single':
     case 'frame-caption':
@@ -402,22 +513,32 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
         L.onPhoto = true;
         L.ink = null; // white on the photo, not the paper's ink
         L.scrimArea = photo;
-      } else if (place !== 'off') {
-        // One caption line above the month title, a step smaller than the title.
-        const ch = Math.min(area.h * 0.12, area.w * 0.09);
-        L.text = R(area.x, area.y, area.w, ch);
-        L.textFill = 0.7;
-        area = R(area.x, area.y + ch + u * 1.2, area.w, area.h - ch - u * 1.2);
       }
-      if (id === 'cal-strip') {
-        const th = Math.min(area.h * 0.14, area.w * 0.1);
-        L.calTitle = R(area.x, area.y, area.w, th);
-        L.calYear = R(area.x, area.y + th + u * 1.6, area.w, area.h - th - u * 1.6);
-      } else {
-        const th = Math.min(area.h * 0.19, area.w * 0.13);
-        L.calTitle = R(area.x, area.y, area.w, th);
-        L.calGrid = R(area.x, area.y + th + u * 1.2, area.w, area.h - th - u * 1.2);
+      // Share the area: caption line, month title, day grid, with real gaps between them. The grid keeps at least
+      // 60% of the height; the caption and title shrink together when space is short (landscape desk calendars).
+      const strip = id === 'cal-strip',
+        caption = place === 'caption' || (place === 'photo' && !photo),
+        gap = Math.max(u * 1.8, area.h * 0.03);
+      let ch = caption ? Math.min(area.h * 0.1, area.w * 0.075) : 0,
+        th = strip ? Math.min(area.h * 0.14, area.w * 0.1) : Math.min(area.h * 0.17, area.w * 0.12);
+      const gaps = gap * (caption ? 2 : 1),
+        room = area.h * 0.4 - gaps;
+      if (ch + th > room) {
+        const k = Math.max(0.5, room / (ch + th));
+        ch *= k;
+        th *= k;
       }
+      let y = area.y;
+      if (caption) {
+        // One line above the month title, a step smaller than it.
+        L.text = R(area.x, y, area.w, ch);
+        L.textFill = 0.72;
+        y += ch + gap;
+      }
+      L.calTitle = R(area.x, y, area.w, th);
+      y += th + gap;
+      if (strip) L.calYear = R(area.x, y, area.w, area.y + area.h - y);
+      else L.calGrid = R(area.x, y, area.w, area.y + area.h - y);
       break;
     }
 
@@ -440,6 +561,7 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
       const ph = R(B.x + side, B.y + side, B.w - 2 * side, B.h - side - cap);
       slots = [plain(ph)];
       L.text = R(ph.x + u * 1.5, ph.y + ph.h + cap * 0.14, ph.w - u * 3, cap * 0.72);
+      L.textCenter = true;
       break;
     }
     case 'mag-duo':
@@ -477,7 +599,19 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
       L.text = R(B.x + pad * 1.2, B.y + pad * 1.2, B.w - pad * 2.4, B.h - pad * 2.4);
       break;
   }
-  L.slots = slots.map((s) => ({ ...s, d: s.bleed ? extend(s, B) : { x: s.x, y: s.y, w: s.w, h: s.h } }));
+  L.slots = slots.map((s) => {
+    if (!s.pts) return { ...s, d: s.bleed ? extend(s, B) : { x: s.x, y: s.y, w: s.w, h: s.h } };
+    // Polygon slots: corners on the trim edge move out into the bleed; d is their bounding box.
+    const tol = 0.5,
+      pts = s.pts.map(([x, y]): [number, number] => [
+        Math.abs(x - B.x) < tol ? x - B.e : Math.abs(x - B.x - B.w) < tol ? x + B.e : x,
+        Math.abs(y - B.y) < tol ? y - B.e : Math.abs(y - B.y - B.h) < tol ? y + B.e : y,
+      ]),
+      xs = pts.map((p) => p[0]),
+      ys = pts.map((p) => p[1]);
+    const d = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    return { ...s, pts, d };
+  });
   if (L.band) L.band = extend(L.band, B);
   if (L.scrimArea) L.scrimArea = extend(L.scrimArea, B);
   return L;

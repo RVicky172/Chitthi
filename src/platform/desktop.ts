@@ -19,7 +19,10 @@ export type MenuAction =
   | 'gallery'
   | '3d'
   | 'flip'
-  | 'theme';
+  | 'theme'
+  | 'settings'
+  | 'sizes'
+  | 'find';
 
 export interface OpenedFile {
   name: string;

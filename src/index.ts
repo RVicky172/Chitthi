@@ -26,6 +26,10 @@ export { PrintPane } from './components/panes/PrintPane';
 export { GalleryDialog } from './components/GalleryDialog';
 export { CropDialog } from './components/CropDialog';
 export { Viewer3D } from './components/Viewer3D';
+export { SettingsDialog } from './components/SettingsDialog';
+export { PhotoLibrary } from './components/PhotoLibrary';
+export { FeatureFinder } from './components/FeatureFinder';
+export { SizeGuide } from './components/SizeGuide';
 export { Toast } from './components/Toast';
 
 /* ---------- pickers and media ---------- */
@@ -64,6 +68,8 @@ export {
   EditIcon,
   PackIcon,
   SearchIcon,
+  SettingsIcon,
+  RulerIcon,
   Logo,
 } from './components/icons';
 export { SampleGallery } from './components/SampleGallery';

@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { productOf } from '../../data/products';
 import { sizeOf } from '../../engine/design';
 import { exportSummary, pagesOf } from '../../engine/export';
-import { applyInstaxPreset, downloadPack, downloadPNG, downloadPrintFile, open3D } from '../../state/actions';
+import { QUOTE_QTY } from '../../data/printSpecs';
+import { envelopeSummary, templateSheet } from '../../engine/envelope';
+import { applyInstaxPreset, downloadEnvelope, downloadPack, downloadPNG, downloadPrintFile, downloadQuote, open3D } from '../../state/actions';
 import { setExp, useApp } from '../../state/store';
 import type { ExportFormat, ExportSettings, SheetId } from '../../types';
-import { Check, Pane } from '../common';
+import { Check, Pane, Section } from '../common';
 import { PackIcon } from '../icons';
 
 const FORMATS: [ExportFormat, string, string][] = [
@@ -45,6 +47,8 @@ export function PrintPane() {
             {e.back ? ' and back' : ''} as separate PNG files, the print PDF, and a <code>PRINT-SPEC.txt</code> for the print
             shop with trim size, {+e.bleed ? `${e.bleed === '3.175' ? '⅛ in' : `${e.bleed} mm`} bleed` : 'bleed'}, safe area,
             resolution and paper.
+            {d.env.on && ' It also holds the matching envelope: a PDF to print on a ready-made envelope and a fold-your-own template.'}{' '}
+            And a <code>QUOTE-REQUEST.pdf</code> to send to print shops: previews, paper, finishing and a price grid by quantity.
           </small>
         </div>
         <button type="button" className="btn primary" disabled={!!busy} onClick={() => run('pack', () => downloadPack(setStep))}>
@@ -52,7 +56,7 @@ export function PrintPane() {
         </button>
       </div>
 
-      <h3>Settings</h3>
+      <Section id="print.settings" title="Settings" note={`${e.dpi} dpi, ${+e.bleed ? `${e.bleed} mm bleed` : 'no bleed'}`}>
       <div className="row">
         <label className="f">
           Bleed
@@ -90,7 +94,8 @@ export function PrintPane() {
           )}
         </div>
       </div>
-      <h3>PDF type</h3>
+      </Section>
+      <Section id="print.format" title="File type">
       <div className="fmt" role="radiogroup" aria-label="File type">
         {FORMATS.map(([v, t, s]) => (
           <label key={v}>
@@ -135,6 +140,39 @@ export function PrintPane() {
           </button>
         )}
       </div>
+      </Section>
+      {d.env.on && (
+        <Section id="print.envelope" title="Envelope">
+          <p className="hint">{envelopeSummary(d)}.</p>
+          <div className="inline">
+            <button type="button" className="btn" disabled={!!busy} onClick={() => run('env', () => downloadEnvelope('pdf'))}>
+              {busy === 'env' ? 'Preparing…' : 'Envelope PDF'}
+            </button>
+            {templateSheet(d) && (
+              <button type="button" className="btn" disabled={!!busy} onClick={() => run('envt', () => downloadEnvelope('template'))}>
+                {busy === 'envt' ? 'Preparing…' : 'Fold-your-own template'}
+              </button>
+            )}
+            <button type="button" className="btn" onClick={() => void open3D(undefined, 'envelope')}>
+              Envelope in 3D
+            </button>
+          </div>
+        </Section>
+      )}
+      <Section id="print.quote" title="Get a quote from a print shop">
+        <p className="hint">
+          Send these to printers to compare prices. Both list the paper, weight, finish, colour sides and finishing, every size
+          with bleed and sheet counts, and a blank price-per-piece grid for {QUOTE_QTY.join(', ')} pieces.
+        </p>
+        <div className="inline">
+          <button type="button" className="btn" disabled={!!busy} onClick={() => run('quote', () => downloadQuote('design'))}>
+            {busy === 'quote' ? 'Preparing…' : 'Quote request for this design'}
+          </button>
+          <button type="button" className="btn" disabled={!!busy} onClick={() => run('catalog', () => downloadQuote('catalog'))}>
+            {busy === 'catalog' ? 'Preparing…' : 'All products and sizes (PDF)'}
+          </button>
+        </div>
+      </Section>
       <ul className="tips">
         <li>Print at 100% or “actual size”, never “fit to page”.</li>
         <li>{prod.paper}</li>

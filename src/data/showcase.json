@@ -1,0 +1,317 @@
+[
+  {
+    "id": "diwali-postcard",
+    "render": "front",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard.webp",
+    "w": 1200,
+    "h": 800,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "diwali-postcard",
+    "render": "back",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard-back.webp",
+    "w": 1200,
+    "h": 800,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "diwali-postcard",
+    "render": "envelope-front",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard-envelope-front.webp",
+    "w": 1200,
+    "h": 844,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "diwali-postcard",
+    "render": "envelope-back",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard-envelope-back.webp",
+    "w": 1200,
+    "h": 844,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "diwali-postcard",
+    "render": "envelope-body",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard-envelope-body.webp",
+    "w": 1200,
+    "h": 844,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "diwali-postcard",
+    "render": "envelope-flap",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard-envelope-flap.webp",
+    "w": 1200,
+    "h": 844,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "diwali-postcard",
+    "render": "envelope-liner",
+    "title": "Shubh Deepavali",
+    "product": "postcard",
+    "src": "showcase/diwali-postcard-envelope-liner.webp",
+    "w": 1200,
+    "h": 844,
+    "credits": [
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      }
+    ]
+  },
+  {
+    "id": "wedding-polaroid",
+    "render": "front",
+    "title": "Just married",
+    "product": "postcard",
+    "src": "showcase/wedding-polaroid.webp",
+    "w": 800,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "Ankush Chaure",
+        "url": "https://www.pexels.com/@ankush-chaure-2154344494"
+      }
+    ]
+  },
+  {
+    "id": "jaipur-stamp",
+    "render": "front",
+    "title": "Greetings from Jaipur",
+    "product": "postcard",
+    "src": "showcase/jaipur-stamp.webp",
+    "w": 1200,
+    "h": 800,
+    "credits": [
+      {
+        "name": "Sabarinath D",
+        "url": "https://www.pexels.com/@sabarinath-d-3673940"
+      }
+    ]
+  },
+  {
+    "id": "banaras-collage",
+    "render": "front",
+    "title": "Banaras diaries",
+    "product": "postcard",
+    "src": "showcase/banaras-collage.webp",
+    "w": 1200,
+    "h": 800,
+    "credits": [
+      {
+        "name": "Patricia Luquet",
+        "url": "https://www.pexels.com/@patricia-luquet-293443066"
+      },
+      {
+        "name": "Sagar Mali",
+        "url": "https://www.pexels.com/@sagar-mali-2977768"
+      },
+      {
+        "name": "Mike van Schoonderwalt",
+        "url": "https://www.pexels.com/@mike-van-schoonderwalt-1884800"
+      }
+    ]
+  },
+  {
+    "id": "ladakh-calendar",
+    "render": "front",
+    "title": "Mountains wall calendar",
+    "product": "calendar",
+    "src": "showcase/ladakh-calendar.webp",
+    "w": 848,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "Sanskar Vyas",
+        "url": "https://www.pexels.com/@sanskar-vyas-64833207"
+      },
+      {
+        "name": "armağan .",
+        "url": "https://www.pexels.com/@armagan-107016502"
+      },
+      {
+        "name": "Mike Norris",
+        "url": "https://www.pexels.com/@miken"
+      },
+      {
+        "name": "Ram Iyengar",
+        "url": "https://www.pexels.com/@ramkrishnaiyengar"
+      },
+      {
+        "name": "Satish V",
+        "url": "https://www.pexels.com/@satish-v-2155130154"
+      },
+      {
+        "name": "Patricia Luquet",
+        "url": "https://www.pexels.com/@patricia-luquet-293443066"
+      },
+      {
+        "name": "Sabarinath D",
+        "url": "https://www.pexels.com/@sabarinath-d-3673940"
+      },
+      {
+        "name": "Balaji J",
+        "url": "https://www.pexels.com/@beerussaama"
+      },
+      {
+        "name": "Min An",
+        "url": "https://www.pexels.com/@minan1398"
+      },
+      {
+        "name": "Mike van Schoonderwalt",
+        "url": "https://www.pexels.com/@mike-van-schoonderwalt-1884800"
+      },
+      {
+        "name": "Sagar Mali",
+        "url": "https://www.pexels.com/@sagar-mali-2977768"
+      },
+      {
+        "name": "Albin Biju",
+        "url": "https://www.pexels.com/@alby"
+      }
+    ]
+  },
+  {
+    "id": "sunflower-strip",
+    "render": "front",
+    "title": "Year on one page",
+    "product": "calendar",
+    "src": "showcase/sunflower-strip.webp",
+    "w": 848,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "armağan .",
+        "url": "https://www.pexels.com/@armagan-107016502"
+      }
+    ]
+  },
+  {
+    "id": "dadi-frame",
+    "render": "front",
+    "title": "Dadi at 80",
+    "product": "frame",
+    "src": "showcase/dadi-frame.webp",
+    "w": 960,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "Albin Biju",
+        "url": "https://www.pexels.com/@alby"
+      }
+    ]
+  },
+  {
+    "id": "kites-triptych",
+    "render": "front",
+    "title": "Sankranti skies",
+    "product": "frame",
+    "src": "showcase/kites-triptych.webp",
+    "w": 1200,
+    "h": 849,
+    "credits": [
+      {
+        "name": "Mike Norris",
+        "url": "https://www.pexels.com/@miken"
+      },
+      {
+        "name": "Satish V",
+        "url": "https://www.pexels.com/@satish-v-2155130154"
+      },
+      {
+        "name": "armağan .",
+        "url": "https://www.pexels.com/@armagan-107016502"
+      }
+    ]
+  },
+  {
+    "id": "puppy-badge",
+    "render": "front",
+    "title": "Bruno badge",
+    "product": "magnet",
+    "src": "showcase/puppy-badge.webp",
+    "w": 1200,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "honggyu kim",
+        "url": "https://www.pexels.com/@honggyu-kim-582278127"
+      }
+    ]
+  },
+  {
+    "id": "eid-magnet",
+    "render": "front",
+    "title": "Eid Mubarak",
+    "product": "magnet",
+    "src": "showcase/eid-magnet.webp",
+    "w": 800,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "Min An",
+        "url": "https://www.pexels.com/@minan1398"
+      }
+    ]
+  },
+  {
+    "id": "temple-polaroid-magnet",
+    "render": "front",
+    "title": "Temple town",
+    "product": "magnet",
+    "src": "showcase/temple-polaroid-magnet.webp",
+    "w": 857,
+    "h": 1200,
+    "credits": [
+      {
+        "name": "Ram Iyengar",
+        "url": "https://www.pexels.com/@ramkrishnaiyengar"
+      }
+    ]
+  }
+]

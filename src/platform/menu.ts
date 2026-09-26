@@ -39,6 +39,9 @@ const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
   },
   flip: () => setUI({ side: getState().ui.side === 'front' ? 'back' : 'front' }),
   theme: toggleTheme,
+  settings: () => setUI({ settings: true }),
+  sizes: () => setUI({ screen: 'sizes', gallery: false }),
+  find: () => setUI({ finder: true }),
 };
 
 /** Desktop only: runs native menu commands and opens .chitthi files handed over by the OS. */

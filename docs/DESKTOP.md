@@ -12,6 +12,7 @@ offline: fonts and sample photos ship inside the app.
 | Fonts | Google Fonts | Bundled offline (`npm run fetch:fonts`) |
 | Offline | Service worker | Always offline |
 | Extras | — | Native menus, `.chitthi` design files, auto-updates |
+| Pexels photo search | Your key in Settings, or the dev/preview server's key | Your key in **File → Settings** (`Ctrl+,`), kept in the app only |
 
 The two keep **separate** libraries. To move designs between them, use **Back up gallery** in one and
 **Restore a backup** in the other, or share a single design as a `.chitthi` file (**File → Save design as file…**).
@@ -83,4 +84,4 @@ installers to a GitHub Release. The installed apps check that release for update
    `base64 -i cert.p12 | pbcopy`.
 2. Bump `version` in `package.json`, commit, then `git tag v2.1.0 && git push --tags`.
 
-The app icon is `build/icon.png` (1024×1024, rendered from `public/icon.svg`).
+The app icon is `build/icon.png` (1024×1024), rendered with the favicons from `public/favicon/favicon.svg` by `npm run build:favicons`.

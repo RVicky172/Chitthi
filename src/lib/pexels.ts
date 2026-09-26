@@ -58,10 +58,56 @@ export function setPexelsKey(key: string): void {
   cache.clear();
   window.dispatchEvent(new Event(EVT));
 }
+/** The user can hide photo search from the Photos step (Settings). */
+const HIDE = 'chitthi-pexels-hidden';
+export function pexelsHidden(): boolean {
+  try {
+    return localStorage.getItem(HIDE) === '1';
+  } catch {
+    return false;
+  }
+}
+export function setPexelsHidden(hidden: boolean): void {
+  try {
+    if (hidden) localStorage.setItem(HIDE, '1');
+    else localStorage.removeItem(HIDE);
+  } catch {
+    /* storage blocked */
+  }
+  window.dispatchEvent(new Event(EVT));
+}
+
+/** Runs fn whenever the saved key or the search setting changes. */
 export const onPexelsKey = (fn: () => void) => {
   window.addEventListener(EVT, fn);
   return () => window.removeEventListener(EVT, fn);
 };
+
+/** How photo search reaches Pexels right now. */
+export type PexelsAccess = 'key' | 'server' | 'none';
+
+/** Checks a key with one tiny search, straight to api.pexels.com. */
+export async function testPexelsKey(key: string): Promise<'ok' | 'refused' | 'offline' | 'limit'> {
+  try {
+    const res = await fetch('https://api.pexels.com/v1/search?query=nature&per_page=1', { headers: { Authorization: key.trim() } });
+    if (res.status === 401 || res.status === 403) return 'refused';
+    if (res.status === 429) return 'limit';
+    return res.ok ? 'ok' : 'offline';
+  } catch {
+    return 'offline';
+  }
+}
+
+/** Your saved key wins; otherwise the server's proxy, if this build has one. */
+export async function pexelsAccess(): Promise<PexelsAccess> {
+  if (pexelsKey()) return 'key';
+  try {
+    const res = await fetch(new URL('api/pexels/v1/search?query=nature&per_page=1', location.href));
+    return res.ok && (res.headers.get('content-type') ?? '').includes('json') ? 'server' : 'none';
+  } catch {
+    return 'none';
+  }
+}
 
 // Results are kept for the session: moving between steps or months doesn't spend the hourly request allowance.
 const cache = new Map<string, Promise<SearchResult>>();

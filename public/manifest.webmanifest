@@ -1,15 +1,17 @@
 {
-  "name": "Chitthi – Postcard Studio",
+  "name": "Chitthi – Print Studio",
   "short_name": "Chitthi",
-  "description": "Design postcards and Instax-style prints for Indian festivals, birthdays and seasons, then download print-ready files.",
+  "description": "Design postcards, calendars, framed prints and fridge magnets for Indian festivals, birthdays and seasons, then download print-ready files.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F4F2ED",
-  "theme_color": "#C8102E",
+  "background_color": "#F4EDE1",
+  "theme_color": "#7A4A2B",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "favicon/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "favicon/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "favicon/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]
 }

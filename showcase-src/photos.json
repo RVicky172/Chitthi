@@ -1,0 +1,118 @@
+{
+  "source": "Pexels",
+  "license": "https://www.pexels.com/license/",
+  "photos": [
+    {
+      "id": "rangoli",
+      "file": "rangoli.jpg",
+      "alt": "Vibrant Diwali rangoli with glowing oil lamps and flowers in New Delhi.",
+      "photographer": "Balaji J",
+      "photographerUrl": "https://www.pexels.com/@beerussaama",
+      "pexelsUrl": "https://www.pexels.com/photo/lighted-candles-on-flowers-11661801/"
+    },
+    {
+      "id": "couple",
+      "file": "couple.jpg",
+      "alt": "Indian couple in traditional attire posing during their wedding ceremony, embracing in an outdoor setting.",
+      "photographer": "Ankush Chaure",
+      "photographerUrl": "https://www.pexels.com/@ankush-chaure-2154344494",
+      "pexelsUrl": "https://www.pexels.com/photo/traditional-indian-wedding-couple-embracing-outdoors-35069916/"
+    },
+    {
+      "id": "hawamahal",
+      "file": "hawamahal.jpg",
+      "alt": "Intricate facade of Hawa Mahal, an iconic palace in Jaipur, India.",
+      "photographer": "Sabarinath D",
+      "photographerUrl": "https://www.pexels.com/@sabarinath-d-3673940",
+      "pexelsUrl": "https://www.pexels.com/photo/hawa-mahal-facade-in-jaipur-india-33290417/"
+    },
+    {
+      "id": "ghats",
+      "file": "ghats.jpg",
+      "alt": "Wooden boats moored on the Ganges River in Varanasi, depicting a rustic urban waterfront scene.",
+      "photographer": "Patricia Luquet",
+      "photographerUrl": "https://www.pexels.com/@patricia-luquet-293443066",
+      "pexelsUrl": "https://www.pexels.com/photo/wooden-boats-moored-in-the-river-port-17869813/"
+    },
+    {
+      "id": "chai",
+      "file": "chai.jpg",
+      "alt": "Close-up of masala chai served in clay cups by a street vendor, capturing authentic Indian culture.",
+      "photographer": "Sagar Mali",
+      "photographerUrl": "https://www.pexels.com/@sagar-mali-2977768",
+      "pexelsUrl": "https://www.pexels.com/photo/traditional-clay-cup-masala-chai-street-vendor-36662612/"
+    },
+    {
+      "id": "spices",
+      "file": "spices.jpg",
+      "alt": "A close-up view of colorful powdered spices on display at a market stall.",
+      "photographer": "Mike van Schoonderwalt",
+      "photographerUrl": "https://www.pexels.com/@mike-van-schoonderwalt-1884800",
+      "pexelsUrl": "https://www.pexels.com/photo/close-up-of-powdered-spices-on-market-stall-5504609/"
+    },
+    {
+      "id": "ladakh",
+      "file": "ladakh.jpg",
+      "alt": "Tranquil mountain lake reflecting a clear blue sky with clouds.",
+      "photographer": "Sanskar Vyas",
+      "photographerUrl": "https://www.pexels.com/@sanskar-vyas-64833207",
+      "pexelsUrl": "https://www.pexels.com/photo/a-lake-with-mountains-in-the-background-and-clouds-27593915/"
+    },
+    {
+      "id": "sunflower",
+      "file": "sunflower.jpg",
+      "alt": "A field of sunflowers silhouetted against a warm, golden sunset sky, capturing the beauty of nature.",
+      "photographer": "armağan .",
+      "photographerUrl": "https://www.pexels.com/@armagan-107016502",
+      "pexelsUrl": "https://www.pexels.com/photo/a-field-of-sunflowers-during-sunset-9902644/"
+    },
+    {
+      "id": "grandma",
+      "file": "grandma.jpg",
+      "alt": "Close-up portrait of an elderly Indian woman with gray hair and a warm expression.",
+      "photographer": "Albin Biju",
+      "photographerUrl": "https://www.pexels.com/@alby",
+      "pexelsUrl": "https://www.pexels.com/photo/man-in-green-dress-shirt-9366083/"
+    },
+    {
+      "id": "kites",
+      "file": "kites.jpg",
+      "alt": "Vibrant rainbow kite soaring at Lytham St Annes beach. Perfect day for kite flying.",
+      "photographer": "Mike Norris",
+      "photographerUrl": "https://www.pexels.com/@miken",
+      "pexelsUrl": "https://www.pexels.com/photo/colorful-kite-flying-at-lytham-st-annes-beach-35664407/"
+    },
+    {
+      "id": "mumbai",
+      "file": "mumbai.jpg",
+      "alt": "Stunning nighttime landscape of Mumbai's illuminated skyscrapers along Marine Drive.",
+      "photographer": "Satish V",
+      "photographerUrl": "https://www.pexels.com/@satish-v-2155130154",
+      "pexelsUrl": "https://www.pexels.com/photo/night-view-of-mumbai-s-marine-drive-skyline-33948766/"
+    },
+    {
+      "id": "temple",
+      "file": "temple.jpg",
+      "alt": "Intricately carved gopuram of Nanjanagudu Temple, showcasing traditional Hindu architecture in India.",
+      "photographer": "Ram Iyengar",
+      "photographerUrl": "https://www.pexels.com/@ramkrishnaiyengar",
+      "pexelsUrl": "https://www.pexels.com/photo/srikanteshwara-swami-temple-nanjangudu-in-nanjagud-in-india-22890480/"
+    },
+    {
+      "id": "puppy",
+      "file": "puppy.jpg",
+      "alt": "A cute Pomeranian puppy standing against a neutral background, looking playful and charming.",
+      "photographer": "honggyu kim",
+      "photographerUrl": "https://www.pexels.com/@honggyu-kim-582278127",
+      "pexelsUrl": "https://www.pexels.com/photo/cute-pomeranian-puppy-17407385/"
+    },
+    {
+      "id": "lanterns",
+      "file": "lanterns.jpg",
+      "alt": "Vibrant traditional lanterns create a festive atmosphere with brilliant colors and dynamic lighting.",
+      "photographer": "Min An",
+      "photographerUrl": "https://www.pexels.com/@minan1398",
+      "pexelsUrl": "https://www.pexels.com/photo/photo-of-lighted-lantern-lamps-1207513/"
+    }
+  ]
+}

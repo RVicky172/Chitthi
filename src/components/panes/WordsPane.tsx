@@ -3,7 +3,7 @@ import { calPages, resolveTheme } from '../../engine/design';
 import { calMonth } from '../../engine/render';
 import { setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings, CalTextPlace, HAlign, VAlign } from '../../types';
-import { Check, Pane, Seg } from '../common';
+import { Check, Pane, Section, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
 import { InstagramIcon } from '../icons';
 
@@ -26,7 +26,7 @@ export function WordsPane() {
       onNext={() => setUI({ pane: 'back' })}
     >
       {d.product === 'calendar' && <CalendarWords />}
-      {d.product === 'calendar' && <h3>Greeting and quote</h3>}
+      <Section id="words.text" title={d.product === 'calendar' ? 'Greeting and quote' : 'Greeting, quote and signature'}>
       <Check checked={d.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
         {d.product === 'calendar' ? 'Greeting (months without a caption use it, and it titles the year page)' : 'Greeting'}
       </Check>
@@ -58,6 +58,8 @@ export function WordsPane() {
         Signature line
       </Check>
       <input type="text" aria-label="Signature" value={d.sig} onChange={(e) => setDesign({ sig: e.target.value })} />
+      </Section>
+      <Section id="words.insta" title="Instagram tag" note={d.insta ? `@${d.insta}` : undefined} defaultOpen={false}>
       <label className="f">
         Instagram (shown in the photo’s bottom-right corner)
         <span className="ig">
@@ -73,7 +75,8 @@ export function WordsPane() {
           />
         </span>
       </label>
-      <h3>Fonts</h3>
+      </Section>
+      <Section id="words.fonts" title="Fonts and size" note={d.headFont}>
       <FontPicker
         label="Greeting font"
         value={d.headFont}
@@ -99,6 +102,8 @@ export function WordsPane() {
           onChange={(e) => setDesign({ textScale: +e.target.value })}
         />
       </label>
+      </Section>
+      <Section id="words.place" title="Position and colour">
       <div className="inline">
         <Seg<VAlign>
           label="Vertical position"
@@ -138,6 +143,7 @@ export function WordsPane() {
       <Check checked={d.ornament} onChange={(ornament) => setDesign({ ornament })}>
         Ornament between greeting and quote
       </Check>
+      </Section>
     </Pane>
   );
 }
@@ -163,7 +169,7 @@ function CalendarWords() {
   const filled = months.filter((m) => cal.captions[m.month]?.trim()).length;
   return (
     <>
-      <h3>Words on the month pages</h3>
+      <Section id="cal.words" title="Words on the month pages" note={filled ? `${filled} of ${n} captions` : undefined}>
       <Seg<CalTextPlace>
         label="Where the words go"
         value={cal.text}
@@ -209,7 +215,8 @@ function CalendarWords() {
         </details>
       )}
       {strip && <p className="hint">The Year strip is a single page, so it shows the greeting once instead of month captions.</p>}
-      <h3>Month titles and dates</h3>
+      </Section>
+      <Section id="cal.titles" title="Month titles and dates">
       <div className="inline">
         <Seg<CalendarSettings['titleAlign']>
           label="Month title alignment"
@@ -247,7 +254,18 @@ function CalendarWords() {
         weight="hw"
         onChange={(font) => setCal({ font: font === d.headFont ? '' : font })}
       />
+      <FontPicker
+        label="Dates and weekdays font"
+        value={cal.numFont || 'Hind'}
+        sample="MON TUE 1 2 3 14 25 31"
+        weight={cal.numBold ? 'hw' : 'bw'}
+        onChange={(numFont) => setCal({ numFont: numFont === 'Hind' ? '' : numFont })}
+      />
+      <Check checked={cal.numBold} onChange={(numBold) => setCal({ numBold })}>
+        Bold dates
+      </Check>
       <p className="hint">Every month uses the same title size and grid, so the pages line up when the calendar is bound.</p>
+      </Section>
     </>
   );
 }

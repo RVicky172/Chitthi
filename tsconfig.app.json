@@ -15,7 +15,8 @@
     "noUnusedParameters": false,
     "skipLibCheck": true,
     "useDefineForClassFields": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }
