@@ -19,6 +19,12 @@ export const LAYOUTS: [LayoutId, string, ProductId][] = [
   ['collage3', 'Three photos', 'postcard'],
   ['mosaic', 'Mosaic', 'postcard'],
   ['collage4', 'Four photos', 'postcard'],
+  ['offset', 'Offset block', 'postcard'],
+  ['diagonal', 'Diagonal duo', 'postcard'],
+  ['scrapbook', 'Scrapbook', 'postcard'],
+  ['filmstrip', 'Film strip', 'postcard'],
+  ['minimal', 'Minimal', 'postcard'],
+  ['twin-arch', 'Twin arches', 'postcard'],
   ['text', 'Text only', 'postcard'],
 
   ['frame-single', 'Single photo', 'frame'],

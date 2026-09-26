@@ -10,8 +10,9 @@ import type { LookId } from '../../types';
 import { PhotoThumb } from '../canvases';
 import { PexelsSearch } from '../PexelsSearch';
 import { PhotoStore } from '../PhotoStore';
-import { Pane } from '../common';
-import { AddPhotoIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
+import { Pane, Section } from '../common';
+import { AddPhotoIcon, ArrangeIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
+import { autoArrange } from '../../state/traits';
 
 function DpiBadge({ dpi }: { dpi: number | null }) {
   if (dpi === null) return <span className="q">not used in this layout</span>;
@@ -91,11 +92,19 @@ export function PhotosPane() {
           {photos.length < count ? `, add ${count - photos.length} more to fill it.` : '. Tap a photo under the preview to swap it in.'}
         </p>
       )}
-      <h3>Free photos from Pexels</h3>
       <PexelsSearch />
-      <h3>Photo store</h3>
-      <PhotoStore />
-      {photos.length > 0 && <h3>On this card</h3>}
+      <Section id="photos.store" title="Photo store">
+        <PhotoStore />
+      </Section>
+      {photos.length > 0 && (
+      <Section id="photos.card" title="On this design" note={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}>
+      <div className="inline">
+        <button type="button" className="btn" onClick={autoArrange}>
+          <ArrangeIcon />
+          Auto-arrange in the layout
+        </button>
+        <span className="hint">Best photo for each slot, each cropped around its subject.</span>
+      </div>
       <ul className="photos">
         {photos.map((p, i) => (
           <li key={p.id} className="photo">
@@ -174,12 +183,11 @@ export function PhotosPane() {
           </li>
         ))}
       </ul>
-      {photos.length > 0 && (
         <p className="hint">Drag a photo on the card, or use the sliders above, to move it. Zoom enlarges it; with the card focused, arrow keys and + / − work too.</p>
+      </Section>
       )}
-      <details className="guide" open={!photos.length}>
-        <summary>Photo guide</summary>
-        <ul>
+      <Section id="photos.guide" title="Photo guide" defaultOpen={!photos.length}>
+        <ul className="guide-list">
           <li>
             Accepted: <b>JPG, PNG and WebP</b>, up to {MAX_MB} MB each.
           </li>
@@ -197,7 +205,7 @@ export function PhotosPane() {
           </li>
           <li>iPhone photos in HEIC format need to be saved as JPG first.</li>
         </ul>
-      </details>
+      </Section>
     </Pane>
   );
 }

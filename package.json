@@ -2,8 +2,9 @@
   "name": "chitthi-postcard-studio",
   "productName": "Chitthi",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.3.0",
   "description": "Design postcards and Instax-style prints for Indian festivals, birthdays and seasons, then download print-ready files.",
+  "license": "MIT",
   "author": {
     "name": "RVicky172",
     "email": "rohillavicky172@gmail.com"
@@ -21,6 +22,11 @@
     "build:lib": "tsc -p tsconfig.lib.json",
     "fetch:samples": "node scripts/fetch-samples.mjs",
     "fetch:fonts": "node scripts/fetch-fonts.mjs",
+    "fetch:showcase": "node scripts/fetch-showcase.mjs",
+    "build:showcase": "node scripts/build-showcase.mjs",
+    "build:quote-docs": "node scripts/build-showcase.mjs --quote",
+    "docs:specs": "node scripts/spec-tables.mjs",
+    "build:favicons": "node scripts/build-favicons.mjs",
     "desktop:dev": "node electron/dev.mjs",
     "desktop:start": "npm run build && node electron/dev.mjs --prod",
     "desktop:pack": "npm run build && electron-builder --dir",

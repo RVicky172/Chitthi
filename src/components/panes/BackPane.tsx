@@ -1,8 +1,9 @@
 import { HANDWRITING } from '../../data/fonts';
 import { setBack, setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings } from '../../types';
-import { Check, Pane, Seg } from '../common';
+import { Check, Pane, Section, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
+import { EnvelopeSection } from './EnvelopeSection';
 
 export function BackPane() {
   const b = useApp((s) => s.design.back),
@@ -12,6 +13,7 @@ export function BackPane() {
   if (product === 'magnet') return <MagnetBack />;
   return (
     <Pane title="Back of the card" next="print file" onNext={() => setUI({ pane: 'print' })}>
+      <Section id="back.message" title="Message">
       <label className="f">
         Message (leave empty for ruled lines to write by hand)
         <textarea
@@ -33,6 +35,8 @@ export function BackPane() {
         From
         <input type="text" placeholder="Your name" value={b.from} onChange={(e) => setBack({ from: e.target.value })} />
       </label>
+      </Section>
+      <Section id="back.address" title="Address" note={b.to || undefined}>
       <label className="f">
         To (name)
         <input type="text" value={b.to} onChange={(e) => setBack({ to: e.target.value })} />
@@ -56,6 +60,8 @@ export function BackPane() {
           onChange={(e) => setBack({ pin: e.target.value.replace(/\D/g, '') })}
         />
       </label>
+      </Section>
+      <Section id="back.style" title="Stamp and style">
       <Check checked={b.stamp} onChange={(stamp) => setBack({ stamp })}>
         Stamp box
       </Check>
@@ -65,6 +71,8 @@ export function BackPane() {
       <Check checked={b.tint} onChange={(tint) => setBack({ tint })}>
         Tint the back with the card colour
       </Check>
+      </Section>
+      <EnvelopeSection />
     </Pane>
   );
 }
@@ -79,6 +87,7 @@ function CalendarBack() {
       next="print file"
       onNext={() => setUI({ pane: 'print' })}
     >
+      <Section id="back.year" title="Year page">
       <Check checked={d.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
         Title (otherwise the year is shown)
       </Check>
@@ -102,6 +111,8 @@ function CalendarBack() {
       <Check checked={d.back.tint} onChange={(tint) => setBack({ tint })}>
         Tint the page with the theme colour
       </Check>
+      </Section>
+      <EnvelopeSection />
     </Pane>
   );
 }
@@ -117,6 +128,7 @@ function FrameBack() {
       next="print file"
       onNext={() => setUI({ pane: 'print' })}
     >
+      <Section id="back.label" title="Dedication label">
       <label className="f">
         Title (uses the design name, or the greeting)
         <input type="text" value={d.designName} placeholder={d.heading} onChange={(e) => setDesign({ designName: e.target.value })} />
@@ -140,6 +152,8 @@ function FrameBack() {
       <Check checked={b.tint} onChange={(tint) => setBack({ tint })}>
         Tint with the theme colour
       </Check>
+      </Section>
+      <EnvelopeSection />
     </Pane>
   );
 }
@@ -149,16 +163,19 @@ function MagnetBack() {
   return (
     <Pane
       title="Magnetic back"
-      lead="The back of a fridge magnet is the magnetic sheet, so nothing is printed on it. The preview shows the finished look."
+      lead="The back of a fridge magnet is the magnetic sheet, so nothing is printed on it. Below: a matching envelope to post or gift it in."
       next="print file"
       onNext={() => setUI({ pane: 'print' })}
     >
+      <Section id="back.magnet" title="About the back">
       <ul className="tips">
         <li>Easiest: print straight onto inkjet printable magnet sheet (A4), then cut.</li>
         <li>Sturdier: print on photo paper and stick it onto self-adhesive magnetic sheet (0.5–0.76 mm).</li>
         <li>Round button magnets: the bleed wraps around the badge, so keep words inside the blue safe circle.</li>
         <li>Round the corners of square and card magnets with a 3 mm corner punch.</li>
       </ul>
+      </Section>
+      <EnvelopeSection />
     </Pane>
   );
 }

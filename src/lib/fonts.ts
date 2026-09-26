@@ -1,4 +1,5 @@
-import { FALLBACK, FONTS, FONT_MAP, SAMPLE } from '../data/fonts';
+import { FALLBACK, FONTS, FONT_MAP, SAMPLE, USER_FONTS } from '../data/fonts';
+import { loadUserFonts } from './userFonts';
 import { desktop } from '../platform/desktop';
 import type { Design, FontDef } from '../types';
 
@@ -41,7 +42,8 @@ export function installFontLinks(): void {
 /** Resolves once the family's faces are downloaded, so canvas text renders in the right font. */
 export function ensureFont(name: string): Promise<void> {
   const f = FONT_MAP[name];
-  if (!f) return Promise.resolve();
+  // An uploaded font: ready once the stored files are registered.
+  if (!f) return USER_FONTS.has(name) ? loadUserFonts() : Promise.resolve();
   let p = loaded.get(name);
   if (!p) {
     p = installSheet(f)
@@ -53,4 +55,5 @@ export function ensureFont(name: string): Promise<void> {
   return p;
 }
 export const ensureFonts = (names: string[]) => Promise.all([...new Set(names)].map(ensureFont)).then(() => undefined);
-export const fontsFor = (d: Design) => [d.headFont, d.quoteFont, d.back.font, ...(d.cal?.font ? [d.cal.font] : []), ...FALLBACK];
+// Rozha One draws the Chitthi mark on envelopes.
+export const fontsFor = (d: Design) => [d.headFont, d.quoteFont, d.back.font, ...(d.cal?.font ? [d.cal.font] : []), ...(d.cal?.numFont ? [d.cal.numFont] : []), ...(d.env?.on ? ['Rozha One'] : []), ...FALLBACK];

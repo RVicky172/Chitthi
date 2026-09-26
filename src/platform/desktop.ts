@@ -19,7 +19,10 @@ export type MenuAction =
   | 'gallery'
   | '3d'
   | 'flip'
-  | 'theme';
+  | 'theme'
+  | 'settings'
+  | 'sizes'
+  | 'find';
 
 export interface OpenedFile {
   name: string;
@@ -42,7 +45,10 @@ export interface DesktopBridge {
     del(id: string): Promise<unknown>;
     getWorkPhotos(): Promise<PhotoMeta[]>;
     putWorkPhotos(photos: PhotoMeta[]): Promise<unknown>;
+    /** Every stored photo without its full image (`url` is empty). */
     libAll(): Promise<StoredPhoto[]>;
+    /** The full image of one stored photo. */
+    libUrl(id: string): Promise<string>;
     libPut(p: StoredPhoto): Promise<unknown>;
     libDel(id: string): Promise<unknown>;
   };

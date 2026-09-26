@@ -4,6 +4,10 @@ import { CropDialog } from './components/CropDialog';
 import { GalleryDialog } from './components/GalleryDialog';
 import { Header } from './components/Header';
 import { Landing } from './components/Landing';
+import { FeatureFinder } from './components/FeatureFinder';
+import { PhotoLibrary } from './components/PhotoLibrary';
+import { SettingsDialog } from './components/SettingsDialog';
+import { SizeGuide } from './components/SizeGuide';
 import { BackPane } from './components/panes/BackPane';
 import { LayoutPane } from './components/panes/LayoutPane';
 import { OccasionPane } from './components/panes/OccasionPane';
@@ -15,9 +19,10 @@ import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
 import { Viewer3D } from './components/Viewer3D';
 import { ensureFonts, fontsFor } from './lib/fonts';
+import { loadUserFonts } from './lib/userFonts';
 import { useDesktopMenu } from './platform/menu';
 import { restoreWork, saveDesign, switchProduct } from './state/actions';
-import { bumpFonts, commit, getState, redo, setUI, undo, useApp } from './state/store';
+import { bumpFonts, commit, getState, hashOf, redo, screenOf, setUI, undo, useApp } from './state/store';
 import type { PaneId, ProductId } from './types';
 
 const PRODUCT_NAMES: Record<ProductId, string> = { postcard: 'postcard', calendar: 'calendar', frame: 'photo frame', magnet: 'fridge magnet' };
@@ -42,6 +47,7 @@ export default function App() {
   useEffect(() => {
     commit();
     void restoreWork();
+    void loadUserFonts().then(bumpFonts);
     const onFonts = () => bumpFonts();
     document.fonts.addEventListener('loadingdone', onFonts);
     return () => document.fonts.removeEventListener('loadingdone', onFonts);
@@ -51,10 +57,10 @@ export default function App() {
     void ensureFonts(fontsFor(getState().design)).then(bumpFonts);
   }, [headFont, quoteFont, backFont, calFont]);
 
-  // The URL hash mirrors the screen, so the browser Back button returns from the studio to the landing page.
+  // The URL hash mirrors the screen, so the browser Back button returns from the studio (or the sizes guide).
   useEffect(() => {
-    const want = screen === 'studio' ? '#/studio' : '';
-    if ((location.hash.startsWith('#/studio') ? '#/studio' : '') !== want) {
+    const want = hashOf(screen);
+    if (hashOf(screenOf(location.hash)) !== want) {
       if (want) location.hash = want;
       else history.pushState(null, '', location.pathname + location.search);
     }
@@ -65,7 +71,7 @@ export default function App() {
     const onHash = () => {
       const m = /^#\/studio\/(postcard|calendar|frame|magnet)\b/.exec(location.hash);
       if (m) switchProduct(m[1] as ProductId);
-      setUI({ screen: location.hash.startsWith('#/studio') ? 'studio' : 'home' });
+      setUI({ screen: screenOf(location.hash) });
     };
     onHash();
     window.addEventListener('hashchange', onHash);
@@ -78,9 +84,12 @@ export default function App() {
 
   return (
     <>
-      {screen === 'home' ? <Landing /> : <Studio />}
+      {screen === 'home' ? <Landing /> : screen === 'sizes' ? <SizeGuide /> : <Studio />}
       <CropDialog />
       <GalleryDialog />
+      <SettingsDialog />
+      <PhotoLibrary />
+      <FeatureFinder />
       <Viewer3D />
       <Toast />
     </>

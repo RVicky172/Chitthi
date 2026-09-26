@@ -126,9 +126,38 @@ function registerStorage() {
   ipcMain.handle('db:del', (_e, id) => fsp.rm(path.join(dir('designs'), `${requireId(id)}.json`), { force: true }));
   ipcMain.handle('db:getWorkPhotos', async () => (await readJson(path.join(LIB(), 'work.json'))) || []);
   ipcMain.handle('db:putWorkPhotos', (_e, photos) => writeJson(path.join(LIB(), 'work.json'), Array.isArray(photos) ? photos : []));
-  ipcMain.handle('db:libAll', () => readAll('photos'));
-  ipcMain.handle('db:libPut', (_e, p) => writeJson(path.join(dir('photos'), `${requireId(p && p.id)}.json`), p));
-  ipcMain.handle('db:libDel', (_e, id) => fsp.rm(path.join(dir('photos'), `${requireId(id)}.json`), { force: true }));
+  // Photo store: photos/<id>.json holds the full image, photos-meta/<id>.json everything else (name, thumbnail,
+  // analysis), so listing the library never reads or sends the full images.
+  ipcMain.handle('db:libAll', async () => {
+    const metas = await readAll('photos-meta'),
+      known = new Set(metas.map((m) => m.id));
+    // Photos saved before the split: make their meta file once.
+    let names = [];
+    try {
+      names = (await fsp.readdir(dir('photos'))).filter((n) => n.endsWith('.json') && !known.has(n.slice(0, -5)));
+    } catch {
+      /* no photos yet */
+    }
+    for (const n of names) {
+      const full = await readJson(path.join(dir('photos'), n));
+      if (!full || !safeId(full.id)) continue;
+      const meta = { ...full, url: '' };
+      await writeJson(path.join(dir('photos-meta'), n), meta);
+      metas.push(meta);
+    }
+    return metas;
+  });
+  ipcMain.handle('db:libUrl', async (_e, id) => ((await readJson(path.join(dir('photos'), `${requireId(id)}.json`))) || {}).url || '');
+  ipcMain.handle('db:libPut', async (_e, p) => {
+    const id = requireId(p && p.id);
+    // A details-only update (empty url) keeps the stored full image.
+    if (p.url) await writeJson(path.join(dir('photos'), `${id}.json`), { id, url: p.url });
+    await writeJson(path.join(dir('photos-meta'), `${id}.json`), { ...p, url: '' });
+  });
+  ipcMain.handle('db:libDel', async (_e, id) => {
+    await fsp.rm(path.join(dir('photos'), `${requireId(id)}.json`), { force: true });
+    await fsp.rm(path.join(dir('photos-meta'), `${requireId(id)}.json`), { force: true });
+  });
 }
 
 /* ------------------------------------------------------------------ files: save / open / reveal */
@@ -298,6 +327,8 @@ function menu() {
         { label: 'Back up gallery…', click: send('backup') },
         { label: 'Restore a backup…', click: send('restore') },
         { label: 'Open library folder', click: () => shell.openPath(LIB()) },
+        { type: 'separator' },
+        { label: isMac ? 'Settings…' : 'Settings', accelerator: 'CmdOrCtrl+,', click: send('settings') },
         ...(isMac ? [] : [{ type: 'separator' }, { role: 'quit' }]),
       ],
     },
@@ -319,6 +350,8 @@ function menu() {
         { label: 'Home', click: send('home') },
         { label: 'Studio', click: send('studio') },
         { label: 'Gallery', accelerator: 'CmdOrCtrl+G', click: send('gallery') },
+        { label: 'Sizes and layouts', click: send('sizes') },
+        { label: 'Find a feature…', ...shown('CmdOrCtrl+K'), click: send('find') },
         { label: '3D view', accelerator: 'CmdOrCtrl+Shift+3', click: send('3d') },
         { label: 'Flip card', ...shown('F'), click: send('flip') },
         { label: 'Light / dark theme', accelerator: 'CmdOrCtrl+Shift+L', click: send('theme') },

@@ -9,7 +9,6 @@ import { getState, patchPhoto, setUI, useApp } from '../state/store';
 import type { Layout, Photo, Rect } from '../types';
 import { Seg } from './common';
 import { CubeIcon, PrevIcon, NextIcon } from './icons';
-import { MonthStrip } from './MonthStrip';
 import { PhotoTray } from './PhotoTray';
 
 interface Drag {
@@ -27,7 +26,8 @@ export function Stage() {
   const side = useApp((s) => s.ui.side),
     guides = useApp((s) => s.ui.guides),
     fontTick = useApp((s) => s.ui.fontTick),
-    calPage = useApp((s) => s.ui.calPage);
+    calPage = useApp((s) => s.ui.calPage),
+    loading = useApp((s) => s.ui.loading);
   const isCal = design.product === 'calendar',
     pages = calPages(design),
     page = isCal ? Math.min(calPage, pages - 1) : 0;
@@ -155,7 +155,13 @@ export function Stage() {
           </button>
         </div>
       </div>
-      <div className="cardwrap" ref={wrap}>
+      <div className="cardwrap" ref={wrap} aria-busy={!!loading}>
+        {loading && (
+          <div className="stage-loading" role="status">
+            <span className="spinner" aria-hidden="true" />
+            {loading}
+          </div>
+        )}
         <canvas
           key={flipKey}
           ref={cv}
@@ -220,7 +226,6 @@ export function Stage() {
           }}
         />
       </div>
-      {side === 'front' && <MonthStrip />}
       {side === 'front' && <PhotoTray />}
       <p className="caption">
         {side === 'front' ? 'Front' : 'Back'}, {sizeOf(design).name}, {Math.round(w * 10) / 10} × {Math.round(h * 10) / 10} mm

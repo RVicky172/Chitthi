@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('chitthiDesktop', {
     getWorkPhotos: invoke('db:getWorkPhotos'),
     putWorkPhotos: invoke('db:putWorkPhotos'),
     libAll: invoke('db:libAll'),
+    libUrl: invoke('db:libUrl'),
     libPut: invoke('db:libPut'),
     libDel: invoke('db:libDel'),
   },

@@ -58,7 +58,24 @@ export const FONTS: FontDef[] = DEF.map(([n, c, w, note]) => ({
   bw: w[0],
 }));
 export const FONT_MAP: Record<string, FontDef> = Object.fromEntries(FONTS.map((f) => [f.n, f]));
-export const fontDef = (n: string): FontDef => FONT_MAP[n] ?? FONT_MAP['Hind'];
+
+/*
+ * Fonts the user uploaded (see lib/userFonts.ts). Their names are also kept in localStorage, so designs that use them
+ * keep their font at start-up, before the font files themselves have been read from storage.
+ */
+export const USER_FONTS = new Map<string, FontDef>();
+export const USER_FONT_INDEX = 'chitthi-user-fonts';
+export const userFontDef = (n: string): FontDef => ({ n, c: 'own', w: [400], hw: 400, bw: 400, note: 'your font' });
+try {
+  const names: unknown = JSON.parse(localStorage.getItem(USER_FONT_INDEX) ?? '[]');
+  if (Array.isArray(names)) for (const n of names) if (typeof n === 'string') USER_FONTS.set(n, userFontDef(n));
+} catch {
+  /* no storage: no uploaded fonts */
+}
+
+export const fontDef = (n: string): FontDef => FONT_MAP[n] ?? USER_FONTS.get(n) ?? FONT_MAP['Hind'];
+/** A built-in family or one the user uploaded on this device. */
+export const hasFont = (n: string): boolean => !!FONT_MAP[n] || USER_FONTS.has(n);
 
 export const FONT_CATS: Record<'all' | FontCat, string> = {
   all: 'All',
@@ -67,6 +84,7 @@ export const FONT_CATS: Record<'all' | FontCat, string> = {
   disp: 'Display',
   scr: 'Script',
   ss: 'Serif & sans',
+  own: 'Your fonts',
 };
 
 /** Fonts used as per-glyph fallbacks so any Indian script renders even in a Latin-only face. */

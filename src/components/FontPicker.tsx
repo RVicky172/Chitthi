@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { FONT_CATS, FONTS, fontDef } from '../data/fonts';
 import { ensureFont, installFontLinks } from '../lib/fonts';
+import { toast } from '../lib/toast';
+import { addUserFont, useUserFonts } from '../lib/userFonts';
 import type { FontCat } from '../types';
 
 interface Props {
@@ -18,6 +20,8 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
   const [cat, setCat] = useState<'all' | FontCat>('all');
   const root = useRef<HTMLDivElement>(null);
   const f = fontDef(value);
+  const mine = useUserFonts();
+  const [busy, setBusy] = useState(false);
   const text = (sample.split('\n')[0] || label).slice(0, 34);
 
   // The closed button shows the current family in its own face; the open list previews every family.
@@ -34,7 +38,22 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
-  const list = FONTS.filter((x) => (only ? only.includes(x.n) : cat === 'all' || x.c === cat));
+  // Uploaded fonts are offered everywhere, including the handwriting-only pickers.
+  const list = [...FONTS, ...mine].filter((x) => (only ? only.includes(x.n) || x.c === 'own' : cat === 'all' || x.c === cat));
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const name = await addUserFont(file);
+      onChange(name);
+      setOpen(false);
+      toast(`“${name}” added to your fonts. It stays on this device for every design.`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'That font couldn’t be added.');
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div
       className="fp"
@@ -61,6 +80,19 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
               ))}
             </div>
           )}
+          <label className="fp-upload">
+            <input
+              type="file"
+              hidden
+              accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
+              onChange={(e) => {
+                void upload(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            {busy ? 'Adding font…' : '+ Upload your own font (TTF, OTF, WOFF)'}
+          </label>
+          {cat === 'own' && !mine.length && <p className="hint fp-empty">No fonts yet. Upload one and it’s kept for every design.</p>}
           <div className="fp-list" role="listbox" aria-label={label}>
             {list.map((x) => (
               <button

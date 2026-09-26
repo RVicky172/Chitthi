@@ -25,10 +25,13 @@ export function drawThemeBg(c: Ctx, B: Box, t: Theme, withArt: boolean): void {
 }
 const artOn = (d: Design) => d.useOccasion && d.artwork;
 
-function slotPath(c: Ctx, s: Pick<Slot, 's' | 'd'>): void {
+function slotPath(c: Ctx, s: Pick<Slot, 's' | 'd' | 'pts'>): void {
   const d = s.d;
   c.beginPath();
-  if (s.s === 'circle') c.arc(d.x + d.w / 2, d.y + d.h / 2, Math.min(d.w, d.h) / 2, 0, Math.PI * 2);
+  if (s.s === 'poly' && s.pts) {
+    s.pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+    c.closePath();
+  } else if (s.s === 'circle') c.arc(d.x + d.w / 2, d.y + d.h / 2, Math.min(d.w, d.h) / 2, 0, Math.PI * 2);
   else if (s.s === 'arch') {
     const r = d.w / 2;
     c.moveTo(d.x, d.y + d.h);
@@ -63,7 +66,28 @@ function drawSlot(
   count = 1,
 ): void {
   const ph = inp.photos.length ? inp.photos[slotPhotoIndex(i, inp.photos.length, page, count)] : null;
-  if (s.s !== 'rect') {
+  // Tilted slots (scrapbook prints) turn around their centre.
+  c.save();
+  if (s.rot) {
+    const cx = s.x + s.w / 2,
+      cy = s.y + s.h / 2;
+    c.translate(cx, cy);
+    c.rotate(s.rot);
+    c.translate(-cx, -cy);
+  }
+  if (s.print) {
+    // Instant print: paper border (deeper at the bottom) with a soft shadow.
+    const side = s.w * 0.07,
+      foot = s.w * 0.24;
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.3)';
+    c.shadowBlur = u * 2.4;
+    c.shadowOffsetY = u * 0.8;
+    c.fillStyle = '#FFFDF8';
+    c.fillRect(s.x - side, s.y - side, s.w + 2 * side, s.h + side + foot);
+    c.restore();
+  }
+  if (s.s !== 'rect' && s.s !== 'poly') {
     c.save();
     c.shadowColor = 'rgba(0,0,0,.28)';
     c.shadowBlur = u * 2.2;
@@ -134,6 +158,52 @@ function drawSlot(
       c.fill();
     }
     c.restore();
+  }
+  if (s.print) {
+    // A strip of translucent tape across the top edge.
+    const tw = s.w * 0.42,
+      th = s.w * 0.1;
+    c.save();
+    c.translate(s.x + s.w / 2, s.y - s.w * 0.07);
+    c.rotate(-0.06);
+    c.fillStyle = 'rgba(245,235,205,.78)';
+    c.shadowColor = 'rgba(0,0,0,.12)';
+    c.shadowBlur = u * 0.6;
+    c.fillRect(-tw / 2, -th / 2, tw, th);
+    c.restore();
+  }
+  c.restore();
+}
+
+/** Offset colour blocks, film strips: what sits behind the photos in the modern layouts. */
+function drawLayoutArt(c: Ctx, L: Layout, B: Box, t: Theme, u: number): void {
+  for (const b of L.blocks ?? []) {
+    c.fillStyle = b.c === 'accent' ? t.accent : darkInk(t);
+    c.fillRect(b.r.x, b.r.y, b.r.w, b.r.h);
+  }
+  if (L.film) {
+    const { r, vertical } = L.film,
+      e = B.e,
+      band = vertical ? { x: r.x, y: r.y - e, w: r.w, h: r.h + 2 * e } : { x: r.x - e, y: r.y, w: r.w + 2 * e, h: r.h };
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.35)';
+    c.shadowBlur = u * 2;
+    c.fillStyle = '#171412';
+    c.fillRect(band.x, band.y, band.w, band.h);
+    c.restore();
+    // Sprocket holes along both edges, showing the background through.
+    const hs = (vertical ? r.w : r.h) * 0.07,
+      step = hs * 2.1;
+    c.fillStyle = t.bg1;
+    const along = vertical ? band.h : band.w;
+    for (let k = step / 2; k < along; k += step)
+      for (const edge of [0.035, 0.965]) {
+        const hx = vertical ? band.x + band.w * edge - hs / 2 : band.x + k - hs / 2,
+          hy = vertical ? band.y + k - hs / 2 : band.y + band.h * edge - hs / 2;
+        c.beginPath();
+        c.roundRect(hx, hy, hs, hs * 0.8, hs * 0.2);
+        c.fill();
+      }
   }
 }
 
@@ -297,7 +367,8 @@ function drawText(c: Ctx, L: Layout, t: Theme, B: Box, d: Design): void {
     c.fillStyle = g;
     c.fillRect(S.x, S.y, S.w, S.h);
   }
-  let y = d.vAlign === 'top' ? Z.y : d.vAlign === 'bottom' ? Z.y + Z.h - lay.total : Z.y + (Z.h - lay.total) / 2;
+  const va = L.textCenter ? 'middle' : d.vAlign;
+  let y = va === 'top' ? Z.y : va === 'bottom' ? Z.y + Z.h - lay.total : Z.y + (Z.h - lay.total) / 2;
   const ax = d.hAlign === 'left' ? Z.x : d.hAlign === 'right' ? Z.x + Z.w : Z.x + Z.w / 2;
   c.save();
   c.textAlign = d.hAlign;
@@ -363,6 +434,7 @@ function drawFront(c: Ctx, B: Box, inp: RenderInput, opts: RenderOpts): Layout {
     c.restore();
   }
   if (L.stamp) drawStamp(c, L.stamp, t, B, u, artOn(d));
+  drawLayoutArt(c, L, B, t, u);
   const page = d.product === 'calendar' ? (opts.page ?? 0) : 0;
   L.slots.forEach((s, i) => drawSlot(c, s, i, t, B, u, opts, L.bg || L.frame, inp, page, L.slots.length));
   if (L.mat) drawMatBevels(c, L, u);
@@ -384,6 +456,14 @@ function drawFront(c: Ctx, B: Box, inp: RenderInput, opts: RenderOpts): Layout {
     c.strokeStyle = 'rgba(255,255,255,.9)';
     c.lineWidth = u * 0.45;
     const f = L.frameLine;
+    c.strokeRect(B.x + f, B.y + f, B.w - 2 * f, B.h - 2 * f);
+    c.restore();
+  }
+  if (L.hairline) {
+    c.save();
+    c.strokeStyle = hexA(t.accent, 0.55);
+    c.lineWidth = Math.max(1, u * 0.18);
+    const f = L.hairline;
     c.strokeRect(B.x + f, B.y + f, B.w - 2 * f, B.h - 2 * f);
     c.restore();
   }
@@ -716,6 +796,15 @@ const setSpacing = (c: Ctx, v: string) => {
   if ('letterSpacing' in c) c.letterSpacing = v;
 };
 
+/** The dates font (weekday names, day numbers, the year): the chosen family, or Hind. Bold uses its heaviest weight. */
+function numFace(d: Design, bold = d.cal.numBold): (px: number) => string {
+  const n = d.cal.numFont;
+  if (!n) return (px) => `${bold ? 600 : 400} ${px}px "Hind",sans-serif`;
+  const f = fontDef(n),
+    wt = bold ? Math.max(...f.w) : Math.min(...f.w);
+  return (px) => fontStr(f.n, wt, px);
+}
+
 /** Cap height of the current font: centring on it keeps every title on the same baseline, whatever its letters. */
 const capHeight = (c: Ctx) => c.measureText('HJMNS').actualBoundingBoxAscent;
 
@@ -737,7 +826,7 @@ function drawMonthTitle(
   let px = T.h * 0.8;
   const yearW = () => {
     if (!year) return 0;
-    c.font = `600 ${px * 0.36}px "Hind",sans-serif`;
+    c.font = numFace(d, true)(px * 0.36);
     setSpacing(c, `${px * 0.04}px`);
     const w = c.measureText(year).width + px * 0.3;
     setSpacing(c, '0px');
@@ -760,7 +849,7 @@ function drawMonthTitle(
   c.fillStyle = ink;
   c.fillText(label, x0, base);
   if (year) {
-    c.font = `600 ${px * 0.36}px "Hind",sans-serif`;
+    c.font = numFace(d, true)(px * 0.36);
     setSpacing(c, `${px * 0.04}px`);
     c.fillStyle = accent;
     c.fillText(year, x0 + nameW + px * 0.3, base);
@@ -789,7 +878,7 @@ function drawDays(c: Ctx, G: Rect, year: number, month: number, d: Design, ink: 
   c.save();
   // weekday names
   const hp = mini ? Math.min(headH * 0.62, cw * 0.5) : Math.min(headH * 0.46, cw * 0.2);
-  c.font = `600 ${hp}px "Hind",sans-serif`;
+  c.font = numFace(d, true)(hp);
   c.textBaseline = 'middle';
   setSpacing(c, mini ? '0px' : `${hp * 0.12}px`);
   for (let i = 0; i < 7; i++) {
@@ -818,7 +907,7 @@ function drawDays(c: Ctx, G: Rect, year: number, month: number, d: Design, ink: 
   // numbers: one size for every month
   const np = mini ? Math.min(cw * 0.5, rh * 0.62) : corner ? Math.min(cw * 0.3, rh * 0.36) : Math.min(cw * 0.36, rh * 0.44);
   const put = (day: number, col: number, row: number, px: number, where: 'tl' | 'br' | 'c') => {
-    c.font = `${mini ? 500 : 600} ${px}px "Hind",sans-serif`;
+    c.font = numFace(d, mini ? false : d.cal.numBold)(px);
     c.fillStyle = sunday(col) ? accent : ink;
     const x0 = G.x + cw * col,
       y0 = top + rh * row;

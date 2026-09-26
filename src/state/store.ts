@@ -14,8 +14,17 @@ export interface UIState {
   viewer: ViewerFaces | null;
   /** Full-screen gallery of saved designs is open. */
   gallery: boolean;
-  /** Landing page or the design studio (mirrors the URL hash #/studio). */
-  screen: 'home' | 'studio';
+  /** Landing page, the design studio or the sizes guide (mirrors the URL hash: #/studio, #/sizes). */
+  screen: 'home' | 'studio' | 'sizes';
+  /** Settings dialog is open. */
+  settings: boolean;
+  /** Photo library dialog is open, and which tab it shows. */
+  library: boolean;
+  libraryTab: 'mine' | 'pexels';
+  /** Feature finder (Ctrl+K) is open. */
+  finder: boolean;
+  /** A long task the preview shows a loader for (e.g. a photo downloading), or null. */
+  loading: string | null;
   /** Calendar month shown in the preview (0-based from the start month). */
   calPage: number;
   fontTick: number;
@@ -30,6 +39,11 @@ export interface AppState {
 }
 
 const LS_KEY = 'chitthi-v3';
+
+/** The screen a URL hash points at. */
+export const screenOf = (hash: string): UIState['screen'] =>
+  hash.startsWith('#/studio') ? 'studio' : hash.startsWith('#/sizes') ? 'sizes' : 'home';
+export const hashOf = (screen: UIState['screen']): string => (screen === 'home' ? '' : `#/${screen}`);
 function loadDesign(): Design {
   try {
     const raw = localStorage.getItem(LS_KEY) ?? localStorage.getItem('chitthi-v2');
@@ -45,7 +59,7 @@ let state: AppState = {
   designId: null,
   canUndo: false,
   canRedo: false,
-  ui: { side: 'front', guides: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, screen: location.hash.startsWith('#/studio') ? 'studio' : 'home', calPage: 0, fontTick: 0 },
+  ui: { side: 'front', guides: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, settings: false, library: false, libraryTab: 'mine', loading: null, finder: false, screen: screenOf(location.hash), calPage: 0, fontTick: 0 },
 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());

@@ -7,7 +7,7 @@ import { selectSize } from '../../state/actions';
 import { setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings, FrameStyle, MatWidth, SizeDef } from '../../types';
 import { LayoutThumb } from '../canvases';
-import { Pane, Seg } from '../common';
+import { Pane, Section, Seg } from '../common';
 
 function SizeIcon({ s, land }: { s: SizeDef; land: boolean }) {
   const L = s.L || 150,
@@ -76,7 +76,7 @@ export function LayoutPane() {
         ]}
         onChange={(orient) => setDesign({ orient })}
       />
-      <h3>Layout</h3>
+      <Section id="layout.layouts" title="Layout" note={layoutsFor(d.product).find(([id]) => id === d.layout)?.[1]}>
       {need > photos.length && (
         <p className="hint">
           This layout holds {photoCount(need).toLowerCase()} and you’ve added {photos.length}.{' '}
@@ -103,9 +103,9 @@ export function LayoutPane() {
           </button>
         ))}
       </div>
+      </Section>
       {d.product === 'calendar' && (
-        <>
-          <h3>Calendar</h3>
+        <Section id="layout.calendar" title="Calendar" note={`${d.cal.year}`}>
           <div className="row">
             <label className="f">
               Year
@@ -158,11 +158,10 @@ export function LayoutPane() {
             Each month takes the next photos in your list, so add one photo per month for a full year. Pick a month in the
             strip under the preview to see it, or open the 3D view to see all twelve pages at once.
           </p>
-        </>
+        </Section>
       )}
       {d.product === 'frame' && (
-        <>
-          <h3>Mat border</h3>
+        <Section id="layout.mat" title="Mat border">
           <Seg<MatWidth>
             label="Mat border"
             value={d.mat}
@@ -174,9 +173,9 @@ export function LayoutPane() {
             ]}
             onChange={(mat) => setDesign({ mat })}
           />
-        </>
+        </Section>
       )}
-      <h3>{frameLabel}</h3>
+      <Section id="layout.frame" title={frameLabel}>
       {d.product === 'postcard' && (
         <p className="hint" style={{ marginTop: 2 }}>
           For Polaroid, Instax frame and Photo strip layouts.
@@ -198,7 +197,15 @@ export function LayoutPane() {
         ]}
         onChange={(frame) => setDesign({ frame })}
       />
-      <h3>Size</h3>
+      </Section>
+      <Section id="layout.size" title="Size" note={sizes.find((s) => s.id === d.sizeId)?.name}>
+      <p className="hint">
+        Not sure which size?{' '}
+        <button type="button" className="linkbtn" onClick={() => setUI({ screen: 'sizes' })}>
+          Compare every size and layout
+        </button>{' '}
+        with measurements, pixels and sheet counts.
+      </p>
       {groups.map((g) => (
         <div key={g}>
           <p className="grp">{g === 'Large and custom' && d.product !== 'postcard' ? 'Custom' : g}</p>
@@ -239,6 +246,7 @@ export function LayoutPane() {
           ))}
         </div>
       )}
+      </Section>
     </Pane>
   );
 }
