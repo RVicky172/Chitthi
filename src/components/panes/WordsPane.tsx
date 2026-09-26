@@ -1,6 +1,8 @@
-import { resolveTheme } from '../../engine/design';
+import { MONTHS } from '../../data/products';
+import { calPages, resolveTheme } from '../../engine/design';
+import { calMonth } from '../../engine/render';
 import { setDesign, setUI, useApp } from '../../state/store';
-import type { HAlign, VAlign } from '../../types';
+import type { CalendarSettings, CalTextPlace, HAlign, VAlign } from '../../types';
 import { Check, Pane, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
 import { InstagramIcon } from '../icons';
@@ -13,16 +15,20 @@ export function WordsPane() {
       title="Front"
       lead={
         d.product === 'calendar'
-          ? 'Month names and dates are added for you in the greeting font. The greeting is used as the title of the year page.'
+          ? 'Month names and dates are added for you. Choose where your words go on the month pages, and give each month its own caption.'
           : d.product === 'frame'
             ? 'Words show under the photo with the “Photo and caption” layout. The Instagram tag shows on every layout.'
-            : undefined
+            : d.product === 'magnet'
+              ? 'Keep it short: a name, a place or a date reads best on a magnet. Two-photo and four-photo layouts are photos only.'
+              : undefined
       }
       next="back"
       onNext={() => setUI({ pane: 'back' })}
     >
+      {d.product === 'calendar' && <CalendarWords />}
+      {d.product === 'calendar' && <h3>Greeting and quote</h3>}
       <Check checked={d.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
-        Greeting
+        {d.product === 'calendar' ? 'Greeting (months without a caption use it, and it titles the year page)' : 'Greeting'}
       </Check>
       <input type="text" aria-label="Greeting" value={d.heading} onChange={(e) => setDesign({ heading: e.target.value })} />
       <div className="chips">
@@ -133,5 +139,115 @@ export function WordsPane() {
         Ornament between greeting and quote
       </Check>
     </Pane>
+  );
+}
+
+/** Calendar words: where they go on the month pages, one caption per month, and how titles and dates are set. */
+function CalendarWords() {
+  const d = useApp((s) => s.design),
+    calPage = useApp((s) => s.ui.calPage);
+  const cal = d.cal,
+    n = calPages(d),
+    page = Math.min(calPage, n - 1),
+    strip = d.layout === 'cal-strip',
+    hasPhoto = d.layout !== 'cal-plain';
+  const setCal = (p: Partial<CalendarSettings>) => setDesign((cur) => ({ cal: { ...cur.cal, ...p } }));
+  const setCaption = (month: number, text: string) =>
+    setDesign((cur) => {
+      const captions = [...cur.cal.captions];
+      captions[month] = text;
+      // Typing a caption while words are off turns them on, so the caption shows up straight away.
+      return { cal: { ...cur.cal, captions, text: cur.cal.text === 'off' && text.trim() ? 'caption' : cur.cal.text } };
+    });
+  const months = Array.from({ length: n }, (_, p) => ({ p, ...calMonth(d, p) }));
+  const filled = months.filter((m) => cal.captions[m.month]?.trim()).length;
+  return (
+    <>
+      <h3>Words on the month pages</h3>
+      <Seg<CalTextPlace>
+        label="Where the words go"
+        value={cal.text}
+        options={[
+          ['off', 'None'],
+          ['caption', 'Above the month'],
+          ...(hasPhoto ? ([['photo', 'On the photo']] as [CalTextPlace, string][]) : []),
+        ]}
+        onChange={(text) => setCal({ text })}
+      />
+      {cal.text === 'photo' && (
+        <p className="hint">Words sit inside the photo. Use Vertical position below to move them, and “Darken the photo” to keep them readable.</p>
+      )}
+      {!strip && (
+        <details className="mcaps-box" open={cal.text !== 'off' || filled > 0}>
+          <summary>
+            Month captions <small>{filled ? `${filled} of ${n} written` : 'optional'}</small>
+          </summary>
+          <p className="hint">Each caption shows on its own month. Leave one empty to use the greeting. Click a month to see it in the preview.</p>
+          <ol className="mcaps">
+            {months.map(({ p, month, year }) => (
+              <li key={p} className={p === page ? 'on' : undefined}>
+                <label htmlFor={`cap-${p}`}>
+                  <b>{MONTHS[month].slice(0, 3)}</b>
+                  <small>{year}</small>
+                </label>
+                <input
+                  id={`cap-${p}`}
+                  type="text"
+                  value={cal.captions[month] ?? ''}
+                  placeholder={d.showHeading && d.heading ? d.heading : `${MONTHS[month]} caption`}
+                  onFocus={() => setUI({ calPage: p, side: 'front' })}
+                  onChange={(e) => setCaption(month, e.target.value)}
+                />
+              </li>
+            ))}
+          </ol>
+          {filled > 0 && (
+            <button type="button" className="linkbtn" onClick={() => setCal({ captions: Array.from({ length: 12 }, () => '') })}>
+              Clear all captions
+            </button>
+          )}
+        </details>
+      )}
+      {strip && <p className="hint">The Year strip is a single page, so it shows the greeting once instead of month captions.</p>}
+      <h3>Month titles and dates</h3>
+      <div className="inline">
+        <Seg<CalendarSettings['titleAlign']>
+          label="Month title alignment"
+          value={cal.titleAlign}
+          options={[
+            ['left', 'Title left'],
+            ['center', 'Title centred'],
+          ]}
+          onChange={(titleAlign) => setCal({ titleAlign })}
+        />
+        <Seg<CalendarSettings['numbers']>
+          label="Day numbers"
+          value={cal.numbers}
+          options={[
+            ['corner', 'Dates in corner'],
+            ['center', 'Dates centred'],
+          ]}
+          onChange={(numbers) => setCal({ numbers })}
+        />
+      </div>
+      <Seg<CalendarSettings['grid']>
+        label="Grid lines"
+        value={cal.grid}
+        options={[
+          ['lines', 'Rows'],
+          ['boxes', 'Boxes'],
+          ['none', 'No lines'],
+        ]}
+        onChange={(grid) => setCal({ grid })}
+      />
+      <FontPicker
+        label="Month font"
+        value={cal.font || d.headFont}
+        sample={MONTHS[calMonth(d, page).month]}
+        weight="hw"
+        onChange={(font) => setCal({ font: font === d.headFont ? '' : font })}
+      />
+      <p className="hint">Every month uses the same title size and grid, so the pages line up when the calendar is bound.</p>
+    </>
   );
 }

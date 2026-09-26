@@ -15,11 +15,12 @@ import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
 import { Viewer3D } from './components/Viewer3D';
 import { ensureFonts, fontsFor } from './lib/fonts';
+import { useDesktopMenu } from './platform/menu';
 import { restoreWork, saveDesign, switchProduct } from './state/actions';
 import { bumpFonts, commit, getState, redo, setUI, undo, useApp } from './state/store';
 import type { PaneId, ProductId } from './types';
 
-const PRODUCT_NAMES: Record<ProductId, string> = { postcard: 'postcard', calendar: 'calendar', frame: 'photo frame' };
+const PRODUCT_NAMES: Record<ProductId, string> = { postcard: 'postcard', calendar: 'calendar', frame: 'photo frame', magnet: 'fridge magnet' };
 
 const PANES: Record<PaneId, () => JSX.Element> = {
   photos: PhotosPane,
@@ -34,7 +35,9 @@ export default function App() {
   const screen = useApp((s) => s.ui.screen);
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
-    backFont = useApp((s) => s.design.back.font);
+    backFont = useApp((s) => s.design.back.font),
+    calFont = useApp((s) => s.design.cal.font);
+  useDesktopMenu();
   // Start-up: history baseline, restore last card's photos, redraw when web fonts arrive.
   useEffect(() => {
     commit();
@@ -46,7 +49,7 @@ export default function App() {
 
   useEffect(() => {
     void ensureFonts(fontsFor(getState().design)).then(bumpFonts);
-  }, [headFont, quoteFont, backFont]);
+  }, [headFont, quoteFont, backFont, calFont]);
 
   // The URL hash mirrors the screen, so the browser Back button returns from the studio to the landing page.
   useEffect(() => {
@@ -58,9 +61,9 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [screen]);
   useEffect(() => {
-    // #/studio/calendar (or /postcard, /frame) opens the studio on that product: shareable links to each product.
+    // #/studio/calendar (or /postcard, /frame, /magnet) opens the studio on that product: shareable links to each product.
     const onHash = () => {
-      const m = /^#\/studio\/(postcard|calendar|frame)\b/.exec(location.hash);
+      const m = /^#\/studio\/(postcard|calendar|frame|magnet)\b/.exec(location.hash);
       if (m) switchProduct(m[1] as ProductId);
       setUI({ screen: location.hash.startsWith('#/studio') ? 'studio' : 'home' });
     };

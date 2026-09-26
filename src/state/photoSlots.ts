@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { calPages } from '../engine/design';
 import { slotCount, slotPhotoIndex } from '../engine/layout';
 import type { AppState } from './store';
 import type { Photo } from '../types';
@@ -12,7 +13,7 @@ import { getState, setPhotos, setUI, useApp } from './store';
  */
 
 /** Calendar month being edited (always 0 for other products). */
-const pageOf = (s: AppState) => (s.design.product === 'calendar' ? s.ui.calPage : 0);
+const pageOf = (s: AppState) => (s.design.product === 'calendar' ? Math.min(s.ui.calPage, calPages(s.design) - 1) : 0);
 
 /** Put a photo into a slot (on the current calendar month) by swapping it with whichever photo is there now. */
 export function placePhoto(id: string, slot: number): void {

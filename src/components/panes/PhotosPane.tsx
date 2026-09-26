@@ -8,6 +8,7 @@ import { usePhotoSlots } from '../../state/photoSlots';
 import { patchPhoto, setPhotos, setUI, useApp } from '../../state/store';
 import type { LookId } from '../../types';
 import { PhotoThumb } from '../canvases';
+import { PexelsSearch } from '../PexelsSearch';
 import { PhotoStore } from '../PhotoStore';
 import { Pane } from '../common';
 import { AddPhotoIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
@@ -90,6 +91,8 @@ export function PhotosPane() {
           {photos.length < count ? `, add ${count - photos.length} more to fill it.` : '. Tap a photo under the preview to swap it in.'}
         </p>
       )}
+      <h3>Free photos from Pexels</h3>
+      <PexelsSearch />
       <h3>Photo store</h3>
       <PhotoStore />
       {photos.length > 0 && <h3>On this card</h3>}

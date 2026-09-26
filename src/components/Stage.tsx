@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { cardMM, sizeOf } from '../engine/design';
+import { calPages, cardMM, cornerMM, sizeOf } from '../engine/design';
 import { MONTHS } from '../data/products';
 import { slotPhotoIndex } from '../engine/layout';
 import { calMonth, coverScale, renderCard } from '../engine/render';
@@ -9,6 +9,7 @@ import { getState, patchPhoto, setUI, useApp } from '../state/store';
 import type { Layout, Photo, Rect } from '../types';
 import { Seg } from './common';
 import { CubeIcon, PrevIcon, NextIcon } from './icons';
+import { MonthStrip } from './MonthStrip';
 import { PhotoTray } from './PhotoTray';
 
 interface Drag {
@@ -28,7 +29,7 @@ export function Stage() {
     fontTick = useApp((s) => s.ui.fontTick),
     calPage = useApp((s) => s.ui.calPage);
   const isCal = design.product === 'calendar',
-    pages = isCal ? design.cal.months : 1,
+    pages = calPages(design),
     page = isCal ? Math.min(calPage, pages - 1) : 0;
   const wrap = useRef<HTMLDivElement>(null),
     cv = useRef<HTMLCanvasElement>(null);
@@ -60,7 +61,8 @@ export function Stage() {
     th = h + 2 * bleed;
   const scale = Math.min(Math.max(80, box.w - 36) / tw, Math.max(80, box.h - 36) / th);
   const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-  const instax = !!sizeOf(design).instax;
+  const corner = cornerMM(design),
+    circle = sizeOf(design).shape === 'circle';
 
   useEffect(() => {
     if (cv.current)
@@ -159,7 +161,7 @@ export function Stage() {
           ref={cv}
           role="img"
           tabIndex={draggable ? 0 : undefined}
-          aria-label={`${side === 'front' ? 'Front' : 'Back'} of the ${design.product === 'frame' ? 'print' : design.product}${draggable ? '. Arrow keys move the photo in the selected slot, Shift for bigger steps, plus and minus to zoom.' : ''}`}
+          aria-label={`${side === 'front' ? 'Front' : 'Back'} of the ${design.product === 'frame' ? 'print' : design.product === 'magnet' ? 'magnet' : design.product}${draggable ? '. Arrow keys move the photo in the selected slot, Shift for bigger steps, plus and minus to zoom.' : ''}`}
           onKeyDown={(e) => {
             // Keyboard equivalent of dragging / wheel-zooming the photo in the selected slot.
             const L = layout.current,
@@ -184,7 +186,7 @@ export function Stage() {
             fn();
           }}
           className={`${flipKey ? 'flip' : ''} ${draggable ? 'draggable' : ''} ${dragging ? 'dragging' : ''}`}
-          style={{ width: tw * scale, height: th * scale, borderRadius: instax && !guides ? 3 * scale : 2 }}
+          style={{ width: tw * scale, height: th * scale, borderRadius: guides ? 2 : circle ? '50%' : corner ? corner * scale : 2 }}
           onPointerDown={(e) => {
             const h = hit(e.clientX, e.clientY);
             if (!h) return;
@@ -218,6 +220,7 @@ export function Stage() {
           }}
         />
       </div>
+      {side === 'front' && <MonthStrip />}
       {side === 'front' && <PhotoTray />}
       <p className="caption">
         {side === 'front' ? 'Front' : 'Back'}, {sizeOf(design).name}, {Math.round(w * 10) / 10} × {Math.round(h * 10) / 10} mm

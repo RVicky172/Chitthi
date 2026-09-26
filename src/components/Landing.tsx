@@ -10,6 +10,7 @@ import { startProduct } from '../state/actions';
 import { setUI, useApp } from '../state/store';
 import type { Design, Photo, ProductId } from '../types';
 import { GalleryIcon, Logo, ProductIcon } from './icons';
+import { isDesktop } from '../platform/desktop';
 
 /** The sample design each product card shows. */
 function sampleDesign(p: ProductId): Design {
@@ -22,12 +23,16 @@ function sampleDesign(p: ProductId): Design {
     const t = themeById('monsoon');
     return { ...d, themeId: 'monsoon', headFont: t.hf, quoteFont: t.qf, cal: { ...d.cal, start: new Date().getMonth(), months: 12 } };
   }
+  if (p === 'magnet') {
+    const t = themeById('diwali');
+    return { ...d, layout: 'mag-polaroid', themeId: 'diwali', heading: t.heads[0], headFont: t.hf, quoteFont: t.qf };
+  }
   const t = themeById('parents');
   return { ...d, layout: 'frame-caption', themeId: 'parents', heading: 'Maa & Papa, 1998', showQuote: false, showSig: false, headFont: t.hf, quoteFont: t.qf, mat: 'classic', frame: 'cream' };
 }
 
 /** Which gallery sample each landing card shows (real Pexels photos); painted stand-ins until they load. */
-const SAMPLE_FOR: Record<ProductId, string> = { postcard: 'diwali-arch', calendar: 'year-calendar', frame: 'family-frame' };
+const SAMPLE_FOR: Record<ProductId, string> = { postcard: 'diwali-arch', calendar: 'year-calendar', frame: 'family-frame', magnet: 'polaroid-magnet' };
 
 /** A real render of a product: the gallery sample's design and photos, or painted photos as a fallback. */
 function Sample({ product, side = 'front', long = 420 }: { product: ProductId; side?: 'front' | 'back'; long?: number }) {
@@ -99,7 +104,7 @@ export function Landing() {
       <main>
         <header className="hero">
           <div className="hero-copy">
-            <p className="kicker">Print studio in your browser</p>
+            <p className="kicker">{isDesktop ? 'Print studio on your computer' : 'Print studio in your browser'}</p>
             <h1>
               Postcards, calendars and framed prints, <em>ready for the print shop.</em>
             </h1>
@@ -118,7 +123,7 @@ export function Landing() {
                 Frame a photo
               </button>
             </div>
-            <p className="hero-note">Free. No account. Your photos never leave this browser.</p>
+            <p className="hero-note">Free. No account. Your photos never leave this {isDesktop ? 'computer' : 'browser'}.</p>
           </div>
           <div className="hero-art" aria-hidden="true">
             <div className="fan f1">
@@ -134,7 +139,7 @@ export function Landing() {
         </header>
 
         <section id="products" className="lsec">
-          <h2>Three things to print</h2>
+          <h2>Four things to print</h2>
           <p className="lsec-sub">Each one has its own sizes, layouts and options, and they share your photos and themes.</p>
           <div className="products">
             {PRODUCTS.map((p) => (
@@ -169,6 +174,13 @@ export function Landing() {
                       <li>4×6 up to 11×14 in, A4, A3 and square</li>
                       <li>Thin, classic or wide mat in white, cream or black</li>
                       <li>Single, pair, triptych and grid layouts</li>
+                    </>
+                  )}
+                  {p.id === 'magnet' && (
+                    <>
+                      <li>2×3, 3×3, card, 4×6 in and round button sizes</li>
+                      <li>Full photo, mini Polaroid, badge and collage layouts</li>
+                      <li>Many to an A4 sheet, ready to mount and trim</li>
                     </>
                   )}
                 </ul>
@@ -247,7 +259,7 @@ export function Landing() {
 
       <footer className="lfoot">
         <span>Chitthi · चिट्ठी</span>
-        <span>Everything is made and stored in your browser. Nothing is uploaded.</span>
+        <span>Everything is made and stored {isDesktop ? 'on your computer' : 'in your browser'}. Nothing is uploaded.</span>
       </footer>
     </div>
   );

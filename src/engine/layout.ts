@@ -355,31 +355,37 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
     case 'cal-side':
     case 'cal-full':
     case 'cal-duo':
-    case 'cal-plain': {
+    case 'cal-plain':
+    case 'cal-strip': {
       L.frame = true;
       L.bg = false;
       L.ink = 'frame';
-      let area: Rect; // where the title and grid go
-      if (id === 'cal-top' || id === 'cal-duo') {
-        const ph = B.h * (land ? 0.5 : 0.56);
+      let area: Rect, // where the words, the title and the grid go
+        photo: Rect | null = null; // the visible photo, for words placed on it
+      if (id === 'cal-top' || id === 'cal-duo' || (id === 'cal-strip' && !land)) {
+        const ph = B.h * (id === 'cal-strip' ? 0.5 : land ? 0.5 : 0.56);
         slots =
-          id === 'cal-top'
-            ? [rs(B.x, B.y, B.w, ph)]
-            : [rs(B.x, B.y, (B.w - g) / 2, ph), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, ph)];
-        area = R(B.x + pad, B.y + ph + pad * 0.45, B.w - 2 * pad, B.h - ph - pad * 1.2);
-      } else if (id === 'cal-side') {
+          id === 'cal-duo'
+            ? [rs(B.x, B.y, (B.w - g) / 2, ph), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, ph)]
+            : [rs(B.x, B.y, B.w, ph)];
+        photo = R(B.x, B.y, B.w, ph);
+        area = R(B.x + pad, B.y + ph + pad * 0.55, B.w - 2 * pad, B.h - ph - pad * 1.3);
+      } else if (id === 'cal-side' || id === 'cal-strip') {
         if (land) {
-          const pw = B.w * 0.5;
+          const pw = B.w * (id === 'cal-strip' ? 0.42 : 0.5);
           slots = [rs(B.x, B.y, pw, B.h)];
-          area = R(B.x + pw + pad, B.y + pad, B.w - pw - 2 * pad, B.h - 2 * pad);
+          photo = R(B.x, B.y, pw, B.h);
+          area = R(B.x + pw + pad * 0.9, B.y + pad, B.w - pw - pad * 1.9, B.h - 2 * pad);
         } else {
           const ph = B.h * 0.48;
-          slots = [plain(R(B.x + pad, B.y + pad, B.w - 2 * pad, ph))];
-          area = R(B.x + pad, B.y + pad + ph + pad * 0.5, B.w - 2 * pad, B.h - ph - pad * 2.5);
+          photo = R(B.x + pad, B.y + pad, B.w - 2 * pad, ph);
+          slots = [plain(photo)];
+          area = R(B.x + pad, B.y + pad + ph + pad * 0.55, B.w - 2 * pad, B.h - ph - pad * 2.55);
         }
       } else if (id === 'cal-full') {
         slots = [rs(B.x, B.y, B.w, B.h)];
         L.band = land ? R(B.x + B.w * 0.56, B.y, B.w * 0.44, B.h) : R(B.x, B.y + B.h * 0.6, B.w, B.h * 0.4);
+        photo = land ? R(B.x, B.y, B.w * 0.56, B.h) : R(B.x, B.y, B.w, B.h * 0.6);
         area = R(L.band.x + pad * 0.7, L.band.y + pad * 0.6, L.band.w - pad * 1.4, L.band.h - pad * 1.2);
       } else {
         // Dates only: occasion artwork around a paper card that holds the month.
@@ -388,13 +394,91 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
         L.paper = R(B.x + pad, B.y + pad * 1.4, B.w - 2 * pad, B.h - pad * 2.4);
         area = R(L.paper.x + pad * 0.8, L.paper.y + pad * 0.8, L.paper.w - pad * 1.6, L.paper.h - pad * 1.6);
       }
-      const th = Math.min(area.h * 0.2, area.w * 0.14);
-      L.calTitle = R(area.x, area.y, area.w, th);
-      L.calGrid = R(area.x, area.y + th + u * 1.5, area.w, area.h - th - u * 1.5);
+      // Words: a caption line above the month, or laid over the photo.
+      const place = d.cal.text;
+      if (place === 'photo' && photo) {
+        const ip = Math.min(photo.w, photo.h) * 0.08;
+        L.text = R(photo.x + ip, photo.y + ip, photo.w - 2 * ip, photo.h - 2 * ip);
+        L.onPhoto = true;
+        L.ink = null; // white on the photo, not the paper's ink
+        L.scrimArea = photo;
+      } else if (place !== 'off') {
+        // One caption line above the month title, a step smaller than the title.
+        const ch = Math.min(area.h * 0.12, area.w * 0.09);
+        L.text = R(area.x, area.y, area.w, ch);
+        L.textFill = 0.7;
+        area = R(area.x, area.y + ch + u * 1.2, area.w, area.h - ch - u * 1.2);
+      }
+      if (id === 'cal-strip') {
+        const th = Math.min(area.h * 0.14, area.w * 0.1);
+        L.calTitle = R(area.x, area.y, area.w, th);
+        L.calYear = R(area.x, area.y + th + u * 1.6, area.w, area.h - th - u * 1.6);
+      } else {
+        const th = Math.min(area.h * 0.19, area.w * 0.13);
+        L.calTitle = R(area.x, area.y, area.w, th);
+        L.calGrid = R(area.x, area.y + th + u * 1.2, area.w, area.h - th - u * 1.2);
+      }
       break;
     }
+
+    /* ---------- fridge magnets: small pieces, one idea each ---------- */
+    case 'mag-full':
+      L.bg = false;
+      slots = [rs(B.x, B.y, B.w, B.h)];
+      L.text = R(B.x + pad, B.y + pad, B.w - 2 * pad, B.h - 2 * pad);
+      L.onPhoto = true;
+      L.overlay = true;
+      break;
+    case 'mag-caption':
+    case 'mag-polaroid': {
+      L.frame = true;
+      L.bg = false;
+      L.ink = 'frame';
+      const pol = id === 'mag-polaroid',
+        side = m * (pol ? 0.075 : 0.05),
+        cap = B.h * (pol ? (land ? 0.25 : 0.22) : land ? 0.22 : 0.18);
+      const ph = R(B.x + side, B.y + side, B.w - 2 * side, B.h - side - cap);
+      slots = [plain(ph)];
+      L.text = R(ph.x + u * 1.5, ph.y + ph.h + cap * 0.14, ph.w - u * 3, cap * 0.72);
+      break;
+    }
+    case 'mag-duo':
+      L.bg = false;
+      L.frame = true;
+      slots = land
+        ? [rs(B.x, B.y, (B.w - g) / 2, B.h), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, B.h)]
+        : [rs(B.x, B.y, B.w, (B.h - g) / 2), rs(B.x, B.y + (B.h + g) / 2, B.w, (B.h - g) / 2)];
+      break;
+    case 'mag-grid': {
+      L.bg = false;
+      L.frame = true;
+      const cw = (B.w - g) / 2,
+        ch = (B.h - g) / 2;
+      slots = [
+        rs(B.x, B.y, cw, ch),
+        rs(B.x + cw + g, B.y, cw, ch),
+        rs(B.x, B.y + ch + g, cw, ch),
+        rs(B.x + cw + g, B.y + ch + g, cw, ch),
+      ];
+      break;
+    }
+    case 'mag-badge': {
+      // A round photo inside a lettered ring: greeting on the top arc, signature on the bottom one.
+      const r = m / 2 - m * 0.035,
+        band = m * 0.13,
+        cx = B.x + B.w / 2,
+        cy = B.y + B.h / 2,
+        pr = r - band;
+      slots = [plain(R(cx - pr, cy - pr, pr * 2, pr * 2), 'circle')];
+      L.arc = { x: cx, y: cy, r, band };
+      break;
+    }
+    case 'mag-quote':
+      L.text = R(B.x + pad * 1.2, B.y + pad * 1.2, B.w - pad * 2.4, B.h - pad * 2.4);
+      break;
   }
   L.slots = slots.map((s) => ({ ...s, d: s.bleed ? extend(s, B) : { x: s.x, y: s.y, w: s.w, h: s.h } }));
   if (L.band) L.band = extend(L.band, B);
+  if (L.scrimArea) L.scrimArea = extend(L.scrimArea, B);
   return L;
 }

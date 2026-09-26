@@ -1,8 +1,9 @@
 import { themeById, PLAIN } from '../data/themes';
-import { cardMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
+import { MONTHS } from '../data/products';
+import { calPages, cardMM, cornerMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
 import { buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
-import { renderCard } from '../engine/render';
+import { calMonth, renderCard } from '../engine/render';
 import { db } from '../lib/db';
 import { saveFile } from '../lib/download';
 import { ensureFonts, fontsFor } from '../lib/fonts';
@@ -95,8 +96,7 @@ export async function downloadPrintFile(): Promise<void> {
       return;
     }
     const { blob, name } = await buildPDF(input());
-    saveFile(name, blob);
-    toast(`Downloading ${name}`);
+    await saveFile(name, blob);
   } catch (e) {
     toast(e instanceof Error && e.message ? e.message : 'The file couldn’t be created.');
   }
@@ -106,8 +106,7 @@ export async function downloadPNG(pg: PrintPage): Promise<void> {
   try {
     await ensureFonts(fontsFor(getState().design));
     const { blob, name } = await buildPNG(pg, input());
-    saveFile(name, blob);
-    toast(`Downloading ${name}`);
+    await saveFile(name, blob);
   } catch (e) {
     toast(e instanceof Error && e.message ? e.message : 'The image couldn’t be created.');
   }
@@ -118,8 +117,7 @@ export async function downloadPack(onStep?: (msg: string) => void): Promise<void
   try {
     await ensureFonts(fontsFor(getState().design));
     const { blob, name } = await buildPack(input(), onStep);
-    saveFile(name, blob);
-    toast(`Downloading ${name}`);
+    await saveFile(name, blob);
   } catch (e) {
     toast(e instanceof Error && e.message ? e.message : 'The print pack couldn’t be created.');
   }
@@ -158,54 +156,79 @@ export function startProduct(p: ProductId): void {
   setUI({ screen: 'studio', pane: 'photos' });
 }
 
-function faces(longSide: number, quality: number): ViewerFaces {
+function faces(longSide: number, quality: number, allPages = false): ViewerFaces {
   const inp = input(),
     { w, h } = cardMM(inp.d),
-    px = longSide / Math.max(w, h);
+    px = longSide / Math.max(w, h),
+    size = sizeOf(inp.d);
   const a = document.createElement('canvas'),
     b = document.createElement('canvas');
-  renderCard(a, 'front', px, 0, inp);
+  // The single-page view opens on the month shown in the preview.
+  const n = calPages(inp.d),
+    page = Math.min(getState().ui.calPage, n - 1);
+  renderCard(a, 'front', px, 0, inp, { page });
   renderCard(b, 'back', px, 0, inp);
-  return {
+  const out: ViewerFaces = {
     front: a.toDataURL('image/jpeg', quality),
     back: b.toDataURL('image/jpeg', quality),
     w,
     h,
-    round: !!sizeOf(inp.d).instax,
+    round: !!size.instax,
+    corner: cornerMM(inp.d) || undefined,
+    circle: size.shape === 'circle' || undefined,
   };
+  if (allPages && n > 1) {
+    // Every month for the all-months views, at a lighter resolution (twelve pages share the screen).
+    const pp = 900 / Math.max(w, h),
+      cv = document.createElement('canvas');
+    out.pages = Array.from({ length: n }, (_, p) => {
+      renderCard(cv, 'front', pp, 0, inp, { page: p });
+      const { month, year } = calMonth(inp.d, p);
+      return { src: cv.toDataURL('image/jpeg', 0.86), label: `${MONTHS[month]} ${year}` };
+    });
+  }
+  return out;
 }
 
 export async function open3D(f?: ViewerFaces): Promise<void> {
   await ensureFonts(fontsFor(getState().design));
-  setUI({ viewer: f ?? faces(1400, 0.9) });
+  setUI({ viewer: f ?? faces(1400, 0.9, true) });
 }
 
 /* ---------- gallery ---------- */
+const newId = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/** The current card as a gallery record: design, photos and rendered thumbnails of both faces. */
+async function currentRecord(id: string): Promise<SavedDesign> {
+  await ensureFonts(fontsFor(getState().design));
+  const { design, photos } = getState();
+  const f = faces(900, 0.85),
+    size = sizeOf(design).name;
+  return {
+    id,
+    name: design.designName.trim() || `${design.heading || 'Postcard'} – ${size}`,
+    updated: Date.now(),
+    w: f.w,
+    h: f.h,
+    round: f.round,
+    size,
+    design,
+    photos: photos.map(photoMeta),
+    front: f.front,
+    back: f.back,
+  };
+}
+
+const backupJSON = (designs: SavedDesign[]) =>
+  JSON.stringify({ app: 'chitthi', version: 2, exported: new Date().toISOString(), designs });
+
 export async function saveDesign(asNew: boolean): Promise<void> {
   try {
-    await ensureFonts(fontsFor(getState().design));
-    const { design, photos } = getState();
-    let id = getState().designId;
-    if (asNew || !id) id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const f = faces(900, 0.85),
-      size = sizeOf(design).name;
-    const name = design.designName.trim() || `${design.heading || 'Postcard'} – ${size}`;
-    const rec: SavedDesign = {
-      id,
-      name,
-      updated: Date.now(),
-      w: f.w,
-      h: f.h,
-      round: f.round,
-      size,
-      design,
-      photos: photos.map(photoMeta),
-      front: f.front,
-      back: f.back,
-    };
+    const cur = getState().designId;
+    const rec = await currentRecord(asNew || !cur ? newId() : cur);
     await db.put(rec);
-    setDesignId(id);
-    toast(`Saved “${name}” to your gallery.`);
+    setDesignId(rec.id);
+    toast(`Saved “${rec.name}” to your gallery.`);
     window.dispatchEvent(new Event('chitthi:gallery'));
   } catch (e) {
     toast(
@@ -241,22 +264,38 @@ export async function exportBackup(): Promise<void> {
       toast('Your gallery is empty, so there’s nothing to back up yet.');
       return;
     }
-    const blob = new Blob([JSON.stringify({ app: 'chitthi', version: 2, exported: new Date().toISOString(), designs: list })], {
-      type: 'application/json',
-    });
-    saveFile(`chitthi-gallery-backup-${new Date().toISOString().slice(0, 10)}.json`, blob);
+    const blob = new Blob([backupJSON(list)], { type: 'application/json' });
+    await saveFile(`chitthi-gallery-backup-${new Date().toISOString().slice(0, 10)}.json`, blob);
   } catch {
     toast('The backup couldn’t be created.');
   }
 }
 
-export async function importBackup(file: File): Promise<void> {
-  if (!/\.json$/i.test(file.name)) {
-    toast('Choose a Chitthi backup file ending in .json.');
+/** Saves the current card as a single .chitthi file (photos included) to share or keep outside the gallery. */
+export async function exportDesignFile(): Promise<void> {
+  try {
+    const rec = await currentRecord(getState().designId ?? newId());
+    const base = rec.name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'chitthi-design';
+    await saveFile(`${base}.chitthi`, new Blob([backupJSON([rec])], { type: 'application/json' }));
+  } catch {
+    toast('The design file couldn’t be created.');
+  }
+}
+
+export const importBackup = async (file: File): Promise<void> => importText(file.name, await file.text());
+
+/**
+ * Reads a gallery backup (.json) or a single design (.chitthi). Everything valid goes into the gallery; a
+ * .chitthi file is also opened in the studio.
+ */
+export async function importText(name: string, text: string): Promise<void> {
+  const single = /\.chitthi$/i.test(name);
+  if (!single && !/\.json$/i.test(name)) {
+    toast('Choose a Chitthi design (.chitthi) or gallery backup (.json).');
     return;
   }
   try {
-    const data = JSON.parse(await file.text()) as { app?: string; designs?: unknown[] };
+    const data = JSON.parse(text) as { app?: string; designs?: unknown[] };
     if (data.app !== 'chitthi' || !Array.isArray(data.designs)) throw new Error('bad');
     const img = (v: unknown) => typeof v === 'string' && v.startsWith('data:image/');
     const ok = data.designs.filter((x): x is SavedDesign & { state?: unknown } => {
@@ -273,6 +312,11 @@ export async function importBackup(file: File): Promise<void> {
     });
     for (const d of ok) await db.put({ ...d, design: mergeDesign(d.design ?? d.state) });
     window.dispatchEvent(new Event('chitthi:gallery'));
+    if (single && ok.length) {
+      await openDesign(ok[0].id);
+      setUI({ screen: 'studio', gallery: false });
+      return;
+    }
     const skip = data.designs.length - ok.length;
     toast(
       ok.length
@@ -280,7 +324,7 @@ export async function importBackup(file: File): Promise<void> {
         : 'No designs in that file could be read.',
     );
   } catch {
-    toast('That file isn’t a Chitthi gallery backup.');
+    toast(single ? 'That file isn’t a Chitthi design.' : 'That file isn’t a Chitthi gallery backup.');
   }
 }
 

@@ -33,6 +33,15 @@ export const LAYOUTS: [LayoutId, string, ProductId][] = [
   ['cal-full', 'Full photo', 'calendar'],
   ['cal-duo', 'Two photos', 'calendar'],
   ['cal-plain', 'Dates only', 'calendar'],
+  ['cal-strip', 'Year strip', 'calendar'],
+
+  ['mag-full', 'Full photo', 'magnet'],
+  ['mag-caption', 'Photo and caption', 'magnet'],
+  ['mag-polaroid', 'Mini Polaroid', 'magnet'],
+  ['mag-badge', 'Badge', 'magnet'],
+  ['mag-duo', 'Two photos', 'magnet'],
+  ['mag-grid', 'Four photos', 'magnet'],
+  ['mag-quote', 'Words only', 'magnet'],
 ];
 export const layoutName = (id: LayoutId) => LAYOUTS.find((l) => l[0] === id)?.[1] ?? id;
 export const layoutsFor = (p: ProductId) => LAYOUTS.filter((l) => l[2] === p);

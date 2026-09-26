@@ -4,6 +4,8 @@ import { SIZES } from './sizes';
 export interface ProductDef {
   id: ProductId;
   name: string;
+  /** Label in the studio's product switcher, where space is tight. */
+  short: string;
   /** One line for the landing page and the product switcher. */
   blurb: string;
   /** What the back side holds for this product. */
@@ -17,6 +19,7 @@ export interface ProductDef {
 export const PRODUCTS: ProductDef[] = [
   {
     id: 'postcard',
+    short: 'Postcard',
     name: 'Postcard',
     blurb: 'Festival, birthday and travel postcards with a real postal back.',
     backLabel: 'Message and address',
@@ -25,6 +28,7 @@ export const PRODUCTS: ProductDef[] = [
   },
   {
     id: 'calendar',
+    short: 'Calendar',
     name: 'Calendar',
     blurb: 'A month or a whole year of your photos, with a year-at-a-glance back page.',
     backLabel: 'Year at a glance',
@@ -33,11 +37,22 @@ export const PRODUCTS: ProductDef[] = [
   },
   {
     id: 'frame',
+    short: 'Frame',
     name: 'Photo frame',
     blurb: 'Frame-ready prints in standard frame sizes, with a mat border and caption.',
     backLabel: 'Dedication label',
     paper: 'Photo paper (lustre or glossy, 250–300 gsm) or fine-art matte. Trim exactly to size so the print sits flat behind the glass.',
     defaults: { sizeId: 'f8x10', orient: 'portrait', layout: 'frame-single', frame: 'white', exp: { back: false } },
+  },
+  {
+    id: 'magnet',
+    short: 'Magnet',
+    name: 'Fridge magnet',
+    blurb: 'Photo magnets in square, card and round sizes, printed many to a sheet.',
+    backLabel: 'Magnetic backing',
+    paper:
+      'Photo paper (200–250 gsm, glossy or lustre) laminated onto 0.5–0.76 mm flexible magnetic sheet, or print straight onto printable magnet sheet. Trim, then round the corners with a 3 mm corner punch. Button magnets: the bleed wraps around the edge of the badge.',
+    defaults: { sizeId: 'm2x3', orient: 'portrait', layout: 'mag-full', frame: 'white', exp: { back: false, format: 'sheet', sheet: 'a4' } },
   },
 ];
 

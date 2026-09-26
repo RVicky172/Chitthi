@@ -37,7 +37,19 @@ export const DEFAULT_DESIGN: Design = {
   ornament: true,
   back: { message: '', font: 'Kalam', from: '', to: '', address: '', pin: '', stamp: true, label: true, tint: true },
   exp: { format: 'pdf', sheet: 'a4', bleed: '3', dpi: '300', quality: 'jpeg', marks: true, back: true },
-  cal: { year: new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0), start: 0, months: 12, weekStart: 1 },
+  cal: {
+    year: new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0),
+    start: 0,
+    months: 12,
+    weekStart: 1,
+    text: 'off',
+    captions: Array.from({ length: 12 }, () => ''),
+    titleAlign: 'center',
+    numbers: 'corner',
+    grid: 'lines',
+    font: '',
+    backQuote: false,
+  },
   mat: 'classic',
   designName: '',
 };
@@ -55,6 +67,8 @@ export function productDesign(product: Design['product'], keep?: Design): Design
     layout: def.layout,
     frame: def.frame,
     exp: { ...(keep?.exp ?? base.exp), ...def.exp },
+    // A magnet is small: one line of words reads better than greeting, quote and signature together.
+    ...(product === 'magnet' ? { showQuote: false, vAlign: 'bottom' as const } : {}),
   };
 }
 
@@ -73,6 +87,8 @@ export function mergeDesign(saved: unknown): Design {
     exp: { ...d.exp, ...s.exp },
     cal: { ...d.cal, ...s.cal },
   };
+  out.cal.captions = Array.from({ length: 12 }, (_, i) => (typeof out.cal.captions?.[i] === 'string' ? out.cal.captions[i] : ''));
+  if (out.cal.font && !FONT_MAP[out.cal.font]) out.cal.font = '';
   // Keep the size and layout valid for the product (older saves are all postcards).
   if (!PRODUCTS.some((p) => p.id === out.product)) out.product = 'postcard';
   const def = productOf(out.product).defaults;
@@ -86,6 +102,16 @@ export function mergeDesign(saved: unknown): Design {
 }
 
 export const sizeOf = (d: Design): SizeDef => SIZES.find((x) => x.id === d.sizeId) ?? SIZES[0];
+
+/** Printed pages on the front: one per month for a calendar (one for the single-page Year strip), else one. */
+export const calPages = (d: Design): number =>
+  d.product !== 'calendar' ? 1 : d.layout === 'cal-strip' ? 1 : d.cal.months;
+
+/** Corner radius of the finished piece in mm, for previews (Instax prints and magnets have rounded corners). */
+export const cornerMM = (d: Design): number => {
+  const s = sizeOf(d);
+  return s.corner ?? (s.instax ? 3 : 0);
+};
 
 /** Card trim size in millimetres for the current orientation. */
 export function cardMM(d: Design): { w: number; h: number } {

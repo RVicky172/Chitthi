@@ -1,7 +1,7 @@
 services:
   chitthi:
     build: .
-    image: chitthi-postcard-studio:2.0.0
+    image: chitthi-postcard-studio:2.1.0
     container_name: chitthi
     ports:
       - "8080:8080"

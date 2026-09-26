@@ -1,7 +1,7 @@
 export type Orient = 'landscape' | 'portrait';
 export type Side = 'front' | 'back';
 export type FrameStyle = 'white' | 'cream' | 'black' | 'occasion';
-export type ProductId = 'postcard' | 'calendar' | 'frame';
+export type ProductId = 'postcard' | 'calendar' | 'frame' | 'magnet';
 export type MatWidth = 'none' | 'thin' | 'classic' | 'wide';
 export type VAlign = 'top' | 'middle' | 'bottom';
 export type HAlign = 'left' | 'center' | 'right';
@@ -42,7 +42,16 @@ export type LayoutId =
   | 'cal-side'
   | 'cal-full'
   | 'cal-duo'
-  | 'cal-plain';
+  | 'cal-plain'
+  | 'cal-strip'
+  /* fridge magnets */
+  | 'mag-full'
+  | 'mag-caption'
+  | 'mag-polaroid'
+  | 'mag-duo'
+  | 'mag-grid'
+  | 'mag-badge'
+  | 'mag-quote';
 export type PatternName =
   | 'confetti'
   | 'balloons'
@@ -86,7 +95,7 @@ export interface Theme {
 }
 export interface SizeDef {
   id: string;
-  grp: 'Postcards' | 'Instax style' | 'Large and custom' | 'Calendars' | 'Frame prints';
+  grp: 'Postcards' | 'Instax style' | 'Large and custom' | 'Calendars' | 'Frame prints' | 'Fridge magnets';
   /** Products this size is offered for (postcard when omitted). */
   products?: ProductId[];
   name: string;
@@ -96,6 +105,10 @@ export interface SizeDef {
   tag?: string;
   instax?: { w: number; h: number; side: number; top: number };
   native?: Orient;
+  /** Corner radius of the finished piece in mm (shown in the preview; the print file stays square for trimming). */
+  corner?: number;
+  /** Round pieces (button magnets): the design is trimmed to a circle. */
+  shape?: 'circle';
 }
 export interface FontDef {
   n: string;
@@ -168,7 +181,22 @@ export interface CalendarSettings {
   months: 1 | 12;
   /** 0 = weeks start on Sunday, 1 = Monday. */
   weekStart: 0 | 1;
+  /** Where the greeting / month captions go on month pages. */
+  text: CalTextPlace;
+  /** One caption per calendar month (index 0 = January); an empty one falls back to the greeting. */
+  captions: string[];
+  /** Month title alignment, shared by the month pages and the year page. */
+  titleAlign: 'left' | 'center';
+  /** Day numbers in the top-left corner of each cell or centred in it. */
+  numbers: 'corner' | 'center';
+  /** Day grid rules. */
+  grid: 'lines' | 'boxes' | 'none';
+  /** Font for month names and the year title (empty = the greeting font). */
+  font: string;
+  /** Show the quote as a subtitle under the title on the year page. */
+  backQuote: boolean;
 }
+export type CalTextPlace = 'off' | 'caption' | 'photo';
 
 export interface Design {
   product: ProductId;
@@ -240,6 +268,14 @@ export interface Layout {
   /** Calendar: where the month name and the day grid go. */
   calTitle?: Rect;
   calGrid?: Rect;
+  /** Calendar "Year strip": all twelve months in this box. */
+  calYear?: Rect;
+  /** Text height as a share of the text zone's height (default 0.32); single-line caption bands use more. */
+  textFill?: number;
+  /** Limits the "darken the photo" scrim to this area (default: the whole card). */
+  scrimArea?: Rect;
+  /** Badge magnet: greeting on the top arc and signature on the bottom arc of this circle. */
+  arc?: { x: number; y: number; r: number; band: number };
 }
 export interface RenderInput {
   d: Design;
@@ -282,4 +318,9 @@ export interface ViewerFaces {
   h: number;
   round: boolean;
   title?: string;
+  /** Corner radius in mm (overrides `round`). */
+  corner?: number;
+  circle?: boolean;
+  /** Calendars: every month page, in order, for the all-months 3D views. */
+  pages?: { src: string; label: string }[];
 }

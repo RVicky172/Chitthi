@@ -1,14 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PRODUCTS } from '../data/products';
+import { isDark, toggleTheme } from '../lib/theme';
 import { downloadPack, saveDesign, switchProduct } from '../state/actions';
 import { redo, setUI, undo, useApp } from '../state/store';
 import { Seg } from './common';
 import { DownloadIcon, Logo, MoonIcon, RedoIcon, SaveIcon, SunIcon, UndoIcon, ProductIcon } from './icons';
-
-const isDark = () =>
-  document.documentElement.dataset.theme
-    ? document.documentElement.dataset.theme === 'dark'
-    : matchMedia('(prefers-color-scheme: dark)').matches;
 
 export function Header() {
   const canUndo = useApp((s) => s.canUndo),
@@ -16,16 +12,12 @@ export function Header() {
     product = useApp((s) => s.design.product);
   const [busy, setBusy] = useState(false);
   const [dark, setDark] = useState(isDark);
-  const toggleTheme = () => {
-    const theme = dark ? 'light' : 'dark';
-    document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem('chitthi-theme', theme);
-    } catch {
-      /* storage blocked */
-    }
-    setDark(!dark);
-  };
+  // The theme can also change from the desktop menu.
+  useEffect(() => {
+    const sync = () => setDark(isDark());
+    window.addEventListener('chitthi:theme', sync);
+    return () => window.removeEventListener('chitthi:theme', sync);
+  }, []);
   const download = async () => {
     setBusy(true);
     try {
@@ -43,7 +35,7 @@ export function Header() {
         </span>
       </button>
       <div className="products-switch">
-        <Seg label="What are you making?" value={product} options={PRODUCTS.map((p) => [p.id, p.name, <ProductIcon key={p.id} id={p.id} />])} onChange={switchProduct} />
+        <Seg label="What are you making?" value={product} options={PRODUCTS.map((p) => [p.id, p.short, <ProductIcon key={p.id} id={p.id} />])} onChange={switchProduct} />
       </div>
       <div className="acts">
         <button

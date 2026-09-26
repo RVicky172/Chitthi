@@ -1,6 +1,7 @@
 import { HANDWRITING } from '../../data/fonts';
 import { setBack, setDesign, setUI, useApp } from '../../state/store';
-import { Check, Pane } from '../common';
+import type { CalendarSettings } from '../../types';
+import { Check, Pane, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
 
 export function BackPane() {
@@ -8,6 +9,7 @@ export function BackPane() {
     product = useApp((s) => s.design.product);
   if (product === 'calendar') return <CalendarBack />;
   if (product === 'frame') return <FrameBack />;
+  if (product === 'magnet') return <MagnetBack />;
   return (
     <Pane title="Back of the card" next="print file" onNext={() => setUI({ pane: 'print' })}>
       <label className="f">
@@ -81,6 +83,22 @@ function CalendarBack() {
         Title (otherwise the year is shown)
       </Check>
       <input type="text" aria-label="Title" value={d.heading} onChange={(e) => setDesign({ heading: e.target.value })} />
+      <Check checked={d.cal.backQuote} onChange={(backQuote) => setDesign({ cal: { ...d.cal, backQuote } })}>
+        Subtitle under the title
+      </Check>
+      {d.cal.backQuote && (
+        <textarea rows={2} aria-label="Subtitle" value={d.quote} onChange={(e) => setDesign({ quote: e.target.value })} />
+      )}
+      <Seg<CalendarSettings['titleAlign']>
+        label="Title alignment"
+        value={d.cal.titleAlign}
+        options={[
+          ['left', 'Left'],
+          ['center', 'Centred'],
+        ]}
+        onChange={(titleAlign) => setDesign({ cal: { ...d.cal, titleAlign } })}
+      />
+      <p className="hint">The title, the subtitle and the twelve month names share this alignment with the month pages, so front and back match.</p>
       <Check checked={d.back.tint} onChange={(tint) => setBack({ tint })}>
         Tint the page with the theme colour
       </Check>
@@ -122,6 +140,25 @@ function FrameBack() {
       <Check checked={b.tint} onChange={(tint) => setBack({ tint })}>
         Tint with the theme colour
       </Check>
+    </Pane>
+  );
+}
+
+/** Magnets have nothing printed on the back: explain what goes there instead. */
+function MagnetBack() {
+  return (
+    <Pane
+      title="Magnetic back"
+      lead="The back of a fridge magnet is the magnetic sheet, so nothing is printed on it. The preview shows the finished look."
+      next="print file"
+      onNext={() => setUI({ pane: 'print' })}
+    >
+      <ul className="tips">
+        <li>Easiest: print straight onto inkjet printable magnet sheet (A4), then cut.</li>
+        <li>Sturdier: print on photo paper and stick it onto self-adhesive magnetic sheet (0.5–0.76 mm).</li>
+        <li>Round button magnets: the bleed wraps around the badge, so keep words inside the blue safe circle.</li>
+        <li>Round the corners of square and card magnets with a 3 mm corner punch.</li>
+      </ul>
     </Pane>
   );
 }

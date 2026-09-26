@@ -1,9 +1,15 @@
 {
   "name": "chitthi-postcard-studio",
+  "productName": "Chitthi",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Design postcards and Instax-style prints for Indian festivals, birthdays and seasons, then download print-ready files.",
+  "author": {
+    "name": "RVicky172",
+    "email": "rohillavicky172@gmail.com"
+  },
   "type": "module",
+  "main": "electron/main.cjs",
   "engines": {
     "node": ">=20.19"
   },
@@ -13,18 +19,27 @@
     "typecheck": "tsc -b",
     "preview": "vite preview --port 8080",
     "build:lib": "tsc -p tsconfig.lib.json",
-    "fetch:samples": "node scripts/fetch-samples.mjs"
+    "fetch:samples": "node scripts/fetch-samples.mjs",
+    "fetch:fonts": "node scripts/fetch-fonts.mjs",
+    "desktop:dev": "node electron/dev.mjs",
+    "desktop:start": "npm run build && node electron/dev.mjs --prod",
+    "desktop:pack": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder --publish never",
+    "desktop:release": "npm run build && electron-builder --publish always"
   },
   "dependencies": {
-    "jspdf": "^4.2.1",
-    "lucide-react": "^1.48.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.48.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "typescript": "~5.9.3",
     "vite": "^8.3.1"
   },
