@@ -16,11 +16,13 @@ import {
   useDimsTick,
   type PhotoShape,
 } from '../state/photoFit';
-import { selectSlot, usePhotoSlots } from '../state/photoSlots';
-import { analyzeLibrary, autoArrange, smartFill, traitsForPhoto, traitsOf, useTraitsTick } from '../state/traits';
+import { placePhoto, selectSlot, usePhotoSlots } from '../state/photoSlots';
+import { photoKey } from '../lib/photoKey';
+import { analyzeLibrary, autoArrange, keyOfStored, smartFill, traitsForPhoto, traitsOf, useTraitsTick } from '../state/traits';
 import { relevance, type Hue } from '../engine/analyze';
 import { resolveTheme } from '../engine/design';
 import { getState, setPhotos, setUI, useApp } from '../state/store';
+import type { StoredPhoto } from '../types';
 import { Seg } from './common';
 import { AddPhotoIcon, CloseIcon, CropIcon, TrashIcon } from './icons';
 import { PexelsSearch } from './PexelsSearch';
@@ -41,7 +43,15 @@ const HUE_SWATCH: Record<Hue, string> = {
 };
 
 interface Item {
-  url: string;
+  /** Fingerprint (lib/photoKey.ts): identifies the photo. */
+  key: string;
+  /** What the grid shows: the thumbnail, or the full image for a photo that is only on the design. */
+  view: string;
+  /** The stored photo, for placing it (its full image loads then). */
+  sp?: StoredPhoto;
+  /** Pixel size. */
+  w?: number;
+  h?: number;
   name: string;
   /** Photo store id (absent for a photo that is only on the card). */
   id?: string;
@@ -105,15 +115,20 @@ export function PhotoLibrary() {
 
   const slot = useMemo(() => slotInfo(design, active), [design, active]);
   const items = useMemo<Item[]>(() => {
-    const byUrl = new Map<string, Item>();
-    (list ?? []).forEach((s) => byUrl.set(s.url, { url: s.url, name: s.name, id: s.id, added: s.added, card: -1 }));
-    photos.forEach((p, i) => {
-      const it = byUrl.get(p.url);
-      if (it) it.card = i;
-      else byUrl.set(p.url, { url: p.url, name: p.name, added: 0, card: i });
-      rememberDims(p.url, p.orig.naturalWidth, p.orig.naturalHeight);
+    const byKey = new Map<string, Item>();
+    (list ?? []).forEach((sp) => {
+      const key = keyOfStored(sp);
+      byKey.set(key, { key, view: sp.thumb || sp.url, sp, name: sp.name, id: sp.id, added: sp.added, card: -1, w: sp.w, h: sp.h });
+      if (sp.w && sp.h) rememberDims(key, sp.w, sp.h);
     });
-    return [...byUrl.values()];
+    photos.forEach((p, i) => {
+      const key = photoKey(p.url),
+        it = byKey.get(key);
+      if (it) it.card = i;
+      else byKey.set(key, { key, view: p.url, name: p.name, added: 0, card: i });
+      rememberDims(key, p.orig.naturalWidth, p.orig.naturalHeight);
+    });
+    return [...byKey.values()];
   }, [list, photos]);
 
   // Analyse everything once: library photos in the background, card photos straight away.
@@ -123,13 +138,13 @@ export function PhotoLibrary() {
   }, [open, list, photos]);
   const theme = resolveTheme(design);
   const score = (it: Item) => {
-    const t = traitsOf(it.url);
+    const t = traitsOf(it.key);
     return t ? relevance(t, slot, theme) : 0;
   };
   // Search matches the name and the words the analysis found (bright, blue, warm, sky, sharp…).
   const byName = (it: Item) => {
     if (!q.trim()) return true;
-    const hay = `${it.name} ${traitsOf(it.url)?.tags.join(' ') ?? ''}`.toLowerCase();
+    const hay = `${it.name} ${traitsOf(it.key)?.tags.join(' ') ?? ''}`.toLowerCase();
     return q
       .toLowerCase()
       .split(/\s+/)
@@ -137,7 +152,7 @@ export function PhotoLibrary() {
       .every((w) => hay.includes(w));
   };
   const refined = (it: Item) => {
-    const t = traitsOf(it.url);
+    const t = traitsOf(it.key);
     if (!refine.hue && !refine.light && !refine.mood && !refine.quality && !relevantOnly) return true;
     if (!t) return false;
     if (refine.hue && t.hue !== refine.hue) return false;
@@ -148,10 +163,10 @@ export function PhotoLibrary() {
     if (relevantOnly && relevance(t, slot, theme) < 0.62) return false;
     return true;
   };
-  const hues = [...new Set(items.map((it) => traitsOf(it.url)?.hue).filter((h): h is Hue => !!h))];
+  const hues = [...new Set(items.map((it) => traitsOf(it.key)?.hue).filter((h): h is Hue => !!h))];
   const shown = items
     .filter((it) => {
-      const dm = dimsOf(it.url),
+      const dm = dimsOf(it.key),
         pex = /\(Pexels \//.test(it.name);
       if (!byName(it) || !refined(it)) return false;
       switch (filter) {
@@ -174,8 +189,8 @@ export function PhotoLibrary() {
       }
     })
     .sort((a, b) => {
-      const da = dimsOf(a.url),
-        db = dimsOf(b.url);
+      const da = dimsOf(a.key),
+        db = dimsOf(b.key);
       if (sort === 'rel') return score(b) - score(a);
       if (sort === 'name') return a.name.localeCompare(b.name);
       if (sort === 'old') return a.added - b.added;
@@ -188,7 +203,7 @@ export function PhotoLibrary() {
   const rest =
     filter === 'fit' && slot
       ? items.filter((it) => {
-          const dm = dimsOf(it.url);
+          const dm = dimsOf(it.key);
           return byName(it) && refined(it) && !!dm && !fitsSlot(dm.w, dm.h, slot.aspect);
         })
       : [];
@@ -202,28 +217,33 @@ export function PhotoLibrary() {
       setBusy(false);
     }
   };
-  const use = (it: Item) => putOnCard({ id: it.id ?? '', name: it.name, url: it.url, added: it.added });
+  const use = async (it: Item) => {
+    if (it.sp) await putOnCard(it.sp);
+    else {
+      const p = getState().photos.find((x) => photoKey(x.url) === it.key);
+      if (p) placePhoto(p.id, active);
+    }
+  };
   const crop = async (it: Item) => {
     if (it.card < 0) await use(it);
-    const ph = getState().photos.find((p) => p.url === it.url);
+    const ph = getState().photos.find((p) => photoKey(p.url) === it.key);
     if (ph) setUI({ cropId: ph.id });
   };
-  const takeOff = (it: Item) => setPhotos(getState().photos.filter((p) => p.url !== it.url));
+  const takeOff = (it: Item) => setPhotos(getState().photos.filter((p) => photoKey(p.url) !== it.key));
 
   const card = (it: Item, dim = false) => {
-                const dm = dimsOf(it.url),
+                const dm = dimsOf(it.key),
                   dpi = dm && slot ? slotDpi(dm.w, dm.h, slot) : null,
                   sh = dpi ? sharpness(dpi) : null,
-                  inSlot = filled.findIndex((p) => p?.url === it.url);
+                  inSlot = filled.findIndex((p) => !!p && photoKey(p.url) === it.key);
                 return (
-                  <li key={it.url} className={`lib-item${dim ? ' dim' : ''}`}>
+                  <li key={it.key} className={`lib-item${dim ? ' dim' : ''}`}>
                     <button type="button" className="lib-ph" title={count ? `Put in ${where}` : it.name} onClick={() => void use(it)} disabled={!count}>
                       <img
-                        src={it.url}
+                        src={it.view}
                         alt={it.name}
                         loading="lazy"
                         decoding="async"
-                        onLoad={(e) => rememberDims(it.url, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
                       />
                       {inSlot >= 0 && <b className="lib-badge">{count > 1 ? `Slot ${inSlot + 1}` : 'On design'}</b>}
                       {inSlot < 0 && it.card >= 0 && <b className="lib-badge muted">On design</b>}
@@ -234,12 +254,12 @@ export function PhotoLibrary() {
                         {dm ? `${dm.w.toLocaleString()} × ${dm.h.toLocaleString()} · ${SHAPE_LABEL[shapeOf(dm.w, dm.h)]}` : '…'}
                         {sh && <em className={`q ${sh === 'sharp' ? 'good' : sh === 'fine' ? 'ok' : 'low'}`}>{`${sh} (${dpi} dpi)`}</em>}
                       </span>
-                      {traitsOf(it.url) && (
+                      {traitsOf(it.key) && (
                         <span className="lib-tags">
                           <b title="How well this photo suits the selected slot: shape, print sharpness, focus and colours">
                             {Math.round(score(it) * 100)}% match
                           </b>
-                          {traitsOf(it.url)!.tags.slice(0, 4).join(' · ')}
+                          {traitsOf(it.key)!.tags.slice(0, 4).join(' · ')}
                         </span>
                       )}
                     </div>
@@ -485,8 +505,8 @@ export function PhotoLibrary() {
               <ul className="lib-grid">
                 {rest
                   .sort((a, b) => {
-                    const da = dimsOf(a.url)!,
-                      db = dimsOf(b.url)!;
+                    const da = dimsOf(a.key)!,
+                      db = dimsOf(b.key)!;
                     return cropLoss(da.w, da.h, slot!.aspect) - cropLoss(db.w, db.h, slot!.aspect);
                   })
                   .map((it) => card(it, true))}

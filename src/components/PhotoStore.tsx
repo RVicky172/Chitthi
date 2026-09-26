@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { putOnCard, removeStored, useLibrary } from '../state/library';
 import { usePhotoSlots } from '../state/photoSlots';
 import { dimsOf, fitsSlot, rememberDims, slotInfo, useDimsTick } from '../state/photoFit';
+import { photoKey } from '../lib/photoKey';
+import { keyOfStored } from '../state/traits';
 import { setUI, useApp } from '../state/store';
 import { Check } from './common';
 import { isDesktop } from '../platform/desktop';
@@ -34,10 +36,11 @@ export function PhotoStore() {
     );
   if (!list.length) return <p className="hint">Photos you upload are kept here, ready to use on any card.</p>;
 
-  const slotOf = new Map(photos.map((p, i) => [p.url, i < count ? i : -1]));
+  const slotOf = new Map(photos.map((p, i) => [photoKey(p.url), i < count ? i : -1]));
+  list.forEach((s) => s.w && s.h && rememberDims(keyOfStored(s), s.w, s.h));
   const slot = slotInfo(design, active);
   const shown = fitOnly && slot ? list.filter((s) => {
-    const d = dimsOf(s.url);
+    const d = dimsOf(keyOfStored(s));
     return !d || fitsSlot(d.w, d.h, slot.aspect);
   }) : list;
   return (
@@ -55,7 +58,7 @@ export function PhotoStore() {
       )}
       <ul className="store">
         {shown.map((s) => {
-          const at = slotOf.get(s.url) ?? -2;
+          const at = slotOf.get(keyOfStored(s)) ?? -2;
           return (
             <li key={s.id}>
               <button
@@ -66,11 +69,10 @@ export function PhotoStore() {
                 onClick={() => void putOnCard(s)}
               >
                 <img
-                  src={s.url}
+                  src={s.thumb || s.url}
                   alt={s.name}
                   loading="lazy"
                   decoding="async"
-                  onLoad={(e) => rememberDims(s.url, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
                 />
                 {at >= 0 && <b>{count > 1 ? `Slot ${at + 1}` : 'On card'}</b>}
               </button>

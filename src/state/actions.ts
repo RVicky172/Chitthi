@@ -46,7 +46,7 @@ export const applyInstaxPreset = () => setExp({ format: 'sheet', sheet: 'a4', bl
 export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', msg: string][]> {
   const msgs: ['err' | 'warn', string][] = [];
   const added = [],
-    stored: { name: string; url: string }[] = [];
+    stored: { name: string; url: string; img: HTMLImageElement }[] = [];
   const limit = maxPhotos(getState().design.product);
   let room = limit - getState().photos.length,
     full = 0;
@@ -64,7 +64,7 @@ export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', ms
           'warn',
           `${f.name} is only ${img.naturalWidth}×${img.naturalHeight} px, so it will look soft beyond a small print. Use the original photo if you have it.`,
         ]);
-      stored.push({ name: f.name, url });
+      stored.push({ name: f.name, url, img });
       if (room > 0) {
         room--;
         added.push(makePhoto(img, f.name, url));
@@ -91,7 +91,7 @@ export async function addFiles(files: File[]): Promise<[kind: 'err' | 'warn', ms
 /** Photo library upload: checks and keeps the files in the photo store without putting them on the card. */
 export async function addToLibrary(files: File[]): Promise<[kind: 'err' | 'warn', msg: string][]> {
   const msgs: ['err' | 'warn', string][] = [],
-    stored: { name: string; url: string }[] = [];
+    stored: { name: string; url: string; img: HTMLImageElement }[] = [];
   for (const f of files) {
     const err = checkFile(f);
     if (err) {
@@ -103,7 +103,7 @@ export async function addToLibrary(files: File[]): Promise<[kind: 'err' | 'warn'
         img = await loadImage(url);
       if (Math.min(img.naturalWidth, img.naturalHeight) < 800)
         msgs.push(['warn', `${f.name} is only ${img.naturalWidth}×${img.naturalHeight} px, so it will look soft beyond a small print.`]);
-      stored.push({ name: f.name, url });
+      stored.push({ name: f.name, url, img });
     } catch {
       msgs.push(['err', `${f.name} couldn’t be read. The file may be damaged or not really a JPG, PNG or WebP.`]);
     }
@@ -402,7 +402,7 @@ export async function restoreWork(): Promise<void> {
     if (!photos.length) return;
     setPhotos(photos);
     markPhotosSaved();
-    void storePhotos(metas.map((m) => ({ name: m.name, url: m.url })));
+    void storePhotos(photos.map((p) => ({ name: p.name, url: p.url, img: p.orig })));
     resetHistory();
     toast('Your last card is back, photos included.');
   } catch {
@@ -416,6 +416,6 @@ export async function openSample(design: Design, photos: Photo[]): Promise<void>
   replaceCard(structuredClone(design), photos, null);
   await ensureFonts(fontsFor(design));
   setUI({ gallery: false, screen: 'studio', pane: 'photos', side: 'front', slot: 0, calPage: 0 });
-  void storePhotos(photos.map((p) => ({ name: p.name, url: p.url })));
+  void storePhotos(photos.map((p) => ({ name: p.name, url: p.url, img: p.orig })));
   toast(`Opened the “${design.designName}” sample. Swap in your own photos from the Photos step.`);
 }

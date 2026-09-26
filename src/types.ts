@@ -333,8 +333,19 @@ export interface RenderOpts {
 export interface StoredPhoto {
   id: string;
   name: string;
+  /**
+   * The full image. Empty in lists: the library loads only the small `thumb` and fetches the full image
+   * (db.libUrl) when the photo is placed on a design.
+   */
   url: string;
   added: number;
+  /** Content fingerprint (lib/photoKey.ts): matches this photo to the same image on a design. */
+  key?: string;
+  /** Small JPEG (≤ 320 px) for lists and the dock. */
+  thumb?: string;
+  /** Pixel size of the full image. */
+  w?: number;
+  h?: number;
   /** Analysis results (engine/analyze.ts), stored so each photo is analysed once. */
   traits?: import('./engine/analyze').PhotoTraits;
 }

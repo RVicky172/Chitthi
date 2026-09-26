@@ -264,7 +264,11 @@ cool, sharp, soft, sky, night, black and white, wide / tall / square* and the hu
   on the stored photo (`StoredPhoto.traits`) so each is analysed once. `autoArrange()` reorders the card's photos by
   `assign` and sets each crop with `focusPosition` (calendars keep month order); `smartFill()` adds the most relevant
   library photos to empty slots. The photo strip shows at most 8 card and 8 library photos (most relevant first) and
-  a "+N more" button that opens the library.
+  "All photos" to open the library.
+
+The photo dock under the preview (`PhotoTray.tsx`) shows the layout's slots, then up to ten suggestions for the
+selected slot (the design's unused photos, then the most relevant library photos, never duplicating a slot), then
+tools. Slots accept drag and drop: a suggestion onto a slot places it; a slot onto another swaps them.
 
 ### 4.7 Print quotes (`data/printSpecs.ts`, `engine/quote.ts`)
 
@@ -315,9 +319,16 @@ Full description: [PEXELS.md](PEXELS.md).
 One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPhotos/putWorkPhotos`, and
 `libAll/libPut/libDel` for the photo store.
 
-- Browser: IndexedDB database `chitthi` v3 with object stores `designs`, `work` (key `photos`) and `library`,
-  all keyed by `id`.
-- Desktop: IPC to `library/designs/<id>.json`, `library/photos/<id>.json` and `library/work.json`, written atomically
+- Browser: IndexedDB database `chitthi` v4 with object stores `designs`, `work` (key `photos`), `library` and
+  `libfull`, all keyed by `id`. `library` holds each stored photo's details (name, 320 px JPEG thumbnail, pixel size,
+  analysis, fingerprint) and `libfull` its full image, so listing the library reads a few kB per photo instead of
+  megabytes (60 phone photos: 1.2 MB instead of 128 MB, 22 ms instead of 260 ms). `db.libUrl(id)` fetches the full
+  image when a photo is placed. The v3 → v4 upgrade moves existing images across; thumbnails and analysis for them are
+  added in the background (`library.ts`, idle time).
+- Photos are matched between a design and the library by `photoKey()` (`lib/photoKey.ts`): data length plus an
+  FNV-1a hash of 4 KB from the start and end, instead of comparing multi-megabyte strings.
+- Desktop: IPC to `library/designs/<id>.json`, `library/photos/<id>.json` (full image), `library/photos-meta/<id>.json`
+  (everything else, created on first run for older libraries) and `library/work.json`, written atomically
   (temporary file + rename). Ids are validated against `/^[A-Za-z0-9_-]{1,100}$/`.
 
 ## 6. Desktop shell (`electron/`)
@@ -365,6 +376,15 @@ App
 Steps are built from `Section` (`components/common.tsx`): a titled, collapsible group whose open state is kept in
 `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
 when its step isn't on screen yet; the feature finder uses it. `lib/fullscreen.ts` wraps the Fullscreen API.
+
+The 3D viewer (`Viewer3D.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,
+decaying 7% a frame), hover tilt towards the pointer, smoothed zoom (wheel, pinch, buttons, 50–260%), and per-face
+shading from the angle to a light at the upper left. Keys: arrows turn (or change month), F flips, O opens the
+envelope, +/−/0 zoom, R resets, Space toggles turning. Double-click flips, or opens a month from the ring.
+
+Measured (Chrome, 12 MP photos): a preview render takes ~2 ms because the GPU keeps each decoded photo as a texture,
+and typing redraws within one frame even with the 24 layout and 12 month thumbnails on screen. Pre-scaled photo
+copies (mipmaps) and a binary-search text fit were tried and measured slower, so they were left out.
 
 Performance details: layout and month thumbnails redraw from `useDeferredValue` copies. Only the current step
 pane and its neighbours are mounted. Sample renders and Pexels results are cached for the session.

@@ -2726,60 +2726,6 @@ dialog::backdrop {
   margin: 24px 0 0;
 }
 
-/* ---------- calendar: month strip under the preview ---------- */
-.mstrip {
-  display: flex;
-  gap: 6px;
-  margin: 0 auto 8px;
-  padding: 6px;
-  max-width: calc(100% - 24px);
-  overflow-x: auto;
-  scrollbar-width: none;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-.mstrip::-webkit-scrollbar {
-  display: none;
-}
-.mthumb {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 4px 2px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: none;
-  color: rgba(255, 255, 255, 0.7);
-  font: 600 0.68rem/1 var(--font);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition:
-    background var(--dur-fast),
-    border-color var(--dur-fast),
-    color var(--dur-fast);
-}
-.mthumb canvas {
-  display: block;
-  height: 58px;
-  width: auto;
-  max-width: 58px;
-  border-radius: 2px;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-}
-.mthumb:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-.mthumb[aria-selected='true'] {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-}
-
 /* ---------- calendar: month captions in the Front step ---------- */
 .mcaps-box {
   border: 1px solid var(--line);
@@ -3041,12 +2987,6 @@ dialog::backdrop {
 /* four products: keep the header on one line */
 @media (max-width: 1280px) and (min-width: 861px) {
   .bar .acts .btn:not(.primary) .lbl {
-    display: none;
-  }
-}
-/* phones: the month arrows are enough; the preview needs the height */
-@media (max-width: 860px) {
-  .mstrip {
     display: none;
   }
 }
@@ -4742,4 +4682,446 @@ input[type='search']::-webkit-search-cancel-button {
 }
 .tray {
   max-width: min(calc(100% - 24px), 980px);
+}
+
+/* ---------- photo dock (replaces the tray under the preview) ---------- */
+.dock {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: min(calc(100% - 24px), 1040px);
+  margin: 0 auto 8px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #f3eee6;
+}
+.dock-slots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dock-slot {
+  position: relative;
+  border-radius: 12px;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.dock-slot > button {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast),
+    box-shadow var(--dur-fast);
+}
+.dock-slot > button svg {
+  width: 20px;
+  height: 20px;
+}
+.dock-slot > button:has(svg) {
+  border-style: dashed;
+}
+.dock-slot canvas,
+.dock-ph canvas,
+.dock-ph img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dock-slot.on > button {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.dock-slot.over {
+  transform: scale(1.08);
+}
+.dock-slot.over > button {
+  border-color: #fff;
+  border-style: solid;
+}
+.dock-num {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(20, 18, 16, 0.9);
+  color: #fff;
+  font: 700 0.64rem/18px var(--font);
+  text-align: center;
+  pointer-events: none;
+}
+.dock-slot.on .dock-num {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.dock-acts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dock-acts button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f3eee6;
+}
+.dock-acts button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.dock-acts svg {
+  width: 15px;
+  height: 15px;
+}
+.dock-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dock-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.dock-suggest ul {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Fade the edge so it's clear the row scrolls. */
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, #000 88%, transparent);
+  scroll-snap-type: x proximity;
+}
+.dock-suggest ul::-webkit-scrollbar {
+  display: none;
+}
+.dock-suggest li {
+  flex: none;
+  scroll-snap-align: start;
+}
+.dock-ph {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: grab;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast);
+}
+.dock-ph:hover,
+.dock-ph:focus-visible {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+.dock-ph.mine::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1.5px rgba(20, 18, 16, 0.8);
+}
+.dock-empty {
+  padding: 12px 4px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.8rem;
+}
+.dock-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dock-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3eee6;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dock-tool:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+.dock-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dock-tool svg {
+  width: 18px;
+  height: 18px;
+}
+.dock-tool input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+@media (max-width: 1100px) {
+  .dock-tool.wide span {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .dock {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dock-slots {
+    grid-column: 1 / -1;
+    border-right: 0;
+    padding-right: 0;
+    overflow-x: auto;
+  }
+  .dock-slot > button {
+    width: 50px;
+    height: 50px;
+  }
+}
+/* The dock sits on the dark stage in both themes: its highlight is saffron, not the theme accent. */
+.dock-slot.on > button {
+  border-color: #f0a04b;
+  box-shadow: 0 0 0 3px rgba(240, 160, 75, 0.35);
+}
+.dock-slot.on .dock-num,
+.dock-ph.mine::after {
+  background: #f0a04b;
+  color: #1c140b;
+}
+
+/* ---------- 3D viewer: zoom, lighting ---------- */
+.vzoom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.vzoom-ctl {
+  display: inline-flex;
+  gap: 2px;
+}
+.vzoom-ctl .btn {
+  min-width: 34px;
+  padding-inline: 8px;
+  justify-content: center;
+}
+.vzoom-pct {
+  font-variant-numeric: tabular-nums;
+  min-width: 58px !important;
+}
+.vcard .shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #000;
+  opacity: var(--shadeF, 0);
+}
+.vcard .shade.b {
+  opacity: var(--shadeB, 0);
+}
+.vcard .gloss,
+.vpage .gloss,
+.vleaf .gloss {
+  background-position: var(--gx, 50%) var(--gy, 50%);
+}
+
+/* ---------- calendar dock: one row of month tiles ---------- */
+.dock.cal {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+.dock-months {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 2px 2px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.dock-months::-webkit-scrollbar {
+  display: none;
+}
+.dock-month {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  scroll-snap-align: center;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.dock-month > button {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  opacity: 0.78;
+  transition:
+    opacity var(--dur-fast),
+    border-color var(--dur-fast),
+    box-shadow var(--dur-fast),
+    transform var(--dur-fast) var(--ease);
+}
+.dock-month > button:has(svg) {
+  border-style: dashed;
+}
+.dock-month > button svg {
+  width: 18px;
+  height: 18px;
+}
+.dock-month canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.dock-month > button:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+.dock-month span {
+  font: 600 0.62rem/1 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.dock-month.on > button {
+  opacity: 1;
+  border-color: #f0a04b;
+  box-shadow: 0 0 0 3px rgba(240, 160, 75, 0.35);
+}
+.dock-month.on span {
+  color: #f0a04b;
+}
+.dock-month.over {
+  transform: scale(1.1);
+}
+.dock-month.over > button {
+  border-color: #fff;
+  border-style: solid;
+  opacity: 1;
+}
+.cal-acts {
+  flex-direction: row;
+  align-items: center;
+  padding: 0 4px 0 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+.cal-acts button:disabled {
+  opacity: 0.35;
+}
+.dock-slotpick {
+  display: inline-flex;
+  gap: 3px;
+  margin-right: 4px;
+}
+.dock-slotpick button {
+  width: 24px !important;
+  font: 700 0.72rem/1 var(--font);
+}
+.dock-slotpick button[aria-checked='true'] {
+  background: #f0a04b !important;
+  color: #1c140b !important;
+}
+/* Suggestions: opened on demand above the dock. */
+.dock-pop {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  background: #1f1c19;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  animation: pop 0.2s var(--ease);
+}
+.dock-pop ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dock-tool[aria-expanded='true'] {
+  background: rgba(240, 160, 75, 0.25);
+  border-color: #f0a04b;
+}
+@media (max-width: 700px) {
+  .dock.cal {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dock.cal .dock-months {
+    grid-column: 1 / -1;
+  }
+  .cal-acts {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+.dock-months {
+  -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, #000 90%, transparent);
+  padding-right: 24px;
 }

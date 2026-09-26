@@ -9,7 +9,6 @@ import { getState, patchPhoto, setUI, useApp } from '../state/store';
 import type { Layout, Photo, Rect } from '../types';
 import { Seg } from './common';
 import { CubeIcon, PrevIcon, NextIcon } from './icons';
-import { MonthStrip } from './MonthStrip';
 import { PhotoTray } from './PhotoTray';
 
 interface Drag {
@@ -227,7 +226,6 @@ export function Stage() {
           }}
         />
       </div>
-      {side === 'front' && <MonthStrip />}
       {side === 'front' && <PhotoTray />}
       <p className="caption">
         {side === 'front' ? 'Front' : 'Back'}, {sizeOf(design).name}, {Math.round(w * 10) / 10} × {Math.round(h * 10) / 10} mm

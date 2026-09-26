@@ -12,7 +12,6 @@ export { Header } from './components/Header';
 export { Rail } from './components/Rail';
 export { Stage } from './components/Stage';
 export { PhotoTray } from './components/PhotoTray';
-export { MonthStrip } from './components/MonthStrip';
 
 /* ---------- step panes ---------- */
 export { PhotosPane } from './components/panes/PhotosPane';

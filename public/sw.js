@@ -1,5 +1,5 @@
 /* Chitthi service worker: works offline after the first visit. */
-const APP_CACHE = 'chitthi-app-v10';
+const APP_CACHE = 'chitthi-app-v11';
 const FONT_CACHE = 'chitthi-fonts-v1';
 const CORE = ['./', 'index.html', 'favicon/favicon.svg', 'favicon/favicon.ico', 'favicon/icon-192.png', 'favicon/icon-512.png', 'manifest.webmanifest'];
 

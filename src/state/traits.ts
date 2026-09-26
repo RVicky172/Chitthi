@@ -3,7 +3,7 @@ import { analyzeImage, assign, focusPosition, relevance, TRAITS_VERSION, type Ph
 import { calPages, resolveTheme } from '../engine/design';
 import { slotCount } from '../engine/layout';
 import { loadImage, updatePhoto } from '../engine/photo';
-import { db } from '../lib/db';
+import { photoKey } from '../lib/photoKey';
 import { toast } from '../lib/toast';
 import type { Photo, StoredPhoto } from '../types';
 import { putOnCard } from './library';
@@ -25,13 +25,16 @@ const changed = () => {
       window.dispatchEvent(new Event(EVT));
     });
 };
-const remember = (url: string, t: PhotoTraits) => {
-  cache.set(url, t);
-  rememberDims(url, t.w, t.h);
+/** Traits are kept by photo fingerprint (lib/photoKey.ts), so a photo on a design and in the library share them. */
+const remember = (key: string, t: PhotoTraits) => {
+  cache.set(key, t);
+  rememberDims(key, t.w, t.h);
   changed();
 };
 
-export const traitsOf = (url: string): PhotoTraits | undefined => cache.get(url);
+/** Traits of a stored photo or of an image URL. */
+export const traitsOf = (key: string): PhotoTraits | undefined => cache.get(key);
+export const keyOfStored = (sp: StoredPhoto) => sp.key || photoKey(sp.url);
 
 /** Re-renders when new traits arrive. */
 export function useTraitsTick(): number {
@@ -46,10 +49,11 @@ export function useTraitsTick(): number {
 
 /** Traits of a photo already on the card (decoded, so analysis is immediate). */
 export function traitsForPhoto(p: Photo): PhotoTraits {
-  let t = cache.get(p.url);
+  const key = photoKey(p.url);
+  let t = cache.get(key);
   if (!t) {
     t = analyzeImage(p.orig);
-    remember(p.url, t);
+    remember(key, t);
   }
   return t;
 }
@@ -64,14 +68,14 @@ async function work(): Promise<void> {
   if (running) return;
   running = true;
   while (queue.length) {
-    const sp = queue.shift()!;
-    if (cache.has(sp.url)) continue;
+    const sp = queue.shift()!,
+      key = keyOfStored(sp);
+    if (cache.has(key)) continue;
     await new Promise<void>((r) => idle(r));
     try {
-      const t = analyzeImage(await loadImage(sp.url));
-      remember(sp.url, t);
-      // Keep it with the stored photo so it is never analysed again.
-      if (sp.id) await db.libPut({ ...sp, traits: t }).catch(() => undefined);
+      // The analysis reads a 96 px copy, so the thumbnail is enough; the pixel size comes from the record.
+      const t = analyzeImage(await loadImage(sp.thumb || sp.url));
+      remember(key, sp.w && sp.h ? { ...t, w: sp.w, h: sp.h } : t);
     } catch {
       /* unreadable: skip */
     }
@@ -82,9 +86,10 @@ async function work(): Promise<void> {
 /** Makes sure every listed library photo has traits: stored ones are used, missing ones are queued. */
 export function analyzeLibrary(list: StoredPhoto[]): void {
   for (const sp of list) {
-    if (cache.has(sp.url)) continue;
-    if (sp.traits && sp.traits.v === TRAITS_VERSION) remember(sp.url, sp.traits);
-    else if (!queue.some((q) => q.url === sp.url)) queue.push(sp);
+    const key = keyOfStored(sp);
+    if (!key || cache.has(key)) continue;
+    if (sp.traits && sp.traits.v === TRAITS_VERSION) remember(key, sp.traits);
+    else if ((sp.thumb || sp.url) && !queue.some((q) => q.id === sp.id)) queue.push(sp);
   }
   void work();
 }
@@ -101,11 +106,11 @@ export function useRankedLibrary(list: StoredPhoto[] | null): { photo: StoredPho
   if (!list) return [];
   const info = slotInfo(design, slot),
     theme = resolveTheme(design),
-    onCard = new Set(photos.map((p) => p.url));
+    onCard = new Set(photos.map((p) => photoKey(p.url)));
   return list
-    .filter((s) => !onCard.has(s.url))
+    .filter((s) => !onCard.has(keyOfStored(s)))
     .map((photo) => {
-      const t = cache.get(photo.url);
+      const t = cache.get(keyOfStored(photo));
       return { photo, score: t ? relevance(t, info, theme) : 0.3 };
     })
     .sort((a, b) => b.score - a.score);
@@ -155,12 +160,12 @@ export async function smartFill(list: StoredPhoto[]): Promise<void> {
     return;
   }
   const theme = resolveTheme(design),
-    onCard = new Set(photos.map((p) => p.url)),
+    onCard = new Set(photos.map((p) => photoKey(p.url))),
     info = slotInfo(design, 0);
   analyzeLibrary(list);
   const ranked = list
-    .filter((s) => !onCard.has(s.url))
-    .map((s) => ({ s, score: cache.get(s.url) ? relevance(cache.get(s.url)!, info, theme) : 0.3 }))
+    .filter((s) => !onCard.has(keyOfStored(s)))
+    .map((s) => ({ s, score: cache.get(keyOfStored(s)) ? relevance(cache.get(keyOfStored(s))!, info, theme) : 0.3 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, need);
   if (!ranked.length) {

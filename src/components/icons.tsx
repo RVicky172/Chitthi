@@ -16,6 +16,7 @@ import {
   Images,
   LayoutGrid,
   LayoutTemplate,
+  Lightbulb,
   Magnet,
   Mail,
   Moon,
@@ -85,6 +86,7 @@ export const TrashIcon = () => <Trash2 {...base} />;
 export const EditIcon = () => <Pencil {...base} />;
 export const PackIcon = () => <Package {...base} />;
 export const ArrangeIcon = () => <WandSparkles {...base} />;
+export const SuggestIcon = () => <Lightbulb {...base} />;
 export const SearchIcon = () => <Search {...base} />;
 export const SettingsIcon = () => <Settings {...base} />;
 export const RulerIcon = () => <Ruler {...base} />;
