@@ -347,9 +347,15 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
           { s: 'poly', ...R(B.x, a, B.w, B.y + B.h - a), bleed: true, pts: [[B.x, b + k], [B.x + B.w, a + k], [B.x + B.w, B.y + B.h], [B.x, B.y + B.h]] },
         ];
       }
-      L.text = R(B.x + pad, B.y + B.h * 0.58, B.w - 2 * pad, B.h * 0.42 - pad);
+      // Words sit on one photo, clear of the slanted seam.
+      if (land) {
+        L.text = R(B.x + B.w * 0.6, B.y + B.h * 0.36, B.w * 0.4 - pad, B.h * 0.64 - pad);
+        L.scrimArea = R(B.x + B.w * 0.42, B.y, B.w * 0.58, B.h);
+      } else {
+        L.text = R(B.x + pad, B.y + B.h * 0.63, B.w - 2 * pad, B.h * 0.37 - pad);
+        L.scrimArea = R(B.x, B.y + B.h * 0.42, B.w, B.h * 0.58);
+      }
       L.onPhoto = true;
-      L.scrimArea = R(B.x, B.y + B.h * 0.45, B.w, B.h * 0.55);
       break;
     }
     case 'scrapbook': {
@@ -423,6 +429,20 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
       break;
     }
 
+    case 'glass': {
+      // The photo edge to edge, words on a frosted-glass panel over it.
+      L.bg = false;
+      slots = [rs(B.x, B.y, B.w, B.h)];
+      L.overlay = true;
+      L.ink = 'dark';
+      L.glass = land
+        ? R(B.x + B.w * 0.56, B.y + B.h * 0.2, B.w * 0.44 - pad * 0.9, B.h * 0.8 - pad * 0.9)
+        : R(B.x + pad * 0.9, B.y + B.h * 0.6, B.w - pad * 1.8, B.h * 0.4 - pad * 0.9);
+      const gi = Math.min(L.glass.w, L.glass.h) * 0.12;
+      L.text = R(L.glass.x + gi, L.glass.y + gi, L.glass.w - 2 * gi, L.glass.h - 2 * gi);
+      break;
+    }
+
     /* ---------- photo frame prints: photo windows cut into a mat ---------- */
     case 'frame-single':
     case 'frame-caption':
@@ -467,7 +487,10 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
     case 'cal-full':
     case 'cal-duo':
     case 'cal-plain':
-    case 'cal-strip': {
+    case 'cal-strip':
+    case 'cal-glass':
+    case 'cal-bold':
+    case 'cal-arch': {
       L.frame = true;
       L.bg = false;
       L.ink = 'frame';
@@ -492,6 +515,42 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
           photo = R(B.x + pad, B.y + pad, B.w - 2 * pad, ph);
           slots = [plain(photo)];
           area = R(B.x + pad, B.y + pad + ph + pad * 0.55, B.w - 2 * pad, B.h - ph - pad * 2.55);
+        }
+      } else if (id === 'cal-glass') {
+        // Full photo, the month on a frosted-glass panel.
+        L.frame = false;
+        L.ink = 'dark';
+        slots = [rs(B.x, B.y, B.w, B.h)];
+        L.glass = land
+          ? R(B.x + B.w * 0.5, B.y + pad * 0.8, B.w * 0.5 - pad * 0.8, B.h - pad * 1.6)
+          : R(B.x + pad * 0.8, B.y + B.h * 0.5, B.w - pad * 1.6, B.h * 0.5 - pad * 0.8);
+        photo = land ? R(B.x, B.y, B.w * 0.5, B.h) : R(B.x, B.y, B.w, B.h * 0.5);
+        const gi = pad * 0.6;
+        area = R(L.glass.x + gi, L.glass.y + gi, L.glass.w - 2 * gi, L.glass.h - 2 * gi);
+      } else if (id === 'cal-bold') {
+        // Editorial: a rounded photo, then a big month number beside the month name, then the dates.
+        const ph = land ? R(B.x + pad * 0.8, B.y + pad * 0.8, B.w * 0.48, B.h - pad * 1.6) : R(B.x + pad * 0.8, B.y + pad * 0.8, B.w - pad * 1.6, B.h * 0.48);
+        slots = [{ ...plain(ph, 'round'), bare: true }];
+        photo = ph;
+        area = land
+          ? R(ph.x + ph.w + pad * 0.9, B.y + pad, B.x + B.w - (ph.x + ph.w) - pad * 1.9, B.h - 2 * pad)
+          : R(B.x + pad, ph.y + ph.h + pad * 0.6, B.w - 2 * pad, B.y + B.h - (ph.y + ph.h) - pad * 1.4);
+      } else if (id === 'cal-arch') {
+        // A jharokha-arch window of photo above (or beside) the month.
+        if (land) {
+          const ah = B.h - pad * 2,
+            aw = Math.min(ah * 0.74, B.w * 0.42),
+            sl = R(B.x + pad * 1.1, B.y + pad, aw, ah);
+          slots = [plain(sl, 'arch')];
+          photo = sl;
+          area = R(sl.x + aw + pad, B.y + pad, B.x + B.w - (sl.x + aw) - pad * 2, B.h - 2 * pad);
+        } else {
+          const aw = B.w * 0.66,
+            ah = Math.min(aw * 1.18, B.h * 0.5),
+            sl = R(B.x + (B.w - aw) / 2, B.y + pad * 1.1, aw, ah);
+          slots = [plain(sl, 'arch')];
+          photo = sl;
+          area = R(B.x + pad, sl.y + ah + pad * 0.6, B.w - 2 * pad, B.y + B.h - (sl.y + ah) - pad * 1.5);
         }
       } else if (id === 'cal-full') {
         slots = [rs(B.x, B.y, B.w, B.h)];
@@ -519,10 +578,12 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
       const strip = id === 'cal-strip',
         caption = place === 'caption' || (place === 'photo' && !photo),
         gap = Math.max(u * 1.8, area.h * 0.03);
-      let ch = caption ? Math.min(area.h * 0.1, area.w * 0.075) : 0,
-        th = strip ? Math.min(area.h * 0.14, area.w * 0.1) : Math.min(area.h * 0.17, area.w * 0.12);
+      // Text size scales the caption line, and the title size scales the month title, before they share the room.
+      const ks = (v: number | undefined) => Math.min(1.8, Math.max(0.5, v || 1));
+      let ch = caption ? Math.min(area.h * 0.1, area.w * 0.075) * ks(d.textScale) : 0,
+        th = (strip ? Math.min(area.h * 0.14, area.w * 0.1) : Math.min(area.h * 0.17, area.w * 0.12)) * ks(d.cal.titleScale);
       const gaps = gap * (caption ? 2 : 1),
-        room = area.h * 0.4 - gaps;
+        room = area.h * 0.46 - gaps;
       if (ch + th > room) {
         const k = Math.max(0.5, room / (ch + th));
         ch *= k;
@@ -533,9 +594,19 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
         // One line above the month title, a step smaller than it.
         L.text = R(area.x, y, area.w, ch);
         L.textFill = 0.72;
+        L.textScaled = true;
         y += ch + gap;
       }
-      L.calTitle = R(area.x, y, area.w, th);
+      if (id === 'cal-bold') {
+        // The number is as tall as two title lines; the month name sits beside it on the number's baseline band.
+        const nh = Math.min(th * 1.7, area.h * 0.2),
+          nw = nh * 1.5,
+          tth = nh * 0.5;
+        L.calNum = R(area.x, y, nw, nh);
+        // Sized so the month name's baseline meets the number's baseline.
+        L.calTitle = R(area.x + nw + gap * 0.6, y + nh - tth * 0.78, area.w - nw - gap * 0.6, tth);
+        th = nh;
+      } else L.calTitle = R(area.x, y, area.w, th);
       y += th + gap;
       if (strip) L.calYear = R(area.x, y, area.w, area.y + area.h - y);
       else L.calGrid = R(area.x, y, area.w, area.y + area.h - y);

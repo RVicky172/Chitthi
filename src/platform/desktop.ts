@@ -22,6 +22,7 @@ export type MenuAction =
   | 'theme'
   | 'settings'
   | 'sizes'
+  | 'paper'
   | 'find';
 
 export interface OpenedFile {

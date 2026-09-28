@@ -31,3 +31,19 @@ The values live in `src/data/printSpecs.ts`. After changing them, regenerate bot
 ```bash
 npm run build:quote-docs
 ```
+
+## Print samples for a test print
+
+`Print Samples/` holds 12 ready-to-send designs made with Chitthi: 6 postcards (4×6 in, A6, 5×7 in, each vertical
+and horizontal, with the blank postal back) and 6 calendars for 2027 (A4 wall, A3 wall, A5 desk, each vertical and
+horizontal, one Indian festival per month). There is also one envelope folder per size, `ORDER-SHEET.csv` with a price
+column for each quantity, the specification PDF, and a README for the printer. The photos are Pexels festival photos
+without people.
+
+The folder and its photos are not committed (about 850 MB). Rebuild them with:
+
+```bash
+npm run fetch:print-samples   # photos into print-samples-src/ (needs PEXELS_API_KEY)
+npm run dev                   # in another terminal
+npm run build:print-samples   # renders src/data/printSamples.ts into Print Samples/
+```

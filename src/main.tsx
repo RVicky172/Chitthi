@@ -22,6 +22,10 @@ if (window.chitthiDesktop?.info.localFonts) {
 
 // Development only: the landing page example renderer used by npm run build:showcase.
 if (import.meta.env.DEV && location.search.includes('showcase')) void import('./dev/showcase');
+// Development only: the print-shop sample set used by npm run build:print-samples.
+if (import.meta.env.DEV && location.search.includes('printsamples')) void import('./dev/printSamples');
+// Development only: the checks behind npm test.
+if (import.meta.env.DEV && location.search.includes('selftest')) void import('./dev/selftest');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

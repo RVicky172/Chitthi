@@ -169,6 +169,9 @@ export function SizeGuide() {
           <Logo />
           <span>Chitthi</span>
         </a>
+        <button type="button" className="btn ghost" onClick={() => setUI({ screen: 'paper' })}>
+          Sizes in 3D
+        </button>
         <button type="button" className="btn ghost" onClick={() => void downloadQuote('catalog')}>
           Specification PDF for printers
         </button>

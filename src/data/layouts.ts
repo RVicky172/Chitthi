@@ -25,6 +25,7 @@ export const LAYOUTS: [LayoutId, string, ProductId][] = [
   ['filmstrip', 'Film strip', 'postcard'],
   ['minimal', 'Minimal', 'postcard'],
   ['twin-arch', 'Twin arches', 'postcard'],
+  ['glass', 'Frosted glass', 'postcard'],
   ['text', 'Text only', 'postcard'],
 
   ['frame-single', 'Single photo', 'frame'],
@@ -34,6 +35,9 @@ export const LAYOUTS: [LayoutId, string, ProductId][] = [
   ['frame-grid', 'Grid of four', 'frame'],
   ['frame-feature', 'Feature and two', 'frame'],
 
+  ['cal-glass', 'Frosted glass', 'calendar'],
+  ['cal-bold', 'Big number', 'calendar'],
+  ['cal-arch', 'Arch window', 'calendar'],
   ['cal-top', 'Photo above', 'calendar'],
   ['cal-side', 'Photo beside', 'calendar'],
   ['cal-full', 'Full photo', 'calendar'],

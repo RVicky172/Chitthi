@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LAYOUTS, layoutName } from '../data/layouts';
 import { db } from '../lib/db';
 import { toast } from '../lib/toast';
-import { exportBackup, importBackup, newCard, open3D, openDesign, saveDesign } from '../state/actions';
+import { downloadQuotePack, exportBackup, importBackup, newCard, open3D, openDesign, saveDesign } from '../state/actions';
 import { setDesign, setUI, useApp } from '../state/store';
 import type { LayoutId, SavedDesign } from '../types';
 import { Seg } from './common';
@@ -13,7 +13,7 @@ import { isDesktop } from '../platform/desktop';
 
 const close = () => setUI({ gallery: false });
 
-function GalleryCard({ d, onDeleted }: { d: SavedDesign; onDeleted: () => void }) {
+function GalleryCard({ d, onDeleted, pick }: { d: SavedDesign; onDeleted: () => void; pick?: { on: boolean; toggle: () => void } }) {
   const [sure, setSure] = useState(false);
   useEffect(() => {
     if (!sure) return;
@@ -23,8 +23,13 @@ function GalleryCard({ d, onDeleted }: { d: SavedDesign; onDeleted: () => void }
   const view = () => void open3D({ front: d.front, back: d.back, w: d.w, h: d.h, round: d.round, title: d.name });
   const radius = d.round ? 6 : 2;
   return (
-    <article className="gcard">
-      <button type="button" className="gthumb" title="Open in 3D" onClick={view}>
+    <article className={`gcard${pick?.on ? ' picked' : ''}`}>
+      {pick && (
+        <label className="gpick">
+          <input type="checkbox" checked={pick.on} onChange={pick.toggle} /> <span className="vh">Include {d.name} in the quote</span>
+        </label>
+      )}
+      <button type="button" className="gthumb" title={pick ? 'Include in the quote' : 'Open in 3D'} onClick={pick ? pick.toggle : view}>
         <div className="flipper" style={{ width: d.w >= d.h ? '100%' : `${(d.w / d.h) * 100}%`, aspectRatio: `${d.w}/${d.h}` }}>
           <img src={d.front} alt={`Front of ${d.name}`} style={{ borderRadius: radius }} />
           <img className="b" src={d.back} alt="" style={{ borderRadius: radius }} />
@@ -83,6 +88,17 @@ export function GalleryDialog() {
   // Samples first for a new user; once they have saved designs, their own come first.
   const [tabChoice, setTab] = useState<'mine' | 'samples' | null>(null);
   const tab = tabChoice ?? (list && list.length ? 'mine' : 'samples');
+  // Picking designs for one quote pack (order sheet + a quote request each).
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [quoteStep, setQuoteStep] = useState('');
+  const togglePick = (id: string) =>
+    setPicked((cur) => {
+      const n = new Set(cur);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   const load = useCallback(() => {
     db.all()
@@ -155,6 +171,49 @@ export function GalleryDialog() {
         />
       </div>
 
+      {tab === 'mine' && !!list?.length && (
+        <div className="galquote">
+          {picking ? (
+            <>
+              <span>
+                <b>{picked.size}</b> selected for a quote
+              </span>
+              <button type="button" className="linkbtn" onClick={() => setPicked(new Set(list.map((x) => x.id)))}>
+                Select all
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!picked.size || !!quoteStep}
+                onClick={async () => {
+                  setQuoteStep('Preparing…');
+                  try {
+                    await downloadQuotePack([...picked], setQuoteStep);
+                  } finally {
+                    setQuoteStep('');
+                  }
+                }}
+              >
+                {quoteStep || `Quote pack for ${picked.size || ''} design${picked.size === 1 ? '' : 's'}`}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setPicking(false);
+                  setPicked(new Set());
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn ghost" onClick={() => setPicking(true)}>
+              Get one quote for several designs
+            </button>
+          )}
+        </div>
+      )}
       {tab === 'mine' && groups.length > 1 && (
         <div className="chips galfilter" role="group" aria-label="Show layout">
           <button type="button" className="chip" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
@@ -192,7 +251,7 @@ export function GalleryDialog() {
             </h3>
             <div className="gal">
               {g.items.map((d) => (
-                <GalleryCard key={d.id} d={d} onDeleted={load} />
+                <GalleryCard key={d.id} d={d} onDeleted={load} pick={picking ? { on: picked.has(d.id), toggle: () => togglePick(d.id) } : undefined} />
               ))}
             </div>
           </section>

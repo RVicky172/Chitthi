@@ -3,6 +3,7 @@ import { calPages, cardMM } from '../engine/design';
 import { computeLayout } from '../engine/layout';
 import { calMonth } from '../engine/render';
 import type { Design } from '../types';
+import { pexelsName } from './credits';
 
 /*
  * Pexels photo search (https://www.pexels.com/api/).
@@ -125,7 +126,20 @@ export function searchPexels(query: string, orientation: PexelsOrientation | nul
   return hit;
 }
 
+/*
+ * The hourly allowance (200 requests by default). Pexels reports what's left in X-Ratelimit-Remaining and when it
+ * resets in X-Ratelimit-Reset (Unix seconds). Once it reaches zero, searches wait for the reset instead of sending
+ * requests that would be refused: Pexels asks apps not to work around the limit.
+ */
+let limit: { remaining: number; reset: number } | null = null;
+export const pexelsQuota = () => limit;
+const LIMIT_MSG = (reset: number) => {
+  const mins = Math.max(1, Math.ceil((reset * 1000 - Date.now()) / 60000));
+  return `The Pexels search limit for this hour is used up. It resets in about ${mins} minute${mins > 1 ? 's' : ''}.`;
+};
+
 async function request(params: URLSearchParams): Promise<SearchResult> {
+  if (limit && limit.remaining <= 0 && limit.reset * 1000 > Date.now()) throw new Error(LIMIT_MSG(limit.reset));
   const key = pexelsKey();
   let res: Response;
   try {
@@ -140,8 +154,14 @@ async function request(params: URLSearchParams): Promise<SearchResult> {
   // No proxy here: a 404, or the app's own index.html from a single-page-app fallback.
   if (!key && (!json || res.status === 404)) throw new PexelsKeyError();
   if (res.status === 401 || res.status === 403) throw new PexelsKeyError(!!key);
-  if (res.status === 429) throw new Error('The Pexels search limit for this hour is used up. Try again a little later.');
+  if (res.status === 429) {
+    limit = { remaining: 0, reset: limit?.reset && limit.reset * 1000 > Date.now() ? limit.reset : Math.round(Date.now() / 1000) + 15 * 60 };
+    throw new Error(LIMIT_MSG(limit.reset));
+  }
   if (!res.ok || !json) throw new Error('The Pexels search didn’t work. Try again.');
+  const left = res.headers.get('X-Ratelimit-Remaining'),
+    reset = res.headers.get('X-Ratelimit-Reset');
+  if (left !== null && reset !== null && Number.isFinite(+left) && Number.isFinite(+reset)) limit = { remaining: +left, reset: +reset };
   return (await res.json()) as SearchResult;
 }
 
@@ -162,8 +182,7 @@ export async function fetchPexels(p: PexelsPhoto): Promise<{ name: string; url: 
     fr.onerror = () => fail(fr.error);
     fr.readAsDataURL(blob);
   });
-  const alt = (p.alt || 'Photo').replace(/\s+/g, ' ').trim().slice(0, 60);
-  return { name: `${alt} (Pexels / ${p.photographer})`, url };
+  return { name: pexelsName(p.alt, p.photographer, p.id), url };
 }
 
 /* ---------- suggestions from the design ---------- */

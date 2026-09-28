@@ -1,6 +1,6 @@
 import { useDeferredValue } from 'react';
 import { layoutsFor } from '../../data/layouts';
-import { MONTHS, productOf, sizesFor } from '../../data/products';
+import { productOf, sizesFor } from '../../data/products';
 import { SIZE_GROUPS, sizeLabel } from '../../data/sizes';
 import { slotCount } from '../../engine/layout';
 import { selectSize } from '../../state/actions';
@@ -56,8 +56,7 @@ export function LayoutPane() {
   const need = slotCount(d.layout, d);
   const sizes = sizesFor(d.product),
     groups = SIZE_GROUPS.filter((g) => sizes.some((s) => s.grp === g)),
-    setCal = (p: Partial<CalendarSettings>) => setDesign({ cal: { ...d.cal, ...p } }),
-    thisYear = new Date().getFullYear();
+    setCal = (p: Partial<CalendarSettings>) => setDesign({ cal: { ...d.cal, ...p } });
   const frameLabel =
     d.product === 'frame' ? 'Mat colour' : d.product === 'calendar' ? 'Paper colour' : d.product === 'magnet' ? 'Border colour' : 'Frame colour';
   return (
@@ -105,33 +104,10 @@ export function LayoutPane() {
       </div>
       </Section>
       {d.product === 'calendar' && (
-        <Section id="layout.calendar" title="Calendar" note={`${d.cal.year}`}>
-          <div className="row">
-            <label className="f">
-              Year
-              <select value={d.cal.year} onChange={(e) => setCal({ year: +e.target.value })}>
-                {[thisYear - 1, thisYear, thisYear + 1, thisYear + 2].map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="f">
-              {d.cal.months === 12 ? 'Starts in' : 'Month'}
-              <select value={d.cal.start} onChange={(e) => setCal({ start: +e.target.value })}>
-                {MONTHS.map((m, i) => (
-                  <option key={m} value={i}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {d.layout === 'cal-strip' && (
+        <Section id="layout.calendar" title="Pages" note={d.layout === 'cal-strip' ? 'One page' : d.cal.months === 12 ? '12 months' : 'Single month'}>
+          {d.layout === 'cal-strip' ? (
             <p className="hint">The Year strip puts all twelve months on one page under your photo.</p>
-          )}
-          <div className="inline" hidden={d.layout === 'cal-strip'}>
+          ) : (
             <Seg<'1' | '12'>
               label="Pages"
               value={String(d.cal.months) as '1' | '12'}
@@ -144,19 +120,10 @@ export function LayoutPane() {
                 setUI({ calPage: 0 });
               }}
             />
-            <Seg<'1' | '0'>
-              label="Week starts on"
-              value={String(d.cal.weekStart) as '1' | '0'}
-              options={[
-                ['1', 'Monday'],
-                ['0', 'Sunday'],
-              ]}
-              onChange={(v) => setCal({ weekStart: +v as 0 | 1 })}
-            />
-          </div>
+          )}
           <p className="hint">
-            Each month takes the next photos in your list, so add one photo per month for a full year. Pick a month in the
-            strip under the preview to see it, or open the 3D view to see all twelve pages at once.
+            Each month takes the next photo in your list, so add one photo per month for a full year. The year, the first
+            month and the week start are in the Front step.
           </p>
         </Section>
       )}

@@ -67,15 +67,24 @@ and `.chitthi` files.
 | Product and size | `product: 'postcard'｜'calendar'｜'frame'｜'magnet'`, `sizeId`, `custom {w,h}` (mm), `orient` |
 | Look | `useOccasion`, `themeId`, `group`, `artwork`, `decor`, `plain {bg, ink, accent, gradient}`, `frame` (paper / mat / border colour), `mat` (frame prints) |
 | Layout | `layout: LayoutId` |
-| Words | `heading`, `quote`, `sig`, `show*` flags, `insta`, `headFont`, `quoteFont`, `textScale`, `vAlign`, `hAlign`, `customColor`, `color`, `scrim`, `ornament` |
-| Back | `back {message, font, from, to, address, pin, stamp, label, tint}` |
-| Calendar | `cal {year, start, months: 1｜12, weekStart, text: 'off'｜'caption'｜'photo', captions[12], titleAlign, numbers, grid, font, backQuote}` |
-| Export | `exp {format: 'pdf'｜'sheet'｜'png', sheet, bleed, dpi, quality, marks, back}` |
+| Words | `heading`, `quote`, `sig`, `show*` flags, `insta`, `headFont`, `quoteFont`, `sigFont`, `instaFont`, `textScale`, `vAlign`, `hAlign`, `customColor`, `color`, `scrim`, `ornament` |
+| Back | `back {message, font, fromFont, addrFont, labelFont, from, to, address, pin, stamp, label, tint, credit, date}` |
+| Postmark | `postYear` (0 = automatic: the calendar's year, else this year; `postmarkYear(d)`) |
+| Calendar | `cal {year, start, months: 1｜12, weekStart, text: 'off'｜'caption'｜'photo', captions[12], titleAlign, numbers, grid: 'lines'｜'boxes'｜'tiles'｜'none', font, numFont, numBold, numSync, titleScale, numScale, showYear, sundays, capFont, titleFont, backQuote, marks: 'off'｜'national'｜'all', markNames, ownDates[{m, d, label}]}` |
+
+**Optional fonts** (`sigFont`, `instaFont`, `back.fromFont / addrFont / labelFont`, `cal.capFont / titleFont / numFont`)
+are empty strings that mean "follow the parent font": the signature follows the quote font, From and address follow
+the message font, labels and the tag use Hind, captions follow the greeting font, and the year-page title follows the
+month font. A picker writes `''` back when the parent font is chosen, so the field keeps following it. With
+`cal.numSync` the dates use the month font, and `numFont` is kept for when it is turned off.
+| Export | `exp {format: 'pdf'｜'sheet'｜'png', sheet, bleed, dpi, quality, marks, back, pngs}` |
 | Meta | `designName` |
 
 `mergeDesign(saved)` makes any stored object safe: it starts from `DEFAULT_DESIGN`, keeps only known keys,
 deep-merges nested groups, pads `cal.captions` to 12, and resets a size, layout or font that no longer exists for
-the product. Every load goes through it, so old saves keep working.
+the product. Optional fonts whose family is gone (an uploaded font removed from the device) fall back to `''`.
+Every load goes through it, so old saves keep working, and new fields (calendar sizes, font sync, the year and
+Sunday switches) take their defaults.
 
 ### Photo
 
@@ -91,12 +100,14 @@ the product. Every load goes through it, so old saves keep working.
 
 | Field | Meaning |
 | --- | --- |
-| `slots: Slot[]` | Photo windows: `{x,y,w,h}` plus `s` shape (`rect｜round｜circle｜arch`), `bleed`, and `d`, the drawing rect extended into the bleed when the slot touches the trim edge |
+| `slots: Slot[]` | Photo windows: `{x,y,w,h}` plus `s` shape (`rect｜round｜circle｜arch｜poly`), `bleed`, `bare` (no accent outline), and `d`, the drawing rect extended into the bleed when the slot touches the trim edge |
 | `text: Rect｜null` | Zone for greeting / quote / signature; `onPhoto` makes it white with a shadow |
-| `textFill?` | Text height as a share of the zone height (default 0.32; calendar caption bands use 0.7) |
+| `ink` | `'frame'` (the paper's ink), `'dark'` (the theme's darkest ink, on a light glass panel), or the default |
+| `textFill?`, `textScaled?` | Text height as a share of the zone height (default 0.32; calendar caption bands use 0.72). `textScaled` means the zone was already sized with `textScale`, so the words aren't scaled twice |
+| `glass?` | A frosted-glass panel over the photo (`glass`, `cal-glass`) |
 | `bg`, `frame`, `paper`, `band`, `overlay`, `frameLine`, `mat` | What is painted behind and around the photos |
 | `stamp`, `post` | Postage-stamp layout pieces |
-| `calTitle`, `calGrid`, `calYear` | Calendar month title, day grid, or the 12-month grid of the Year strip |
+| `calTitle`, `calGrid`, `calYear`, `calNum` | Calendar month title, day grid, the 12-month grid of the Year strip, or the big month number (`cal-bold`) |
 | `scrimArea?` | Limits "darken the photo" to the photo (calendars) |
 | `arc?` | Badge magnet ring for curved lettering |
 
@@ -104,7 +115,7 @@ the product. Every load goes through it, so old saves keep working.
 
 ```ts
 interface AppState { design: Design; photos: Photo[]; ui: UIState; designId: string | null; canUndo; canRedo }
-interface UIState  { side, guides, pane, cropId, slot, viewer, gallery, settings, screen: 'home'|'studio'|'sizes', calPage, fontTick }
+interface UIState  { side, guides, pane, cropId, slot, viewer, gallery, settings, screen: 'home'|'studio'|'sizes'|'paper', calPage, fontTick }
 ```
 
 - A module-level object plus a listener set. Components subscribe with `useApp(selector)`, built on
@@ -117,7 +128,7 @@ interface UIState  { side, guides, pane, cropId, slot, viewer, gallery, settings
   when a signature (names, URL lengths, edits) changed.
 - Setters: `setDesign(patch | fn)`, `setBack`, `setExp`, `setPlain`, `setPhotos`, `patchPhoto`, `setUI`,
   `replaceCard`.
-- Routing helpers: `screenOf(hash)` / `hashOf(screen)` map `#/studio`, `#/sizes` and home.
+- Routing helpers: `screenOf(hash)` / `hashOf(screen)` map `#/studio`, `#/sizes`, `#/paper` and home.
 
 ### Actions (`src/state/actions.ts`)
 
@@ -154,8 +165,13 @@ in the selected slot when the card is full.
   beside or under a photo. At the end, slots touching the trim are extended into the bleed (`extend()`).
 - **Calendars**: each calendar layout defines a photo region and an *area*. When `cal.text` is `photo`, the text
   zone is the photo inset by 8%, with white ink and the scrim limited to the photo. When it is `caption`, a band
-  of `min(0.12·area.h, 0.09·area.w)` is taken from the top of the area. The rest splits into `calTitle` (about 19%)
-  and `calGrid`. For the **Year strip** it splits into a year title and `calYear`.
+  of `min(0.1·area.h, 0.075·area.w) × textScale` is taken from the top of the area. The title band is
+  `min(0.17·area.h, 0.12·area.w) × cal.titleScale` (both scales clamped to 0.5–1.8). Caption and title share at most
+  46% of the area and shrink together beyond that, so the grid always keeps the rest. For the **Year strip** it
+  splits into a year title and `calYear`. **Big number** (`cal-bold`) splits the title row into `calNum` (the
+  number, 1.5 × its height wide) and a title box sized so the month name's baseline meets the number's.
+  **Frosted glass** (`cal-glass`) puts the area on a `glass` panel with `ink: 'dark'`; **Arch window** (`cal-arch`)
+  uses an arch slot above (or beside) it.
 - **Badge magnet**: a circular photo of radius `r − band` inside a ring; `arc` describes the ring for lettering.
 
 ### 4.2 Rendering (`render.ts`)
@@ -166,10 +182,15 @@ in the selected slot when the card is full.
 2. Paper card and stamp shapes.
 3. Photo slots: `drawSlot` clips to the slot shape and draws the photo with **cover** scaling
    (`max(w/sw, h/sh) × zoom`), offset by `px, py`. Empty slots show a hatched "Add a photo" hint in the preview.
-4. Mat bevels (frames), stamp text and postmark, calendar band, occasion overlay decoration, frame line.
+4. Mat bevels (frames), stamp text and postmark, frosted glass (`drawGlass`: the photo under the panel drawn at
+   1/28 size and scaled back up, which blurs it in every browser, then lightened), calendar band, occasion overlay
+   decoration, frame line.
 5. Words: `drawText` lays out heading / ornament / quote / signature (`layoutText` + `wrapLines`). It starts at
-   `min(Z.w × 0.13, Z.h × textFill) × textScale` and shrinks by 7% until everything fits the zone, then aligns
-   with `vAlign` / `hAlign`. On a calendar, `calendarWords()` substitutes that month's caption for the greeting.
+   `min(Z.w × (0.13 + 0.06·tall), Z.h × textFill) × textScale` (`tall` grows from 0 to 1 as the zone goes from
+   0.8 to 2 times taller than wide, so narrow columns wrap the greeting instead of shrinking it) and shrinks by 7%
+   until everything fits the zone, then aligns with `vAlign` / `hAlign`. On a calendar, `calendarWords()`
+   substitutes that month's caption for the greeting, in `cal.capFont`, aligned with the month title when it sits
+   above the month.
 6. Calendar month (`drawMonth`), Year strip (`drawYearTitle` + `drawYearGrid`), badge lettering (`drawBadge`),
    Instagram tag.
 
@@ -184,8 +205,18 @@ Round sizes are then masked white outside the trim circle plus bleed. `drawGuide
   on the same baseline in the accent colour. A left-aligned title is inset to match the first column's numbers.
 - *Grid*: always **five rows** on month pages. A sixth week shares the cell above it, drawn smaller and split by a
   diagonal ("23/30"). The grid lines and number positions are therefore identical every month.
-- *Numbers* in the cell corner (padding 13% of the cell) or centred. Sundays use the accent colour. Weekday headers
-  are letter-spaced capitals aligned the same way as the numbers.
+- *Numbers* in the cell corner (padding 13% of the cell) or centred, scaled by `cal.numScale` and capped to the
+  cell. Sundays use the accent colour unless `cal.sundays` is off. Weekday headers are letter-spaced capitals
+  aligned the same way as the numbers. The dates font is `numFont` (Hind when empty), or the month font with
+  `numSync`. The **Tiles** grid draws a rounded, lightly tinted square behind each date instead of rules.
+- *Accent on paper*: a pale accent (lightness above 0.6) is deepened towards the ink for the year, Sundays and the
+  big number, so yellow themes stay readable on white.
+- *Month number* (`cal-bold`): the cap height fills `calNum`, sized on "00" so every month matches.
+- *Marked days*: `marksFor(year, month, cal.marks, cal.ownDates)` (`data/holidays.ts`) gives each day's national
+  days, festivals and own dates. National days and festivals colour the date like a Sunday; `drawMarks` writes the
+  names along the bottom of the cell (two lines when the cell is tall enough, cut short with "…", "+N" for more), or
+  one dot per kind in the year grid, in shared "23/30" cells and when `markNames` is off. `mergeDesign` turns marks
+  off for calendars saved before the feature, so their look doesn't change.
 - *Year grid* (back page, Year strip): 3, 4 or 6 columns by aspect ratio, with month names sized to the widest name.
 
 ### 4.3 Photos (`photo.ts`)
@@ -350,7 +381,7 @@ remembered. On a packaged start, `electron-updater` checks GitHub Releases.
 
 ## 7. Routing and screens
 
-The hash is the source of truth: `#/studio[/product]`, `#/sizes[/product]`, or empty for home. `App` listens to
+The hash is the source of truth: `#/studio[/product]`, `#/sizes[/product]`, `#/paper`, or empty for home. `App` listens to
 `hashchange` / `popstate` → `setUI({screen})`, and writes the hash when `ui.screen` changes, so Back works. Dialogs
 (gallery, settings, crop, 3D viewer) are flags in `ui` that drive native `<dialog>` elements.
 
@@ -360,12 +391,14 @@ The hash is the source of truth: `#/studio[/product]`, `#/sizes[/product]`, or e
 App
 ├─ Landing                       home: hero, product cards (live renders), how it works
 ├─ SizeGuide                     #/sizes: size table, to-scale diagram, layouts at the chosen size
+├─ Paper3D                       #/paper: every size in 3D at true relative scale (see below)
 ├─ Studio
 │  ├─ Header                     product switcher, Photos (library), theme, sizes guide, settings, undo/redo, save, print pack
 │  ├─ Rail                       six steps + gallery
 │  ├─ panel → Pane per step      PhotosPane (upload, PexelsSearch, PhotoStore, photo list)
 │  │                             LayoutPane (orientation, layouts, calendar / mat options, sizes)
-│  │                             OccasionPane, WordsPane (+ CalendarWords), BackPane (per product), PrintPane
+│  │                             OccasionPane, WordsPane (CardWords, or CalendarFront for calendars),
+│  │                             BackPane (per product), PrintPane
 │  └─ Stage                      side toggle, guides, month pager, 3D button, live canvas (drag, wheel, keys),
 │                                MonthStrip (calendars), PhotoTray (slots + store)
 ├─ FeatureFinder (Ctrl+K: search every feature; opens the step and reveals the section, or runs the action)
@@ -381,6 +414,39 @@ The 3D viewer (`Viewer3D.tsx`) runs one animation loop: drag with momentum (velo
 decaying 7% a frame), hover tilt towards the pointer, smoothed zoom (wheel, pinch, buttons, 50–260%), and per-face
 shading from the angle to a light at the upper left. Keys: arrows turn (or change month), F flips, O opens the
 envelope, +/−/0 zoom, R resets, Space toggles turning. Double-click flips, or opens a month from the ring.
+
+**Pexels credits** (`lib/credits.ts`): a Pexels photo's name ends in `(Pexels / Photographer #id)`. `creditOf(name)`
+parses it (older names without `#id` still parse, without a link), `shortName` drops it for labels, `creditsText`
+writes the credits file, and `PhotoCredit` (`common.tsx`) shows the linked credit. `lib/pexels.ts` reads
+`X-Ratelimit-Remaining` / `X-Ratelimit-Reset` and stops searching until the reset once the allowance is used.
+
+**Print colours** (`engine/proof.ts`): `softProof(canvas)` runs on the studio preview when `ui.proof` is on. It
+pulls strong colours towards grey by a per-hue factor (`KEEP`, lowest for greens, cyans and blues), leaves soft
+tones alone, and maps black–white to printed black–paper white.
+
+**Quote pack** (`downloadQuotePack` in `state/actions.ts`): for the designs picked in the gallery it loads each saved
+design, builds its `QUOTE-REQUEST.pdf`, and zips them with `orderSheetCSV(items)` (`engine/quote.ts`), the catalogue
+and the combined photo credits.
+
+**Code splitting**: `App.tsx` loads the landing page, sizes guide, 3D paper page and the dialogs with `React.lazy`
+(dialogs mount only while open), and fetches them all a few seconds after start-up, so the service worker has them
+for offline use. The feature finder stays in the main bundle for its Ctrl+K listener.
+
+**Calendar Front** (`panes/CalendarFront.tsx`) is grouped in the order people decide: *Style* (five presets that set
+the title and date fonts, grid, date position and alignment together; the matching one is highlighted), *Year*
+(`YearField` from `common.tsx`: a number box with − / +, 1900–2200), *Month title*, *Dates*, *Festivals and your dates*,
+*Words on the months*, then *On the photo* (quote, signature, position, darkening), shown only when the words
+sit on the photo.
+
+**Paper sizes in 3D** (`Paper3D.tsx`) uses CSS 3D like the viewer. `allPieces()` builds every product size (in the
+chosen orientation), the distinct envelopes they need (`envelopeSpec`), the `SHEETS` and two references (a bank
+card and a ₹10 coin), all in millimetres. Three arrangements: `sideBySide` (rows packed by area, each row on a
+shared baseline with a label strip), `stacked` (largest first, a few pixels apart in Z) and `onSheet` (the pieces
+placed with `nup()` exactly as `buildPDF` imposes them, lifted by a slider). One scale `S` (px per mm) fits the
+arrangement to the view, times the zoom; **Actual size** sets `S = 96 / 25.4` with a flat top view and
+`perspective: none`, centred on the selected piece. Faces are real renders (`renderCard` / `renderEnvelope` with
+`samplePhoto` stand-ins), drawn in the background, cached per piece and picked up as they arrive. Drag turns (tilt
+0–80°); Shift + drag, or any drag in actual size, pans; wheel and pinch zoom (30–800%); keys: arrows, + / −, 0.
 
 Measured (Chrome, 12 MP photos): a preview render takes ~2 ms because the GPU keeps each decoded photo as a texture,
 and typing redraws within one frame even with the 24 layout and 12 month thumbnails on screen. Pre-scaled photo

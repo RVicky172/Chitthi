@@ -41,6 +41,7 @@ const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
   theme: toggleTheme,
   settings: () => setUI({ settings: true }),
   sizes: () => setUI({ screen: 'sizes', gallery: false }),
+  paper: () => setUI({ screen: 'paper', gallery: false }),
   find: () => setUI({ finder: true }),
 };
 

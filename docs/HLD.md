@@ -77,7 +77,7 @@ flowchart TB
 | **Data** (`src/data/`) | Declarative specifications: products, sizes, layouts, themes and wishes, fonts, gallery samples |
 | **Engine** (`src/engine/`) | Pure drawing and file logic. Given a `Design` and photos it computes layouts, draws any face at any resolution, and builds PDFs, PNGs and the ZIP pack. No React |
 | **State** (`src/state/`) | One app store (design, photos, UI) with undo/redo and autosave; user actions such as adding photos, switching product, export and gallery |
-| **UI** (`src/components/`) | Landing page, studio (header, step rail, step panes, live stage), gallery, 3D viewer, crop tool, sizes guide, settings |
+| **UI** (`src/components/`) | Landing page, studio (header, step rail, step panes, live stage), gallery, 3D viewer, crop tool, sizes guide, paper sizes in 3D, settings |
 | **Platform and services** (`src/lib/`, `src/platform/`) | Storage abstraction (IndexedDB or desktop files), font loading, Pexels client, desktop bridge and menus |
 | **Desktop shell** (`electron/`) | Window, `app://` protocol with CSP, file-based library, save/open dialogs, menus, file association, auto-update |
 

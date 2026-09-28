@@ -7,6 +7,8 @@ import type { BackDesign, Design, ExportSettings, PaneId, Photo, PhotoMeta, Plai
 export interface UIState {
   side: Side;
   guides: boolean;
+  /** Preview in approximate print colours (engine/proof.ts); the print files are unchanged. */
+  proof: boolean;
   pane: PaneId;
   cropId: string | null;
   /** Photo slot of the current layout that the photo tray fills next. */
@@ -14,8 +16,8 @@ export interface UIState {
   viewer: ViewerFaces | null;
   /** Full-screen gallery of saved designs is open. */
   gallery: boolean;
-  /** Landing page, the design studio or the sizes guide (mirrors the URL hash: #/studio, #/sizes). */
-  screen: 'home' | 'studio' | 'sizes';
+  /** Landing page, the design studio, the sizes guide or paper sizes in 3D (mirrors the URL hash: #/studio, #/sizes, #/paper). */
+  screen: 'home' | 'studio' | 'sizes' | 'paper';
   /** Settings dialog is open. */
   settings: boolean;
   /** Photo library dialog is open, and which tab it shows. */
@@ -42,7 +44,7 @@ const LS_KEY = 'chitthi-v3';
 
 /** The screen a URL hash points at. */
 export const screenOf = (hash: string): UIState['screen'] =>
-  hash.startsWith('#/studio') ? 'studio' : hash.startsWith('#/sizes') ? 'sizes' : 'home';
+  hash.startsWith('#/studio') ? 'studio' : hash.startsWith('#/sizes') ? 'sizes' : hash.startsWith('#/paper') ? 'paper' : 'home';
 export const hashOf = (screen: UIState['screen']): string => (screen === 'home' ? '' : `#/${screen}`);
 function loadDesign(): Design {
   try {
@@ -59,7 +61,7 @@ let state: AppState = {
   designId: null,
   canUndo: false,
   canRedo: false,
-  ui: { side: 'front', guides: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, settings: false, library: false, libraryTab: 'mine', loading: null, finder: false, screen: screenOf(location.hash), calPage: 0, fontTick: 0 },
+  ui: { side: 'front', guides: false, proof: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, settings: false, library: false, libraryTab: 'mine', loading: null, finder: false, screen: screenOf(location.hash), calPage: 0, fontTick: 0 },
 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());

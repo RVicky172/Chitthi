@@ -538,3 +538,107 @@ export async function buildQuoteRequest(inp: RenderInput): Promise<{ blob: Blob;
   w.footer();
   return { blob: doc.output('blob'), name: `${baseName(d)}-QUOTE-REQUEST.pdf` };
 }
+
+/* ---------- several designs at once: an order sheet and a quote pack ---------- */
+
+const csvCell = (v: string | number) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+const mm1 = (n: number) => Math.round(n * 10) / 10;
+
+/**
+ * An order sheet for print shops (CSV, opens in Excel or Google Sheets): one row per design with its size, pages,
+ * paper and finishing, one row per envelope size, and empty price-per-piece columns for every quote quantity.
+ */
+export function orderSheetCSV(items: { label: string; d: Design; folder?: string }[]): string {
+  const head = [
+    'No',
+    'Design',
+    ...(items.some((i) => i.folder) ? ['Folder'] : []),
+    'Item',
+    'Size',
+    'Orientation',
+    'Trim size',
+    'File size with bleed',
+    'Pixels at 300 dpi',
+    'Pages / sides',
+    'Layout',
+    'Material',
+    'Weight',
+    'Finish',
+    'Colour',
+    'Finishing',
+    'Matching envelope',
+    'Qty wanted',
+    ...QUOTE_QTY.map((q) => `Price per piece @ ${q}`),
+    'Printer notes',
+  ];
+  const withFolder = items.some((i) => i.folder);
+  const rows: (string | number)[][] = [head];
+  const px = (mm: number) => Math.round((mm / 25.4) * 300);
+  const envs = new Map<string, { d: Design; for: string[] }>();
+  items.forEach(({ label, d, folder }, i) => {
+    const { w, h } = cardMM(d),
+      b = +d.exp.bleed,
+      spec = PRINT_SPECS[d.product],
+      size = sizeOf(d),
+      pages = pagesOf(d),
+      env = envelopeSpec(d);
+    if (d.env.on) {
+      const e = envs.get(env.name) ?? { d, for: [] };
+      e.for.push(label);
+      envs.set(env.name, e);
+    }
+    rows.push([
+      i + 1,
+      label,
+      ...(withFolder ? [folder ?? ''] : []),
+      productOf(d.product).name,
+      sizeName(size),
+      d.orient === 'landscape' ? 'Horizontal' : 'Vertical',
+      `${mm1(w)} × ${mm1(h)} mm`,
+      b ? `${mm1(w + 2 * b)} × ${mm1(h + 2 * b)} mm (${b} mm bleed)` : 'Trim size, no bleed',
+      `${px(w + 2 * b)} × ${px(h + 2 * b)} px`,
+      d.product === 'calendar'
+        ? `${calPages(d)} month page${calPages(d) > 1 ? 's' : ''}${d.exp.back ? ' + year-at-a-glance back' : ''}`
+        : pages.map((p) => p.label).join(' + '),
+      layoutName(d.layout),
+      spec.stock,
+      spec.weight,
+      spec.finish,
+      spec.colour,
+      relevantFinishing(spec, d).join('; '),
+      d.env.on ? `${env.name} (${env.w} × ${env.h} mm)` : '—',
+      '',
+      ...QUOTE_QTY.map(() => ''),
+      '',
+    ]);
+  });
+  const e = PRINT_SPECS.envelope;
+  [...envs].forEach(([name, { d, for: used }], i) => {
+    const s = envelopeSpec(d),
+      sh = templateSheet(d);
+    rows.push([
+      `E${i + 1}`,
+      `Envelope for ${used.join(', ')}`,
+      ...(withFolder ? [''] : []),
+      'Envelope',
+      name,
+      'Horizontal',
+      `${s.w} × ${s.h} mm`,
+      'Envelope size (no bleed)',
+      `${px(s.w)} × ${px(s.h)} px`,
+      'Front (address side) + back (flap side)',
+      sh ? `Fold-your-own template on ${sh.name} also supplied` : 'Ready-made envelope',
+      e.stock,
+      e.weight,
+      e.finish,
+      e.colour,
+      e.finishing.join('; '),
+      '',
+      '',
+      ...QUOTE_QTY.map(() => ''),
+      '',
+    ]);
+  });
+  // A byte-order mark so Excel reads the × and dash characters correctly.
+  return '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}

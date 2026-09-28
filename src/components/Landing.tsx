@@ -103,6 +103,7 @@ export function Landing() {
           <a href="#in3d">3D</a>
           <a href="#how">How it works</a>
           <a href="#/sizes">Sizes</a>
+          <a href="#/paper">Sizes in 3D</a>
         </div>
         <button type="button" className="btn icon ghost" title="Find a feature (Ctrl+K)" aria-label="Find a feature" onClick={() => setUI({ finder: true })}>
           <SearchIcon />

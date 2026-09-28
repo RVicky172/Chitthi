@@ -28,6 +28,8 @@ export const DEFAULT_DESIGN: Design = {
   insta: '',
   headFont: TH[0].hf,
   quoteFont: TH[0].qf,
+  sigFont: '',
+  instaFont: '',
   textScale: 1,
   vAlign: 'middle',
   hAlign: 'center',
@@ -35,25 +37,36 @@ export const DEFAULT_DESIGN: Design = {
   color: '#FFFFFF',
   scrim: true,
   ornament: true,
-  back: { message: '', font: 'Kalam', from: '', to: '', address: '', pin: '', stamp: true, label: true, tint: true },
-  exp: { format: 'pdf', sheet: 'a4', bleed: '3', dpi: '300', quality: 'jpeg', marks: true, back: true },
+  back: { message: '', font: 'Kalam', fromFont: '', addrFont: '', labelFont: '', from: '', to: '', address: '', pin: '', stamp: true, label: true, tint: true, credit: false, date: '' },
+  exp: { format: 'pdf', sheet: 'a4', bleed: '3', dpi: '300', quality: 'jpeg', marks: true, back: true, pngs: true },
   cal: {
-    year: new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0),
+    year: new Date().getFullYear(),
     start: 0,
     months: 12,
     weekStart: 1,
     text: 'off',
     captions: Array.from({ length: 12 }, () => ''),
     titleAlign: 'center',
-    numbers: 'corner',
-    grid: 'lines',
+    numbers: 'center',
+    grid: 'tiles',
     font: '',
     numFont: '',
     numBold: true,
+    capFont: '',
+    titleScale: 1,
+    numScale: 1,
+    numSync: false,
+    showYear: true,
+    sundays: true,
+    titleFont: '',
     backQuote: false,
+    marks: 'all',
+    markNames: true,
+    ownDates: [],
   },
   mat: 'classic',
   designName: '',
+  postYear: 0,
   env: { on: true, style: 'pointed', paper: 'occasion', art: true, photo: true, sender: '' },
 };
 
@@ -94,8 +107,19 @@ export function mergeDesign(saved: unknown): Design {
     env: { ...d.env, ...s.env },
   };
   out.cal.captions = Array.from({ length: 12 }, (_, i) => (typeof out.cal.captions?.[i] === 'string' ? out.cal.captions[i] : ''));
+  // Calendars saved before marked days existed keep their look: marks start off for them.
+  if (s.cal && !('marks' in s.cal)) out.cal.marks = 'off';
+  out.cal.ownDates = (Array.isArray(out.cal.ownDates) ? out.cal.ownDates : [])
+    .filter((o) => o && Number.isInteger(o.m) && Number.isInteger(o.d) && o.m >= 1 && o.m <= 12 && o.d >= 1 && o.d <= 31 && typeof o.label === 'string')
+    .slice(0, 60);
   if (out.cal.font && !hasFont(out.cal.font)) out.cal.font = '';
+  // Optional fonts fall back to their parent font when the family is gone (an uploaded font removed from this device).
   if (out.cal.numFont && !hasFont(out.cal.numFont)) out.cal.numFont = '';
+  if (out.cal.capFont && !hasFont(out.cal.capFont)) out.cal.capFont = '';
+  if (out.cal.titleFont && !hasFont(out.cal.titleFont)) out.cal.titleFont = '';
+  if (out.sigFont && !hasFont(out.sigFont)) out.sigFont = '';
+  if (out.instaFont && !hasFont(out.instaFont)) out.instaFont = '';
+  for (const k of ['fromFont', 'addrFont', 'labelFont'] as const) if (out.back[k] && !hasFont(out.back[k])) out.back[k] = '';
   // Keep the size and layout valid for the product (older saves are all postcards).
   if (!PRODUCTS.some((p) => p.id === out.product)) out.product = 'postcard';
   const def = productOf(out.product).defaults;
@@ -107,6 +131,9 @@ export function mergeDesign(saved: unknown): Design {
   if (!SIZES.some((x) => x.id === out.sizeId)) out.sizeId = '4x6';
   return out;
 }
+
+/** The year printed on postmarks: the design's own choice, the calendar's year, or this year. */
+export const postmarkYear = (d: Design): number => d.postYear || (d.product === 'calendar' ? d.cal.year : new Date().getFullYear());
 
 export const sizeOf = (d: Design): SizeDef => SIZES.find((x) => x.id === d.sizeId) ?? SIZES[0];
 

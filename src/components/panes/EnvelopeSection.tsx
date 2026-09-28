@@ -3,7 +3,8 @@ import { envelopeSpec, envelopeSummary, renderEnvelope, type EnvelopeFace } from
 import { open3D } from '../../state/actions';
 import { setBack, setDesign, useApp } from '../../state/store';
 import type { Design, EnvelopeSettings, Photo } from '../../types';
-import { Check, Section, Seg } from '../common';
+import { postmarkYear } from '../../engine/design';
+import { Check, Section, Seg, YearField } from '../common';
 import { CubeIcon } from '../icons';
 
 function EnvelopeThumb({ face, design, photos, fontTick }: { face: EnvelopeFace; design: Design; photos: Photo[]; fontTick: number }) {
@@ -78,6 +79,7 @@ export function EnvelopeSection() {
               Your photo in the seal
             </Check>
           </div>
+          <PostmarkYear />
           <label className="f">
             Return address (under your name from the back)
             <textarea rows={2} placeholder={'Flat 4B, Rose Apartments\nPune 411001'} value={e.sender} onChange={(x) => set({ sender: x.target.value })} />
@@ -106,5 +108,29 @@ export function EnvelopeSection() {
         </>
       )}
     </Section>
+  );
+}
+
+/** The year on postmarks (the envelope, and the Postage stamp layout): automatic, or one you choose. */
+export function PostmarkYear() {
+  const d = useApp((s) => s.design);
+  const auto = d.product === 'calendar' ? `the calendar’s year (${d.cal.year})` : `this year (${new Date().getFullYear()})`;
+  return (
+    <div className="postyear">
+      <Seg<'auto' | 'own'>
+        label="Postmark year"
+        value={d.postYear ? 'own' : 'auto'}
+        options={[
+          ['auto', 'Postmark: automatic'],
+          ['own', 'Choose the year'],
+        ]}
+        onChange={(v) => setDesign({ postYear: v === 'own' ? postmarkYear(d) : 0 })}
+      />
+      {d.postYear ? (
+        <YearField label="Postmark year" value={d.postYear} onChange={(postYear) => setDesign({ postYear })} />
+      ) : (
+        <p className="hint">The postmark shows {auto}.</p>
+      )}
+    </div>
   );
 }

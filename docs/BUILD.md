@@ -19,6 +19,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | --- | --- |
 | `npm run dev` | Vite dev server on http://localhost:5173 with hot reload; proxies `/api/pexels` when a key is set |
 | `npm run typecheck` | `tsc -b`: strict type check of app and tooling |
+| `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview and the order sheet (`src/dev/selftest.ts`). Exits 1 on any failure |
 | `npm run build` | Type check, then production bundle into `dist/` |
 | `npm run preview` | Serves `dist/` on http://localhost:8080 (same Pexels proxy) |
 | `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` for the design-system sync (`src/index.ts`) |
@@ -27,6 +28,8 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |
 | `npm run fetch:showcase` | Downloads the landing page example photos from Pexels into `showcase-src/` (needs the key) |
 | `npm run build:showcase` | With `npm run dev` running: renders the landing examples (`src/data/showcase.ts`) into `public/showcase/*.webp` and `src/data/showcase.json`, using Electron |
+| `npm run fetch:print-samples` | Downloads the festival photos for the print samples (no people, print resolution) from Pexels into `print-samples-src/` (gitignored; needs the key) |
+| `npm run build:print-samples` | With `npm run dev` running: renders the 12 print samples (`src/data/printSamples.ts`), one envelope per size, the order sheet and the quote documents into `Print Samples/` (gitignored), using Electron. See [print-quote](print-quote/README.md) |
 | `npm run build:favicons` | Renders every icon in `public/favicon/` and the desktop icon `build/icon.png` from the two SVG sources (uses Electron) |
 | `npm run desktop:dev` | Vite dev server + Electron, with hot reload |
 | `npm run desktop:start` | Production build shown in Electron, exactly as users get it |
@@ -66,7 +69,7 @@ Serve it over HTTPS (behind Caddy, Traefik or another nginx) for the service wor
 
 1. `index.html` loads `src/main.tsx`: it applies the saved light/dark theme before first paint, mounts `<App>`, and
    in production web builds registers the service worker.
-2. `App` reads the URL hash to choose the screen (home, `#/studio`, `#/sizes`), restores the last card's photos from
+2. `App` reads the URL hash to choose the screen (home, `#/studio`, `#/sizes`, `#/paper`), restores the last card's photos from
    storage, and starts loading the fonts the design uses.
 3. The studio keeps one `Design` object in the store. Every control writes to it; the stage re-renders through the
    engine; changes are autosaved and become undo steps (see [LLD.md](LLD.md) §3).

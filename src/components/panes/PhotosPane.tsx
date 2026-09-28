@@ -10,7 +10,8 @@ import type { LookId } from '../../types';
 import { PhotoThumb } from '../canvases';
 import { PexelsSearch } from '../PexelsSearch';
 import { PhotoStore } from '../PhotoStore';
-import { Pane, Section } from '../common';
+import { shortName } from '../../lib/credits';
+import { Pane, PhotoCredit, Section } from '../common';
 import { AddPhotoIcon, ArrangeIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
 import { autoArrange } from '../../state/traits';
 
@@ -110,7 +111,8 @@ export function PhotosPane() {
           <li key={p.id} className="photo">
             <PhotoThumb photo={p} />
             <div className="meta">
-              <b>{p.name}</b>
+              <b>{shortName(p.name)}</b>
+              <PhotoCredit name={p.name} />
               <span>
                 {p.sw}×{p.sh} px{p.src !== p.orig ? ' after edits' : ''}, <DpiBadge dpi={dpis[i]} />
               </span>

@@ -1,7 +1,7 @@
 import { fontDef, fontStr } from '../data/fonts';
 import type { Design, Photo, Rect, RenderInput, Theme } from '../types';
 import { hexA, lum, mix, rng } from './color';
-import { cardMM, darkInk, resolveTheme } from './design';
+import { cardMM, darkInk, postmarkYear, resolveTheme } from './design';
 import { drawThemeBg } from './render';
 
 /*
@@ -351,7 +351,7 @@ function drawFront(c: Ctx, W: number, H: number, inp: RenderInput, t: Theme): vo
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   c.fillText(postmarkWord(t), px, py - pr * 0.18);
-  c.fillText(String(new Date().getFullYear()), px, py + pr * 0.2);
+  c.fillText(String(postmarkYear(inp.d)), px, py + pr * 0.2);
   c.restore();
 
   // Recipient: "To" in the greeting font, then lines to write on and PIN boxes.

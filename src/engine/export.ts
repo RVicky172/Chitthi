@@ -1,6 +1,7 @@
 import { layoutName } from '../data/layouts';
 import { PRINT_SPECS, QUOTE_QTY } from '../data/printSpecs';
 import { MONTHS, productOf } from '../data/products';
+import { creditsText } from '../lib/credits';
 import { crc32, makeZip, type ZipEntry } from '../lib/zip';
 import type { Design, RenderInput, Side } from '../types';
 import { calPages, cardMM, sizeOf } from './design';
@@ -305,7 +306,7 @@ export function printSpec(inp: RenderInput, files: string[]): string {
   for (const f of files) L.push(`  ${f}`);
   L.push(
     '',
-    'Front and back PNGs are separate files at the full document size (with bleed), tagged with their dpi.',
+    ...(d.exp.pngs === false ? [] : ['Front and back PNGs are separate files at the full document size (with bleed), tagged with their dpi.']),
     'The PDF contains every page in order, with crop marks when selected.',
     '',
     `Created ${new Date().toLocaleString()} with Chitthi.`,
@@ -348,7 +349,7 @@ export async function buildEnvelopeTemplate(inp: RenderInput): Promise<{ blob: B
 /** The complete print pack: every front and back as separate PNGs, the print PDF and the spec sheet, in one ZIP. */
 export async function buildPack(inp: RenderInput, onStep?: (msg: string) => void): Promise<{ blob: Blob; name: string }> {
   const entries: ZipEntry[] = [];
-  const pages = pagesOf(inp.d);
+  const pages = inp.d.exp.pngs === false ? [] : pagesOf(inp.d);
   for (const pg of pages) {
     onStep?.(`Rendering ${pg.label.toLowerCase()}…`);
     await tick();
@@ -375,6 +376,9 @@ export async function buildPack(inp: RenderInput, onStep?: (msg: string) => void
   const { buildQuoteRequest } = await import('./quote');
   const quote = await buildQuoteRequest(inp);
   entries.push({ name: quote.name, data: quote.blob });
+  // Pexels photos: who took them, with links, and what the license allows (see docs/PEXELS.md).
+  const credits = creditsText(inp.photos.map((p) => p.name));
+  if (credits) entries.push({ name: `${baseName(inp.d)}-PHOTO-CREDITS.txt`, data: credits.replace(/\n/g, '\r\n') });
   const specName = `${baseName(inp.d)}-PRINT-SPEC.txt`;
   entries.push({ name: specName, data: printSpec(inp, [...entries.map((e) => e.name), specName]).replace(/\n/g, '\r\n') });
   onStep?.('Packing…');

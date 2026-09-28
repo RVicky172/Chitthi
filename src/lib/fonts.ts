@@ -56,4 +56,13 @@ export function ensureFont(name: string): Promise<void> {
 }
 export const ensureFonts = (names: string[]) => Promise.all([...new Set(names)].map(ensureFont)).then(() => undefined);
 // Rozha One draws the Chitthi mark on envelopes.
-export const fontsFor = (d: Design) => [d.headFont, d.quoteFont, d.back.font, ...(d.cal?.font ? [d.cal.font] : []), ...(d.cal?.numFont ? [d.cal.numFont] : []), ...(d.env?.on ? ['Rozha One'] : []), ...FALLBACK];
+export const fontsFor = (d: Design) => [
+  d.headFont,
+  d.quoteFont,
+  d.back.font,
+  ...[d.sigFont, d.instaFont, d.back.fromFont, d.back.addrFont, d.back.labelFont, d.cal?.font, d.cal?.numFont, d.cal?.capFont, d.cal?.titleFont].filter(
+    (f): f is string => !!f,
+  ),
+  ...(d.env?.on ? ['Rozha One'] : []),
+  ...FALLBACK,
+];

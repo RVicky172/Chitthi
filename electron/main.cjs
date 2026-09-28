@@ -351,6 +351,7 @@ function menu() {
         { label: 'Studio', click: send('studio') },
         { label: 'Gallery', accelerator: 'CmdOrCtrl+G', click: send('gallery') },
         { label: 'Sizes and layouts', click: send('sizes') },
+        { label: 'Paper sizes in 3D', click: send('paper') },
         { label: 'Find a feature…', ...shown('CmdOrCtrl+K'), click: send('find') },
         { label: '3D view', accelerator: 'CmdOrCtrl+Shift+3', click: send('3d') },
         { label: 'Flip card', ...shown('F'), click: send('flip') },
