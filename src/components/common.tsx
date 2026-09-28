@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { creditOf } from '../lib/credits';
 import { ArrowIcon, ChevronIcon } from './icons';
 
 /** Small label shown above each pane title, e.g. "Step 2 of 7". */
@@ -190,5 +191,69 @@ export function Section({
         {children}
       </div>
     </section>
+  );
+}
+
+const YEAR_MIN = 1900,
+  YEAR_MAX = 2200;
+
+/** Calendar year: type any year, or step with − and +. A half-typed year is kept locally until it's complete. */
+export function YearField({ value, onChange, label = 'Year' }: { value: number; onChange: (y: number) => void; label?: string }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const ok = (y: number) => Number.isInteger(y) && y >= YEAR_MIN && y <= YEAR_MAX;
+  const step = (k: number) => {
+    const y = Math.min(YEAR_MAX, Math.max(YEAR_MIN, value + k));
+    if (y !== value) onChange(y);
+  };
+  return (
+    <label className="f">
+      {label}
+      <span className="yearf">
+        <button type="button" aria-label="Previous year" onClick={() => step(-1)} disabled={value <= YEAR_MIN}>
+          −
+        </button>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={YEAR_MIN}
+          max={YEAR_MAX}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            const y = +e.target.value;
+            if (e.target.value.length === 4 && ok(y)) onChange(y);
+          }}
+          onBlur={() => setDraft(String(value))}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              step(e.key === 'ArrowUp' ? 1 : -1);
+            }
+          }}
+        />
+        <button type="button" aria-label="Next year" onClick={() => step(1)} disabled={value >= YEAR_MAX}>
+          +
+        </button>
+      </span>
+    </label>
+  );
+}
+
+/** "Photo by … on Pexels" for a photo that came from Pexels (linked to its Pexels page when the id is known). */
+export function PhotoCredit({ name }: { name: string }) {
+  const c = creditOf(name);
+  if (!c) return null;
+  return (
+    <span className="credit">
+      Photo by {c.photographer} on{' '}
+      {c.url ? (
+        <a href={c.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          Pexels
+        </a>
+      ) : (
+        'Pexels'
+      )}
+    </span>
   );
 }

@@ -15,23 +15,28 @@ backend and photos are never uploaded.
 
 | Area | What you get |
 | --- | --- |
-| **Postcards** | 4×6 in, A6, India Post, 5×7, 6×9, 6×11 in, DL, square, Instax Mini / Square / Wide, A5, A4, custom. 24 layouts, including modern ones (offset block, diagonal duo, scrapbook, film strip, minimal, twin arches). Postal back with message, address, PIN boxes and stamp box |
-| **Calendars** | A4, A3, A5 desk, tabloid, 12×12 in. 12 months from any start month, a single month, or the whole year on one page (**Year strip**). Words above the month or on the photo, **a caption per month**, month titles left or centred, dates in the corner or centred, rows / boxes / no lines, a separate month font, and a font and weight for the dates and weekday names. Every page uses the same title size and a five-row grid, so the months line up when bound. Year-at-a-glance back |
+| **Postcards** | 4×6 in, A6, India Post, 5×7, 6×9, 6×11 in, DL, square, Instax Mini / Square / Wide, A5, A4, custom. 25 layouts, including modern ones (offset block, diagonal duo, scrapbook, film strip, minimal, twin arches, frosted glass). Postal back with message, address, PIN boxes and stamp box |
+| **Calendars** | A4, A3, A5 desk, tabloid, 12×12 in, for **any year** (typed or stepped with − / +; new calendars start on the current year). 12 months from any start month, a single month, or the whole year on one page (**Year strip**). 9 layouts, including modern **Frosted glass**, **Big number** (the default, with tiled dates) and **Arch window**. **Festivals and your dates**: national days and festivals marked in red with their names (dates from the Government of India holiday lists, built in for 2026 and 2027; fixed national days for any year), plus your own birthdays and anniversaries, repeated every year. The Front step is grouped as *Style → Year → Month title → Dates → Words*: five ready-made styles (Classic, Modern, Minimal, Elegant, Bold); month title font, size, alignment and year on / off; dates in the title font or their own, with size, bold, Sundays in colour, corner or centred, and rows / boxes / tiles / no lines; words above the month or on the photo with **a caption per month**. Every page uses the same title size and a five-row grid, so the months line up when bound. Year-at-a-glance back |
 | **Photo frames** | 4×6 up to 11×14 in, A4, A3, square. Thin, classic or wide mat. Single, caption, pair, triptych, grid and feature layouts. Dedication label for the back |
 | **Fridge magnets** | 2×2, 2×3, 3×3, 3×4, 2.5×3.5, 4×6 in with rounded corners, 58 and 75 mm round button magnets. Full photo, caption, mini Polaroid, badge (lettering around the photo), two and four photo, words-only layouts. Many to a sheet |
 | **Occasions** | 16 festivals, 5 birthday styles and 5 seasons with drawn artwork and wishes in English, Hindi, Hinglish and regional scripts, or plain colours |
 | **Smart photos** | Every photo is analysed once (shape, colour, brightness, contrast, sharpness and where its subject is). The library sorts by **relevance** to the selected slot, shows a match score, filters by colour, light, mood and print quality, and search understands words like *blue*, *warm*, *sky* or *bright*. **Auto-arrange** puts each photo in the slot that suits it and centres each crop on its subject; **Fill empty slots** picks the best matches from the library |
 | **Photo library** | **Photos** in the top bar: every photo on the device, with upload, crop, take off and delete. Filters by shape, source and use, and **"Fits this slot"** shows the photos whose shape suits the selected slot of the current layout, each with its print sharpness there. The strip under the preview adds, removes and crops photos too |
 | **Photos** | Upload with clear checks, crop (free, 1:1 … 16:9, or the exact shape of the slot), rotate, mirror, zoom, drag, colour looks, print-sharpness in dpi |
-| **Free photos** | Search **Pexels** from the Photos step, with ideas from the occasion, product and calendar month, filtered to the shape of the selected photo slot. The API key is entered in **Settings** |
-| **Words** | 46 font families including Devanagari, Gurmukhi, Gujarati, Bengali, Tamil, Malayalam, Kannada, Telugu and Odia, plus **your own fonts** (TTF, OTF, WOFF, WOFF2) kept on the device for every design. Instagram tag |
+| **Free photos** | Search **Pexels** from the Photos step, with ideas from the occasion, product and calendar month, filtered to the shape of the selected photo slot. The API key is entered in **Settings**. Follows the Pexels guidelines: a linked "Photo by … on Pexels" credit on every result and every placed photo, a `PHOTO-CREDITS.txt` in print packs, an optional printed credit, the hourly limit respected, and a warning before selling an unaltered photo (see [docs/PEXELS.md](docs/PEXELS.md)) |
+| **Words** | 46 font families including Devanagari, Gurmukhi, Gujarati, Bengali, Tamil, Malayalam, Kannada, Telugu and Odia, plus **your own fonts** (TTF, OTF, WOFF, WOFF2) kept on the device for every design. **Every text field has its own font**: greeting, quote, signature and Instagram tag; on the back the message, From line, address and PIN, and the printed labels; on calendars the captions, month titles, dates and the year-page title |
 | **Envelopes** | A matching envelope for every design: the smallest standard size it fits (C6, A7, DL, square…), dressed in the same occasion with a photo seal, the address, and the Chitthi logo stamp as the product mark on the back. Exported with the print pack as a print-on-envelope PDF and a fold-your-own template, and viewable in 3D with the flap opening and the card sliding out |
+| **Paper sizes in 3D** | A page (`#/paper`) with every size laid on a cutting mat at true relative scale, each showing a real design: postcards, calendars, frame prints, magnets, their envelopes, print sheets, and a bank card and ₹10 coin for reference. **Side by side**, **Stacked** (largest at the bottom) or **On a print sheet** (imposed exactly as the sheet PDF does it, with pieces you can lift off). Drag to turn, Shift + drag to move, scroll or pinch to zoom, top / angled / low views, and an **Actual size** top view. Click a piece for its size, bleed, pixels, paper, sheet counts and envelope |
 | **Sizes and layouts guide** | A page with every size of every product, filtered by shape (square, rounded, round), scale and search: trim, bleed and safe area drawn to scale, pixel sizes, how many fit on a sheet, and every layout at that size (filtered by photo count and words) with the pixels each photo slot needs |
-| **Print quotes** | A specification PDF for print shops with every category, sample designs, paper, weight, finish and finishing, every size with bleed and sheet counts, and blank price-per-piece grids; every print pack also carries a `QUOTE-REQUEST.pdf` for that design. See [docs/print-quote](docs/print-quote/README.md) |
-| **Print files** | Print-shop PDF with bleed and crop marks; sheet PDF (A4, A3, 13×19 in, Letter) lined up for double-sided printing; PNG at 300 dpi with dpi metadata; a print pack ZIP with a `PRINT-SPEC.txt` |
+| **Print quotes** | A specification PDF for print shops with every category, sample designs, paper, weight, finish and finishing, every size with bleed and sheet counts, and blank price-per-piece grids; every print pack also carries a `QUOTE-REQUEST.pdf` for that design. From the gallery, **one quote for several designs**: an `ORDER-SHEET.csv` (a row per design and per envelope, with price columns), a quote request each, the catalogue and the photo credits in one ZIP. See [docs/print-quote](docs/print-quote/README.md) |
+| **Print files** | Print-shop PDF with bleed and crop marks; sheet PDF (A4, A3, 13×19 in, Letter) lined up for double-sided printing, with the count per sheet shown for each and sheets too small for the piece disabled; PNG at 300 dpi with dpi metadata; a print pack ZIP with a `PRINT-SPEC.txt` (PNGs optional, for a much smaller calendar pack). **Print colours** preview in the studio: an approximate soft proof of how bright screen colours come out on paper. Postmark year on the envelope and the Postage stamp layout: automatic (the calendar's year) or your own |
 | **3D preview** | Spin and flip any design. Calendars also show all twelve months as a ring, or as a wall calendar you page through |
 | **Studio** | Every step is made of collapsible sections that remember whether they're open, with Collapse all / Expand all. **Find a feature** (Ctrl+K / ⌘K, or Find in the header) jumps straight to any setting or action. **Full screen** from the header, the home page or the finder |
 | **Also** | Gallery with sample designs, backup and restore, `.chitthi` design files, undo / redo, autosave, warm cream light theme and grey dark theme with a saffron accent, offline support |
+
+Tests: `npm test` renders every product, size, orientation and layout (front, back, envelope), builds a print pack
+for each product, and checks saved-design loading, festival dates, photo credits, the print-colours preview and the
+order sheet, inside Electron against its own dev server.
 
 Keyboard: `Ctrl+K` find a feature, `Ctrl+Z` undo, `Ctrl+Shift+Z` / `Ctrl+Y` redo, `Ctrl+S` save to gallery, `F` flip the card, arrow keys and
 `+` / `−` move and zoom the photo in the selected slot. On desktop, `Ctrl+,` opens Settings.
@@ -83,21 +88,21 @@ the key on the server side. Details, security and a production proxy recipe: [do
 
 ```text
 src/
-  main.tsx, App.tsx     Entry, screens (home / studio / sizes guide), routing, shortcuts
+  main.tsx, App.tsx     Entry, screens (home / studio / sizes guide / paper sizes in 3D), routing, shortcuts
   types.ts              Shared types (Design, Photo, Layout, SizeDef, …)
   data/                 Specifications as data: products, sizes, layouts, themes, fonts, samples
   engine/               Framework-free: layout, rendering, photo processing, PDF / PNG / ZIP export
   state/                App store with undo/redo and autosave, user actions, photo slots, photo store
   lib/                  Storage, fonts, Pexels client, downloads, ZIP, toasts
   platform/             Desktop bridge and menu commands
-  components/           React UI: landing, studio, panes, stage, dialogs, 3D viewer, sizes guide, settings
+  components/           React UI: landing, studio, panes, stage, dialogs, 3D viewer, sizes guide, paper sizes in 3D, settings
 electron/               Desktop main process and preload bridge
 public/                 Service worker, manifest, sample photos
 public/favicon/         Every icon of the product (SVG sources, PNG sizes, .ico); see its README
 public/showcase/        Landing page examples, pre-rendered as small WebP files (npm run build:showcase)
 showcase-src/           Source photos for those examples (Pexels; not shipped)
 nginx/                  Web server config, security headers and CSP
-scripts/                Sample photo and font downloaders, spec-table generator
+scripts/                Sample photo and font downloaders, spec-table generator, showcase and print-sample renderers
 docs/                   Design and operations documentation
 ```
 

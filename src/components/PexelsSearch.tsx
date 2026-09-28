@@ -211,8 +211,18 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
                           Adding…
                         </span>
                       )}
-                      <small>{p.photographer}</small>
                     </button>
+                    {/* Pexels asks for a linked credit: "Photo by … on Pexels". */}
+                    <p className="px-by">
+                      Photo by{' '}
+                      <a href={p.photographer_url} target="_blank" rel="noopener noreferrer">
+                        {p.photographer}
+                      </a>{' '}
+                      on{' '}
+                      <a href={p.url} target="_blank" rel="noopener noreferrer">
+                        Pexels
+                      </a>
+                    </p>
                   </li>
                 ))
               : Array.from({ length: wide ? 12 : 6 }, (_, i) => (

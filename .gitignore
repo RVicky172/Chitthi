@@ -17,3 +17,7 @@ ds-bundle/
 # desktop build
 electron/resources/fonts/
 release/
+
+# print samples for the print shop (npm run fetch:print-samples / build:print-samples)
+print-samples-src/
+Print Samples/

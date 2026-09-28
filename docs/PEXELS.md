@@ -115,15 +115,27 @@ Keep in mind:
   rendered config.
 - Never put the key in a `VITE_*` variable: those are compiled into the JavaScript that every visitor downloads.
 
-## Licence and attribution
+## Licence, attribution and API rules
 
-Photos are free to use under the [Pexels license](https://www.pexels.com/license/), including in printed products.
-Pexels asks apps to credit Pexels and photographers, so:
+Chitthi follows the [Pexels API guidelines](https://www.pexels.com/api/documentation/#guidelines) and the
+[Pexels license](https://www.pexels.com/license/). This table is the checklist; each row says where the app does it.
 
-- The search panel always shows "Photos provided by Pexels" with links to Pexels and the licence.
-- Each photo keeps its photographer in its name (`alt (Pexels / Photographer)`), which appears in the photo list and
-  saved designs.
-- Photos of identifiable people or brands can carry other rights; the licence doesn't cover implying endorsement.
+| Rule (Pexels) | How Chitthi follows it | Where |
+| --- | --- | --- |
+| Show a prominent link to Pexels wherever API results are shown | "Photos provided by **Pexels**, free to use under the **Pexels license**" under every search panel (Photos step and the full-screen library) | `PexelsSearch.tsx` (`.px-credit`) |
+| Credit photographers where possible: "Photo by X on Pexels", linked | Every result has "Photo by *Name* on *Pexels*" linking to the photographer's page and the photo's page | `PexelsSearch.tsx` (`.px-by`) |
+| (same) | A downloaded photo keeps its credit in its name, `Alt (Pexels / Name #id)`, so it travels into saved designs, backups and `.chitthi` files. The photo list and the library show "Photo by *Name* on *Pexels*" linked to the photo page | `lib/credits.ts`, `PhotoCredit` in `components/common.tsx` |
+| (same) | Every print pack that uses a Pexels photo contains `…-PHOTO-CREDITS.txt`; the quote pack from the gallery has `PHOTO-CREDITS.txt`; the Print step lists the credits; the postcard back and the frame label can print "Photo: *Name* / Pexels" in small type | `engine/export.ts`, `state/actions.ts`, `PrintPane.tsx`, `render.ts` (`drawCreditLine`) |
+| Rate limit: 200 requests an hour, 20,000 a month; don't work around it | Results are cached for the session; the remaining allowance is read from `X-Ratelimit-Remaining` / `X-Ratelimit-Reset`, and once it's used up searches wait for the reset instead of sending requests. The app never rotates keys | `lib/pexels.ts` (`request`, `pexelsQuota`) |
+| Keep the API key private | The key is never in the bundle: each user keeps their own key on their device, or a server proxy adds it (see above) | `lib/pexels.ts`, `vite.config.ts` |
+| Don't copy or replicate Pexels (e.g. a wallpaper app) or redistribute photos on other stock sites | Search exists only to put a photo into a design; there is no browsing, downloading or re-sharing of photos on their own | `PexelsSearch.tsx` |
+| Don't sell **unaltered** copies as a poster, print or physical product | The Print step explains the rule whenever the design uses a Pexels photo, and warns when the design prints the photo almost unchanged (a full-bleed photo with no words, or a frame print without a caption): fine for yourself or as a gift, but add words, a layout or artwork before selling | `PrintPane.tsx` (`PexelsNotice`) |
+| Identifiable people: not in a bad light, and no implied endorsement | Stated in the Print step notice and in every `PHOTO-CREDITS.txt` | `lib/credits.ts`, `PrintPane.tsx` |
+| No data mining or ML training on Pexels content | Chitthi doesn't collect photos in bulk: it downloads one photo when the user picks it. The photo analysis (`engine/analyze.ts`) runs on the user's device to suggest slots and is never used to train models | — |
+
+Bundled photos follow the same rules: the gallery samples (`public/samples/samples.json`), the landing page examples
+(`showcase-src/photos.json`) and the print samples (`print-samples-src/photos.json`) all store the photographer,
+their page and the photo page, and show or ship the credit (sample cards, landing captions, `PHOTO-CREDITS.txt`).
 
 ## Troubleshooting
 
@@ -131,7 +143,7 @@ Pexels asks apps to credit Pexels and photographers, so:
 | --- | --- | --- |
 | "Photo search needs a free Pexels API key" | No saved key and no proxy | Settings → paste key → Save and test |
 | "Pexels didn't accept that key" | Key mistyped or revoked | Copy it again from pexels.com/api |
-| "The Pexels search limit for this hour is used up" | 200 requests/hour reached | Wait, or use another key |
+| "The Pexels search limit for this hour is used up. It resets in about N minutes" | The hourly allowance (200 requests by default) is used | Wait for the reset. Don't switch keys to get round it: Pexels ends API access for that. For more, ask Pexels for a higher limit |
 | Dev server search fails although `.env.local` has a key | Server started before the key was added | Restart `npm run dev` |
 | Thumbnails blank in a custom deployment | CSP without `images.pexels.com` | Use `nginx/security-headers.conf` as shipped |
 | Search box missing from Photos | Turned off in Settings | Settings → *Show Pexels search in the Photos step* |

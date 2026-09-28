@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { calPages, cardMM, cornerMM, sizeOf } from '../engine/design';
 import { MONTHS } from '../data/products';
 import { slotPhotoIndex } from '../engine/layout';
+import { softProof } from '../engine/proof';
 import { calMonth, coverScale, renderCard } from '../engine/render';
 import { open3D } from '../state/actions';
 import { selectSlot } from '../state/photoSlots';
@@ -25,6 +26,7 @@ export function Stage() {
     photos = useApp((s) => s.photos);
   const side = useApp((s) => s.ui.side),
     guides = useApp((s) => s.ui.guides),
+    proof = useApp((s) => s.ui.proof),
     fontTick = useApp((s) => s.ui.fontTick),
     calPage = useApp((s) => s.ui.calPage),
     loading = useApp((s) => s.ui.loading);
@@ -67,7 +69,8 @@ export function Stage() {
   useEffect(() => {
     if (cv.current)
       layout.current = renderCard(cv.current, side, scale * dpr, bleed, { d: design, photos }, { hint: true, guides, page });
-  }, [design, photos, side, guides, scale, dpr, bleed, fontTick, flipKey, page]);
+    if (cv.current && proof) softProof(cv.current);
+  }, [design, photos, side, guides, proof, scale, dpr, bleed, fontTick, flipKey, page]);
 
   const hit = (x: number, y: number): { d: Rect; ph: Photo; slot: number } | null => {
     const L = layout.current,
@@ -115,6 +118,9 @@ export function Stage() {
         <div className="pill">
           <label className="check">
             <input type="checkbox" checked={guides} onChange={(e) => setUI({ guides: e.target.checked })} /> Print guides
+          </label>
+          <label className="check" title="How colours come out on paper: very bright blues, greens and pinks print duller than on screen. The print files are not changed.">
+            <input type="checkbox" checked={proof} onChange={(e) => setUI({ proof: e.target.checked })} /> Print colours
           </label>
           {guides && (
             <span className="legend">

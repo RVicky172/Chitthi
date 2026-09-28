@@ -8,7 +8,9 @@ read the same data, so changing a value in one place changes it everywhere.
 The live, visual version of this document is inside the app: **Sizes and layouts** (ruler icon in the studio
 header, the **Sizes** link on the home page, **View → Sizes and layouts** on desktop, or `#/sizes`). It shows each
 size drawn to scale with its bleed and safe area, its pixel sizes, how many fit on a sheet, and every layout drawn
-at that size with the pixels each photo slot needs.
+at that size with the pixels each photo slot needs. **Paper sizes in 3D** (`#/paper`, **View → Paper sizes in 3D**
+on desktop, or *Sizes in 3D* from the guide and the home page) shows the same sizes, their envelopes and the print
+sheets side by side at true relative scale, stacked, or imposed on a sheet, with an actual-size view.
 
 ## Where each specification lives
 
@@ -25,7 +27,10 @@ at that size with the pixels each photo slot needs.
 | Sheet sizes for imposition | `src/engine/export.ts` → `SHEETS` | A4, A3, 13×19 in, US Letter; 8 mm sheet margin; 10 mm gap with crop marks, 4 mm without |
 | Photos per design | `src/engine/photo.ts` → `maxPhotos()` | 4 (24 for calendars: two per month) |
 | Upload limits | `src/engine/photo.ts` | 25 MB per file, JPG / PNG / WebP, processed images capped at 16 MP |
-| Calendar options | `CalendarSettings` in `src/types.ts`, defaults in `DEFAULT_DESIGN.cal` | Year, start month, 1 or 12 pages, week start, text placement, captions, title / date / grid style, month font |
+| Calendar options | `CalendarSettings` in `src/types.ts`, defaults in `DEFAULT_DESIGN.cal` | Year (default: the current year), start month, 1 or 12 pages, week start, text placement, captions and caption font, title font / size / alignment / year on or off, dates font (or the title font) / size / bold / Sundays in colour / position, grid (rows, boxes, tiles, none), year-page title font |
+| Calendar styles | `STYLES` in `src/components/panes/CalendarFront.tsx` | The five presets (Classic, Modern, Minimal, Elegant, Bold): fonts, grid, date position and alignment |
+| Festivals and national days | `src/data/holidays.ts` | Fixed-date national days for every year, and moving festivals per year from the DoPT holiday lists (2026: O.M. dated 03.07.2025; 2027: O.M. dated 16.07.2026). To add a year, copy its gazetted and restricted holidays from the next DoPT O.M. into `BY_YEAR`; `npm test` checks every date is real |
+| Print colours preview | `KEEP`, `PAPER`, `INK` in `src/engine/proof.ts` | How much saturation each hue keeps in print, paper white and printed black (screen only, files unchanged) |
 | Print spec sheet text | `printSpec()` in `src/engine/export.ts` | The `PRINT-SPEC.txt` in every print pack |
 | Envelope sizes | `STANDARD` in `src/engine/envelope.ts` | Standard envelopes by long × short side; each design takes the smallest with 5 mm room |
 | Envelope template sheets | `TEMPLATE_SHEETS` in `src/engine/envelope.ts` | A4, Letter, A3, 13×19 in; 5 mm margin |
@@ -187,7 +192,11 @@ Instax and Year strip); the guide in the app shows the exact slots and pixel siz
 | Postcard | `filmstrip` | Film strip |
 | Postcard | `minimal` | Minimal |
 | Postcard | `twin-arch` | Twin arches |
+| Postcard | `glass` | Frosted glass |
 | Postcard | `text` | Text only |
+| Calendar | `cal-glass` | Frosted glass |
+| Calendar | `cal-bold` | Big number |
+| Calendar | `cal-arch` | Arch window |
 | Calendar | `cal-top` | Photo above |
 | Calendar | `cal-side` | Photo beside |
 | Calendar | `cal-full` | Full photo |

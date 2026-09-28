@@ -33,7 +33,7 @@ export const PRODUCTS: ProductDef[] = [
     blurb: 'A month or a whole year of your photos, with a year-at-a-glance back page.',
     backLabel: 'Year at a glance',
     paper: '200–250 gsm silk or matte. Wall calendars: wire-bind on the top edge, drill a hanging hole. Desk: wire-bind onto a tent stand.',
-    defaults: { sizeId: 'cal-a4', orient: 'portrait', layout: 'cal-top', frame: 'white', exp: { back: true } },
+    defaults: { sizeId: 'cal-a4', orient: 'portrait', layout: 'cal-bold', frame: 'white', exp: { back: true } },
   },
   {
     id: 'frame',

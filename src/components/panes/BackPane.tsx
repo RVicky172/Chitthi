@@ -1,7 +1,6 @@
-import { HANDWRITING } from '../../data/fonts';
 import { setBack, setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings } from '../../types';
-import { Check, Pane, Section, Seg } from '../common';
+import { Check, Pane, Section, Seg, YearField } from '../common';
 import { FontPicker } from '../FontPicker';
 import { EnvelopeSection } from './EnvelopeSection';
 
@@ -24,17 +23,23 @@ export function BackPane() {
         />
       </label>
       <FontPicker
-        label="Handwriting font"
+        label="Message font"
         value={b.font}
         sample={b.message || 'Dear Nani, wish you were here'}
         weight="bw"
-        only={HANDWRITING}
         onChange={(font) => setBack({ font })}
       />
       <label className="f">
         From
         <input type="text" placeholder="Your name" value={b.from} onChange={(e) => setBack({ from: e.target.value })} />
       </label>
+      <FontPicker
+        label="From font"
+        value={b.fromFont || b.font}
+        sample={`— ${b.from || 'Asha'}`}
+        weight="bw"
+        onChange={(f) => setBack({ fromFont: f === b.font ? '' : f })}
+      />
       </Section>
       <Section id="back.address" title="Address" note={b.to || undefined}>
       <label className="f">
@@ -60,6 +65,13 @@ export function BackPane() {
           onChange={(e) => setBack({ pin: e.target.value.replace(/\D/g, '') })}
         />
       </label>
+      <FontPicker
+        label="Address font (name, address and PIN)"
+        value={b.addrFont || b.font}
+        sample={b.to || b.address.split('\n')[0] || 'Nani Ma, 12 Gandhi Road'}
+        weight="bw"
+        onChange={(f) => setBack({ addrFont: f === b.font ? '' : f })}
+      />
       </Section>
       <Section id="back.style" title="Stamp and style">
       <Check checked={b.stamp} onChange={(stamp) => setBack({ stamp })}>
@@ -68,6 +80,13 @@ export function BackPane() {
       <Check checked={b.label} onChange={(label) => setBack({ label })}>
         “Post card” heading
       </Check>
+      <FontPicker
+        label="Printed labels font (Post card, To, PIN, Stamp)"
+        value={b.labelFont || 'Hind'}
+        sample="POST CARD  ·  To  ·  PIN  ·  Stamp"
+        weight="hw"
+        onChange={(f) => setBack({ labelFont: f === 'Hind' ? '' : f })}
+      />
       <Check checked={b.tint} onChange={(tint) => setBack({ tint })}>
         Tint the back with the card colour
       </Check>
@@ -88,15 +107,32 @@ function CalendarBack() {
       onNext={() => setUI({ pane: 'print' })}
     >
       <Section id="back.year" title="Year page">
+      <YearField value={d.cal.year} onChange={(year) => setDesign({ cal: { ...d.cal, year } })} />
       <Check checked={d.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
         Title (otherwise the year is shown)
       </Check>
       <input type="text" aria-label="Title" value={d.heading} onChange={(e) => setDesign({ heading: e.target.value })} />
+      <FontPicker
+        label="Title font"
+        value={d.cal.titleFont || d.cal.font || d.headFont}
+        sample={(d.showHeading && d.heading) || String(d.cal.year)}
+        weight="hw"
+        onChange={(f) => setDesign({ cal: { ...d.cal, titleFont: f === (d.cal.font || d.headFont) ? '' : f } })}
+      />
       <Check checked={d.cal.backQuote} onChange={(backQuote) => setDesign({ cal: { ...d.cal, backQuote } })}>
         Subtitle under the title
       </Check>
       {d.cal.backQuote && (
-        <textarea rows={2} aria-label="Subtitle" value={d.quote} onChange={(e) => setDesign({ quote: e.target.value })} />
+        <>
+          <textarea rows={2} aria-label="Subtitle" value={d.quote} onChange={(e) => setDesign({ quote: e.target.value })} />
+          <FontPicker
+            label="Subtitle font (shared with the quote)"
+            value={d.quoteFont}
+            sample={d.quote || 'A year of festivals'}
+            weight="bw"
+            onChange={(quoteFont) => setDesign({ quoteFont })}
+          />
+        </>
       )}
       <Seg<CalendarSettings['titleAlign']>
         label="Title alignment"
@@ -138,17 +174,39 @@ function FrameBack() {
         <textarea rows={4} placeholder="For Maa and Papa, on your 40th anniversary…" value={b.message} onChange={(e) => setBack({ message: e.target.value })} />
       </label>
       <FontPicker
-        label="Handwriting font"
+        label="Message font"
         value={b.font}
         sample={b.message || 'With all our love'}
         weight="bw"
-        only={HANDWRITING}
         onChange={(font) => setBack({ font })}
       />
       <label className="f">
         From
         <input type="text" placeholder="Your name" value={b.from} onChange={(e) => setBack({ from: e.target.value })} />
       </label>
+      <FontPicker
+        label="From font"
+        value={b.fromFont || b.font}
+        sample={`— ${b.from || 'Riya'}`}
+        weight="bw"
+        onChange={(f) => setBack({ fromFont: f === b.font ? '' : f })}
+      />
+      <label className="f">
+        Date (leave empty for the day it's printed)
+        <input
+          type="text"
+          placeholder={new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+          value={b.date}
+          onChange={(e) => setBack({ date: e.target.value })}
+        />
+      </label>
+      <FontPicker
+        label="Date font"
+        value={b.labelFont || 'Hind'}
+        sample={new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+        weight="hw"
+        onChange={(f) => setBack({ labelFont: f === 'Hind' ? '' : f })}
+      />
       <Check checked={b.tint} onChange={(tint) => setBack({ tint })}>
         Tint with the theme colour
       </Check>

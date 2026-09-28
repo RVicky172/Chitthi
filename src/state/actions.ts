@@ -419,3 +419,47 @@ export async function openSample(design: Design, photos: Photo[]): Promise<void>
   void storePhotos(photos.map((p) => ({ name: p.name, url: p.url, img: p.orig })));
   toast(`Opened the “${design.designName}” sample. Swap in your own photos from the Photos step.`);
 }
+
+/**
+ * One quote pack for several saved designs: an order sheet with a row per design (and per envelope size), a quote
+ * request PDF for each design, the specification catalogue, and the photo credits, in one ZIP to send to printers.
+ */
+export async function downloadQuotePack(ids: string[], onStep?: (msg: string) => void): Promise<void> {
+  if (!ids.length) return;
+  try {
+    const q = await import('../engine/quote');
+    const { makeZip } = await import('../lib/zip');
+    const { creditsText } = await import('../lib/credits');
+    const entries: { name: string; data: Blob | string }[] = [],
+      items: { label: string; d: Design }[] = [],
+      names: string[] = [];
+    let n = 0;
+    for (const id of ids) {
+      const saved = await db.get(id);
+      if (!saved) continue;
+      n++;
+      onStep?.(`Design ${n} of ${ids.length}…`);
+      const d = mergeDesign(saved.design);
+      d.designName = saved.name;
+      const photos = await photosFromMeta(saved.photos);
+      await ensureFonts(fontsFor(d));
+      const req = await q.buildQuoteRequest({ d, photos });
+      entries.push({ name: `${String(n).padStart(2, '0')}-${req.name}`, data: req.blob });
+      items.push({ label: saved.name, d });
+      names.push(...photos.map((p) => p.name));
+    }
+    if (!items.length) return;
+    onStep?.('Writing the order sheet…');
+    entries.unshift({ name: 'ORDER-SHEET.csv', data: q.orderSheetCSV(items) });
+    const cat = await q.buildQuoteCatalog();
+    entries.push({ name: cat.name, data: cat.blob });
+    const credits = creditsText(names);
+    if (credits) entries.push({ name: 'PHOTO-CREDITS.txt', data: credits.replace(/\n/g, '\r\n') });
+    onStep?.('Packing…');
+    const zip = await makeZip(entries);
+    await saveFile(`chitthi-quote-${items.length}-design${items.length > 1 ? 's' : ''}.zip`, zip);
+    toast(`Quote pack ready: ${items.length} design${items.length > 1 ? 's' : ''}, an order sheet and a quote request each.`);
+  } catch {
+    toast('The quote pack couldn’t be made. Try again.');
+  }
+}

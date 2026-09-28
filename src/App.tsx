@@ -1,13 +1,18 @@
-import { useEffect, useRef, type CSSProperties, type JSX } from 'react';
+import { lazy, Suspense, useEffect, useRef, type CSSProperties, type JSX } from 'react';
 import { StepLabel } from './components/common';
-import { CropDialog } from './components/CropDialog';
-import { GalleryDialog } from './components/GalleryDialog';
+
+// Screens and dialogs load when first opened, so the studio (or the home page) starts with less to download.
+const named = <K extends string>(load: () => Promise<Record<K, () => JSX.Element | null>>, key: K) => lazy(() => load().then((m) => ({ default: m[key] })));
+const Landing = named(() => import('./components/Landing'), 'Landing');
+const SizeGuide = named(() => import('./components/SizeGuide'), 'SizeGuide');
+const Paper3D = named(() => import('./components/Paper3D'), 'Paper3D');
+const CropDialog = named(() => import('./components/CropDialog'), 'CropDialog');
+const GalleryDialog = named(() => import('./components/GalleryDialog'), 'GalleryDialog');
+const PhotoLibrary = named(() => import('./components/PhotoLibrary'), 'PhotoLibrary');
+const SettingsDialog = named(() => import('./components/SettingsDialog'), 'SettingsDialog');
+const Viewer3D = named(() => import('./components/Viewer3D'), 'Viewer3D');
 import { Header } from './components/Header';
-import { Landing } from './components/Landing';
 import { FeatureFinder } from './components/FeatureFinder';
-import { PhotoLibrary } from './components/PhotoLibrary';
-import { SettingsDialog } from './components/SettingsDialog';
-import { SizeGuide } from './components/SizeGuide';
 import { BackPane } from './components/panes/BackPane';
 import { LayoutPane } from './components/panes/LayoutPane';
 import { OccasionPane } from './components/panes/OccasionPane';
@@ -17,7 +22,6 @@ import { WordsPane } from './components/panes/WordsPane';
 import { Rail, PANES as STEPS } from './components/Rail';
 import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
-import { Viewer3D } from './components/Viewer3D';
 import { ensureFonts, fontsFor } from './lib/fonts';
 import { loadUserFonts } from './lib/userFonts';
 import { useDesktopMenu } from './platform/menu';
@@ -37,7 +41,12 @@ const PANES: Record<PaneId, () => JSX.Element> = {
 };
 
 export default function App() {
-  const screen = useApp((s) => s.ui.screen);
+  const screen = useApp((s) => s.ui.screen),
+    cropOpen = useApp((s) => !!s.ui.cropId),
+    galleryOpen = useApp((s) => s.ui.gallery),
+    libraryOpen = useApp((s) => s.ui.library),
+    settingsOpen = useApp((s) => s.ui.settings),
+    viewerOpen = useApp((s) => !!s.ui.viewer);
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
     backFont = useApp((s) => s.design.back.font),
@@ -51,6 +60,27 @@ export default function App() {
     const onFonts = () => bumpFonts();
     document.fonts.addEventListener('loadingdone', onFonts);
     return () => document.fonts.removeEventListener('loadingdone', onFonts);
+  }, []);
+
+  // Fetch the screens and dialogs that load on demand once the app is idle, so the service worker has them for
+  // offline use and they open instantly later.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      for (const load of [
+        () => import('./components/Landing'),
+        () => import('./components/SizeGuide'),
+        () => import('./components/Paper3D'),
+        () => import('./components/CropDialog'),
+        () => import('./components/GalleryDialog'),
+        () => import('./components/PhotoLibrary'),
+        () => import('./components/SettingsDialog'),
+        () => import('./components/Viewer3D'),
+        () => import('./engine/quote'),
+        () => import('jspdf'),
+      ])
+        void load().catch(() => undefined);
+    }, 4000);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -84,13 +114,17 @@ export default function App() {
 
   return (
     <>
-      {screen === 'home' ? <Landing /> : screen === 'sizes' ? <SizeGuide /> : <Studio />}
-      <CropDialog />
-      <GalleryDialog />
-      <SettingsDialog />
-      <PhotoLibrary />
+      <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
+        {screen === 'home' ? <Landing /> : screen === 'sizes' ? <SizeGuide /> : screen === 'paper' ? <Paper3D /> : <Studio />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {cropOpen && <CropDialog />}
+        {galleryOpen && <GalleryDialog />}
+        {settingsOpen && <SettingsDialog />}
+        {libraryOpen && <PhotoLibrary />}
+        {viewerOpen && <Viewer3D />}
+      </Suspense>
       <FeatureFinder />
-      <Viewer3D />
       <Toast />
     </>
   );

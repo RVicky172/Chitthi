@@ -1,5 +1,6 @@
 import { productDesign } from '../engine/design';
 import { loadImage, makePhoto } from '../engine/photo';
+import { pexelsIdOf, pexelsName } from '../lib/credits';
 import type { Design, Photo, ProductId } from '../types';
 import { themeById } from './themes';
 
@@ -182,7 +183,7 @@ function samplePhotoFile(c: SampleCredit): Promise<Photo> {
   let p = photoCache.get(c.id);
   if (!p) {
     const url = base + c.file;
-    p = loadImage(url).then((img) => makePhoto(img, `${c.alt} (Pexels / ${c.photographer})`, url));
+    p = loadImage(url).then((img) => makePhoto(img, pexelsName(c.alt, c.photographer, pexelsIdOf(c.pexelsUrl)), url));
     photoCache.set(c.id, p);
   }
   return p;

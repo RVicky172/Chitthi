@@ -31,6 +31,7 @@ export type LayoutId =
   | 'collage4'
   | 'text'
   /* modern postcard layouts */
+  | 'glass'
   | 'offset'
   | 'diagonal'
   | 'scrapbook'
@@ -51,6 +52,9 @@ export type LayoutId =
   | 'cal-duo'
   | 'cal-plain'
   | 'cal-strip'
+  | 'cal-glass'
+  | 'cal-bold'
+  | 'cal-arch'
   /* fridge magnets */
   | 'mag-full'
   | 'mag-caption'
@@ -155,7 +159,13 @@ export interface Photo extends PhotoMeta {
 
 export interface BackDesign {
   message: string;
+  /** Handwriting font for the message. */
   font: string;
+  /** Fonts for the "From" line, the address block (name, address, PIN) and the printed labels ("POST CARD", "To", "PIN",
+   * "Stamp"). Empty = the message font (labels: Hind). */
+  fromFont: string;
+  addrFont: string;
+  labelFont: string;
   from: string;
   to: string;
   address: string;
@@ -163,6 +173,10 @@ export interface BackDesign {
   stamp: boolean;
   label: boolean;
   tint: boolean;
+  /** Print "Photo: … / Pexels" in small type on the back (postcards and frame labels). */
+  credit: boolean;
+  /** Frame dedication label date; empty = the day it's printed. */
+  date: string;
 }
 /** The matching envelope, exported with the print pack and shown in 3D. */
 export interface EnvelopeSettings {
@@ -185,6 +199,8 @@ export interface ExportSettings {
   quality: 'jpeg' | 'png';
   marks: boolean;
   back: boolean;
+  /** Put every page as a PNG in the print pack too (off: the PDF only, much smaller for calendars). */
+  pngs: boolean;
 }
 export interface PlainColours {
   bg: string;
@@ -209,16 +225,35 @@ export interface CalendarSettings {
   titleAlign: 'left' | 'center';
   /** Day numbers in the top-left corner of each cell or centred in it. */
   numbers: 'corner' | 'center';
-  /** Day grid rules. */
-  grid: 'lines' | 'boxes' | 'none';
+  /** Day grid rules, or rounded tiles behind each date. */
+  grid: 'lines' | 'boxes' | 'tiles' | 'none';
   /** Font for month names and the year title (empty = the greeting font). */
   font: string;
   /** Font for the dates and weekday names (empty = Hind). */
   numFont: string;
   /** Dates in bold or regular weight. */
   numBold: boolean;
+  /** Font for the month captions (empty = the greeting font). */
+  capFont: string;
+  /** Size of the month title and of the dates, 1 = the layout's own size. */
+  titleScale: number;
+  numScale: number;
+  /** Dates and weekday names use the month title font (numFont is kept for when this is turned off). */
+  numSync: boolean;
+  /** The year beside each month name. */
+  showYear: boolean;
+  /** Sundays in the accent colour. */
+  sundays: boolean;
+  /** Font for the year page title (empty = the month font). */
+  titleFont: string;
   /** Show the quote as a subtitle under the title on the year page. */
   backQuote: boolean;
+  /** Marked days: none, national days only, or national days and festivals (data/holidays.ts). */
+  marks: 'off' | 'national' | 'all';
+  /** Names of marked days in the date cells (otherwise a small dot). */
+  markNames: boolean;
+  /** The user's own dates (birthdays, anniversaries), repeated every year. */
+  ownDates: { m: number; d: number; label: string }[];
 }
 export type CalTextPlace = 'off' | 'caption' | 'photo';
 
@@ -245,6 +280,10 @@ export interface Design {
   insta: string;
   headFont: string;
   quoteFont: string;
+  /** Signature font (empty = the quote font). */
+  sigFont: string;
+  /** Instagram tag font (empty = Hind). */
+  instaFont: string;
   textScale: number;
   vAlign: VAlign;
   hAlign: HAlign;
@@ -258,6 +297,8 @@ export interface Design {
   env: EnvelopeSettings;
   mat: MatWidth;
   designName: string;
+  /** Year on postmarks (envelope, postage-stamp layout); 0 = automatic: the calendar's year, else this year. */
+  postYear: number;
 }
 
 export interface Rect {
@@ -278,6 +319,8 @@ export interface Slot extends Rect {
   pts?: [number, number][];
   /** Tilt in radians, around the slot's centre (scrapbook prints). */
   rot?: number;
+  /** No accent outline around a shaped slot (clean, modern layouts). */
+  bare?: boolean;
   /** Drawn as an instant print: a paper border with a deeper bottom, a shadow and a strip of tape. */
   print?: boolean;
 }
@@ -291,7 +334,8 @@ export interface Layout {
   paper: Rect | null;
   stamp: Rect | null;
   post: { x: number; y: number; r: number } | null;
-  ink: 'frame' | null;
+  /** Text colour: the paper's ink ('frame'), the theme's darkest ink on a light panel ('dark'), or the default. */
+  ink: 'frame' | 'dark' | null;
   frame: boolean;
   frameLine: number;
   /** Photo frame: draw a bevelled mat edge around each photo window. */
@@ -301,6 +345,8 @@ export interface Layout {
   calGrid?: Rect;
   /** Calendar "Year strip": all twelve months in this box. */
   calYear?: Rect;
+  /** The text zone was already sized with the design's text size (calendar captions): don't scale the words again. */
+  textScaled?: boolean;
   /** Caption strips (magnet Polaroid and caption layouts): words are centred in the strip whatever vAlign says. */
   textCenter?: boolean;
   /** Text height as a share of the text zone's height (default 0.32); single-line caption bands use more. */
@@ -313,6 +359,10 @@ export interface Layout {
   film?: { r: Rect; vertical: boolean };
   /** A fine accent hairline this far inside the trim (minimal layouts). */
   hairline?: number;
+  /** A frosted-glass panel over the photo (the photo shows through, blurred and lightened). */
+  glass?: Rect;
+  /** Calendar "Big number": the month number drawn large in this box. */
+  calNum?: Rect;
   /** Badge magnet: greeting on the top arc and signature on the bottom arc of this circle. */
   arc?: { x: number; y: number; r: number; band: number };
 }

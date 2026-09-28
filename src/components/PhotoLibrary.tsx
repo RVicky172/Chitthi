@@ -23,7 +23,8 @@ import { relevance, type Hue } from '../engine/analyze';
 import { resolveTheme } from '../engine/design';
 import { getState, setPhotos, setUI, useApp } from '../state/store';
 import type { StoredPhoto } from '../types';
-import { Seg } from './common';
+import { shortName } from '../lib/credits';
+import { PhotoCredit, Seg } from './common';
 import { AddPhotoIcon, CloseIcon, CropIcon, TrashIcon } from './icons';
 import { PexelsSearch } from './PexelsSearch';
 
@@ -249,7 +250,8 @@ export function PhotoLibrary() {
                       {inSlot < 0 && it.card >= 0 && <b className="lib-badge muted">On design</b>}
                     </button>
                     <div className="lib-meta">
-                      <span className="lib-name">{it.name}</span>
+                      <span className="lib-name">{shortName(it.name)}</span>
+                      <PhotoCredit name={it.name} />
                       <span className="lib-facts">
                         {dm ? `${dm.w.toLocaleString()} × ${dm.h.toLocaleString()} · ${SHAPE_LABEL[shapeOf(dm.w, dm.h)]}` : '…'}
                         {sh && <em className={`q ${sh === 'sharp' ? 'good' : sh === 'fine' ? 'ok' : 'low'}`}>{`${sh} (${dpi} dpi)`}</em>}
