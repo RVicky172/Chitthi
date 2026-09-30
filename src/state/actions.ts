@@ -9,6 +9,7 @@ import { db } from '../lib/db';
 import { saveFile } from '../lib/download';
 import { ensureFonts, fontsFor } from '../lib/fonts';
 import { toast } from '../lib/toast';
+import { makeZip } from '../lib/zip';
 import type { Design, Photo, ProductId, SavedDesign, SizeDef, ViewerFaces } from '../types';
 import { storePhotos } from './library';
 import { getState, markPhotosSaved, replaceCard, resetHistory, setDesign, setDesignId, setExp, setPhotos, setUI } from './store';
@@ -428,7 +429,6 @@ export async function downloadQuotePack(ids: string[], onStep?: (msg: string) =>
   if (!ids.length) return;
   try {
     const q = await import('../engine/quote');
-    const { makeZip } = await import('../lib/zip');
     const { creditsText } = await import('../lib/credits');
     const entries: { name: string; data: Blob | string }[] = [],
       items: { label: string; d: Design }[] = [],
