@@ -178,13 +178,18 @@ export function sampleCredits(): Promise<SampleCredit[] | null> {
   return manifest;
 }
 
-const photoCache = new Map<string, Promise<Photo>>();
+// Loads in flight, so two samples sharing a photo decode it once. Finished photos are not kept: a decoded
+// 1600 px photo is ~7 MB, and the gallery keeps only its small rendered thumbnails (the browser's HTTP cache makes
+// reloading a sample's photos for "Use this" quick).
+const loading = new Map<string, Promise<Photo>>();
 function samplePhotoFile(c: SampleCredit): Promise<Photo> {
-  let p = photoCache.get(c.id);
+  let p = loading.get(c.id);
   if (!p) {
     const url = base + c.file;
-    p = loadImage(url).then((img) => makePhoto(img, pexelsName(c.alt, c.photographer, pexelsIdOf(c.pexelsUrl)), url));
-    photoCache.set(c.id, p);
+    p = loadImage(url)
+      .then((img) => makePhoto(img, pexelsName(c.alt, c.photographer, pexelsIdOf(c.pexelsUrl)), url))
+      .finally(() => loading.delete(c.id));
+    loading.set(c.id, p);
   }
   return p;
 }

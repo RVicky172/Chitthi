@@ -1,0 +1,167 @@
+/* ---------- performance monitor (lib/perf.ts, components/PerfMonitor.tsx) ---------- */
+.pm {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: var(--glass-hi);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-3);
+  font-size: 0.82rem;
+}
+.pm.small {
+  width: auto;
+}
+.pm-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 8px;
+}
+.pm:not(.small) .pm-top {
+  border-bottom: 1px solid var(--line);
+}
+.pm-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 4px;
+  color: var(--text);
+  font: 600 0.84rem/1.2 var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pm-title svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  flex: none;
+}
+.pm-title em {
+  font: 500 0.66rem/1 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-style: normal;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--sunk);
+}
+.pm-btn {
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font: 500 0.76rem/1.2 var(--font);
+  cursor: pointer;
+}
+.pm-btn.icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.pm-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.pm-body {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px 12px;
+}
+.pm-row {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.pm-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pm-name {
+  color: var(--muted);
+}
+.pm-val {
+  font: 600 0.92rem/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.pm-row.warn .pm-val {
+  color: var(--warn);
+}
+.pm-row.bad .pm-val {
+  color: var(--danger);
+}
+.pm-sub {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.pm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.pm-grid .pm-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.pm-grid .pm-name {
+  font-size: 0.7rem;
+}
+.spark {
+  display: block;
+  width: 100%;
+  height: 24px;
+}
+.spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.spark-fill {
+  fill: var(--accent-soft);
+  stroke: none;
+}
+.pm-row.warn .spark-line {
+  stroke: var(--warn);
+}
+.pm-row.bad .spark-line {
+  stroke: var(--danger);
+}
+.pm-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+@media (max-width: 600px) {
+  .pm {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: none;
+  }
+  .pm.small {
+    left: auto;
+  }
+}

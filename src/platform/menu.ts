@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { toggleTheme } from '../lib/theme';
 import { downloadPack, exportBackup, exportDesignFile, importText, newCard, open3D, saveDesign } from '../state/actions';
-import { getState, redo, setUI, undo } from '../state/store';
+import { getState, redo, setPerf, setUI, undo } from '../state/store';
 import { desktop, type MenuAction } from './desktop';
 
 const typing = () => {
@@ -43,6 +43,7 @@ const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
   sizes: () => setUI({ screen: 'sizes', gallery: false }),
   paper: () => setUI({ screen: 'paper', gallery: false }),
   find: () => setUI({ finder: true }),
+  perf: () => setPerf(!getState().ui.perf),
 };
 
 /** Desktop only: runs native menu commands and opens .chitthi files handed over by the OS. */

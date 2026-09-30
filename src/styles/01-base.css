@@ -1,0 +1,186 @@
+:root {
+  /* ground + surfaces (the --glass names are kept for compatibility: they are solid cards now) */
+  --bg: #f4ede1;
+  --blob1: rgba(196, 150, 96, 0.14);
+  --glass: #fffaf1;
+  --glass-hi: #fffdf8;
+  --glass-edge: #e7dccb;
+  --glass-shadow: 0 1px 2px rgba(60, 40, 20, 0.05), 0 4px 16px -4px rgba(60, 40, 20, 0.1);
+  --blur: none;
+
+  --panel: #fffaf1;
+  --sunk: #f1e8da;
+  --field: #fffdf8;
+  --field-hover: #faf3e7;
+
+  /* ink */
+  --text: #2a241e;
+  --muted: #6a5e52;
+  --line: #e7dccb;
+  --line-strong: #d4c5ae;
+
+  /* accents: warm umber */
+  --accent: #7a4a2b;
+  /* text/icons drawn ON an accent fill */
+  --on-accent: #fffaf1;
+  --accent-soft: #f1e1cd;
+  /* primary fill; cream text stays >= 7:1 across it */
+  --grad: linear-gradient(180deg, #86573a 0%, #74452a 100%);
+  --glow: 0 1px 2px rgba(116, 69, 42, 0.25), 0 4px 12px -2px rgba(116, 69, 42, 0.3);
+  --ink: #7a4a2b;
+  --danger: #b4232f;
+  --good: #3f6b35;
+  --warn: #8a5a00;
+
+  /* preview stage */
+  --stage: #2b2723;
+  --stageline: rgba(255, 245, 230, 0.06);
+  --shadow: rgba(60, 40, 20, 0.14);
+
+  /* elevation, shape, motion */
+  --elev-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --elev-2: var(--glass-shadow);
+  --elev-3: 0 12px 32px -8px rgba(16, 24, 40, 0.18);
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur: 220ms;
+
+  --font: 'Geist', 'Hind', 'Mukta', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'Instrument Serif', 'Tiro Devanagari Hindi', Georgia, serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #151515;
+    --blob1: rgba(255, 255, 255, 0.03);
+    --glass: #1e1e1e;
+    --glass-hi: #262626;
+    --glass-edge: #2f2f2f;
+    --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+    --panel: #1e1e1e;
+    --sunk: #191919;
+    --field: #232323;
+    --field-hover: #2a2a2a;
+    --text: #ededeb;
+    --muted: #a5a39f;
+    --line: #2f2f2f;
+    --line-strong: #404040;
+    --accent: #f0a04b;
+    --on-accent: #1c140b;
+    --accent-soft: rgba(240, 160, 75, 0.16);
+    --grad: linear-gradient(180deg, #f5ad5f 0%, #e8923a 100%);
+    --glow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px -2px rgba(240, 160, 75, 0.28);
+    --ink: #f0a04b;
+    --danger: #ff7a7a;
+    --good: #8fcf86;
+    --warn: #e8b86a;
+    --stage: #0e0e0e;
+    --shadow: rgba(0, 0, 0, 0.55);
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --elev-3: 0 16px 40px -8px rgba(0, 0, 0, 0.65);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #151515;
+  --blob1: rgba(255, 255, 255, 0.03);
+  --glass: #1e1e1e;
+  --glass-hi: #262626;
+  --glass-edge: #2f2f2f;
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --panel: #1e1e1e;
+  --sunk: #191919;
+  --field: #232323;
+  --field-hover: #2a2a2a;
+  --text: #ededeb;
+  --muted: #a5a39f;
+  --line: #2f2f2f;
+  --line-strong: #404040;
+  --accent: #f0a04b;
+  --on-accent: #1c140b;
+  --accent-soft: rgba(240, 160, 75, 0.16);
+  --grad: linear-gradient(180deg, #f5ad5f 0%, #e8923a 100%);
+  --glow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px -2px rgba(240, 160, 75, 0.28);
+  --ink: #f0a04b;
+  --danger: #ff7a7a;
+  --good: #8fcf86;
+  --warn: #e8b86a;
+  --stage: #0e0e0e;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --elev-3: 0 16px 40px -8px rgba(0, 0, 0, 0.65);
+  color-scheme: dark;
+}
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+  height: 100%;
+  background: var(--bg);
+}
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+/* Content inside <details> is slotted through the browser's own shadow tree, which doesn't inherit box-sizing:
+   set it on fields and every descendant of details directly. */
+input,
+textarea,
+select,
+button,
+details * {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 var(--font);
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+  height: 100%;
+}
+/* a single faint warm wash at the top of the page (static: no blur, no animation) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(1200px 520px at 50% -12%, var(--blob1), transparent 70%);
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+button {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+[hidden] {
+  display: none !important;
+}
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}

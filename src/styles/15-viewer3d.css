@@ -1,0 +1,105 @@
+/* ---------- 3D viewer: all months ---------- */
+.vmode .seg {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.vmode .seg button {
+  color: rgba(255, 255, 255, 0.75);
+}
+.vmode .seg button:hover {
+  color: #fff;
+}
+.vmode .seg button[aria-pressed='true'] {
+  background: #fff;
+  color: #221e1a;
+}
+.vnav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+.vnav .btn {
+  font-size: 1.2rem;
+  line-height: 1;
+  padding-inline: 12px;
+}
+.vring,
+.vwall {
+  position: relative;
+  transform-style: preserve-3d;
+}
+.vpage {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  transform-style: preserve-3d;
+}
+.vpage .face,
+.vleaf .face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.vpage .face img,
+.vleaf .face img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.vpage .face.b,
+.vleaf .face.b {
+  transform: rotateY(180deg);
+  background: #efece5;
+}
+.vleaf .face.b {
+  transform: rotateX(180deg);
+}
+.vpage figcaption {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 500 0.82rem/1.2 var(--font);
+  color: rgba(255, 255, 255, 0.8);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+}
+.vpage .face.f {
+  cursor: pointer;
+}
+.vwall {
+  cursor: pointer;
+}
+.vleaf {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 0;
+  transform-style: preserve-3d;
+  transition: transform 0.9s var(--ease);
+}
+/* spiral binding along the top edge */
+.vbind {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: -9px;
+  height: 18px;
+  transform: translateZ(3px);
+  background: radial-gradient(circle at 50% 50%, transparent 3px, #2a2f36 3.5px, #9aa3ad 5px, #3b424b 6.5px, transparent 7px) 0 0 / 16px 18px repeat-x;
+  pointer-events: none;
+  z-index: 50;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vleaf {
+    transition: none;
+  }
+}

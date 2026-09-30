@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('chitthiDesktop', {
   showInFolder: invoke('desktop:showInFolder'),
   openExternal: invoke('desktop:openExternal'),
   openDesignFile: invoke('desktop:openDesignFile'),
+  metrics: invoke('desktop:metrics'),
   onMenu: listen('menu'),
   onOpenFile: listen('open-file'),
   // AI requests: the main process adds the API key; the page can set, check and delete keys, never read them.

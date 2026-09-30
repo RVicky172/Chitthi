@@ -24,7 +24,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run test:mcp` | Starts `npm run mcp` and runs the official MCP client against it: lists tools, resources and prompts, builds a calendar, renders a preview, checks, exports a PDF, and checks errors (`scripts/mcp-smoke.mjs`). With `CHITTHI_MCP_APP=<path to Chitthi.exe>` it tests a packaged or installed app instead |
 | `npm run build` | Type check, production bundle into `dist/`, then `scripts/check-bundle.mjs`: fails if the start-up script grows past 350 KB or contains AI code (which must load with `import()`) |
 | `npm run preview` | Serves `dist/` on http://localhost:8080 (same Pexels proxy) |
-| `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` for the design-system sync (`src/index.ts`) |
+| `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` and a flattened `dist-lib/styles.css` (`scripts/flatten-css.mjs`) for the design-system sync (`src/index.ts`) |
 | `npm run fetch:samples` | Downloads the gallery sample photos from Pexels into `public/samples/` with credits (needs the key) |
 | `npm run fetch:fonts` | Downloads every card and UI font into `electron/resources/fonts/` for the offline desktop app |
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |

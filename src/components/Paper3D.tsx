@@ -11,7 +11,7 @@ import { selectSize, switchProduct } from '../state/actions';
 import { getState, setDesign, setUI, useApp } from '../state/store';
 import type { Design, Orient, Photo, ProductId, SizeDef } from '../types';
 import { Seg } from './common';
-import { Logo } from './icons';
+import { SiteNav } from './SiteNav';
 
 /*
  * Paper sizes in 3D (#/paper): every size Chitthi prints, laid on a cutting mat at true relative scale, with a real
@@ -419,28 +419,7 @@ export function Paper3D() {
 
   return (
     <div className="landing sg p3">
-      <nav className="lnav" aria-label="Main">
-        <a
-          className="lbrand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            setUI({ screen: 'home' });
-          }}
-        >
-          <Logo />
-          <span>Chitthi</span>
-        </a>
-        <button type="button" className="btn ghost" onClick={() => setUI({ screen: 'sizes' })}>
-          Sizes guide
-        </button>
-        <button type="button" className="btn ghost" onClick={() => setUI({ finder: true })}>
-          Find a feature
-        </button>
-        <button type="button" className="btn primary" onClick={() => setUI({ screen: 'studio' })}>
-          Open studio
-        </button>
-      </nav>
+      <SiteNav actions={[{ key: 'sizes', label: 'Sizes guide', onSelect: () => setUI({ screen: 'sizes' }) }]} />
       <main>
         <header className="sg-head">
           <h1>Paper sizes in 3D</h1>

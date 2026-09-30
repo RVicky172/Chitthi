@@ -1,0 +1,54 @@
+/* ---------- calendar: month captions in the Front step ---------- */
+.mcaps-box {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  background: var(--field);
+}
+.mcaps-box summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.mcaps-box summary small {
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 6px;
+}
+.mcaps {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.mcaps li {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px 3px 8px;
+  border-radius: var(--r-sm);
+  transition: background var(--dur-fast);
+}
+.mcaps li.on {
+  background: var(--accent-soft);
+}
+.mcaps label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.mcaps label b {
+  font-size: 0.86rem;
+}
+.mcaps label small {
+  font: 0.68rem var(--mono);
+  color: var(--muted);
+}
+.mcaps li.on label b {
+  color: var(--accent);
+}
+.mcaps input {
+  min-width: 0;
+}

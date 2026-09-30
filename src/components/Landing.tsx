@@ -11,9 +11,9 @@ import { isDesktop } from '../platform/desktop';
 import { startProduct } from '../state/actions';
 import { setUI } from '../state/store';
 import type { ProductId } from '../types';
-import { canFullscreen, toggleFullscreen, useFullscreen } from '../lib/fullscreen';
 import { EnvelopeScene, SpinCard, TiltStage } from './Landing3D';
-import { FullscreenIcon, GalleryIcon, Logo, ProductIcon, SearchIcon, SettingsIcon } from './icons';
+import { GalleryIcon, ProductIcon } from './icons';
+import { SiteNav } from './SiteNav';
 
 /*
  * Landing page. Every picture is a real Chitthi render made ahead of time (npm run build:showcase) and served as a
@@ -87,50 +87,22 @@ type Filter = 'all' | ProductId;
 export function Landing() {
   const open = (p: ProductId) => startProduct(p);
   const [filter, setFilter] = useState<Filter>('all');
-  const full = useFullscreen();
   const examples = SHOTS.filter((s) => s.render === 'front' && (filter === 'all' || s.product === filter));
   return (
     <div className="landing ld">
-      <nav className="lnav" aria-label="Main">
-        <a className="lbrand" href="#" onClick={(e) => e.preventDefault()}>
-          <Logo />
-          <span>Chitthi</span>
-        </a>
-        <div className="lnav-links">
-          <a href="#examples">Examples</a>
-          <a href="#products">Products</a>
-          <a href="#features">Features</a>
-          <a href="#in3d">3D</a>
-          <a href="#how">How it works</a>
-          <a href="#/sizes">Sizes</a>
-          <a href="#/paper">Sizes in 3D</a>
-        </div>
-        <button type="button" className="btn icon ghost" title="Find a feature (Ctrl+K)" aria-label="Find a feature" onClick={() => setUI({ finder: true })}>
-          <SearchIcon />
-        </button>
-        {canFullscreen() && (
-          <button
-            type="button"
-            className="btn icon ghost"
-            title={full ? 'Leave full screen' : 'Full screen'}
-            aria-label={full ? 'Leave full screen' : 'Full screen'}
-            aria-pressed={full}
-            onClick={() => void toggleFullscreen()}
-          >
-            <FullscreenIcon on={full} />
-          </button>
-        )}
-        <button type="button" className="btn icon ghost" title="Settings" aria-label="Settings" onClick={() => setUI({ settings: true })}>
-          <SettingsIcon />
-        </button>
-        <button type="button" className="btn ghost" onClick={() => setUI({ gallery: true })}>
-          <GalleryIcon />
-          <span className="lbl">Gallery</span>
-        </button>
-        <button type="button" className="btn primary" onClick={() => setUI({ screen: 'studio' })}>
-          Open studio
-        </button>
-      </nav>
+      <SiteNav
+        isHome
+        links={[
+          { label: 'Examples', href: '#examples' },
+          { label: 'Products', href: '#products' },
+          { label: 'Features', href: '#features' },
+          { label: '3D', href: '#in3d' },
+          { label: 'How it works', href: '#how' },
+          { label: 'Sizes', href: '#/sizes' },
+          { label: 'Sizes in 3D', href: '#/paper' },
+        ]}
+        actions={[{ key: 'gallery', label: 'Gallery', icon: <GalleryIcon />, onSelect: () => setUI({ gallery: true }) }]}
+      />
 
       <main>
         <header className="ld-hero">

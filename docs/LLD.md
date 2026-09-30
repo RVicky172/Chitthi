@@ -39,6 +39,7 @@ src/
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
+    perf.ts                  Performance monitor sampler (CPU / load, frames, memory, photos, storage) and report
     download.ts, zip.ts, toast.ts, theme.ts
   ai/                      Loaded with import() only when an AI feature is used (section 5, AI)
     types.ts                 TextAdapter, ImageAdapter, requests, AiError, aspect helpers
@@ -57,6 +58,8 @@ src/
     menu.ts                  Desktop menu commands → actions
   dev/showcase.ts          Development only: renders the landing examples for npm run build:showcase
   components/              React UI (section 8)
+  styles.css               Ordered @imports of styles/ (section 8, Styles)
+  styles/                  The stylesheet split by feature: 01-base.css … 33-perf-monitor.css, in cascade order
 electron/
   main.cjs                 Main process: window, app:// protocol + CSP, file library, dialogs, menus, updater
   preload.cjs              contextBridge: the only system access for the page
@@ -406,6 +409,7 @@ One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPho
 | `desktop:showInFolder(path)` | invoke | Only for paths saved in this session |
 | `desktop:openExternal(url)` | invoke | `https:` and `mailto:` only |
 | `desktop:openDesignFile()` | invoke | Open dialog for `.chitthi` / `.json` |
+| `desktop:metrics()` | invoke | CPU (% of one core since the last call) and working-set memory of every Chitthi process (`app.getAppMetrics`), CPU count and total memory, for the performance monitor |
 | `db:*` | invoke | Storage above |
 | `menu` | main → page | Menu command (`MenuAction`, handled in `platform/menu.ts`) |
 | `open-file` | main → page | A `.chitthi` file opened from the OS |
@@ -444,19 +448,49 @@ App
 ├─ Landing                       home: hero, product cards (live renders), how it works
 ├─ SizeGuide                     #/sizes: size table, to-scale diagram, layouts at the chosen size
 ├─ Paper3D                       #/paper: every size in 3D at true relative scale (see below)
+│    (the three pages share SiteNav: brand, page links and actions, Find, Settings, full screen, Open studio)
 ├─ Studio
-│  ├─ Header                     product switcher, Photos (library), theme, sizes guide, settings, undo/redo, save, print pack
+│  ├─ Header                     product switcher, Find, Photos (library), theme, sizes guide, settings, full screen,
+│  │                             undo/redo, save, print pack, and a More menu (MoreMenu) for whatever doesn't fit
 │  ├─ Rail                       six steps + gallery
 │  ├─ panel → Pane per step      PhotosPane (upload, PexelsSearch, PhotoStore, photo list)
 │  │                             LayoutPane (orientation, layouts, calendar / mat options, sizes)
 │  │                             OccasionPane, WordsPane (CardWords, or CalendarFront for calendars),
 │  │                             BackPane (per product), PrintPane
-│  └─ Stage                      side toggle, guides, month pager, 3D button, live canvas (drag, wheel, keys),
+│  └─ Stage                      side toggle, guides, month pager, 3D button (phones: a View menu), live canvas (drag, wheel, keys),
 │                                MonthStrip (calendars), PhotoTray (slots + store)
 ├─ FeatureFinder (Ctrl+K: search every feature; opens the step and reveals the section, or runs the action)
 ├─ CropDialog, GalleryDialog (+ SampleGallery), PhotoLibrary, SettingsDialog (key, fonts),
 │  Viewer3D (card / ring / wall / envelope modes), Toast
+└─ PerfMonitor (lazy; while ui.perf is on)
 ```
+
+**Responsive layout.** Nothing on any screen scrolls sideways from 1920 px down to 360 px (checked with Playwright at
+1920, 1440, 1280, 1100, 1024, 900, 820, 700, 600, 390 and 360 px). Secondary actions move into a menu instead of
+wrapping. The widths, all in `styles/32-header-nav.css` unless noted:
+
+| Width | Studio header (`Header`) | Page nav (`SiteNav`) | Stage |
+| --- | --- | --- | --- |
+| > 1480 px | Everything inline with labels | Links, actions and icons inline | Full bar |
+| 1241–1480 px | Find, Photos and Save as icons (product names keep their labels) | same | same |
+| 961–1240 px | Product switcher icons only | ≤ 1100 px: links and page actions fold into **Menu** | same |
+| 601–960 px | Theme, sizes guide, settings, full screen fold into **More** | same | Card gets a fixed height and the stage grows (≤ 860 px, `styles/11-phones.css` + `32`) |
+| ≤ 600 px | Logo, undo, redo, print pack and More on one row; the product switcher gets its own row (icon over name); Find, Photos and Save fold into More | Find, Settings and full screen fold into Menu | Print guides / Print colours fold into a **View** menu, 3D view is an icon |
+
+`MoreMenu` renders one list for every width; each row's class (`mm-md`, `mm-sm`) decides at which width it is listed,
+matching the `hide-md` / `hide-sm` class on the inline button, so an action is always in exactly one place. It closes
+on Escape or an outside click and supports arrow keys, Home and End.
+
+**Styles.** `src/styles.css` is an ordered list of `@import`s of `src/styles/NN-feature.css` (numbers = cascade
+order; Vite inlines them). Add rules to their feature's file and keep a media query next to the rules it adjusts.
+`npm run build:lib` also writes `dist-lib/styles.css`, the same stylesheet flattened, for the design-system sync.
+
+**Performance monitor** (`lib/perf.ts`, `PerfMonitor.tsx`; More → Performance monitor, Find a feature, or View →
+Performance monitor on desktop; the choice is kept in `localStorage['chitthi-perf']`). It samples once a second only
+while open and pauses while the page is hidden: frames drawn, long tasks (`PerformanceObserver('longtask')`) as a
+"main thread busy" share, worst timer delay, JS heap (Chromium), DOM size, decoded photo bytes, undo-history bytes and
+storage use; on desktop also CPU and memory per process type from `desktop:metrics`. **Copy report** puts the last
+two minutes of samples and a summary on the clipboard as JSON. See [PERFORMANCE.md](PERFORMANCE.md).
 
 Steps are built from `Section` (`components/common.tsx`): a titled, collapsible group whose open state is kept in
 `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
@@ -505,7 +539,10 @@ and typing redraws within one frame even with the 24 layout and 12 month thumbna
 copies (mipmaps) and a binary-search text fit were tried and measured slower, so they were left out.
 
 Performance details: layout and month thumbnails redraw from `useDeferredValue` copies. Only the current step
-pane and its neighbours are mounted. Sample renders and Pexels results are cached for the session.
+pane and its neighbours are mounted. Sample thumbnails are cached for the session (their decoded photos are not; they
+reload for "Use this"), Pexels results for the last 60 searches. The undo history drops its oldest steps once the
+processed photo canvases only it still holds pass 320 MB (at least 10 steps stay). Memory rules in full:
+[PERFORMANCE.md](PERFORMANCE.md).
 
 ## 9. Extension points
 

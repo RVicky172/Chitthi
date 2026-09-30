@@ -10,6 +10,7 @@ import { getState, patchPhoto, setUI, useApp } from '../state/store';
 import type { Layout, Photo, Rect } from '../types';
 import { Seg } from './common';
 import { CubeIcon, PrevIcon, NextIcon } from './icons';
+import { MoreMenu } from './MoreMenu';
 import { PhotoTray } from './PhotoTray';
 
 interface Drag {
@@ -115,7 +116,7 @@ export function Stage() {
             onChange={(v) => setUI({ side: v })}
           />
         </div>
-        <div className="pill">
+        <div className="pill hide-sm">
           <label className="check">
             <input type="checkbox" checked={guides} onChange={(e) => setUI({ guides: e.target.checked })} /> Print guides
           </label>
@@ -155,11 +156,20 @@ export function Stage() {
           </div>
         )}
         <div className="pill">
-          <button type="button" className="pbtn" onClick={() => void open3D()}>
+          <button type="button" className="pbtn" aria-label="3D view" onClick={() => void open3D()}>
             <CubeIcon />
-            3D view
+            <span className="hide-sm">3D view</span>
           </button>
         </div>
+        {/* Phones: the two view toggles fold into a menu so the bar stays on one row above the card. */}
+        <MoreMenu
+          className="show-sm pill-menu"
+          label="View options"
+          items={[
+            { key: 'guides', label: 'Print guides (trim and safe area)', checked: guides, onSelect: () => setUI({ guides: !guides }) },
+            { key: 'proof', label: 'Print colours (how colours print)', checked: proof, onSelect: () => setUI({ proof: !proof }) },
+          ]}
+        />
       </div>
       <div className="cardwrap" ref={wrap} aria-busy={!!loading}>
         {loading && (

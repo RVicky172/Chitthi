@@ -166,6 +166,8 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Print accuracy | All geometry in millimetres; rendering scales by pixels-per-mm, so preview and 300 dpi output share one code path. Bleed extends edge-touching photos; guides show trim and safe area |
 | Offline | Service worker (web); everything bundled (desktop) |
 | Performance | Lazy jsPDF; deferred thumbnail redraws; per-session caches for sample renders and Pexels results; photos pre-processed once (crop, rotate, look) |
+| Memory | Explicit budgets: 16 MP per photo, undo history capped at 320 MB of extra photo canvases, caches limited or dropped after use, AI and agent images size-capped. A built-in performance monitor shows CPU (desktop), main-thread load, memory and photo memory ([PERFORMANCE.md](PERFORMANCE.md)) |
+| Responsive UI | One layout from 1920 px to 360 px with no sideways scrolling: secondary header actions fold into a More / Menu list instead of wrapping ([LLD §8](LLD.md#8-components))
 | Accessibility | Keyboard-operable stage (arrow keys and zoom), labelled controls, live regions, WCAG AA contrast in both themes, reduced-motion support |
 | Maintainability | Specifications as data ([SPECIFICATIONS.md](SPECIFICATIONS.md)); engine free of UI code; strict TypeScript with exhaustive `Record<ProductId, …>` maps |
 | Portability | One build for web and desktop; platform differences are behind `lib/db.ts` and `platform/desktop.ts` |

@@ -11,6 +11,7 @@ const GalleryDialog = named(() => import('./components/GalleryDialog'), 'Gallery
 const PhotoLibrary = named(() => import('./components/PhotoLibrary'), 'PhotoLibrary');
 const SettingsDialog = named(() => import('./components/SettingsDialog'), 'SettingsDialog');
 const Viewer3D = named(() => import('./components/Viewer3D'), 'Viewer3D');
+const PerfMonitor = named(() => import('./components/PerfMonitor'), 'PerfMonitor');
 import { Header } from './components/Header';
 import { FeatureFinder } from './components/FeatureFinder';
 import { BackPane } from './components/panes/BackPane';
@@ -46,7 +47,8 @@ export default function App() {
     galleryOpen = useApp((s) => s.ui.gallery),
     libraryOpen = useApp((s) => s.ui.library),
     settingsOpen = useApp((s) => s.ui.settings),
-    viewerOpen = useApp((s) => !!s.ui.viewer);
+    viewerOpen = useApp((s) => !!s.ui.viewer),
+    perfOpen = useApp((s) => s.ui.perf);
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
     backFont = useApp((s) => s.design.back.font),
@@ -123,6 +125,7 @@ export default function App() {
         {settingsOpen && <SettingsDialog />}
         {libraryOpen && <PhotoLibrary />}
         {viewerOpen && <Viewer3D />}
+        {perfOpen && <PerfMonitor />}
       </Suspense>
       <FeatureFinder />
       <Toast />

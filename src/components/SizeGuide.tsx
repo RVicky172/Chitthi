@@ -11,7 +11,8 @@ import { getState, setDesign, setUI, useApp } from '../state/store';
 import type { Design, LayoutId, Orient, ProductId, SizeDef } from '../types';
 import { LayoutThumb } from './canvases';
 import { Seg } from './common';
-import { Logo, ProductIcon } from './icons';
+import { ProductIcon } from './icons';
+import { SiteNav } from './SiteNav';
 
 /*
  * The sizes guide (#/sizes): every size of every product with its trim, bleed, safe area, pixel sizes and how many
@@ -157,34 +158,12 @@ export function SizeGuide() {
 
   return (
     <div className="landing sg">
-      <nav className="lnav" aria-label="Main">
-        <a
-          className="lbrand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            setUI({ screen: 'home' });
-          }}
-        >
-          <Logo />
-          <span>Chitthi</span>
-        </a>
-        <button type="button" className="btn ghost" onClick={() => setUI({ screen: 'paper' })}>
-          Sizes in 3D
-        </button>
-        <button type="button" className="btn ghost" onClick={() => void downloadQuote('catalog')}>
-          Specification PDF for printers
-        </button>
-        <button type="button" className="btn ghost" onClick={() => setUI({ finder: true })}>
-          Find a feature
-        </button>
-        <button type="button" className="btn ghost" onClick={() => setUI({ settings: true })}>
-          Settings
-        </button>
-        <button type="button" className="btn primary" onClick={() => setUI({ screen: 'studio' })}>
-          Open studio
-        </button>
-      </nav>
+      <SiteNav
+        actions={[
+          { key: 'paper', label: 'Sizes in 3D', onSelect: () => setUI({ screen: 'paper' }) },
+          { key: 'spec', label: 'Specification PDF for printers', onSelect: () => void downloadQuote('catalog') },
+        ]}
+      />
       <main>
         <header className="sg-head">
           <h1>Sizes and layouts</h1>

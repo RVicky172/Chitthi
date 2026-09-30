@@ -1,0 +1,37 @@
+/* ---------- 3D viewer: zoom, lighting ---------- */
+.vzoom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.vzoom-ctl {
+  display: inline-flex;
+  gap: 2px;
+}
+.vzoom-ctl .btn {
+  min-width: 34px;
+  padding-inline: 8px;
+  justify-content: center;
+}
+.vzoom-pct {
+  font-variant-numeric: tabular-nums;
+  min-width: 58px !important;
+}
+.vcard .shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #000;
+  opacity: var(--shadeF, 0);
+}
+.vcard .shade.b {
+  opacity: var(--shadeB, 0);
+}
+.vcard .gloss,
+.vpage .gloss,
+.vleaf .gloss {
+  background-position: var(--gx, 50%) var(--gy, 50%);
+}

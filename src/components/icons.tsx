@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowRight,
   Box,
   CalendarDays,
@@ -8,6 +9,7 @@ import {
   ChevronRight,
   Crop,
   Download,
+  Ellipsis,
   Expand,
   Maximize,
   Minimize,
@@ -19,6 +21,7 @@ import {
   Lightbulb,
   Magnet,
   Mail,
+  Menu,
   Moon,
   Package,
   Pencil,
@@ -90,6 +93,9 @@ export const SuggestIcon = () => <Lightbulb {...base} />;
 export const SearchIcon = () => <Search {...base} />;
 export const SettingsIcon = () => <Settings {...base} />;
 export const RulerIcon = () => <Ruler {...base} />;
+export const MoreIcon = () => <Ellipsis {...base} />;
+export const MenuIcon = () => <Menu {...base} />;
+export const ActivityIcon = () => <Activity {...base} />;
 
 /** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
 export const InstagramIcon = () => (

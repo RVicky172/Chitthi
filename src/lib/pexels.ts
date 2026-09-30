@@ -121,6 +121,8 @@ export function searchPexels(query: string, orientation: PexelsOrientation | nul
   if (!hit) {
     hit = request(params);
     cache.set(id, hit);
+    // Keep the last 60 searches (a few hundred KB of JSON); the oldest go first.
+    if (cache.size > 60) cache.delete(cache.keys().next().value!);
     hit.catch(() => cache.delete(id));
   }
   return hit;

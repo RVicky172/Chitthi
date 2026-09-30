@@ -1,0 +1,250 @@
+/* ---------- photo dock (replaces the tray under the preview) ---------- */
+.dock {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: min(calc(100% - 24px), 1040px);
+  margin: 0 auto 8px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #f3eee6;
+}
+.dock-slots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dock-slot {
+  position: relative;
+  border-radius: 12px;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.dock-slot > button {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast),
+    box-shadow var(--dur-fast);
+}
+.dock-slot > button svg {
+  width: 20px;
+  height: 20px;
+}
+.dock-slot > button:has(svg) {
+  border-style: dashed;
+}
+.dock-slot canvas,
+.dock-ph canvas,
+.dock-ph img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dock-slot.on > button {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.dock-slot.over {
+  transform: scale(1.08);
+}
+.dock-slot.over > button {
+  border-color: #fff;
+  border-style: solid;
+}
+.dock-num {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(20, 18, 16, 0.9);
+  color: #fff;
+  font: 700 0.64rem/18px var(--font);
+  text-align: center;
+  pointer-events: none;
+}
+.dock-slot.on .dock-num {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.dock-acts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dock-acts button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f3eee6;
+}
+.dock-acts button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.dock-acts svg {
+  width: 15px;
+  height: 15px;
+}
+.dock-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dock-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.dock-suggest ul {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Fade the edge so it's clear the row scrolls. */
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, #000 88%, transparent);
+  scroll-snap-type: x proximity;
+}
+.dock-suggest ul::-webkit-scrollbar {
+  display: none;
+}
+.dock-suggest li {
+  flex: none;
+  scroll-snap-align: start;
+}
+.dock-ph {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: grab;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast);
+}
+.dock-ph:hover,
+.dock-ph:focus-visible {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+.dock-ph.mine::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1.5px rgba(20, 18, 16, 0.8);
+}
+.dock-empty {
+  padding: 12px 4px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.8rem;
+}
+.dock-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dock-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3eee6;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dock-tool:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+.dock-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dock-tool svg {
+  width: 18px;
+  height: 18px;
+}
+.dock-tool input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+@media (max-width: 1100px) {
+  .dock-tool.wide span {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .dock {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dock-slots {
+    grid-column: 1 / -1;
+    border-right: 0;
+    padding-right: 0;
+    overflow-x: auto;
+  }
+  .dock-slot > button {
+    width: 50px;
+    height: 50px;
+  }
+}
+/* The dock sits on the dark stage in both themes: its highlight is saffron, not the theme accent. */
+.dock-slot.on > button {
+  border-color: #f0a04b;
+  box-shadow: 0 0 0 3px rgba(240, 160, 75, 0.35);
+}
+.dock-slot.on .dock-num,
+.dock-ph.mine::after {
+  background: #f0a04b;
+  color: #1c140b;
+}

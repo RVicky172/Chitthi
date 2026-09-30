@@ -1,110 +1,129 @@
-# Chitthi – print studio
+<div align="center">
 
-Design **postcards**, **calendars**, **framed prints** and **fridge magnets** from your own photos, with Indian
-festival, birthday and season themes, then download print-ready files: PNGs and PDFs with bleed and crop marks, plus
-a print specification for the shop.
+<img src="public/favicon/logo.svg" alt="Chitthi logo" width="96" height="96" />
 
-Chitthi runs entirely on the user's device, in the browser or as a desktop app for Windows and macOS. There is no
-backend and photos are never uploaded. Optional **AI writing and pictures** use the user's own key with the AI service
-they choose, and AI agents such as **Claude Code** can drive the desktop app through its **MCP server**.
+# Chitthi
 
-- **Web:** a static site (Docker image with nginx included).
-- **Desktop:** download the installer from [GitHub Releases](https://github.com/RVicky172/Chitthi/releases). It
-  works offline and updates itself.
+**A print studio for postcards, calendars, framed prints and fridge magnets, made from your own photos.**
 
-## Features
+Indian festival, birthday and season themes · print-ready PDFs with bleed and crop marks · a matching envelope ·
+runs entirely on your device, in the browser or as a desktop app
 
-| Area | What you get |
-| --- | --- |
-| **Postcards** | 4×6 in, A6, India Post, 5×7, 6×9, 6×11 in, DL, square, Instax Mini / Square / Wide, A5, A4, custom. 25 layouts, including modern ones (offset block, diagonal duo, scrapbook, film strip, minimal, twin arches, frosted glass). Postal back with message, address, PIN boxes and stamp box |
-| **Calendars** | A4, A3, A5 desk, tabloid, 12×12 in, for **any year** (typed or stepped with − / +; new calendars start on the current year). 12 months from any start month, a single month, or the whole year on one page (**Year strip**). 9 layouts, including modern **Frosted glass**, **Big number** (the default, with tiled dates) and **Arch window**. **Festivals and your dates**: national days and festivals marked in red with their names (dates from the Government of India holiday lists, built in for 2026 and 2027; fixed national days for any year), plus your own birthdays and anniversaries, repeated every year. The Front step is grouped as *Style → Year → Month title → Dates → Words*: five ready-made styles (Classic, Modern, Minimal, Elegant, Bold); month title font, size, alignment and year on / off; dates in the title font or their own, with size, bold, Sundays in colour, corner or centred, and rows / boxes / tiles / no lines; words above the month or on the photo with **a caption per month**. Every page uses the same title size and a five-row grid, so the months line up when bound. Year-at-a-glance back |
-| **Photo frames** | 4×6 up to 11×14 in, A4, A3, square. Thin, classic or wide mat. Single, caption, pair, triptych, grid and feature layouts. Dedication label for the back |
-| **Fridge magnets** | 2×2, 2×3, 3×3, 3×4, 2.5×3.5, 4×6 in with rounded corners, 58 and 75 mm round button magnets. Full photo, caption, mini Polaroid, badge (lettering around the photo), two and four photo, words-only layouts. Many to a sheet |
-| **Occasions** | 16 festivals, 5 birthday styles and 5 seasons with drawn artwork and wishes in English, Hindi, Hinglish and regional scripts, or plain colours |
-| **Smart photos** | Every photo is analysed once (shape, colour, brightness, contrast, sharpness and where its subject is). The library sorts by **relevance** to the selected slot, shows a match score, filters by colour, light, mood and print quality, and search understands words like *blue*, *warm*, *sky* or *bright*. **Auto-arrange** puts each photo in the slot that suits it and centres each crop on its subject; **Fill empty slots** picks the best matches from the library |
-| **Photo library** | **Photos** in the top bar: every photo on the device, with upload, crop, take off and delete. Filters by shape, source and use, and **"Fits this slot"** shows the photos whose shape suits the selected slot of the current layout, each with its print sharpness there. The strip under the preview adds, removes and crops photos too |
-| **Photos** | Upload with clear checks, crop (free, 1:1 … 16:9, or the exact shape of the slot), rotate, mirror, zoom, drag, colour looks, print-sharpness in dpi |
-| **Free photos** | Search **Pexels** from the Photos step, with ideas from the occasion, product and calendar month, filtered to the shape of the selected photo slot. The API key is entered in **Settings**. Follows the Pexels guidelines: a linked "Photo by … on Pexels" credit on every result and every placed photo, a `PHOTO-CREDITS.txt` in print packs, an optional printed credit, the hourly limit respected, and a warning before selling an unaltered photo (see [docs/PEXELS.md](docs/PEXELS.md)) |
-| **Words** | 46 font families including Devanagari, Gurmukhi, Gujarati, Bengali, Tamil, Malayalam, Kannada, Telugu and Odia, plus **your own fonts** (TTF, OTF, WOFF, WOFF2) kept on the device for every design. **Every text field has its own font**: greeting, quote, signature and Instagram tag; on the back the message, From line, address and PIN, and the printed labels; on calendars the captions, month titles, dates and the year-page title |
-| **Envelopes** | A matching envelope for every design: the smallest standard size it fits (C6, A7, DL, square…), dressed in the same occasion with a photo seal, the address, and the Chitthi logo stamp as the product mark on the back. Exported with the print pack as a print-on-envelope PDF and a fold-your-own template, and viewable in 3D with the flap opening and the card sliding out |
-| **Paper sizes in 3D** | A page (`#/paper`) with every size laid on a cutting mat at true relative scale, each showing a real design: postcards, calendars, frame prints, magnets, their envelopes, print sheets, and a bank card and ₹10 coin for reference. **Side by side**, **Stacked** (largest at the bottom) or **On a print sheet** (imposed exactly as the sheet PDF does it, with pieces you can lift off). Drag to turn, Shift + drag to move, scroll or pinch to zoom, top / angled / low views, and an **Actual size** top view. Click a piece for its size, bleed, pixels, paper, sheet counts and envelope |
-| **Sizes and layouts guide** | A page with every size of every product, filtered by shape (square, rounded, round), scale and search: trim, bleed and safe area drawn to scale, pixel sizes, how many fit on a sheet, and every layout at that size (filtered by photo count and words) with the pixels each photo slot needs |
-| **Print quotes** | A specification PDF for print shops with every category, sample designs, paper, weight, finish and finishing, every size with bleed and sheet counts, and blank price-per-piece grids; every print pack also carries a `QUOTE-REQUEST.pdf` for that design. From the gallery, **one quote for several designs**: an `ORDER-SHEET.csv` (a row per design and per envelope, with price columns), a quote request each, the catalogue and the photo credits in one ZIP. See [docs/print-quote](docs/print-quote/README.md) |
-| **Print files** | Print-shop PDF with bleed and crop marks; sheet PDF (A4, A3, 13×19 in, Letter) lined up for double-sided printing, with the count per sheet shown for each and sheets too small for the piece disabled; PNG at 300 dpi with dpi metadata; a print pack ZIP with a `PRINT-SPEC.txt` (PNGs optional, for a much smaller calendar pack). **Print colours** preview in the studio: an approximate soft proof of how bright screen colours come out on paper. Postmark year on the envelope and the Postage stamp layout: automatic (the calendar's year) or your own |
-| **3D preview** | Spin and flip any design. Calendars also show all twelve months as a ring, or as a wall calendar you page through |
-| **AI writing and pictures** | Optional, with **your own key** for Claude, OpenAI, Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together, a local Ollama or LM Studio, or any OpenAI-compatible service; pictures from OpenAI, Gemini, Stability, fal.ai, Black Forest Labs, Replicate or Ideogram. **Write with AI** suggests greetings, quotes and signatures sized to the layout, in English, Hindi, Hinglish and regional scripts (switching to a font that has the script); **Write captions with AI** fills a calendar's twelve captions from its festivals; the Back writes the message. **Create a picture with AI** makes artwork shaped for the selected slot, with no people or lettering, credited and disclosed as AI. Daily limits guard the bill. See [docs/AI.md](docs/AI.md) |
-| **AI agents (MCP)** | The desktop app is an MCP server with 34 tools: agents such as Claude Code build designs, write words, add photos, check print quality and export print packs. Headless (`Chitthi --mcp`) or live in the open window. A Claude Code plugin adds the server and six skills (festival postcard, year calendar, print quote, photo sourcing, AI artwork, print samples). See [docs/MCP.md](docs/MCP.md) |
-| **Studio** | Every step is made of collapsible sections that remember whether they're open, with Collapse all / Expand all. **Find a feature** (Ctrl+K / ⌘K, or Find in the header) jumps straight to any setting or action. **Full screen** from the header, the home page or the finder |
-| **Also** | Gallery with sample designs, backup and restore, `.chitthi` design files, undo / redo, autosave, warm cream light theme and grey dark theme with a saffron accent, offline support |
+[![Release](https://img.shields.io/github/v/release/RVicky172/Chitthi?label=release)](https://github.com/RVicky172/Chitthi/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-7a4a2b)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-web%20%C2%B7%20Windows%20%C2%B7%20macOS-7a4a2b)
+![No backend](https://img.shields.io/badge/backend-none%3A%20photos%20stay%20on%20your%20device-2a241e)
 
-Tests: `npm test` renders every product, size, orientation and layout (front, back, envelope), builds a print pack
-for each product, and checks saved-design loading, festival dates, photo credits, the print-colours preview and the
-order sheet, AI features against a fake provider and every agent tool, inside Electron against its own dev server.
-`npm run test:mcp` runs the MCP server end to end with the official MCP client.
+<img src="docs/screenshots/studio-postcard.webp" alt="The Chitthi studio: a Diwali postcard with a photo of a lit diya in an arch, the six steps on the left and the live preview on the right" width="900" />
 
-Keyboard: `Ctrl+K` find a feature, `Ctrl+Z` undo, `Ctrl+Shift+Z` / `Ctrl+Y` redo, `Ctrl+S` save to gallery, `F` flip the card, arrow keys and
-`+` / `−` move and zoom the photo in the selected slot. On desktop, `Ctrl+,` opens Settings.
+</div>
 
-## Quick start
+## Contents
+
+[Highlights](#highlights) · [Screenshots](#screenshots) · [Get started](#get-started) · [AI writing and pictures](#ai-writing-and-pictures) ·
+[AI agents (MCP)](#ai-agents-mcp) · [Performance monitor](#performance-monitor) · [Features in detail](#features-in-detail) ·
+[Documentation](#documentation) · [Development](#development) · [Privacy and data](#privacy-and-data) · [License](#license)
+
+## Highlights
+
+- **Four products, 34 print sizes, 47 layouts.** Postcards (4×6 in, A6, India Post, Instax…), wall and desk
+  calendars for any year, framed prints with a mat, and fridge magnets, square, rounded or round.
+- **Made for India.** 25 occasions with drawn artwork and wishes in English, Hindi, Hinglish and regional scripts;
+  46 fonts covering Devanagari, Gurmukhi, Gujarati, Bengali, Tamil, Malayalam, Kannada, Telugu and Odia; calendars
+  mark national days and festivals from the Government of India holiday lists.
+- **Print-shop ready.** One click makes a ZIP with the print PDF (bleed and crop marks), sheet PDFs, 300 dpi PNGs, a
+  print spec, a quote request and a matching envelope with a fold-your-own template.
+- **Smart photos.** Every photo is analysed for shape, colour, light and sharpness; the library ranks photos for
+  each slot, auto-arranges them and centres crops on the subject. Free Pexels photos come with their credits.
+- **See it before you print.** 3D preview of every design and envelope, a print-colours soft proof, and a page with
+  every paper size in 3D at true scale.
+- **Optional AI, your own key.** Greetings, calendar captions and slot-shaped artwork from Claude, OpenAI, Gemini,
+  a local Ollama and 12 more services.
+- **Works with AI agents.** The desktop app is an MCP server with 34 tools; a Claude Code plugin adds six workflow skills.
+- **Private by design.** No account and no server: photos, designs and keys never leave the device.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/home.webp" alt="Home page: 'Your photos, made to hold' with a postcard, calendar, envelope and magnet" /><br /><sub><b>Home</b>: every picture is a real Chitthi render</sub></td>
+    <td width="50%"><img src="docs/screenshots/studio-calendar.webp" alt="Calendar studio: style presets, year field and a January page with festivals marked" /><br /><sub><b>Calendars</b>: five styles, any year, festivals marked by name</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ai-writing.webp" alt="Front step with the Write with AI panel: language, tone, notes and Suggest" /><br /><sub><b>Write with AI</b>: greetings sized to the layout, in your language</sub></td>
+    <td><img src="docs/screenshots/print-step.webp" alt="Print step: print pack, photo credits and print settings" /><br /><sub><b>Print</b>: one print pack with bleed, credits and a quote request</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/photo-library.webp" alt="Photo library with filters by shape, colour, light, mood and quality, and a match score per photo" /><br /><sub><b>Photo library</b>: ranked for each slot, with print sharpness</sub></td>
+    <td><img src="docs/screenshots/viewer-3d.webp" alt="3D preview of the Diwali postcard, turned at an angle" /><br /><sub><b>3D preview</b>: turn, flip and zoom any design or its envelope</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/paper-3d.webp" alt="Paper sizes in 3D: every size on a cutting mat with a real design, and the details of Classic 4x6 in" /><br /><sub><b>Paper sizes in 3D</b>: every size at true relative scale</sub></td>
+    <td><img src="docs/screenshots/perf-monitor.webp" alt="Studio with the performance monitor open: main thread load, input delay, frames, memory, photos and storage" /><br /><sub><b>Performance monitor</b>: CPU, memory and responsiveness, live</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/phone-dark.webp" alt="The studio on a phone in the dark theme: a Holi postcard with the product switcher, stage and photo dock" width="260" /><br />
+  <sub><b>On a phone, in the dark theme</b>: the whole studio from 360 px wide, with secondary actions in a More menu</sub>
+</p>
+
+## Get started
+
+**Use it:**
+
+- **Desktop app** (Windows, macOS): download the installer from
+  [GitHub Releases](https://github.com/RVicky172/Chitthi/releases). It works offline, updates itself, and adds
+  real CPU and memory figures to the performance monitor and the MCP server for AI agents.
+- **Web app:** deploy the Docker image (below) or run it from source.
+
+**Run it from source** (Node.js 20.19+ or 22.12+):
 
 ```bash
 npm install
-npm run dev            # http://localhost:5173
+npm run dev              # web app at http://localhost:5173
+npm run desktop:dev      # desktop app with hot reload (run `npm run fetch:fonts` once first)
 ```
 
-With Docker:
+**Deploy the web app** (nginx, non-root, read-only file system):
 
 ```bash
 docker compose up -d --build     # http://localhost:8080, health check at /healthz
 ```
 
-Desktop app from source:
+Put it behind an HTTPS reverse proxy: the service worker (offline use) needs HTTPS. Bump `APP_CACHE` in
+`public/sw.js` with each release so returning visitors get the new version. Desktop releases are built by GitHub
+Actions when a `v*` tag is pushed. Every script and the release process: [docs/BUILD.md](docs/BUILD.md).
 
-```bash
-npm run fetch:fonts    # once: offline fonts for the desktop build
-npm run desktop:dev    # Vite + Electron with hot reload
-```
-
-All scripts, the Docker image, the desktop build and the release process are described in
-[docs/BUILD.md](docs/BUILD.md).
-
-## Pexels photo search
-
-The key is never built into the app. Users enter their own free key in **Settings** (gear icon in the studio header
-or on the home page; **File → Settings** on desktop). It is tested, then kept on that device only. For development,
-put `PEXELS_API_KEY=…` in `.env.local` (see `.env.example`). The dev and preview servers then proxy searches and add
-the key on the server side. Details, security and a production proxy recipe: [docs/PEXELS.md](docs/PEXELS.md).
+**Free photo search** needs a free [Pexels](https://www.pexels.com/api/) API key, entered in **Settings** and kept on
+the device only. For development, put `PEXELS_API_KEY=…` in `.env.local` and the dev server proxies searches. Licence
+rules and a production proxy recipe: [docs/PEXELS.md](docs/PEXELS.md).
 
 ## AI writing and pictures
 
-AI is optional and off until a service is chosen. Open **Settings → AI** (gear icon; **File → Settings** on desktop):
+AI is optional and off until you choose a service in **Settings → AI**:
 
-1. Under **Keys and services**, paste an API key from the service's site and press **Save and test**. For free,
-   private writing, run [Ollama](https://ollama.com) or LM Studio on your computer instead (no key).
-2. Choose the service and model that **Writes words** and the one that **Makes pictures**. **Load my models** lists the
-   models your account has.
-3. Optionally set **Limits**: requests a day (default 200 writing, 30 pictures), so a mistake can't run up a bill.
+1. Under **Keys and services**, paste an API key and press **Save and test**, or run [Ollama](https://ollama.com) or
+   LM Studio on your computer for free, private writing.
+2. Choose the service and model that **Writes words** and the one that **Makes pictures**.
+3. Optionally set daily **Limits** (200 writing and 30 picture requests by default), so a mistake can't run up a bill.
 
-Then, in the studio:
+Then use **Write with AI** (greeting, quote, signature), **Write captions with AI** (all twelve calendar months from
+their festivals), **Write the message with AI** (back of a postcard) and **Create a picture with AI** (artwork in the
+shape of the selected photo slot, with no people or lettering, credited as AI in the app, the print pack and the
+printed credit line).
 
-- **Front → Write with AI**: greetings, quotes and signatures sized to the layout, in English, Hindi, Hinglish or a
-  regional script. Pick one to apply it (Undo works).
-- **Calendar Front → Write captions with AI**: one caption per month from its festivals and photo.
-- **Back → Write the message with AI**.
-- **Photos → Create a picture with AI** (also a tab in the photo library): artwork in the shape of the selected slot,
-  credited "AI picture · Provider model" in the app, the print pack and the printed credit line.
+Each service bills your own account. Keys stay on your device: in browser storage on the web, encrypted by the
+operating system in the desktop app, where the page can never read them back. Black Forest Labs, Replicate and
+Ideogram refuse browser calls, so they work in the desktop app only. Details: [docs/AI.md](docs/AI.md).
 
-Each service bills your own account. Keys stay on your device: in the browser's storage on the web, encrypted by the
-operating system in the desktop app (where the page can't read them back). Black Forest Labs, Replicate and Ideogram
-don't accept browser calls, so they work in the desktop app only. Full details: [docs/AI.md](docs/AI.md).
+## AI agents (MCP)
 
-## Using Chitthi from AI agents (MCP)
+The desktop app is an [MCP](https://modelcontextprotocol.io) server with 34 tools, 5 workflow prompts and 5
+resources: an agent can create designs, write the words, find Pexels photos or create pictures, check print quality,
+render previews and export print packs, PDFs and quote requests.
 
-The desktop app is an [MCP](https://modelcontextprotocol.io) server. Agents can create designs, write the words, find
-Pexels photos or create pictures, check print quality, render previews and export print packs, PDFs and quote
-requests, with 34 tools, 5 workflow prompts and 5 resources. Install the desktop app first.
-
-In Claude Code, the plugin adds the server and six skills (festival postcard, year calendar, print quote, photo
+In **Claude Code**, the plugin adds the server and six skills (festival postcard, year calendar, print quote, photo
 sourcing, AI artwork, print samples):
 
 ```text
@@ -112,38 +131,113 @@ sourcing, AI artwork, print samples):
 /plugin install chitthi@chitthi
 ```
 
-When asked, give the path to the app (Windows: `%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe`, macOS:
-`/Applications/Chitthi.app/Contents/MacOS/Chitthi`). Then ask, for example, *"Make a Diwali postcard for my Nani in
+When asked, give the app's path (Windows: `%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe`, macOS:
+`/Applications/Chitthi.app/Contents/MacOS/Chitthi`), then ask, for example, *"Make a Diwali postcard for my Nani in
 Hindi with a Pexels photo and export the print pack"*. Files go to **Documents/Chitthi agent output**.
 
-Or add only the server, headless (no window):
+Other ways to connect:
 
-```bash
-claude mcp add chitthi -- "%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe" --mcp
-```
+- **Headless server only:** `claude mcp add chitthi -- "<path to Chitthi>" --mcp`
+- **Live, in the open window:** turn on **Settings → AI → Let an agent work in this open window** and copy the command
+  shown there; every change appears in the studio and can be undone.
+- **Claude Desktop, VS Code, Cursor**, the tool reference and the security model: [docs/MCP.md](docs/MCP.md).
 
-To work alongside an agent in the open window instead, turn on **Settings → AI → Let an agent work in this open
-window (live)** and copy the `claude mcp add --transport http …` command shown there; every change appears in the
-studio and can be undone. Claude Desktop, VS Code and Cursor setup, the tool reference and security:
-[docs/MCP.md](docs/MCP.md). From source: `npm run mcp`, tested by `npm run test:mcp`.
+## Performance monitor
+
+Open **More (⋯) → Performance monitor** in the studio (or search "performance" in **Find a feature**; **View →
+Performance monitor** on desktop). A small panel shows, once a second while it is open:
+
+| | Web | Desktop |
+| --- | --- | --- |
+| CPU | Main-thread load, estimated from long tasks (browsers don't report CPU) | Real CPU of every Chitthi process |
+| Responsiveness | Input delay and frames per second | same |
+| Memory | JavaScript heap (Chromium) | Whole-app memory, per process |
+| Photos | Decoded photo memory and what the undo history holds | same |
+| Page | Elements on the page, storage used | same |
+
+Figures turn amber or red past sensible thresholds, and **Copy report** exports two minutes of samples as JSON to
+compare runs or attach to an issue. What each figure means and the app's memory budgets:
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+
+## Features in detail
+
+<details>
+<summary><b>Products, sizes and layouts</b></summary>
+
+| Area | What you get |
+| --- | --- |
+| **Postcards** | 4×6 in, A6, India Post, 5×7, 6×9, 6×11 in, DL, square, Instax Mini / Square / Wide, A5, A4, custom. 25 layouts, including offset block, diagonal duo, scrapbook, film strip, minimal, twin arches and frosted glass. Postal back with message, address, PIN boxes and stamp box |
+| **Calendars** | A4, A3, A5 desk, tabloid, 12×12 in, for **any year**. 12 months from any start month, a single month, or the whole year on one page. 9 layouts, including Frosted glass, Big number and Arch window. National days and festivals marked in red with their names (Government of India holiday lists for 2026 and 2027; fixed national days for any year), plus your own birthdays and anniversaries. Five ready-made styles; month title, dates and grid fully adjustable; a caption per month. Every page uses the same title size and a five-row grid, so the months line up when bound. Year-at-a-glance back |
+| **Photo frames** | 4×6 up to 11×14 in, A4, A3, square. Thin, classic or wide mat. Single, caption, pair, triptych, grid and feature layouts. Dedication label for the back |
+| **Fridge magnets** | 2×2, 2×3, 3×3, 3×4, 2.5×3.5, 4×6 in with rounded corners, 58 and 75 mm round button magnets. Full photo, caption, mini Polaroid, badge, two and four photo, and words-only layouts. Many to a sheet |
+| **Envelopes** | The smallest standard size each design fits (C6, A7, DL, square…), dressed in the same occasion with a photo seal and the address; a print-on-envelope PDF and a fold-your-own template in every print pack; viewable in 3D |
+
+</details>
+
+<details>
+<summary><b>Photos, words and occasions</b></summary>
+
+| Area | What you get |
+| --- | --- |
+| **Occasions** | 16 festivals, 5 birthday styles and 5 seasons with drawn artwork and wishes in English, Hindi, Hinglish and regional scripts, or plain colours |
+| **Smart photos** | Each photo is analysed once for shape, colour, brightness, contrast, sharpness and where its subject is. The library sorts by relevance to the selected slot with a match score, filters by colour, light, mood and print quality, and search understands words like *blue*, *warm* or *sky*. **Auto-arrange** and **Fill empty slots** place the best matches |
+| **Photo editing** | Crop (free, 1:1 … 16:9, or the exact shape of the slot), rotate, mirror, zoom, drag, colour looks, print sharpness in dpi |
+| **Free photos** | Pexels search from the Photos step with ideas from the occasion, product and month, filtered to the slot's shape. Follows the Pexels guidelines: linked credits everywhere, a `PHOTO-CREDITS.txt` in print packs, the hourly limit respected, and a warning before selling an unaltered photo |
+| **Words** | 46 font families plus **your own fonts** (TTF, OTF, WOFF, WOFF2). Every text field has its own font: greeting, quote, signature, Instagram tag, message, From line, address, PIN, labels, captions, month titles and dates |
+
+</details>
+
+<details>
+<summary><b>Print, preview and quotes</b></summary>
+
+| Area | What you get |
+| --- | --- |
+| **Print files** | Print-shop PDF with bleed and crop marks; sheet PDFs (A4, A3, 13×19 in, Letter) lined up for double-sided printing; 300 dpi PNGs with dpi metadata; a print pack ZIP with a `PRINT-SPEC.txt`. A **print colours** soft proof shows how bright screen colours come out on paper |
+| **Print quotes** | A specification PDF for print shops with paper, weight, finish and blank price grids, and a `QUOTE-REQUEST.pdf` in every print pack. From the gallery, one quote for several designs: an `ORDER-SHEET.csv`, a request each, the catalogue and the credits in one ZIP ([docs/print-quote](docs/print-quote/README.md)) |
+| **3D preview** | Spin and flip any design or envelope. Calendars as a ring of twelve months or a wall calendar you page through |
+| **Paper sizes in 3D** | Every size on a cutting mat at true relative scale with a real design, side by side, stacked or imposed on a print sheet, plus an **Actual size** view |
+| **Sizes and layouts guide** | Every size with trim, bleed and safe area drawn to scale, pixel sizes, sheets per page, and every layout with the pixels each photo slot needs |
+
+</details>
+
+<details>
+<summary><b>The studio</b></summary>
+
+- Six steps (Photos, Layout, Occasion, Front, Back, Print) made of collapsible sections, with Collapse all / Expand all.
+- **Find a feature** (`Ctrl+K` / `⌘K`) jumps straight to any setting or action.
+- Gallery with sample designs, backup and restore, `.chitthi` design files, undo and redo, autosave.
+- Warm cream light theme and grey dark theme with a saffron accent, both WCAG AA; full screen; offline support.
+- Works from 1920 px down to 360 px wide: secondary actions fold into a **More** menu rather than overflowing.
+
+| Key | Action |
+| --- | --- |
+| `Ctrl+K` / `⌘K` | Find a feature |
+| `Ctrl+Z`, `Ctrl+Shift+Z` / `Ctrl+Y` | Undo, redo |
+| `Ctrl+S` | Save to gallery |
+| `F` | Flip the card |
+| Arrow keys, `+` / `−` | Move and zoom the photo in the selected slot |
+| `Ctrl+,` (desktop) | Settings |
+
+</details>
 
 ## Documentation
 
 | Document | Contents |
 | --- | --- |
-| [docs/HLD.md](docs/HLD.md) | High-level design: context, deployment views, building blocks, key flows, storage, security, decisions |
-| [docs/LLD.md](docs/LLD.md) | Low-level design: modules, data model, store, layout and rendering algorithms, export, storage, IPC |
-| [docs/TECHNOLOGIES.md](docs/TECHNOLOGIES.md) | The stack and why each piece is used |
-| [docs/BUILD.md](docs/BUILD.md) | Scripts, web and Docker build, how the app runs, desktop packaging, releasing |
-| [docs/PEXELS.md](docs/PEXELS.md) | How the Pexels connection works, the API key, proxying, licensing, troubleshooting |
-| [docs/print-quote/](docs/print-quote/README.md) | Ready-to-send specification and quote PDFs for printers, and the paper per category |
-| [docs/SPECIFICATIONS.md](docs/SPECIFICATIONS.md) | Print specifications, where they live, how to add sizes, layouts and products; generated size tables |
-| [docs/DESKTOP.md](docs/DESKTOP.md) | Desktop app: differences from web, data folder, signing, updates |
-| [docs/AI.md](docs/AI.md) | AI writing and pictures: services, web vs desktop, keys and privacy, limits, credits, adding a provider |
-| [docs/MCP.md](docs/MCP.md) | Chitthi for AI agents: installing the MCP server and plugin, tools, resources, prompts, security |
-| [plugins/chitthi](plugins/chitthi/README.md) | The Claude Code plugin and its skills |
+| [HLD](docs/HLD.md) | High-level design: context, deployment, building blocks, key flows, storage, security, decisions |
+| [LLD](docs/LLD.md) | Low-level design: modules, data model, store, rendering, export, responsive layout, styles, IPC |
+| [PERFORMANCE](docs/PERFORMANCE.md) | The performance monitor, memory and CPU budgets, how to investigate a slowdown |
+| [TECHNOLOGIES](docs/TECHNOLOGIES.md) | The stack and why each piece is used |
+| [BUILD](docs/BUILD.md) | Scripts, web and Docker build, desktop packaging, releasing |
+| [DESKTOP](docs/DESKTOP.md) | Desktop app: differences from web, data folder, signing, updates |
+| [SPECIFICATIONS](docs/SPECIFICATIONS.md) | Print specifications, where they live, adding sizes, layouts and products |
+| [PEXELS](docs/PEXELS.md) | The Pexels connection, API key, proxying, licensing |
+| [AI](docs/AI.md) | AI services, web vs desktop, keys and privacy, limits, credits, adding a provider |
+| [MCP](docs/MCP.md) | The MCP server and plugin, tools, resources, prompts, security |
+| [Print quotes](docs/print-quote/README.md) | Ready-to-send specification and quote PDFs for printers |
+| [Claude Code plugin](plugins/chitthi/README.md) | The plugin and its skills |
 
-## Project structure
+## Development
 
 ```text
 src/
@@ -152,48 +246,37 @@ src/
   data/                 Specifications as data: products, sizes, layouts, themes, fonts, samples
   engine/               Framework-free: layout, rendering, photo processing, PDF / PNG / ZIP export
   state/                App store with undo/redo and autosave, user actions, photo slots, photo store
-  lib/                  Storage, fonts, Pexels client, downloads, ZIP, toasts
+  lib/                  Storage, fonts, Pexels client, performance sampler, downloads, ZIP, toasts
   ai/                   AI service, prompt templates, provider adapters (loaded on demand), keys, transport
   agent/                Agent tools, MCP prompts and resources, and the page side of the MCP bridge
   platform/             Desktop bridge and menu commands
-  components/           React UI: landing, studio, panes, stage, dialogs, 3D viewer, sizes guide, paper sizes in 3D, settings
-electron/               Desktop main process, preload bridge, AI requests (ai.cjs) and the MCP server (mcp.cjs)
-plugins/chitthi/        Claude Code plugin: MCP server config and skills (.claude-plugin/ holds the marketplace)
-public/                 Service worker, manifest, sample photos
-public/favicon/         Every icon of the product (SVG sources, PNG sizes, .ico); see its README
-public/showcase/        Landing page examples, pre-rendered as small WebP files (npm run build:showcase)
-showcase-src/           Source photos for those examples (Pexels; not shipped)
+  components/           React UI: pages, studio, panes, stage, dialogs, 3D views, menus, performance monitor
+  styles.css, styles/   The stylesheet, split by feature (numbered files keep the cascade order)
+electron/               Desktop main process, preload bridge, AI requests and the MCP server
+plugins/chitthi/        Claude Code plugin: MCP server config and skills
+public/                 Service worker, manifest, icons, sample photos, landing renders
 nginx/                  Web server config, security headers and CSP
-scripts/                Sample photo and font downloaders, spec-table generator, showcase and print-sample renderers
-docs/                   Design and operations documentation
+scripts/                Build checks, downloaders, generators and renderers
+docs/                   Design and operations documentation, screenshots
 ```
+
+| Command | What it does |
+| --- | --- |
+| `npm run build` | Type check, production bundle, and a check that the start-up script stays under 350 KB with no AI code in it |
+| `npm test` | Renders every product × size × orientation × layout (front, back, envelope), builds a print pack per product, and checks saved designs, festival dates, credits, AI (against a fake provider), every agent tool and the performance sampler, inside Electron |
+| `npm run test:mcp` | Runs the MCP server end to end with the official MCP client |
+| `npm run mcp` | The MCP server from source |
+
+## Privacy and data
+
+Designs, the photo library, uploaded fonts, settings and AI keys stay on the device: IndexedDB and `localStorage` in
+the browser, JSON files in the app's data folder on desktop. Nothing syncs between devices; move designs with
+**Gallery → Back up gallery / Restore a backup**, or as `.chitthi` files. The only network calls are fonts (web),
+Pexels search, the AI service you chose, and update checks (desktop). A self-hosted deployment that uses a custom AI
+service must add its host to `connect-src` in `nginx/security-headers.conf`.
 
 ## License
 
 Chitthi is free for everyone to use, copy, change and share, including commercially, under the [MIT License](LICENSE).
 Third-party parts (fonts, icons, libraries, sample photos) keep their own licences: see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Designs and files you make with Chitthi are yours.
-
-## Where user data lives
-
-Designs, the photo library, uploaded fonts, the current card, settings and AI keys stay on the user's device: IndexedDB and `localStorage` in
-the browser, JSON files in the app's data folder on desktop. Nothing syncs between devices. Designs move with
-**Gallery → Back up gallery / Restore a backup**, or as single `.chitthi` files.
-
-## Internet access and HTTPS
-
-Fonts load from Google Fonts on the web (bundled on desktop). After the first visit the service worker keeps the app
-and the fonts it used, so the web app works offline. Service workers only run on HTTPS or `localhost`, so deploy the
-container behind an HTTPS reverse proxy. Photo search needs internet access to Pexels, and AI features to the chosen
-AI service (a local Ollama or LM Studio needs none). A self-hosted web deployment that uses a custom AI service must
-add its host to `connect-src` in `nginx/security-headers.conf`.
-
-## Updating a deployment
-
-Bump `APP_CACHE` in `public/sw.js` with each release so returning users get the new version, then:
-
-```bash
-docker compose up -d --build
-```
-
-Desktop releases are built by GitHub Actions when a `v*` tag is pushed ([docs/BUILD.md](docs/BUILD.md#releasing-a-new-version)).

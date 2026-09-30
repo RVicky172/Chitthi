@@ -1,0 +1,40 @@
+/* ---------- uploaded fonts ---------- */
+.fp-upload {
+  display: block;
+  margin: 0 8px 6px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.fp-upload:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.fp-empty {
+  padding: 0 12px 8px;
+}
+.uf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.uf-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  font-size: 1.15rem;
+}
+.setbody section > .btn {
+  align-self: flex-start;
+}

@@ -6,7 +6,7 @@
   "buildCmd": "npm run build:lib",
   "entry": "./src/index.ts",
   "tsconfig": "tsconfig.app.json",
-  "cssEntry": "src/styles.css",
+  "cssEntry": "dist-lib/styles.css",
   "docsDir": ".design-sync/docs",
   "componentSrcMap": {
     "StepLabel": null,

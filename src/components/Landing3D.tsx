@@ -21,25 +21,30 @@ export function TiltStage({ children, className }: { children: ReactNode; classN
       x = 0,
       y = 0;
     const host = el.parentElement ?? el;
-    const move = (e: PointerEvent) => {
-      const r = host.getBoundingClientRect();
-      tx = ((e.clientX - r.left) / r.width - 0.5) * 2;
-      ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
-    };
-    const leave = () => {
-      tx = 0;
-      ty = 0;
-    };
+    // The loop runs only while the tilt is easing towards the pointer, not every frame the page is open.
     const tick = () => {
       x += (tx - x) * 0.08;
       y += (ty - y) * 0.08;
       el.style.setProperty('--ry', `${x * 9}deg`);
       el.style.setProperty('--rx', `${-y * 7}deg`);
-      raf = requestAnimationFrame(tick);
+      raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.002 ? requestAnimationFrame(tick) : 0;
+    };
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+    const move = (e: PointerEvent) => {
+      const r = host.getBoundingClientRect();
+      tx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+      ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      wake();
+    };
+    const leave = () => {
+      tx = 0;
+      ty = 0;
+      wake();
     };
     host.addEventListener('pointermove', move);
     host.addEventListener('pointerleave', leave);
-    raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
       host.removeEventListener('pointermove', move);

@@ -1,0 +1,65 @@
+/* ---------- landing refresh ---------- */
+.features {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 960px) {
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .features {
+    grid-template-columns: 1fr;
+  }
+}
+.features li {
+  padding: 20px;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur);
+}
+.features li:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--elev-3);
+}
+.features b {
+  display: block;
+  margin: 12px 0 4px;
+  font-size: 1.02rem;
+}
+.features p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.feat-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.feat-ico svg {
+  width: 22px;
+  height: 22px;
+}
+.lfoot a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lsec.final .hint a {
+  color: var(--accent);
+}

@@ -8,6 +8,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const fsp = fs.promises;
 
 const DEV_URL = process.env.CHITTHI_DEV_URL || ''; // set by electron/dev.mjs
@@ -201,6 +202,12 @@ function registerFiles() {
     if (canceled || !filePaths[0]) return null;
     return readDesignFile(filePaths[0]);
   });
+  // Performance monitor: CPU (% of one core since the last call) and memory for every Chitthi process.
+  ipcMain.handle('desktop:metrics', () => ({
+    cores: os.cpus().length || 1,
+    systemMemory: os.totalmem(),
+    procs: app.getAppMetrics().map((m) => ({ type: m.type, pid: m.pid, cpu: m.cpu.percentCPUUsage, mem: m.memory.workingSetSize * 1024 })),
+  }));
   ipcMain.on('desktop:info', (e) => {
     e.returnValue = { version: app.getVersion(), platform: process.platform, localFonts: hasLocalFonts() };
   });
@@ -358,6 +365,7 @@ function menu() {
         { label: '3D view', accelerator: 'CmdOrCtrl+Shift+3', click: send('3d') },
         { label: 'Flip card', ...shown('F'), click: send('flip') },
         { label: 'Light / dark theme', accelerator: 'CmdOrCtrl+Shift+L', click: send('theme') },
+        { label: 'Performance monitor', click: send('perf') },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },

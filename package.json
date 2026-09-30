@@ -2,7 +2,7 @@
   "name": "chitthi-postcard-studio",
   "productName": "Chitthi",
   "private": true,
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "Design postcards and Instax-style prints for Indian festivals, birthdays and seasons, then download print-ready files.",
   "license": "MIT",
   "author": {
@@ -22,7 +22,7 @@
     "mcp": "node scripts/mcp-dev.mjs",
     "test:mcp": "node scripts/mcp-smoke.mjs",
     "preview": "vite preview --port 8080",
-    "build:lib": "tsc -p tsconfig.lib.json",
+    "build:lib": "tsc -p tsconfig.lib.json && node scripts/flatten-css.mjs",
     "fetch:samples": "node scripts/fetch-samples.mjs",
     "fetch:fonts": "node scripts/fetch-fonts.mjs",
     "fetch:showcase": "node scripts/fetch-showcase.mjs",

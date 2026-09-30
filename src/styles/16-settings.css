@@ -1,0 +1,85 @@
+/* ---------- settings ---------- */
+.setdlg {
+  width: min(560px, 94vw);
+  max-height: 92vh;
+}
+.setdlg[open] {
+  display: flex;
+  flex-direction: column;
+}
+.setbody {
+  overflow: auto;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.setbody section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.setbody h3 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.setbody a {
+  color: var(--accent);
+}
+.setbody .tips {
+  margin: 0;
+}
+.setstatus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.setstatus i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.setstatus.on i {
+  background: var(--good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent);
+}
+.setstatus.off i {
+  background: var(--warn);
+}
+.setstatus code {
+  margin-left: auto;
+  font: 500 0.8rem var(--mono);
+  color: var(--muted);
+}
+.setkey {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hint.good {
+  color: var(--good);
+}
+.hint.bad {
+  color: var(--danger);
+}
+.px-key {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+}

@@ -1,0 +1,315 @@
+/* stage: a dark glass lightbox for the card */
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  background-color: var(--stage);
+  background-image:
+    radial-gradient(60% 55% at 50% 48%, rgba(255, 236, 205, 0.07), transparent 70%),
+    radial-gradient(circle, var(--stageline) 1px, transparent 1.5px);
+  background-size:
+    100% 100%,
+    22px 22px;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.stagebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 12px 6px;
+}
+.pill {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 4px;
+  color: #f1f7fb;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+.pill .seg {
+  background: none;
+  border: 0;
+}
+.pill .seg button {
+  color: rgba(255, 255, 255, 0.72);
+}
+.pill .seg button:hover {
+  color: #fff;
+}
+.pill .seg button[aria-pressed='true'] {
+  background: #fff;
+  color: #221e1a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.pill .check {
+  font-size: 0.85rem;
+  padding: 0 8px;
+  color: #f1f7fb;
+}
+.pill .pbtn {
+  border: 0;
+  background: none;
+  color: #f1f7fb;
+  padding: 5px 11px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  transition: background 0.2s;
+}
+.pill .pbtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.pill .pbtn svg {
+  width: 17px;
+  height: 17px;
+}
+.cardwrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  perspective: 1400px;
+}
+.cardwrap canvas {
+  display: block;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 24px 60px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.cardwrap canvas.flip {
+  animation: flip 0.5s var(--ease);
+}
+@keyframes flip {
+  from {
+    transform: rotateY(80deg);
+  }
+  to {
+    transform: rotateY(0);
+  }
+}
+.cardwrap canvas.draggable {
+  cursor: grab;
+  touch-action: none;
+}
+.cardwrap canvas.dragging {
+  cursor: grabbing;
+}
+.caption {
+  margin: 0 auto 14px;
+  padding: 5px 14px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font: 0.76rem/1.4 var(--mono);
+  letter-spacing: 0.01em;
+  text-align: center;
+  max-width: calc(100% - 24px);
+}
+.legend {
+  display: inline-flex;
+  gap: 12px;
+  font-size: 0.78rem;
+  padding: 0 8px;
+}
+.legend i {
+  display: inline-block;
+  width: 16px;
+  border-top: 2px dashed;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* photo tray: slots of the current layout + every uploaded photo, under the preview */
+.tray {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto 8px;
+  padding: 6px;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.tray-slots,
+.tray-lib {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.tray-slots {
+  padding-right: 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+}
+.tray-lib {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tray-slot,
+.tray-ph,
+.tray-add {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.1);
+  transition:
+    border-color 0.2s,
+    transform 0.2s var(--ease),
+    opacity 0.2s;
+}
+.tray canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tray-slot b,
+.tray-ph b {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 0.62rem/16px var(--font);
+  text-align: center;
+}
+.tray-slot b {
+  background: rgba(0, 0, 0, 0.6);
+}
+.tray-slot[aria-checked='true'] {
+  border-color: #e6d7bf;
+  box-shadow: 0 0 0 3px rgba(230, 215, 191, 0.45);
+}
+.tray-slot[aria-checked='true'] b {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tray-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+}
+.tray-ph {
+  opacity: 0.72;
+}
+.tray-ph:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+.tray-ph[aria-pressed='true'] {
+  opacity: 1;
+  border-color: rgba(230, 215, 191, 0.85);
+}
+.tray-sep {
+  flex: none;
+  width: 1px;
+  margin: 4px 4px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.tray img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tray-add {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.4rem;
+  font-weight: 300;
+  border: 1.5px dashed rgba(255, 255, 255, 0.35);
+}
+.tray-add:hover {
+  color: #fff;
+  border-color: #e6d7bf;
+}
+.tray-add input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+/* print pack call-out in the Print step */
+.pack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+.pack b {
+  display: block;
+  font-size: 1rem;
+}
+.pack small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.pack code {
+  font: 0.78rem var(--mono);
+}
+.pack .btn {
+  align-self: flex-start;
+}
+
+/* calendar month switcher above the preview */
+.pill.month {
+  gap: 2px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pill.month span {
+  min-width: 72px;
+  text-align: center;
+}
+.pill.month .pbtn {
+  font-size: 1.1rem;
+  padding: 2px 10px;
+}
+.pill .pbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
