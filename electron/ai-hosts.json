@@ -1,0 +1,19 @@
+{
+  "_comment": "How each AI provider authenticates and which hosts may receive its key. Read by the web app (src/ai/transport.ts) and the desktop main process (electron/ai.cjs), which attaches the key only for these hosts. resultHosts serve generated images: they are fetched without the key. local providers talk to the user's own machine and need no key.",
+  "anthropic": { "header": "x-api-key", "prefix": "", "hosts": ["api.anthropic.com"] },
+  "openai": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.openai.com"] },
+  "gemini": { "header": "x-goog-api-key", "prefix": "", "hosts": ["generativelanguage.googleapis.com"] },
+  "openrouter": { "header": "authorization", "prefix": "Bearer ", "hosts": ["openrouter.ai"] },
+  "groq": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.groq.com"] },
+  "deepseek": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.deepseek.com"] },
+  "mistral": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.mistral.ai"] },
+  "together": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.together.xyz"] },
+  "ollama": { "header": "", "prefix": "", "hosts": [], "local": true },
+  "lmstudio": { "header": "", "prefix": "", "hosts": [], "local": true },
+  "custom": { "header": "authorization", "prefix": "Bearer ", "hosts": [], "custom": true },
+  "stability": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.stability.ai"] },
+  "bfl": { "header": "x-key", "prefix": "", "hosts": ["api.bfl.ai", "api.eu.bfl.ai", "api.us.bfl.ai"], "resultHosts": [".bfl.ai"] },
+  "fal": { "header": "authorization", "prefix": "Key ", "hosts": ["queue.fal.run", "fal.run"], "resultHosts": [".fal.media", ".fal.ai"] },
+  "replicate": { "header": "authorization", "prefix": "Bearer ", "hosts": ["api.replicate.com"], "resultHosts": [".replicate.delivery"] },
+  "ideogram": { "header": "Api-Key", "prefix": "", "hosts": ["api.ideogram.ai"], "resultHosts": [".ideogram.ai"] }
+}

@@ -5,7 +5,8 @@ festival, birthday and season themes, then download print-ready files: PNGs and 
 a print specification for the shop.
 
 Chitthi runs entirely on the user's device, in the browser or as a desktop app for Windows and macOS. There is no
-backend and photos are never uploaded.
+backend and photos are never uploaded. Optional **AI writing and pictures** use the user's own key with the AI service
+they choose, and AI agents such as **Claude Code** can drive the desktop app through its **MCP server**.
 
 - **Web:** a static site (Docker image with nginx included).
 - **Desktop:** download the installer from [GitHub Releases](https://github.com/RVicky172/Chitthi/releases). It
@@ -31,12 +32,15 @@ backend and photos are never uploaded.
 | **Print quotes** | A specification PDF for print shops with every category, sample designs, paper, weight, finish and finishing, every size with bleed and sheet counts, and blank price-per-piece grids; every print pack also carries a `QUOTE-REQUEST.pdf` for that design. From the gallery, **one quote for several designs**: an `ORDER-SHEET.csv` (a row per design and per envelope, with price columns), a quote request each, the catalogue and the photo credits in one ZIP. See [docs/print-quote](docs/print-quote/README.md) |
 | **Print files** | Print-shop PDF with bleed and crop marks; sheet PDF (A4, A3, 13×19 in, Letter) lined up for double-sided printing, with the count per sheet shown for each and sheets too small for the piece disabled; PNG at 300 dpi with dpi metadata; a print pack ZIP with a `PRINT-SPEC.txt` (PNGs optional, for a much smaller calendar pack). **Print colours** preview in the studio: an approximate soft proof of how bright screen colours come out on paper. Postmark year on the envelope and the Postage stamp layout: automatic (the calendar's year) or your own |
 | **3D preview** | Spin and flip any design. Calendars also show all twelve months as a ring, or as a wall calendar you page through |
+| **AI writing and pictures** | Optional, with **your own key** for Claude, OpenAI, Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together, a local Ollama or LM Studio, or any OpenAI-compatible service; pictures from OpenAI, Gemini, Stability, fal.ai, Black Forest Labs, Replicate or Ideogram. **Write with AI** suggests greetings, quotes and signatures sized to the layout, in English, Hindi, Hinglish and regional scripts (switching to a font that has the script); **Write captions with AI** fills a calendar's twelve captions from its festivals; the Back writes the message. **Create a picture with AI** makes artwork shaped for the selected slot, with no people or lettering, credited and disclosed as AI. Daily limits guard the bill. See [docs/AI.md](docs/AI.md) |
+| **AI agents (MCP)** | The desktop app is an MCP server with 34 tools: agents such as Claude Code build designs, write words, add photos, check print quality and export print packs. Headless (`Chitthi --mcp`) or live in the open window. A Claude Code plugin adds the server and six skills (festival postcard, year calendar, print quote, photo sourcing, AI artwork, print samples). See [docs/MCP.md](docs/MCP.md) |
 | **Studio** | Every step is made of collapsible sections that remember whether they're open, with Collapse all / Expand all. **Find a feature** (Ctrl+K / ⌘K, or Find in the header) jumps straight to any setting or action. **Full screen** from the header, the home page or the finder |
 | **Also** | Gallery with sample designs, backup and restore, `.chitthi` design files, undo / redo, autosave, warm cream light theme and grey dark theme with a saffron accent, offline support |
 
 Tests: `npm test` renders every product, size, orientation and layout (front, back, envelope), builds a print pack
 for each product, and checks saved-design loading, festival dates, photo credits, the print-colours preview and the
-order sheet, inside Electron against its own dev server.
+order sheet, AI features against a fake provider and every agent tool, inside Electron against its own dev server.
+`npm run test:mcp` runs the MCP server end to end with the official MCP client.
 
 Keyboard: `Ctrl+K` find a feature, `Ctrl+Z` undo, `Ctrl+Shift+Z` / `Ctrl+Y` redo, `Ctrl+S` save to gallery, `F` flip the card, arrow keys and
 `+` / `−` move and zoom the photo in the selected slot. On desktop, `Ctrl+,` opens Settings.
@@ -71,6 +75,58 @@ or on the home page; **File → Settings** on desktop). It is tested, then kept 
 put `PEXELS_API_KEY=…` in `.env.local` (see `.env.example`). The dev and preview servers then proxy searches and add
 the key on the server side. Details, security and a production proxy recipe: [docs/PEXELS.md](docs/PEXELS.md).
 
+## AI writing and pictures
+
+AI is optional and off until a service is chosen. Open **Settings → AI** (gear icon; **File → Settings** on desktop):
+
+1. Under **Keys and services**, paste an API key from the service's site and press **Save and test**. For free,
+   private writing, run [Ollama](https://ollama.com) or LM Studio on your computer instead (no key).
+2. Choose the service and model that **Writes words** and the one that **Makes pictures**. **Load my models** lists the
+   models your account has.
+3. Optionally set **Limits**: requests a day (default 200 writing, 30 pictures), so a mistake can't run up a bill.
+
+Then, in the studio:
+
+- **Front → Write with AI**: greetings, quotes and signatures sized to the layout, in English, Hindi, Hinglish or a
+  regional script. Pick one to apply it (Undo works).
+- **Calendar Front → Write captions with AI**: one caption per month from its festivals and photo.
+- **Back → Write the message with AI**.
+- **Photos → Create a picture with AI** (also a tab in the photo library): artwork in the shape of the selected slot,
+  credited "AI picture · Provider model" in the app, the print pack and the printed credit line.
+
+Each service bills your own account. Keys stay on your device: in the browser's storage on the web, encrypted by the
+operating system in the desktop app (where the page can't read them back). Black Forest Labs, Replicate and Ideogram
+don't accept browser calls, so they work in the desktop app only. Full details: [docs/AI.md](docs/AI.md).
+
+## Using Chitthi from AI agents (MCP)
+
+The desktop app is an [MCP](https://modelcontextprotocol.io) server. Agents can create designs, write the words, find
+Pexels photos or create pictures, check print quality, render previews and export print packs, PDFs and quote
+requests, with 34 tools, 5 workflow prompts and 5 resources. Install the desktop app first.
+
+In Claude Code, the plugin adds the server and six skills (festival postcard, year calendar, print quote, photo
+sourcing, AI artwork, print samples):
+
+```text
+/plugin marketplace add RVicky172/Chitthi
+/plugin install chitthi@chitthi
+```
+
+When asked, give the path to the app (Windows: `%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe`, macOS:
+`/Applications/Chitthi.app/Contents/MacOS/Chitthi`). Then ask, for example, *"Make a Diwali postcard for my Nani in
+Hindi with a Pexels photo and export the print pack"*. Files go to **Documents/Chitthi agent output**.
+
+Or add only the server, headless (no window):
+
+```bash
+claude mcp add chitthi -- "%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe" --mcp
+```
+
+To work alongside an agent in the open window instead, turn on **Settings → AI → Let an agent work in this open
+window (live)** and copy the `claude mcp add --transport http …` command shown there; every change appears in the
+studio and can be undone. Claude Desktop, VS Code and Cursor setup, the tool reference and security:
+[docs/MCP.md](docs/MCP.md). From source: `npm run mcp`, tested by `npm run test:mcp`.
+
 ## Documentation
 
 | Document | Contents |
@@ -83,6 +139,9 @@ the key on the server side. Details, security and a production proxy recipe: [do
 | [docs/print-quote/](docs/print-quote/README.md) | Ready-to-send specification and quote PDFs for printers, and the paper per category |
 | [docs/SPECIFICATIONS.md](docs/SPECIFICATIONS.md) | Print specifications, where they live, how to add sizes, layouts and products; generated size tables |
 | [docs/DESKTOP.md](docs/DESKTOP.md) | Desktop app: differences from web, data folder, signing, updates |
+| [docs/AI.md](docs/AI.md) | AI writing and pictures: services, web vs desktop, keys and privacy, limits, credits, adding a provider |
+| [docs/MCP.md](docs/MCP.md) | Chitthi for AI agents: installing the MCP server and plugin, tools, resources, prompts, security |
+| [plugins/chitthi](plugins/chitthi/README.md) | The Claude Code plugin and its skills |
 
 ## Project structure
 
@@ -94,9 +153,12 @@ src/
   engine/               Framework-free: layout, rendering, photo processing, PDF / PNG / ZIP export
   state/                App store with undo/redo and autosave, user actions, photo slots, photo store
   lib/                  Storage, fonts, Pexels client, downloads, ZIP, toasts
+  ai/                   AI service, prompt templates, provider adapters (loaded on demand), keys, transport
+  agent/                Agent tools, MCP prompts and resources, and the page side of the MCP bridge
   platform/             Desktop bridge and menu commands
   components/           React UI: landing, studio, panes, stage, dialogs, 3D viewer, sizes guide, paper sizes in 3D, settings
-electron/               Desktop main process and preload bridge
+electron/               Desktop main process, preload bridge, AI requests (ai.cjs) and the MCP server (mcp.cjs)
+plugins/chitthi/        Claude Code plugin: MCP server config and skills (.claude-plugin/ holds the marketplace)
 public/                 Service worker, manifest, sample photos
 public/favicon/         Every icon of the product (SVG sources, PNG sizes, .ico); see its README
 public/showcase/        Landing page examples, pre-rendered as small WebP files (npm run build:showcase)
@@ -114,7 +176,7 @@ Third-party parts (fonts, icons, libraries, sample photos) keep their own licenc
 
 ## Where user data lives
 
-Designs, the photo library, uploaded fonts, the current card and settings stay on the user's device: IndexedDB and `localStorage` in
+Designs, the photo library, uploaded fonts, the current card, settings and AI keys stay on the user's device: IndexedDB and `localStorage` in
 the browser, JSON files in the app's data folder on desktop. Nothing syncs between devices. Designs move with
 **Gallery → Back up gallery / Restore a backup**, or as single `.chitthi` files.
 
@@ -122,7 +184,9 @@ the browser, JSON files in the app's data folder on desktop. Nothing syncs betwe
 
 Fonts load from Google Fonts on the web (bundled on desktop). After the first visit the service worker keeps the app
 and the fonts it used, so the web app works offline. Service workers only run on HTTPS or `localhost`, so deploy the
-container behind an HTTPS reverse proxy. Photo search needs internet access to Pexels.
+container behind an HTTPS reverse proxy. Photo search needs internet access to Pexels, and AI features to the chosen
+AI service (a local Ollama or LM Studio needs none). A self-hosted web deployment that uses a custom AI service must
+add its host to `connect-src` in `nginx/security-headers.conf`.
 
 ## Updating a deployment
 

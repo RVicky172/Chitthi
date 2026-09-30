@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   onPexelsKey,
   pexelsAccess,
@@ -15,6 +15,9 @@ import { desktop, isDesktop } from '../platform/desktop';
 import { getState, setDesign, setUI, useApp } from '../state/store';
 import { Check } from './common';
 import { CloseIcon, TrashIcon } from './icons';
+
+// The AI section loads with the dialog's first opening, not with the app.
+const AiSettings = lazy(() => import('./ai/AiSettings'));
 
 const ACCESS_TEXT: Record<PexelsAccess, [string, string]> = {
   key: ['on', 'Connected with your key'],
@@ -174,6 +177,9 @@ export function SettingsDialog() {
             <li>Pexels allows 200 searches an hour per key. Results are reused while the app stays open.</li>
           </ul>
         </section>
+        <Suspense fallback={<p className="hint">Loading AI settings…</p>}>
+          <AiSettings />
+        </Suspense>
         <UserFonts />
         <section aria-labelledby="setAbout">
           <h3 id="setAbout">About</h3>

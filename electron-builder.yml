@@ -12,10 +12,18 @@ files:
   - dist/**
   - electron/main.cjs
   - electron/preload.cjs
+  - electron/ai.cjs
+  - electron/ai-hosts.json
+  - electron/mcp.cjs
+  - electron/mcp-stdio.cjs
   - package.json
   - LICENSE
   - THIRD_PARTY_NOTICES.md
   - '!dist/sw.js'
+
+# The MCP stdio relay runs with Electron in Node mode, outside the archive.
+asarUnpack:
+  - electron/mcp-stdio.cjs
 
 # Offline card + UI fonts (npm run fetch:fonts), served to the app at app://chitthi/fonts/.
 extraResources:

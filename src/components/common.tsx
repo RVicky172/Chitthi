@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { creditOf } from '../lib/credits';
+import { aiCreditOf, creditOf } from '../lib/credits';
 import { ArrowIcon, ChevronIcon } from './icons';
 
 /** Small label shown above each pane title, e.g. "Step 2 of 7". */
@@ -243,7 +243,10 @@ export function YearField({ value, onChange, label = 'Year' }: { value: number; 
 /** "Photo by … on Pexels" for a photo that came from Pexels (linked to its Pexels page when the id is known). */
 export function PhotoCredit({ name }: { name: string }) {
   const c = creditOf(name);
-  if (!c) return null;
+  if (!c) {
+    const a = aiCreditOf(name);
+    return a ? <span className="credit">AI picture · {a.made}</span> : null;
+  }
   return (
     <span className="credit">
       Photo by {c.photographer} on{' '}

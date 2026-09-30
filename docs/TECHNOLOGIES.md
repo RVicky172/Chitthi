@@ -18,11 +18,14 @@ kept small on purpose. The one runtime library besides React is jsPDF, and it is
 | **Service Worker** | browser | Offline use of the web app, font caching | `public/sw.js`, network-first for pages, cache-first for hashed assets |
 | **CSS** | — | One stylesheet, light and dark themes via custom properties | No CSS framework; `color-mix`, container-friendly grids, `prefers-reduced-motion` handled |
 | **CSS 3D transforms** | browser | 3D viewer: card flip, ring of months, wall calendar, opening envelope | No WebGL dependency; images are the rendered faces |
+| **@anthropic-ai/sdk** | 0.129 | Claude words (`src/ai/providers/anthropic.ts`) | Official SDK: typed requests, structured output, refusal handling. Bundled into the Claude chunk only, loaded with `import()` the first time Claude is used |
 | **FontFace API** | browser | Fonts the user uploads | Registers stored font files so the canvas draws with them; no server needed |
 
 Hand-written helpers instead of libraries: ZIP writer with CRC-32 (`src/lib/zip.ts`) for the print pack, PNG `pHYs`
 chunk injection so printers read the dpi (`src/engine/export.ts`), procedural festival artwork
-(`src/engine/patterns.ts`), colour maths (`src/engine/color.ts`).
+(`src/engine/patterns.ts`), colour maths (`src/engine/color.ts`), and the other AI provider adapters, which are small
+`fetch` calls against each REST API (`src/ai/providers/`) rather than a multi-provider SDK, so each loads only its own
+few kilobytes.
 
 ## External services
 
@@ -30,9 +33,10 @@ chunk injection so printers read the dpi (`src/engine/export.ts`), procedural fe
 | --- | --- | --- |
 | **Pexels API** (`api.pexels.com`, `images.pexels.com`) | In-app photo search; sample gallery photos (downloaded at build time) | Optional. See [PEXELS.md](PEXELS.md) |
 | **Google Fonts** | Card and UI fonts on the web | Web: first visit. Desktop: no (bundled) |
+| **AI providers** (Anthropic, OpenAI, Google Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together, Stability, fal.ai, Black Forest Labs, Replicate, Ideogram, local Ollama / LM Studio) | AI words and pictures with the user's own key | Optional. See [AI.md](AI.md) |
 | **GitHub Releases** | Desktop installers and auto-update feed | Desktop updates only |
 
-There is no Chitthi backend, account system or analytics.
+There is no Chitthi backend, account system or analytics. AI requests go from the device to the provider the user chose.
 
 ## Build and tooling
 
@@ -49,6 +53,9 @@ There is no Chitthi backend, account system or analytics.
 | --- | --- | --- |
 | **Electron** | 44 | Windows and macOS app; serves `dist/` from a private `app://chitthi` origin with a strict CSP |
 | **electron-builder** | 26 | NSIS installer (Windows x64), DMG + ZIP (macOS x64 and arm64), `.chitthi` file association |
+| **@modelcontextprotocol/sdk** | 1.31 | MCP server in the main process (`electron/mcp.cjs`) | Official SDK: protocol, Streamable HTTP transport, schemas. Never in the web bundle |
+| **zod** | 4.6 | Required by the MCP SDK | — |
+| **Electron `safeStorage`** | 44 | AI keys encrypted with the OS (DPAPI on Windows, Keychain on macOS) | Keys usable by the main process only |
 | **electron-updater** | 6.8 | Auto-updates from GitHub Releases (`latest.yml`, `latest-mac.yml`) |
 
 ## Delivery

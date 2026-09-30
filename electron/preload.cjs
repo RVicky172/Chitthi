@@ -19,6 +19,22 @@ contextBridge.exposeInMainWorld('chitthiDesktop', {
   openDesignFile: invoke('desktop:openDesignFile'),
   onMenu: listen('menu'),
   onOpenFile: listen('open-file'),
+  // AI requests: the main process adds the API key; the page can set, check and delete keys, never read them.
+  ai: {
+    keys: invoke('ai:keys'),
+    setKey: invoke('ai:setKey'),
+    deleteKey: invoke('ai:deleteKey'),
+    fetch: invoke('ai:fetch'),
+  },
+  // Agent (MCP) tools: the main process forwards tool calls here and writes the files they produce.
+  agent: {
+    status: invoke('agent:status'),
+    setLive: invoke('agent:setLive'),
+    onCall: listen('agent:call'),
+    reply: (id, result) => ipcRenderer.send('agent:reply', id, result),
+    writeFiles: invoke('agent:writeFiles'),
+    readPhoto: invoke('agent:readPhoto'),
+  },
   db: {
     all: invoke('db:all'),
     get: invoke('db:get'),

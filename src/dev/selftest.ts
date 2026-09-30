@@ -156,7 +156,107 @@ async function run(): Promise<Result> {
   check(csv.split('\r\n').filter(Boolean).length === 4, 'order sheet: header, 2 designs, 1 envelope');
   check(csv.includes('Price per piece @ 100'), 'order sheet: price columns');
 
+  await aiChecks(check);
+  await agentChecks(check, r);
   return r;
+}
+
+/* ---------- AI: a fake provider drives the real service, prompts, credits and limits (no network) ---------- */
+
+async function aiChecks(check: (ok: unknown, what: string) => void): Promise<void> {
+  const { registerTestProvider } = await import('../ai/registry');
+  const svc = await import('../ai/service');
+  const settings = await import('../ai/settings');
+  const { keyAllowed, isResultHost } = await import('../ai/transport');
+  const { nearestAspect } = await import('../ai/types');
+  const { providerDef } = await import('../data/aiProviders');
+  const { aiCreditOf, creditsText: credits } = await import('../lib/credits');
+
+  const saved = localStorage.getItem('chitthi-ai');
+  const prompts: string[] = [];
+  // The fake stands in for "ollama" (no key needed), so readiness and loading take the normal path.
+  registerTestProvider(providerDef('ollama')!, {
+    text: {
+      generateJSON: async (_ctx, req) => {
+        prompts.push(req.prompt);
+        if (req.schemaName === 'calendar_captions') return { captions: Array.from({ length: 12 }, (_, i) => `Caption ${i + 1}`) };
+        if (req.schemaName === 'card_messages') return { messages: ['Dear Nani,\nWish you were here!'] };
+        return { options: [{ greeting: 'Shubh Deepavali', quote: 'May the lamps light every road ahead.', signature: 'With love' }] };
+      },
+    },
+    image: {
+      generate: async (_ctx, req) => {
+        prompts.push(req.prompt);
+        const cv = document.createElement('canvas');
+        cv.width = req.aspect === '3:2' ? 60 : 40;
+        cv.height = 40;
+        return [await new Promise<Blob>((ok) => cv.toBlob((b) => ok(b!), 'image/png'))];
+      },
+    },
+  });
+  try {
+    settings.setAiSettings({ text: { provider: 'ollama', model: 'fake' }, image: { provider: 'ollama', model: 'fake' }, limits: { text: 50, image: 50 }, usage: { day: '', text: 0, image: 0 } });
+    const card = productDesign('postcard');
+    check(svc.aiReady('text').ready, 'AI: a keyless provider is ready');
+    const words = await svc.writeWords(card, { language: 'hinglish', tone: 'warm' });
+    check(words[0]?.greeting === 'Shubh Deepavali', 'AI: words come back from the provider');
+    check(/Hinglish/.test(prompts.at(-1) ?? '') && /at most \d+ characters/.test(prompts.at(-1) ?? ''), 'AI: the prompt carries language and a length budget');
+    const cal = { ...productDesign('calendar'), cal: { ...productDesign('calendar').cal, year: 2027 } };
+    const caps = await svc.writeCaptions(cal, [], { language: 'en', tone: 'warm' });
+    check(caps.length === 12 && caps[10].month === 10, 'AI: 12 captions, one per month');
+    check(/Diwali/.test(prompts.at(-1) ?? ''), 'AI: caption prompt lists the month festivals');
+    check((await svc.writeMessages(card, { language: 'en', tone: 'warm' }))[0].startsWith('Dear'), 'AI: back messages');
+    const art = await svc.generateArt(card, 0, { subject: 'diyas at dusk', style: 'watercolour', people: false, n: 1 });
+    check(art.blobs.length === 1 && /No people/.test(art.prompt) && /No text/.test(art.prompt), 'AI: picture prompt keeps people and lettering out');
+    const name = svc.aiPhotoName('diyas at dusk', art.provider, art.model);
+    check(aiCreditOf(name)?.made.includes('fake'), 'AI: pictures carry their provenance');
+    check(/AI-generated picture/.test(credits([name]) ?? ''), 'AI: credits file discloses AI pictures');
+    settings.setAiSettings({ limits: { text: 0, image: 50 } });
+    let blocked = false;
+    try {
+      await svc.writeWords(card, { language: 'en', tone: 'warm' });
+    } catch {
+      blocked = true;
+    }
+    check(blocked, 'AI: the daily limit stops requests');
+  } finally {
+    if (saved === null) localStorage.removeItem('chitthi-ai');
+    else localStorage.setItem('chitthi-ai', saved);
+  }
+
+  check(keyAllowed('anthropic', 'https://api.anthropic.com/v1/messages', ''), 'keys: Anthropic key goes to Anthropic');
+  check(!keyAllowed('anthropic', 'https://evil.example.com/v1/messages', ''), 'keys: never to another host');
+  check(!keyAllowed('openai', 'http://api.openai.com/v1/models', ''), 'keys: never over plain http');
+  check(keyAllowed('custom', 'https://llm.example.com/v1/chat/completions', 'https://llm.example.com/v1'), 'keys: custom key goes to its own base URL');
+  check(!keyAllowed('custom', 'https://other.example.com/v1/chat', 'https://llm.example.com/v1'), 'keys: custom key never elsewhere');
+  check(isResultHost('bfl', 'https://delivery-eu1.bfl.ai/x.png') && !isResultHost('bfl', 'https://bfl.ai.evil.com/x'), 'keys: result hosts matched exactly');
+  check(nearestAspect(1.5) === '3:2' && nearestAspect(0.7) === '2:3' && nearestAspect(1) === '1:1', 'AI: slot shapes map to aspects');
+}
+
+/* ---------- agent tools: schemas are valid and read-only tools run ---------- */
+
+async function agentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+  const { TOOLS } = await import('../agent/tools');
+  const { PROMPTS, RESOURCES } = await import('../agent/prompts');
+  const names = new Set<string>();
+  for (const t of TOOLS) {
+    check(/^[a-z][a-z0-9_]{2,40}$/.test(t.name) && !names.has(t.name), `tool ${t.name}: unique snake_case name`);
+    names.add(t.name);
+    const sc = t.inputSchema as { type?: string; properties?: Record<string, unknown>; required?: string[] };
+    check(sc.type === 'object' && sc.properties && (sc.required ?? []).every((k) => k in sc.properties!), `tool ${t.name}: valid input schema`);
+    check(t.description.length > 20, `tool ${t.name}: has a description`);
+  }
+  for (const t of TOOLS.filter((x) => x.readOnly && !['search_pexels', 'list_saved'].includes(x.name))) {
+    try {
+      const out = await t.run(t.name === 'list_sizes' ? { product: 'postcard' } : t.name === 'list_festivals' ? { year: 2027 } : {}, {});
+      check(out.text, `tool ${t.name}: runs`);
+    } catch (e) {
+      r.failed.push(`tool ${t.name} threw: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  for (const p of PROMPTS) check(p.build({ occasion: 'Diwali', year: '2027', subject: 'kites' }).length > 80, `prompt ${p.name}: builds`);
+  for (const res of RESOURCES) check((await res.read()).length > 20, `resource ${res.uri}: reads`);
+  r.notes.push(`${TOOLS.length} agent tools, ${PROMPTS.length} prompts, ${RESOURCES.length} resources checked`);
 }
 
 declare global {

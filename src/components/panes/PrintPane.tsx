@@ -7,7 +7,7 @@ import { envelopeSummary, templateSheet } from '../../engine/envelope';
 import { applyInstaxPreset, downloadEnvelope, downloadPack, downloadPNG, downloadPrintFile, downloadQuote, open3D } from '../../state/actions';
 import { setBack, setExp, useApp } from '../../state/store';
 import type { ExportFormat, ExportSettings, SheetId } from '../../types';
-import { creditOf, isPexels } from '../../lib/credits';
+import { aiCreditOf, creditOf, isPexels } from '../../lib/credits';
 import { Check, Pane, Section } from '../common';
 import { PackIcon } from '../icons';
 
@@ -228,13 +228,26 @@ function PexelsNotice() {
   const d = useApp((s) => s.design),
     photos = useApp((s) => s.photos);
   const pex = photos.filter((p) => isPexels(p.name));
-  if (!pex.length) return null;
+  const ai = [...new Set(photos.map((p) => aiCreditOf(p.name)?.made).filter((m): m is string => !!m))];
+  if (!pex.length && !ai.length) return null;
   const credits = [...new Map(pex.map((p) => creditOf(p.name)!).map((c) => [c.url ?? c.photographer, c])).values()];
   const words = (d.showHeading && d.heading.trim()) || (d.showQuote && d.quote.trim()) || (d.showSig && d.sig.trim());
   // A photo with nothing added around it: a full-bleed postcard or magnet, or a frame print without a caption.
   const bare = !words && (['full', 'mag-full'].includes(d.layout) || (d.product === 'frame' && d.layout !== 'frame-caption'));
+  const note = [credits.length ? `${credits.length} from Pexels` : '', ai.length ? 'AI pictures' : ''].filter(Boolean).join(' · ');
+  if (!pex.length)
+    return (
+      <Section id="print.license" title="Photo credits and license" note={note}>
+        <AiNotice made={ai} />
+        {(d.product === 'postcard' || d.product === 'frame') && (
+          <Check checked={d.back.credit} onChange={(credit) => setBack({ credit })}>
+            Print “AI picture” in small type on the back
+          </Check>
+        )}
+      </Section>
+    );
   return (
-    <Section id="print.license" title="Photo credits and license" note={`${credits.length} from Pexels`}>
+    <Section id="print.license" title="Photo credits and license" note={note}>
       <ul className="tips">
         {credits.map((c) => (
           <li key={c.url ?? c.photographer}>
@@ -264,11 +277,29 @@ function PexelsNotice() {
           different layout or occasion artwork first.
         </p>
       )}
+      {ai.length > 0 && <AiNotice made={ai} />}
       {(d.product === 'postcard' || d.product === 'frame') && (
         <Check checked={d.back.credit} onChange={(credit) => setBack({ credit })}>
           Print the photo credit in small type on the back
         </Check>
       )}
     </Section>
+  );
+}
+
+/** AI pictures on the design: what made them, and what disclosing them means. */
+function AiNotice({ made }: { made: string[] }) {
+  return (
+    <>
+      <ul className="tips">
+        {made.map((m) => (
+          <li key={m}>AI picture made with {m}</li>
+        ))}
+      </ul>
+      <p className="hint">
+        AI pictures were made with your own account, so that service’s terms apply. The print pack’s <code>PHOTO-CREDITS.txt</code>{' '}
+        lists them; say they are AI-generated where the law or a marketplace asks you to.
+      </p>
+    </>
   );
 }

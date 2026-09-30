@@ -131,11 +131,16 @@ Chitthi follows the [Pexels API guidelines](https://www.pexels.com/api/documenta
 | Don't copy or replicate Pexels (e.g. a wallpaper app) or redistribute photos on other stock sites | Search exists only to put a photo into a design; there is no browsing, downloading or re-sharing of photos on their own | `PexelsSearch.tsx` |
 | Don't sell **unaltered** copies as a poster, print or physical product | The Print step explains the rule whenever the design uses a Pexels photo, and warns when the design prints the photo almost unchanged (a full-bleed photo with no words, or a frame print without a caption): fine for yourself or as a gift, but add words, a layout or artwork before selling | `PrintPane.tsx` (`PexelsNotice`) |
 | Identifiable people: not in a bad light, and no implied endorsement | Stated in the Print step notice and in every `PHOTO-CREDITS.txt` | `lib/credits.ts`, `PrintPane.tsx` |
-| No data mining or ML training on Pexels content | Chitthi doesn't collect photos in bulk: it downloads one photo when the user picks it. The photo analysis (`engine/analyze.ts`) runs on the user's device to suggest slots and is never used to train models | — |
+| No data mining or ML training on Pexels content | Chitthi doesn't collect photos in bulk: it downloads one photo when the user picks it. The photo analysis (`engine/analyze.ts`) runs on the user's device to suggest slots and is never used to train models. Pexels photos are never sent to AI services: caption writing sends only the month and the photo's name | `src/ai/service.ts` |
+| (agents) The same rules for AI agents | The MCP tools `search_pexels` and `add_pexels_photo` use the same client, so the credit, the hourly limit and the unaltered-photo warning (`check_design`) apply to agents too; the `photo-sourcing` skill and the `chitthi://rules/photos` resource tell agents the rules | `src/agent/tools.ts`, `src/agent/prompts.ts` |
 
 Bundled photos follow the same rules: the gallery samples (`public/samples/samples.json`), the landing page examples
 (`showcase-src/photos.json`) and the print samples (`print-samples-src/photos.json`) all store the photographer,
 their page and the photo page, and show or ship the credit (sample cards, landing captions, `PHOTO-CREDITS.txt`).
+
+AI pictures are credited beside Pexels photos in the same places, as "AI picture · Provider model" and
+"AI-generated picture" on printed credits, so the two are never confused. They follow the provider's terms, not the
+Pexels license (see [AI.md](AI.md)).
 
 ## Troubleshooting
 

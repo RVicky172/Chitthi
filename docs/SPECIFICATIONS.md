@@ -34,6 +34,11 @@ sheets side by side at true relative scale, stacked, or imposed on a sheet, with
 | Print spec sheet text | `printSpec()` in `src/engine/export.ts` | The `PRINT-SPEC.txt` in every print pack |
 | Envelope sizes | `STANDARD` in `src/engine/envelope.ts` | Standard envelopes by long × short side; each design takes the smallest with 5 mm room |
 | Envelope template sheets | `TEMPLATE_SHEETS` in `src/engine/envelope.ts` | A4, Letter, A3, 13×19 in; 5 mm margin |
+| AI services and models | `src/data/aiProviders.ts` → `AI_PROVIDERS`; hosts and auth headers in `electron/ai-hosts.json` | Kinds (words, pictures), web or desktop only, base URL, suggested models, key page. See [AI.md](AI.md) |
+| AI languages and tones | `AI_LANGUAGES`, `AI_TONES` in `src/data/aiProviders.ts` | Each language names a font with its script, used when a suggestion is applied |
+| AI prompt templates | `src/ai/prompts/words.ts` (`WORDS_VERSION`), `src/ai/prompts/artwork.ts` (`ART_STYLES`) | Character budgets come from the layout's text zone (`textBudget` in `src/ai/service.ts`); picture shapes from the slot (`slotShape`) |
+| AI daily limits | `src/ai/settings.ts` | 200 writing and 30 picture requests a day by default, changed in Settings → AI |
+| Agent tools, MCP prompts and resources | `src/agent/tools.ts`, `src/agent/prompts.ts` | Documented in [MCP.md](MCP.md) |
 | Photo fit threshold | `fitsSlot()` in `src/state/photoFit.ts` | A photo suits a slot when the automatic crop keeps at least 80% of it |
 
 ## Terms

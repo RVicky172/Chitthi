@@ -26,6 +26,7 @@ import type { StoredPhoto } from '../types';
 import { shortName } from '../lib/credits';
 import { PhotoCredit, Seg } from './common';
 import { AddPhotoIcon, CloseIcon, CropIcon, TrashIcon } from './icons';
+import { AiArtworkEntry } from './ai/AiEntry';
 import { PexelsSearch } from './PexelsSearch';
 
 type Filter = 'fit' | 'all' | 'card' | 'unused' | 'uploads' | 'pexels' | PhotoShape;
@@ -87,7 +88,7 @@ export function PhotoLibrary() {
   useDimsTick();
   const dlg = useRef<HTMLDialogElement>(null);
   const tab = useApp((s) => s.ui.libraryTab),
-    setTab = (libraryTab: 'mine' | 'pexels') => setUI({ libraryTab });
+    setTab = (libraryTab: 'mine' | 'pexels' | 'ai') => setUI({ libraryTab });
   const [filter, setFilter] = useState<Filter>('fit');
   const [sort, setSort] = useState<Sort>('rel');
   const [refine, setRefine] = useState<Refine>({});
@@ -313,12 +314,13 @@ export function PhotoLibrary() {
           {items.length} in your library{photos.length ? `, ${photos.length} on this design` : ''}
         </span>
         <div className="lib-tabs">
-          <Seg<'mine' | 'pexels'>
+          <Seg<'mine' | 'pexels' | 'ai'>
             label="Source"
             value={tab}
             options={[
               ['mine', 'Your photos'],
               ['pexels', 'Find on Pexels'],
+              ['ai', 'Create with AI'],
             ]}
             onChange={setTab}
           />
@@ -372,6 +374,10 @@ export function PhotoLibrary() {
       {tab === 'pexels' ? (
         <div className="galbody lib-pexels">
           <PexelsSearch wide />
+        </div>
+      ) : tab === 'ai' ? (
+        <div className="galbody lib-pexels">
+          <AiArtworkEntry wide />
         </div>
       ) : (
         <div

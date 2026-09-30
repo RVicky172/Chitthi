@@ -19,8 +19,10 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | --- | --- |
 | `npm run dev` | Vite dev server on http://localhost:5173 with hot reload; proxies `/api/pexels` when a key is set |
 | `npm run typecheck` | `tsc -b`: strict type check of app and tooling |
-| `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview and the order sheet (`src/dev/selftest.ts`). Exits 1 on any failure |
-| `npm run build` | Type check, then production bundle into `dist/` |
+| `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview, the order sheet, the AI service against a fake provider and every agent tool (`src/dev/selftest.ts`). Exits 1 on any failure |
+| `npm run mcp` | The MCP server from source (headless): its own Vite server on port 5197 and cache (`.vite-mcp`), then `electron . --mcp`. stdout carries only the protocol. See [MCP.md](MCP.md) |
+| `npm run test:mcp` | Starts `npm run mcp` and runs the official MCP client against it: lists tools, resources and prompts, builds a calendar, renders a preview, checks, exports a PDF, and checks errors (`scripts/mcp-smoke.mjs`). With `CHITTHI_MCP_APP=<path to Chitthi.exe>` it tests a packaged or installed app instead |
+| `npm run build` | Type check, production bundle into `dist/`, then `scripts/check-bundle.mjs`: fails if the start-up script grows past 350 KB or contains AI code (which must load with `import()`) |
 | `npm run preview` | Serves `dist/` on http://localhost:8080 (same Pexels proxy) |
 | `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` for the design-system sync (`src/index.ts`) |
 | `npm run fetch:samples` | Downloads the gallery sample photos from Pexels into `public/samples/` with credits (needs the key) |

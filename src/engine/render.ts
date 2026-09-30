@@ -1,5 +1,5 @@
 import { fontDef, fontStr } from '../data/fonts';
-import { creditOf } from '../lib/credits';
+import { aiCreditOf, creditOf } from '../lib/credits';
 import type { Box, Design, Layout, Photo, Rect, RenderInput, RenderOpts, Side, Slot, Theme } from '../types';
 import { hexA, lum, mix, rng } from './color';
 import { cardMM, darkInk, frameInk, paperColour, postmarkYear, resolveTheme, sizeOf } from './design';
@@ -573,14 +573,16 @@ function labelFace(font: string, weight: number): (px: number) => string {
 /** Small photo credit line ("Photo: Name / Pexels") at the given baseline, when the back asks for it. */
 function drawCreditLine(c: Ctx, d: Design, names: string[], x: number, y: number, maxW: number, u: number, ink: string, align: CanvasTextAlign): void {
   if (!d.back.credit) return;
-  const who = [...new Set(names.map((n) => creditOf(n)?.photographer).filter((n): n is string => !!n))];
-  if (!who.length) return;
+  const who = [...new Set(names.map((n) => creditOf(n)?.photographer).filter((n): n is string => !!n))],
+    ai = names.some((n) => !!aiCreditOf(n));
+  if (!who.length && !ai) return;
   c.save();
   c.fillStyle = hexA(ink, 0.6);
   c.textAlign = align;
   c.textBaseline = 'alphabetic';
   let px = u * 2.2;
-  const text = `Photo${who.length > 1 ? 's' : ''}: ${who.join(', ')} / Pexels`;
+  const parts = [...(who.length ? [`Photo${who.length > 1 ? 's' : ''}: ${who.join(', ')} / Pexels`] : []), ...(ai ? ['AI-generated picture'] : [])];
+  const text = parts.join(' · ');
   c.font = labelFace(d.back.labelFont, 500)(px);
   while (c.measureText(text).width > maxW && px > u) {
     px *= 0.92;

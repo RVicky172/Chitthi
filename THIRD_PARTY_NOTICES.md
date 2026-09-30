@@ -9,6 +9,9 @@ including commercially. It includes or uses the following, each under its own li
 | [jsPDF](https://github.com/parallax/jsPDF) | MIT | PDF export |
 | [Lucide](https://lucide.dev) icons (`lucide-react`) | ISC | Interface icons |
 | [Electron](https://www.electronjs.org), electron-updater | MIT | Desktop app |
+| [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) (`@anthropic-ai/sdk`) | MIT | Claude requests for AI writing |
+| [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) (`@modelcontextprotocol/sdk`) | MIT | MCP server in the desktop app |
+| [Zod](https://zod.dev) | MIT | Used by the MCP SDK |
 | Card and UI fonts from [Google Fonts](https://fonts.google.com) | SIL Open Font License 1.1 (a few Apache 2.0) | Bundled in the desktop app; free to use in printed work |
 | Sample photos in `public/samples/` | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `public/samples/samples.json` and in the app |
 | Landing page example photos in `showcase-src/` (and their renders in `public/showcase/`) | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `showcase-src/photos.json` and on the landing page |
@@ -19,6 +22,8 @@ Designs, photos and files you make with Chitthi are yours. The MIT License cover
 
 - **Photos found with the Pexels search** are free to use, including in prints you sell, under the Pexels License.
   Don't sell unaltered copies of the photos themselves, and don't suggest that people or brands shown endorse you.
+- **AI pictures and words** come from the service you chose, under its terms and your account with it. Chitthi marks
+  AI pictures in credits; disclose them as AI-generated where the service or the law requires.
 - **Fonts you upload** stay on your device. Check that their licence allows use in print (most free fonts do).
 - **Occasion artwork** drawn by Chitthi (diyas, rangoli, confetti and the rest) is part of the MIT-licensed software, so
   it can be used freely in anything you print.

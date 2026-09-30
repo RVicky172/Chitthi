@@ -5680,3 +5680,128 @@ input[type='search']::-webkit-search-cancel-button {
 .screen-loading {
   min-height: 60vh;
 }
+
+/* Settings → AI */
+.aiset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.aichoice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aiprov {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+}
+.aiprov > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.aiprow {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aiprow > summary {
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.aiprow > summary small {
+  color: var(--muted);
+}
+.aicmd {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  word-break: break-all;
+  margin: 6px 0;
+}
+
+/* AI panels (Write with AI, Create a picture with AI) */
+.aientry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aibtn span {
+  color: var(--accent);
+}
+.aiw {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+}
+.aiopts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aiopts li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--field);
+  border: 1px solid var(--line);
+}
+.aiopts li small {
+  color: var(--muted);
+}
+.aicaps ol {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aicaps li {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 2px 8px;
+  align-items: center;
+}
+.aicaps li small {
+  grid-column: 2;
+}
+.aigrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.aiw.wide .aigrid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.aigrid li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aigrid img {
+  width: 100%;
+  border-radius: var(--r-sm);
+  box-shadow: var(--elev-1);
+}

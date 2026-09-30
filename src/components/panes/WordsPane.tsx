@@ -4,6 +4,7 @@ import type { HAlign, VAlign } from '../../types';
 import { Check, Pane, Section, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
 import { InstagramIcon } from '../icons';
+import { AiWordsEntry } from '../ai/AiEntry';
 import { CalendarFront } from './CalendarFront';
 import { PostmarkYear } from './EnvelopeSection';
 
@@ -30,6 +31,7 @@ function CardWords() {
       onNext={() => setUI({ pane: 'back' })}
     >
       <Section id="words.text" title="Greeting, quote and signature">
+      <AiWordsEntry mode="card" />
       <Check checked={d.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
         Greeting
       </Check>
