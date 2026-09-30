@@ -12,6 +12,7 @@ export { Header } from './components/Header';
 export { Rail } from './components/Rail';
 export { Stage } from './components/Stage';
 export { PhotoTray } from './components/PhotoTray';
+export { Paper3D } from './components/Paper3D';
 
 /* ---------- step panes ---------- */
 export { PhotosPane } from './components/panes/PhotosPane';
@@ -20,6 +21,11 @@ export { OccasionPane } from './components/panes/OccasionPane';
 export { WordsPane } from './components/panes/WordsPane';
 export { BackPane } from './components/panes/BackPane';
 export { PrintPane } from './components/panes/PrintPane';
+export { CalendarFront } from './components/panes/CalendarFront';
+export { EnvelopeSection } from './components/panes/EnvelopeSection';
+
+/* ---------- AI (the panels, the AI service and provider code load only when a button is clicked) ---------- */
+export { AiWordsEntry, AiArtworkEntry } from './components/ai/AiEntry';
 
 /* ---------- overlays ---------- */
 export { GalleryDialog } from './components/GalleryDialog';
@@ -38,12 +44,18 @@ export { PexelsSearch } from './components/PexelsSearch';
 export { ThemeTile, LayoutThumb, PhotoThumb } from './components/canvases';
 
 /* ---------- primitives ---------- */
-export { Seg, Check, Pane, StepLabel } from './components/common';
+export { Seg, Check, Pane, StepLabel, Section, YearField, PhotoCredit } from './components/common';
 
 /* ---------- icons ---------- */
 export {
   PaneIcon,
   GalleryIcon,
+  PhotosIcon,
+  ChevronIcon,
+  ExpandIcon,
+  FullscreenIcon,
+  ArrangeIcon,
+  SuggestIcon,
   CheckIcon,
   InstagramIcon,
   UndoIcon,

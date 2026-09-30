@@ -24,6 +24,10 @@ Chitthi is an app, not a published component library. The sync ships it through 
 - Docs: full usage docs for store-driven components and category-only stubs for primitives/icons/thumbs live in `.design-sync/docs/` (`docsDir`). Pane components keep the `panes` group from their src dir.
 
 - `SampleGallery` is excluded (`componentSrcMap: null`): it loads the Pexels photos from the app's `public/samples/` (via `samples.json`), which is not part of the design-system upload, so in Claude Design it can only show its "not included" state. `Landing` falls back to painted `samplePhoto()` art there for the same reason (expected).
+- AI previews (`AiWordsEntry`, `AiArtworkEntry`, `SettingsDialog`) seed `localStorage['chitthi-ai']` (a words and a picture service) and `localStorage['chitthi-ai-keys']` with the fake key `preview-key`, so the panels show their ready form instead of "choose a service". Nothing is sent unless someone presses Write/Create in Claude Design (which then fails on the fake key: expected). `AiWordsEntry` has no open prop: its `OpenPanel` cell clicks the button in a `useEffect`.
+- The AI panels are `React.lazy` in the app; esbuild's IIFE bundle inlines them (and the Anthropic SDK) into `_ds_bundle.js`, so the bundle is larger than the app's start-up chunk. Expected.
+- `PexelsSearch` renders its no-key state (a key and the network are needed to search); `PhotoLibrary` seeds the IndexedDB library with `storePhotos` and opens with `setUI` after the store resolves.
+- `Section`, `YearField`, `PhotoCredit` need `cardMode: column` (their stories are wider than a grid cell).
 - Icons are Lucide (`lucide-react`) since the clean-studio redesign; brand logos aren't in Lucide, so `InstagramIcon` stays hand-drawn in `icons.tsx`.
 
 ## Known render warns
@@ -32,7 +36,9 @@ Chitthi is an app, not a published component library. The sync ships it through 
 
 ## Re-sync risks
 
-- `src/index.ts` is hand-maintained: a new component or store action must be added there or it won't reach `window.Chitthi`.
+- `src/index.ts` is hand-maintained: a new component or store action must be added there or it won't reach `window.Chitthi`. Not exported on purpose: `Landing3D` pieces, `PostmarkYear` (inside `EnvelopeSection`), `AiWords`/`AiArtwork`/`AiSettings` (reached through the entries and `SettingsDialog`), `StepLabel`, `SampleGallery`.
+- `conventions.md` names colours, classes and setters by hand: after a visual redesign re-check it (the 2.5.0 sync found it still describing the old sky-blue theme and a removed `.products` class).
+- AI previews depend on the `chitthi-ai` / `chitthi-ai-keys` storage format (`src/ai/settings.ts`, `src/ai/secrets.ts`) and provider ids `anthropic` / `openai`.
 - `dist-lib/types` is gitignored build output – stale `.d.ts` (forgot `npm run build:lib`) silently ships old prop contracts.
 - `cfg.dtsPropsFor` hand-writes props for `Seg`, `ThemeTile`, `LayoutThumb`, `PhotoThumb`, `PaneIcon` (generic/cross-file types). If those components' props change, update the config.
 - Docs in `.design-sync/docs/*.md` describe store fields and UI text by hand (e.g. Viewer3D bar buttons, FontPicker categories) – re-check them when those components change.

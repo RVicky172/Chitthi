@@ -135,6 +135,53 @@
     },
     "Pane": {
       "cardMode": "column"
+    },
+    "SettingsDialog": {
+      "cardMode": "single",
+      "viewport": "900x1100"
+    },
+    "FeatureFinder": {
+      "cardMode": "single",
+      "viewport": "900x700"
+    },
+    "PhotoLibrary": {
+      "cardMode": "single",
+      "viewport": "1240x860"
+    },
+    "SizeGuide": {
+      "cardMode": "single",
+      "viewport": "1300x1500"
+    },
+    "Paper3D": {
+      "cardMode": "single",
+      "viewport": "1300x900"
+    },
+    "CalendarFront": {
+      "cardMode": "single",
+      "viewport": "460x2200"
+    },
+    "EnvelopeSection": {
+      "cardMode": "single",
+      "viewport": "460x1150"
+    },
+    "PexelsSearch": {
+      "cardMode": "single",
+      "viewport": "460x520"
+    },
+    "AiWordsEntry": {
+      "cardMode": "column"
+    },
+    "AiArtworkEntry": {
+      "cardMode": "column"
+    },
+    "PhotoCredit": {
+      "cardMode": "column"
+    },
+    "Section": {
+      "cardMode": "column"
+    },
+    "YearField": {
+      "cardMode": "column"
     }
   },
   "readmeHeader": ".design-sync/conventions.md"
