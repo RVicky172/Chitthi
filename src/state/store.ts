@@ -22,7 +22,7 @@ export interface UIState {
   settings: boolean;
   /** Photo library dialog is open, and which tab it shows. */
   library: boolean;
-  libraryTab: 'mine' | 'pexels';
+  libraryTab: 'mine' | 'pexels' | 'ai';
   /** Feature finder (Ctrl+K) is open. */
   finder: boolean;
   /** A long task the preview shows a loader for (e.g. a photo downloading), or null. */

@@ -28,11 +28,15 @@ flowchart LR
   app -- fonts --> gf[Google Fonts]
   app -- photo search<br/>optional --> px[Pexels API + image CDN]
   app -. desktop updates .-> gh[GitHub Releases]
+  app -- words and pictures<br/>optional, user's key --> ai[AI providers<br/>Claude, OpenAI, Gemini, …]
+  agent([AI agent<br/>Claude Code, …]) -- MCP, desktop only --> app
   app -- print pack ZIP / PDF / PNG --> shop([Print shop or home printer])
 ```
 
 - Photos never leave the device, except that Pexels photos are downloaded *to* it.
-- The only outbound calls are fonts (web only), optional Pexels search, and update checks (desktop only).
+- The only outbound calls are fonts (web only), optional Pexels search, optional AI requests to the service the user
+  chose with their own key ([AI.md](AI.md)), and update checks (desktop only).
+- Agents connect only to the desktop app, over stdio or a loopback HTTP endpoint with a token ([MCP.md](MCP.md)).
 
 ## 3. Deployment views
 
@@ -70,6 +74,10 @@ flowchart TB
   EN --> DA[Data<br/>products, sizes, layouts, themes, fonts, samples]
   UI --> DA
   PL --> EXT[(Browser APIs / Electron bridge / Pexels)]
+  UI --> AI[AI<br/>ai/service, prompts, providers]
+  AG[Agent tools<br/>agent/tools, bridge] --> ST
+  AG --> AI
+  AI --> PL
 ```
 
 | Block | Responsibility |
@@ -79,6 +87,8 @@ flowchart TB
 | **State** (`src/state/`) | One app store (design, photos, UI) with undo/redo and autosave; user actions such as adding photos, switching product, export and gallery |
 | **UI** (`src/components/`) | Landing page, studio (header, step rail, step panes, live stage), gallery, 3D viewer, crop tool, sizes guide, paper sizes in 3D, settings |
 | **Platform and services** (`src/lib/`, `src/platform/`) | Storage abstraction (IndexedDB or desktop files), font loading, Pexels client, desktop bridge and menus |
+| **AI** (`src/ai/`) | Facade over provider adapters: words and captions sized to the layout, slot-shaped pictures, prompt templates, keys, daily limits. Loaded only when used |
+| **Agent tools** (`src/agent/`) | One registry of 34 tools, plus MCP prompts and resources, that call the store and engine; the page side of the MCP server |
 | **Desktop shell** (`electron/`) | Window, `app://` protocol with CSP, file-based library, save/open dialogs, menus, file association, auto-update |
 
 ## 5. Key flows
@@ -126,6 +136,9 @@ install newer versions. A `v*` tag pushed to GitHub builds and publishes both pl
 | Photo store (every upload) | IndexedDB `library` | `library/photos/<id>.json` | Until deleted |
 | Gallery designs | IndexedDB `designs` | `library/designs/<id>.json` | Until deleted |
 | Settings (Pexels key, search on/off, theme) | `localStorage` | same | Until changed |
+| AI settings (services, models, limits, usage) | `localStorage` `chitthi-ai` | same | Until changed |
+| AI keys | `localStorage` (or `sessionStorage` for this tab only) | `ai-keys.json` in the app data folder, encrypted with `safeStorage` | Until deleted in Settings |
+| Agent output | — | `Documents/Chitthi agent output` | Until deleted |
 | Uploaded fonts | IndexedDB `chitthi-fonts` (names also in `localStorage`) | same (IndexedDB in the app) | Until deleted in Settings |
 
 Photos are stored as data URLs so designs, backups and `.chitthi` files are self-contained.
@@ -138,7 +151,11 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 - **Desktop isolation**: the renderer is sandboxed without Node. It reaches the system only through the small
   `window.chitthiDesktop` bridge. File ids are validated, and only files the session saved can be shown in the folder.
 - **API keys**: no key is compiled into the bundle. A user's Pexels key stays on their device and is sent only to
-  `api.pexels.com`. The dev proxy key stays in the Vite server process.
+  `api.pexels.com`. The dev proxy key stays in the Vite server process. AI keys are sent only to their provider's
+  listed hosts (`electron/ai-hosts.json`); on desktop they are encrypted with the OS (`safeStorage`), used only by the
+  main process, and never readable by the page.
+- **MCP**: off unless started with `--mcp` or turned on in Settings; loopback only, random bearer token, browser
+  origins refused, files written only to one output folder, overwrites need `confirm`.
 - **Headers** (web): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` and COOP.
   The container runs as non-root with a read-only file system.
 
@@ -162,3 +179,8 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Data URLs for photos | Self-contained designs and backups | Larger storage use than blobs |
 | Electron wrapping the web build | One code base for three platforms | Large installers (~120 MB) |
 | Pexels key from Settings, optional proxy | Key never ships in the bundle; each deployment chooses | Users of a proxy-less build must get their own key |
+| AI with the user's own key, no AI backend | No running cost or data custody; any provider | Users need an account; some providers work only on desktop (no CORS) |
+| Provider adapters behind a registry, loaded with `import()` | Adding a provider is one file and one line; nothing loads until used | A small indirection per call |
+| Desktop AI calls in the main process | Keys never reach the page; no CORS limits | IPC copies of image bytes (capped at 40 MB) |
+| One tool registry for agents, running in the page | Agents use exactly the studio's code; live mode shows every change with undo | Headless mode needs a hidden window |
+| MCP over loopback HTTP plus a stdio relay | Electron's main process can't read stdin on Windows; one server serves both modes | An extra small process in headless mode |

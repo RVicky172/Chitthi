@@ -6,6 +6,7 @@ import { setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings, CalTextPlace, HAlign, VAlign } from '../../types';
 import { Check, Pane, Section, Seg, YearField } from '../common';
 import { FontPicker } from '../FontPicker';
+import { AiWordsEntry } from '../ai/AiEntry';
 import { InstagramIcon } from '../icons';
 
 /*
@@ -17,7 +18,7 @@ import { InstagramIcon } from '../icons';
 type CalStyle = Pick<CalendarSettings, 'font' | 'numFont' | 'numSync' | 'numBold' | 'grid' | 'numbers' | 'titleAlign'>;
 
 /** Ready-made looks: each sets the title and date fonts, the grid and the alignment together. */
-const STYLES: [string, string, CalStyle][] = [
+export const STYLES: [string, string, CalStyle][] = [
   ['classic', 'Classic', { font: '', numFont: '', numSync: false, numBold: true, grid: 'lines', numbers: 'corner', titleAlign: 'center' }],
   ['modern', 'Modern', { font: 'Mukta', numFont: 'Mukta', numSync: false, numBold: true, grid: 'tiles', numbers: 'center', titleAlign: 'left' }],
   ['minimal', 'Minimal', { font: 'Playfair Display', numFont: 'Hind', numSync: false, numBold: false, grid: 'none', numbers: 'center', titleAlign: 'left' }],
@@ -277,6 +278,7 @@ export function CalendarFront() {
       </Section>
 
       <Section id="calf.words" title="Words on the months" note={words ? (onPhoto ? 'On the photo' : 'Above the month') : 'None'}>
+        <AiWordsEntry mode="captions" />
         <Seg<CalTextPlace>
           label="Where the words go"
           value={cal.text}

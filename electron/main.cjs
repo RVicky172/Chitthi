@@ -11,6 +11,8 @@ const fs = require('node:fs');
 const fsp = fs.promises;
 
 const DEV_URL = process.env.CHITTHI_DEV_URL || ''; // set by electron/dev.mjs
+// `Chitthi --mcp`: run headless as an MCP server over stdio for AI agents (electron/mcp.cjs), no window.
+const MCP_MODE = process.argv.includes('--mcp');
 const isMac = process.platform === 'darwin';
 const ORIGIN = 'app://chitthi';
 const DIST = path.join(__dirname, '..', 'dist');
@@ -410,7 +412,26 @@ function checkForUpdates(manual) {
 
 /* ------------------------------------------------------------------ lifecycle */
 
-if (!app.requestSingleInstanceLock()) {
+const { registerAi } = require('./ai.cjs');
+const agent = require('./mcp.cjs');
+
+if (MCP_MODE) {
+  // Headless agent mode: its own process next to any open Chitthi window (no single-instance lock, no menu).
+  app.whenReady().then(async () => {
+    serveApp();
+    registerStorage();
+    registerFiles();
+    registerAi();
+    try {
+      await agent.startHeadless({ url: `${DEV_URL || `${ORIGIN}/index.html`}?agent`, preload: path.join(__dirname, 'preload.cjs') });
+    } catch (e) {
+      process.stderr.write(`Chitthi MCP could not start: ${e && e.message ? e.message : e}
+`);
+      app.exit(1);
+    }
+  });
+  app.on('window-all-closed', () => undefined);
+} else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   // Windows/Linux: double-clicking a .chitthi file while Chitthi is open.
@@ -433,6 +454,9 @@ if (!app.requestSingleInstanceLock()) {
     serveApp();
     registerStorage();
     registerFiles();
+    registerAi();
+    // Live agent connection (Settings → AI): drives this window when turned on.
+    agent.registerAgentIpc(() => (win ? win.webContents : null));
     menu();
     pendingFile = pendingFile || designArg(process.argv.slice(1));
     createWindow();

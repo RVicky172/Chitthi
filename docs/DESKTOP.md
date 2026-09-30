@@ -11,8 +11,9 @@ offline: fonts and sample photos ship inside the app.
 | Downloads | Browser download | Native **Save as…** dialog |
 | Fonts | Google Fonts | Bundled offline (`npm run fetch:fonts`) |
 | Offline | Service worker | Always offline |
-| Extras | — | Native menus, `.chitthi` design files, auto-updates |
+| Extras | — | Native menus, `.chitthi` design files, auto-updates, **MCP server for AI agents** (`Chitthi --mcp`, or live from Settings → AI; see [MCP.md](MCP.md)) |
 | Pexels photo search | Your key in Settings, or the dev/preview server's key | Your key in **File → Settings** (`Ctrl+,`), kept in the app only |
+| AI services | Those that allow browser calls (see [AI.md](AI.md)); keys in the browser | Every service, including Black Forest Labs, Replicate and Ideogram. Requests run in the main process; keys are encrypted with the OS (`safeStorage`) in `ai-keys.json` beside the library folder and never reach the page |
 
 The two keep **separate** libraries. To move designs between them, use **Back up gallery** in one and
 **Restore a backup** in the other, or share a single design as a `.chitthi` file (**File → Save design as file…**).
@@ -23,6 +24,10 @@ Desktop data folder (**File → Open library folder**):
 - macOS: `~/Library/Application Support/Chitthi/library`
 
 It contains `designs/<id>.json`, `photos/<id>.json` (the photo store) and `work.json` (the card in progress).
+Files made by agent tools go to `Documents/Chitthi agent output`.
+
+Command-line: `Chitthi --mcp` starts the MCP server for an agent over stdio, with no window. It runs beside an open
+Chitthi window without disturbing it, and quits when the agent disconnects.
 
 ## Develop
 

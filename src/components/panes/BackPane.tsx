@@ -2,6 +2,7 @@ import { setBack, setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings } from '../../types';
 import { Check, Pane, Section, Seg, YearField } from '../common';
 import { FontPicker } from '../FontPicker';
+import { AiWordsEntry } from '../ai/AiEntry';
 import { EnvelopeSection } from './EnvelopeSection';
 
 export function BackPane() {
@@ -13,6 +14,7 @@ export function BackPane() {
   return (
     <Pane title="Back of the card" next="print file" onNext={() => setUI({ pane: 'print' })}>
       <Section id="back.message" title="Message">
+      <AiWordsEntry mode="message" />
       <label className="f">
         Message (leave empty for ruled lines to write by hand)
         <textarea
@@ -165,6 +167,7 @@ function FrameBack() {
       onNext={() => setUI({ pane: 'print' })}
     >
       <Section id="back.label" title="Dedication label">
+      <AiWordsEntry mode="message" />
       <label className="f">
         Title (uses the design name, or the greeting)
         <input type="text" value={d.designName} placeholder={d.heading} onChange={(e) => setDesign({ designName: e.target.value })} />

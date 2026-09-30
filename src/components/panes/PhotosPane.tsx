@@ -8,6 +8,7 @@ import { usePhotoSlots } from '../../state/photoSlots';
 import { patchPhoto, setPhotos, setUI, useApp } from '../../state/store';
 import type { LookId } from '../../types';
 import { PhotoThumb } from '../canvases';
+import { AiArtworkEntry } from '../ai/AiEntry';
 import { PexelsSearch } from '../PexelsSearch';
 import { PhotoStore } from '../PhotoStore';
 import { shortName } from '../../lib/credits';
@@ -94,6 +95,7 @@ export function PhotosPane() {
         </p>
       )}
       <PexelsSearch />
+      <AiArtworkEntry />
       <Section id="photos.store" title="Photo store">
         <PhotoStore />
       </Section>

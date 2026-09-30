@@ -26,6 +26,8 @@ if (import.meta.env.DEV && location.search.includes('showcase')) void import('./
 if (import.meta.env.DEV && location.search.includes('printsamples')) void import('./dev/printSamples');
 // Development only: the checks behind npm test.
 if (import.meta.env.DEV && location.search.includes('selftest')) void import('./dev/selftest');
+// Desktop, headless agent mode (`Chitthi --mcp`, opened with ?agent): the MCP tools answer from this page.
+if (window.chitthiDesktop?.agent && /[?&]agent\b/.test(location.search)) void import('./agent/bridge');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

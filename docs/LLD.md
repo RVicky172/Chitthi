@@ -40,6 +40,18 @@ src/
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
     download.ts, zip.ts, toast.ts, theme.ts
+  ai/                      Loaded with import() only when an AI feature is used (section 5, AI)
+    types.ts                 TextAdapter, ImageAdapter, requests, AiError, aspect helpers
+    registry.ts              Provider id → lazy adapter module; request context per call
+    service.ts               Facade: writeWords, writeCaptions, writeMessages, generateArt, textBudget, slotShape
+    transport.ts             Adds the key for allowed hosts (web) or sends the request to the main process (desktop)
+    secrets.ts, settings.ts  Keys (SecretStore); chosen services, models, daily limits and usage
+    prompts/                 Versioned templates: words.ts (greetings, captions, messages), artwork.ts (pictures)
+    providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram
+  agent/
+    tools.ts                 The 34 agent tools: JSON Schema input and a handler each
+    prompts.ts               MCP prompts (workflows) and resources (design, specs, photo rules)
+    bridge.ts                Page side of MCP: runs one call at a time, returns text, images and files
   platform/
     desktop.ts               Typed window.chitthiDesktop bridge (absent in browsers)
     menu.ts                  Desktop menu commands → actions
@@ -48,6 +60,9 @@ src/
 electron/
   main.cjs                 Main process: window, app:// protocol + CSP, file library, dialogs, menus, updater
   preload.cjs              contextBridge: the only system access for the page
+  ai.cjs, ai-hosts.json    AI requests with encrypted keys; allowed hosts and auth header per provider
+  mcp.cjs                  MCP server (official SDK): loopback HTTP, headless start, agent IPC
+  mcp-stdio.cjs            stdio ↔ HTTP relay run by the Electron binary in Node mode (headless)
   dev.mjs                  Runs Vite + Electron together for development
 scripts/                   fetch-samples, fetch-fonts, spec-tables (docs)
 ```
@@ -345,6 +360,26 @@ upload button; Settings lists, previews and deletes them.
 
 Full description: [PEXELS.md](PEXELS.md).
 
+### AI (`src/ai/`)
+
+- **Providers** are data in `data/aiProviders.ts` (name, kinds, `web: 'direct' | 'desktop'`, base URL, key page,
+  suggested models) and hosts in `electron/ai-hosts.json`. `registry.ts` maps each id to an `import()` of its adapter
+  (OpenAI-compatible services share `openaiCompat.ts`).
+- **Adapters** (Strategy) implement `TextAdapter.generateJSON(ctx, req)` and/or `ImageAdapter.generate(ctx, req)`.
+  `ctx.http.fetch` is the transport; the adapter never holds a key. Claude uses the official SDK
+  (`output_config.format` JSON schema, effort low, `stop_reason === 'refusal'` handled, the server-side fallback beta
+  unless turned off). Errors become `AiError` kinds: `key`, `limit`, `refused`, `network`, `setup`, `bad-output`, `cancelled`, `provider`.
+- **Service** (Facade): `writeWords` / `writeCaptions` / `writeMessages` build a prompt from `prompts/words.ts` with a
+  character budget from the layout (`textBudget`) and return options; nothing is applied until the user picks one
+  (`setDesign`, so undo works). `generateArt` builds the prompt from `prompts/artwork.ts` with the slot's aspect
+  (`slotShape`, `nearestAspect`), runs one job at a time, counts against the daily limit (`settings.spend`), and
+  returns `Blob`s. The chosen picture becomes a JPEG data URL (`blobToJpegDataUrl`) named by `aiPhotoName`, then goes
+  through `storePhotos` and `putOnCard`.
+- **Transport** (Bridge): web adds the key header only when `keyAllowed(provider, url, base)`; desktop serialises the
+  request to `ai:fetch`, and strips any auth header the SDK sets, because the main process adds the real key.
+- **Credits**: `lib/credits.ts` `aiCreditOf` / `isAi` read the `(AI / Provider model)` suffix; `creditsText` and
+  the printed credit line include AI pictures.
+
 ### Storage (`lib/db.ts`)
 
 One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPhotos/putWorkPhotos`, and
@@ -374,10 +409,27 @@ One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPho
 | `db:*` | invoke | Storage above |
 | `menu` | main → page | Menu command (`MenuAction`, handled in `platform/menu.ts`) |
 | `open-file` | main → page | A `.chitthi` file opened from the OS |
+| `ai:keys` / `ai:setKey` / `ai:deleteKey` | invoke | Which providers have a key (never the key), save one encrypted, delete one |
+| `ai:fetch` | invoke | An AI request: the main process checks the host against `ai-hosts.json`, adds the key, returns status, headers and body (≤ 40 MB, 180 s, 2 at a time) |
+| `agent:call` | main → page | An MCP request for the page (`__list`, `__resource`, `__prompt` or a tool) |
+| `agent:reply` | page → main | Its result (id 0: the page is ready) |
+| `agent:writeFiles` | invoke | Save tool output to Documents/Chitthi agent output (unique names) |
+| `agent:readPhoto` | invoke | Read a JPG / PNG / WebP ≤ 25 MB for `add_photo` |
+| `agent:status` / `agent:setLive` | invoke | Live MCP endpoint: state, and turn it on or off (returns URL and token) |
 
 `app://chitthi` is a privileged standard scheme serving `dist/` (and `fonts/` from resources) with the CSP header on
 HTML. Navigation away from the origin is blocked, and external links open in the system browser. Window size is
 remembered. On a packaged start, `electron-updater` checks GitHub Releases.
+
+### MCP
+
+`Chitthi --mcp` (`MCP_MODE` in `main.cjs`) skips the window and the single-instance lock, loads the app hidden with
+`?agent` (which installs `agent/bridge.ts`), starts the HTTP server on a random loopback port, and spawns
+`mcp-stdio.cjs` with `ELECTRON_RUN_AS_NODE=1`, `CHITTHI_MCP_URL` and `CHITTHI_MCP_TOKEN`. The relay forwards each
+newline-delimited JSON-RPC message as an HTTP POST and writes the JSON reply to stdout; when stdin closes the app
+quits. Live mode uses the same `listen()` against the open window. Each request gets a fresh stateless
+`StreamableHTTPServerTransport` (`enableJsonResponse`); handlers for tools, resources and prompts forward to the page
+over `agent:call` and wait for `agent:reply`. Images come back as base64 PNG, files as paths.
 
 ## 7. Routing and screens
 
@@ -464,4 +516,7 @@ pane and its neighbours are mounted. Sample renders and Pexels results are cache
 | A font | `src/data/fonts.ts`, then `npm run fetch:fonts` for desktop |
 | An export format | `engine/export.ts` (`pagesOf` / `buildPack`), `ExportFormat` type, `PrintPane` |
 | A setting | `SettingsDialog.tsx`; keep values in `localStorage` via a small module like `lib/pexels.ts` |
+| An AI provider | [AI.md](AI.md) → *Adding a provider* |
+| An agent tool | `src/agent/tools.ts` (schema + handler), then document it in [MCP.md](MCP.md); `npm test` runs every tool |
+| A prompt template | `src/ai/prompts/*.ts` (bump the version string); MCP workflow prompts in `src/agent/prompts.ts` |
 | A desktop menu command | `MenuAction` (`platform/desktop.ts`), `ACTIONS` (`platform/menu.ts`), template in `electron/main.cjs` |

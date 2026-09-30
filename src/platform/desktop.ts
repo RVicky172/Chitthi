@@ -25,6 +25,25 @@ export type MenuAction =
   | 'paper'
   | 'find';
 
+export interface AiWireRequest {
+  provider: string;
+  url: string;
+  base: string;
+  noAuth: boolean;
+  method: string;
+  headers: Record<string, string>;
+  json?: unknown;
+  form?: [string, string | { data: ArrayBuffer; type: string; name: string }][];
+}
+export interface AiWireResponse {
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: ArrayBuffer | null;
+  error?: string;
+  kind?: 'key' | 'network';
+}
+
 export interface OpenedFile {
   name: string;
   text: string;
@@ -39,6 +58,23 @@ export interface DesktopBridge {
   openDesignFile(): Promise<OpenedFile | null>;
   onMenu(cb: (action: MenuAction) => void): () => void;
   onOpenFile(cb: (file: OpenedFile) => void): () => void;
+  /** AI requests and keys (electron/ai.cjs). Keys can be set, checked and deleted, never read back. */
+  ai?: {
+    keys(): Promise<Record<string, boolean>>;
+    setKey(provider: string, key: string, base: string): Promise<void>;
+    deleteKey(provider: string): Promise<void>;
+    fetch(req: AiWireRequest): Promise<AiWireResponse>;
+  };
+  /** Agent (MCP) connection for the live app (electron/mcp.cjs). */
+  agent?: {
+    status(): Promise<{ on: boolean; url: string; token: string }>;
+    setLive(on: boolean): Promise<{ on: boolean; url: string; token: string }>;
+    onCall(cb: (call: { id: number; name: string; args: unknown }) => void): () => void;
+    reply(id: number, result: unknown): void;
+    /** Writes files an agent tool produced into the agent output folder; returns their paths. */
+    writeFiles(files: { name: string; data: ArrayBuffer }[]): Promise<string[]>;
+    readPhoto(path: string): Promise<{ name: string; data: ArrayBuffer; type: string }>;
+  };
   db: {
     all(): Promise<SavedDesign[]>;
     get(id: string): Promise<SavedDesign | undefined>;
