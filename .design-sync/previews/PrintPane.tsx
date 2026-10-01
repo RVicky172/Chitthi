@@ -1,4 +1,4 @@
-import { PrintPane, installFontLinks, samplePhoto, setExp, setPhotos, productDesign, replaceCard } from 'chitthi-postcard-studio';
+import { PrintPane, installFontLinks, samplePhoto, setExp, setPhotos, productDesign, replaceCard } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

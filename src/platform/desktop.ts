@@ -23,6 +23,7 @@ export type MenuAction =
   | 'settings'
   | 'sizes'
   | 'paper'
+  | 'instagram'
   | 'find'
   | 'perf';
 
@@ -62,6 +63,10 @@ export interface DesktopBridge {
   info: { version: string; platform: string; localFonts: boolean };
   /** Shows a native save dialog; resolves to the saved path, or null if cancelled. */
   saveFile(name: string, data: ArrayBuffer): Promise<string | null>;
+  /** Streaming save: a save dialog, then writes at byte positions; close(keep = false) deletes the partial file. */
+  openWrite(name: string): Promise<{ id: number; path: string } | null>;
+  writeAt(id: number, position: number, data: ArrayBuffer): Promise<void>;
+  closeWrite(id: number, keep: boolean): Promise<string | null>;
   showInFolder(path: string): Promise<void>;
   openExternal(url: string): Promise<void>;
   openDesignFile(): Promise<OpenedFile | null>;

@@ -1,0 +1,58 @@
+# Checks every pull request and every push to main: lint, type check and production build, the self-test suite and the
+# MCP smoke test (both run Electron, which works on Windows runners without a virtual display), and the Docker image.
+# Actions are pinned by commit SHA; Dependabot (.github/dependabot.yml) proposes updates.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test:unit
+      - run: npm test
+      - run: npm run test:mcp
+      - name: Browser tests and accessibility check
+        run: |
+          npx playwright install chromium
+          npm run test:e2e
+      - name: Browser test report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build the image
+        run: docker build -t chitthi:ci .
+      - name: Run it the way docker-compose.yml does and check it answers
+        run: |
+          docker run -d --name chitthi -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true chitthi:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8080/healthz && break; sleep 1; done
+          curl -sf http://127.0.0.1:8080/ | grep -q '<div id="root">'
+          curl -sI http://127.0.0.1:8080/ | grep -qi '^content-security-policy:'
+      - name: Container log
+        if: failure()
+        run: docker logs chitthi

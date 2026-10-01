@@ -1,4 +1,4 @@
-import { UndoIcon } from 'chitthi-postcard-studio';
+import { UndoIcon } from 'chitthi-studio';
 
 // Lucide line icon in currentColor: 24px by default, 17px inside .btn, 14px inside .sbtn.
 export const InButton = () => (

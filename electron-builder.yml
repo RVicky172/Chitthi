@@ -1,6 +1,6 @@
 # Chitthi desktop packaging (Windows + macOS). See docs/DESKTOP.md for signing and release setup.
 appId: in.chitthi.studio
-productName: Chitthi
+productName: Chitthi Studio
 copyright: Copyright © 2026 RVicky172 and Chitthi contributors (MIT License)
 
 directories:
@@ -11,6 +11,7 @@ directories:
 files:
   - dist/**
   - electron/main.cjs
+  - electron/ipc.cjs
   - electron/preload.cjs
   - electron/ai.cjs
   - electron/ai-hosts.json
@@ -24,6 +25,19 @@ files:
 # The MCP stdio relay runs with Electron in Node mode, outside the archive.
 asarUnpack:
   - electron/mcp-stdio.cjs
+
+# Electron fuses, flipped in the packaged binary. runAsNode stays on: the MCP stdio relay (electron/mcp-stdio.cjs) runs
+# with ELECTRON_RUN_AS_NODE, because a utilityProcess can't inherit the MCP client's stdin. Everything else is locked.
+electronFuses:
+  runAsNode: true
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+  # Unsigned Apple-silicon builds need their ad-hoc signature redone after the fuses change.
+  resetAdHocDarwinSignature: true
 
 # Offline card + UI fonts (npm run fetch:fonts), served to the app at app://chitthi/fonts/.
 extraResources:
@@ -59,7 +73,7 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  artifactName: Chitthi-Setup-${version}-${arch}.${ext}
+  artifactName: Chitthi-Studio-Setup-${version}-${arch}.${ext}
 
 mac:
   category: public.app-category.graphics-design
@@ -77,4 +91,4 @@ mac:
   # Notarization runs automatically when APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID are set.
 
 dmg:
-  artifactName: Chitthi-${version}-${arch}.${ext}
+  artifactName: Chitthi-Studio-${version}-${arch}.${ext}

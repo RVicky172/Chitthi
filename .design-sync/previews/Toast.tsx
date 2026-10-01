@@ -1,4 +1,4 @@
-import { Toast, toast } from 'chitthi-postcard-studio';
+import { Toast, toast } from 'chitthi-studio';
 
 // Toast listens for toast(msg) calls once mounted; fire one shortly after the first render.
 setTimeout(() => toast('Downloading chitthi-diwali-4x6-print-pack.zip'), 200);

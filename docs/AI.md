@@ -6,8 +6,8 @@ requests go straight from the app to the service the user chose. AI is optional 
 **Settings → AI**.
 
 - In the studio: **Write with AI** (Front: greeting, quote, signature), **Write captions with AI** (calendar Front),
-  **Write the message with AI** (Back), and **Create a picture with AI** (Photos step, and the library's
-  **Create with AI** tab).
+  **Write the message with AI** (Back), and **Create a picture with AI** (its own **Create pictures with AI** section
+  in the Photos step, apart from Pexels photos, and the library's **Create with AI** tab).
 - For agents: the same features as MCP tools (`write_words`, `write_calendar_captions`, `generate_image`). See
   [MCP.md](MCP.md).
 
@@ -36,9 +36,9 @@ can be typed.
 
 | | Web app | Desktop app |
 | --- | --- | --- |
-| Where keys live | This browser's `localStorage`, or `sessionStorage` with "Keep it for this tab only" | `userData/ai-keys.json`, encrypted by the operating system (Electron `safeStorage`). If the OS offers no encryption, keys are kept for the session only |
+| Where keys live | This tab's `sessionStorage` by default; the browser's `localStorage` (unencrypted) with "Remember on this device" | `userData/ai-keys.json`, encrypted by the operating system (Electron `safeStorage`). If the OS offers no encryption, keys are kept for the session only |
 | Who sends them | The page, adding the key only for the provider's own hosts | The main process (`electron/ai.cjs`). The page can set, check and delete a key but **never read it back** |
-| Where keys may go | Only the hosts listed for that provider in `electron/ai-hosts.json` (HTTPS), or the base URL of a local or custom service | Same list, enforced in the main process |
+| Where keys may go | Only the hosts listed for that provider in `electron/ai-hosts.json` (HTTPS), or the base URL of a local or custom service | Same list, enforced in the main process. Local services (Ollama, LM Studio) must be on this computer (`localhost`, `127.0.0.1`, `[::1]`); a custom service only at the base URL saved with its key. A request carrying a key never follows a redirect |
 
 - Only the words the user asks about are sent: the occasion, language, tone, notes, the calendar's months and their
   festivals, and the names of the photos (not the photos). Picture requests send the description only.

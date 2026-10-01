@@ -1,8 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { installErrorLog } from './lib/errors';
 import { isDesktop } from './platform/desktop';
 import './styles.css';
+
+installErrorLog();
 
 // Apply the saved light/dark choice before first paint; no choice means follow the system.
 try {
@@ -31,7 +35,9 @@ if (window.chitthiDesktop?.agent && /[?&]agent\b/.test(location.search)) void im
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 

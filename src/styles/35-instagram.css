@@ -1,0 +1,703 @@
+/* ---------- Instagram studio (components/InstagramStudio.tsx). Root class .igs: .ig is the Instagram handle field on the card back. ---------- */
+.igs main {
+  padding-bottom: 60px;
+}
+.igs h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+}
+.igs h2 svg,
+.ig-head h1 svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+.ig-head h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.igs h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.igs section + section,
+.ig-work {
+  margin-top: 20px;
+}
+.ig-formats,
+.ig-batch,
+.ig-export,
+.ig-side,
+.ig-empty {
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+}
+
+/* Format picker: a drawn shape per format. */
+.ig-format-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ig-format {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--field);
+  color: var(--text);
+  text-align: center;
+}
+.ig-format:hover {
+  border-color: var(--accent);
+}
+.ig-format[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.ig-format small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.ig-shape {
+  height: 44px;
+  max-width: 64px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.7;
+}
+
+/* Batch: limit, thumbnails, add button. */
+.ig-batch.over {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+.ig-batch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+.ig-batch-head h2 {
+  margin: 0;
+}
+.ig-count {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.ig-limit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ig-limit .hint {
+  margin: 0;
+}
+.ig-limit-own input {
+  width: 64px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.83rem;
+}
+.ig-strip {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 4px 2px 8px;
+  list-style: none;
+  overflow-x: auto;
+}
+.ig-thumb {
+  flex: none;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+.ig-thumb-pick {
+  position: relative;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  line-height: 0;
+}
+.ig-thumb.on .ig-thumb-pick {
+  border-color: var(--accent);
+}
+.ig-thumb canvas {
+  width: 84px;
+  border-radius: 6px;
+}
+.ig-n {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 20px;
+  padding: 2px 5px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+.ig-thumb-acts {
+  display: flex;
+  gap: 2px;
+}
+.igs .pbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+}
+.igs .pbtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.igs .pbtn:disabled {
+  opacity: 0.35;
+}
+.igs .pbtn svg {
+  width: 15px;
+  height: 15px;
+}
+.ig-add-btn {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  width: 88px;
+  height: 108px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+  cursor: pointer;
+}
+.ig-add-btn:hover,
+.ig-add-btn:focus-within {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ig-add-btn svg {
+  width: 24px;
+  height: 24px;
+}
+.ig-add-btn input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.ig-batch-acts {
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.ig-lib {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  max-height: 260px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.ig-lib button {
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--sunk);
+  overflow: hidden;
+}
+.ig-lib button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.ig-lib img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Preview and edit panel side by side; stacked on narrow screens. */
+.ig-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 20px;
+  align-items: start;
+}
+.ig-preview {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 12px;
+}
+.ig-preview canvas {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: var(--glass-shadow);
+  background: #fff;
+  cursor: grab;
+  touch-action: none;
+}
+.ig-preview canvas:active {
+  cursor: grabbing;
+}
+.ig-preview-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.ig-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ig-group {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.igs .chip[aria-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.ig-group .seg {
+  margin-bottom: 8px;
+}
+.ig-bg {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+.ig-bg .hint {
+  margin: 0;
+}
+.ig-colour input {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+}
+.ig-slider {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.ig-slider label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.84rem;
+}
+.ig-slider output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ig-slider input {
+  width: 100%;
+}
+.ig-tools {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ig-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 40px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+.ig-empty svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* Export. */
+.ig-export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.ig-export textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+.ig-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 6px;
+}
+.ig-busy {
+  margin-top: 12px;
+}
+.ig-foot {
+  margin-top: 16px;
+}
+
+@media (max-width: 860px) {
+  .ig-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ig-preview {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  .landing.igs {
+    padding: 0 16px;
+  }
+  .ig-actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+/* ---------- editing tools: tabs, toolbar, layers (components/ig/LayerPanel.tsx) ---------- */
+.ig-mode {
+  margin-top: 16px;
+}
+.ig-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -4px 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.ig-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: 500 0.86rem/1.2 var(--font);
+}
+.ig-tabs button svg {
+  width: 15px;
+  height: 15px;
+}
+.ig-tabs button:hover {
+  color: var(--text);
+  background: var(--field);
+}
+.ig-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.ig-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 560px;
+}
+.ig-toolbar .hint {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+}
+.igs .ig-preview canvas.drawing {
+  cursor: crosshair;
+}
+.lp .ig-group:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+.lp-styles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.lp-style {
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--stage);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1.1;
+}
+.lp-style:hover {
+  border-color: var(--accent);
+}
+.lp-shapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+.lp-shape {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--field);
+  color: var(--text);
+  font-size: 0.72rem;
+}
+.lp-shape:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.lp-shape canvas {
+  width: 44px;
+  height: 28px;
+}
+.lp-stickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px;
+}
+.lp-stickers button {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--field);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.lp-stickers button:hover {
+  border-color: var(--accent);
+}
+.lp-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.lp-list li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--field);
+}
+.lp-list li.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lp-name {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 0.84rem;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lp-name small {
+  color: var(--muted);
+}
+.lp-list .pbtn {
+  width: 26px;
+  height: 26px;
+  font-size: 0.7rem;
+}
+.lp-list .lp-up svg,
+.lp-list .lp-down svg {
+  transform: rotate(90deg);
+}
+.lp-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 0.84rem;
+}
+.lp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.lp-sw {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.lp-sw[aria-checked='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lp-none {
+  background: linear-gradient(135deg, transparent 45%, var(--danger) 45%, var(--danger) 55%, transparent 55%), var(--field);
+}
+.lp-own {
+  background: conic-gradient(#e63946, #f4c430, #7cb518, #2a9d8f, #1d4ed8, #8e44ad, #e63946);
+}
+.lp-own input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.lp-text {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+.lp-fonts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 8px;
+}
+.lp-props .fp {
+  margin: 6px 0;
+}
+
+/* ---------- video editor (components/ig/VideoEditor.tsx) ---------- */
+.v-timeline {
+  position: relative;
+  display: flex;
+  gap: 3px;
+  min-height: 64px;
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+}
+.v-clip {
+  min-width: 36px;
+}
+.v-clip-pick {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--stage) center / cover no-repeat;
+}
+.v-clip.on .v-clip-pick {
+  border-color: var(--accent);
+}
+.v-clip-len {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.7rem;
+}
+.v-playhead {
+  position: absolute;
+  top: -4px;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--danger);
+  pointer-events: none;
+}
+.v-add {
+  position: relative;
+  cursor: pointer;
+}
+.v-add input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.v-add:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.v-transport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v-play {
+  min-width: 96px;
+  justify-content: center;
+}
+.v-time {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+.v-scrub {
+  width: 100%;
+  max-width: 480px;
+}
+.v-scrub input {
+  width: 100%;
+}
+.v-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 6px;
+}
+.v-progress progress {
+  flex: 1 1 200px;
+  height: 10px;
+  accent-color: var(--accent);
+}

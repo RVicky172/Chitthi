@@ -1,4 +1,4 @@
-import { Header, productDesign, replaceCard, switchProduct } from 'chitthi-postcard-studio';
+import { Header, productDesign, replaceCard, switchProduct } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

@@ -17,7 +17,7 @@ export interface UIState {
   /** Full-screen gallery of saved designs is open. */
   gallery: boolean;
   /** Landing page, the design studio, the sizes guide or paper sizes in 3D (mirrors the URL hash: #/studio, #/sizes, #/paper). */
-  screen: 'home' | 'studio' | 'sizes' | 'paper';
+  screen: 'home' | 'studio' | 'sizes' | 'paper' | 'instagram';
   /** Settings dialog is open. */
   settings: boolean;
   /** Photo library dialog is open, and which tab it shows. */
@@ -46,7 +46,15 @@ const LS_KEY = 'chitthi-v3';
 
 /** The screen a URL hash points at. */
 export const screenOf = (hash: string): UIState['screen'] =>
-  hash.startsWith('#/studio') ? 'studio' : hash.startsWith('#/sizes') ? 'sizes' : hash.startsWith('#/paper') ? 'paper' : 'home';
+  hash.startsWith('#/studio')
+    ? 'studio'
+    : hash.startsWith('#/sizes')
+      ? 'sizes'
+      : hash.startsWith('#/paper')
+        ? 'paper'
+        : hash.startsWith('#/instagram')
+          ? 'instagram'
+          : 'home';
 export const hashOf = (screen: UIState['screen']): string => (screen === 'home' ? '' : `#/${screen}`);
 function loadDesign(): Design {
   try {
@@ -176,15 +184,26 @@ let lsTimer: ReturnType<typeof setTimeout> | 0 = 0,
   photoSig = '';
 const sigOf = (list: PhotoMeta[]) =>
   JSON.stringify(list.map((p) => [p.name, p.url.length, p.rot, p.flip, p.crop, p.zoom, p.px, p.py, p.look]));
+function persistDesign(): void {
+  lsTimer = 0;
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state.design));
+  } catch {
+    /* storage full or blocked */
+  }
+}
+// A change made just before the tab is closed, reloaded or hidden is written at once instead of being lost.
+if (typeof window !== 'undefined')
+  for (const ev of ['pagehide', 'visibilitychange'] as const)
+    window.addEventListener(ev, () => {
+      if (lsTimer && (ev === 'pagehide' || document.visibilityState === 'hidden')) {
+        clearTimeout(lsTimer);
+        persistDesign();
+      }
+    });
 function schedulePersist(): void {
   if (lsTimer) clearTimeout(lsTimer);
-  lsTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(state.design));
-    } catch {
-      /* storage full or blocked */
-    }
-  }, 400);
+  lsTimer = setTimeout(persistDesign, 400);
   if (idbTimer) clearTimeout(idbTimer);
   idbTimer = setTimeout(() => {
     const metas = state.photos.map(photoMeta),

@@ -5,6 +5,10 @@ dist
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# test output (npm run test:e2e)
+test-results/
+playwright-report/
 dist-lib
 .ds-sync/
 ds-bundle/

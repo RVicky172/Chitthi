@@ -1,4 +1,4 @@
-/* Chitthi – Postcard Studio styles
+/* Chitthi Studio styles
    "Warm studio": cream paper surfaces and umber accents in light; neutral greys with a saffron accent in dark.
    Every text/background pair below is checked to WCAG AA (4.5:1) in light and dark. */
 /* UI fonts (also linked from index.html so they start downloading before this stylesheet is parsed).
@@ -43,3 +43,6 @@
 @import './styles/31-paper3d.css';
 @import './styles/32-header-nav.css';
 @import './styles/33-perf-monitor.css';
+@import './styles/34-error-boundary.css';
+@import './styles/35-instagram.css';
+@import './styles/36-media-studio.css';

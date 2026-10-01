@@ -1,4 +1,4 @@
-import { EnvelopeSection, applyTheme, installFontLinks, productDesign, replaceCard, samplePhoto, setBack, setPhotos } from 'chitthi-postcard-studio';
+import { EnvelopeSection, applyTheme, installFontLinks, productDesign, replaceCard, samplePhoto, setBack, setPhotos } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

@@ -8,3 +8,20 @@ dist
 docker-compose.yml
 Dockerfile
 .dockerignore
+
+# Secrets: never send them to the Docker build (COPY . . would put them in a layer).
+.env
+.env.*
+!.env.example
+
+# Build output, release files and local tooling the image doesn't need.
+dist-lib
+release
+Print Samples
+print-samples-src
+ds-bundle
+.design-sync
+.ds-sync
+.claude
+.claude-plugin
+electron/resources

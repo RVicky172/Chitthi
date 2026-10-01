@@ -6,6 +6,7 @@ import { renderEnvelope } from '../engine/envelope';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
 import { calMonth, renderCard } from '../engine/render';
 import { db } from '../lib/db';
+import { logError } from '../lib/errors';
 import { saveFile } from '../lib/download';
 import { ensureFonts, fontsFor } from '../lib/fonts';
 import { toast } from '../lib/toast';
@@ -332,7 +333,8 @@ export async function exportBackup(): Promise<void> {
     }
     const blob = new Blob([backupJSON(list)], { type: 'application/json' });
     await saveFile(`chitthi-gallery-backup-${new Date().toISOString().slice(0, 10)}.json`, blob);
-  } catch {
+  } catch (e) {
+    logError('handled', e);
     toast('The backup couldn’t be created.');
   }
 }
@@ -343,7 +345,8 @@ export async function exportDesignFile(): Promise<void> {
     const rec = await currentRecord(getState().designId ?? newId());
     const base = rec.name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'chitthi-design';
     await saveFile(`${base}.chitthi`, new Blob([backupJSON([rec])], { type: 'application/json' }));
-  } catch {
+  } catch (e) {
+    logError('handled', e);
     toast('The design file couldn’t be created.');
   }
 }
@@ -459,7 +462,8 @@ export async function downloadQuotePack(ids: string[], onStep?: (msg: string) =>
     const zip = await makeZip(entries);
     await saveFile(`chitthi-quote-${items.length}-design${items.length > 1 ? 's' : ''}.zip`, zip);
     toast(`Quote pack ready: ${items.length} design${items.length > 1 ? 's' : ''}, an order sheet and a quote request each.`);
-  } catch {
+  } catch (e) {
+    logError('handled', e);
     toast('The quote pack couldn’t be made. Try again.');
   }
 }

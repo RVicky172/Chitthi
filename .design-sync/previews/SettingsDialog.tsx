@@ -1,4 +1,4 @@
-import { SettingsDialog, installFontLinks, productDesign, replaceCard, setUI } from 'chitthi-postcard-studio';
+import { SettingsDialog, installFontLinks, productDesign, replaceCard, setUI } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

@@ -6,6 +6,7 @@ const named = <K extends string>(load: () => Promise<Record<K, () => JSX.Element
 const Landing = named(() => import('./components/Landing'), 'Landing');
 const SizeGuide = named(() => import('./components/SizeGuide'), 'SizeGuide');
 const Paper3D = named(() => import('./components/Paper3D'), 'Paper3D');
+const InstagramStudio = named(() => import('./components/InstagramStudio'), 'InstagramStudio');
 const CropDialog = named(() => import('./components/CropDialog'), 'CropDialog');
 const GalleryDialog = named(() => import('./components/GalleryDialog'), 'GalleryDialog');
 const PhotoLibrary = named(() => import('./components/PhotoLibrary'), 'PhotoLibrary');
@@ -72,6 +73,7 @@ export default function App() {
         () => import('./components/Landing'),
         () => import('./components/SizeGuide'),
         () => import('./components/Paper3D'),
+        () => import('./components/InstagramStudio'),
         () => import('./components/CropDialog'),
         () => import('./components/GalleryDialog'),
         () => import('./components/PhotoLibrary'),
@@ -117,7 +119,17 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
-        {screen === 'home' ? <Landing /> : screen === 'sizes' ? <SizeGuide /> : screen === 'paper' ? <Paper3D /> : <Studio />}
+        {screen === 'home' ? (
+          <Landing />
+        ) : screen === 'sizes' ? (
+          <SizeGuide />
+        ) : screen === 'paper' ? (
+          <Paper3D />
+        ) : screen === 'instagram' ? (
+          <InstagramStudio />
+        ) : (
+          <Studio />
+        )}
       </Suspense>
       <Suspense fallback={null}>
         {cropOpen && <CropDialog />}

@@ -8,6 +8,7 @@ import { putOnCard, storePhotos } from '../../state/library';
 import { usePhotoSlots } from '../../state/photoSlots';
 import { setUI, useApp } from '../../state/store';
 import { Check } from '../common';
+import { logError } from '../../lib/errors';
 
 /*
  * "Create a picture with AI": pictures shaped for the selected photo slot, from a description the design suggests.
@@ -80,7 +81,8 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
       await storePhotos([ph]);
       await putOnCard({ id: '', added: Date.now(), ...ph });
       toast(`Added${count > 1 ? ` to slot ${active + 1}` : ''}. AI picture made with ${meta.provider}.`);
-    } catch {
+    } catch (e) {
+      logError('handled', e);
       toast('That picture couldn’t be added. Try again.');
     } finally {
       setUI({ loading: null });

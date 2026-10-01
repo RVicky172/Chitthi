@@ -14,6 +14,10 @@ const listen = (channel) => (cb) => {
 contextBridge.exposeInMainWorld('chitthiDesktop', {
   info: ipcRenderer.sendSync('desktop:info'),
   saveFile: invoke('desktop:saveFile'),
+  // Streaming saves (long video exports): open a file with a save dialog, write at positions, then close.
+  openWrite: invoke('desktop:openWrite'),
+  writeAt: invoke('desktop:write'),
+  closeWrite: invoke('desktop:closeWrite'),
   showInFolder: invoke('desktop:showInFolder'),
   openExternal: invoke('desktop:openExternal'),
   openDesignFile: invoke('desktop:openDesignFile'),

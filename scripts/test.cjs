@@ -13,7 +13,7 @@ app.whenReady().then(async () => {
   win.webContents.on('console-message', (e) => {
     if (e.level === 'error' && !String(e.message).includes('Electron Security Warning')) errors.push(e.message);
   });
-  let code = 0;
+  let code;
   try {
     await win.loadURL(`${URL}?selftest`).catch((e) => {
       if (!String(e && e.message).includes('ERR_ABORTED')) throw e;

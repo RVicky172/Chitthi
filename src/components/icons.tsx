@@ -2,7 +2,10 @@ import {
   Activity,
   ArrowRight,
   Box,
+  Brush,
   CalendarDays,
+  Clapperboard,
+  Copy,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -11,28 +14,44 @@ import {
   Download,
   Ellipsis,
   Expand,
+  FolderOpen,
+  FlipHorizontal2,
   Maximize,
   Minimize,
   Frame,
+  Image,
   ImagePlus,
   Images,
+  Laptop,
+  Layers,
   LayoutGrid,
   LayoutTemplate,
   Lightbulb,
   Magnet,
   Mail,
   Menu,
+  MonitorPlay,
   Moon,
+  Music,
   Package,
+  Pause,
   Pencil,
+  Play,
   Plus,
   Printer,
   Redo2,
   RotateCcw,
+  RotateCw,
   Ruler,
+  Scissors,
   Save,
   Search,
   Settings,
+  Shapes,
+  Share2,
+  SlidersHorizontal,
+  SkipBack,
+  SkipForward,
   Sparkles,
   Star,
   Sun,
@@ -41,6 +60,8 @@ import {
   Undo2,
   WandSparkles,
   X,
+  ZoomIn,
+  ZoomOut,
   type LucideProps,
 } from 'lucide-react';
 import type { PaneId, ProductId } from '../types';
@@ -96,6 +117,29 @@ export const RulerIcon = () => <Ruler {...base} />;
 export const MoreIcon = () => <Ellipsis {...base} />;
 export const MenuIcon = () => <Menu {...base} />;
 export const ActivityIcon = () => <Activity {...base} />;
+export const RotateLeftIcon = () => <RotateCcw {...base} />;
+export const RotateRightIcon = () => <RotateCw {...base} />;
+export const FlipIcon = () => <FlipHorizontal2 {...base} />;
+export const ShareIcon = () => <Share2 {...base} />;
+export const AdjustIcon = () => <SlidersHorizontal {...base} />;
+export const ReelIcon = () => <Clapperboard {...base} />;
+export const YouTubeIcon = () => <MonitorPlay {...base} />;
+export const ImageIcon = () => <Image {...base} />;
+export const TypeIcon = () => <Type {...base} />;
+export const ShapesIcon = () => <Shapes {...base} />;
+export const BrushIcon = () => <Brush {...base} />;
+export const MusicIcon = () => <Music {...base} />;
+export const LayersIcon = () => <Layers {...base} />;
+export const ScissorsIcon = () => <Scissors {...base} />;
+export const PlayIcon = () => <Play {...base} />;
+export const PauseIcon = () => <Pause {...base} />;
+export const SkipBackIcon = () => <SkipBack {...base} />;
+export const SkipForwardIcon = () => <SkipForward {...base} />;
+export const ZoomInIcon = () => <ZoomIn {...base} />;
+export const ZoomOutIcon = () => <ZoomOut {...base} />;
+export const CopyIcon = () => <Copy {...base} />;
+export const FolderIcon = () => <FolderOpen {...base} />;
+export const LaptopIcon = () => <Laptop {...base} />;
 
 /** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
 export const InstagramIcon = () => (

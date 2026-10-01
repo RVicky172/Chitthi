@@ -6,7 +6,7 @@ import { redo, setPerf, setUI, undo, useApp } from '../state/store';
 import { Seg } from './common';
 import { MoreMenu } from './MoreMenu';
 import { canFullscreen, toggleFullscreen, useFullscreen } from '../lib/fullscreen';
-import { ActivityIcon, CubeIcon, DownloadIcon, FullscreenIcon, Logo, MoonIcon, PhotosIcon, RedoIcon, RulerIcon, SaveIcon, SearchIcon, SettingsIcon, SunIcon, UndoIcon, ProductIcon } from './icons';
+import { ActivityIcon, CubeIcon, DownloadIcon, FullscreenIcon, InstagramIcon, Logo, MoonIcon, PhotosIcon, RedoIcon, RulerIcon, SaveIcon, SearchIcon, SettingsIcon, SunIcon, UndoIcon, ProductIcon } from './icons';
 
 export function Header() {
   const canUndo = useApp((s) => s.canUndo),
@@ -103,7 +103,8 @@ export function Header() {
           <SaveIcon />
           <span className="lbl">Save to gallery</span>
         </button>
-        <button type="button" className="btn primary" disabled={busy} onClick={download}>
+        {/* On phones the label is hidden, so the button carries its name itself. */}
+        <button type="button" className="btn primary" disabled={busy} onClick={download} aria-label={busy ? 'Preparing the print pack' : 'Download the print pack'}>
           <DownloadIcon />
           <span className="lbl">{busy ? 'Preparing…' : 'Print pack'}</span>
         </button>
@@ -118,6 +119,7 @@ export function Header() {
             { key: 'theme', label: themeLabel, icon: dark ? <SunIcon /> : <MoonIcon />, onSelect: toggleTheme, className: 'mm-md' },
             { key: 'sizes', label: 'Sizes and layouts guide', icon: <RulerIcon />, onSelect: () => setUI({ screen: 'sizes' }), className: 'mm-md' },
             { key: 'paper', label: 'Paper sizes in 3D', icon: <CubeIcon />, onSelect: () => setUI({ screen: 'paper' }) },
+            { key: 'instagram', label: 'Photo & video studio', icon: <InstagramIcon />, onSelect: () => setUI({ screen: 'instagram' }) },
             { key: 'settings', label: 'Settings', icon: <SettingsIcon />, onSelect: () => setUI({ settings: true }), className: 'mm-md' },
             ...(canFullscreen() ? [{ key: 'full', label: fullLabel, icon: <FullscreenIcon on={full} />, onSelect: () => void toggleFullscreen(), checked: full, className: 'mm-md' }] : []),
             { key: 'perf', label: 'Performance monitor', icon: <ActivityIcon />, onSelect: () => setPerf(!perf), checked: perf },

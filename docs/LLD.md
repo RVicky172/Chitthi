@@ -24,7 +24,10 @@ src/
     layout.ts                computeLayout, slotCount, slotPhotoIndex
     render.ts                renderCard and every drawing routine (fronts, backs, calendars, badge, guides)
     patterns.ts              Procedural occasion artwork (PAT)
-    photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks)
+    photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks), lookPixels
+    instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
+    layers.ts                Text, shapes, stickers, drawings over photos and video: draw, pick, handles, strokes
+    video.ts, videoExport.ts Video timeline and frame drawing; MP4 export with Mediabunny (loaded on export)
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
     envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
     color.ts, sample.ts      Colour maths and drawing helpers; painted stand-in photos
@@ -34,12 +37,16 @@ src/
     photoSlots.ts            Photo ↔ slot mapping, slot selection
     library.ts               Photo store (every upload), putOnCard
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
+    instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
+    video.ts                 Video editor: clips, layers, music, playhead, undo, export
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
     perf.ts                  Performance monitor sampler (CPU / load, frames, memory, photos, storage) and report
+    errors.ts                In-memory log of recent errors (uncaught, rejections, render, handled) for the reports;
+                             components/ErrorBoundary.tsx shows the error screen
     download.ts, zip.ts, toast.ts, theme.ts
   ai/                      Loaded with import() only when an AI feature is used (section 5, AI)
     types.ts                 TextAdapter, ImageAdapter, requests, AiError, aspect helpers
@@ -57,12 +64,14 @@ src/
     desktop.ts               Typed window.chitthiDesktop bridge (absent in browsers)
     menu.ts                  Desktop menu commands → actions
   dev/showcase.ts          Development only: renders the landing examples for npm run build:showcase
-  components/              React UI (section 8)
+  components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
+                           VideoWorkspace, Timeline, Dialog), ig/ = layer editing shared by photos and video
   styles.css               Ordered @imports of styles/ (section 8, Styles)
-  styles/                  The stylesheet split by feature: 01-base.css … 33-perf-monitor.css, in cascade order
+  styles/                  The stylesheet split by feature: 01-base.css … 34-error-boundary.css, in cascade order
 electron/
   main.cjs                 Main process: window, app:// protocol + CSP, file library, dialogs, menus, updater
   preload.cjs              contextBridge: the only system access for the page
+  ipc.cjs                  handle / on: IPC registration that accepts only the app's own page
   ai.cjs, ai-hosts.json    AI requests with encrypted keys; allowed hosts and auth header per provider
   mcp.cjs                  MCP server (official SDK): loopback HTTP, headless start, agent IPC
   mcp-stdio.cjs            stdio ↔ HTTP relay run by the Electron binary in Node mode (headless)

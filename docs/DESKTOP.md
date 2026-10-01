@@ -58,6 +58,27 @@ npm run desktop:dist    # installers in release/: NSIS .exe (Windows) or .dmg + 
 
 macOS builds must run on a Mac and Windows builds on Windows (or use the CI workflow).
 
+## The full video studio
+
+The photo & video studio runs in the browser too, but long and demanding video work belongs here: a browser tab has
+limited memory and is slowed down in the background. In the desktop app ([MEDIA-STUDIO.md](MEDIA-STUDIO.md#in-the-browser-and-in-the-desktop-app)):
+
+- Reels up to 3 minutes and YouTube videos up to 3 hours, up to 500 clips, video files up to 50 GB;
+- YouTube exports in 1080p, 1440p or 4K, at 30 or 60 fps;
+- long exports are written straight to the chosen file through the main process (`desktop:openWrite` /
+  `desktop:write` / `desktop:closeWrite`, files only the user picked in a save dialog), so memory stays flat;
+- encoding and decoding use the graphics card's hardware codecs through WebCodecs.
+
+## Hardening in the packaged app
+
+- **Electron fuses** (`electronFuses` in `electron-builder.yml`): `NODE_OPTIONS` and `--inspect` are ignored, app code
+  loads only from `app.asar`, and the archive is integrity-checked. `RunAsNode` stays on because `Chitthi --mcp`
+  starts its stdio relay (`electron/mcp-stdio.cjs`) with `ELECTRON_RUN_AS_NODE`. Check a build with
+  `npx @electron/fuses read --app "release/win-unpacked/Chitthi Studio.exe"`.
+- **Permissions**: every browser permission request is refused except fullscreen and writing to the clipboard.
+- **IPC**: handlers are registered through `electron/ipc.cjs`, which refuses messages from any frame other than the
+  app's own page. Add new handlers with its `handle` and `on`, never `ipcMain` directly.
+
 ## Code signing
 
 Unsigned builds work, but Windows SmartScreen and macOS Gatekeeper warn users, and auto-updates need signed

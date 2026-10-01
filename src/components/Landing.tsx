@@ -12,7 +12,7 @@ import { startProduct } from '../state/actions';
 import { setUI } from '../state/store';
 import type { ProductId } from '../types';
 import { EnvelopeScene, SpinCard, TiltStage } from './Landing3D';
-import { GalleryIcon, ProductIcon } from './icons';
+import { GalleryIcon, InstagramIcon, ProductIcon } from './icons';
 import { SiteNav } from './SiteNav';
 
 /*
@@ -57,6 +57,7 @@ const STEPS = [
 const FEATURES: [ReactNode, string, string][] = [
   [<Images key="i" />, 'Photo library', 'Every photo in one place, filtered to the shape of the slot you are filling, with a sharpness check for print.'],
   [<Search key="s" />, 'Free photos from Pexels', 'Search millions of free photos without leaving the studio. Suggestions follow your occasion and calendar month.'],
+  [<InstagramIcon key="ig" />, 'Photo & video studio', 'Instagram posts with text, stickers and drawings, Reels and Shorts, and YouTube videos edited on a timeline, made on your device.'],
   [<Mail key="m" />, 'Matching envelopes', 'A standard envelope for every design, printed ready-made or folded from a template, and opened in 3D.'],
   [<Type key="t" />, 'Your own fonts', 'Upload a TTF, OTF or WOFF once and use it in any design, alongside 46 fonts for Indian scripts.'],
   [<Ruler key="r" />, 'Sizes and layouts guide', 'Every size drawn to scale with bleed and safe area, pixels needed, and how many fit on a sheet.'],
@@ -98,8 +99,6 @@ export function Landing() {
           { label: 'Features', href: '#features' },
           { label: '3D', href: '#in3d' },
           { label: 'How it works', href: '#how' },
-          { label: 'Sizes', href: '#/sizes' },
-          { label: 'Sizes in 3D', href: '#/paper' },
         ]}
         actions={[{ key: 'gallery', label: 'Gallery', icon: <GalleryIcon />, onSelect: () => setUI({ gallery: true }) }]}
       />
@@ -332,7 +331,8 @@ export function Landing() {
               <li>chitthi-diwali-4x6-envelope-template-a4.pdf</li>
               <li className="spec">chitthi-diwali-4x6-PRINT-SPEC.txt</li>
             </ul>
-            <pre>
+            {/* Scrolls sideways on phones: focusable so keyboard users can scroll it too. */}
+            <pre tabIndex={0} aria-label="Example print specification">
               {`Trim (final) size:    152.4 × 101.6 mm
   Bleed:                3 mm on every edge
   Document size:        158.4 × 107.6 mm

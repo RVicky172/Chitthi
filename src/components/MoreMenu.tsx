@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { MoreIcon } from './icons';
+import { ChevronIcon, MoreIcon } from './icons';
 
 export interface MenuItem {
   key: string;
@@ -11,6 +11,8 @@ export interface MenuItem {
   disabled?: boolean;
   /** Extra class for the row, e.g. `mm-sm` to list it only where the inline button is hidden (see styles/32-header-nav.css). */
   className?: string;
+  /** Marks the row as the page being shown (aria-current). */
+  current?: boolean;
 }
 
 /**
@@ -18,7 +20,23 @@ export interface MenuItem {
  * Which rows show at which width is decided in CSS (the row's className), so the same list serves every breakpoint.
  * Closes on Escape, on a click outside, and after choosing an item; arrow keys move between rows.
  */
-export function MoreMenu({ items, label = 'More', className = '', icon, text }: { items: MenuItem[]; label?: string; className?: string; icon?: ReactNode; text?: string }) {
+export function MoreMenu({
+  items,
+  label = 'More',
+  className = '',
+  icon,
+  text,
+  align = 'right',
+}: {
+  items: MenuItem[];
+  label?: string;
+  className?: string;
+  icon?: ReactNode;
+  /** A visible label: the button then reads as a dropdown (label + chevron) instead of an icon button. */
+  text?: string;
+  /** Which edge of the button the menu lines up with. */
+  align?: 'left' | 'right';
+}) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null),
     menuId = useId();
@@ -64,17 +82,27 @@ export function MoreMenu({ items, label = 'More', className = '', icon, text }: 
         title={label}
         onClick={() => setOpen((v) => !v)}
       >
-        {icon ?? <MoreIcon />}
-        {text && <span>{text}</span>}
+        {text ? (
+          <>
+            {icon}
+            <span>{text}</span>
+            <span className="mm-chev" aria-hidden="true">
+              <ChevronIcon />
+            </span>
+          </>
+        ) : (
+          (icon ?? <MoreIcon />)
+        )}
       </button>
       {open && (
-        <ul className="mm-list" id={menuId} role="menu" aria-label={label} onKeyDown={onListKey}>
+        <ul className={`mm-list${align === 'left' ? ' mm-left' : ''}`} id={menuId} role="menu" aria-label={label} onKeyDown={onListKey}>
           {items.map((it) => (
             <li key={it.key} role="none" className={it.className}>
               <button
                 type="button"
                 role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
                 aria-checked={it.checked}
+                aria-current={it.current ? 'page' : undefined}
                 disabled={it.disabled}
                 onClick={() => {
                   setOpen(false);

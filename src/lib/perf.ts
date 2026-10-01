@@ -1,5 +1,6 @@
 import { desktop, type AppMetrics } from '../platform/desktop';
 import { getState, historyStats } from '../state/store';
+import { recentErrors } from './errors';
 
 /*
  * Performance sampler for the performance monitor. It runs only while the monitor is open (start/stop), pauses while
@@ -236,6 +237,7 @@ export function perfReport(): string {
         photoBytesMax: max('photoBytes'),
         undoBytesMax: max('undoBytes'),
       },
+      errors: recentErrors(),
       samples,
     },
     null,

@@ -160,7 +160,8 @@ function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }
 /** One provider: key status, save and test, remove, base URL for local and custom services. */
 function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
   const [draft, setDraft] = useState('');
-  const [session, setSession] = useState(false);
+  // Web: a key lasts for this tab unless the user chooses to keep it (browser storage isn't encrypted).
+  const [remember, setRemember] = useState(false);
   const [base, setBase] = useState(() => (p.base !== undefined ? baseFor(p.id) : ''));
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -205,7 +206,7 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
             e.preventDefault();
             if (!draft.trim()) return;
             if (editableBase) saveBase();
-            await setKey(p.id, draft, { session, base: editableBase ? base.trim() : '' });
+            await setKey(p.id, draft, { session: !remember, base: editableBase ? base.trim() : '' });
             setDraft('');
             await test();
           }}
@@ -215,8 +216,8 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
             <input type="password" autoComplete="off" spellCheck={false} placeholder="Paste the key here" value={draft} onChange={(e) => setDraft(e.target.value)} />
           </label>
           {!isDesktop && (
-            <Check checked={session} onChange={setSession}>
-              Keep it for this tab only
+            <Check checked={remember} onChange={setRemember}>
+              Remember on this device (kept unencrypted in this browser; the desktop app encrypts keys)
             </Check>
           )}
           <div className="inline">
@@ -256,7 +257,7 @@ function AgentConnect() {
   useEffect(() => {
     void desktop!.agent!.status().then(setSt);
   }, []);
-  const exe = desktop?.info.platform === 'darwin' ? '/Applications/Chitthi.app/Contents/MacOS/Chitthi' : '%LOCALAPPDATA%\\Programs\\Chitthi\\Chitthi.exe';
+  const exe = desktop?.info.platform === 'darwin' ? '/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio' : '%LOCALAPPDATA%\\Programs\\Chitthi Studio\\Chitthi Studio.exe';
   const copy = (t: string) => void navigator.clipboard.writeText(t).then(() => toast('Copied.'));
   const live = st?.on ? `claude mcp add --transport http chitthi-live ${st.url} --header "Authorization: Bearer ${st.token}"` : '';
   const headless = `claude mcp add chitthi -- "${exe}" --mcp`;

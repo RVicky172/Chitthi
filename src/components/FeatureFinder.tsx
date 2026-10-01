@@ -37,6 +37,10 @@ function commands(pickFiles: () => void): Cmd[] {
   const c: Cmd[] = [
     { id: 'upload', group: 'Photos', title: 'Add photos from this device', words: 'upload import pictures images files', run: () => (studio('photos'), pickFiles()) },
     { id: 'library', group: 'Photos', title: 'Open the photo library', words: 'photos store all images manage delete remove', run: () => setUI({ library: true, libraryTab: 'mine' }) },
+    { id: 'instagram', group: 'Instagram', title: 'Make Instagram posts (up to 20 photos)', words: 'instagram insta post carousel social share feed story reel batch export edit filter', run: () => setUI({ screen: 'instagram' }) },
+    { id: 'reels', group: 'Video', title: 'Make a Reel or YouTube Short', words: 'reel short video vertical instagram youtube shorts clips music timeline', run: () => (location.hash = '#/instagram/video') },
+    { id: 'youtube', group: 'Video', title: 'Make a YouTube video or vlog', words: 'youtube vlog video edit timeline trim clips 1080p 4k export mp4', run: () => (location.hash = '#/instagram/youtube') },
+    { id: 'ig-batch', group: 'Instagram', title: 'Edit and export photos in a batch', words: 'batch bulk resize crop filter brightness contrast export zip jpeg png instagram', run: () => setUI({ screen: 'instagram' }) },
     { id: 'pexels', group: 'Photos', title: 'Search free photos on Pexels', words: 'stock free images search pexels', run: () => setUI({ library: true, libraryTab: 'pexels' }) },
     {
       id: 'crop',

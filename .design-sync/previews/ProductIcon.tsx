@@ -1,4 +1,4 @@
-import { ProductIcon } from 'chitthi-postcard-studio';
+import { ProductIcon } from 'chitthi-studio';
 
 const PRODUCTS = [
   ['postcard', 'Postcard'],

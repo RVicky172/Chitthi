@@ -162,6 +162,55 @@
   font-weight: 600;
 }
 
+/* A divider above the first row of a group. */
+.mm-list li.mm-sep {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+/* Dropdowns that open from a left-hand button (the page nav's Explore and Tools). */
+.mm-list.mm-left {
+  left: 0;
+  right: auto;
+}
+.mm-list button[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.mm-list button[aria-current='page'] svg {
+  color: var(--accent);
+}
+
+/* Page nav dropdowns read like the links they replace: quiet text, a chevron that turns when open. */
+.lnav-dd .mm-btn {
+  gap: 4px;
+  padding: 6px 8px 6px 10px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.lnav-dd .mm-btn:hover,
+.lnav-dd .mm-btn[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--field);
+}
+.mm-chev {
+  display: inline-flex;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.mm-chev svg {
+  width: 15px;
+  height: 15px;
+}
+.mm-btn[aria-expanded='true'] .mm-chev {
+  transform: rotate(180deg);
+}
+
 /* Page nav: keep the brand and "Open studio" on one line at every width. */
 .lnav {
   min-width: 0;
@@ -232,4 +281,15 @@
 /* The product switcher never wraps inside the fixed-height header bar. */
 .bar .products-switch .seg {
   flex-wrap: nowrap;
+}
+
+/* "Chitthi Studio" in the page nav: "Studio" a step lighter; phones show the logo and "Chitthi" only. */
+.lbrand em {
+  font-style: normal;
+  opacity: 0.7;
+}
+@media (max-width: 600px) {
+  .lbrand em {
+    display: none;
+  }
 }

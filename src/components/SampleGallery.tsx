@@ -39,7 +39,7 @@ async function renderSample(def: SampleDef, credits: SampleCredit[]): Promise<Re
   return r;
 }
 
-async function useSample(r: Rendered): Promise<void> {
+async function applySample(r: Rendered): Promise<void> {
   const s = await buildSample(r.def, r.all);
   await openSample(s.design, s.photos);
 }
@@ -74,7 +74,7 @@ function SampleCard({ r }: { r: Rendered }) {
       <b>{r.def.title}</b>
       <Credit credits={r.credits} />
       <div className="acts">
-        <button type="button" className="sbtn accent" onClick={() => void useSample(r)}>
+        <button type="button" className="sbtn accent" onClick={() => void applySample(r)}>
           Use this
         </button>
         <button type="button" className="sbtn" onClick={view}>

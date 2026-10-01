@@ -1,13 +1,14 @@
 <div align="center">
 
-<img src="public/favicon/logo.svg" alt="Chitthi logo" width="96" height="96" />
+<img src="public/favicon/icon-512.png" alt="Chitthi Studio logo: a round seal reading चिट्ठी, Chitthi Print Studio" width="200" height="200" />
 
-# Chitthi
+# Chitthi Studio
 
-**A print studio for postcards, calendars, framed prints and fridge magnets, made from your own photos.**
+**Your photos, made into postcards, calendars and prints, Instagram posts, Reels and YouTube videos.**
 
-Indian festival, birthday and season themes · print-ready PDFs with bleed and crop marks · a matching envelope ·
-runs entirely on your device, in the browser or as a desktop app
+Indian festival, birthday and season themes · print-ready PDFs with bleed and crop marks · Instagram photos with text,
+stickers and drawings · a video editor for Reels and vlogs · runs entirely on your device, in the browser or as a
+desktop app
 
 [![Release](https://img.shields.io/github/v/release/RVicky172/Chitthi?label=release)](https://github.com/RVicky172/Chitthi/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-7a4a2b)](LICENSE)
@@ -109,13 +110,34 @@ AI is optional and off until you choose a service in **Settings → AI**:
 3. Optionally set daily **Limits** (200 writing and 30 picture requests by default), so a mistake can't run up a bill.
 
 Then use **Write with AI** (greeting, quote, signature), **Write captions with AI** (all twelve calendar months from
-their festivals), **Write the message with AI** (back of a postcard) and **Create a picture with AI** (artwork in the
+their festivals), **Write the message with AI** (back of a postcard) and **Create a picture with AI** (in its own section of the Photos step: artwork in the
 shape of the selected photo slot, with no people or lettering, credited as AI in the app, the print pack and the
 printed credit line).
 
 Each service bills your own account. Keys stay on your device: in browser storage on the web, encrypted by the
 operating system in the desktop app, where the page can never read them back. Black Forest Labs, Replicate and
 Ideogram refuse browser calls, so they work in the desktop app only. Details: [docs/AI.md](docs/AI.md).
+
+## Photo & video studio
+
+**Photo & video studio** (`#/instagram`; **Tools** on the site pages, **More** in the print studio) is an editor with
+a tool rail, a canvas stage, an inspector and a timeline, in three modes:
+
+- **Instagram photos**: up to 20 photos in one Instagram format (4:5, 1:1, 3:4, 1.91:1 or 9:16, 1080 px wide), batch
+  size 2, 4, 10 or any number up to 20. Crop, rotate, filter and adjust each photo; add text in any of the app's fonts,
+  shapes that hold words, emoji stickers and freehand drawing, moved, resized and turned right on the photo. Export
+  JPEG or PNG files or a ZIP, or tap **Share to Instagram** on a phone, with your caption copied.
+- **Reels & Shorts**: photos and video clips become a vertical MP4 for Instagram Reels and YouTube Shorts.
+- **YouTube video**: load your clips and edit a 16:9 vlog, saved straight to a file and ready to upload.
+
+The video timeline is direct: drag clips to reorder, drag their edges to trim, drag text and stickers to time them,
+slide the music by its waveform, split and delete with S and Delete, zoom with Ctrl + wheel. Exports are H.264 MP4
+with AAC sound and fast start, made on your device.
+
+**Browser or desktop.** Video work in a browser tab is limited by its memory, so the browser handles Reels up to 90
+seconds and YouTube videos up to 15 minutes at 1080p and 30 fps. The **desktop app is the full studio**: videos up to
+3 hours, 1440p and 4K, 60 fps, files up to 50 GB, written straight to disk and encoded with your graphics card.
+Details: [docs/MEDIA-STUDIO.md](docs/MEDIA-STUDIO.md).
 
 ## AI agents (MCP)
 
@@ -131,8 +153,8 @@ sourcing, AI artwork, print samples):
 /plugin install chitthi@chitthi
 ```
 
-When asked, give the app's path (Windows: `%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe`, macOS:
-`/Applications/Chitthi.app/Contents/MacOS/Chitthi`), then ask, for example, *"Make a Diwali postcard for my Nani in
+When asked, give the app's path (Windows: `%LOCALAPPDATA%\Programs\Chitthi Studio\Chitthi Studio.exe`, macOS:
+`/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio`), then ask, for example, *"Make a Diwali postcard for my Nani in
 Hindi with a Pexels photo and export the print pack"*. Files go to **Documents/Chitthi agent output**.
 
 Other ways to connect:
@@ -232,10 +254,18 @@ compare runs or attach to an issue. What each figure means and the app's memory 
 | [DESKTOP](docs/DESKTOP.md) | Desktop app: differences from web, data folder, signing, updates |
 | [SPECIFICATIONS](docs/SPECIFICATIONS.md) | Print specifications, where they live, adding sizes, layouts and products |
 | [PEXELS](docs/PEXELS.md) | The Pexels connection, API key, proxying, licensing |
+| [MEDIA STUDIO](docs/MEDIA-STUDIO.md) | The photo & video studio: Instagram formats and limits with sources, layers, the timeline, Reels and YouTube export, browser vs desktop |
 | [AI](docs/AI.md) | AI services, web vs desktop, keys and privacy, limits, credits, adding a provider |
 | [MCP](docs/MCP.md) | The MCP server and plugin, tools, resources, prompts, security |
+| [OPERATIONS](docs/OPERATIONS.md) | Running the web app in production: container, TLS and HSTS, headers, upgrade, rollback |
+| [RELEASE](docs/RELEASE.md) | Release checklist, signing, and what to do when a release goes wrong |
+| [TESTING](docs/TESTING.md) | The five test suites, what each covers, and how to add tests |
+| [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Fixes for common problems with photos, saving, printing and installing |
+| [ACCESSIBILITY](docs/ACCESSIBILITY.md) | Accessibility target, what is checked, known limits |
 | [Print quotes](docs/print-quote/README.md) | Ready-to-send specification and quote PDFs for printers |
 | [Claude Code plugin](plugins/chitthi/README.md) | The plugin and its skills |
+| [SECURITY](SECURITY.md) · [PRIVACY](PRIVACY.md) | Reporting vulnerabilities; what data goes where |
+| [CONTRIBUTING](CONTRIBUTING.md) · [CHANGELOG](CHANGELOG.md) | How to contribute; what changed in each release |
 
 ## Development
 
@@ -262,18 +292,22 @@ docs/                   Design and operations documentation, screenshots
 
 | Command | What it does |
 | --- | --- |
+| `npm run lint` | ESLint over the app, the Electron main process and the scripts |
 | `npm run build` | Type check, production bundle, and a check that the start-up script stays under 350 KB with no AI code in it |
+| `npm run test:unit` | Vitest unit tests: design loading, layout geometry, where API keys may be sent |
 | `npm test` | Renders every product × size × orientation × layout (front, back, envelope), builds a print pack per product, and checks saved designs, festival dates, credits, AI (against a fake provider), every agent tool and the performance sampler, inside Electron |
 | `npm run test:mcp` | Runs the MCP server end to end with the official MCP client |
+| `npm run test:e2e` | Playwright browser tests of the production build at desktop and phone sizes, with an axe accessibility check |
 | `npm run mcp` | The MCP server from source |
 
 ## Privacy and data
 
 Designs, the photo library, uploaded fonts, settings and AI keys stay on the device: IndexedDB and `localStorage` in
-the browser, JSON files in the app's data folder on desktop. Nothing syncs between devices; move designs with
-**Gallery → Back up gallery / Restore a backup**, or as `.chitthi` files. The only network calls are fonts (web),
-Pexels search, the AI service you chose, and update checks (desktop). A self-hosted deployment that uses a custom AI
-service must add its host to `connect-src` in `nginx/security-headers.conf`.
+the browser, JSON files in the app's data folder on desktop ([PRIVACY.md](PRIVACY.md) has the full policy). Nothing
+syncs between devices; move designs with **Gallery → Back up gallery / Restore a backup**, or as `.chitthi` files.
+The only network calls are fonts (web), Pexels search, the AI service you chose, and update checks (desktop). A
+self-hosted deployment that uses a custom AI service must add its host to `connect-src` in
+`nginx/security-headers.conf`.
 
 ## License
 

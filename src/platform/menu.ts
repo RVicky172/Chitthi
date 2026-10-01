@@ -42,6 +42,7 @@ const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
   settings: () => setUI({ settings: true }),
   sizes: () => setUI({ screen: 'sizes', gallery: false }),
   paper: () => setUI({ screen: 'paper', gallery: false }),
+  instagram: () => setUI({ screen: 'instagram', gallery: false }),
   find: () => setUI({ finder: true }),
   perf: () => setPerf(!getState().ui.perf),
 };

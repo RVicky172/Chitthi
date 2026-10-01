@@ -1,4 +1,4 @@
-import { ThemeTile, installFontLinks, themeById } from 'chitthi-postcard-studio';
+import { ThemeTile, installFontLinks, themeById } from 'chitthi-studio';
 
 installFontLinks();
 

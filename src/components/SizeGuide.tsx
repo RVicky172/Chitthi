@@ -159,8 +159,8 @@ export function SizeGuide() {
   return (
     <div className="landing sg">
       <SiteNav
+        current="sizes"
         actions={[
-          { key: 'paper', label: 'Sizes in 3D', onSelect: () => setUI({ screen: 'paper' }) },
           { key: 'spec', label: 'Specification PDF for printers', onSelect: () => void downloadQuote('catalog') },
         ]}
       />

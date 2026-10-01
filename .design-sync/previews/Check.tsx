@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check } from 'chitthi-postcard-studio';
+import { Check } from 'chitthi-studio';
 
 export const Checked = () => {
   const [on, setOn] = useState(true);

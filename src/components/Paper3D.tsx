@@ -419,7 +419,7 @@ export function Paper3D() {
 
   return (
     <div className="landing sg p3">
-      <SiteNav actions={[{ key: 'sizes', label: 'Sizes guide', onSelect: () => setUI({ screen: 'sizes' }) }]} />
+      <SiteNav current="paper" />
       <main>
         <header className="sg-head">
           <h1>Paper sizes in 3D</h1>

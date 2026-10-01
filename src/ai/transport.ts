@@ -86,13 +86,15 @@ export function transportFor(provider: AiProviderId, base: string): AiHttp {
     const { body, type } = bodyOf(init);
     const headers: Record<string, string> = { ...(type ? { 'content-type': type } : {}), ...init.headers };
     const rule = RULES[provider];
-    if (!result && !init.noAuth && rule?.header) {
+    const keyed = !result && !init.noAuth && !!rule?.header;
+    if (keyed) {
       const key = webKeyFor(provider);
       if (!key) throw new AiError('Add your API key for this provider in Settings → AI.', 'key');
       headers[rule.header] = rule.prefix + key;
     }
     try {
-      return await fetch(url, { method: init.method ?? (body ? 'POST' : 'GET'), headers, body, signal: init.signal });
+      // A request carrying a key never follows a redirect: custom key headers would go along to the new host.
+      return await fetch(url, { method: init.method ?? (body ? 'POST' : 'GET'), headers, body, signal: init.signal, redirect: keyed ? 'error' : 'follow' });
     } catch (e) {
       if (init.signal?.aborted) throw new AiError('Cancelled.', 'cancelled');
       throw new AiError(

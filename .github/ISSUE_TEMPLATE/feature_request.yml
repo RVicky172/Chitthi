@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a product, size, layout, festival or anything else
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to make or do?
+      description: The card, print or task you have in mind, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could Chitthi help?
+      description: Your idea for how it could work. Sizes in millimetres or inches are welcome.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Examples, photos of printed pieces, links.
