@@ -211,6 +211,9 @@ streams to disk in about 4 s in the desktop app (Windows, hardware encoder).
 
 ### Still to do
 
+The longer plan for pro features (masks, curves, multi-track timeline, keyframes, colour grading, RAW) is in
+[EDITOR-ROADMAP.md](EDITOR-ROADMAP.md).
+
 | Next | Why it isn't in this version |
 | --- | --- |
 | Cross-fades between clips | Needs two decoded frames at once; fade-in from black covers most uses |

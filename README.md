@@ -255,6 +255,7 @@ compare runs or attach to an issue. What each figure means and the app's memory 
 | [SPECIFICATIONS](docs/SPECIFICATIONS.md) | Print specifications, where they live, adding sizes, layouts and products |
 | [PEXELS](docs/PEXELS.md) | The Pexels connection, API key, proxying, licensing |
 | [MEDIA STUDIO](docs/MEDIA-STUDIO.md) | The photo & video studio: Instagram formats and limits with sources, layers, the timeline, Reels and YouTube export, browser vs desktop |
+| [EDITOR ROADMAP](docs/EDITOR-ROADMAP.md) | Plan for pro photo and video editing: GPU pipeline, masks, multi-track timeline, colour grading, RAW, web vs desktop |
 | [AI](docs/AI.md) | AI services, web vs desktop, keys and privacy, limits, credits, adding a provider |
 | [MCP](docs/MCP.md) | The MCP server and plugin, tools, resources, prompts, security |
 | [OPERATIONS](docs/OPERATIONS.md) | Running the web app in production: container, TLS and HSTS, headers, upgrade, rollback |
