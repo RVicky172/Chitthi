@@ -29,3 +29,5 @@ Print Samples/
 # Local Claude Code setup and design-tool notes (per developer, not part of the app)
 .claude/
 .hallmark/
+CLAUDE.md
+skills-lock.json
