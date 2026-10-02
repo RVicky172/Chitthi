@@ -1,7 +1,7 @@
 services:
   chitthi:
     build: .
-    image: chitthi-studio:2.7.0
+    image: chitthi-studio:2.8.0
     container_name: chitthi
     ports:
       - "8080:8080"

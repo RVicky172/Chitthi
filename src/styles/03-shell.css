@@ -1,148 +1,134 @@
-/* shell: three floating glass columns */
+/* Hallmark · genre: editorial · macrostructure: Workbench · tone: print shop (utilitarian) · anchor hue: umber 48° / amber 68°
+ * theme: custom (vibe: "print shop, umber ink, hairline rules, matte mat") · design-system: design.md · designed-as-app
+ * nav: N3 side-rail (step list) · footer: none (app screen) · enrichment: none (crop marks are the card's trim, not decoration)
+ * Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4
+ */
+
+/* shell: one continuous sheet, columns divided by hairline rules (no floating cards) */
+.bar,
+.rail,
+.panel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.bar {
+  margin: 0;
+}
 .shell {
   flex: 1;
   min-height: 520px;
   display: grid;
-  grid-template-columns: 88px 420px 1fr;
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: 88px 420px minmax(0, 1fr);
+  border-top: 1px solid var(--line);
 }
 .rail {
-  border-radius: var(--r-lg);
   display: flex;
   flex-direction: column;
-  padding: 14px 8px 10px;
-  gap: 10px;
+  border-right: 1px solid var(--line);
   overflow-y: auto;
   scrollbar-width: none;
 }
+.panel {
+  border-right: 1px solid var(--line);
+}
 
-/* stepper: numbered dots joined by a line, filled in as steps are passed */
+/* step list: a numbered index, the current step marked by an umber rule on its edge */
 .stepper {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 .stepper li {
+  border-bottom: 1px solid var(--line);
+}
+.stepper button,
+.galbtn {
   position: relative;
-}
-.stepper li:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  width: 2px;
-  height: 14px;
-  margin-left: -1px;
-  border-radius: 2px;
-  background: var(--line-strong);
-  transition: background 0.3s;
-}
-.stepper li.done::after {
-  background: var(--accent);
-}
-.stepper button {
   width: 100%;
+  min-height: 64px;
   border: 0;
+  border-radius: 0;
   background: none;
-  border-radius: var(--r-md);
-  padding: 2px 2px 4px;
+  padding: 12px 8px 12px 14px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 500;
   line-height: 1.15;
-  transition: color 0.2s;
+  text-align: left;
+  white-space: nowrap;
+  transition:
+    color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+.stepper button:focus-visible,
+.galbtn:focus-visible {
+  outline-offset: -2px;
 }
 .stepper .dot {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--line-strong);
-  background: var(--field);
-  font: 600 0.82rem/1 var(--font);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 0.72rem/1 var(--mono);
   font-variant-numeric: tabular-nums;
-  transition:
-    background 0.25s var(--ease),
-    border-color 0.25s,
-    box-shadow 0.25s,
-    transform 0.25s var(--ease);
+  letter-spacing: 0.02em;
 }
 .stepper .dot svg {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
 }
-.stepper button:hover {
+.stepper button:hover,
+.galbtn:hover {
   color: var(--text);
+  background: var(--field-hover);
 }
-.stepper button:hover .dot {
-  border-color: var(--accent);
+.stepper button:active,
+.galbtn:active {
+  background: var(--sunk);
 }
 .stepper li.done .dot {
-  background: var(--accent-soft);
-  border-color: var(--accent);
   color: var(--accent);
 }
 .stepper li.now button {
   color: var(--text);
   font-weight: 600;
+  background: var(--sunk);
+}
+.stepper li.now button::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent);
 }
 .stepper li.now .dot {
-  background: var(--grad);
-  border-color: transparent;
-  color: var(--on-accent);
-  box-shadow: var(--glow), 0 0 0 4px var(--accent-soft);
-  transform: scale(1.06);
+  color: var(--accent);
 }
 .galbtn {
   margin-top: auto;
-  border: 0;
   border-top: 1px solid var(--line);
-  background: none;
-  padding: 10px 4px 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 500;
-  transition: color 0.2s;
 }
 .galbtn .ico {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 32px;
-  border-radius: 12px;
-  transition: background 0.25s var(--ease);
+  display: block;
+  line-height: 0;
 }
 .galbtn svg {
-  width: 19px;
-  height: 19px;
-}
-.galbtn:hover {
-  color: var(--text);
-}
-.galbtn:hover .ico {
-  background: var(--field);
+  width: 18px;
+  height: 18px;
 }
 .galbtn[aria-current='page'] {
   color: var(--text);
   font-weight: 600;
 }
 .galbtn[aria-current='page'] .ico {
-  background: var(--grad);
-  color: var(--on-accent);
-  box-shadow: var(--glow);
+  color: var(--accent);
 }
 
 /* Instagram username field: logo inside the input, no @ */
@@ -208,7 +194,7 @@
 }
 .calstyle[aria-pressed='true'] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .calstyle-t {
   font-size: 1.05rem;

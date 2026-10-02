@@ -12,33 +12,6 @@
       "avgColor": "#1E0B05"
     },
     {
-      "id": "holi",
-      "file": "holi.jpg",
-      "alt": "Vibrant portrait of a man covered in colorful powders celebrating Holi outdoors.",
-      "photographer": "Shantanu Kumar",
-      "photographerUrl": "https://www.pexels.com/@theshantanukr",
-      "pexelsUrl": "https://www.pexels.com/photo/colorful-holi-celebration-portrait-33814448/",
-      "avgColor": "#96998E"
-    },
-    {
-      "id": "birthday",
-      "file": "birthday.jpg",
-      "alt": "Young boy celebrating birthday by blowing candles on chocolate cake with raspberries.",
-      "photographer": "Helena Jankovičová Kováčová",
-      "photographerUrl": "https://www.pexels.com/@helen1",
-      "pexelsUrl": "https://www.pexels.com/photo/boy-blowing-candles-on-birthday-cake-at-party-30218071/",
-      "avgColor": "#544325"
-    },
-    {
-      "id": "backwaters",
-      "file": "backwaters.jpg",
-      "alt": "Scenic view of a traditional Kerala houseboat cruising through lush backwaters.",
-      "photographer": "Pritam Sengupta",
-      "photographerUrl": "https://www.pexels.com/@pritam-sengupta-685216574",
-      "pexelsUrl": "https://www.pexels.com/photo/passenger-ship-sailing-on-tropical-river-17928231/",
-      "avgColor": "#737570"
-    },
-    {
       "id": "himalaya",
       "file": "himalaya.jpg",
       "alt": "A breathtaking aerial shot of the snow-covered Himalayan mountains in Himachal Pradesh, India.",
@@ -57,24 +30,6 @@
       "avgColor": "#2A3525"
     },
     {
-      "id": "beach",
-      "file": "beach.jpg",
-      "alt": "Beautiful sunset over the Arabian Sea at Chapora Beach, India, with a serene ocean view.",
-      "photographer": "Mohit Hambiria",
-      "photographerUrl": "https://www.pexels.com/@mohit-hambiria-92377455",
-      "pexelsUrl": "https://www.pexels.com/photo/sunset-over-arabian-sea-at-chapora-beach-india-28520254/",
-      "avgColor": "#947153"
-    },
-    {
-      "id": "tajmahal",
-      "file": "tajmahal.jpg",
-      "alt": "A captivating view of the Taj Mahal in Agra, showcasing its elegance and the surrounding gardens.",
-      "photographer": "Abdul Raheem",
-      "photographerUrl": "https://www.pexels.com/@abdul-raheem-325933398",
-      "pexelsUrl": "https://www.pexels.com/photo/taj-mahal-in-india-17477652/",
-      "avgColor": "#A5A196"
-    },
-    {
       "id": "marigold",
       "file": "marigold.jpg",
       "alt": "Bright orange marigold flowers in a garden setting, perfect for nature enthusiasts.",
@@ -82,15 +37,6 @@
       "photographerUrl": "https://www.pexels.com/@carlosdetrip",
       "pexelsUrl": "https://www.pexels.com/photo/close-up-shot-of-yellow-flowers-14304140/",
       "avgColor": "#686A29"
-    },
-    {
-      "id": "desert",
-      "file": "desert.jpg",
-      "alt": "A vibrant scene of a cameleer with a decorated camel at the Pushkar Fair in India.",
-      "photographer": "Harikrishan Jakhar",
-      "photographerUrl": "https://www.pexels.com/@harikrishan-jakhar-518872109",
-      "pexelsUrl": "https://www.pexels.com/photo/cameleer-with-a-camel-19285083/",
-      "avgColor": "#A1A0A8"
     },
     {
       "id": "tea",
@@ -111,22 +57,84 @@
       "avgColor": "#779073"
     },
     {
-      "id": "family",
-      "file": "family.jpg",
-      "alt": "A joyful family portrait featuring parents and their child in a serene park environment.",
-      "photographer": "Gaurav Vishwakarma",
-      "photographerUrl": "https://www.pexels.com/@framesbygaurav",
-      "pexelsUrl": "https://www.pexels.com/photo/happy-family-portrait-in-an-outdoor-park-setting-36061432/",
-      "avgColor": "#68685E"
+      "id": "holi-bowls",
+      "file": "holi-bowls.jpg",
+      "alt": "Colorful Holi powders in artistic bowls, perfect for festive celebrations and creative projects.",
+      "photographer": "Alena Darmel",
+      "photographerUrl": "https://www.pexels.com/@a-darmel",
+      "pexelsUrl": "https://www.pexels.com/photo/close-up-shot-of-assorted-colored-powders-7176698/"
     },
     {
-      "id": "kids",
-      "file": "kids.jpg",
-      "alt": "Lively group of children playing happily outdoors on a street in India during summer.",
-      "photographer": "Vishal Adhikari",
-      "photographerUrl": "https://www.pexels.com/@vishalcreation",
-      "pexelsUrl": "https://www.pexels.com/photo/children-playing-on-a-street-17408540/",
-      "avgColor": "#B2B2AA"
+      "id": "stars-hanging",
+      "file": "stars-hanging.jpg",
+      "alt": "Vibrant star-shaped lanterns hanging indoors, creating a festive and cozy atmosphere.",
+      "photographer": "Laura Musikanski",
+      "photographerUrl": "https://www.pexels.com/@laura-musikanski-821773",
+      "pexelsUrl": "https://www.pexels.com/photo/christmas-star-lanterns-with-various-designs-hanging-from-ropes-6020476/"
+    },
+    {
+      "id": "puri-temple",
+      "file": "puri-temple.jpg",
+      "alt": "View of the historic Jagannath Temple with intricate architecture under a bright sky.",
+      "photographer": "Abhisek Tripathy",
+      "photographerUrl": "https://www.pexels.com/@abhisek-tripathy-467053315",
+      "pexelsUrl": "https://www.pexels.com/photo/magnificent-jagannath-temple-architecture-32519960/"
+    },
+    {
+      "id": "puri-sunset",
+      "file": "puri-sunset.jpg",
+      "alt": "Scenic view of the historic Jagannath Temple in Puri, Odisha during sunset with vibrant skies.",
+      "photographer": "OneZero Studio",
+      "photographerUrl": "https://www.pexels.com/@onezero-studio-716701909",
+      "pexelsUrl": "https://www.pexels.com/photo/stunning-view-of-jagannath-temple-in-puri-37121962/"
+    },
+    {
+      "id": "mustard-punjab",
+      "file": "mustard-punjab.jpg",
+      "alt": "Bright yellow rapeseed field in Punjab, capturing the essence of spring's agricultural beauty.",
+      "photographer": "Zaryab  Haider",
+      "photographerUrl": "https://www.pexels.com/@zaryabhaider",
+      "pexelsUrl": "https://www.pexels.com/photo/vibrant-yellow-rapeseed-field-in-punjab-30684596/"
+    },
+    {
+      "id": "mustard-bloom",
+      "file": "mustard-bloom.jpg",
+      "alt": "A lush field filled with blooming yellow mustard flowers, capturing the essence of spring.",
+      "photographer": "Nymph Zhou",
+      "photographerUrl": "https://www.pexels.com/@nymph-zhou-2162031803",
+      "pexelsUrl": "https://www.pexels.com/photo/vibrant-field-of-yellow-mustard-flowers-in-bloom-37932918/"
+    },
+    {
+      "id": "kites-line",
+      "file": "kites-line.jpg",
+      "alt": "A vibrant array of kites soaring in a clear blue sky, perfect for a sunny day.",
+      "photographer": "FOX ^.ᆽ.^= ∫",
+      "photographerUrl": "https://www.pexels.com/@fox-58267",
+      "pexelsUrl": "https://www.pexels.com/photo/assorted-color-kites-929362/"
+    },
+    {
+      "id": "wheat-fields",
+      "file": "wheat-fields.jpg",
+      "alt": "Expansive rural landscape with wheat fields and lush greenery under a blue sky in Himesháza, Hungary.",
+      "photographer": "Nikolett Emmert",
+      "photographerUrl": "https://www.pexels.com/@nikiemmert",
+      "pexelsUrl": "https://www.pexels.com/photo/brown-grass-field-under-the-white-clouds-and-blue-sky-9298428/"
+    },
+    {
+      "id": "onam-pookalam",
+      "file": "onam-pookalam.jpg",
+      "alt": "Top view of a colorful Diwali rangoli adorned with flower petals and candles on wooden flooring.",
+      "photographer": "Yan Krukau",
+      "photographerUrl": "https://www.pexels.com/@yankrukov",
+      "pexelsUrl": "https://www.pexels.com/photo/beautiful-flower-petals-surrounded-by-lighted-candles-on-a-wooden-surface-8818623/"
+    },
+    {
+      "id": "monsoon-rain",
+      "file": "monsoon-rain.jpg",
+      "alt": "Lush green leaves drenched in monsoon rain create a vivid scene of nature's beauty.",
+      "photographer": "Bibhukalyan Acharya",
+      "photographerUrl": "https://www.pexels.com/@bibhukalyan",
+      "pexelsUrl": "https://www.pexels.com/photo/selective-focus-photo-of-obalte-green-leafed-plants-during-rain-1463530/"
     }
   ]
 }

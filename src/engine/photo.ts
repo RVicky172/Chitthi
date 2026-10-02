@@ -77,6 +77,18 @@ export function lookPixels(a: Uint8ClampedArray, look: LookId): void {
         g = (l + (g - l) * 1.35 - 128) * 1.06 + 128;
         b = (l + (b - l) * 1.35 - 128) * 1.06 + 128;
         break;
+      case 'tinted': {
+        // Hand-tinted: a black-and-white print on warm paper, with thin washes of colour laid back in only where the
+        // photo was strongly coloured (a sari, marigolds, a turban), the way studio photographs were once painted.
+        const hi = Math.max(r, g, b),
+          sat = hi ? (hi - Math.min(r, g, b)) / hi : 0,
+          wash = Math.min(1, Math.max(0, (sat - 0.28) / 0.42)) * 0.62,
+          base = (l - 128) * 1.06 + 128;
+        r = base * 1.015 + 4 + (r - l) * wash;
+        g = base * 0.995 + 2 + (g - l) * wash;
+        b = base * 0.955 + 1 + (b - l) * wash;
+        break;
+      }
       case 'vintage':
         r = r * 0.45 + (l * 1.07 + 20) * 0.55;
         g = g * 0.45 + (l * 0.95 + 12) * 0.55;

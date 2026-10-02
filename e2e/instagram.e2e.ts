@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // The photo studio: batch, editing, export and posting.
-const SAMPLES = ['beach.jpg', 'diwali.jpg', 'holi.jpg', 'lotus.jpg', 'tea.jpg'].map((n) => path.join('public', 'samples', n));
+const SAMPLES = ['wheat-fields.jpg', 'diwali.jpg', 'holi-bowls.jpg', 'lotus.jpg', 'tea.jpg'].map((n) => path.join('public', 'samples', n));
 const upload = (page: Page, files: string[]) => page.locator('.mst-drop input[type=file]').setInputFiles(files);
 const strip = (page: Page) => page.getByRole('list', { name: 'Photos in this post, in order' });
 const tool = (page: Page, name: string) => page.getByRole('navigation', { name: 'Tools' }).getByRole('button', { name, exact: true });

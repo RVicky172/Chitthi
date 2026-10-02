@@ -3,7 +3,7 @@
    Wide screens (≥1280px) show every column; medium screens fold the panel and inspector into one column on the
    right; phones stack everything and scroll. */
 .mst {
-  --stage-bg: #171513;
+  --stage-bg: var(--stage);
   --stage-dot: rgba(255, 255, 255, 0.05);
   --rail-w: 76px;
   --panel-w: 300px;
@@ -254,7 +254,7 @@
   justify-items: center;
   gap: 10px;
   padding: 24px;
-  color: #e8e2da;
+  color: var(--stage-ink);
   text-align: center;
 }
 .mst-empty > svg {
@@ -264,7 +264,7 @@
 }
 .mst-empty h2 {
   margin: 0;
-  font: 400 2rem/1.1 var(--display);
+  font: 700 2rem/1.1 var(--font-head);
 }
 .mst-empty p {
   max-width: 460px;
@@ -277,7 +277,7 @@
   color: rgba(255, 255, 255, 0.78);
 }
 .mst-empty .mst-note a {
-  color: #f6b26b;
+  color: var(--stage-accent);
 }
 .mst-file {
   position: relative;
@@ -328,7 +328,7 @@
   margin: 8px 0 0;
   padding: 10px 12px;
   border-radius: var(--r-sm);
-  background: var(--accent-soft);
+  background: var(--sunk);
   color: var(--text);
   font-size: 0.8rem;
   line-height: 1.45;
@@ -339,6 +339,9 @@
   width: 18px;
   height: 18px;
   margin-top: 1px;
+  color: var(--muted);
+}
+.mst-note a {
   color: var(--accent);
 }
 
@@ -620,7 +623,7 @@
   bottom: 5px;
   margin-left: 1px;
   border-radius: 7px;
-  background: #3a332c;
+  background: var(--stage-2);
   overflow: hidden;
   cursor: grab;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
@@ -811,7 +814,7 @@
 }
 .mst-dialog-body h2 {
   margin: 0;
-  font: 400 1.6rem/1.1 var(--display);
+  font: 700 1.6rem/1.1 var(--font-head);
 }
 .mst .ig-export,
 .mst-dialog .ig-export {

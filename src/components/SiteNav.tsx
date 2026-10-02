@@ -27,18 +27,18 @@ function go(href: string) {
 
 type ToolScreen = Extract<UIState['screen'], 'sizes' | 'paper' | 'instagram'>;
 
-/** The tool pages, listed under "Tools" on every site page. */
-const TOOLS: { screen: ToolScreen; label: string; icon: ReactNode }[] = [
-  { screen: 'sizes', label: 'Sizes and layouts guide', icon: <RulerIcon /> },
-  { screen: 'paper', label: 'Paper sizes in 3D', icon: <CubeIcon /> },
-  { screen: 'instagram', label: 'Photo & video studio', icon: <InstagramIcon /> },
+/** The tool pages: shown as links in the bar on wide screens, and in the Menu below 1100px. */
+const TOOLS: { screen: ToolScreen; label: string; short: string; icon: ReactNode }[] = [
+  { screen: 'instagram', label: 'Photo & video studio', short: 'Photo & video', icon: <InstagramIcon /> },
+  { screen: 'sizes', label: 'Sizes and layouts guide', short: 'Sizes guide', icon: <RulerIcon /> },
+  { screen: 'paper', label: 'Paper sizes in 3D', short: 'Paper in 3D', icon: <CubeIcon /> },
 ];
 
 /**
- * The top bar of the site pages (home, sizes guide, paper sizes in 3D, Instagram posts): brand, the page's own links in
- * an "Explore" dropdown, the tool pages in a "Tools" dropdown, page actions, Find, Settings, full screen and "Open
- * studio". Dropdowns keep the bar short at any number of links. Below 1100px the dropdowns and page actions fold into
- * one Menu; below 600px Find, Settings and full screen join them, so the bar never wraps or scrolls sideways.
+ * The top bar of the site pages (home, sizes guide, paper sizes in 3D, Instagram posts): brand, the tool pages as plain
+ * links, the page's own sections in an "On this page" dropdown, page actions, Find, Settings, full screen and "Open
+ * studio". Below 1100px the links, dropdown and page actions fold into one Menu; below 600px Find, Settings and full
+ * screen join them, so the bar never wraps or scrolls sideways. An airmail stripe runs along its bottom edge.
  */
 export function SiteNav({ links = [], actions = [], isHome = false, current }: { links?: NavLink[]; actions?: NavAction[]; isHome?: boolean; current?: ToolScreen }) {
   const full = useFullscreen();
@@ -80,8 +80,21 @@ export function SiteNav({ links = [], actions = [], isHome = false, current }: {
         </span>
       </a>
       <div className="lnav-links hide-lg">
-        {explore.length > 0 && <MoreMenu className="lnav-dd" text="Explore" label="Explore this page" align="left" items={explore} />}
-        <MoreMenu className="lnav-dd" text="Tools" label="Tools" align="left" items={tools} />
+        {TOOLS.map((t) => (
+          <a
+            key={t.screen}
+            href={`#/${t.screen}`}
+            title={t.label}
+            aria-current={t.screen === current ? 'page' : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              setUI({ screen: t.screen });
+            }}
+          >
+            {t.short}
+          </a>
+        ))}
+        {explore.length > 0 && <MoreMenu className="lnav-dd" text="On this page" label="Sections on this page" align="left" items={explore} />}
       </div>
       {actions.map((a) => (
         <button key={a.key} type="button" className="btn ghost hide-lg" onClick={a.onSelect}>

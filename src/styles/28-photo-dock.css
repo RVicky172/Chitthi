@@ -1,25 +1,20 @@
-/* ---------- photo dock (replaces the tray under the preview) ---------- */
+/* ---------- photo dock: a flush strip under the mat (stage tokens, dark in both themes) ---------- */
 .dock {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  width: min(calc(100% - 24px), 1040px);
-  margin: 0 auto 8px;
-  padding: 8px 10px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  color: #f3eee6;
+  padding: 10px 12px;
+  background: var(--stage-2);
+  border-top: 1px solid var(--stage-rule);
+  color: var(--stage-ink);
 }
 .dock-slots {
   display: flex;
   align-items: center;
   gap: 8px;
   padding-right: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-right: 1px solid var(--stage-rule);
 }
 .dock-slot {
   position: relative;
@@ -34,9 +29,9 @@
   padding: 0;
   overflow: hidden;
   border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.7);
+  border: 2px solid var(--stage-rule);
+  background: var(--stage);
+  color: var(--stage-muted);
   cursor: pointer;
   transition:
     border-color var(--dur-fast),
@@ -57,15 +52,11 @@
   height: 100%;
   object-fit: cover;
 }
-.dock-slot.on > button {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
-}
 .dock-slot.over {
   transform: scale(1.08);
 }
 .dock-slot.over > button {
-  border-color: #fff;
+  border-color: var(--stage-ink);
   border-style: solid;
 }
 .dock-num {
@@ -75,15 +66,12 @@
   min-width: 18px;
   height: 18px;
   border-radius: 9px;
-  background: rgba(20, 18, 16, 0.9);
-  color: #fff;
-  font: 700 0.64rem/18px var(--font);
+  border: 1px solid var(--stage-rule);
+  background: var(--stage);
+  color: var(--stage-ink);
+  font: 600 0.64rem/16px var(--mono);
   text-align: center;
   pointer-events: none;
-}
-.dock-slot.on .dock-num {
-  background: var(--accent);
-  color: var(--on-accent);
 }
 .dock-acts {
   display: flex;
@@ -96,13 +84,13 @@
   width: 27px;
   height: 27px;
   padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #f3eee6;
+  border: 1px solid var(--stage-rule);
+  border-radius: 6px;
+  background: none;
+  color: var(--stage-ink);
 }
 .dock-acts button:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--stage-rule);
 }
 .dock-acts svg {
   width: 15px;
@@ -119,7 +107,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--stage-muted);
 }
 .dock-suggest ul {
   display: flex;
@@ -149,17 +137,17 @@
   padding: 0;
   overflow: hidden;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--stage-rule);
+  background: var(--stage);
   cursor: grab;
   transition:
     transform var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast);
+    border-color var(--dur-fast) var(--ease);
 }
 .dock-ph:hover,
 .dock-ph:focus-visible {
-  transform: translateY(-3px) scale(1.06);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+  border-color: var(--stage-ink);
 }
 .dock-ph.mine::after {
   content: '';
@@ -170,11 +158,11 @@
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 1.5px rgba(20, 18, 16, 0.8);
+  box-shadow: 0 0 0 1.5px var(--stage);
 }
 .dock-empty {
   padding: 12px 4px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--stage-muted);
   font-size: 0.8rem;
 }
 .dock-tools {
@@ -182,7 +170,7 @@
   align-items: center;
   gap: 6px;
   padding-left: 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid var(--stage-rule);
 }
 .dock-tool {
   display: inline-flex;
@@ -192,17 +180,17 @@
   min-width: 40px;
   height: 40px;
   padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
-  color: #f3eee6;
+  border-radius: 8px;
+  border: 1px solid var(--stage-rule);
+  background: none;
+  color: var(--stage-ink);
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
 }
 .dock-tool:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--stage-rule);
 }
 .dock-tool:disabled {
   opacity: 0.4;
@@ -238,13 +226,13 @@
     height: 50px;
   }
 }
-/* The dock sits on the dark stage in both themes: its highlight is saffron, not the theme accent. */
+/* The dock sits on the dark stage in both themes: its highlight is the stage amber, not the theme accent. */
 .dock-slot.on > button {
-  border-color: #f0a04b;
-  box-shadow: 0 0 0 3px rgba(240, 160, 75, 0.35);
+  border-color: var(--stage-accent);
 }
 .dock-slot.on .dock-num,
 .dock-ph.mine::after {
-  background: #f0a04b;
-  color: #1c140b;
+  border-color: var(--stage-accent);
+  background: var(--stage-accent);
+  color: var(--stage-on-accent);
 }

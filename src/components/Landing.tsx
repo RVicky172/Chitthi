@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react';
-import { Box, Images, Mail, Ruler, Search, Type } from 'lucide-react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { Bot, Box, Clapperboard, Images, Mail, Ruler, Search, Smartphone, Sparkles, Type } from 'lucide-react';
 import { FONTS } from '../data/fonts';
-import { LAYOUTS, layoutsFor } from '../data/layouts';
-import { PRODUCTS, sizesFor } from '../data/products';
+import { LAYOUTS } from '../data/layouts';
+import { PRODUCTS } from '../data/products';
 import type { ShowcaseImage, ShowcaseRender } from '../data/showcase';
 import SHOWCASE_JSON from '../data/showcase.json';
 import { SIZES } from '../data/sizes';
@@ -11,7 +11,9 @@ import { isDesktop } from '../platform/desktop';
 import { startProduct } from '../state/actions';
 import { setUI } from '../state/store';
 import type { ProductId } from '../types';
-import { EnvelopeScene, SpinCard, TiltStage } from './Landing3D';
+import { EnvelopeScene, SpinCard } from './Landing3D';
+import { ProductExplorer, PrintReady } from './LandingInteractive';
+import { Journey } from './LandingJourney';
 import { GalleryIcon, InstagramIcon, ProductIcon } from './icons';
 import { SiteNav } from './SiteNav';
 
@@ -39,29 +41,15 @@ function Shot({ img, className, eager }: { img?: ShowcaseImage; className?: stri
   );
 }
 
-/** The example each product card shows. */
-const PRODUCT_SHOT: Record<ProductId, string> = {
-  postcard: 'jaipur-stamp',
-  calendar: 'ladakh-calendar',
-  frame: 'dadi-frame',
-  magnet: 'temple-polaroid-magnet',
-};
-
-const STEPS = [
-  ['Add photos', 'Upload once, or find free photos on Pexels. The photo library shows which ones suit each photo slot.'],
-  ['Pick size and layout', 'Real print sizes for every product, with layouts for one to four photos. Compare them all in the sizes guide.'],
-  ['Theme and words', 'Festivals, birthdays and seasons, or your own colours. Your own fonts too, and a caption for every calendar month.'],
-  ['Download the print pack', 'Fronts, backs and a matching envelope, a print PDF with bleed and crop marks, and a spec sheet.'],
-];
-
 const FEATURES: [ReactNode, string, string][] = [
   [<Images key="i" />, 'Photo library', 'Every photo in one place, filtered to the shape of the slot you are filling, with a sharpness check for print.'],
   [<Search key="s" />, 'Free photos from Pexels', 'Search millions of free photos without leaving the studio. Suggestions follow your occasion and calendar month.'],
-  [<InstagramIcon key="ig" />, 'Photo & video studio', 'Instagram posts with text, stickers and drawings, Reels and Shorts, and YouTube videos edited on a timeline, made on your device.'],
   [<Mail key="m" />, 'Matching envelopes', 'A standard envelope for every design, printed ready-made or folded from a template, and opened in 3D.'],
   [<Type key="t" />, 'Your own fonts', 'Upload a TTF, OTF or WOFF once and use it in any design, alongside 46 fonts for Indian scripts.'],
   [<Ruler key="r" />, 'Sizes and layouts guide', 'Every size drawn to scale with bleed and safe area, pixels needed, and how many fit on a sheet.'],
   [<Box key="b" />, '3D preview', 'Spin any design, flip through a wall calendar, see all twelve months at once, or open the envelope.'],
+  [<Sparkles key="a" />, 'AI with your own key', 'Greetings, calendar captions and slot-shaped artwork from Claude, OpenAI, Gemini, a local Ollama and more. Optional.'],
+  [<Bot key="g" />, 'Works with AI agents', 'The desktop app is an MCP server with 34 tools, and a Claude Code plugin adds six workflow skills.'],
 ];
 
 function CTAs({ open }: { open: (p: ProductId) => void }) {
@@ -83,6 +71,46 @@ function CTAs({ open }: { open: (p: ProductId) => void }) {
   );
 }
 
+/**
+ * The photo & video studio's three kinds of work, at the sizes the editors export (src/data/instagram.ts and
+ * src/engine/video.ts: kept as text here so the landing page doesn't load the video engine).
+ */
+const MEDIA: { href: string; ratio: string; r: number; size: string; title: string; where: string; text: string; cta: string; icon: ReactNode }[] = [
+  {
+    href: '#/instagram',
+    ratio: '4 / 5',
+    r: 4 / 5,
+    size: '1080 × 1350',
+    title: 'Instagram posts',
+    where: 'Portrait, square, 3:4, landscape and Story',
+    text: 'A batch of photos with text, stickers, shapes and drawings, exported as feed-ready JPEGs.',
+    cta: 'Make a post',
+    icon: <InstagramIcon />,
+  },
+  {
+    href: '#/instagram/video',
+    ratio: '9 / 16',
+    r: 9 / 16,
+    size: '1080 × 1920',
+    title: 'Reels and Shorts',
+    where: 'Instagram Reels and Stories, YouTube Shorts',
+    text: 'Clips and photos on a timeline with music, captions and stickers, exported as an MP4 you can share.',
+    cta: 'Make a Reel',
+    icon: <Smartphone />,
+  },
+  {
+    href: '#/instagram/youtube',
+    ratio: '16 / 9',
+    r: 16 / 9,
+    size: '1920 × 1080',
+    title: 'YouTube videos',
+    where: 'Full HD, plus 1440p and 4K in the desktop app',
+    text: 'Trim, split and reorder on a timeline, then export straight into a file, however long the video is.',
+    cta: 'Edit a video',
+    icon: <Clapperboard />,
+  },
+];
+
 type Filter = 'all' | ProductId;
 
 export function Landing() {
@@ -94,41 +122,63 @@ export function Landing() {
       <SiteNav
         isHome
         links={[
-          { label: 'Examples', href: '#examples' },
           { label: 'Products', href: '#products' },
+          { label: 'Photo & video', href: '#media' },
+          { label: 'Examples', href: '#examples' },
+          { label: 'Print-ready files', href: '#export' },
+          { label: '3D preview', href: '#in3d' },
           { label: 'Features', href: '#features' },
-          { label: '3D', href: '#in3d' },
-          { label: 'How it works', href: '#how' },
         ]}
         actions={[{ key: 'gallery', label: 'Gallery', icon: <GalleryIcon />, onSelect: () => setUI({ gallery: true }) }]}
       />
 
       <main>
-        <header className="ld-hero">
-          <div className="ld-hero-copy">
-            <p className="kicker">{isDesktop ? 'Print studio on your computer' : 'Print studio in your browser'}</p>
-            <h1>
-              Your photos, <em>made to hold.</em>
-            </h1>
-            <p className="hero-sub">
-              Postcards, calendars, framed prints and fridge magnets with Indian festival and season themes, a matching
-              envelope, and print-ready files with bleed, all in one click.
-            </p>
-            <CTAs open={open} />
-            <p className="hero-note">
-              Free for everyone · No account · Your photos never leave this {isDesktop ? 'computer' : 'browser'}
+        <Journey front={shot('tinted-postcard')} back={shot('tinted-postcard', 'back')} envelope={shot('tinted-postcard', 'envelope-front')}>
+          <h1>Your photos, made to hold.</h1>
+          <p className="hero-sub">
+            Postcards, calendars, framed prints and fridge magnets with Indian festival and season themes, a matching envelope,
+            and print-ready files with bleed. Posts, Reels and YouTube videos too.
+          </p>
+          <CTAs open={open} />
+          <p className="hero-note">
+            {isDesktop ? 'On your computer' : 'In your browser'} · Free · No account · Your photos never leave this{' '}
+            {isDesktop ? 'computer' : 'browser'}
+          </p>
+        </Journey>
+
+        <section id="products" className="lsec ld-products-sec">
+          <div className="ld-sec-head">
+            <h2>Four things to print</h2>
+            <p className="lsec-sub">Each has its own sizes, layouts and options. They share your photos, occasions and fonts.</p>
+          </div>
+          <ProductExplorer shots={SHOTS} open={open} />
+        </section>
+
+        <section id="media" className="lsec ld-media">
+          <div className="ld-media-head">
+            <h2>Posts, Reels and YouTube videos, too</h2>
+            <p className="lsec-sub">
+              The photo &amp; video studio edits for the screen the way the print studio edits for paper: on your device, at the
+              exact size each platform asks for.
             </p>
           </div>
-          <div className="ld-stage-wrap" aria-hidden="true">
-            <TiltStage className="ld-stage">
-              <Shot img={shot('ladakh-calendar')} className="s-cal" eager />
-              <Shot img={shot('diwali-postcard', 'envelope-back')} className="s-env" eager />
-              <Shot img={shot('diwali-postcard')} className="s-card" eager />
-              <Shot img={shot('eid-magnet')} className="s-mag" eager />
-              <Shot img={shot('puppy-badge')} className="s-badge" eager />
-            </TiltStage>
-          </div>
-        </header>
+          <ul className="ld-formats">
+            {MEDIA.map((m) => (
+              <li key={m.href} style={{ '--r': m.r } as CSSProperties}>
+                <a className="ld-format" href={m.href}>
+                  <span className="ld-frame" style={{ aspectRatio: m.ratio }}>
+                    <span className="ld-frame-ico">{m.icon}</span>
+                    <span className="ld-frame-size">{m.size}</span>
+                  </span>
+                  <b>{m.title}</b>
+                  <small>{m.where}</small>
+                  <span className="ld-format-text">{m.text}</span>
+                  <span className="ld-go">{m.cta}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <dl className="ld-stats">
           <div>
@@ -203,44 +253,26 @@ export function Landing() {
           </ul>
         </section>
 
-        <section id="products" className="lsec">
-          <h2>Four things to print</h2>
-          <p className="lsec-sub">Each has its own sizes, layouts and options. They share your photos, themes and fonts.</p>
-          <div className="ld-products">
-            {PRODUCTS.map((p) => (
-              <article key={p.id} className="ld-product">
-                <button type="button" className="ld-product-art" onClick={() => open(p.id)} aria-label={`Start a ${p.name.toLowerCase()}`}>
-                  <Shot img={shot(PRODUCT_SHOT[p.id])} />
-                </button>
-                <h3>
-                  <span className="product-ico">
-                    <ProductIcon id={p.id} />
-                  </span>
-                  {p.name}
-                </h3>
-                <p>{p.blurb}</p>
-                <p className="ld-meta">
-                  {sizesFor(p.id).filter((s) => s.id !== 'custom').length} sizes · {layoutsFor(p.id).length} layouts ·{' '}
-                  <a href={`#/sizes/${p.id}`}>compare</a>
-                </p>
-                <button type="button" className="btn primary" onClick={() => open(p.id)}>
-                  Design a {p.name.toLowerCase()}
-                </button>
-              </article>
-            ))}
+        <section id="export" className="lsec ld-ready-sec">
+          <div className="ld-sec-head">
+            <h2>Print-ready, whatever the size</h2>
+            <p className="lsec-sub">
+              Pick a size and a bleed. This is the exact geometry the studio exports: trim, bleed and safe area, the pixels a
+              300 dpi print needs, and the files the print shop gets in one ZIP, with crop marks in the PDF.
+            </p>
           </div>
+          <PrintReady />
         </section>
 
-        <section className="lsec ld-env">
+        <section className="lsec ld-env ld-mat">
           <EnvelopeScene
-            front={shot('diwali-postcard', 'envelope-front')}
-            body={shot('diwali-postcard', 'envelope-body')}
-            flap={shot('diwali-postcard', 'envelope-flap')}
-            liner={shot('diwali-postcard', 'envelope-liner')}
-            card={shot('diwali-postcard')}
+            front={shot('tinted-postcard', 'envelope-front')}
+            body={shot('tinted-postcard', 'envelope-body')}
+            flap={shot('tinted-postcard', 'envelope-flap')}
+            liner={shot('tinted-postcard', 'envelope-liner')}
+            card={shot('tinted-postcard')}
           />
           <div>
-            <p className="kicker">New</p>
             <h2>An envelope for every design</h2>
             <p className="lsec-sub">
               Each design picks the smallest standard envelope it fits (C6, A7, DL, square and more) and dresses it in the same
@@ -257,7 +289,6 @@ export function Landing() {
 
         <section id="in3d" className="lsec ld-3d">
           <div>
-            <p className="kicker">3D preview</p>
             <h2>Turn it over before you print</h2>
             <p className="lsec-sub">
               Every design can be spun and flipped in 3D, front and back, with the paper's thickness. Calendars show all twelve
@@ -273,7 +304,7 @@ export function Landing() {
               Try it in the studio
             </button>
           </div>
-          <SpinCard front={shot('diwali-postcard')} back={shot('diwali-postcard', 'back')} />
+          <SpinCard front={shot('tinted-postcard')} back={shot('tinted-postcard', 'back')} />
         </section>
 
         <section id="features" className="lsec">
@@ -288,59 +319,6 @@ export function Landing() {
               </li>
             ))}
           </ul>
-        </section>
-
-        <section id="how" className="lsec">
-          <h2>How it works</h2>
-          <ol className="how">
-            {STEPS.map(([t, s], i) => (
-              <li key={t}>
-                <span className="dot">{i + 1}</span>
-                <b>{t}</b>
-                <p>{s}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section id="export" className="lsec split">
-          <div>
-            <h2>A print pack the shop can use</h2>
-            <p className="lsec-sub">
-              Every export is a single ZIP. Fronts and backs are separate full-resolution PNGs at the full document size,
-              tagged with their dpi. The PDF has every page in order with crop marks, and the spec sheet tells the printer exactly
-              what they are looking at.
-            </p>
-            <ul className="checks">
-              <li>Bleed of 3 mm, ⅛ in or 5 mm on every edge</li>
-              <li>300 dpi, with a sharpness check for every photo</li>
-              <li>Single-page PDFs or sheets of A4, A3 and 13×19 in</li>
-              <li>Double-sided sheets with the backs mirrored</li>
-            </ul>
-          </div>
-          <div className="files" aria-label="Example print pack">
-            <p className="files-name">chitthi-diwali-4x6-print-pack.zip</p>
-            <ul>
-              <li className="dir">front/</li>
-              <li>chitthi-diwali-4x6-front.png</li>
-              <li className="dir">back/</li>
-              <li>chitthi-diwali-4x6-back.png</li>
-              <li>chitthi-diwali-4x6-print.pdf</li>
-              <li className="dir">envelope/</li>
-              <li>chitthi-diwali-4x6-envelope-print.pdf</li>
-              <li>chitthi-diwali-4x6-envelope-template-a4.pdf</li>
-              <li className="spec">chitthi-diwali-4x6-PRINT-SPEC.txt</li>
-            </ul>
-            {/* Scrolls sideways on phones: focusable so keyboard users can scroll it too. */}
-            <pre tabIndex={0} aria-label="Example print specification">
-              {`Trim (final) size:    152.4 × 101.6 mm
-  Bleed:                3 mm on every edge
-  Document size:        158.4 × 107.6 mm
-  Safe area:            144.4 × 93.6 mm
-  Resolution:           300 dpi → 1871 × 1271 px
-  Envelope:             C6, 162 × 114 mm`}
-            </pre>
-          </div>
         </section>
 
         <section className="lsec final">

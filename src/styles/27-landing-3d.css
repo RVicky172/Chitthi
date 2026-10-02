@@ -75,7 +75,7 @@
   width: 64%;
   height: 26px;
   margin-top: 34px;
-  background: radial-gradient(ellipse at center, rgba(40, 26, 14, 0.35), transparent 70%);
+  background: radial-gradient(ellipse at center, oklch(26% 0.05 262 / 0.3), transparent 70%);
   filter: blur(4px);
 }
 .env3d-obj {

@@ -9,7 +9,7 @@ import { envelopeSpec, renderEnvelope } from '../engine/envelope';
 import { loadImage, makePhoto } from '../engine/photo';
 import { renderCard } from '../engine/render';
 import { ensureFonts, fontsFor } from '../lib/fonts';
-import type { Design, Photo } from '../types';
+import type { Design, LookId, Photo } from '../types';
 
 interface Credit {
   id: string;
@@ -40,13 +40,13 @@ function shape(cv: HTMLCanvasElement, d: Design): void {
 async function render(): Promise<{ files: { name: string; data: string }[]; manifest: ShowcaseImage[] }> {
   const credits: Credit[] = (await (await fetch('/showcase-src/photos.json')).json()).photos;
   const photo = new Map<string, Promise<Photo>>();
-  const load = (id: string) => {
-    let p = photo.get(id);
+  const load = (id: string, look: LookId = 'none') => {
+    let p = photo.get(`${id}:${look}`);
     if (!p) {
       const c = credits.find((x) => x.id === id);
       if (!c) throw new Error(`showcase photo "${id}" is missing: run npm run fetch:showcase`);
-      p = loadImage(`/showcase-src/${c.file}`).then((img) => makePhoto(img, `${c.alt} (Pexels / ${c.photographer})`, `/showcase-src/${c.file}`));
-      photo.set(id, p);
+      p = loadImage(`/showcase-src/${c.file}`).then((img) => makePhoto(img, `${c.alt} (Pexels / ${c.photographer})`, `/showcase-src/${c.file}`, { look }));
+      photo.set(`${id}:${look}`, p);
     }
     return p;
   };
@@ -54,7 +54,7 @@ async function render(): Promise<{ files: { name: string; data: string }[]; mani
     manifest: ShowcaseImage[] = [];
   for (const def of SHOWCASE) {
     const d = def.build(productDesign(def.product)),
-      photos = await Promise.all(def.photos.map(load));
+      photos = await Promise.all(def.photos.map((id) => load(id, def.look)));
     await ensureFonts(fontsFor(d));
     await document.fonts.ready;
     const who = [...new Set(def.photos)].map((id) => credits.find((c) => c.id === id)!).map((c) => ({ name: c.photographer, url: c.photographerUrl }));

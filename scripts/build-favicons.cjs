@@ -62,7 +62,7 @@ async function render(win, source, size, inset, transparent) {
       const cv = document.createElement('canvas');
       cv.width = cv.height = ${size};
       const c = cv.getContext('2d');
-      ${transparent ? '' : "c.fillStyle = '#5f3a22'; c.fillRect(0, 0, " + size + ', ' + size + ');'}
+      ${transparent ? '' : "c.fillStyle = '#151413'; c.fillRect(0, 0, " + size + ', ' + size + ');'}
       c.imageSmoothingQuality = 'high';
       c.drawImage(img, ${pad}, ${pad}, ${size - 2 * pad}, ${size - 2 * pad});
       ok(cv.toDataURL('image/png'));

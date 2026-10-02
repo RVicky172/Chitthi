@@ -1,4 +1,4 @@
-import type { Design, ProductId } from '../types';
+import type { Design, LookId, ProductId } from '../types';
 import { themeById } from './themes';
 
 /*
@@ -15,6 +15,8 @@ export interface ShowcaseDef {
   product: ProductId;
   /** Photo ids from showcase-src/photos.json, in slot order. */
   photos: string[];
+  /** A photo look applied to every photo of this design. */
+  look?: LookId;
   build: (d: Design) => Design;
   renders: ShowcaseRender[];
 }
@@ -26,6 +28,34 @@ const theme = (d: Design, id: string, words: Partial<Design> = {}): Design => {
 const back = { from: 'Asha', to: 'Nani Ma', address: '12 Gandhi Road\nC-Scheme, Jaipur', pin: '302001' };
 
 export const SHOWCASE: ShowcaseDef[] = [
+  {
+    // The landing page's hero: the scroll journey and the 3D sections use its front, back and envelope.
+    id: 'tinted-postcard',
+    title: 'Greetings from Jaipur',
+    product: 'postcard',
+    photos: ['hawamahal'],
+    look: 'tinted',
+    build: (d) => ({
+      ...d,
+      useOccasion: false,
+      plain: { bg: '#F3F1EC', ink: '#1E1D1B', accent: '#A8662E', gradient: false },
+      headFont: 'Cormorant Garamond',
+      quoteFont: 'Lora',
+      heading: 'Greetings from Jaipur',
+      quote: 'Pink walls, blue skies and far too much lassi.',
+      sig: 'Love, Asha',
+      layout: 'band',
+      back: {
+        ...d.back,
+        ...back,
+        address: '7 Mall Avenue\nCivil Lines, Lucknow',
+        pin: '226001',
+        message: 'Dear Nani,\nThe Hawa Mahal is even prettier than in your old photos. Bringing you bangles from the bazaar!',
+      },
+      env: { ...d.env, sender: 'Flat 4B, Rose Apartments\nPune 411001' },
+    }),
+    renders: ['front', 'back', 'envelope-front', 'envelope-back', 'envelope-body', 'envelope-flap', 'envelope-liner'],
+  },
   {
     id: 'diwali-postcard',
     title: 'Shubh Deepavali',
@@ -40,12 +70,12 @@ export const SHOWCASE: ShowcaseDef[] = [
     renders: ['front', 'back', 'envelope-front', 'envelope-back', 'envelope-body', 'envelope-flap', 'envelope-liner'],
   },
   {
-    id: 'wedding-polaroid',
-    title: 'Just married',
+    id: 'monsoon-polaroid',
+    title: 'Monsoon days',
     product: 'postcard',
-    photos: ['couple'],
+    photos: ['monsoon-drops'],
     build: (d) => ({
-      ...theme(d, 'friends', { heading: 'Just married!', quote: 'Thank you for blessing us.', sig: 'Riya & Arjun' }),
+      ...theme(d, 'monsoon', { heading: 'Monsoon days', quote: 'Green everywhere, and chai on the balcony.', sig: 'from Srinagar' }),
       layout: 'polaroid',
       orient: 'portrait',
       frame: 'cream',
@@ -53,23 +83,23 @@ export const SHOWCASE: ShowcaseDef[] = [
     renders: ['front'],
   },
   {
-    id: 'jaipur-stamp',
-    title: 'Greetings from Jaipur',
+    id: 'mysuru-stamp',
+    title: 'Greetings from Mysuru',
     product: 'postcard',
-    photos: ['hawamahal'],
+    photos: ['temple'],
     build: (d) => ({
-      ...theme(d, 'summer', { heading: 'Greetings from Jaipur', quote: 'Pink walls, blue skies and far too much lassi.', sig: 'Wish you were here' }),
+      ...theme(d, 'summer', { heading: 'Greetings from Mysuru', quote: 'Temple towers, jasmine and the best filter coffee.', sig: 'Wish you were here' }),
       layout: 'stamp',
     }),
     renders: ['front'],
   },
   {
-    id: 'banaras-collage',
-    title: 'Banaras diaries',
+    id: 'festival-collage',
+    title: 'Festival season',
     product: 'postcard',
-    photos: ['ghats', 'chai', 'spices'],
+    photos: ['spices', 'rangoli', 'lanterns'],
     build: (d) => ({
-      ...theme(d, 'autumn', { heading: 'Banaras diaries', quote: 'Boats at dawn, chai at noon, aarti at dusk.' }),
+      ...theme(d, 'autumn', { heading: 'Festival season', quote: 'Colours at the market, lamps at the door, lanterns overhead.' }),
       layout: 'collage3',
     }),
     renders: ['front'],
@@ -78,7 +108,7 @@ export const SHOWCASE: ShowcaseDef[] = [
     id: 'ladakh-calendar',
     title: 'Mountains wall calendar',
     product: 'calendar',
-    photos: ['ladakh', 'sunflower', 'kites', 'temple', 'mumbai', 'ghats', 'hawamahal', 'rangoli', 'lanterns', 'spices', 'chai', 'grandma'],
+    photos: ['ladakh', 'sunflower', 'sankranti-kites', 'temple', 'mumbai', 'monsoon-drops', 'hawamahal', 'rangoli', 'lanterns', 'spices', 'holi-bowls', 'diwali-diyas'],
     build: (d) => ({
       ...theme(d, 'winter', { heading: 'Our year' }),
       layout: 'cal-top',
@@ -95,12 +125,12 @@ export const SHOWCASE: ShowcaseDef[] = [
     renders: ['front'],
   },
   {
-    id: 'dadi-frame',
-    title: 'Dadi at 80',
+    id: 'puri-frame',
+    title: 'Puri, at dusk',
     product: 'frame',
-    photos: ['grandma'],
+    photos: ['puri-sunset'],
     build: (d) => ({
-      ...theme(d, 'parents', { heading: 'Dadi at 80', showQuote: false, showSig: false }),
+      ...theme(d, 'autumn', { heading: 'Puri, at dusk', showQuote: false, showSig: false }),
       sizeId: 'f8x10',
       layout: 'frame-caption',
       mat: 'classic',
@@ -112,7 +142,7 @@ export const SHOWCASE: ShowcaseDef[] = [
     id: 'kites-triptych',
     title: 'Sankranti skies',
     product: 'frame',
-    photos: ['kites', 'mumbai', 'sunflower'],
+    photos: ['sankranti-kites', 'mumbai', 'sunflower'],
     build: (d) => ({ ...theme(d, 'sankranti'), sizeId: 'fa3', orient: 'landscape', layout: 'frame-trio', mat: 'thin', frame: 'white' }),
     renders: ['front'],
   },

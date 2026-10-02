@@ -2,10 +2,8 @@
 @media (max-width: 860px) {
   .bar {
     height: auto;
-    margin: 8px 8px 0;
     padding: 6px 8px 6px 10px;
     gap: 10px;
-    border-radius: 18px;
   }
   .bar svg.logo {
     width: 34px;
@@ -25,17 +23,14 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    gap: 8px;
-    padding: 8px;
   }
   .stage {
     order: 1;
     flex: none;
     height: clamp(220px, 40dvh, 440px);
-    border-radius: 18px;
   }
   .stagebar {
-    padding: 8px 8px 0;
+    padding: 6px 8px;
     gap: 6px;
   }
   .legend {
@@ -48,45 +43,41 @@
   .caption {
     display: none;
   }
-  .tray {
-    margin-bottom: 6px;
-  }
   .tray-slot,
   .tray-ph,
   .tray-add {
     width: 38px;
     height: 38px;
   }
+  /* the step list turns into one row of index tabs; the current one is underlined instead of edged */
   .rail {
     order: 2;
     flex: none;
     flex-direction: row;
-    align-items: center;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 8px 6px 6px;
-    gap: 6px;
-    border-radius: 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
     scroll-snap-type: x proximity;
   }
   .stepper {
     flex-direction: row;
-    gap: 10px;
   }
-  .stepper li:not(:last-child)::after {
-    left: 100%;
-    top: 14px;
-    width: 10px;
-    height: 2px;
-    margin: 0;
+  .stepper li {
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
   }
-  .stepper button {
-    min-width: 54px;
+  .stepper button,
+  .galbtn {
+    min-width: 72px;
+    min-height: 56px;
+    padding: 9px 12px;
     scroll-snap-align: center;
   }
-  .stepper .dot {
-    width: 28px;
-    height: 28px;
+  .stepper li.now button::before {
+    inset: auto 0 0 0;
+    width: auto;
+    height: 3px;
   }
   .galdlg .gal {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -103,28 +94,22 @@
     display: none;
   }
   .galbtn {
-    margin: 0;
+    margin: 0 0 0 auto;
     flex: none;
-    min-width: 58px;
+    width: auto;
     border-top: 0;
     border-left: 1px solid var(--line);
-    padding: 0 4px 0 8px;
-    scroll-snap-align: center;
-  }
-  .galbtn .ico {
-    width: 34px;
-    height: 28px;
   }
   .panel {
     order: 3;
     flex: 1;
-    border-radius: 18px;
+    border-right: 0;
   }
   .pane {
     padding: 20px 16px 36px;
   }
   .pane h2 {
-    font-size: 1.9rem;
+    font-size: 1.6rem;
   }
 }
 

@@ -5,6 +5,33 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-10-02
+
+A new look: Graphite themes, a redesigned print studio and home page, and a Hand-tinted photo look. Includes the 2.7.0
+changes below, which were not published on their own.
+
+### Added
+
+- **Hand-tinted** photo look in the print studio and the photo & video studio: black and white on warm paper, with
+  thin washes of colour kept only where the photo is strongly coloured, like a hand-painted studio photograph.
+- Home page: a scroll journey from a photo to a card in the post, built from real Chitthi renders (no video); a product
+  explorer with real examples, sizes and layouts; and a print-ready tool that draws any postcard size to one scale with
+  bleed, trim and safe area, its pixels at 300 dpi and the print-pack file names.
+- Home page: a section for the photo & video studio (Instagram posts, Reels and Shorts, YouTube videos).
+
+### Changed
+
+- Graphite light and dark themes across the app: warm-neutral greys, near-black actions in light mode and near-white in
+  dark mode, a marigold highlight on the preview. Red is used only for errors and the airmail stripe. WCAG AA throughout.
+- Headings use Schibsted Grotesk, bundled with the app so it also shows offline.
+- Print studio: one flush layout with hairline dividers, a numbered step list, flat buttons, and crop marks around the
+  card on a matte preview.
+- Site navigation: the tool pages are plain links, the page's sections are in one "On this page" menu, and an airmail
+  stripe runs under the bar.
+- App icon: a graphite tile with a cream ring and a marigold चिट्ठी (browser tab, home screen and desktop app).
+- Examples, gallery samples and photo search suggestions no longer show or suggest photos of people: places, festivals,
+  flowers and objects only.
+
 ## [2.7.0] - 2026-10-01
 
 Chitthi Studio: the photo & video studio (Instagram photos, Reels & Shorts, YouTube videos), and production hardening.

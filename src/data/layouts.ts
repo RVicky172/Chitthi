@@ -62,5 +62,6 @@ export const LOOKS: [LookId, string][] = [
   ['warm', 'Warm'],
   ['cool', 'Cool'],
   ['bw', 'Black & white'],
+  ['tinted', 'Hand-tinted'],
   ['vintage', 'Vintage'],
 ];

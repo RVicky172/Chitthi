@@ -35,7 +35,10 @@ export function Rail() {
           return (
             <li key={id} className={state}>
               <button type="button" aria-current={state === 'now' ? 'step' : undefined} onClick={() => setUI({ pane: id })}>
-                <span className="dot">{state === 'done' ? <CheckIcon /> : i + 1}</span>
+                <span className="dot" aria-hidden="true">
+                  {String(i + 1).padStart(2, '0')}
+                  {state === 'done' && <CheckIcon />}
+                </span>
                 <span className="lbl">{label}</span>
               </button>
             </li>

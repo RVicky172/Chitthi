@@ -216,8 +216,8 @@
 }
 .p3-det h2 {
   margin: 2px 0 8px;
-  font-family: var(--display);
-  font-weight: 400;
+  font-family: var(--font-head);
+  font-weight: 700;
   font-size: 1.6rem;
 }
 .p3-grp {

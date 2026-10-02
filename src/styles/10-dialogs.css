@@ -18,7 +18,7 @@ dialog[open] {
   }
 }
 dialog::backdrop {
-  background: rgba(24, 20, 16, 0.5);
+  background: oklch(14% 0.025 262 / 0.5);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
@@ -42,7 +42,7 @@ dialog::backdrop {
 }
 .dhead h2 {
   margin: 0;
-  font: 400 1.6rem/1.2 var(--display);
+  font: 700 1.6rem/1.2 var(--font-head);
   margin-right: auto;
 }
 .cropstage {
@@ -51,7 +51,7 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #1d1a17;
+  background-color: var(--stage);
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1.5px);
   background-size: 22px 22px;
   padding: 12px;
@@ -80,9 +80,9 @@ dialog::backdrop {
   border: 0;
   border-radius: 0;
   background:
-    radial-gradient(40% 40% at 20% 20%, rgba(255, 228, 190, 0.12), transparent 70%),
+    radial-gradient(40% 40% at 20% 20%, oklch(85% 0.05 230 / 0.1), transparent 70%),
     radial-gradient(40% 40% at 80% 80%, rgba(255, 255, 255, 0.05), transparent 70%),
-    radial-gradient(ellipse at 50% 40%, #2d2a26 0%, #0f0e0d 72%);
+    radial-gradient(ellipse at 50% 40%, var(--stage-2) 0%, var(--stage) 72%);
   color: #f1f7fb;
 }
 .viewer[open] {
@@ -99,7 +99,7 @@ dialog::backdrop {
 }
 .vbar h2 {
   margin: 0 auto 0 0;
-  font: 400 1.7rem/1.2 var(--display);
+  font: 700 1.7rem/1.2 var(--font-head);
 }
 .vscene {
   flex: 1;
@@ -227,7 +227,6 @@ dialog::backdrop {
 }
 @media (prefers-reduced-motion: reduce) {
   body::before,
-  .pane,
   dialog[open],
   .cardwrap canvas.flip {
     animation: none;
@@ -236,7 +235,6 @@ dialog::backdrop {
   .switch .track,
   .switch .track::after,
   .tile,
-  .stepper .dot,
   .progress i {
     transition: none;
   }
@@ -247,6 +245,6 @@ dialog::backdrop {
 
 @media (max-width: 1180px) {
   .shell {
-    grid-template-columns: 80px 360px 1fr;
+    grid-template-columns: 80px 360px minmax(0, 1fr);
   }
 }

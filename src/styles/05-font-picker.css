@@ -130,7 +130,7 @@
   border-color: var(--accent);
   box-shadow:
     0 0 0 1px var(--accent),
-    0 10px 26px -14px rgba(116, 69, 42, 0.45);
+    0 10px 26px -14px oklch(26% 0.05 262 / 0.3);
 }
 .summary {
   background: var(--sunk);

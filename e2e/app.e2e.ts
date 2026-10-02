@@ -63,7 +63,7 @@ for (const [name, path] of [
   });
 }
 
-// The site nav keeps everything inside the bar on one line: links live in the Explore and Tools dropdowns.
+// The site nav keeps everything inside the bar on one line: tool links, then the page's sections in one dropdown.
 for (const path of ['./', './#/sizes', './#/paper']) {
   test(`the nav fits its bar on ${path}`, async ({ page }) => {
     await page.goto(path);
@@ -78,11 +78,17 @@ for (const path of ['./', './#/sizes', './#/paper']) {
   });
 }
 
-test('the Tools menu opens each tool page', async ({ page, isMobile }) => {
+test('the nav opens each tool page', async ({ page, isMobile }) => {
   await page.goto('./#/sizes');
-  await page.getByRole('button', { name: isMobile ? 'Menu' : 'Tools', exact: true }).click();
-  await expect(page.getByRole('menuitem', { name: 'Sizes and layouts guide' })).toHaveAttribute('aria-current', 'page');
-  await page.getByRole('menuitem', { name: 'Photo & video studio' }).click();
+  if (isMobile) {
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await expect(page.getByRole('menuitem', { name: 'Sizes and layouts guide' })).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('menuitem', { name: 'Photo & video studio' }).click();
+  } else {
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await expect(nav.getByRole('link', { name: 'Sizes guide' })).toHaveAttribute('aria-current', 'page');
+    await nav.getByRole('link', { name: 'Photo & video' }).click();
+  }
   await expect(page).toHaveURL(/#\/instagram$/);
   await expect(page.getByRole('navigation', { name: 'What to make' })).toBeVisible();
 });

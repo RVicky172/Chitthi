@@ -228,7 +228,7 @@ compare runs or attach to an issue. What each figure means and the app's memory 
 - Six steps (Photos, Layout, Occasion, Front, Back, Print) made of collapsible sections, with Collapse all / Expand all.
 - **Find a feature** (`Ctrl+K` / `⌘K`) jumps straight to any setting or action.
 - Gallery with sample designs, backup and restore, `.chitthi` design files, undo and redo, autosave.
-- Warm cream light theme and grey dark theme with a saffron accent, both WCAG AA; full screen; offline support.
+- Graphite light and dark themes (neutral greys, near-black or near-white actions, a marigold highlight on the preview), both WCAG AA; full screen; offline support.
 - Works from 1920 px down to 360 px wide: secondary actions fold into a **More** menu rather than overflowing.
 
 | Key | Action |

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // Layers on photos, and the video editor: timeline editing and MP4 export for Reels and YouTube.
-const SAMPLES = ['holi.jpg', 'diwali.jpg', 'tea.jpg'].map((n) => path.join('public', 'samples', n));
+const SAMPLES = ['holi-bowls.jpg', 'diwali.jpg', 'tea.jpg'].map((n) => path.join('public', 'samples', n));
 const tool = (page: Page, name: string) => page.getByRole('navigation', { name: 'Tools' }).getByRole('button', { name, exact: true });
 const layers = (page: Page) => page.getByRole('list', { name: 'Layers, front first' }).locator('li');
 const watchErrors = (page: Page) => {
@@ -154,14 +154,14 @@ test.describe('video editor', () => {
     await expect(page.locator('.tl-time')).toContainText('/ 0:10.0');
     // Reorder: drag clip 1 past clip 3.
     const names = async () => clips.evaluateAll((els) => els.map((e) => e.getAttribute('title')?.split(' ·')[0]));
-    expect(await names()).toEqual(['holi.jpg', 'diwali.jpg', 'tea.jpg']);
+    expect(await names()).toEqual(['holi-bowls.jpg', 'diwali.jpg', 'tea.jpg']);
     const fb = (await first.boundingBox())!;
     const lb = (await clips.last().boundingBox())!;
     await page.mouse.move(fb.x + fb.width / 2, fb.y + fb.height / 2);
     await page.mouse.down();
     await page.mouse.move(lb.x + lb.width - 4, fb.y + fb.height / 2, { steps: 10 });
     await page.mouse.up();
-    await expect.poll(names).toEqual(['diwali.jpg', 'tea.jpg', 'holi.jpg']);
+    await expect.poll(names).toEqual(['diwali.jpg', 'tea.jpg', 'holi-bowls.jpg']);
     // Split at the playhead with the keyboard: the playhead to 1.5 s, then S.
     await page.locator('.tl-scroll').focus();
     await page.keyboard.press('Home');

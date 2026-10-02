@@ -11,7 +11,7 @@
 }
 .sg-head h1 {
   margin: 0 0 8px;
-  font: 400 clamp(2.2rem, 5vw, 3.4rem) / 1.05 var(--display);
+  font: 700 clamp(2.2rem, 5vw, 3.4rem) / 1.05 var(--font-head);
 }
 .sg-terms {
   display: grid;
@@ -170,7 +170,7 @@
 }
 .sg-detail h2 {
   margin: 0 0 10px;
-  font: 400 2rem/1.1 var(--display);
+  font: 700 2rem/1.1 var(--font-head);
 }
 .sg-detail h2 small {
   font: 500 0.9rem var(--font);
@@ -192,7 +192,7 @@
   font-weight: 600;
 }
 .sg-h2 {
-  font: 400 1.7rem/1.2 var(--display);
+  font: 700 1.7rem/1.2 var(--font-head);
   margin: 28px 0 14px;
 }
 .sg-layouts {

@@ -315,7 +315,7 @@ function createWindow() {
     minHeight: 680,
     show: false,
     title: 'Chitthi Studio',
-    backgroundColor: '#f4f7fa',
+    backgroundColor: '#fafaf9',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

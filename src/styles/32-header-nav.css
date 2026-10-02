@@ -272,9 +272,9 @@
     flex-wrap: nowrap;
   }
   .stage .pill-menu .mm-btn {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.16);
-    color: #f3eee6;
+    background: none;
+    border-color: var(--stage-rule);
+    color: var(--stage-ink);
   }
 }
 

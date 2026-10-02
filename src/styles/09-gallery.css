@@ -27,7 +27,7 @@
 }
 .galbar h2 {
   margin: 0 8px 0 0;
-  font: 400 2rem/1.1 var(--display);
+  font: 700 2rem/1.1 var(--font-head);
 }
 .galname {
   flex: 1 1 220px;

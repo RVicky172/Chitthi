@@ -48,12 +48,13 @@ export const IG_FILE_TYPES: [IgFileType, string, string][] = [
 /** Above this a photo may be refused by some upload paths (Instagram's publishing API allows 8 MB). */
 export const IG_FILE_WARN_BYTES = 8 * 1024 * 1024;
 
-export type IgFilter = 'none' | 'vivid' | 'warm' | 'cool' | 'bw' | 'vintage';
+export type IgFilter = 'none' | 'vivid' | 'warm' | 'cool' | 'bw' | 'tinted' | 'vintage';
 export const IG_FILTERS: [IgFilter, string][] = [
   ['none', 'Original'],
   ['vivid', 'Vivid'],
   ['warm', 'Warm'],
   ['cool', 'Cool'],
   ['bw', 'Black and white'],
+  ['tinted', 'Hand-tinted'],
   ['vintage', 'Vintage'],
 ];

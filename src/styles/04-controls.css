@@ -1,7 +1,6 @@
 /* panel: a horizontal snap track, one slide per step */
 .panel {
   position: relative;
-  border-radius: var(--r-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -11,18 +10,17 @@
 .progress {
   position: absolute;
   inset: 0 0 auto;
-  height: 3px;
+  height: 2px;
   z-index: 2;
   background: var(--line);
 }
 .progress i {
   display: block;
   height: 100%;
-  background: var(--grad);
+  background: var(--accent);
   transform-origin: left;
   transform: scaleX(calc((var(--i) + 1) / 6));
   transition: transform 0.45s var(--ease);
-  border-radius: 0 3px 3px 0;
 }
 @supports (animation-timeline: scroll()) {
   .progress i {
@@ -63,34 +61,26 @@
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
 }
+/* No entrance animation: the snap track already slides the step in. */
 .pane {
-  padding: 26px 24px 32px;
+  padding: 28px 24px 40px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  animation: pane-in 0.5s var(--ease) both;
-}
-@keyframes pane-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
 }
 .pane .eyebrow {
   align-self: flex-start;
-  margin: 0 0 -6px;
-  padding: 3px 9px;
-  border-radius: 99px;
-  background: var(--accent-soft);
-  font: 600 0.68rem/1.2 var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
+  margin: 0 0 -8px;
+  font: 500 0.72rem/1.2 var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 .pane h2 {
   margin: 0;
-  font: 650 1.6rem/1.15 var(--font);
-  letter-spacing: -0.025em;
+  font: 700 1.75rem/1.08 var(--font-head);
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 .pane .lead {
   margin: -6px 0 4px;

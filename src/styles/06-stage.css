@@ -1,80 +1,73 @@
-/* stage: a dark glass lightbox for the card */
+/* stage: a matte mat for the card, dark in both themes. Toolbar strip on top, dock and slug line below. */
 .stage {
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-radius: var(--r-lg);
   overflow: hidden;
-  border: 1px solid var(--glass-edge);
-  box-shadow: var(--glass-shadow);
-  background-color: var(--stage);
-  background-image:
-    radial-gradient(60% 55% at 50% 48%, rgba(255, 236, 205, 0.07), transparent 70%),
-    radial-gradient(circle, var(--stageline) 1px, transparent 1.5px);
-  background-size:
-    100% 100%,
-    22px 22px;
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
+  background: var(--stage);
+  /* focus rings on the dark mat */
+  --ink: var(--stage-accent);
 }
 .stagebar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  justify-content: center;
-  padding: 14px 12px 6px;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  background: var(--stage-2);
+  border-bottom: 1px solid var(--stage-rule);
 }
 .pill {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 4px;
-  color: #f1f7fb;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  border: 1px solid var(--stage-rule);
+  border-radius: 8px;
+  padding: 3px;
+  color: var(--stage-ink);
 }
 .pill .seg {
   background: none;
   border: 0;
+  padding: 0;
 }
 .pill .seg button {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--stage-muted);
 }
 .pill .seg button:hover {
-  color: #fff;
+  color: var(--stage-ink);
 }
 .pill .seg button[aria-pressed='true'] {
-  background: #fff;
-  color: #221e1a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: var(--stage-ink);
+  color: var(--stage);
+  box-shadow: none;
+}
+.pill .seg button[aria-pressed='true'] svg {
+  color: inherit;
 }
 .pill .check {
   font-size: 0.85rem;
   padding: 0 8px;
-  color: #f1f7fb;
+  color: var(--stage-ink);
 }
 .pill .pbtn {
   border: 0;
   background: none;
-  color: #f1f7fb;
+  color: var(--stage-ink);
   padding: 5px 11px;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 0.86rem;
   font-weight: 500;
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  transition: background 0.2s;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .pill .pbtn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--stage-rule);
 }
 .pill .pbtn svg {
   width: 17px;
@@ -87,15 +80,39 @@
   align-items: center;
   justify-content: center;
   padding: 18px;
+}
+/* The card's trim box: crop marks sit just outside each corner. With bleed shown, the canvas draws its own guides. */
+.trim {
+  --crop: 10px;
+  --crop-at: calc(var(--crop) + 6px);
+  --mark: linear-gradient(var(--stage-mark), var(--stage-mark));
+  position: relative;
+  flex: none;
+  line-height: 0;
   perspective: 1400px;
+}
+.trim::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--crop-at));
+  pointer-events: none;
+  background:
+    var(--mark) left 0 top var(--crop-at) / var(--crop) 1px no-repeat,
+    var(--mark) left var(--crop-at) top 0 / 1px var(--crop) no-repeat,
+    var(--mark) right 0 top var(--crop-at) / var(--crop) 1px no-repeat,
+    var(--mark) right var(--crop-at) top 0 / 1px var(--crop) no-repeat,
+    var(--mark) left 0 bottom var(--crop-at) / var(--crop) 1px no-repeat,
+    var(--mark) left var(--crop-at) bottom 0 / 1px var(--crop) no-repeat,
+    var(--mark) right 0 bottom var(--crop-at) / var(--crop) 1px no-repeat,
+    var(--mark) right var(--crop-at) bottom 0 / 1px var(--crop) no-repeat;
+}
+.trim.bleed::before {
+  display: none;
 }
 .cardwrap canvas {
   display: block;
-  background: #fff;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.3),
-    0 24px 60px -12px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: var(--sheet);
+  box-shadow: var(--sheet-shadow);
 }
 .cardwrap canvas.flip {
   animation: flip 0.5s var(--ease);
@@ -115,16 +132,16 @@
 .cardwrap canvas.dragging {
   cursor: grabbing;
 }
+/* slug line: what is on the mat, in the margin like a printer's note */
 .caption {
-  margin: 0 auto 14px;
-  padding: 5px 14px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.75);
-  font: 0.76rem/1.4 var(--mono);
+  margin: 0;
+  padding: 7px 14px;
+  border-top: 1px solid var(--stage-rule);
+  color: var(--stage-muted);
+  font: 0.74rem/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
-  text-align: center;
-  max-width: calc(100% - 24px);
+  overflow-wrap: anywhere;
 }
 .legend {
   display: inline-flex;
@@ -210,7 +227,7 @@
   background: rgba(0, 0, 0, 0.6);
 }
 .tray-slot[aria-checked='true'] {
-  border-color: #e6d7bf;
+  border-color: var(--stage-accent);
   box-shadow: 0 0 0 3px rgba(230, 215, 191, 0.45);
 }
 .tray-slot[aria-checked='true'] b {
@@ -258,7 +275,7 @@
 }
 .tray-add:hover {
   color: #fff;
-  border-color: #e6d7bf;
+  border-color: var(--stage-accent);
 }
 .tray-add input {
   position: absolute;
@@ -274,8 +291,9 @@
   gap: 10px;
   padding: 14px;
   border-radius: var(--r-md);
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  background: var(--sunk);
 }
 .pack b {
   display: block;
