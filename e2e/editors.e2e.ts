@@ -235,3 +235,50 @@ test.describe('video editor', () => {
     expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) e.g. ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
   });
 });
+
+test.describe('graphics card effects', () => {
+  test.skip(({ isMobile }) => isMobile, 'Runs once, at desktop size');
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('chitthi-gpu-effects', '1'));
+  });
+
+  test('are on by default, and turning them off is remembered', async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem('chitthi-gpu-effects'));
+    await page.goto('./#/studio/postcard');
+    await page.keyboard.press('Control+K');
+    await page.keyboard.type('Settings');
+    await page.keyboard.press('Enter');
+    const box = page.getByRole('checkbox', { name: /Use the graphics card for looks and colour/ });
+    await expect(box).toBeChecked();
+    await box.uncheck();
+    expect(await page.evaluate(() => localStorage.getItem('chitthi-gpu-effects'))).toBe('0');
+  });
+
+  test('a photo with a look, and a Reel with a look, export without errors', async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = watchErrors(page);
+    await page.goto('./#/instagram');
+    await page.locator('.mst-drop input[type=file]').setInputFiles(SAMPLES.slice(0, 1));
+    await page.getByRole('radio', { name: 'Hand-tinted' }).click();
+    await page.locator('#ig-br').fill('30');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const zip = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
+    expect(readFileSync(await (await zip).path()).toString('latin1')).toContain('chitthi-instagram-4x5-01.jpg');
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: /Reels & Shorts/ }).click();
+    await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES.slice(0, 2));
+    await expect(page.locator('.tl-clip')).toHaveCount(2);
+    await page.locator('.tl-clip').first().click({ position: { x: 20, y: 10 } });
+    await page.getByRole('radiogroup', { name: 'Filter' }).getByRole('radio', { name: 'Vintage' }).click();
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page.getByRole('button', { name: /Export MP4/ }).click();
+    const save = page.getByRole('button', { name: /Download MP4/ });
+    await save.waitFor({ timeout: 90_000 });
+    const dl = page.waitForEvent('download');
+    await save.click();
+    expect(boxes(readFileSync(await (await dl).path()))).toEqual(['ftyp', 'moov', 'mdat']);
+    expect(errors).toEqual([]);
+  });
+});

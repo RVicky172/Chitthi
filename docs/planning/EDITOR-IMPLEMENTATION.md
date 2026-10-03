@@ -5,6 +5,20 @@ Status: plan, not started. Written 3 October 2026 against version 2.8.0. It turn
 each step is tested, and what must be true before the next phase starts. Every library it adds goes through
 [LICENSING.md](../LICENSING.md) first.
 
+## Progress
+
+| Item | State | Notes |
+| --- | --- | --- |
+| P0.1 Edit model split | Done | `engine/adjust.ts` (`Adjustments`, `mergeAdjust()`), `IgEdit.adjust`, `mergeEdit()`; colour edits through `adjustPhoto` / `adjustClip` |
+| P0.2 GPU device layer | Done | `engine/gpu/` (`types.ts`, `webgpu.ts`, `webgl2.ts`, `device.ts`): upload, pass, present, read; explicit WebGPU bind group layouts; self-test runs every backend the machine offers. Dev-only types: `@webgpu/types` (BSD-3-Clause) |
+| P0.3 Render graph | Done | `engine/gpu/graph.ts`: `GraphNode`, `runNodes()` ping-pongs pooled textures (`TexturePool`, two spares per size). Phase 0 graphs are a straight line |
+| P0.4 Shaders for today's looks | Done | `engine/gpu/colour.ts`: all 7 looks and the 4 sliders in WGSL and GLSL; `colourNodes()` builds the nodes. Kept in today's 0–255 sRGB maths, rounding to 8 bits after the look as the CPU does, so output matches; linear light arrives with Phase 1's new tools. Self-test: worst 2 levels, mean 0.041 on both backends |
+| P0.5 Wire into the renderers | Done | `renderIg()` (and so `renderFrame()` and every export) runs the colour step on the GPU when the media studio has opened a device (`engine/gpu/apply.ts`), else on the CPU; any GPU failure falls back for that frame. Setting: **Settings → Photo & video effects** (`lib/gpuSetting.ts`), off by default. Layers and vignette stay on Canvas 2D. Found and fixed: the layer canvas must use the same mode on both paths, or photo edges rasterise differently |
+| P0.6 Golden-image tests | Done | Self-test renders 4 real photos × 7 looks × 4 edits (fill and whole photo, blurred background, rotation, mirror, vignette) through `renderIg()` on Canvas 2D and on each backend: worst 2 levels, mean 0.067, 112 frames each on WebGPU and WebGL2. e2e: setting in Settings, photo ZIP and Reel MP4 export with it on, no console errors |
+| P0.7 Loading and budgets | Done | GPU code is in the media studio's chunk; backends load with `import()`. `check-bundle.mjs` fails if shader code reaches the entry chunk |
+| P0.8 Desktop frame path for big files | Not needed | Video clips are already read lazily from disk: export uses Mediabunny's `BlobSource` over the picked `File` (reads only the byte ranges it needs) and playback uses `blob:` URLs, which the browser streams. Only music is read whole, for its waveform. Revisit with proxies (P2.11) |
+| P0.9 Switch over | Done | GPU effects on by default; off is remembered. Measured per 1080 × 1350 frame with a look: Canvas 2D 23–25 ms, WebGL2 11 ms, WebGPU 6 ms (self-test note) |
+
 ## How the work is organised
 
 - **Four phases, each a release.** Phase 0 → 2.9.0, Phase 1 → 2.10.0, Phase 2 → 3.0.0 (the project format changes),

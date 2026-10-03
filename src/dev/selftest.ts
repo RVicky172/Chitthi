@@ -159,7 +159,255 @@ async function run(): Promise<Result> {
   await aiChecks(check);
   await agentChecks(check, r);
   await perfChecks(check);
+  await gpuChecks(check, r);
   return r;
+}
+
+/* ---------- GPU device layer (P0.2): every backend this machine offers ---------- */
+
+async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+  const { openWebGPU } = await import('../engine/gpu/webgpu');
+  const { openWebGL2 } = await import('../engine/gpu/webgl2');
+  const { COPY_PROGRAM } = await import('../engine/gpu/types');
+  // A 4×3 pattern: every pixel different, the top-left one red, and one half-transparent pixel.
+  const W = 4,
+    H = 3,
+    src = new Uint8ClampedArray(W * H * 4);
+  for (let i = 0; i < W * H; i++) src.set([(i * 37) % 256, (i * 91 + 40) % 256, (i * 53 + 200) % 256, i === 5 ? 128 : 255], i * 4);
+  src.set([255, 0, 0, 255], 0);
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  cv.getContext('2d')!.putImageData(new ImageData(src, W, H), 0, 0);
+  const pattern = await createImageBitmap(new ImageData(src, W, H), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+  const near = (a: ArrayLike<number>, b: ArrayLike<number>, tol: number, opaqueOnly = false) => {
+    for (let i = 0; i < a.length; i++) {
+      if (opaqueOnly && (b[i - (i % 4) + 3] ?? 255) < 255) continue;
+      if (Math.abs(a[i] - b[i]) > tol) return false;
+    }
+    return a.length === b.length;
+  };
+  const SCALE = {
+    id: 'selftest-scale',
+    inputs: 1,
+    uniforms: 1,
+    glsl: 'vec4 effect(vec2 uv) { vec4 c = texture(t0, uv); return vec4(c.rgb * u[0].x, c.a); }',
+    wgsl: 'fn effect(uv: vec2f) -> vec4f { let c = textureSampleLevel(t0, smp, uv, 0.0); return vec4f(c.rgb * P.u[0].x, c.a); }',
+  };
+
+  const ran: ('webgpu' | 'webgl2')[] = [];
+  const worst = new Map<string, string>();
+  for (const [name, open] of [
+    ['webgpu', openWebGPU],
+    ['webgl2', async () => openWebGL2()],
+  ] as const) {
+    const dev = await open().catch(() => null);
+    if (!dev) continue;
+    ran.push(name);
+    try {
+      check(dev.backend === name && dev.maxSize >= 4096, `gpu ${name}: opens with textures of at least 4096 px`);
+      const t = dev.upload(pattern, W, H);
+      check(near(await dev.read(t), src, 0), `gpu ${name}: upload and read back unchanged, top row first`);
+      const out = dev.target(W, H);
+      dev.pass(COPY_PROGRAM, [t], new Float32Array(4), out);
+      check(near(await dev.read(out), src, 1), `gpu ${name}: a copy pass through a float target keeps every pixel`);
+      dev.pass(SCALE, [t], new Float32Array([0.5, 0, 0, 0]), out);
+      const half = await dev.read(out);
+      check(Math.abs(half[0] - 128) <= 1 && half[1] === 0 && half[3] === 255, `gpu ${name}: uniforms reach the program`);
+      const shown = document.createElement('canvas');
+      shown.width = W;
+      shown.height = H;
+      const sx = shown.getContext('2d', { willReadFrequently: true })!;
+      dev.pass(COPY_PROGRAM, [t], new Float32Array(4), out);
+      sx.drawImage(dev.present(out), 0, 0);
+      check(near(sx.getImageData(0, 0, W, H).data, src, 1, true), `gpu ${name}: present draws the right way up onto a 2D canvas`);
+      check(near(await dev.read(dev.upload(cv, W, H)), src, 1, true), `gpu ${name}: uploads a 2D canvas`);
+      let threw = false;
+      try {
+        dev.target(dev.maxSize + 1, 1);
+      } catch {
+        threw = true;
+      }
+      check(threw, `gpu ${name}: refuses textures larger than the device allows`);
+      dev.release(t);
+      dev.release(out);
+      worst.set(name, await colourParity(dev, check, name));
+      check(!dev.lost, `gpu ${name}: still open after the checks`);
+    } catch (e) {
+      r.failed.push(`gpu ${name} threw: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      dev.destroy();
+    }
+  }
+  for (const name of ran) {
+    const g = await goldenParity(name);
+    check(g.max <= 2 && g.mean <= 0.5, `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${g.max} in ${g.where}, mean ${g.mean.toFixed(3)})`);
+    worst.set(name, `${worst.get(name)}; photos: worst ${g.max}, mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
+    r.notes.push(await gpuTiming(name));
+  }
+  const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
+  const d = await openGpu();
+  check(ran.length === 0 ? d === null : d?.backend === ran[0], 'gpu: openGpu() picks WebGPU first, then WebGL2');
+  check(gpu() === d && (await openGpu()) === d, 'gpu: the device is opened once and reused');
+  closeGpu();
+  check(gpu() === null, 'gpu: closeGpu() lets it go');
+  r.notes.push(`GPU backends checked: ${ran.map((n) => `${n} (largest colour difference ${worst.get(n)})`).join(', ') || 'none available'}`);
+}
+
+/**
+ * P0.6: golden images. Real sample photos drawn by the whole renderIg() (placement, background, rotation, colour,
+ * vignette) at Instagram size, once on the Canvas 2D path and once on the GPU backend, must match: at most 2 levels
+ * apart in any channel and 0.5 on average. This is the gate for turning the GPU path on by default.
+ */
+async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; where: string; frames: number }> {
+  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
+  const { LOOK_IDS } = await import('../engine/adjust');
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const photos = await Promise.all(
+    ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
+      const img = new Image();
+      img.src = `/samples/${f}`;
+      await img.decode();
+      return { f, img };
+    }),
+  );
+  const W = 540,
+    H = 675;
+  const edits = [
+    {},
+    { brightness: 35, contrast: 20 },
+    { saturation: -60, warmth: 40, vignette: 50 },
+    { contrast: 100, brightness: -40 },
+  ];
+  const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, W, H);
+    return x.getImageData(0, 0, W, H).data;
+  };
+  let max = 0,
+    sum = 0,
+    count = 0,
+    frames = 0,
+    where = '';
+  for (const { f, img } of photos)
+    for (const look of LOOK_IDS)
+      for (const [i, adj] of edits.entries()) {
+        // Vary the framing too: whole photo on a blurred background, turned, mirrored.
+        const e = { ...DEFAULT_EDIT, fit: i % 2 ? ('fit' as const) : ('fill' as const), bg: 'blur', rot: (i === 3 ? 90 : 0) as 0 | 90, flip: i === 2, adjust: { ...DEFAULT_EDIT.adjust, look, ...adj } };
+        closeGpu();
+        const cpu = frame(img, e);
+        await openGpu(backend);
+        const got = frame(img, e);
+        frames++;
+        for (let k = 0; k < got.length; k++) {
+          const d = Math.abs(got[k] - cpu[k]);
+          sum += d;
+          count++;
+          if (d > max) {
+            max = d;
+            const px = k >> 2;
+            where = `${f} ${look} ${JSON.stringify(adj)} fit=${e.fit} rot=${e.rot} at ${px % W},${Math.floor(px / W)} cpu ${[...cpu.slice(k - (k % 4), k - (k % 4) + 4)]} gpu ${[...got.slice(k - (k % 4), k - (k % 4) + 4)]}`;
+          }
+        }
+      }
+  closeGpu();
+  return { max, mean: sum / count, where, frames };
+}
+
+/** Time per Instagram-size frame with a look and sliders, Canvas 2D against a GPU backend. A note, not a check. */
+async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
+  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const img = new Image();
+  img.src = '/samples/marigold.jpg';
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = 1080;
+  c.height = 1350;
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const e = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_EDIT.adjust, look: 'tinted' as const, brightness: 20, contrast: 15, warmth: 10 } };
+  const time = () => {
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    x.getImageData(0, 0, 1, 1);
+    const t0 = performance.now();
+    for (let i = 0; i < 15; i++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    x.getImageData(0, 0, 1, 1); // wait for the drawing to finish
+    return (performance.now() - t0) / 15;
+  };
+  closeGpu();
+  const cpu = time();
+  await openGpu(backend);
+  const gpu = time();
+  closeGpu();
+  return `1080×1350 frame: Canvas 2D ${cpu.toFixed(1)} ms, ${backend} ${gpu.toFixed(1)} ms`;
+}
+
+/**
+ * P0.4: the GPU colour programs give the same pixels as the Canvas 2D path (adjustPixels), for every look and a spread
+ * of slider settings, within 2 levels per channel. Returns the largest difference seen.
+ */
+async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check: (ok: unknown, what: string) => void, name: string): Promise<string> {
+  const { adjustPixels } = await import('../engine/instagram');
+  const { DEFAULT_ADJUST, LOOK_IDS } = await import('../engine/adjust');
+  const { colourNodes } = await import('../engine/gpu/colour');
+  const { runNodes, TexturePool } = await import('../engine/gpu/graph');
+  // 64×64: hue across, brightness down, with a band of greys and a few half-transparent pixels.
+  const N = 64,
+    src = new Uint8ClampedArray(N * N * 4);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4,
+        h = (x / N) * 6,
+        v = 255 * (1 - y / N),
+        f = h - Math.floor(h),
+        rgb = [
+          [1, f, 0],
+          [1 - f, 1, 0],
+          [0, 1, f],
+          [0, 1 - f, 1],
+          [f, 0, 1],
+          [1, 0, 1 - f],
+        ][Math.floor(h) % 6];
+      const grey = x < 4;
+      src.set([grey ? v : rgb[0] * v, grey ? v : rgb[1] * v, grey ? v : rgb[2] * v, x === 10 && y % 8 === 0 ? 128 : 255], i);
+    }
+  const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+  const input = dev.upload(bmp, N, N),
+    pool = new TexturePool(dev);
+  const sliders = [{}, { brightness: 40 }, { contrast: -60 }, { saturation: 80, warmth: -50 }, { brightness: -100, contrast: 100 }, { saturation: -100, warmth: 100 }];
+  let max = 0,
+    bad = '',
+    sum = 0,
+    count = 0;
+  for (const look of LOOK_IDS)
+    for (const sl of sliders) {
+      const a = { ...DEFAULT_ADJUST, look, ...sl };
+      const nodes = colourNodes(a);
+      if (!nodes.length) continue;
+      const cpu = src.slice();
+      adjustPixels(cpu, a);
+      const out = runNodes(dev, pool, input, nodes);
+      const got = await dev.read(out);
+      pool.give(out);
+      for (let i = 0; i < got.length; i++) {
+        if (src[i - (i % 4) + 3] === 0) continue;
+        const d = Math.abs(got[i] - cpu[i]);
+        sum += d;
+        count++;
+        if (d > max) {
+          max = d;
+          bad = `${look} ${JSON.stringify(sl)}`;
+        }
+      }
+    }
+  dev.release(input);
+  pool.clear();
+  check(max <= 2, `gpu ${name}: colour matches the Canvas 2D path within 2 levels (worst ${max}, ${bad})`);
+  check(sum / count <= 0.5, `gpu ${name}: colour differs from the Canvas 2D path by at most 0.5 levels on average (${(sum / count).toFixed(3)})`);
+  return `${max}, mean ${(sum / count).toFixed(3)}`;
 }
 
 /* ---------- performance monitor sampler and the undo history's memory guard ---------- */

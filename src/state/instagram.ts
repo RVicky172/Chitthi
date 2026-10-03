@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { clampBatch, IG_FORMATS, igFormat, type IgFileType, type IgFormatId } from '../data/instagram';
 import { brushDef, type BrushId } from '../data/layers';
+import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, LOOK_KEYS, renderIg, type IgEdit } from '../engine/instagram';
 import { drawLayers, type Layer } from '../engine/layers';
 import { ensureFonts } from '../lib/fonts';
@@ -309,7 +310,15 @@ export function editPhoto(id: string, patch: Partial<IgEdit>): void {
   );
 }
 
-/** Copies the look of one photo (fit, background, filter, adjustments, vignette) to every photo in the batch. */
+/** Changes a photo's colour settings; a slider dragged quickly is one undo step. */
+export function adjustPhoto(id: string, patch: Partial<Adjustments>): void {
+  change(
+    `adjust:${id}:${Object.keys(patch).sort().join(',')}`,
+    state.items.map((x) => (x.id === id ? { ...x, edit: { ...x.edit, adjust: { ...x.edit.adjust, ...patch } } } : x)),
+  );
+}
+
+/** Copies the look of one photo (fit, background, look, adjustments, vignette) to every photo in the batch. */
 export function applyLookToAll(id: string): void {
   const src = state.items.find((x) => x.id === id);
   if (!src) return;

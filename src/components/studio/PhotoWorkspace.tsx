@@ -13,6 +13,7 @@ import {
   type IgFileType,
   type IgFormatId,
 } from '../../data/instagram';
+import type { Adjustments } from '../../engine/adjust';
 import { placement, renderIg, showsBackground, type IgEdit, type IgRotation } from '../../engine/instagram';
 import { drawLayers, drawSelection, layerBox } from '../../engine/layers';
 import { MAX_MB } from '../../engine/photo';
@@ -27,6 +28,7 @@ import {
   canShareFiles,
   clearBatch,
   copyLayersToAll,
+  adjustPhoto,
   editPhoto,
   endStep,
   getIg,
@@ -623,6 +625,8 @@ function EditPanel({ item }: { item: IgItem }) {
   const e = item.edit,
     f = igFormat(format);
   const set = (patch: Partial<IgEdit>) => editPhoto(item.id, patch);
+  const a = e.adjust,
+    setA = (patch: Partial<Adjustments>) => adjustPhoto(item.id, patch);
   const rotate = (by: 90 | -90) => set({ rot: ((((e.rot + by) % 360) + 360) % 360) as IgRotation, px: 0, py: 0 });
   const bgShows = showsBackground(item.preview.width, item.preview.height, e, f.w, f.h);
   return (
@@ -682,7 +686,7 @@ function EditPanel({ item }: { item: IgItem }) {
         <h3>Filter</h3>
         <div className="chips" role="radiogroup" aria-label="Filter">
           {IG_FILTERS.map(([id, label]) => (
-            <button key={id} type="button" role="radio" className="chip" aria-checked={e.filter === id} onClick={() => set({ filter: id })}>
+            <button key={id} type="button" role="radio" className="chip" aria-checked={a.look === id} onClick={() => setA({ look: id })}>
               {label}
             </button>
           ))}
@@ -690,11 +694,11 @@ function EditPanel({ item }: { item: IgItem }) {
       </div>
       <div className="ig-group">
         <h3>Adjust</h3>
-        <Slider id="ig-br" label="Brightness" value={e.brightness} min={-100} max={100} onChange={(brightness) => set({ brightness })} />
-        <Slider id="ig-ct" label="Contrast" value={e.contrast} min={-100} max={100} onChange={(contrast) => set({ contrast })} />
-        <Slider id="ig-sa" label="Saturation" value={e.saturation} min={-100} max={100} onChange={(saturation) => set({ saturation })} />
-        <Slider id="ig-wa" label="Warmth" value={e.warmth} min={-100} max={100} onChange={(warmth) => set({ warmth })} />
-        <Slider id="ig-vi" label="Vignette" value={e.vignette} min={0} max={100} onChange={(vignette) => set({ vignette })} />
+        <Slider id="ig-br" label="Brightness" value={a.brightness} min={-100} max={100} onChange={(brightness) => setA({ brightness })} />
+        <Slider id="ig-ct" label="Contrast" value={a.contrast} min={-100} max={100} onChange={(contrast) => setA({ contrast })} />
+        <Slider id="ig-sa" label="Saturation" value={a.saturation} min={-100} max={100} onChange={(saturation) => setA({ saturation })} />
+        <Slider id="ig-wa" label="Warmth" value={a.warmth} min={-100} max={100} onChange={(warmth) => setA({ warmth })} />
+        <Slider id="ig-vi" label="Vignette" value={a.vignette} min={0} max={100} onChange={(vignette) => setA({ vignette })} />
         <p className="hint">Double-click a slider to reset it.</p>
       </div>
       <div className="inline ig-tools">

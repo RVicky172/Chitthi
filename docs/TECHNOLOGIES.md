@@ -9,6 +9,7 @@ kept small on purpose. The one runtime library besides React is jsPDF, and it is
 | --- | --- | --- | --- |
 | **TypeScript** | 5.9 | All app code, strict mode | One typed `Design` model shared by UI, renderer and export; the compiler finds every place a new product or layout must be handled |
 | **React** | 19.2 | UI components | `useSyncExternalStore` for the app store, `useDeferredValue` so thumbnails redraw at low priority |
+| **WebGPU / WebGL2** | browser | Looks and colour in the photo & video studio (`src/engine/gpu/`) | 2–4× faster than per-pixel JavaScript, with the same output; WebGL2 where WebGPU is missing, Canvas 2D where neither is. The base for masks, curves and grading (docs/planning/) |
 | **Canvas 2D API** | browser | Every card face, thumbnail and print file | One renderer for preview and print: what you see is exactly what prints. Resolution-independent (drawn in mm × pixels-per-mm) |
 | **jsPDF** | 4.2 | Print PDF and sheet PDF | Loaded with `import()` only when exporting, so it costs nothing at start-up |
 | **lucide-react** | 1.48 | Interface icons | One consistent 24 px line icon set |
