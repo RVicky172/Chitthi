@@ -1,0 +1,189 @@
+/*
+ * Landing page, the studio sections (one studio for print and for the platforms): two studios side by side, a row per
+ * platform with the real editor beside its specs, and the photo editor on the mat. Builds on 23-landing-showcase.css
+ * (.ld tokens, .lsec bands, .checks, .ld-mat) and keeps its rules: hairlines rather than cards, real screens only.
+ */
+
+/* a small label: an icon and a few words, used on the pillars, platform rows and the print divider */
+.ld-pillar-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 0.78rem/1 var(--font-ui, inherit);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ld-pillar-tag svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* real screenshots of the editors: a thin frame so the light UI holds its edge on paper and on the mat */
+.ld .ld-screen {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+}
+
+/* buttons that are links (they open the media studio's routes) look exactly like the button ones */
+.ld a.btn {
+  text-decoration: none;
+}
+
+/* ---------- two studios: two columns split by a hairline ---------- */
+.ld-pillars {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ld-pillar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 40px 8px 0;
+}
+.ld-pillar + .ld-pillar {
+  padding: 8px 0 8px 40px;
+  border-left: 1px solid var(--line);
+}
+.ld-pillar h3,
+.ld-platform h3,
+.ld-pillar p,
+.ld-platform p {
+  margin: 0;
+}
+.ld-pillar h3,
+.ld-platform h3 {
+  font: 700 clamp(1.4rem, 2.2vw, 1.85rem) / 1.1 var(--font-head);
+  letter-spacing: -0.025em;
+}
+.ld-pillar p,
+.ld-platform p {
+  color: var(--muted);
+  max-width: 34rem;
+}
+.ld .ld-pillar-shot {
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: var(--stage);
+  border-radius: 10px;
+}
+.ld .ld-pillar-shot.ld-screen {
+  object-fit: cover;
+  object-position: center top;
+}
+.ld-pillar .checks {
+  margin-top: 0;
+}
+.ld-pillar .btn {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+/* ---------- each platform: words beside its editor, alternating sides ---------- */
+.ld-platform-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 64px;
+}
+.ld-platform {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 48px;
+  align-items: center;
+  scroll-margin-top: calc(var(--nav-h) + 16px);
+}
+.ld-platform:nth-child(even) .ld-platform-text {
+  order: 2;
+}
+.ld-platform-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ld-platform-text small {
+  display: block;
+  margin-top: -4px;
+  color: var(--muted);
+}
+.ld-platform-text .checks {
+  margin-top: 4px;
+}
+.ld-platform-text .btn {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+/* ---------- the photo editor, on the mat ---------- */
+.ld .ld-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 56px;
+  align-items: center;
+}
+.ld-editor-list {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+.ld-editor-list dt {
+  font-weight: 700;
+}
+.ld-editor-list dd {
+  margin: 2px 0 0;
+  color: var(--stage-muted);
+}
+.ld .ld-editor .ld-screen {
+  border-color: transparent;
+}
+
+.ld-credit {
+  margin: 0;
+  padding: 10px var(--gutter);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* ---------- the print studio's sections start here ---------- */
+.ld-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 56px var(--gutter) 0;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: var(--nav-h);
+}
+
+/* the print studio's first section follows the divider without a second hairline */
+.ld .ld-divider + .lsec {
+  border-top: 0;
+  padding-top: 24px;
+}
+
+@media (max-width: 960px) {
+  .ld-pillars,
+  .ld-platform,
+  .ld .ld-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ld-pillar,
+  .ld-pillar + .ld-pillar {
+    padding: 24px 0;
+    border-left: 0;
+  }
+  .ld-pillar + .ld-pillar {
+    border-top: 1px solid var(--line);
+  }
+  .ld-platform:nth-child(even) .ld-platform-text {
+    order: 0;
+  }
+  .ld-platform {
+    gap: 24px;
+  }
+}

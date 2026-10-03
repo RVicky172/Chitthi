@@ -38,6 +38,10 @@ paid tier.
 | **Print studio** | Postcards, calendars, framed prints, fridge magnets, matching envelopes | Print-shop PDFs with bleed and crop marks, 300 dpi PNGs, a print pack ZIP with specs and a quote request |
 | **Photo & video studio** | Instagram photos and carousels, Reels and Shorts, YouTube videos | 1080 px JPEG / PNG files or a ZIP; H.264 + AAC MP4 videos with fast start, up to 4K60 in the desktop app |
 
+<p align="center">
+  <img src="docs/screenshots/home-studios.webp" alt="The home page's two studios side by side: the print studio with a Jaipur postcard, and the photo & video studio with the photo editor's tone curve and colour mixer" width="900" />
+</p>
+
 It runs as a web app (installable, works offline) and as a desktop app for Windows and macOS. Version 2.8.0; what
 changed in each release is in the [CHANGELOG](CHANGELOG.md).
 
@@ -67,7 +71,7 @@ changed in each release is in the [CHANGELOG](CHANGELOG.md).
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/home.webp" alt="Home page: 'Your photos, made to hold' with a postcard, calendar, envelope and magnet" /><br /><sub><b>Home</b>: every picture is a real Chitthi render</sub></td>
+    <td width="50%"><img src="docs/screenshots/home.webp" alt="Home page: 'One studio for what you print and what you post', with buttons for a postcard, an Instagram post, a Reel and a YouTube video" /><br /><sub><b>Home</b>: one studio for print and for every platform</sub></td>
     <td width="50%"><img src="docs/screenshots/studio-calendar.webp" alt="Calendar studio: style presets, year field and a January page with festivals marked" /><br /><sub><b>Calendars</b>: five styles, any year, festivals marked by name</sub></td>
   </tr>
   <tr>
