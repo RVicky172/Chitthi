@@ -8,7 +8,7 @@ files with no backend and no user data on the server, so operations are mostly a
 
 | Part | Detail |
 | --- | --- |
-| Image | `Dockerfile`: `node:22-alpine` builds `dist/`, then `nginxinc/nginx-unprivileged:1.30-alpine` serves it. Both base images are pinned by digest |
+| Image | `Dockerfile`: `node:26-alpine` builds `dist/`, then `nginxinc/nginx-unprivileged:1.31-alpine` serves it. Both base images are pinned by digest |
 | Process | nginx as a non-root user, listening on **8080** (plain HTTP) |
 | Health check | `GET /healthz` → `200 ok` (also the image's `HEALTHCHECK`) |
 | State | None. Nothing is written except nginx's temporary files in `/tmp` |

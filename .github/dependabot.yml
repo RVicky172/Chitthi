@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7 is installed as `typescript-native` and does the type checking; `typescript` stays on 5.x because
+      # typescript-eslint needs its JavaScript API and supports only TypeScript below 6.1. Lift this when it supports 7.
+      - dependency-name: typescript
+        versions: ['>=6.1.0']
     groups:
       # Minor and patch updates of build tools land together; runtime and major updates come one by one.
       dev-tools:

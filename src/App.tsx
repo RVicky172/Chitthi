@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type CSSProperties, type JSX } from 'react';
+import { lazy, Suspense, useEffect, useRef, type ComponentType, type CSSProperties, type JSX } from 'react';
 import { StepLabel } from './components/common';
 
 // Screens and dialogs load when first opened, so the studio (or the home page) starts with less to download.
@@ -13,14 +13,16 @@ const PhotoLibrary = named(() => import('./components/PhotoLibrary'), 'PhotoLibr
 const SettingsDialog = named(() => import('./components/SettingsDialog'), 'SettingsDialog');
 const Viewer3D = named(() => import('./components/Viewer3D'), 'Viewer3D');
 const PerfMonitor = named(() => import('./components/PerfMonitor'), 'PerfMonitor');
+// Studio steps after the first load on demand; the current step's neighbours render ahead, so they are ready by the
+// time they are reached.
+const LayoutPane = named(() => import('./components/panes/LayoutPane'), 'LayoutPane');
+const OccasionPane = named(() => import('./components/panes/OccasionPane'), 'OccasionPane');
+const WordsPane = named(() => import('./components/panes/WordsPane'), 'WordsPane');
+const BackPane = named(() => import('./components/panes/BackPane'), 'BackPane');
+const PrintPane = named(() => import('./components/panes/PrintPane'), 'PrintPane');
 import { Header } from './components/Header';
 import { FeatureFinder } from './components/FeatureFinder';
-import { BackPane } from './components/panes/BackPane';
-import { LayoutPane } from './components/panes/LayoutPane';
-import { OccasionPane } from './components/panes/OccasionPane';
 import { PhotosPane } from './components/panes/PhotosPane';
-import { PrintPane } from './components/panes/PrintPane';
-import { WordsPane } from './components/panes/WordsPane';
 import { Rail, PANES as STEPS } from './components/Rail';
 import { Stage } from './components/Stage';
 import { Toast } from './components/Toast';
@@ -33,7 +35,7 @@ import type { PaneId, ProductId } from './types';
 
 const PRODUCT_NAMES: Record<ProductId, string> = { postcard: 'postcard', calendar: 'calendar', frame: 'photo frame', magnet: 'fridge magnet' };
 
-const PANES: Record<PaneId, () => JSX.Element> = {
+const PANES: Record<PaneId, ComponentType> = {
   photos: PhotosPane,
   layout: LayoutPane,
   occasion: OccasionPane,
@@ -237,7 +239,9 @@ function Studio() {
                 <div key={id} className="slide" role="group" aria-label={label} inert={i !== idx}>
                   {Math.abs(i - idx) <= 1 && (
                     <StepLabel.Provider value={`Step ${i + 1} of ${STEPS.length}`}>
-                      <P />
+                      <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
+                        <P />
+                      </Suspense>
                     </StepLabel.Provider>
                   )}
                 </div>
