@@ -1,11 +1,62 @@
 import { brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
+import { frameMask, type FrameMask, type MaskPart } from './masks';
 
 /*
  * Layers over a photo or video frame: text, shapes (which can hold words), emoji stickers and freehand drawing.
  * Units: a layer's centre (x, y) is a share of the frame's width and height; sizes (w, h, text size, stroke widths)
  * are a share of the frame WIDTH, so a layer keeps its proportions in every format and draws the same at any scale
  * (preview, exported photo, each video frame). Video layers can also carry start / end times in seconds.
+ *
+ * Every layer can blend with what is under it (multiply, screen, overlay…; Canvas 2D composite operations) and carry a
+ * mask (P1.10): gradient parts from engine/masks.ts, placed in the layer's own box, so the mask moves, turns and grows
+ * with the layer. Image layers (logos, overlays) refer to their picture by id; the pictures stay in memory here.
  */
+
+/** How a layer mixes with what is under it: Canvas 2D's composite operations that blend colours. */
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'exclusion'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity';
+export const BLEND_MODES: readonly [BlendMode, string][] = [
+  ['normal', 'Normal'],
+  ['multiply', 'Multiply'],
+  ['screen', 'Screen'],
+  ['overlay', 'Overlay'],
+  ['soft-light', 'Soft light'],
+  ['hard-light', 'Hard light'],
+  ['darken', 'Darken'],
+  ['lighten', 'Lighten'],
+  ['color-dodge', 'Colour dodge'],
+  ['color-burn', 'Colour burn'],
+  ['difference', 'Difference'],
+  ['exclusion', 'Exclusion'],
+  ['hue', 'Hue'],
+  ['saturation', 'Saturation'],
+  ['color', 'Colour'],
+  ['luminosity', 'Luminosity'],
+];
+
+/**
+ * A layer's mask: parts as in a photo's masks (engine/masks.ts), but their positions are shares of the layer's own
+ * box (before it turns) and sizes shares of its width. Where the mask is 0 the layer doesn't show.
+ */
+export interface LayerMask {
+  invert: boolean;
+  parts: MaskPart[];
+}
 
 interface LayerBase {
   id: string;
@@ -18,6 +69,10 @@ interface LayerBase {
   rot: number;
   /** 0–1. */
   opacity: number;
+  /** How it mixes with what is under it; normal when not set. */
+  blend?: BlendMode;
+  /** Where it shows; everywhere when not set. */
+  mask?: LayerMask;
   hidden?: boolean;
   /** Video only: seconds on the timeline when the layer appears and disappears. */
   start?: number;
@@ -81,7 +136,18 @@ export interface DrawLayer extends LayerBase {
   strokes: Stroke[];
 }
 
-export type Layer = TextLayer | ShapeLayer | StickerLayer | DrawLayer;
+/** A picture over the photo (a logo, a frame, a texture), kept in memory by id (addLayerImage). */
+export interface ImageLayer extends LayerBase {
+  kind: 'image';
+  /** The picture's id in this session's images. */
+  image: string;
+  /** Height, as a share of the frame width (the picture's proportions at its width). */
+  h: number;
+  /** For the layer list: the file it came from. */
+  name: string;
+}
+
+export type Layer = TextLayer | ShapeLayer | StickerLayer | DrawLayer | ImageLayer;
 
 /** A layer's box on the frame, in pixels: centre, size and rotation (radians). */
 export interface Box {
@@ -104,11 +170,33 @@ export const layerName = (l: Layer): string =>
       ? `${shapeDef(l.shape).name}${l.text ? `: ${l.text.split('\n')[0].slice(0, 18)}` : ''}`
       : l.kind === 'sticker'
         ? `Sticker ${l.emoji}`
-        : `Drawing (${l.strokes.length} stroke${l.strokes.length === 1 ? '' : 's'})`;
+        : l.kind === 'image'
+          ? `Image: ${l.name.slice(0, 24) || 'picture'}`
+          : `Drawing (${l.strokes.length} stroke${l.strokes.length === 1 ? '' : 's'})`;
 
 /** Whether a layer shows at time t (seconds); photos pass no time. */
 export const activeAt = (l: Layer, t?: number): boolean =>
   !l.hidden && (t === undefined || ((l.start ?? 0) <= t && t < (l.end ?? Infinity)));
+
+/* ---------- images ---------- */
+
+/** Pictures of image layers, by id, for this session (layers keep only the id, so undo and copies stay small). */
+const images = new Map<string, CanvasImageSource & { width: number; height: number }>();
+let imageSeq = 0;
+
+/** Keeps a picture for image layers; returns its id. */
+export function addLayerImage(img: CanvasImageSource & { width: number; height: number }): string {
+  const id = `img${Date.now().toString(36)}${(imageSeq++).toString(36)}`;
+  images.set(id, img);
+  return id;
+}
+export const layerImage = (id: string) => images.get(id);
+
+/** An image layer for a kept picture of w × h pixels, a third of the frame wide, centred. */
+export function newImageLayer(image: string, w: number, h: number, name: string): ImageLayer {
+  const lw = 0.34;
+  return { id: layerId(), kind: 'image', image, name, x: 0.5, y: 0.5, w: lw, h: (lw * h) / Math.max(1, w), rot: 0, opacity: 1 };
+}
 
 /* ---------- new layers ---------- */
 
@@ -423,18 +511,99 @@ function drawStrokes(ctx: CanvasRenderingContext2D, l: DrawLayer, W: number) {
   }
 }
 
-/** Draws every visible layer (bottom first) on a W×H frame; with t, only the layers showing at that time. */
+function drawImageLayer(ctx: CanvasRenderingContext2D, l: ImageLayer, W: number) {
+  const img = images.get(l.image);
+  if (!img) return;
+  const w = l.w * W,
+    h = l.h * W;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+}
+
+/** One layer, drawn at its place (ctx already holds the opacity and blend to use). */
+function drawOne(ctx: CanvasRenderingContext2D, l: Layer, W: number, H: number) {
+  ctx.translate(l.x * W, l.y * H);
+  ctx.rotate((l.rot * Math.PI) / 180);
+  if (l.kind === 'text') drawText(ctx, l, W);
+  else if (l.kind === 'shape') drawShape(ctx, l, W);
+  else if (l.kind === 'sticker') drawSticker(ctx, l, W);
+  else if (l.kind === 'image') drawImageLayer(ctx, l, W);
+  else drawStrokes(ctx, l, W);
+}
+
+/** True when the layer's mask changes where it shows. */
+export const layerMasked = (l: Layer): boolean => !!l.mask && (l.mask.parts.length > 0 || l.mask.invert);
+
+/** A layer's mask laid on the W × H frame where the layer is (its box, turned with it). */
+export function layerFrameMask(ctx: CanvasRenderingContext2D, l: Layer, W: number, H: number): FrameMask | null {
+  if (!l.mask || !layerMasked(l)) return null;
+  const b = layerBox(ctx, l, W, H);
+  return frameMask(l.mask, b.w, b.h, { cx: b.cx, cy: b.cy, w: b.w, h: b.h, rot: (b.rot * 180) / Math.PI, flip: false }, W, H);
+}
+
+/** The mask as an image whose alpha is the mask, to cut a layer with ('destination-in'). Cached per mask raster. */
+const maskImages = new WeakMap<FrameMask, HTMLCanvasElement>();
+function maskImage(f: FrameMask): HTMLCanvasElement | null {
+  let c = maskImages.get(f);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = f.width;
+  c.height = f.height;
+  const x = c.getContext('2d');
+  if (!x) return null;
+  const img = x.createImageData(f.width, f.height),
+    d = new Uint32Array(img.data.buffer);
+  // White, with the mask as alpha (little-endian RGBA: alpha in the top byte).
+  for (let i = 0; i < f.data.length; i++) d[i] = (f.data[i] << 24) | 0xffffff;
+  x.putImageData(img, 0, 0);
+  maskImages.set(f, c);
+  return c;
+}
+
+/** A frame-size canvas to draw a masked layer into, reused. */
+let scratch: HTMLCanvasElement | null = null;
+
+/**
+ * Draws every visible layer (bottom first) on a W×H frame; with t, only the layers showing at that time. A layer with
+ * a blend mode mixes with what is under it; a masked one is drawn on its own canvas first, cut by its mask, then laid
+ * on with its opacity and blend.
+ */
 export function drawLayers(ctx: CanvasRenderingContext2D, layers: Layer[], W: number, H: number, t?: number): void {
   for (const l of layers) {
     if (!activeAt(l, t)) continue;
+    const blend: GlobalCompositeOperation = l.blend && l.blend !== 'normal' ? l.blend : 'source-over',
+      alpha = Math.max(0, Math.min(1, l.opacity));
+    const fm = layerFrameMask(ctx, l, W, H),
+      cut = fm && maskImage(fm);
+    if (!cut) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.globalCompositeOperation = blend;
+      drawOne(ctx, l, W, H);
+      ctx.restore();
+      continue;
+    }
+    if (!scratch) scratch = document.createElement('canvas');
+    if (scratch.width !== cut.width || scratch.height !== cut.height) {
+      scratch.width = cut.width;
+      scratch.height = cut.height;
+    }
+    const sx = scratch.getContext('2d');
+    if (!sx) continue;
+    sx.setTransform(1, 0, 0, 1, 0, 0);
+    sx.globalAlpha = 1;
+    sx.globalCompositeOperation = 'source-over';
+    sx.clearRect(0, 0, scratch.width, scratch.height);
+    sx.save();
+    drawOne(sx, l, W, H);
+    sx.restore();
+    sx.globalCompositeOperation = 'destination-in';
+    sx.drawImage(cut, 0, 0);
     ctx.save();
-    ctx.translate(l.x * W, l.y * H);
-    ctx.rotate((l.rot * Math.PI) / 180);
-    ctx.globalAlpha = Math.max(0, Math.min(1, l.opacity));
-    if (l.kind === 'text') drawText(ctx, l, W);
-    else if (l.kind === 'shape') drawShape(ctx, l, W);
-    else if (l.kind === 'sticker') drawSticker(ctx, l, W);
-    else drawStrokes(ctx, l, W);
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = blend;
+    ctx.drawImage(scratch, 0, 0, W, H);
     ctx.restore();
   }
 }
@@ -516,7 +685,7 @@ export function scaleLayer<L extends Layer>(l: L, f: number): L {
     out.textSize = (l as ShapeLayer).textSize * k;
     out.strokeW = (l as ShapeLayer).strokeW * k;
   }
-  if (out.kind === 'draw') out.h = (l as DrawLayer).h * k;
+  if (out.kind === 'draw' || out.kind === 'image') out.h = (l as DrawLayer | ImageLayer).h * k;
   return out;
 }
 

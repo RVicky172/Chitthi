@@ -125,6 +125,13 @@ turning or mirroring the photo takes them along. Painting is undone stroke by st
 
 **Text, Elements and Layers** (rail). Layers over the photo, edited in the inspector when selected:
 
+**Images, blend modes and layer masks.** **Elements → Add an image** puts a picture over the photo as a layer (a logo,
+a frame, a texture; PNG transparency kept; kept at up to 2048 px for the session). Every layer has a **Blend** mode
+(multiply, screen, overlay, soft and hard light, darken, lighten, colour dodge and burn, difference, exclusion, hue,
+saturation, colour, luminosity) and can have a **mask**: a **Fade** (linear) or a **Spot** (radial), placed within the
+layer so it moves, turns and grows with it, set by sliders and invertible. A masked layer shows only inside its own box
+(a drawing's glow beyond it is cut). These work the same in the video editor's layers.
+
 | Layer | What it offers |
 | --- | --- |
 | Text | Six one-tap styles (Classic, Outline, Label, Elegant, Script, Handwritten); any of the 46 fonts or the user's own; size, box width, alignment, bold, italic, colour, outline, background and shadow |

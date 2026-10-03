@@ -1,14 +1,33 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { BRUSHES, PALETTE, SHAPES, STICKERS, TEXT_FONTS, TEXT_STYLES, shapeDef, type BrushId } from '../../data/layers';
-import { layerName, newShape, newSticker, newText, scaleLayer, shapePath, type Layer, type ShapeLayer, type TextLayer } from '../../engine/layers';
+import {
+  addLayerImage,
+  BLEND_MODES,
+  layerName,
+  newImageLayer,
+  newShape,
+  newSticker,
+  newText,
+  scaleLayer,
+  shapePath,
+  type BlendMode,
+  type Layer,
+  type LayerMask,
+  type ShapeLayer,
+  type TextLayer,
+} from '../../engine/layers';
+import { newPart, type LinearPart, type RadialPart } from '../../engine/masks';
+import { logError } from '../../lib/errors';
+import { toast } from '../../lib/toast';
 import type { LayerTools } from '../../state/instagram';
 import { Check, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
 import { NextIcon, PlusIcon, PrevIcon, TrashIcon } from '../icons';
+import { PartSettings } from './MaskPanel';
 
 /*
- * The layer controls shared by the photo and video editors: add text, shapes and stickers; the layer list; the
- * selected layer's properties; and the drawing brush. Changes go out through callbacks, so each editor keeps its own
+ * The layer controls shared by the photo and video editors: add text, shapes, stickers and images; the layer list; the
+ * selected layer's properties (with its blend mode and mask); and the drawing brush. Changes go out through callbacks, so each editor keeps its own
  * state and undo history.
  */
 
@@ -101,10 +120,46 @@ export function AddText(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
   );
 }
 
-/** Shapes (which can hold words) and emoji stickers. */
+/** Pictures for image layers are kept at most this many pixels on their longer side. */
+const IMAGE_MAX = 2048;
+
+/** A picture file as a canvas of at most IMAGE_MAX px, kept for image layers. */
+async function loadLayerImage(file: File): Promise<{ id: string; w: number; h: number }> {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, IMAGE_MAX / Math.max(bmp.width, bmp.height)),
+    c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bmp.width * k));
+  c.height = Math.max(1, Math.round(bmp.height * k));
+  const x = c.getContext('2d');
+  if (!x) throw new Error('No 2D canvas');
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close();
+  return { id: addLayerImage(c), w: c.width, h: c.height };
+}
+
+/** Shapes (which can hold words), emoji stickers and images. */
 export function AddElements(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
+  const addImage = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const { id, w, h } = await loadLayerImage(file);
+      p.onAdd(placed(p, newImageLayer(id, w, h, file.name.replace(/\.[a-z0-9]+$/i, ''))));
+    } catch (e) {
+      logError('handled', e);
+      toast('That picture couldn’t be opened. Try a PNG, JPEG or WebP file.');
+    }
+  };
   return (
     <>
+      <div className="ig-group">
+        <h3>Image</h3>
+        <p className="hint">A logo, a frame or a texture over the photo. PNGs keep their transparency; try a blend mode for textures.</p>
+        <label className="sbtn mst-file">
+          Add an image
+          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void addImage(e.target.files?.[0]).then(() => (e.target.value = ''))} />
+        </label>
+      </div>
       <div className="ig-group">
         <h3>Shapes</h3>
         <p className="hint">Boxes, labels, bubbles, bursts and ribbons hold words. Draw over any of them with the Draw tool.</p>
@@ -220,6 +275,17 @@ function Properties({ sel, onUpdate, onAdd, timing }: LayerPanelProps & { sel: L
       />
       <Range id="lp-rot" label="Turn" value={sel.rot > 180 ? sel.rot - 360 : sel.rot} min={-180} max={180} step={1} show={`${Math.round(sel.rot > 180 ? sel.rot - 360 : sel.rot)}°`} onChange={(r) => up({ rot: (r + 360) % 360 })} />
       <Range id="lp-op" label="Opacity" value={sel.opacity} min={0.05} max={1} show={`${Math.round(sel.opacity * 100)}%`} onChange={(opacity) => up({ opacity })} />
+      <div className="ig-slider">
+        <label htmlFor="lp-blend">Blend</label>
+        <select id="lp-blend" value={sel.blend ?? 'normal'} onChange={(e) => up({ blend: e.target.value === 'normal' ? undefined : (e.target.value as BlendMode) }, '')}>
+          {BLEND_MODES.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </div>
+      <LayerMaskProps l={sel} up={up} />
 
       {timing && (
         <>
@@ -260,6 +326,41 @@ function Properties({ sel, onUpdate, onAdd, timing }: LayerPanelProps & { sel: L
 }
 
 type Up = (patch: Partial<Layer>, key?: string) => void;
+
+/**
+ * A layer's mask (P1.10): a fade (linear gradient) or a spot (radial gradient) placed within the layer, so it moves,
+ * turns and grows with it; inverted, the layer fades the other way or shows only outside the spot.
+ */
+function LayerMaskProps({ l, up }: { l: Layer; up: Up }) {
+  const m = l.mask;
+  const part = m?.parts[0];
+  const set = (mask: LayerMask | undefined, key = '') => up({ mask }, key);
+  if (!m || !part || (part.kind !== 'linear' && part.kind !== 'radial'))
+    return (
+      <div className="ig-newmask" role="group" aria-label="Layer mask">
+        <span className="hint">Mask:</span>
+        <button type="button" className="sbtn" onClick={() => set({ invert: false, parts: [{ ...(newPart('linear') as LinearPart), x: 0.5, y: 0.5, angle: 90, width: 0.8 }] })}>
+          Fade
+        </button>
+        <button type="button" className="sbtn" onClick={() => set({ invert: false, parts: [{ ...(newPart('radial') as RadialPart), rx: 0.5, ry: 0.5, feather: 60 }] })}>
+          Spot
+        </button>
+      </div>
+    );
+  return (
+    <div className="lp-mask">
+      <PartSettings idPrefix="lp-mask" inLayer part={part} onPatch={(patch, k) => set({ ...m, parts: [{ ...part, ...patch } as typeof part] }, `lpmask:${l.id}:${k}`)} />
+      <div className="inline ig-tools">
+        <Check checked={m.invert} onChange={(invert) => set({ ...m, invert })}>
+          Invert the mask
+        </Check>
+        <button type="button" className="sbtn" onClick={() => set(undefined)}>
+          Remove the mask
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function TextProps({ l, up }: { l: TextLayer; up: Up }) {
   return (

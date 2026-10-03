@@ -25,6 +25,8 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Photo editor: **gradient and range masks**. Linear and radial gradients with handles on the photo, and colour and
   brightness ranges picked by clicking the photo; every setting also has a slider, so masks can be shaped from the
   keyboard.
+- Photo and video editors: **image layers** (logos, frames, textures), a **blend mode** on every layer, and **layer
+  masks** (a fade or a spot within the layer).
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

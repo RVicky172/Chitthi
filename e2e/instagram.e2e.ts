@@ -412,3 +412,40 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
   expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test('layers: an image layer, a blend mode and a fade mask, exported', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+
+  await tool(page, 'Elements').click();
+  await page.locator('.mst-file input[accept^="image/png"]').setInputFiles(SAMPLES[3]);
+  await tool(page, 'Layers').click();
+  await expect(page.getByRole('list', { name: 'Layers, front first' }).getByRole('button', { name: 'Image: lotus', exact: true })).toBeVisible();
+  const plain = await shot();
+
+  // Multiply: the picture darkens what is under it instead of covering it.
+  await page.getByLabel('Blend').selectOption('multiply');
+  await expect.poll(shot).not.toBe(plain);
+  const multiplied = await shot();
+
+  // A fade: the layer goes from full at the top to nothing at the bottom; its angle set from the keyboard.
+  await page.getByRole('group', { name: 'Layer mask' }).getByRole('button', { name: 'Fade' }).click();
+  await expect.poll(shot).not.toBe(multiplied);
+  const angle = page.locator('#lp-mask-angle');
+  await angle.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('label[for="lp-mask-angle"] output')).toHaveText('89');
+  await page.getByText('Invert the mask').click();
+  await page.getByRole('button', { name: 'Remove the mask' }).click();
+  await expect(page.getByRole('group', { name: 'Layer mask' })).toBeVisible();
+  await expect.poll(shot).toBe(multiplied);
+
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const zip = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
+  expect(readFileSync(await (await zip).path()).toString('latin1')).toContain('chitthi-instagram-4x5-01.jpg');
+  expect(errors).toEqual([]);
+});

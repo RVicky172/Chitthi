@@ -307,13 +307,18 @@ export function MaskPanel({ item }: { item: IgItem }) {
   );
 }
 
-/** Sliders for a gradient or range part: the keyboard's way to shape them. Positions and sizes show as per cent. */
-function PartSettings({
+/** Sliders for a gradient or range part: the keyboard's way to shape them, and the only way for a layer's mask. Positions and sizes show as per cent. */
+export function PartSettings({
   part,
   onPatch,
+  idPrefix = 'mk',
+  inLayer = false,
 }: {
   part: Exclude<MaskPart, { kind: 'brush' }>;
   onPatch: (patch: Partial<MaskPart>, key: string) => void;
+  idPrefix?: string;
+  /** A layer's mask: positions are within the layer, and there are no handles on the stage to mention. */
+  inLayer?: boolean;
 }) {
   const pct = (k: 'x' | 'y' | 'width' | 'rx' | 'ry', label: string) => {
     const [lo, hi] = PART_RANGES[k],
@@ -321,7 +326,7 @@ function PartSettings({
     return (
       <Slider
         key={k}
-        id={`mk-${k}`}
+        id={`${idPrefix}-${k}`}
         label={label}
         value={Math.round(v * 100)}
         min={Math.round(lo * 100)}
@@ -336,7 +341,7 @@ function PartSettings({
     return (
       <Slider
         key={k}
-        id={`mk-${k}`}
+        id={`${idPrefix}-${k}`}
         label={label}
         value={(part as unknown as Record<string, number>)[k]}
         min={lo}
@@ -351,7 +356,8 @@ function PartSettings({
       <div className="ig-group">
         <h3>Linear gradient</h3>
         <p className="hint">
-          Full on one side, fading to nothing across its length. Drag on the photo to draw it, or move its handles.
+          Full on one side, fading to nothing across its length.{' '}
+          {inLayer ? 'Positions are within the layer.' : 'Drag on the photo to draw it, or move its handles.'}
         </p>
         {pct('x', 'Across')}
         {pct('y', 'Down')}
@@ -364,7 +370,8 @@ function PartSettings({
       <div className="ig-group">
         <h3>Radial gradient</h3>
         <p className="hint">
-          Full inside, fading out towards its edge. Drag on the photo to draw a circle, or move its handles.
+          Full inside, fading out towards its edge.{' '}
+          {inLayer ? 'Positions and sizes are within the layer.' : 'Drag on the photo to draw a circle, or move its handles.'}
         </p>
         {pct('x', 'Across')}
         {pct('y', 'Down')}

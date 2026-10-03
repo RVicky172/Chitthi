@@ -240,6 +240,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
     }
   }
   await knownMask(check);
+  await layerLooks(check);
   for (const name of ran) {
     const mk = await maskParity(name);
     check(mk.max <= 2, `gpu ${name}: masked colour edits match Canvas 2D within 2 levels (worst ${mk.max} in ${mk.where})`);
@@ -264,6 +265,51 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
  * P1.6: a known mask, drawn where it should be. A hard brush stroke across the middle of the photo, laid on a frame with
  * the photo placed, turned a quarter and mirrored: full inside the stroke, empty away from it and outside the photo.
  */
+/**
+ * P1.10: layers' blend modes, masks and images, by known pixels (layers draw with Canvas 2D on every path). A grey box
+ * over an orange frame, multiplied and screened, must give the formulas' colours; a white box faded by a linear mask
+ * over black must go from white at the top to black at the bottom, turned with the layer; an image layer must show
+ * its picture where it is placed.
+ */
+async function layerLooks(check: (ok: unknown, what: string) => void): Promise<void> {
+  const L = await import('../engine/layers');
+  const { newPart } = await import('../engine/masks');
+  const N = 200;
+  const frame = (bg: string, layers: import('../engine/layers').Layer[]) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = N;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    x.fillStyle = bg;
+    x.fillRect(0, 0, N, N);
+    L.drawLayers(x, layers, N, N);
+    return (px: number, py: number) => [...x.getImageData(px, py, 1, 1).data.slice(0, 3)];
+  };
+  const box = { ...L.newShape('rect'), x: 0.5, y: 0.5, w: 2, h: 2, fill: '#808080', stroke: '', text: '' };
+  const near = (a: number[], b: number[], tol = 2) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
+  const mul = frame('rgb(200,100,50)', [{ ...box, blend: 'multiply' }])(100, 100);
+  check(near(mul, [100, 50, 25]), `layers: multiply gives the product (${mul})`);
+  const scr = frame('rgb(200,100,50)', [{ ...box, blend: 'screen' }])(100, 100);
+  check(near(scr, [228, 178, 153]), `layers: screen gives 1 − (1 − a)(1 − b) (${scr})`);
+  // A white box faded downwards over black: full at the top, nothing at the bottom, half way in the middle.
+  const fade = { invert: false, parts: [{ ...newPart('linear'), x: 0.5, y: 0.5, angle: 90, width: 1 }] } as import('../engine/layers').LayerMask;
+  const white = { ...box, w: 1, h: 1, fill: '#ffffff', mask: fade };
+  const f = frame('#000000', [white]);
+  check(f(100, 2)[0] > 250 && f(100, 197)[0] < 5 && Math.abs(f(100, 100)[0] - 128) < 12, `layers: a fade mask goes from full to none (${f(100, 2)[0]}, ${f(100, 100)[0]}, ${f(100, 197)[0]})`);
+  // Turned a quarter, the fade runs right to left across the frame.
+  const t = frame('#000000', [{ ...white, rot: 90 }]);
+  check(t(197, 100)[0] > 250 && t(2, 100)[0] < 5, 'layers: a layer mask turns with its layer');
+  check(frame('#000000', [{ ...white, mask: { ...fade, invert: true } }])(100, 2)[0] < 5, 'layers: an inverted mask shows the other way');
+  // An image layer: a red picture in the middle, a quarter of the frame wide.
+  const pic = document.createElement('canvas');
+  pic.width = pic.height = 16;
+  const px = pic.getContext('2d')!;
+  px.fillStyle = '#ff0000';
+  px.fillRect(0, 0, 16, 16);
+  const img = { ...L.newImageLayer(L.addLayerImage(pic), 16, 16, 'red'), w: 0.25, h: 0.25 };
+  const im = frame('#000000', [img]);
+  check(near(im(100, 100), [255, 0, 0]) && near(im(20, 20), [0, 0, 0]), 'layers: an image layer shows its picture where it is placed');
+}
+
 async function knownMask(check: (ok: unknown, what: string) => void): Promise<void> {
   const { newMask, newBrushPart, frameMask } = await import('../engine/masks');
   const { DEFAULT_EDIT, photoPlace } = await import('../engine/instagram');

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TEXT_STYLES } from '../data/layers';
-import { activeAt, addStroke, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer } from './layers';
+import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, newImageLayer, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer } from './layers';
+import { newPart } from './masks';
 import { DEFAULT_EDIT } from './instagram';
 import { V_FADE, clipAt, clipLength, fadeAmount, frameRange, motionEdit, timeline, totalLength } from './video';
 
@@ -56,6 +57,36 @@ describe('layers', () => {
     expect(b.y * H + s.pts[1] * b.h * W).toBeCloseTo(200);
     // A turned drawing takes no more strokes.
     expect(addStroke({ ...b, rot: 30 }, [0, 0, 1, 1], 'pen', '#000', W, H)).toBeNull();
+  });
+});
+
+describe('image layers, blend modes and layer masks', () => {
+  const ctx = {} as CanvasRenderingContext2D;
+  it('an image layer keeps the proportions of its picture, also when scaled', () => {
+    const l = newImageLayer('img1', 800, 400, 'logo');
+    expect(l.h / l.w).toBeCloseTo(0.5, 9);
+    const big = scaleLayer(l, 1.5);
+    expect(big.h / big.w).toBeCloseTo(0.5, 9);
+    expect(big.w).toBeCloseTo(l.w * 1.5, 9);
+    expect(layerName(l)).toBe('Image: logo');
+  });
+  it('is hit inside its box, turned with it, and not outside', () => {
+    // 0.34 of a 1000 px frame wide, half as tall: 340 × 170 around the centre; turned a quarter it stands up.
+    const l = { ...newImageLayer('img1', 800, 400, 'logo'), rot: 90 };
+    expect(hitLayer(ctx, [l], 500, 500 - 160, 1000, 1000, 0)).toBe(l);
+    expect(hitLayer(ctx, [l], 500 - 160, 500, 1000, 1000, 0)).toBeNull();
+    expect(hitLayer(ctx, [{ ...l, rot: 0 }], 500 - 160, 500, 1000, 1000, 0)).not.toBeNull();
+  });
+  it('offer the blend modes Canvas 2D has, normal first', () => {
+    expect(BLEND_MODES[0][0]).toBe('normal');
+    expect(new Set(BLEND_MODES.map(([m]) => m)).size).toBe(16);
+  });
+  it('count as masked only with parts or an invert', () => {
+    const t = newText(TEXT_STYLES[0]);
+    expect(layerMasked(t)).toBe(false);
+    expect(layerMasked({ ...t, mask: { invert: false, parts: [] } })).toBe(false);
+    expect(layerMasked({ ...t, mask: { invert: true, parts: [] } })).toBe(true);
+    expect(layerMasked({ ...t, mask: { invert: false, parts: [newPart('linear')] } })).toBe(true);
   });
 });
 
