@@ -5,6 +5,7 @@
  */
 
 import type { LookId } from '../types';
+import type { PhotoType } from '../engine/photoExport';
 
 export type IgFormatId = 'portrait' | 'square' | 'tall' | 'landscape' | 'story';
 
@@ -42,10 +43,13 @@ export const IG_HASHTAG_MAX = 30;
 /** Characters shown before "… more" in the feed. */
 export const IG_CAPTION_PREVIEW = 125;
 
-export type IgFileType = 'jpeg' | 'png';
+export type IgFileType = PhotoType;
+/** Export file types (engine/photoExport.ts); WebP and AVIF show only where the browser can write them. */
 export const IG_FILE_TYPES: [IgFileType, string, string][] = [
   ['jpeg', 'JPEG', 'Recommended: what Instagram stores, small files'],
   ['png', 'PNG', 'Lossless; Instagram converts it to JPEG on upload'],
+  ['webp', 'WebP', 'Smaller than JPEG at the same quality, for websites and messages; post JPEG to Instagram'],
+  ['avif', 'AVIF', 'The smallest files, for websites; post JPEG to Instagram'],
 ];
 /** Above this a photo may be refused by some upload paths (Instagram's publishing API allows 8 MB). */
 export const IG_FILE_WARN_BYTES = 8 * 1024 * 1024;

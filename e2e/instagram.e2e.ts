@@ -449,3 +449,48 @@ test('layers: an image layer, a blend mode and a fade mask, exported', async ({ 
   expect(readFileSync(await (await zip).path()).toString('latin1')).toContain('chitthi-instagram-4x5-01.jpg');
   expect(errors).toEqual([]);
 });
+
+test('export formats: WebP where the browser writes it, AVIF only where it does, PNG and JPEG always', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const types = page.getByRole('group', { name: 'File type' });
+  await expect(types.getByRole('button', { name: 'JPEG' })).toBeVisible();
+  await expect(types.getByRole('button', { name: 'PNG' })).toBeVisible();
+  const writes = (mime: string) =>
+    page.evaluate(
+      (m) =>
+        new Promise<boolean>((res) => {
+          const c = document.createElement('canvas');
+          c.width = c.height = 2;
+          c.getContext('2d')!.fillRect(0, 0, 2, 2);
+          c.toBlob((b) => res(b?.type === m), m);
+        }),
+      mime,
+    );
+  const exportAs = async (label: string) => {
+    await types.getByRole('button', { name: label }).click();
+    const zip = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
+    return readFileSync(await (await zip).path()).toString('latin1');
+  };
+  // An option shows exactly when the browser can write the type, and then its files are really that type.
+  for (const [label, mime, ext, magic] of [
+    ['WebP', 'image/webp', 'webp', 'WEBPVP8'],
+    ['AVIF', 'image/avif', 'avif', 'ftypavif'],
+  ] as const) {
+    const can = await writes(mime);
+    await expect(types.getByRole('button', { name: label })).toHaveCount(can ? 1 : 0);
+    if (!can) continue;
+    await types.getByRole('button', { name: label }).click();
+    await expect(page.locator('label[for="ig-q"]')).toContainText(`${label} quality`);
+    const zip = await exportAs(label);
+    expect(zip).toContain(`chitthi-instagram-4x5-01.${ext}`);
+    expect(zip).toContain(magic);
+  }
+  expect(await exportAs('PNG')).toContain('chitthi-instagram-4x5-01.png');
+  await expect(page.locator('#ig-q')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

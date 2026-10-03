@@ -241,6 +241,13 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   }
   await knownMask(check);
   await layerLooks(check);
+  {
+    // P1.11: the export types this engine writes (JPEG and PNG always; WebP and AVIF where it can).
+    const { encodableTypes } = await import('../engine/photoExport');
+    const types = await encodableTypes();
+    check(types.includes('jpeg') && types.includes('png'), 'export: JPEG and PNG can always be written');
+    r.notes.push(`Photo export types this engine writes: ${types.join(', ')}`);
+  }
   for (const name of ran) {
     const mk = await maskParity(name);
     check(mk.max <= 2, `gpu ${name}: masked colour edits match Canvas 2D within 2 levels (worst ${mk.max} in ${mk.where})`);

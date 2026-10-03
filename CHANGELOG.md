@@ -27,6 +27,7 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   keyboard.
 - Photo and video editors: **image layers** (logos, frames, textures), a **blend mode** on every layer, and **layer
   masks** (a fade or a spot within the layer).
+- Photo editor: export as **WebP**, and **AVIF** where the browser can write it, besides JPEG and PNG.
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

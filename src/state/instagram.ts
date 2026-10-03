@@ -9,6 +9,7 @@ import { ensureFonts } from '../lib/fonts';
 import { checkFile, loadImage } from '../engine/photo';
 import { logError } from '../lib/errors';
 import { makeZip } from '../lib/zip';
+import { encodePhoto, isPhotoType, PHOTO_TYPES } from '../engine/photoExport';
 
 /*
  * The Instagram studio's state: a batch of photos, each with its own edits, the post format, the batch limit and the
@@ -92,7 +93,7 @@ let state: IgState = {
   selected: null,
   format: IG_FORMATS.some((f) => f.id === p0.format) ? (p0.format as IgFormatId) : 'portrait',
   limit: clampBatch(p0.limit ?? 4),
-  fileType: p0.fileType === 'png' ? 'png' : 'jpeg',
+  fileType: isPhotoType(p0.fileType) ? p0.fileType : 'jpeg',
   quality: Math.min(100, Math.max(60, p0.quality ?? 92)),
   caption: '',
   ready: null,
@@ -388,8 +389,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
 /** Renders every photo at full size in the chosen format and file type. One photo is in full-size memory at a time. */
 export async function renderBatch(onProgress?: (done: number, total: number) => void): Promise<File[]> {
   const f = igFormat(state.format),
-    type = state.fileType === 'png' ? 'image/png' : 'image/jpeg',
-    ext = state.fileType === 'png' ? 'png' : 'jpg';
+    def = PHOTO_TYPES[state.fileType],
+    type = def.mime,
+    ext = def.ext;
   const out: File[] = [];
   const cv = document.createElement('canvas');
   cv.width = f.w;
@@ -414,8 +416,7 @@ export async function renderBatch(onProgress?: (done: number, total: number) => 
     } finally {
       URL.revokeObjectURL(url);
     }
-    const blob = await new Promise<Blob | null>((res) => cv.toBlob(res, type, state.quality / 100));
-    if (!blob) throw new Error('The picture couldn’t be encoded.');
+    const blob = await encodePhoto(cv, state.fileType, state.quality);
     out.push(new File([blob], `chitthi-instagram-${f.ratio.replace(':', 'x')}-${pad(i + 1)}.${ext}`, { type }));
   }
   onProgress?.(state.items.length, state.items.length);

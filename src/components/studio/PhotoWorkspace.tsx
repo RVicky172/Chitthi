@@ -31,6 +31,7 @@ import {
   type RadialPart,
 } from '../../engine/masks';
 import { MAX_MB } from '../../engine/photo';
+import { encodableTypes, PHOTO_TYPES } from '../../engine/photoExport';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
@@ -1066,6 +1067,19 @@ function ExportPanel() {
     ready = useIg((s) => s.ready),
     busy = useIg((s) => s.busy);
   const [working, setWorking] = useState(false);
+  // JPEG and PNG always; WebP and AVIF where this browser can write them. A remembered choice it can't is set back.
+  const [types, setTypes] = useState<IgFileType[]>(['jpeg', 'png']);
+  useEffect(() => {
+    let live = true;
+    void encodableTypes().then((t) => {
+      if (!live) return;
+      setTypes(t);
+      if (!t.includes(getIg().fileType)) setIg({ fileType: 'jpeg' });
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const n = items.length;
   const tags = (caption.match(/#[\p{L}\p{N}_]+/gu) ?? []).length;
   const shareable = !!ready && !isDesktop && canShareFiles(ready);
@@ -1126,9 +1140,16 @@ function ExportPanel() {
       <div className="ig-export-grid">
         <div>
           <h3>File type</h3>
-          <Seg<IgFileType> label="File type" value={fileType} options={IG_FILE_TYPES.map(([v, l]) => [v, l])} onChange={(v) => setIg({ fileType: v })} />
+          <Seg<IgFileType>
+            label="File type"
+            value={fileType}
+            options={IG_FILE_TYPES.filter(([v]) => types.includes(v)).map(([v, l]) => [v, l])}
+            onChange={(v) => setIg({ fileType: v })}
+          />
           <p className="hint">{IG_FILE_TYPES.find(([v]) => v === fileType)?.[2]}. sRGB colour, 1080 px wide.</p>
-          {fileType === 'jpeg' && <Slider id="ig-q" label="JPEG quality" value={quality} min={60} max={100} onChange={(q) => setIg({ quality: q })} />}
+          {PHOTO_TYPES[fileType].lossy && (
+            <Slider id="ig-q" label={`${PHOTO_TYPES[fileType].label} quality`} value={quality} min={60} max={100} onChange={(q) => setIg({ quality: q })} />
+          )}
         </div>
         <div>
           <h3>

@@ -6,7 +6,7 @@ and clips, all on the device:
 
 | Mode | Route | Makes |
 | --- | --- | --- |
-| **Instagram photos** | `#/instagram` | Up to 20 photos in one Instagram format, with text, stickers and drawings; JPEG or PNG files, or shared to the Instagram app |
+| **Instagram photos** | `#/instagram` | Up to 20 photos in one Instagram format, with text, stickers and drawings; JPEG, PNG or WebP files (AVIF where the browser writes it), or shared to the Instagram app |
 | **Reels & Shorts** | `#/instagram/video` | A vertical (or 4:5, 1:1) MP4 for Instagram Reels and YouTube Shorts, shared or downloaded |
 | **YouTube video** | `#/instagram/youtube` | A 16:9 MP4 (a vlog or any YouTube video) edited on a timeline and saved straight to a file |
 
@@ -40,7 +40,10 @@ is 1080 px wide.
 | Landscape | 1.91:1 | 1080 × 566 | Feed posts and carousels |
 | Story | 9:16 | 1080 × 1920 | Stories and Reel covers, not feed carousels |
 
-Files are JPEG (default; sRGB, quality 60–100, default 92) or PNG. The app warns when a file is over 8 MB, the limit of
+Files are JPEG (default; sRGB, quality 60–100, default 92), PNG, WebP or AVIF. WebP and AVIF are for websites and
+messages (post JPEG to Instagram) and are offered only where the browser can write them, found by encoding a tiny
+picture (`src/engine/photoExport.ts`); every file is checked to be the type asked for. Chrome, Edge, Firefox and the
+desktop app write WebP; AVIF stays hidden until a browser writes it. The app warns when a file is over 8 MB, the limit of
 Instagram's publishing API. Data: `src/data/instagram.ts`.
 
 | Limit | Value | Where it shows |
