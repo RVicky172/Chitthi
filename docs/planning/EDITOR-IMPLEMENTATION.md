@@ -186,7 +186,30 @@ To settle before the phase that needs them:
 | Decision | Needed by | Default if not decided |
 | --- | --- | --- |
 | Web keeps editing parity with desktop; only inputs and outputs gated | Phase 1 | Yes, parity |
-| Which segmentation model for AI masks | P1.8 | The first one whose code and weights pass LICENSING.md |
+| Which segmentation model for AI masks | P1.8 | **Proposal below, awaiting approval** (first one whose code and weights pass LICENSING.md) |
 | HDR delivery wanted, or SDR only | P3.7 | SDR only; HEVC 10-bit SDR on desktop |
 | Which speech model, and is Hindi / Hinglish good enough | P3.5 | Ship English first, others when accuracy is acceptable |
 | Presets and LUTs sync between devices without a server | P1.5 | **Decided:** export and import files only (P1.5) |
+
+### P1.8 licence research (4 October 2026, awaiting a decision)
+
+Findings, from the sources linked; nothing is added to the app until this is approved.
+
+| Candidate | Use | Code | Weights | Size | Concerns |
+| --- | --- | --- | --- | --- | --- |
+| MediaPipe Image Segmenter models | People, hair, a few objects | Apache 2.0 | Per model card | small | Selfie, hair and multiclass models are people only; DeepLab-v3 adds only cats, dogs and potted plants. **No sky, no general subject.** Doesn't fit P1.8 |
+| U²-Net-p (`u2netp`) | General subject / background (salient object) | Apache 2.0 | No separate statement; the repository is Apache 2.0 | 4.7 MB, 320 × 320 input | Weights' licence only implied by the repository; trained on DUTS, whose own terms aren't stated |
+| BiRefNet (general, lite) | Subject / background, sharper edges | MIT | MIT on its model card | Tens to a hundred-plus MB | Large for the web; could be the desktop option |
+| skyseg (U²-Net-p trained for sky) | Sky | MIT (repository) | MIT, "derived from" the repository | about 2 MB | Training data not stated; the author's better model is closed |
+| Runtime: ONNX Runtime Web | Runs the ONNX models in a worker | MIT | — | about 10 MB of WebAssembly | CSP needs `'wasm-unsafe-eval'` in `script-src` (nginx and Electron) |
+
+Proposal: ONNX Runtime Web in a worker, loaded with `import()` on first use; U²-Net-p for subject and background
+(background = inverted subject) and skyseg for sky, both **self-hosted** with the app (about 7 MB of models, no new
+external host; the desktop installer bundles them), each refinable with the brush. To decide: whether the implied
+weight licences (U²-Net-p, skyseg) and unstated training data are acceptable under LICENSING.md's model rules, or whether
+to wait for models with explicit weight licences (BiRefNet for subject, desktop first; no permissive sky model found
+yet). Sources: [MediaPipe Image Segmenter](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter),
+[U-2-Net](https://github.com/xuebinqin/U-2-Net), [Open background removal models](https://withoutbg.com/models),
+[skyseg](https://huggingface.co/JianyuanWang/skyseg),
+[Sky-Segmentation-and-Post-processing](https://github.com/xiongzhu666/Sky-Segmentation-and-Post-processing).
+
