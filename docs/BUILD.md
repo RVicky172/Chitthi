@@ -18,7 +18,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Vite dev server on http://localhost:5173 with hot reload; proxies `/api/pexels` when a key is set |
-| `npm run typecheck` | `tsc -b`: strict type check of app and tooling |
+| `npm run typecheck` | TypeScript 7 (`tsc -b`, the native compiler from the `typescript-native` package): strict type check of app and tooling, about 10× faster than 5.9 |
 | `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
 | `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |
 | `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [TESTING.md](TESTING.md) |
@@ -46,7 +46,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 
 ## Web build
 
-`npm run build` runs `tsc -b` and `vite build`:
+`npm run build` runs the type check and `vite build`:
 
 - Output goes to `dist/`: `index.html`, content-hashed `assets/*.js|css`, and everything from `public/` (service
   worker, manifest, icons, `samples/`).
@@ -61,8 +61,8 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 docker compose up -d --build        # http://localhost:8080
 ```
 
-`Dockerfile` is two stages, each base image pinned by digest: `node:22-alpine` runs `npm ci && npm run build`, then
-`nginxinc/nginx-unprivileged:1.30-alpine` serves `dist/` on port 8080 as a non-root user. The compose file runs it
+`Dockerfile` is two stages, each base image pinned by digest: `node:26-alpine` runs `npm ci && npm run build`, then
+`nginxinc/nginx-unprivileged:1.31-alpine` serves `dist/` on port 8080 as a non-root user. The compose file runs it
 read-only with a tmpfs `/tmp` and no capabilities. nginx (`nginx/default.conf`):
 
 - caches `/assets/*` (hashed) for a year, and always revalidates `index.html`, `sw.js` and the manifest;

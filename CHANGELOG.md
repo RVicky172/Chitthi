@@ -19,6 +19,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   turns it off. Browsers without GPU access keep the previous path.
 - Photo and clip edits keep their colour settings in their own object, ready for curves, masks and LUTs (no visible
   change).
+- Dependencies: React 19.3, lucide-react 1.51, TypeScript 7 for type checking and builds (about 10× faster; 5.9 stays
+  only for typescript-eslint), Node 26 for CI, releases and the Docker build, nginx 1.31 in the web image, and the
+  GitHub Actions on their Node 24 versions (checkout 7, setup-node 7, upload-artifact 7, download-artifact 8,
+  action-gh-release 3).
+- Print studio: the steps after Photos load when first needed, so the app starts with less to download (start-up
+  script 326 KB, from 338 KB, even with React 19.3).
 
 ### Fixed
 
