@@ -252,12 +252,6 @@ const seek = (v: HTMLVideoElement, t: number) =>
     v.currentTime = t;
   });
 
-/** Only object URLs of the user's own files may be loaded into a <video> element. */
-function blobSrc(url: string): string {
-  if (!/^blob:/.test(url)) throw new Error('Only local files can be opened');
-  return url;
-}
-
 /** Reads a video's size, length and a thumbnail through a <video> element. */
 function videoClip(name: string, file: Blob): Promise<VClip> {
   const url = URL.createObjectURL(file);
@@ -308,7 +302,9 @@ function videoClip(name: string, file: Blob): Promise<VClip> {
         v.load();
       }, fail);
     };
-    v.src = blobSrc(url);
+    // Only object URLs of the user's own files are loaded into a <video> element.
+    if (url.startsWith('blob:')) v.src = url;
+    else fail();
   });
 }
 
@@ -318,7 +314,8 @@ async function makeStrip(id: string, url: string, dur: number): Promise<void> {
   v.muted = true;
   v.preload = 'auto';
   try {
-    v.src = blobSrc(url);
+    if (!url.startsWith('blob:')) return;
+    v.src = url;
     await new Promise<void>((res, rej) => {
       v.onloadeddata = () => res();
       v.onerror = () => rej(new Error('load'));
