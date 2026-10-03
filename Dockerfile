@@ -10,7 +10,7 @@ COPY . .
 RUN npm run build
 
 # ---------- 2. Serve the static files ----------
-FROM nginxinc/nginx-unprivileged:1.30-alpine@sha256:ed04ec1ff34502c339ee5c3ae3f855442398edc1d05591e2b98981dcbbd20b1e
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af
 
 LABEL org.opencontainers.image.title="Chitthi Studio" \
       org.opencontainers.image.description="Print, Instagram and video studio for Indian festivals, birthdays and seasons (React 19.2 + TypeScript)" \
