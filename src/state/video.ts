@@ -397,7 +397,9 @@ export async function addMedia(files: { name: string; blob: Blob; type?: string 
   return msgs;
 }
 
-const fmtLimit = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(s % 3600 ? 1 : 0)} hours` : s >= 60 ? `${Math.round(s / 60)} minutes` : `${Math.round(s)} seconds`);
+// Whole minutes only: 90 s stays "90 seconds" rather than rounding up to a limit the editor doesn't allow.
+const fmtLimit = (s: number) =>
+  s >= 3600 ? `${(s / 3600).toFixed(s % 3600 ? 1 : 0)} hours` : s >= 60 && s % 60 === 0 ? (s === 60 ? '1 minute' : `${s / 60} minutes`) : `${Math.round(s)} seconds`;
 export const limitText = fmtLimit;
 
 /** Changes a clip; refused (false) if it would make the video longer than this project allows. */

@@ -25,6 +25,7 @@
     "test:e2e": "playwright test",
     "mcp": "node scripts/mcp-dev.mjs",
     "test:mcp": "node scripts/mcp-smoke.mjs",
+    "check:licenses": "node scripts/check-licenses.mjs",
     "preview": "vite preview --port 8080",
     "build:lib": "tsc -p tsconfig.lib.json && node scripts/flatten-css.mjs",
     "fetch:samples": "node scripts/fetch-samples.mjs",

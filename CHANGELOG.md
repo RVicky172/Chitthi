@@ -5,6 +5,17 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ## [Unreleased]
 
+### Added
+
+- Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
+  CI and before release builds.
+- Planning folder (`docs/planning/`) with the editor roadmap and its implementation plan.
+- README: every feature of both studios, requirements, web vs desktop, and screenshots of the photo & video studio.
+
+### Fixed
+
+- Video editor: the browser limit for Reels showed as "2 minutes" instead of 90 seconds.
+
 ## [2.8.0] - 2026-10-02
 
 A new look: Graphite themes, a redesigned print studio and home page, and a Hand-tinted photo look. Includes the 2.7.0

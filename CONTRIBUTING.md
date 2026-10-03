@@ -26,6 +26,7 @@ Run what CI runs:
 
 ```bash
 npm run lint         # ESLint: no errors allowed
+npm run check:licenses  # every shipped dependency has an allowed licence
 npm run build        # type check, production build, bundle-size guard
 npm run test:unit    # Vitest unit tests
 npm test             # self-test in Electron: every product, size and layout, print packs, agent tools
@@ -34,6 +35,9 @@ npm run test:e2e     # Playwright browser tests with an accessibility check
 ```
 
 [docs/TESTING.md](docs/TESTING.md) says what each suite covers and how to add checks.
+
+Adding or upgrading a library, model, font or other asset? Follow [docs/LICENSING.md](docs/LICENSING.md) first: only
+permissive licences ship without review, and the new component goes in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Code style
 

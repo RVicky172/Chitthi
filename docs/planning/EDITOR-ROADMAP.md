@@ -1,20 +1,26 @@
-# Photo & video editor: pro features plan
+# Photo & video editor: advanced features plan
 
 Status: plan, not started. Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
 [Claude doc](https://claude.ai/code/artifact/685d86eb-2eba-4f4d-b6f2-08559f401907). What exists today is in
-[MEDIA-STUDIO.md](MEDIA-STUDIO.md).
+[MEDIA-STUDIO.md](../MEDIA-STUDIO.md). How to build it, step by step: [EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md).
+Licence rules for every library it adds: [LICENSING.md](../LICENSING.md).
+
+**Free and open source, always.** "Advanced" here means professional-grade tools, not a paid edition. Every feature in
+this plan ships to everyone, free, under the MIT License, in the web app and the desktop app alike: no subscription,
+no paid tier, no account, no feature locked behind a payment. Where something is desktop-only, that is because a
+browser can't do it well (memory, codecs, native libraries), and the desktop app is free too.
 
 ## Summary
 
-Move both editors onto one GPU rendering pipeline first: every pro feature asked for (masks, colour grading, LUTs,
+Move both editors onto one GPU rendering pipeline first: every advanced feature asked for (masks, colour grading, LUTs,
 scopes, transitions, real-time preview at 4K) depends on it, and today all pixel work runs on the CPU. After that,
-build in three phases: a pro photo editor (masks and local adjustments, curves, HSL, RAW on desktop), a real
+build in three phases: an advanced photo editor (masks and local adjustments, curves, HSL, RAW on desktop), a real
 multi-track timeline (tracks, ripple and roll edits, keyframes, transitions, speed), and a colour page (wheels, curves,
 LUTs, scopes).
 
 The browser can do almost all of it on modern Chrome and Edge: WebGPU and WebGL2 for pixels, WebCodecs for decoding
 and encoding, on-device AI for subject and sky masks. What only the desktop app can do well: camera RAW at full
-quality, ProRes and other pro codecs, 10-bit HDR delivery, projects over a few GB, proxies on disk and hours-long
+quality, ProRes and other professional codecs, 10-bit HDR delivery, projects over a few GB, proxies on disk and hours-long
 timelines. That split decides what each phase ships where.
 
 Top recommendations:
@@ -27,7 +33,7 @@ Top recommendations:
    device.
 4. A track-based timeline model (video, overlay and audio tracks) before adding more clip features to the current
    single track.
-5. Desktop-only tiers where the web truly can't follow (RAW, ProRes, HDR, large media), stated in the editor as the
+5. Desktop-only parts where the web truly can't follow (RAW, ProRes, HDR, large media), stated in the editor as the
    limits are today.
 
 ## Where the editors are today
@@ -47,24 +53,24 @@ pixel effect runs on the CPU through Canvas 2D, and the timeline holds one video
 | Export | H.264 + AAC MP4 with fast start; Reels in memory; YouTube streamed to disk; up to 4K60 on desktop | 8-bit SDR only; no HEVC, ProRes or image-sequence output |
 | Limits | Web: Reels 90 s, YouTube 15 min, 1080p30. Desktop: 3 h, 500 clips, 50 GB files, 4K60 | Set by tab memory and background throttling |
 
-The source for all of this is [MEDIA-STUDIO.md](MEDIA-STUDIO.md) and the engines in `src/engine/` (`instagram.ts`,
+The source for all of this is [MEDIA-STUDIO.md](../MEDIA-STUDIO.md) and the engines in `src/engine/` (`instagram.ts`,
 `layers.ts`, `video.ts`, `videoExport.ts`). Its own "Still to do" list already names cross-fades, speed and reverse,
 more audio tracks, clip waveforms and text animations.
 
 ## What professional tools offer
 
 Chitthi's users make greetings, Reels and vlogs, not feature films, so the bar is Lightroom and CapCut quality on the
-everyday tools, with selected depth from Resolve and Premiere. The table marks which pro features matter for them.
+everyday tools, with selected depth from Resolve and Premiere. The table marks which of their features matter for them.
 
-| Feature group | Where pros get it | Priority for Chitthi | Why |
+| Feature group | Where professional tools have it | Priority for Chitthi | Why |
 | --- | --- | --- | --- |
-| Local adjustments with masks (brush, gradient, subject, sky) | Lightroom, Photoshop, Resolve | High | The biggest gap between a filter app and a pro photo editor |
+| Local adjustments with masks (brush, gradient, subject, sky) | Lightroom, Photoshop, Resolve | High | The biggest gap between a filter app and a professional photo editor |
 | Tone curve, HSL / colour mixer, white balance, sharpening, noise reduction | Lightroom, Photoshop | High | Basic expectations of anyone who edits photos seriously |
 | Healing and spot removal | Lightroom, Photoshop | Medium | Common for portraits and travel photos; hard to do well |
 | RAW development | Lightroom, Capture One, darktable | Medium, desktop | Photographers shoot RAW; the web can't decode it well (see the capability map) |
 | Presets that save and sync | Lightroom, CapCut | High | Cheap to build on the parameter model; makes batches fast |
 | Multi-track timeline, ripple and roll edits | Premiere, Final Cut, Resolve, CapCut | High | Needed for B-roll, picture-in-picture, titles over cuts |
-| Keyframes on any property | All pro editors | High | Unlocks motion titles, zooms and animated masks |
+| Keyframes on any property | All professional editors | High | Unlocks motion titles, zooms and animated masks |
 | Transitions, speed ramps, reverse | Premiere, CapCut | High | Already on the editor's own to-do list |
 | Colour grading (wheels, curves, qualifiers, LUTs) | Resolve, Premiere Lumetri | Medium-high | Makes footage from different phones match; LUTs are a quick win |
 | Scopes (waveform, vectorscope, histogram) | Resolve, Premiere, Final Cut | Medium | Grading without scopes is guesswork |
@@ -79,7 +85,7 @@ depend on a specific version.
 ## Web vs desktop capability map
 
 The browser handles every editing feature in this plan on current Chrome and Edge; the desktop app is needed for RAW,
-pro codecs, HDR delivery and large media. Firefox and desktop Safari are the weak spots: Firefox has no WebGPU, and
+professional codecs, HDR delivery and large media. Firefox and desktop Safari are the weak spots: Firefox has no WebGPU, and
 neither has the File System Access API, so they get a WebGL2 path and in-memory exports.
 
 | Capability | Web (Chrome / Edge) | Web (Firefox / Safari) | Desktop app (Electron) | Limiting technology |
@@ -99,7 +105,7 @@ neither has the File System Access API, so they get a WebGL2 path and in-memory 
 | Background work | Throttled when the tab is hidden | Same | Not throttled | Browser scheduling |
 
 Rule for the roadmap: build every editing feature once, on the GPU pipeline, for both. Gate only inputs and outputs
-(RAW, pro codecs, HDR, very long or large projects) to the desktop app, and say so in the editor as today's limits do.
+(RAW, professional codecs, HDR, very long or large projects) to the desktop app, and say so in the editor as today's limits do.
 
 ## Photo editor plan
 
@@ -191,7 +197,7 @@ photo.
 
 - Proxies: low-resolution copies generated on import for smooth editing of 4K and long timelines.
 - A frame cache and render-ahead for effects-heavy sections.
-- Pro inputs (HEVC, ProRes, DNxHR) through a bundled native FFmpeg; 10-bit HEVC or ProRes export for HDR.
+- Professional inputs (HEVC, ProRes, DNxHR) through a bundled native FFmpeg; 10-bit HEVC or ProRes export for HDR.
 
 ## Architecture
 
@@ -203,7 +209,7 @@ flowchart LR
   model["Edit model, non-destructive<br/>adjustments, masks, keyframes, tracks"]
   photos["Photos<br/>JPG, PNG, WebP"] --> graph
   video["Video<br/>decoded by WebCodecs"] --> graph
-  raw["RAW and pro codecs<br/>desktop: LibRaw, FFmpeg"] --> graph
+  raw["RAW and professional codecs<br/>desktop: LibRaw, FFmpeg"] --> graph
   ai["On-device AI<br/>masks and captions"] --> graph
   model --> graph
   subgraph graph["GPU render graph (WebGPU, WebGL2 fallback)"]
@@ -219,7 +225,7 @@ flowchart LR
 - **Render graph.** WGSL shaders on WebGPU, the same effects as GLSL on WebGL2 where WebGPU is missing. Work in linear
   light, 16-bit float textures, convert to sRGB at the end (or PQ/HLG for desktop HDR).
 - **Decode.** WebCodecs `VideoDecoder` frames go to the GPU without a CPU copy (`importExternalTexture` on WebGPU). The
-  desktop adds RAW (LibRaw) and pro codecs (native FFmpeg) in a worker or the main process, handing frames over the
+  desktop adds RAW (LibRaw) and professional codecs (native FFmpeg) in a worker or the main process, handing frames over the
   same way.
 - **Export.** The graph renders each frame, then WebCodecs encodes it and Mediabunny writes the MP4, as today. Desktop
   adds a native FFmpeg encoder for HEVC 10-bit and ProRes.
@@ -236,7 +242,7 @@ starts. Phase 0 delivers nothing visible but is what makes every later phase che
 | Phase | Effort (estimate, one developer) | Web and desktop | Desktop only | Gate to the next phase |
 | --- | --- | --- | --- | --- |
 | 0. Foundation | about 6 to 8 weeks | GPU render graph with WebGL2 fallback; today's looks ported to shaders; golden-image parity tests | Native frame path for big files | Exports match today's Canvas 2D output |
-| 1. Pro photo | about 8 to 10 weeks | Light, curves, HSL, white balance; detail, LUTs, saved presets; brush, gradient and AI masks | RAW via LibRaw; 16-bit TIFF export | Masked edits stay smooth at 1080p on the web |
+| 1. Advanced photo | about 8 to 10 weeks | Light, curves, HSL, white balance; detail, LUTs, saved presets; brush, gradient and AI masks | RAW via LibRaw; 16-bit TIFF export | Masked edits stay smooth at 1080p on the web |
 | 2. Timeline | about 10 to 12 weeks | Tracks, ripple and roll edits; keyframes, transitions, speed; audio tracks, voice-over, ducking | Proxies and frame cache; longer, larger projects | A 4K multi-track timeline plays smoothly on desktop |
 | 3. Colour and finish | about 10 to 12 weeks | Wheels, curves, qualifiers, LUTs; scopes and auto captions; spot heal and clone | HEVC 10-bit, ProRes, HDR; AI object removal | Last phase |
 
@@ -259,7 +265,7 @@ and match it pixel for pixel before switching over.
 | Masking and healing quality expectations set by Adobe | Users judge harshly | Ship brush and gradient masks first; label AI masks as refinable |
 | New features in agent tools | MCP tools fall behind the UI | Add tools in the same change, as for existing features |
 
-**Licensing to check before adding a dependency**
+**Licensing to check before adding a dependency** (the full policy and checklist are in [LICENSING.md](../LICENSING.md))
 
 - LibRaw: LGPL 2.1 or CDDL 1.0. Link dynamically in the desktop app and ship its notices.
 - FFmpeg: use an LGPL build only (no GPL encoders such as x264) to stay compatible with the MIT app; hardware encoders
@@ -284,4 +290,4 @@ Opened on 2 October 2026.
 - [MediaPipe Image Segmenter](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter)
 - [LibRaw: about and licensing](https://www.libraw.org/about)
 - [ffmpeg.wasm FAQ](https://ffmpegwasm.netlify.app/docs/faq)
-- Chitthi's own [MEDIA-STUDIO.md](MEDIA-STUDIO.md) and `src/engine/` (version 2.8.0)
+- Chitthi's own [MEDIA-STUDIO.md](../MEDIA-STUDIO.md) and `src/engine/` (version 2.8.0)
