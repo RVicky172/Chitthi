@@ -1,7 +1,7 @@
 {
   "name": "Chitthi Studio",
   "short_name": "Chitthi",
-  "description": "Design postcards, calendars, framed prints and fridge magnets for Indian festivals, birthdays and seasons, then download print-ready files.",
+  "description": "One studio for what you print and what you post: postcards, calendars, framed prints and magnets with print-ready files, and Instagram posts, Reels, Shorts and YouTube videos at each platform's exact size.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

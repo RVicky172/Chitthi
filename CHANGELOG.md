@@ -22,6 +22,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Home page: Chitthi Studio as one studio for what you print and what you post. A new hero, the two studios side by
+  side, a section per platform (Instagram posts and carousels, Reels and Shorts, YouTube) with its sizes, limits and
+  formats beside the real editor, and the photo editor's new tools; the print sections follow under "Print studio".
 - Photo & video studio: looks and colour sliders run on the graphics card (WebGPU, or WebGL2), with the same pixels as
   before: about 4× faster per frame on WebGPU and 2× on WebGL2. On by default; **Settings → Photo & video effects**
   turns it off. Browsers without GPU access keep the previous path.
