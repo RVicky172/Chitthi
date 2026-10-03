@@ -18,6 +18,7 @@ each step is tested, and what must be true before the next phase starts. Every l
 | P0.7 Loading and budgets | Done | GPU code is in the media studio's chunk; backends load with `import()`. `check-bundle.mjs` fails if shader code reaches the entry chunk |
 | P0.8 Desktop frame path for big files | Not needed | Video clips are already read lazily from disk: export uses Mediabunny's `BlobSource` over the picked `File` (reads only the byte ranges it needs) and playback uses `blob:` URLs, which the browser streams. Only music is read whole, for its waveform. Revisit with proxies (P2.11) |
 | P0.9 Switch over | Done | GPU effects on by default; off is remembered. Measured per 1080 × 1350 frame with a look: Canvas 2D 23–25 ms, WebGL2 11 ms, WebGPU 6 ms (self-test note) |
+| P1.1 Light and white balance | Done | `engine/light.ts`: exposure, highlights, shadows, whites, blacks, temperature, tint in linear light, and the eyedropper (`neutralise()`, closed form). `LIGHT_PROGRAM` on the GPU. Look and light round to 8 bits once, together: rounding in between was magnified up to 7 levels by strong shadow lifts. Brightness and warmth were **not** remapped (no saved edits exist and remapping would change their look): they keep working and show in the photo inspector only when set. Parity: worst 2, mean 0.035 (chart) and 0.057 (photos, 140 frames) |
 
 ## How the work is organised
 

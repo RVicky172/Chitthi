@@ -1,6 +1,7 @@
 import { colourNeutral, DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
 import { gpuColour } from './gpu/apply';
 import { gpu } from './gpu/device';
+import { lightNeutral, lookLightPixels } from './light';
 import { lookPixels } from './photo';
 
 /*
@@ -89,9 +90,13 @@ export function showsBackground(sw: number, sh: number, e: IgEdit, W: number, H:
   return p.cx - p.dw / 2 > 0.5 || p.cy - p.dh / 2 > 0.5 || p.cx + p.dw / 2 < W - 0.5 || p.cy + p.dh / 2 < H - 0.5;
 }
 
-/** The look, then brightness, contrast, saturation and warmth, on raw RGBA pixels. Transparent pixels are skipped. */
+/**
+ * The look, then light and white balance (engine/light.ts), then brightness, contrast, saturation and warmth, on raw
+ * RGBA pixels, rounding to 8 bits after the look (or after look and light together) and at the end. Transparent pixels are skipped. The GPU path (gpu/colour.ts) mirrors it.
+ */
 export function adjustPixels(a: Uint8ClampedArray, e: Adjustments): void {
-  lookPixels(a, e.look);
+  if (lightNeutral(e)) lookPixels(a, e.look);
+  else lookLightPixels(a, e);
   if (!e.brightness && !e.contrast && !e.saturation && !e.warmth) return;
   const br = (clamp(e.brightness, -100, 100) / 100) * 64,
     ct = 1 + clamp(e.contrast, -100, 100) / 125,

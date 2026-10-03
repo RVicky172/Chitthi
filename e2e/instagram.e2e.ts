@@ -72,3 +72,33 @@ test('the photo studio has no serious accessibility problems', async ({ page }) 
   const serious = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
   expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) e.g. ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
 });
+
+test('light and white balance: sliders, and the eyedropper sets temperature and tint from a click', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(2, 3));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  for (const id of ['ex', 'hi', 'sh', 'wh', 'bl', 'te', 'ti']) await expect(page.locator(`#ig-${id}`)).toBeVisible();
+  await expect(page.getByRole('slider', { name: /^Exposure/ })).toBeVisible();
+  await page.locator('#ig-ex').fill('1.5');
+  await expect(page.locator('label[for="ig-ex"] output')).toHaveText('1.50');
+  // Eyedropper: pick, click the photo, and the white balance moves off zero.
+  await page.getByRole('button', { name: 'Pick a neutral grey' }).click();
+  await expect(page.locator('.mst-canvas')).toHaveClass(/picking/);
+  await expect(page.locator('.mst-canvas')).toBeInViewport();
+  const cv = (await page.locator('.mst-canvas').boundingBox())!;
+  await page.locator('.mst-canvas').click({ position: { x: cv.width * 0.5, y: cv.height * 0.55 } });
+  await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
+  const wb = await page.locator('label[for="ig-te"] output, label[for="ig-ti"] output').allTextContents();
+  expect(wb.some((v) => v !== '0')).toBe(true);
+  // One undo step takes the eyedropper back.
+  await page.getByRole('button', { name: 'Undo (Ctrl+Z)' }).click();
+  await expect(page.locator('label[for="ig-te"] output')).toHaveText('0');
+  await expect(page.locator('label[for="ig-ti"] output')).toHaveText('0');
+  // Escape cancels picking.
+  await page.getByRole('button', { name: 'Pick a neutral grey' }).click();
+  await page.locator('.mst-canvas').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
+  expect(errors).toEqual([]);
+});

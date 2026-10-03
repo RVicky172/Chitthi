@@ -63,6 +63,7 @@ import {
   ZoomIn,
   ZoomOut,
   type LucideProps,
+  Pipette,
 } from 'lucide-react';
 import type { PaneId, ProductId } from '../types';
 
@@ -122,6 +123,7 @@ export const RotateRightIcon = () => <RotateCw {...base} />;
 export const FlipIcon = () => <FlipHorizontal2 {...base} />;
 export const ShareIcon = () => <Share2 {...base} />;
 export const AdjustIcon = () => <SlidersHorizontal {...base} />;
+export const PipetteIcon = () => <Pipette {...base} />;
 export const ReelIcon = () => <Clapperboard {...base} />;
 export const YouTubeIcon = () => <MonitorPlay {...base} />;
 export const ImageIcon = () => <Image {...base} />;

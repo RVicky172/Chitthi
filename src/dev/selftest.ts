@@ -278,6 +278,7 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
     { brightness: 35, contrast: 20 },
     { saturation: -60, warmth: 40, vignette: 50 },
     { contrast: 100, brightness: -40 },
+    { exposure: 0.7, highlights: -60, shadows: 50, temperature: -40, tint: 20 },
   ];
   const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
     const c = document.createElement('canvas');
@@ -377,7 +378,19 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
   const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
   const input = dev.upload(bmp, N, N),
     pool = new TexturePool(dev);
-  const sliders = [{}, { brightness: 40 }, { contrast: -60 }, { saturation: 80, warmth: -50 }, { brightness: -100, contrast: 100 }, { saturation: -100, warmth: 100 }];
+  const sliders = [
+    {},
+    { brightness: 40 },
+    { contrast: -60 },
+    { saturation: 80, warmth: -50 },
+    { brightness: -100, contrast: 100 },
+    { saturation: -100, warmth: 100 },
+    // Light and white balance (P1.1).
+    { exposure: 1.2 },
+    { exposure: -1.5, highlights: -80, shadows: 70 },
+    { temperature: 80, tint: -50, whites: 60, blacks: -60 },
+    { exposure: 0.5, shadows: 100, contrast: 30 },
+  ];
   let max = 0,
     bad = '',
     sum = 0,

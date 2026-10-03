@@ -60,9 +60,18 @@ hashtags). Re-check these when Instagram changes its app; only `src/data/instagr
 The Photos editor's tools are in the rail; the selected photo or layer is edited in the inspector.
 
 **The photo** (inspector, when no layer is selected). **Fill the frame** (cropped) or **Whole photo** (with a colour or blurred-photo background), zoom (1–4×),
-position by dragging or arrow keys, rotate, mirror, six filters (the same looks as the print studio), and brightness,
-contrast, saturation, warmth and vignette. **Apply this look to all photos** copies the frame, background, filter and
-adjustments, but not the position or rotation. The first photo is the cover; drag photos in the strip to reorder them
+position by dragging or arrow keys, rotate, mirror, six filters (the same looks as the print studio), then:
+
+- **Light:** exposure (±4 stops), contrast, highlights, shadows, whites and blacks.
+- **Colour:** temperature and tint, with **Pick a neutral grey** (click something that should be grey or white and the
+  white balance is set from it; Escape cancels), and saturation.
+- **Effects:** vignette.
+
+Exposure, white balance and the four tone sliders work in linear light (`src/engine/light.ts`): exposure behaves like
+the camera's, white balance like changing the light, and the tone sliders move the brightness of all three channels
+together so colours keep their hue. Brightness and warmth from 2.8 still work (the video editor and older edits use
+them) and appear in the photo inspector only when set. **Apply this look to all photos** copies the frame, background,
+filter and adjustments, but not the position or rotation. The first photo is the cover; drag photos in the strip to reorder them
 (or Alt + ← / → on a focused thumbnail).
 
 **Text, Elements and Layers** (rail). Layers over the photo, edited in the inspector when selected:

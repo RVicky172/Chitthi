@@ -57,6 +57,8 @@ export interface IgState {
   /** The selected layer of the selected photo. */
   layerSel: string | null;
   tools: LayerTools;
+  /** The white-balance eyedropper is waiting for a click on the photo. */
+  picking: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -82,6 +84,7 @@ let state: IgState = {
   busy: null,
   layerSel: null,
   tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
+  picking: false,
   canUndo: false,
   canRedo: false,
 };
@@ -120,6 +123,7 @@ export const setIg = (patch: Partial<Pick<IgState, 'format' | 'fileType' | 'qual
 export const selectPhoto = (id: string | null) => set({ selected: id, layerSel: null });
 export const selectLayer = (id: string | null) => set({ layerSel: id });
 export const setTools = (patch: Partial<LayerTools>) => set({ tools: { ...state.tools, ...patch } });
+export const setPicking = (picking: boolean) => set({ picking });
 /** Brush width as a share of the frame width, for the current tools. */
 export const brushWidth = (t: LayerTools) => brushDef(t.brush).width * t.brushScale;
 

@@ -13,7 +13,8 @@ import {
   type IgFileType,
   type IgFormatId,
 } from '../../data/instagram';
-import type { Adjustments } from '../../engine/adjust';
+import { DEFAULT_ADJUST, type Adjustments } from '../../engine/adjust';
+import { neutralise } from '../../engine/light';
 import { placement, renderIg, showsBackground, type IgEdit, type IgRotation } from '../../engine/instagram';
 import { drawLayers, drawSelection, layerBox } from '../../engine/layers';
 import { MAX_MB } from '../../engine/photo';
@@ -44,6 +45,7 @@ import {
   setIg,
   setLayers,
   setLimit,
+  setPicking,
   setTools,
   undo,
   updateLayer,
@@ -59,6 +61,7 @@ import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPoint
 import {
   AddPhotoIcon,
   AdjustIcon,
+  PipetteIcon,
   BrushIcon,
   DownloadIcon,
   FlipIcon,
@@ -422,6 +425,34 @@ function PhotoStage({ item }: { item: IgItem }) {
     editPhoto(item.id, map[e.key]);
     return true;
   };
+  const picking = useIg((s) => s.picking);
+  // The white-balance eyedropper: sample the photo with only its look applied (before white balance), 5×5 pixels around
+  // the click, and set the temperature and tint that turn that colour grey.
+  const pickGrey = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    const cv = e.currentTarget,
+      rect = cv.getBoundingClientRect(),
+      x = Math.round(((e.clientX - rect.left) / rect.width) * cv.width),
+      y = Math.round(((e.clientY - rect.top) / rect.height) * cv.height);
+    const off = document.createElement('canvas');
+    off.width = cv.width;
+    off.height = cv.height;
+    const ox = off.getContext('2d', { willReadFrequently: true });
+    if (!ox) return;
+    const look = { ...item.edit, adjust: { ...DEFAULT_ADJUST, look: item.edit.adjust.look } };
+    renderIg(ox, item.preview, item.preview.width, item.preview.height, look, off.width, off.height);
+    const d = ox.getImageData(Math.max(0, x - 2), Math.max(0, y - 2), 5, 5).data;
+    let r = 0,
+      g = 0,
+      b = 0;
+    for (let k = 0; k < d.length; k += 4) {
+      r += d[k];
+      g += d[k + 1];
+      b += d[k + 2];
+    }
+    const n = d.length / 4;
+    adjustPhoto(item.id, neutralise(r / n, g / n, b / n));
+    setPicking(false);
+  };
   const handlers = useLayerPointer({
     canvas: ref,
     layers: item.layers,
@@ -471,13 +502,20 @@ function PhotoStage({ item }: { item: IgItem }) {
       <canvas
         ref={ref}
         tabIndex={0}
-        className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}`}
+        className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}${picking ? ' picking' : ''}`}
         style={{ width, height }}
         aria-label={`Photo ${i + 1} of ${items.length} as a ${f.ratio} Instagram post, with ${item.layers.length} layer${item.layers.length === 1 ? '' : 's'}. Drag a layer to move it, its corner handle to resize, its top handle to turn it. Drag elsewhere, or use the arrow keys, to move the photo; plus and minus zoom. Delete removes the selected layer.`}
         onDoubleClick={() => document.getElementById('layer-text')?.focus()}
         {...handlers}
+        onPointerDown={picking ? pickGrey : handlers.onPointerDown}
+        onKeyDown={(ev) => {
+          if (picking && ev.key === 'Escape') setPicking(false);
+          else handlers.onKeyDown?.(ev);
+        }}
       />
-      <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the photo' : 'Drag a layer to move it, or the photo to reposition it'}</p>
+      <p className="mst-hint">
+        {picking ? 'Click something that should be grey or white; Escape cancels' : tools.tool === 'draw' ? 'Drawing: drag on the photo' : 'Drag a layer to move it, or the photo to reposition it'}
+      </p>
     </div>
   );
 }
@@ -626,7 +664,8 @@ function EditPanel({ item }: { item: IgItem }) {
     f = igFormat(format);
   const set = (patch: Partial<IgEdit>) => editPhoto(item.id, patch);
   const a = e.adjust,
-    setA = (patch: Partial<Adjustments>) => adjustPhoto(item.id, patch);
+    setA = (patch: Partial<Adjustments>) => adjustPhoto(item.id, patch),
+    picking = useIg((s) => s.picking);
   const rotate = (by: 90 | -90) => set({ rot: ((((e.rot + by) % 360) + 360) % 360) as IgRotation, px: 0, py: 0 });
   const bgShows = showsBackground(item.preview.width, item.preview.height, e, f.w, f.h);
   return (
@@ -693,11 +732,39 @@ function EditPanel({ item }: { item: IgItem }) {
         </div>
       </div>
       <div className="ig-group">
-        <h3>Adjust</h3>
-        <Slider id="ig-br" label="Brightness" value={a.brightness} min={-100} max={100} onChange={(brightness) => setA({ brightness })} />
+        <h3>Light</h3>
+        <Slider id="ig-ex" label="Exposure" value={a.exposure} min={-4} max={4} step={0.05} onChange={(exposure) => setA({ exposure })} />
         <Slider id="ig-ct" label="Contrast" value={a.contrast} min={-100} max={100} onChange={(contrast) => setA({ contrast })} />
+        <Slider id="ig-hi" label="Highlights" value={a.highlights} min={-100} max={100} onChange={(highlights) => setA({ highlights })} />
+        <Slider id="ig-sh" label="Shadows" value={a.shadows} min={-100} max={100} onChange={(shadows) => setA({ shadows })} />
+        <Slider id="ig-wh" label="Whites" value={a.whites} min={-100} max={100} onChange={(whites) => setA({ whites })} />
+        <Slider id="ig-bl" label="Blacks" value={a.blacks} min={-100} max={100} onChange={(blacks) => setA({ blacks })} />
+        {a.brightness !== 0 && <Slider id="ig-br" label="Brightness" value={a.brightness} min={-100} max={100} onChange={(brightness) => setA({ brightness })} />}
+      </div>
+      <div className="ig-group">
+        <h3>Colour</h3>
+        <div className="inline ig-tools">
+          <button
+            type="button"
+            className="sbtn"
+            aria-pressed={picking}
+            onClick={() => {
+              setPicking(!picking);
+              // On a phone the inspector sits below the photo: bring the photo into view to be clicked.
+              if (!picking) document.querySelector('.mst-canvas')?.scrollIntoView({ block: 'nearest' });
+            }}
+          >
+            <PipetteIcon />
+            {picking ? 'Click something grey or white…' : 'Pick a neutral grey'}
+          </button>
+        </div>
+        <Slider id="ig-te" label="Temperature" value={a.temperature} min={-100} max={100} onChange={(temperature) => setA({ temperature })} />
+        <Slider id="ig-ti" label="Tint" value={a.tint} min={-100} max={100} onChange={(tint) => setA({ tint })} />
         <Slider id="ig-sa" label="Saturation" value={a.saturation} min={-100} max={100} onChange={(saturation) => setA({ saturation })} />
-        <Slider id="ig-wa" label="Warmth" value={a.warmth} min={-100} max={100} onChange={(warmth) => setA({ warmth })} />
+        {a.warmth !== 0 && <Slider id="ig-wa" label="Warmth" value={a.warmth} min={-100} max={100} onChange={(warmth) => setA({ warmth })} />}
+      </div>
+      <div className="ig-group">
+        <h3>Effects</h3>
         <Slider id="ig-vi" label="Vignette" value={a.vignette} min={0} max={100} onChange={(vignette) => setA({ vignette })} />
         <p className="hint">Double-click a slider to reset it.</p>
       </div>

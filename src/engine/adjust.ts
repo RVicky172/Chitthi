@@ -1,4 +1,5 @@
 import type { LookId } from '../types';
+import { lightNeutral } from './light';
 
 /*
  * The colour settings of a photo or a video clip, kept apart from where the picture sits in the frame (engine/instagram.ts
@@ -8,7 +9,7 @@ import type { LookId } from '../types';
  */
 
 /** Bumped when the stored shape of Adjustments changes; mergeAdjust() reads every older version. */
-export const ADJUST_VERSION = 1;
+export const ADJUST_VERSION = 2; // 2: light and white balance (P1.1); version 1 reads with them at 0
 
 export const LOOK_IDS: readonly LookId[] = ['none', 'vivid', 'warm', 'cool', 'bw', 'tinted', 'vintage'];
 
@@ -22,6 +23,15 @@ export interface Adjustments {
   warmth: number;
   /** 0 to 100: darkened corners. */
   vignette: number;
+  /** Light and white balance (engine/light.ts), in linear light. Exposure in stops, -4 to 4; the rest -100 to 100. */
+  exposure: number;
+  highlights: number;
+  shadows: number;
+  whites: number;
+  blacks: number;
+  /** Warmer (> 0) or cooler, and magenta (> 0) or green. */
+  temperature: number;
+  tint: number;
 }
 
 export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
@@ -31,6 +41,13 @@ export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
   saturation: 0,
   warmth: 0,
   vignette: 0,
+  exposure: 0,
+  highlights: 0,
+  shadows: 0,
+  whites: 0,
+  blacks: 0,
+  temperature: 0,
+  tint: 0,
 });
 
 /** The slider settings with their ranges: one table for validation, the UI and agent tools. */
@@ -40,6 +57,13 @@ export const ADJUST_RANGES = {
   saturation: [-100, 100],
   warmth: [-100, 100],
   vignette: [0, 100],
+  exposure: [-4, 4],
+  highlights: [-100, 100],
+  shadows: [-100, 100],
+  whites: [-100, 100],
+  blacks: [-100, 100],
+  temperature: [-100, 100],
+  tint: [-100, 100],
 } as const satisfies Record<Exclude<keyof Adjustments, 'look'>, readonly [number, number]>;
 
 type Slider = keyof typeof ADJUST_RANGES;
@@ -47,7 +71,7 @@ const SLIDERS = Object.keys(ADJUST_RANGES) as Slider[];
 
 /** True when the colour of the photo is left as it is (the vignette is drawn on top, so it doesn't count). */
 export const colourNeutral = (a: Adjustments): boolean =>
-  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth;
+  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth && lightNeutral(a);
 
 const num = (v: unknown, [lo, hi]: readonly [number, number]): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : 0;

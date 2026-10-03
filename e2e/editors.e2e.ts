@@ -260,7 +260,8 @@ test.describe('graphics card effects', () => {
     await page.goto('./#/instagram');
     await page.locator('.mst-drop input[type=file]').setInputFiles(SAMPLES.slice(0, 1));
     await page.getByRole('radio', { name: 'Hand-tinted' }).click();
-    await page.locator('#ig-br').fill('30');
+    await page.locator('#ig-ex').fill('0.8');
+    await page.locator('#ig-sh').fill('40');
     await page.getByRole('button', { name: 'Export', exact: true }).click();
     const zip = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
