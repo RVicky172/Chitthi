@@ -111,7 +111,8 @@ step.
 | Part | File |
 | --- | --- |
 | Formats, limits, filters | `src/data/instagram.ts` |
-| Placement, colour adjustments, drawing a post (no UI) | `src/engine/instagram.ts` |
+| Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
+| Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |

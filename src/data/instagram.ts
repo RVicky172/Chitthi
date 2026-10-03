@@ -4,6 +4,8 @@
  * photo of a carousel to the first photo's shape.
  */
 
+import type { LookId } from '../types';
+
 export type IgFormatId = 'portrait' | 'square' | 'tall' | 'landscape' | 'story';
 
 export interface IgFormat {
@@ -48,7 +50,8 @@ export const IG_FILE_TYPES: [IgFileType, string, string][] = [
 /** Above this a photo may be refused by some upload paths (Instagram's publishing API allows 8 MB). */
 export const IG_FILE_WARN_BYTES = 8 * 1024 * 1024;
 
-export type IgFilter = 'none' | 'vivid' | 'warm' | 'cool' | 'bw' | 'tinted' | 'vintage';
+/** The same looks as the print studio (LookId in types.ts). */
+export type IgFilter = LookId;
 export const IG_FILTERS: [IgFilter, string][] = [
   ['none', 'Original'],
   ['vivid', 'Vivid'],

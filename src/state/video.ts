@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, type IgEdit } from '../engine/instagram';
 import type { Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
@@ -415,6 +416,10 @@ export function updateClip(id: string, patch: Partial<VClip>, key = `clip:${id}:
 export const editClip = (id: string, patch: Partial<IgEdit>) => {
   const c = state.clips.find((x) => x.id === id);
   if (c) updateClip(id, { edit: { ...c.edit, ...patch } }, `clipedit:${id}:${Object.keys(patch).sort().join(',')}`);
+};
+export const adjustClip = (id: string, patch: Partial<Adjustments>) => {
+  const c = state.clips.find((x) => x.id === id);
+  if (c) updateClip(id, { edit: { ...c.edit, adjust: { ...c.edit.adjust, ...patch } } }, `clipadjust:${id}:${Object.keys(patch).sort().join(',')}`);
 };
 
 export function removeClip(id: string): void {

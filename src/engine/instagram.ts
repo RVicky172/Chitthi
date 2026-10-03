@@ -1,9 +1,9 @@
-import type { IgFilter } from '../data/instagram';
+import { colourNeutral, DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
 import { lookPixels } from './photo';
 
 /*
- * The Instagram studio's picture engine, free of UI code: where a photo sits in the frame, the colour adjustments, and
- * drawing one finished post at any scale. The preview and the exported files go through the same renderIg(), so what
+ * The Instagram studio's picture engine, free of UI code: where a photo sits in the frame, applying its colour settings
+ * (engine/adjust.ts), and drawing one finished post at any scale. The preview and the exported files go through the same renderIg(), so what
  * the user sees is what they post.
  */
 
@@ -21,14 +21,8 @@ export interface IgEdit {
   py: number;
   rot: IgRotation;
   flip: boolean;
-  filter: IgFilter;
-  /** -100 to 100, 0 = unchanged. */
-  brightness: number;
-  contrast: number;
-  saturation: number;
-  warmth: number;
-  /** 0 to 100: darkened corners. */
-  vignette: number;
+  /** Colour: look, sliders and vignette. */
+  adjust: Adjustments;
 }
 
 export const DEFAULT_EDIT: IgEdit = {
@@ -39,18 +33,34 @@ export const DEFAULT_EDIT: IgEdit = {
   py: 0,
   rot: 0,
   flip: false,
-  filter: 'none',
-  brightness: 0,
-  contrast: 0,
-  saturation: 0,
-  warmth: 0,
-  vignette: 0,
+  adjust: { ...DEFAULT_ADJUST },
 };
 
 /** The edits that "Apply to all" copies: the look of a photo, not where it is placed. */
-export const LOOK_KEYS = ['fit', 'bg', 'filter', 'brightness', 'contrast', 'saturation', 'warmth', 'vignette'] as const;
+export const LOOK_KEYS = ['fit', 'bg', 'adjust'] as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+const ROTATIONS: readonly IgRotation[] = [0, 90, 180, 270];
+
+/**
+ * The single gate for photo and clip edits from outside the running app (presets, project files, agent tools): returns
+ * a complete, valid IgEdit. Reads 2.x edits, whose colour settings sat directly in the edit (see mergeAdjust).
+ */
+export function mergeEdit(raw: unknown): IgEdit {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const n = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d);
+  return {
+    fit: o.fit === 'fit' ? 'fit' : 'fill',
+    bg: o.bg === 'blur' || (typeof o.bg === 'string' && /^#[0-9a-f]{6}$/i.test(o.bg)) ? (o.bg as string) : DEFAULT_EDIT.bg,
+    zoom: n(o.zoom, 1, 4, 1),
+    px: n(o.px, -1, 1, 0),
+    py: n(o.py, -1, 1, 0),
+    rot: ROTATIONS.includes(o.rot as IgRotation) ? (o.rot as IgRotation) : 0,
+    flip: o.flip === true,
+    adjust: mergeAdjust(o.adjust ?? o),
+  };
+}
 
 /**
  * Where the photo is drawn in a W×H frame: its centre and its size once rotated. sw × sh is the photo's own size.
@@ -77,12 +87,9 @@ export function showsBackground(sw: number, sh: number, e: IgEdit, W: number, H:
   return p.cx - p.dw / 2 > 0.5 || p.cy - p.dh / 2 > 0.5 || p.cx + p.dw / 2 < W - 0.5 || p.cy + p.dh / 2 < H - 0.5;
 }
 
-export const neutralColour = (e: IgEdit): boolean =>
-  e.filter === 'none' && !e.brightness && !e.contrast && !e.saturation && !e.warmth;
-
-/** The filter, then brightness, contrast, saturation and warmth, on raw RGBA pixels. Transparent pixels are skipped. */
-export function adjustPixels(a: Uint8ClampedArray, e: Pick<IgEdit, 'filter' | 'brightness' | 'contrast' | 'saturation' | 'warmth'>): void {
-  lookPixels(a, e.filter);
+/** The look, then brightness, contrast, saturation and warmth, on raw RGBA pixels. Transparent pixels are skipped. */
+export function adjustPixels(a: Uint8ClampedArray, e: Adjustments): void {
+  lookPixels(a, e.look);
   if (!e.brightness && !e.contrast && !e.saturation && !e.warmth) return;
   const br = (clamp(e.brightness, -100, 100) / 100) * 64,
     ct = 1 + clamp(e.contrast, -100, 100) / 125,
@@ -156,7 +163,7 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
   }
 
   // The photo, on its own layer so the colour adjustments leave the background alone.
-  if (neutralColour(e)) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
+  if (colourNeutral(e.adjust)) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
   else {
     const layer = canvas(W, H),
       lx = layer.getContext('2d', { willReadFrequently: true });
@@ -164,16 +171,17 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
       lx.imageSmoothingQuality = 'high';
       drawPhoto(lx, p.cx, p.cy, p.dw, p.dh);
       const d = lx.getImageData(0, 0, layer.width, layer.height);
-      adjustPixels(d.data, e);
+      adjustPixels(d.data, e.adjust);
       lx.putImageData(d, 0, 0);
       ctx.drawImage(layer, 0, 0, W, H);
     }
   }
 
-  if (e.vignette > 0) {
+  const vignette = e.adjust.vignette;
+  if (vignette > 0) {
     const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) / 2);
     g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, `rgba(0,0,0,${(clamp(e.vignette, 0, 100) / 100) * 0.6})`);
+    g.addColorStop(1, `rgba(0,0,0,${(clamp(vignette, 0, 100) / 100) * 0.6})`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }

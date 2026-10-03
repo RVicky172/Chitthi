@@ -12,6 +12,7 @@ import {
   addMedia,
   addVLayer,
   cancelExport,
+  adjustClip,
   editClip,
   endVStep,
   exportVideo,
@@ -528,15 +529,15 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
         <h3>Colour</h3>
         <div className="chips" role="radiogroup" aria-label="Filter">
           {IG_FILTERS.map(([id, label]) => (
-            <button key={id} type="button" role="radio" className="chip" aria-checked={e.filter === id} onClick={() => editClip(c.id, { filter: id })}>
+            <button key={id} type="button" role="radio" className="chip" aria-checked={e.adjust.look === id} onClick={() => adjustClip(c.id, { look: id })}>
               {label}
             </button>
           ))}
         </div>
-        <Range id="v-br" label="Brightness" value={e.brightness} min={-100} max={100} step={1} show={String(e.brightness)} onChange={(brightness) => editClip(c.id, { brightness })} />
-        <Range id="v-ct" label="Contrast" value={e.contrast} min={-100} max={100} step={1} show={String(e.contrast)} onChange={(contrast) => editClip(c.id, { contrast })} />
-        <Range id="v-sa" label="Saturation" value={e.saturation} min={-100} max={100} step={1} show={String(e.saturation)} onChange={(saturation) => editClip(c.id, { saturation })} />
-        <Range id="v-wa" label="Warmth" value={e.warmth} min={-100} max={100} step={1} show={String(e.warmth)} onChange={(warmth) => editClip(c.id, { warmth })} />
+        <Range id="v-br" label="Brightness" value={e.adjust.brightness} min={-100} max={100} step={1} show={String(e.adjust.brightness)} onChange={(brightness) => adjustClip(c.id, { brightness })} />
+        <Range id="v-ct" label="Contrast" value={e.adjust.contrast} min={-100} max={100} step={1} show={String(e.adjust.contrast)} onChange={(contrast) => adjustClip(c.id, { contrast })} />
+        <Range id="v-sa" label="Saturation" value={e.adjust.saturation} min={-100} max={100} step={1} show={String(e.adjust.saturation)} onChange={(saturation) => adjustClip(c.id, { saturation })} />
+        <Range id="v-wa" label="Warmth" value={e.adjust.warmth} min={-100} max={100} step={1} show={String(e.adjust.warmth)} onChange={(warmth) => adjustClip(c.id, { warmth })} />
       </div>
     </div>
   );

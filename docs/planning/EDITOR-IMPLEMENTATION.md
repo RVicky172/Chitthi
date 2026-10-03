@@ -5,6 +5,12 @@ Status: plan, not started. Written 3 October 2026 against version 2.8.0. It turn
 each step is tested, and what must be true before the next phase starts. Every library it adds goes through
 [LICENSING.md](../LICENSING.md) first.
 
+## Progress
+
+| Item | State | Notes |
+| --- | --- | --- |
+| P0.1 Edit model split | Done | `engine/adjust.ts` (`Adjustments`, `mergeAdjust()`), `IgEdit.adjust`, `mergeEdit()`; colour edits through `adjustPhoto` / `adjustClip` |
+
 ## How the work is organised
 
 - **Four phases, each a release.** Phase 0 → 2.9.0, Phase 1 → 2.10.0, Phase 2 → 3.0.0 (the project format changes),
