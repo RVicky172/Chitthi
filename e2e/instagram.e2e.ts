@@ -72,3 +72,105 @@ test('the photo studio has no serious accessibility problems', async ({ page }) 
   const serious = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
   expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) e.g. ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
 });
+
+test('light and white balance: sliders, and the eyedropper sets temperature and tint from a click', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(2, 3));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  for (const id of ['ex', 'hi', 'sh', 'wh', 'bl', 'te', 'ti']) await expect(page.locator(`#ig-${id}`)).toBeVisible();
+  await expect(page.getByRole('slider', { name: /^Exposure/ })).toBeVisible();
+  await page.locator('#ig-ex').fill('1.5');
+  await expect(page.locator('label[for="ig-ex"] output')).toHaveText('1.50');
+  // Eyedropper: pick, click the photo, and the white balance moves off zero.
+  await page.getByRole('button', { name: 'Pick a neutral grey' }).click();
+  await expect(page.locator('.mst-canvas')).toHaveClass(/picking/);
+  await expect(page.locator('.mst-canvas')).toBeInViewport();
+  const cv = (await page.locator('.mst-canvas').boundingBox())!;
+  await page.locator('.mst-canvas').click({ position: { x: cv.width * 0.5, y: cv.height * 0.55 } });
+  await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
+  const wb = await page.locator('label[for="ig-te"] output, label[for="ig-ti"] output').allTextContents();
+  expect(wb.some((v) => v !== '0')).toBe(true);
+  // One undo step takes the eyedropper back.
+  await page.getByRole('button', { name: 'Undo (Ctrl+Z)' }).click();
+  await expect(page.locator('label[for="ig-te"] output')).toHaveText('0');
+  await expect(page.locator('label[for="ig-ti"] output')).toHaveText('0');
+  // Escape cancels picking.
+  await page.getByRole('button', { name: 'Pick a neutral grey' }).click();
+  await page.locator('.mst-canvas').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
+  expect(errors).toEqual([]);
+});
+
+test('tone curve works from the keyboard, and the colour mixer changes the photo', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(1, 2));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const before = await shot();
+
+  const curve = page.getByRole('group', { name: /^Tone curve, RGB/ });
+  await expect(curve).toBeVisible();
+  // Lift the black point with the keyboard.
+  const first = curve.getByRole('button', { name: /^Point 1 of 2/ });
+  await first.focus();
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowUp');
+  await expect(first).toHaveAccessibleName(/output 30/);
+  // Add a point, nudge it, then delete it.
+  await page.getByRole('button', { name: 'Add point' }).click();
+  const mid = curve.getByRole('button', { name: /^Point 2 of 3/ });
+  await mid.focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Delete');
+  await expect(curve.getByRole('button', { name: /^Point \d of 2/ })).toHaveCount(2);
+  await expect.poll(shot).not.toBe(before);
+  // A click in the middle of the graph adds a point there (input and output about 128).
+  await page.getByRole('button', { name: 'Reset RGB' }).click();
+  const box = (await curve.boundingBox())!;
+  await curve.click({ position: { x: box.width / 2, y: box.height / 2 } });
+  const name = (await curve.getByRole('button', { name: /^Point 2 of 3/ }).getAttribute('aria-label'))!;
+  const [, inp, out] = /input (\d+), output (\d+)/.exec(name)!.map(Number);
+  expect(Math.abs(inp - 128)).toBeLessThan(6);
+  expect(Math.abs(out - 128)).toBeLessThan(6);
+  // Other channels have their own curve.
+  await page.getByRole('group', { name: 'Curve channel' }).getByRole('button', { name: 'Red' }).click();
+  await expect(page.getByRole('group', { name: /^Tone curve, Red/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Reset Red' }).isDisabled();
+
+  // Colour mixer: saturation of the oranges down; the photo changes; reset brings the slider back.
+  await page.getByRole('group', { name: 'Colour mixer setting' }).getByRole('button', { name: 'Saturation' }).click();
+  const afterCurve = await shot();
+  await page.locator('#ig-mix-sat-orange').fill('-80');
+  await expect(page.locator('label[for="ig-mix-sat-orange"] output')).toHaveText('-80');
+  await expect.poll(shot).not.toBe(afterCurve);
+  await page.getByRole('button', { name: 'Reset saturation' }).click();
+  await expect(page.locator('label[for="ig-mix-sat-orange"] output')).toHaveText('0');
+  expect(errors).toEqual([]);
+});
+
+test('detail and effects: sharpening with its radius, noise reduction, clarity, dehaze and grain, exported', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  // Radius and masking appear once sharpening is on; a double-click puts the radius back to 1 px.
+  await expect(page.locator('#ig-sr')).toHaveCount(0);
+  await page.locator('#ig-sp').fill('60');
+  await page.locator('#ig-sr').fill('2.5');
+  await expect(page.locator('label[for="ig-sr"] output')).toHaveText('2.50');
+  await page.locator('#ig-sr').dblclick();
+  await expect(page.locator('label[for="ig-sr"] output')).toHaveText('1.00');
+  for (const [id, v] of [['ig-nr', '50'], ['ig-cl', '60'], ['ig-dh', '40'], ['ig-gr', '50']] as const) {
+    const before = await shot();
+    await page.locator(`#${id}`).fill(v);
+    await expect.poll(shot, { message: `${id} changes the photo` }).not.toBe(before);
+  }
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const zip = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
+  expect(readFileSync(await (await zip).path()).toString('latin1')).toContain('chitthi-instagram-4x5-01.jpg');
+  expect(errors).toEqual([]);
+});

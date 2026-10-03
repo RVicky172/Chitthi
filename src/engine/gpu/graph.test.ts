@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ADJUST } from '../adjust';
 import { ADJUST_PROGRAM, adjustUniforms, colourNodes, LOOK_PROGRAM } from './colour';
-import { runNodes, TexturePool } from './graph';
+import { detailNodes } from './detail';
+import { runNodes, SPARES, TexturePool } from './graph';
 import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from './types';
 
 /** A device that only records what it was asked to do. */
@@ -82,13 +83,72 @@ describe('runNodes', () => {
     // The upload plus two ping-pong targets, however many frames ran.
     expect(made()).toBe(3);
   });
-  it('keeps at most two spare textures per size and releases the rest', () => {
+  it('keeps at most SPARES spare textures per size and releases the rest', () => {
     const { dev, released } = fakeDevice();
     const pool = new TexturePool(dev);
-    const ts = [1, 2, 3].map(() => pool.take(4, 4));
+    const ts = Array.from({ length: SPARES + 1 }, () => pool.take(4, 4));
     ts.forEach((t) => pool.give(t));
-    expect(released).toEqual([ts[2]]);
+    expect(released).toEqual([ts[SPARES]]);
     pool.clear();
-    expect(released).toHaveLength(3);
+    expect(released).toHaveLength(SPARES + 1);
+  });
+});
+
+describe('detail nodes and branching graphs', () => {
+  it('wire each effect to its blur: sharpening reads the picture and its blurred copy', () => {
+    const colour = colourNodes({ ...DEFAULT_ADJUST, look: 'warm' });
+    const nodes = detailNodes({ ...DEFAULT_ADJUST, sharpen: 50 }, 100, 80, colour.length);
+    expect(nodes.map((n) => n.program.id)).toEqual(['blur', 'blur', 'sharpen']);
+    // The first blur reads the colour step (node 0); the sharpen reads node 0 and the second blur (node 2).
+    expect(nodes[0].inputs).toEqual([0]);
+    expect(nodes[2].inputs).toEqual([0, 2]);
+    // The last step rounds to 8 bits; none of the others do.
+    expect(nodes[2].uniforms[4]).toBe(1);
+  });
+  it('run every effect in order: noise, dehaze, clarity, sharpening, grain', () => {
+    const nodes = detailNodes(
+      { ...DEFAULT_ADJUST, noise: 30, dehaze: 20, clarity: 40, sharpen: 50, grain: 20 },
+      100,
+      80,
+      0,
+    );
+    expect(nodes.map((n) => n.program.id)).toEqual([
+      'denoise',
+      'dark',
+      'blur',
+      'blur',
+      'dehaze',
+      'blur',
+      'blur',
+      'clarity',
+      'blur',
+      'blur',
+      'sharpen',
+      'grain',
+    ]);
+    expect(nodes[0].inputs).toEqual(['source']);
+    expect(nodes.filter((n) => n.uniforms[4] === 1 && n.program.id !== 'blur').map((n) => n.program.id)).toEqual([
+      'grain',
+    ]);
+  });
+  it('give every intermediate texture back to the pool: no leaks frame after frame', () => {
+    const { dev, made } = fakeDevice();
+    const pool = new TexturePool(dev);
+    const input = dev.upload({} as TexImageSource, 8, 8);
+    const nodes = detailNodes({ ...DEFAULT_ADJUST, dehaze: 20, clarity: 40, sharpen: 50, grain: 20 }, 8, 8, 0);
+    for (let frame = 0; frame < 20; frame++) pool.give(runNodes(dev, pool, input, nodes));
+    const first = made();
+    for (let frame = 0; frame < 20; frame++) pool.give(runNodes(dev, pool, input, nodes));
+    expect(made()).toBe(first);
+  });
+  it('refuse a node that reads one after it', () => {
+    const { dev } = fakeDevice();
+    const input = dev.upload({} as TexImageSource, 4, 4);
+    expect(() =>
+      runNodes(dev, new TexturePool(dev), input, [
+        { program: COPY_PROGRAM, uniforms: new Float32Array(4), inputs: [1] },
+        { program: COPY_PROGRAM, uniforms: new Float32Array(4) },
+      ]),
+    ).toThrow(/comes after/);
   });
 });

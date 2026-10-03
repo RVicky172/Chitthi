@@ -29,7 +29,7 @@ export interface GpuProgram {
   id: string;
   /** How many input textures it reads (0–4). */
   inputs: number;
-  /** How many vec4 uniforms it reads (1–16). */
+  /** How many vec4 uniforms it reads (1–128; WebGL2 guarantees 224 per fragment shader). */
   uniforms: number;
   glsl: string;
   wgsl: string;

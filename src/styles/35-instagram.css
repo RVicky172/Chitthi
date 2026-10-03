@@ -701,3 +701,54 @@
   height: 10px;
   accent-color: var(--accent);
 }
+
+/* Tone curve and colour mixer (P1.2) */
+.curve {
+  display: grid;
+  gap: 8px;
+}
+.curve-graph {
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 1;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  touch-action: none;
+  cursor: crosshair;
+}
+.curve-area {
+  fill: none;
+  stroke: var(--line);
+}
+.curve-grid line,
+.curve-diag {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.curve-diag {
+  stroke-dasharray: 3 4;
+}
+.curve-pt {
+  fill: var(--field);
+  stroke: var(--text);
+  stroke-width: 2;
+  cursor: grab;
+}
+.curve-pt:focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.mixer {
+  display: grid;
+  gap: 4px;
+}
+.mixer-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 0;
+}

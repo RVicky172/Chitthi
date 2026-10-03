@@ -50,7 +50,57 @@ function applyLook(cv: HTMLCanvasElement, look: LookId): void {
   x.putImageData(d, 0, 0);
 }
 
-/** The colour looks, on raw RGBA pixels (shared with the Instagram studio, engine/instagram.ts). */
+/** One pixel through a look (0–255 in, 0–255 out, neither rounded nor clamped), written into out (no allocation per pixel). */
+export function lookPixel(r: number, g: number, b: number, look: LookId, out: number[]): void {
+  const l = 0.299 * r + 0.587 * g + 0.114 * b;
+  switch (look) {
+    case 'bw':
+      r = g = b = (l - 128) * 1.08 + 128;
+      break;
+    case 'warm':
+      r *= 1.08;
+      g *= 1.02;
+      b *= 0.88;
+      break;
+    case 'cool':
+      r *= 0.9;
+      g *= 1.01;
+      b *= 1.1;
+      break;
+    case 'vivid':
+      r = (l + (r - l) * 1.35 - 128) * 1.06 + 128;
+      g = (l + (g - l) * 1.35 - 128) * 1.06 + 128;
+      b = (l + (b - l) * 1.35 - 128) * 1.06 + 128;
+      break;
+    case 'tinted': {
+      // Hand-tinted: a black-and-white print on warm paper, with thin washes of colour laid back in only where the
+      // photo was strongly coloured (a sari, marigolds, a turban), the way studio photographs were once painted.
+      const hi = Math.max(r, g, b),
+        sat = hi ? (hi - Math.min(r, g, b)) / hi : 0,
+        wash = Math.min(1, Math.max(0, (sat - 0.28) / 0.42)) * 0.62,
+        base = (l - 128) * 1.06 + 128;
+      r = base * 1.015 + 4 + (r - l) * wash;
+      g = base * 0.995 + 2 + (g - l) * wash;
+      b = base * 0.955 + 1 + (b - l) * wash;
+      break;
+    }
+    case 'vintage':
+      r = r * 0.45 + (l * 1.07 + 20) * 0.55;
+      g = g * 0.45 + (l * 0.95 + 12) * 0.55;
+      b = b * 0.45 + (l * 0.78 + 10) * 0.55;
+      break;
+    default:
+      break;
+  }
+  out[0] = r;
+  out[1] = g;
+  out[2] = b;
+}
+
+/**
+ * The colour looks, on raw RGBA pixels (shared with the Instagram studio, engine/instagram.ts). The same formulas as
+ * lookPixel(), kept inline in this loop because a call per pixel makes it 2–3× slower; photo.test.ts checks they agree.
+ */
 export function lookPixels(a: Uint8ClampedArray, look: LookId): void {
   if (look === 'none') return;
   for (let i = 0; i < a.length; i += 4) {

@@ -1,6 +1,7 @@
 # Photo & video editor: advanced features plan
 
-Status: plan, not started. Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
+Status: in progress (Phase 0 done; Phase 1 under way); the status of each work item is tracked in
+[EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md#progress). Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
 [Claude doc](https://claude.ai/code/artifact/685d86eb-2eba-4f4d-b6f2-08559f401907). What exists today is in
 [MEDIA-STUDIO.md](../MEDIA-STUDIO.md). How to build it, step by step: [EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md).
 Licence rules for every library it adds: [LICENSING.md](../LICENSING.md).
@@ -239,12 +240,15 @@ flowchart LR
 Four phases, about 34 to 42 weeks for one full-time developer, each ending at a gate that must pass before the next
 starts. Phase 0 delivers nothing visible but is what makes every later phase cheap.
 
-| Phase | Effort (estimate, one developer) | Web and desktop | Desktop only | Gate to the next phase |
-| --- | --- | --- | --- | --- |
-| 0. Foundation | about 6 to 8 weeks | GPU render graph with WebGL2 fallback; today's looks ported to shaders; golden-image parity tests | Native frame path for big files | Exports match today's Canvas 2D output |
-| 1. Advanced photo | about 8 to 10 weeks | Light, curves, HSL, white balance; detail, LUTs, saved presets; brush, gradient and AI masks | RAW via LibRaw; 16-bit TIFF export | Masked edits stay smooth at 1080p on the web |
-| 2. Timeline | about 10 to 12 weeks | Tracks, ripple and roll edits; keyframes, transitions, speed; audio tracks, voice-over, ducking | Proxies and frame cache; longer, larger projects | A 4K multi-track timeline plays smoothly on desktop |
-| 3. Colour and finish | about 10 to 12 weeks | Wheels, curves, qualifiers, LUTs; scopes and auto captions; spot heal and clone | HEVC 10-bit, ProRes, HDR; AI object removal | Last phase |
+The **Progress** column is updated as work lands; every work item's own status is in
+[EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md#progress).
+
+| Phase | Progress | Effort (estimate, one developer) | Web and desktop | Desktop only | Gate to the next phase |
+| --- | --- | --- | --- | --- | --- |
+| 0. Foundation | **Done** (9 of 9; merged in #18) | about 6 to 8 weeks | GPU render graph with WebGL2 fallback; today's looks ported to shaders; golden-image parity tests | Native frame path for big files | Exports match today's Canvas 2D output |
+| 1. Advanced photo | **In progress** (3 of 12: light and white balance, tone curve and colour mixer, detail and effects) | about 8 to 10 weeks | Light, curves, HSL, white balance; detail, LUTs, saved presets; brush, gradient and AI masks | RAW via LibRaw; 16-bit TIFF export | Masked edits stay smooth at 1080p on the web |
+| 2. Timeline | To do (0 of 12) | about 10 to 12 weeks | Tracks, ripple and roll edits; keyframes, transitions, speed; audio tracks, voice-over, ducking | Proxies and frame cache; longer, larger projects | A 4K multi-track timeline plays smoothly on desktop |
+| 3. Colour and finish | To do (0 of 9) | about 10 to 12 weeks | Wheels, curves, qualifiers, LUTs; scopes and auto captions; spot heal and clone | HEVC 10-bit, ProRes, HDR; AI object removal | Last phase |
 
 Each phase ships as its own release with docs, self-test checks and MCP tools for its features. The efforts are
 estimates from the size of the current engines, not measured; refine them after Phase 0, when the shader pattern is

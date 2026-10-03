@@ -1,6 +1,8 @@
-import { colourNeutral, DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
+import { DEFAULT_ADJUST, mergeAdjust, pixelsNeutral, type Adjustments } from './adjust';
+import { DETAIL_WIDTH, detailPixels } from './detail';
 import { gpuColour } from './gpu/apply';
 import { gpu } from './gpu/device';
+import { chainNeutral, chainPixels } from './chain';
 import { lookPixels } from './photo';
 
 /*
@@ -89,9 +91,13 @@ export function showsBackground(sw: number, sh: number, e: IgEdit, W: number, H:
   return p.cx - p.dw / 2 > 0.5 || p.cy - p.dh / 2 > 0.5 || p.cx + p.dw / 2 < W - 0.5 || p.cy + p.dh / 2 < H - 0.5;
 }
 
-/** The look, then brightness, contrast, saturation and warmth, on raw RGBA pixels. Transparent pixels are skipped. */
+/**
+ * The colour chain (engine/chain.ts: look, light and white balance, tone curve, colour mixer), then brightness,
+ * contrast, saturation and warmth, on raw RGBA pixels, rounding to 8 bits after the chain and at the end. Transparent pixels are skipped. The GPU path (gpu/colour.ts) mirrors it.
+ */
 export function adjustPixels(a: Uint8ClampedArray, e: Adjustments): void {
-  lookPixels(a, e.look);
+  if (chainNeutral(e)) lookPixels(a, e.look);
+  else chainPixels(a, e);
   if (!e.brightness && !e.contrast && !e.saturation && !e.warmth) return;
   const br = (clamp(e.brightness, -100, 100) / 100) * 64,
     ct = 1 + clamp(e.contrast, -100, 100) / 125,
@@ -166,7 +172,7 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
 
   // The photo, on its own layer so the colour adjustments leave the background alone. The colour runs on the GPU when
   // the media studio has opened a device (gpu/apply.ts), else on the CPU here; both give the same pixels.
-  if (colourNeutral(e.adjust)) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
+  if (pixelsNeutral(e.adjust)) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
   else {
     // The same canvas mode on both paths: an accelerated canvas draws the photo's fractional edges differently from a
     // read-back one, which would make the two paths disagree along the edge of the photo.
@@ -179,6 +185,8 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
       if (!onGpu || !gpuColour(ctx, layer, e.adjust, W, H)) {
         const d = lx.getImageData(0, 0, layer.width, layer.height);
         adjustPixels(d.data, e.adjust);
+        // Detail sizes are for a 1080 px frame, scaled to this one, so preview and export match.
+        detailPixels(d.data, layer.width, layer.height, e.adjust, layer.width / DETAIL_WIDTH);
         lx.putImageData(d, 0, 0);
         ctx.drawImage(layer, 0, 0, W, H);
       }

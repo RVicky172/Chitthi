@@ -7,6 +7,14 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Photo editor: **Light** (exposure, contrast, highlights, shadows, whites, blacks) and **Colour** (temperature, tint,
+  saturation) controls, with an eyedropper that sets the white balance from something grey or white in the photo.
+  Exposure, white balance and the tone sliders work in linear light, like a camera, and run on the graphics card.
+- Photo editor: **Tone curve** (RGB, red, green and blue, usable with the keyboard) and **Colour mixer** (hue,
+  saturation and luminance for eight colour bands).
+- Photo editor: **Detail** (sharpening with radius and masking, noise reduction) and more **Effects** (clarity,
+  dehaze, grain), sized to look the same in the preview and the exported photo.
+
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.
 - Planning folder (`docs/planning/`) with the editor roadmap and its implementation plan.

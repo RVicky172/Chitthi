@@ -145,7 +145,7 @@ describe('mergeEdit', () => {
       py: 0.2,
       rot: 0,
       flip: false,
-      adjust: { look: 'vintage', brightness: 10, contrast: -5, saturation: 0, warmth: 20, vignette: 30 },
+      adjust: { ...DEFAULT_ADJUST, look: 'vintage', brightness: 10, contrast: -5, saturation: 0, warmth: 20, vignette: 30 },
     });
   });
   it('clamps numbers, drops unknown values and fields', () => {
