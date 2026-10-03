@@ -159,7 +159,91 @@ async function run(): Promise<Result> {
   await aiChecks(check);
   await agentChecks(check, r);
   await perfChecks(check);
+  await gpuChecks(check, r);
   return r;
+}
+
+/* ---------- GPU device layer (P0.2): every backend this machine offers ---------- */
+
+async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+  const { openWebGPU } = await import('../engine/gpu/webgpu');
+  const { openWebGL2 } = await import('../engine/gpu/webgl2');
+  const { COPY_PROGRAM } = await import('../engine/gpu/types');
+  // A 4×3 pattern: every pixel different, the top-left one red, and one half-transparent pixel.
+  const W = 4,
+    H = 3,
+    src = new Uint8ClampedArray(W * H * 4);
+  for (let i = 0; i < W * H; i++) src.set([(i * 37) % 256, (i * 91 + 40) % 256, (i * 53 + 200) % 256, i === 5 ? 128 : 255], i * 4);
+  src.set([255, 0, 0, 255], 0);
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  cv.getContext('2d')!.putImageData(new ImageData(src, W, H), 0, 0);
+  const pattern = await createImageBitmap(new ImageData(src, W, H), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+  const near = (a: ArrayLike<number>, b: ArrayLike<number>, tol: number, opaqueOnly = false) => {
+    for (let i = 0; i < a.length; i++) {
+      if (opaqueOnly && (b[i - (i % 4) + 3] ?? 255) < 255) continue;
+      if (Math.abs(a[i] - b[i]) > tol) return false;
+    }
+    return a.length === b.length;
+  };
+  const SCALE = {
+    id: 'selftest-scale',
+    inputs: 1,
+    uniforms: 1,
+    glsl: 'vec4 effect(vec2 uv) { vec4 c = texture(t0, uv); return vec4(c.rgb * u[0].x, c.a); }',
+    wgsl: 'fn effect(uv: vec2f) -> vec4f { let c = textureSampleLevel(t0, smp, uv, 0.0); return vec4f(c.rgb * P.u[0].x, c.a); }',
+  };
+
+  const ran: string[] = [];
+  for (const [name, open] of [
+    ['webgpu', openWebGPU],
+    ['webgl2', async () => openWebGL2()],
+  ] as const) {
+    const dev = await open().catch(() => null);
+    if (!dev) continue;
+    ran.push(name);
+    try {
+      check(dev.backend === name && dev.maxSize >= 4096, `gpu ${name}: opens with textures of at least 4096 px`);
+      const t = dev.upload(pattern, W, H);
+      check(near(await dev.read(t), src, 0), `gpu ${name}: upload and read back unchanged, top row first`);
+      const out = dev.target(W, H);
+      dev.pass(COPY_PROGRAM, [t], new Float32Array(4), out);
+      check(near(await dev.read(out), src, 1), `gpu ${name}: a copy pass through a float target keeps every pixel`);
+      dev.pass(SCALE, [t], new Float32Array([0.5, 0, 0, 0]), out);
+      const half = await dev.read(out);
+      check(Math.abs(half[0] - 128) <= 1 && half[1] === 0 && half[3] === 255, `gpu ${name}: uniforms reach the program`);
+      const shown = document.createElement('canvas');
+      shown.width = W;
+      shown.height = H;
+      const sx = shown.getContext('2d', { willReadFrequently: true })!;
+      dev.pass(COPY_PROGRAM, [t], new Float32Array(4), out);
+      sx.drawImage(dev.present(out), 0, 0);
+      check(near(sx.getImageData(0, 0, W, H).data, src, 1, true), `gpu ${name}: present draws the right way up onto a 2D canvas`);
+      check(near(await dev.read(dev.upload(cv, W, H)), src, 1, true), `gpu ${name}: uploads a 2D canvas`);
+      let threw = false;
+      try {
+        dev.target(dev.maxSize + 1, 1);
+      } catch {
+        threw = true;
+      }
+      check(threw, `gpu ${name}: refuses textures larger than the device allows`);
+      dev.release(t);
+      dev.release(out);
+      check(!dev.lost, `gpu ${name}: still open after the checks`);
+    } catch (e) {
+      r.failed.push(`gpu ${name} threw: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      dev.destroy();
+    }
+  }
+  const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
+  const d = await openGpu();
+  check(ran.length === 0 ? d === null : d?.backend === ran[0], 'gpu: openGpu() picks WebGPU first, then WebGL2');
+  check(gpu() === d && (await openGpu()) === d, 'gpu: the device is opened once and reused');
+  closeGpu();
+  check(gpu() === null, 'gpu: closeGpu() lets it go');
+  r.notes.push(`GPU backends checked: ${ran.join(', ') || 'none available'}`);
 }
 
 /* ---------- performance monitor sampler and the undo history's memory guard ---------- */

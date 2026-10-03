@@ -10,6 +10,7 @@ each step is tested, and what must be true before the next phase starts. Every l
 | Item | State | Notes |
 | --- | --- | --- |
 | P0.1 Edit model split | Done | `engine/adjust.ts` (`Adjustments`, `mergeAdjust()`), `IgEdit.adjust`, `mergeEdit()`; colour edits through `adjustPhoto` / `adjustClip` |
+| P0.2 GPU device layer | Done | `engine/gpu/` (`types.ts`, `webgpu.ts`, `webgl2.ts`, `device.ts`): upload, pass, present, read; explicit WebGPU bind group layouts; self-test runs every backend the machine offers. Dev-only types: `@webgpu/types` (BSD-3-Clause) |
 
 ## How the work is organised
 
