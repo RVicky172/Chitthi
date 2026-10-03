@@ -242,7 +242,8 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   for (const name of ran) {
     const g = await goldenParity(name);
     check(g.max <= 2 && g.mean <= 0.5, `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${g.max} in ${g.where}, mean ${g.mean.toFixed(3)})`);
-    worst.set(name, `${worst.get(name)}; photos: worst ${g.max}, mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
+    check(g.detailMax <= 3, `gpu ${name}: detail effects match Canvas 2D within 3 levels (worst ${g.detailMax} in ${g.detailWhere})`);
+    worst.set(name, `${worst.get(name)}; photos: worst ${g.max} (detail effects ${g.detailMax}), mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
     r.notes.push(await gpuTiming(name));
   }
   const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
@@ -259,9 +260,12 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
  * vignette) at Instagram size, once on the Canvas 2D path and once on the GPU backend, must match: at most 2 levels
  * apart in any channel and 0.5 on average. This is the gate for turning the GPU path on by default.
  */
-async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; where: string; frames: number }> {
+async function goldenParity(
+  backend: 'webgpu' | 'webgl2',
+): Promise<{ max: number; mean: number; where: string; frames: number; detailMax: number; detailWhere: string }> {
   const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
   const { LOOK_IDS } = await import('../engine/adjust');
+  const { detailNeutral } = await import('../engine/detail');
   const { FLAT_CURVE } = await import('../engine/curve');
   const { FLAT_MIXER } = await import('../engine/hsl');
   const { closeGpu, openGpu } = await import('../engine/gpu/device');
@@ -286,6 +290,10 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
       mixer: { ...FLAT_MIXER, hue: [0, 30, 0, -40, 0, 20, 0, 0], sat: [20, 40, -30, 0, 0, -50, 0, 0], lum: [0, 20, 0, -30, 0, 0, 0, 0] },
       shadows: 30,
     },
+    // Detail and effects (P1.3).
+    { sharpen: 60, noise: 40, contrast: 10 },
+    { clarity: 50, dehaze: 40, grain: 50, exposure: 0.3 },
+    { dehaze: -50, clarity: -40, sharpen: 30, sharpenMask: 50, sharpenRadius: 2 },
   ];
   const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
     const c = document.createElement('canvas');
@@ -295,7 +303,9 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
     renderIg(x, img, img.naturalWidth, img.naturalHeight, e, W, H);
     return x.getImageData(0, 0, W, H).data;
   };
-  let max = 0,
+  let detailMax = 0,
+    detailWhere = '',
+    max = 0,
     sum = 0,
     count = 0,
     frames = 0,
@@ -314,7 +324,13 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
           const d = Math.abs(got[k] - cpu[k]);
           sum += d;
           count++;
-          if (d > max) {
+          // Detail effects (P1.3) chain neighbourhood passes through 16-bit float textures on the GPU (32-bit would
+          // double memory at 4K): they are held to 3 levels, colour-only edits to 2.
+          if (detailNeutral(e.adjust) ? false : d > detailMax) {
+            detailMax = d;
+            detailWhere = `${f} ${look} ${JSON.stringify(adj)}`;
+          }
+          if (detailNeutral(e.adjust) && d > max) {
             max = d;
             const px = k >> 2;
             where = `${f} ${look} ${JSON.stringify(adj)} fit=${e.fit} rot=${e.rot} at ${px % W},${Math.floor(px / W)} cpu ${[...cpu.slice(k - (k % 4), k - (k % 4) + 4)]} gpu ${[...got.slice(k - (k % 4), k - (k % 4) + 4)]}`;
@@ -322,7 +338,7 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
         }
       }
   closeGpu();
-  return { max, mean: sum / count, where, frames };
+  return { max, mean: sum / count, where, frames, detailMax, detailWhere };
 }
 
 /** Time per Instagram-size frame with a look and sliders, Canvas 2D against a GPU backend. A note, not a check. */
@@ -337,20 +353,24 @@ async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
   c.height = 1350;
   const x = c.getContext('2d', { willReadFrequently: true })!;
   const e = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_EDIT.adjust, look: 'tinted' as const, brightness: 20, contrast: 15, warmth: 10 } };
-  const time = () => {
+  const time = (reps = 15) => {
     renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
     x.getImageData(0, 0, 1, 1);
     const t0 = performance.now();
-    for (let i = 0; i < 15; i++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    for (let i = 0; i < reps; i++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
     x.getImageData(0, 0, 1, 1); // wait for the drawing to finish
-    return (performance.now() - t0) / 15;
+    return (performance.now() - t0) / reps;
   };
   closeGpu();
   const cpu = time();
   await openGpu(backend);
   const gpu = time();
+  // The same frame with detail effects (P1.3): clarity, sharpening and noise reduction.
+  Object.assign(e.adjust, { clarity: 40, sharpen: 50, noise: 30 });
+  const gpuDetail = time();
   closeGpu();
-  return `1080×1350 frame: Canvas 2D ${cpu.toFixed(1)} ms, ${backend} ${gpu.toFixed(1)} ms`;
+  const cpuDetail = time(3);
+  return `1080×1350 frame: Canvas 2D ${cpu.toFixed(1)} ms, ${backend} ${gpu.toFixed(1)} ms; with clarity, sharpening and noise reduction: Canvas 2D ${cpuDetail.toFixed(0)} ms, ${backend} ${gpuDetail.toFixed(1)} ms`;
 }
 
 /**

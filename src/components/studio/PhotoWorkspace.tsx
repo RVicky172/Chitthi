@@ -648,13 +648,32 @@ function StripThumb(p: {
   );
 }
 
-function Slider({ id, label, value, min, max, step = 1, onChange }: { id: string; label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void }) {
+function Slider({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  reset = min < 0 ? 0 : min,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  /** What a double-click sets: 0, or the minimum when 0 is out of range, unless given. */
+  reset?: number;
+  onChange: (v: number) => void;
+}) {
   return (
     <div className="ig-slider">
       <label htmlFor={id}>
         {label} <output htmlFor={id}>{step < 1 ? value.toFixed(2) : Math.round(value)}</output>
       </label>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} onDoubleClick={() => onChange(min < 0 ? 0 : min)} />
+      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} onDoubleClick={() => onChange(reset)} />
     </div>
   );
 }
@@ -774,8 +793,22 @@ function EditPanel({ item }: { item: IgItem }) {
         <ColourMixer idPrefix="ig-mix" mixer={a.mixer} onChange={(mixer) => setA({ mixer })} />
       </div>
       <div className="ig-group">
+        <h3>Detail</h3>
+        <Slider id="ig-sp" label="Sharpening" value={a.sharpen} min={0} max={100} onChange={(sharpen) => setA({ sharpen })} />
+        {a.sharpen > 0 && (
+          <>
+            <Slider id="ig-sr" label="Radius" value={a.sharpenRadius} min={0.5} max={3} step={0.1} reset={1} onChange={(sharpenRadius) => setA({ sharpenRadius })} />
+            <Slider id="ig-sm" label="Masking" value={a.sharpenMask} min={0} max={100} onChange={(sharpenMask) => setA({ sharpenMask })} />
+          </>
+        )}
+        <Slider id="ig-nr" label="Noise reduction" value={a.noise} min={0} max={100} onChange={(noise) => setA({ noise })} />
+      </div>
+      <div className="ig-group">
         <h3>Effects</h3>
+        <Slider id="ig-cl" label="Clarity" value={a.clarity} min={-100} max={100} onChange={(clarity) => setA({ clarity })} />
+        <Slider id="ig-dh" label="Dehaze" value={a.dehaze} min={-100} max={100} onChange={(dehaze) => setA({ dehaze })} />
         <Slider id="ig-vi" label="Vignette" value={a.vignette} min={0} max={100} onChange={(vignette) => setA({ vignette })} />
+        <Slider id="ig-gr" label="Grain" value={a.grain} min={0} max={100} onChange={(grain) => setA({ grain })} />
         <p className="hint">Double-click a slider to reset it.</p>
       </div>
       <div className="inline ig-tools">

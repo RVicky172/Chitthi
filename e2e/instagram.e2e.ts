@@ -149,3 +149,28 @@ test('tone curve works from the keyboard, and the colour mixer changes the photo
   await expect(page.locator('label[for="ig-mix-sat-orange"] output')).toHaveText('0');
   expect(errors).toEqual([]);
 });
+
+test('detail and effects: sharpening with its radius, noise reduction, clarity, dehaze and grain, exported', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  // Radius and masking appear once sharpening is on; a double-click puts the radius back to 1 px.
+  await expect(page.locator('#ig-sr')).toHaveCount(0);
+  await page.locator('#ig-sp').fill('60');
+  await page.locator('#ig-sr').fill('2.5');
+  await expect(page.locator('label[for="ig-sr"] output')).toHaveText('2.50');
+  await page.locator('#ig-sr').dblclick();
+  await expect(page.locator('label[for="ig-sr"] output')).toHaveText('1.00');
+  for (const [id, v] of [['ig-nr', '50'], ['ig-cl', '60'], ['ig-dh', '40'], ['ig-gr', '50']] as const) {
+    const before = await shot();
+    await page.locator(`#${id}`).fill(v);
+    await expect.poll(shot, { message: `${id} changes the photo` }).not.toBe(before);
+  }
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const zip = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
+  expect(readFileSync(await (await zip).path()).toString('latin1')).toContain('chitthi-instagram-4x5-01.jpg');
+  expect(errors).toEqual([]);
+});

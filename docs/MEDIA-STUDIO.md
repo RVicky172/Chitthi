@@ -70,7 +70,14 @@ position by dragging or arrow keys, rotate, mirror, six filters (the same looks 
   with Delete. Points are joined by a smooth curve that never overshoots them (`src/engine/curve.ts`).
 - **Colour mixer:** hue, saturation and luminance for eight colour bands (red, orange, yellow, green, aqua, blue,
   purple, magenta). Colours between two bands get a blend of both, and greys are never changed (`src/engine/hsl.ts`).
-- **Effects:** vignette.
+- **Detail:** sharpening (with radius and edge masking, which leaves smooth areas such as skin and sky alone) and noise
+  reduction (an edge-preserving filter).
+- **Effects:** clarity (local contrast in the mid-tones), dehaze (removes or adds haze), vignette and grain.
+
+Detail and effect sizes are set for a frame 1080 px wide and scaled to the frame being drawn, so the preview, the
+exported photo and a 4K video frame look the same (`src/engine/detail.ts`). On the graphics card they add about 1–2 ms
+to a 1080 × 1350 frame; without one (Canvas 2D) clarity, sharpening and noise reduction together take about 0.8 s, so
+the preview follows the sliders slowly there.
 
 Exposure, white balance and the four tone sliders work in linear light (`src/engine/light.ts`): exposure behaves like
 the camera's, white balance like changing the light, and the tone sliders move the brightness of all three channels
