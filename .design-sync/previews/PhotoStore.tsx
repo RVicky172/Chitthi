@@ -1,4 +1,4 @@
-import { PhotoStore, samplePhoto, setPhotos, storePhotos, productDesign, replaceCard } from 'chitthi-postcard-studio';
+import { PhotoStore, samplePhoto, setPhotos, storePhotos, productDesign, replaceCard } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

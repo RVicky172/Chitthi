@@ -219,7 +219,7 @@ export function PhotoLibrary() {
       setBusy(false);
     }
   };
-  const use = async (it: Item) => {
+  const placeItem = async (it: Item) => {
     if (it.sp) await putOnCard(it.sp);
     else {
       const p = getState().photos.find((x) => photoKey(x.url) === it.key);
@@ -227,7 +227,7 @@ export function PhotoLibrary() {
     }
   };
   const crop = async (it: Item) => {
-    if (it.card < 0) await use(it);
+    if (it.card < 0) await placeItem(it);
     const ph = getState().photos.find((p) => photoKey(p.url) === it.key);
     if (ph) setUI({ cropId: ph.id });
   };
@@ -240,7 +240,7 @@ export function PhotoLibrary() {
                   inSlot = filled.findIndex((p) => !!p && photoKey(p.url) === it.key);
                 return (
                   <li key={it.key} className={`lib-item${dim ? ' dim' : ''}`}>
-                    <button type="button" className="lib-ph" title={count ? `Put in ${where}` : it.name} onClick={() => void use(it)} disabled={!count}>
+                    <button type="button" className="lib-ph" title={count ? `Put in ${where}` : it.name} onClick={() => void placeItem(it)} disabled={!count}>
                       <img
                         src={it.view}
                         alt={it.name}
@@ -268,7 +268,7 @@ export function PhotoLibrary() {
                     </div>
                     <div className="lib-acts">
                       {count > 0 && (
-                        <button type="button" className="sbtn accent" onClick={() => void use(it)}>
+                        <button type="button" className="sbtn accent" onClick={() => void placeItem(it)}>
                           {count > 1 ? `Use in slot ${active + 1}` : 'Use'}
                         </button>
                       )}

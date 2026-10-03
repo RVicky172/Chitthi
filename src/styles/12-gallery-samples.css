@@ -1,0 +1,36 @@
+/* gallery: samples tab */
+.galtabs {
+  padding: 12px 20px 0;
+}
+.galgroup h3 .grp-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 8px;
+  vertical-align: -8px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.grp-ico svg {
+  width: 15px;
+  height: 15px;
+}
+.gcard .credit {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.credit a,
+.credit-foot a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.credit a:hover,
+.credit-foot a:hover {
+  color: var(--accent);
+}
+.credit-foot {
+  margin: 24px 0 0;
+}

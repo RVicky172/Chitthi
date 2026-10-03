@@ -25,8 +25,8 @@ MCP needs the desktop app: a web page can't run a server. The web app has the sa
 
 Claude Code asks once for the path to the Chitthi app:
 
-- Windows: `%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe`
-- macOS: `/Applications/Chitthi.app/Contents/MacOS/Chitthi`
+- Windows: `%LOCALAPPDATA%\Programs\Chitthi Studio\Chitthi Studio.exe`
+- macOS: `/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio`
 
 The plugin starts `Chitthi --mcp` and adds the skills `festival-postcard`, `year-calendar`, `print-quote`,
 `photo-sourcing`, `ai-artwork` and `print-samples` ([plugins/chitthi](../plugins/chitthi/README.md)).
@@ -35,8 +35,8 @@ The plugin starts `Chitthi --mcp` and adds the skills `festival-postcard`, `year
 
 ```bash
 # Headless
-claude mcp add chitthi -- "%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe" --mcp          # Windows
-claude mcp add chitthi -- /Applications/Chitthi.app/Contents/MacOS/Chitthi --mcp       # macOS
+claude mcp add chitthi -- "%LOCALAPPDATA%\Programs\Chitthi Studio\Chitthi Studio.exe" --mcp          # Windows
+claude mcp add chitthi -- "/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio" --mcp       # macOS
 
 # Live (copy the exact command, with the port and token, from Settings → AI)
 claude mcp add --transport http chitthi-live http://127.0.0.1:<port>/mcp --header "Authorization: Bearer <token>"
@@ -49,7 +49,7 @@ Add `--scope user` to use it in every project.
 ```json
 {
   "mcpServers": {
-    "chitthi": { "type": "stdio", "command": "C:\\Users\\<you>\\AppData\\Local\\Programs\\Chitthi\\Chitthi.exe", "args": ["--mcp"] }
+    "chitthi": { "type": "stdio", "command": "C:\\Users\\<you>\\AppData\\Local\\Programs\\Chitthi Studio\\Chitthi Studio.exe", "args": ["--mcp"] }
   }
 }
 ```
@@ -91,7 +91,7 @@ overwrite a saved design. Tools that call the user's AI or Pexels account are an
 | Photos | `list_photos` | Photos with credits and print dpi |
 | | `select_slot` | The slot the next photo goes into |
 | | `set_calendar_page` | The month page that previews and photos act on |
-| | `add_photo` | A JPG / PNG / WebP from a local path or an https URL |
+| | `add_photo` | A JPG / PNG / WebP from a local path or an https URL. Local paths work only while an agent is connected (headless or live) |
 | | `search_pexels` | Pexels search (the user's key), results with photographer |
 | | `add_pexels_photo` | Add a result, keeping its credit |
 | | `auto_arrange` | Match photos to slots and centre crops on subjects |

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Pane, Seg, StepLabel } from 'chitthi-postcard-studio';
+import { Check, Pane, Seg, StepLabel } from 'chitthi-studio';
 
 export const StepWithNext = () => {
   const [orient, setOrient] = useState('landscape');

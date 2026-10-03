@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Section, Seg } from 'chitthi-postcard-studio';
+import { Check, Section, Seg } from 'chitthi-studio';
 
 localStorage.clear();
 

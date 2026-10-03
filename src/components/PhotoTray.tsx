@@ -139,7 +139,7 @@ function CardDock() {
 
       <div className="dock-suggest">
         <span className="dock-label">{count > 1 ? `Suggested for slot ${target + 1}` : 'Suggested photos'}</span>
-        <ul aria-label={`Tap a photo to put it in slot ${target + 1}, or drag it onto any slot`}>
+        <ul tabIndex={0} aria-label={`Tap a photo to put it in slot ${target + 1}, or drag it onto any slot`}>
           {spare.map((p) => (
             <li key={p.id}>
               <button

@@ -1,7 +1,7 @@
 {
   "name": "chitthi",
   "owner": { "name": "RVicky172", "url": "https://github.com/RVicky172/Chitthi" },
-  "description": "Chitthi print studio for Claude Code: design postcards, calendars, frame prints and fridge magnets and export print-ready files through the Chitthi desktop app's MCP tools, with workflow skills.",
+  "description": "Chitthi Studio for Claude Code: design postcards, calendars, frame prints and fridge magnets and export print-ready files through the Chitthi desktop app's MCP tools, with workflow skills.",
   "plugins": [
     {
       "name": "chitthi",

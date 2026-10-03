@@ -1,0 +1,80 @@
+/* ---------- collapsible sections in the steps ---------- */
+.pane-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+.pane-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.pane-fold .linkbtn {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.pane-fold .linkbtn:hover {
+  color: var(--accent);
+}
+.sec {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+.sec h3 {
+  margin: 0;
+}
+.pane .sec h3 {
+  margin: 0;
+}
+.sec-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+.sec-h small {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.76rem;
+}
+.sec-h svg {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  transition: transform var(--dur) var(--ease);
+}
+.sec.open .sec-h svg {
+  transform: rotate(180deg);
+}
+.sec-h:hover {
+  color: var(--text);
+}
+.sec-h:hover svg {
+  color: var(--accent);
+}
+.sec-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+.sec-body[hidden] {
+  display: none;
+}

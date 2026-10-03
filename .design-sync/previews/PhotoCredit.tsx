@@ -1,4 +1,4 @@
-import { PhotoCredit } from 'chitthi-postcard-studio';
+import { PhotoCredit } from 'chitthi-studio';
 
 // The credit comes from the photo's name: Pexels photos and AI pictures carry it; your own photos show nothing.
 export const PexelsPhoto = () => <PhotoCredit name="Diya lamps on a rangoli (Pexels / Asha Rao #5717396)" />;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Seg } from 'chitthi-postcard-studio';
+import { Seg } from 'chitthi-studio';
 
 export const ProductSwitch = () => {
   const [v, setV] = useState('postcard');

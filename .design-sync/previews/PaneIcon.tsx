@@ -1,4 +1,4 @@
-import { PaneIcon } from 'chitthi-postcard-studio';
+import { PaneIcon } from 'chitthi-studio';
 
 const STEPS = [
   ['photos', 'Photos'],

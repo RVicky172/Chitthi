@@ -1,0 +1,384 @@
+import { useSyncExternalStore } from 'react';
+import { clampBatch, IG_FORMATS, igFormat, type IgFileType, type IgFormatId } from '../data/instagram';
+import { brushDef, type BrushId } from '../data/layers';
+import { DEFAULT_EDIT, LOOK_KEYS, renderIg, type IgEdit } from '../engine/instagram';
+import { drawLayers, type Layer } from '../engine/layers';
+import { ensureFonts } from '../lib/fonts';
+import { checkFile, loadImage } from '../engine/photo';
+import { logError } from '../lib/errors';
+import { makeZip } from '../lib/zip';
+
+/*
+ * The Instagram studio's state: a batch of photos, each with its own edits, the post format, the batch limit and the
+ * export settings. Memory: each photo keeps its original file (compressed) and a preview copy of at most PREVIEW_MAX
+ * px; full-size pixels exist only while one photo is being exported. The batch lasts for this session.
+ */
+
+const PREVIEW_MAX = 1080;
+
+export interface IgItem {
+  id: string;
+  name: string;
+  /** The original file; decoded again at full size only for export. */
+  file: Blob;
+  /** Natural size of the original. */
+  w: number;
+  h: number;
+  /** A copy of at most PREVIEW_MAX px on the long side, for the preview and thumbnails. */
+  preview: HTMLCanvasElement;
+  edit: IgEdit;
+  /** Text, shapes, stickers and drawings over the photo, bottom first (engine/layers.ts). */
+  layers: Layer[];
+}
+
+/** Layer tools, shared by the photo and video editors. */
+export interface LayerTools {
+  tool: 'select' | 'draw';
+  brush: BrushId;
+  brushColor: string;
+  /** Multiplies the brush's own width (0.5-4). */
+  brushScale: number;
+}
+
+export interface IgState {
+  items: IgItem[];
+  selected: string | null;
+  format: IgFormatId;
+  /** How many photos the batch may hold (1–20). */
+  limit: number;
+  fileType: IgFileType;
+  /** JPEG quality, 60–100. */
+  quality: number;
+  caption: string;
+  /** Rendered files ready to share; cleared by any change. */
+  ready: File[] | null;
+  busy: string | null;
+  /** The selected layer of the selected photo. */
+  layerSel: string | null;
+  tools: LayerTools;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+const PREF = 'chitthi-ig-prefs';
+function prefs(): Partial<Pick<IgState, 'format' | 'limit' | 'fileType' | 'quality'>> {
+  try {
+    return JSON.parse(localStorage.getItem(PREF) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+const p0 = prefs();
+let state: IgState = {
+  items: [],
+  selected: null,
+  format: IG_FORMATS.some((f) => f.id === p0.format) ? (p0.format as IgFormatId) : 'portrait',
+  limit: clampBatch(p0.limit ?? 4),
+  fileType: p0.fileType === 'png' ? 'png' : 'jpeg',
+  quality: Math.min(100, Math.max(60, p0.quality ?? 92)),
+  caption: '',
+  ready: null,
+  busy: null,
+  layerSel: null,
+  tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
+  canUndo: false,
+  canRedo: false,
+};
+
+const listeners = new Set<() => void>();
+function set(patch: Partial<IgState>): void {
+  // Anything that changes the pictures makes earlier rendered files stale.
+  const stale = Object.keys(patch).some((k) => !['ready', 'busy', 'selected', 'caption', 'layerSel', 'tools', 'canUndo', 'canRedo'].includes(k));
+  state = { ...state, ...(stale && !('ready' in patch) ? { ready: null } : {}), ...patch };
+  if ('format' in patch || 'limit' in patch || 'fileType' in patch || 'quality' in patch) {
+    try {
+      localStorage.setItem(PREF, JSON.stringify({ format: state.format, limit: state.limit, fileType: state.fileType, quality: state.quality }));
+    } catch {
+      /* storage blocked: the choice lasts for this session */
+    }
+  }
+  listeners.forEach((l) => l());
+}
+export const getIg = (): IgState => state;
+export function useIg<T>(sel: (s: IgState) => T): T {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => {
+        listeners.delete(l);
+      };
+    },
+    () => sel(state),
+    () => sel(state),
+  );
+}
+
+export const setIg = (patch: Partial<Pick<IgState, 'format' | 'fileType' | 'quality' | 'caption'>>) => set(patch);
+
+/** Selects a photo (and drops the layer selection, which belongs to the previous photo). */
+export const selectPhoto = (id: string | null) => set({ selected: id, layerSel: null });
+export const selectLayer = (id: string | null) => set({ layerSel: id });
+export const setTools = (patch: Partial<LayerTools>) => set({ tools: { ...state.tools, ...patch } });
+/** Brush width as a share of the frame width, for the current tools. */
+export const brushWidth = (t: LayerTools) => brushDef(t.brush).width * t.brushScale;
+
+/* ---------- undo / redo ---------- */
+// Snapshots of the items array (edits and layers live inside it; unchanged photos are shared, so snapshots are cheap).
+// Changes with the same key in quick succession (a slider drag, a layer drag, typing) make one step.
+const past: IgItem[][] = [];
+const future: IgItem[][] = [];
+let lastKey = '',
+  lastAt = 0;
+function record(key: string): void {
+  const now = Date.now();
+  if (key && key === lastKey && now - lastAt < 800) {
+    lastAt = now;
+    return;
+  }
+  lastKey = key;
+  lastAt = now;
+  past.push(state.items);
+  if (past.length > 80) past.shift();
+  future.length = 0;
+}
+const flags = () => ({ canUndo: past.length > 0, canRedo: future.length > 0 });
+/** Ends the current step, so the next change (even with the same key) becomes its own undo step. */
+export const endStep = () => {
+  lastKey = '';
+};
+function restore(items: IgItem[]): void {
+  lastKey = '';
+  const sel = items.some((x) => x.id === state.selected) ? state.selected : (items[0]?.id ?? null);
+  const layerOk = items.some((x) => x.layers.some((l) => l.id === state.layerSel));
+  set({ items, selected: sel, layerSel: layerOk ? state.layerSel : null, ...flags() });
+}
+export function undo(): void {
+  const prev = past.pop();
+  if (!prev) return;
+  future.push(state.items);
+  restore(prev);
+}
+export function redo(): void {
+  const next = future.pop();
+  if (!next) return;
+  past.push(state.items);
+  restore(next);
+}
+function change(key: string, items: IgItem[], extra: Partial<IgState> = {}): void {
+  record(key);
+  set({ items, ...flags(), ...extra });
+}
+
+/* ---------- layers ---------- */
+const withLayers = (id: string, f: (ls: Layer[]) => Layer[]) => state.items.map((x) => (x.id === id ? { ...x, layers: f(x.layers) } : x));
+
+export function addLayer(itemId: string, layer: Layer): void {
+  change(`add:${layer.id}`, withLayers(itemId, (ls) => [...ls, layer]), { layerSel: layer.id });
+}
+/** Changes a layer; `key` groups a run of changes (a drag, typing) into one undo step. */
+export function updateLayer(itemId: string, layerId: string, patch: Partial<Layer> | ((l: Layer) => Layer), key = `layer:${layerId}`): void {
+  change(
+    key,
+    withLayers(itemId, (ls) => ls.map((l) => (l.id === layerId ? (typeof patch === 'function' ? patch(l) : ({ ...l, ...patch } as Layer)) : l))),
+  );
+}
+export function removeLayer(itemId: string, layerId: string): void {
+  change('', withLayers(itemId, (ls) => ls.filter((l) => l.id !== layerId)), { layerSel: state.layerSel === layerId ? null : state.layerSel });
+}
+/** Moves a layer one place towards the front (+1) or the back (-1). */
+export function restackLayer(itemId: string, layerId: string, by: 1 | -1): void {
+  change(
+    '',
+    withLayers(itemId, (ls) => {
+      const i = ls.findIndex((l) => l.id === layerId),
+        j = i + by;
+      if (i < 0 || j < 0 || j >= ls.length) return ls;
+      const out = ls.slice();
+      [out[i], out[j]] = [out[j], out[i]];
+      return out;
+    }),
+  );
+}
+/** Replaces all of a photo's layers (the drawing tool uses this). */
+export function setLayers(itemId: string, layers: Layer[], key = '', layerSel?: string | null): void {
+  change(key, withLayers(itemId, () => layers), layerSel === undefined ? {} : { layerSel });
+}
+/** Copies one photo's layers onto every other photo in the batch (new ids, same places). */
+export function copyLayersToAll(itemId: string): void {
+  const src = state.items.find((x) => x.id === itemId);
+  if (!src) return;
+  let n = 0;
+  const fresh = () => `l${Date.now().toString(36)}c${(n++).toString(36)}`;
+  change(
+    '',
+    state.items.map((x) => (x.id === itemId ? x : { ...x, layers: [...x.layers, ...src.layers.map((l) => ({ ...l, id: fresh() }))] })),
+  );
+}
+
+
+/** Sets the batch limit. It can't go below the photos already in the batch; returns the limit actually set. */
+export function setLimit(n: number): number {
+  const limit = Math.max(clampBatch(n), state.items.length);
+  set({ limit });
+  return limit;
+}
+
+let seq = 0;
+async function makeItem(name: string, file: Blob): Promise<IgItem> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(url);
+    const w = img.naturalWidth,
+      h = img.naturalHeight,
+      k = Math.min(1, PREVIEW_MAX / Math.max(w, h));
+    const preview = document.createElement('canvas');
+    preview.width = Math.max(1, Math.round(w * k));
+    preview.height = Math.max(1, Math.round(h * k));
+    const x = preview.getContext('2d');
+    if (!x) throw new Error('No canvas');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(img, 0, 0, preview.width, preview.height);
+    return { id: `ig${Date.now().toString(36)}${(seq++).toString(36)}`, name, file, w, h, preview, edit: { ...DEFAULT_EDIT }, layers: [] };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * Adds photos up to the batch limit. Returns messages for the user: files that can't be used, and how many didn't fit.
+ */
+export async function addPhotos(files: { name: string; blob: Blob; type?: string }[]): Promise<string[]> {
+  const msgs: string[] = [];
+  const room = state.limit - state.items.length;
+  if (room <= 0) return [`The batch is full (${state.limit} photos). Raise the limit (up to 20) or remove a photo.`];
+  const take = files.slice(0, room);
+  if (files.length > room) msgs.push(`${files.length - room} photo${files.length - room > 1 ? 's' : ''} not added: the batch holds ${state.limit}. Raise the limit (up to 20) to add more.`);
+  set({ busy: 'Adding photos…' });
+  const added: IgItem[] = [];
+  for (const f of take) {
+    const why = checkFile(new File([f.blob], f.name, { type: f.type ?? f.blob.type }));
+    if (why) {
+      msgs.push(why);
+      continue;
+    }
+    try {
+      added.push(await makeItem(f.name, f.blob));
+    } catch (e) {
+      logError('handled', e);
+      msgs.push(`${f.name} couldn’t be read. The file may be damaged.`);
+    }
+  }
+  if (added.length) record('');
+  set({ items: [...state.items, ...added], selected: state.selected ?? added[0]?.id ?? null, busy: null, ...flags() });
+  return msgs;
+}
+
+export function removePhoto(id: string): void {
+  const i = state.items.findIndex((x) => x.id === id);
+  const items = state.items.filter((x) => x.id !== id);
+  change('', items, { selected: state.selected === id ? (items[Math.min(i, items.length - 1)]?.id ?? null) : state.selected, layerSel: null });
+}
+
+export const clearBatch = () => change('', [], { selected: null, layerSel: null });
+
+/** Moves a photo one place earlier (-1) or later (+1). The first photo is the post's cover. */
+export function movePhoto(id: string, by: -1 | 1): void {
+  const i = state.items.findIndex((x) => x.id === id),
+    j = i + by;
+  if (i < 0 || j < 0 || j >= state.items.length) return;
+  const items = state.items.slice();
+  [items[i], items[j]] = [items[j], items[i]];
+  change('', items);
+}
+
+/** Moves a photo to a new place in the order (dragging in the photo strip). */
+export function movePhotoTo(id: string, index: number): void {
+  const i = state.items.findIndex((x) => x.id === id),
+    j = Math.max(0, Math.min(state.items.length - 1, index));
+  if (i < 0 || i === j) return;
+  const items = state.items.slice();
+  const [it] = items.splice(i, 1);
+  items.splice(j, 0, it);
+  change('', items);
+}
+
+export function editPhoto(id: string, patch: Partial<IgEdit>): void {
+  change(
+    `edit:${id}:${Object.keys(patch).sort().join(',')}`,
+    state.items.map((x) => (x.id === id ? { ...x, edit: { ...x.edit, ...patch } } : x)),
+  );
+}
+
+/** Copies the look of one photo (fit, background, filter, adjustments, vignette) to every photo in the batch. */
+export function applyLookToAll(id: string): void {
+  const src = state.items.find((x) => x.id === id);
+  if (!src) return;
+  const look = Object.fromEntries(LOOK_KEYS.map((k) => [k, src.edit[k]])) as Partial<IgEdit>;
+  change('', state.items.map((x) => ({ ...x, edit: { ...x.edit, ...look } })));
+}
+
+export const resetPhoto = (id: string) => editPhoto(id, { ...DEFAULT_EDIT });
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** Renders every photo at full size in the chosen format and file type. One photo is in full-size memory at a time. */
+export async function renderBatch(onProgress?: (done: number, total: number) => void): Promise<File[]> {
+  const f = igFormat(state.format),
+    type = state.fileType === 'png' ? 'image/png' : 'image/jpeg',
+    ext = state.fileType === 'png' ? 'png' : 'jpg';
+  const out: File[] = [];
+  const cv = document.createElement('canvas');
+  cv.width = f.w;
+  cv.height = f.h;
+  const ctx = cv.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable');
+  // Text layers draw in their own fonts: make sure every one is loaded first.
+  await ensureFonts(state.items.flatMap((it) => it.layers.flatMap((l) => (l.kind === 'text' || l.kind === 'shape' ? [l.font] : []))));
+  for (const [i, it] of state.items.entries()) {
+    onProgress?.(i, state.items.length);
+    const url = URL.createObjectURL(it.file);
+    try {
+      const img = await loadImage(url);
+      ctx.clearRect(0, 0, f.w, f.h);
+      // JPEG has no transparency: start from white so empty corners never turn black.
+      if (type === 'image/jpeg') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, f.w, f.h);
+      }
+      renderIg(ctx, img, img.naturalWidth, img.naturalHeight, it.edit, f.w, f.h);
+      drawLayers(ctx, it.layers, f.w, f.h);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    const blob = await new Promise<Blob | null>((res) => cv.toBlob(res, type, state.quality / 100));
+    if (!blob) throw new Error('The picture couldn’t be encoded.');
+    out.push(new File([blob], `chitthi-instagram-${f.ratio.replace(':', 'x')}-${pad(i + 1)}.${ext}`, { type }));
+  }
+  onProgress?.(state.items.length, state.items.length);
+  cv.width = cv.height = 1; // release the full-size canvas
+  return out;
+}
+
+/** Renders the batch and keeps the files, ready for sharing (a share needs a fresh click, so it is a second step). */
+export async function prepareBatch(): Promise<File[]> {
+  set({ busy: 'Preparing your photos…' });
+  try {
+    const files = await renderBatch((d, t) => set({ busy: `Preparing photo ${Math.min(d + 1, t)} of ${t}…` }));
+    set({ ready: files, busy: null });
+    return files;
+  } catch (e) {
+    set({ busy: null });
+    throw e;
+  }
+}
+
+export const zipOf = (files: File[]): Promise<Blob> => makeZip(files.map((f) => ({ name: f.name, data: f })));
+
+/** Whether this browser can hand these files to other apps (the system share sheet), e.g. the Instagram app. */
+export function canShareFiles(files: File[]): boolean {
+  try {
+    return typeof navigator.canShare === 'function' && navigator.canShare({ files });
+  } catch {
+    return false;
+  }
+}

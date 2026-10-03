@@ -1,4 +1,4 @@
-import { LayoutThumb, installFontLinks, productDesign, samplePhoto, themeById } from 'chitthi-postcard-studio';
+import { LayoutThumb, installFontLinks, productDesign, samplePhoto, themeById } from 'chitthi-studio';
 
 installFontLinks();
 const photos = [samplePhoto(0), samplePhoto(1), samplePhoto(2), samplePhoto(3)];

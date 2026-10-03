@@ -1,0 +1,181 @@
+/* phones and small tablets: preview on top, step tabs, then swipeable settings */
+@media (max-width: 860px) {
+  .bar {
+    height: auto;
+    padding: 6px 8px 6px 10px;
+    gap: 10px;
+  }
+  .bar svg.logo {
+    width: 34px;
+    height: 34px;
+  }
+  .wordmark {
+    display: none !important;
+  }
+  .bar .acts {
+    gap: 4px;
+  }
+  .bar .acts .btn .lbl,
+  .bar .sep {
+    display: none;
+  }
+  .shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .stage {
+    order: 1;
+    flex: none;
+    height: clamp(220px, 40dvh, 440px);
+  }
+  .stagebar {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .legend {
+    display: none;
+  }
+  .cardwrap {
+    padding: 8px;
+  }
+  /* the photo tray needs the room on phones */
+  .caption {
+    display: none;
+  }
+  .tray-slot,
+  .tray-ph,
+  .tray-add {
+    width: 38px;
+    height: 38px;
+  }
+  /* the step list turns into one row of index tabs; the current one is underlined instead of edged */
+  .rail {
+    order: 2;
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    scroll-snap-type: x proximity;
+  }
+  .stepper {
+    flex-direction: row;
+  }
+  .stepper li {
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
+  .stepper button,
+  .galbtn {
+    min-width: 72px;
+    min-height: 56px;
+    padding: 9px 12px;
+    scroll-snap-align: center;
+  }
+  .stepper li.now button::before {
+    inset: auto 0 0 0;
+    width: auto;
+    height: 3px;
+  }
+  .galdlg .gal {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .galbar,
+  .galfilter,
+  .galbody,
+  .galfoot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .galfoot .hint {
+    display: none;
+  }
+  .galbtn {
+    margin: 0 0 0 auto;
+    flex: none;
+    width: auto;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  .panel {
+    order: 3;
+    flex: 1;
+    border-right: 0;
+  }
+  .pane {
+    padding: 20px 16px 36px;
+  }
+  .pane h2 {
+    font-size: 1.6rem;
+  }
+}
+
+/* Touch screens: every control gets a 44x44px target (WCAG 2.5.5 / Apple HIG). Mouse users keep the denser sizes. */
+@media (pointer: coarse) {
+  .btn,
+  label.btn,
+  .seg button,
+  .pill .pbtn,
+  .chip,
+  .fp-cats button,
+  .sbtn,
+  .home,
+  .galbtn {
+    min-height: 44px;
+  }
+  .btn.icon,
+  .home {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .lbrand {
+    min-height: 44px;
+  }
+  .chip,
+  .fp-cats button,
+  .sbtn,
+  .lnav-links a {
+    display: inline-flex;
+    align-items: center;
+  }
+  .lnav-links a,
+  .check {
+    min-height: 44px;
+  }
+  .tray-slot,
+  .tray-ph,
+  .tray-add {
+    width: 44px;
+    height: 44px;
+  }
+  .store-del::before {
+    content: '';
+    position: absolute;
+    inset: -11px;
+  }
+  input[type='range'] {
+    min-height: 32px;
+  }
+}
+
+/* Phones: lighter glass and a still backdrop. Stacked 22px backdrop blurs over an animated blurred layer
+   are expensive on mobile GPUs; the look barely changes at this size. */
+@media (max-width: 860px) {
+  :root {
+    --blur: blur(12px) saturate(160%);
+  }
+  body::before {
+    animation: none;
+  }
+}
+
+/* Small phones: the product switcher gets its own full-width row under the logo and actions. */
+@media (max-width: 600px) {
+  .bar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+}

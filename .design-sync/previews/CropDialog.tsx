@@ -1,4 +1,4 @@
-import { CropDialog, productDesign, replaceCard, samplePhoto, setPhotos, setUI } from 'chitthi-postcard-studio';
+import { CropDialog, productDesign, replaceCard, samplePhoto, setPhotos, setUI } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

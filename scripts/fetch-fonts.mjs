@@ -36,7 +36,7 @@ async function get(url, as) {
       if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
       return as === 'text' ? await r.text() : Buffer.from(await r.arrayBuffer());
     } catch (e) {
-      if (attempt >= 3) throw new Error(`${url}: ${e.message}`);
+      if (attempt >= 3) throw new Error(`${url}: ${e.message}`, { cause: e });
     }
   }
 }

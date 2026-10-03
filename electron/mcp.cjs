@@ -12,7 +12,8 @@
  * Files a tool makes (print packs, PDFs) are written to Documents/Chitthi agent output; photos an agent adds from disk
  * must be JPG, PNG or WebP under 25 MB.
  */
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow } = require('electron');
+const { handle, on } = require('./ipc.cjs');
 const { spawn } = require('node:child_process');
 const http = require('node:http');
 const crypto = require('node:crypto');
@@ -43,6 +44,7 @@ let nextId = 1;
 const pending = new Map();
 let readyResolve;
 let ready = new Promise((r) => (readyResolve = r));
+let headless = false; // `Chitthi --mcp`: an agent is connected for the life of the process
 
 function call(wc, name, args) {
   return new Promise((resolve, reject) => {
@@ -58,7 +60,7 @@ function call(wc, name, args) {
 }
 
 function registerAgentIpc(getLiveContents) {
-  ipcMain.on('agent:reply', (_e, id, result) => {
+  on('agent:reply', (_e, id, result) => {
     if (id === 0) return readyResolve && readyResolve();
     const p = pending.get(id);
     if (!p) return;
@@ -66,11 +68,12 @@ function registerAgentIpc(getLiveContents) {
     pending.delete(id);
     p.resolve(result);
   });
-  ipcMain.handle('agent:writeFiles', async (_e, files) => {
+  handle('agent:writeFiles', async (_e, files) => {
     const dir = outDir();
     await fsp.mkdir(dir, { recursive: true });
     const out = [];
     for (const f of Array.isArray(files) ? files.slice(0, 20) : []) {
+      // eslint-disable-next-line no-control-regex -- control characters are not allowed in file names
       const base = path.basename(String(f.name || 'chitthi-file')).replace(/[<>:"|?*\u0000-\u001f]/g, '_') || 'chitthi-file';
       let file = path.join(dir, base);
       for (let i = 2; fs.existsSync(file); i++) file = path.join(dir, base.replace(/(\.[^.]*)?$/, (m) => ` (${i})${m || ''}`));
@@ -79,7 +82,9 @@ function registerAgentIpc(getLiveContents) {
     }
     return out;
   });
-  ipcMain.handle('agent:readPhoto', async (_e, p) => {
+  handle('agent:readPhoto', async (_e, p) => {
+    // Reading a photo by path is for agents only: refused unless an agent can be connected (headless or live).
+    if (!headless && !live) throw new Error('Photos can be added by path only while an agent is connected.');
     const file = path.resolve(String(p || ''));
     const type = PHOTO_TYPES[path.extname(file).toLowerCase()];
     if (!type) throw new Error('Only JPG, PNG or WebP photos can be added.');
@@ -88,8 +93,8 @@ function registerAgentIpc(getLiveContents) {
     const buf = await fsp.readFile(file);
     return { name: path.basename(file), data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length), type };
   });
-  ipcMain.handle('agent:status', () => liveStatus());
-  ipcMain.handle('agent:setLive', async (_e, on) => {
+  handle('agent:status', () => liveStatus());
+  handle('agent:setLive', async (_e, on) => {
     if (on) await startLive(getLiveContents);
     else await stopLive();
     return liveStatus();
@@ -100,7 +105,7 @@ function registerAgentIpc(getLiveContents) {
 
 function buildServer(getContents) {
   const server = new Server(
-    { name: 'chitthi', title: 'Chitthi print studio', version: app.getVersion() },
+    { name: 'chitthi', title: 'Chitthi Studio', version: app.getVersion() },
     {
       capabilities: { tools: {}, resources: {}, prompts: {} },
       instructions:
@@ -146,6 +151,7 @@ function buildServer(getContents) {
 /* ---------- headless: `Chitthi --mcp` over stdio ---------- */
 
 async function startHeadless({ url, preload }) {
+  headless = true;
   registerAgentIpc(() => null);
   const win = new BrowserWindow({
     show: false,

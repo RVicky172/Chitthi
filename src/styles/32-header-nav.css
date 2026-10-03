@@ -1,0 +1,295 @@
+/* ---------- responsive header and page nav: More / Menu ---------- */
+/* four products: keep the header on one line (the product names win over the button labels) */
+@media (max-width: 1480px) and (min-width: 601px) {
+  .bar .acts .btn:not(.primary) .lbl {
+    display: none;
+  }
+}
+
+/* photo library button and its count */
+.photos-btn {
+  position: relative;
+}
+.count-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 0.68rem/18px var(--font);
+  text-align: center;
+}
+
+/* Mid widths and tablets: the product switcher shows icons only (names stay as tooltips and for screen readers), and
+   the header buttons keep to one line. Phones get icon + short name on their own row (see "responsive header"). */
+@media (max-width: 1240px) and (min-width: 601px) {
+  .products-switch .seg-l {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .products-switch .seg button {
+    padding-inline: 10px;
+  }
+}
+.bar .btn {
+  white-space: nowrap;
+}
+.products-switch .seg button { position: relative; }
+
+.find-btn kbd {
+  margin-left: 2px;
+}
+@media (max-width: 1240px) {
+  .find-btn kbd {
+    display: none;
+  }
+}
+
+/* Visibility by width. `hide-*` goes away at and below the width, `show-*` appears there. md = the studio header's
+   secondary actions (960px), lg = the page nav's links (1100px), sm = phones (600px). */
+.show-md,
+.show-lg,
+.show-sm {
+  display: none !important;
+}
+.acts-more {
+  display: contents;
+}
+@media (max-width: 1100px) {
+  .hide-lg {
+    display: none !important;
+  }
+  .show-lg {
+    display: inline-flex !important;
+  }
+}
+@media (max-width: 960px) {
+  .hide-md {
+    display: none !important;
+  }
+  .show-md {
+    display: inline-flex !important;
+  }
+}
+@media (max-width: 600px) {
+  .hide-sm {
+    display: none !important;
+  }
+  .show-sm {
+    display: inline-flex !important;
+  }
+}
+
+.mm {
+  position: relative;
+  display: inline-flex;
+}
+.mm-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 232px;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: calc(100dvh - 90px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--glass-hi);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-3);
+  animation: mm-in var(--dur-fast) var(--ease);
+}
+@keyframes mm-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.mm-list li.mm-sm,
+.mm-list li.mm-md {
+  display: none;
+}
+@media (max-width: 960px) {
+  .mm-list li.mm-md {
+    display: block;
+  }
+}
+@media (max-width: 600px) {
+  .mm-list li.mm-sm {
+    display: block;
+  }
+}
+.mm-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: 500 0.9rem/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.mm-list button:hover,
+.mm-list button:focus-visible {
+  background: var(--sunk);
+  outline: none;
+}
+.mm-list button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.mm-list button svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--muted);
+}
+.mm-list button[aria-checked='true'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* A divider above the first row of a group. */
+.mm-list li.mm-sep {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+/* Dropdowns that open from a left-hand button (the page nav's Explore and Tools). */
+.mm-list.mm-left {
+  left: 0;
+  right: auto;
+}
+.mm-list button[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.mm-list button[aria-current='page'] svg {
+  color: var(--accent);
+}
+
+/* Page nav dropdowns read like the links they replace: quiet text, a chevron that turns when open. */
+.lnav-dd .mm-btn {
+  gap: 4px;
+  padding: 6px 8px 6px 10px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.lnav-dd .mm-btn:hover,
+.lnav-dd .mm-btn[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--field);
+}
+.mm-chev {
+  display: inline-flex;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.mm-chev svg {
+  width: 15px;
+  height: 15px;
+}
+.mm-btn[aria-expanded='true'] .mm-chev {
+  transform: rotate(180deg);
+}
+
+/* Page nav: keep the brand and "Open studio" on one line at every width. */
+.lnav {
+  min-width: 0;
+}
+.lnav .btn {
+  white-space: nowrap;
+}
+.lnav-links a {
+  white-space: nowrap;
+}
+
+/* Phones: logo and actions on the first row, the product switcher full width under them (icon over a short name). */
+@media (max-width: 600px) {
+  .bar .products-switch {
+    order: 3;
+    flex: 1 1 100%;
+  }
+  .bar .products-switch .seg {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .bar .products-switch .seg button {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px 4px;
+    font-size: 0.72rem;
+  }
+  .bar .products-switch .seg-l {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .bar .acts {
+    margin-left: auto;
+  }
+}
+
+/* Phones: the card gets a fixed share of the screen and the stage grows around it (bar + card + photo dock), instead
+   of the stage having a fixed height that squeezed the card to nothing. */
+@media (max-width: 860px) {
+  .stage {
+    height: auto;
+  }
+  .stage .cardwrap {
+    flex: none;
+    height: clamp(210px, 36dvh, 420px);
+  }
+}
+@media (max-width: 600px) {
+  .stagebar {
+    flex-wrap: nowrap;
+  }
+  .stage .pill-menu .mm-btn {
+    background: none;
+    border-color: var(--stage-rule);
+    color: var(--stage-ink);
+  }
+}
+
+/* The product switcher never wraps inside the fixed-height header bar. */
+.bar .products-switch .seg {
+  flex-wrap: nowrap;
+}
+
+/* "Chitthi Studio" in the page nav: "Studio" a step lighter; phones show the logo and "Chitthi" only. */
+.lbrand em {
+  font-style: normal;
+  opacity: 0.7;
+}
+@media (max-width: 600px) {
+  .lbrand em {
+    display: none;
+  }
+}

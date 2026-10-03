@@ -149,15 +149,24 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 - **Content Security Policy** in both nginx and Electron: scripts only from the app itself; images and connections
   only to the app itself, Google Fonts and the two Pexels hosts; no frames, objects or form posts.
 - **Desktop isolation**: the renderer is sandboxed without Node. It reaches the system only through the small
-  `window.chitthiDesktop` bridge. File ids are validated, and only files the session saved can be shown in the folder.
+  `window.chitthiDesktop` bridge, and every IPC handler accepts calls only from the app's own page
+  (`electron/ipc.cjs`). File ids are validated, and only files the session saved can be shown in the folder. Every
+  browser permission is refused except fullscreen and writing to the clipboard. Reading a photo by path works only
+  while an agent is connected.
+- **Desktop binary**: Electron fuses are set at packaging (`electron-builder.yml`): `NODE_OPTIONS` and `--inspect`
+  are ignored, and app code loads only from the integrity-checked `app.asar`. `RunAsNode` stays on because the MCP
+  stdio relay needs it.
 - **API keys**: no key is compiled into the bundle. A user's Pexels key stays on their device and is sent only to
   `api.pexels.com`. The dev proxy key stays in the Vite server process. AI keys are sent only to their provider's
   listed hosts (`electron/ai-hosts.json`); on desktop they are encrypted with the OS (`safeStorage`), used only by the
-  main process, and never readable by the page.
+  main process, and never readable by the page. On the web they last for the tab unless the user chooses to remember
+  them. A request carrying a key never follows a redirect, and on desktop local AI services must be on loopback.
 - **MCP**: off unless started with `--mcp` or turned on in Settings; loopback only, random bearer token, browser
   origins refused, files written only to one output folder, overwrites need `confirm`.
 - **Headers** (web): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` and COOP.
-  The container runs as non-root with a read-only file system.
+  The container runs as non-root with a read-only file system. HSTS is set at the TLS proxy ([OPERATIONS.md](OPERATIONS.md)).
+- **Supply chain**: dependencies, GitHub Actions (pinned by SHA) and Docker base images (pinned by digest) are kept
+  current by Dependabot; CodeQL scans every pull request. Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 
 ## 8. Quality attributes
 
@@ -166,6 +175,8 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Print accuracy | All geometry in millimetres; rendering scales by pixels-per-mm, so preview and 300 dpi output share one code path. Bleed extends edge-touching photos; guides show trim and safe area |
 | Offline | Service worker (web); everything bundled (desktop) |
 | Performance | Lazy jsPDF; deferred thumbnail redraws; per-session caches for sample renders and Pexels results; photos pre-processed once (crop, rotate, look) |
+| Memory | Explicit budgets: 16 MP per photo, undo history capped at 320 MB of extra photo canvases, caches limited or dropped after use, AI and agent images size-capped. A built-in performance monitor shows CPU (desktop), main-thread load, memory and photo memory ([PERFORMANCE.md](PERFORMANCE.md)) |
+| Responsive UI | One layout from 1920 px to 360 px with no sideways scrolling: secondary header actions fold into a More / Menu list instead of wrapping ([LLD §8](LLD.md#8-components))
 | Accessibility | Keyboard-operable stage (arrow keys and zoom), labelled controls, live regions, WCAG AA contrast in both themes, reduced-motion support |
 | Maintainability | Specifications as data ([SPECIFICATIONS.md](SPECIFICATIONS.md)); engine free of UI code; strict TypeScript with exhaustive `Record<ProductId, …>` maps |
 | Portability | One build for web and desktop; platform differences are behind `lib/db.ts` and `platform/desktop.ts` |

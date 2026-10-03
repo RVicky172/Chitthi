@@ -6,11 +6,13 @@ const named = <K extends string>(load: () => Promise<Record<K, () => JSX.Element
 const Landing = named(() => import('./components/Landing'), 'Landing');
 const SizeGuide = named(() => import('./components/SizeGuide'), 'SizeGuide');
 const Paper3D = named(() => import('./components/Paper3D'), 'Paper3D');
+const InstagramStudio = named(() => import('./components/InstagramStudio'), 'InstagramStudio');
 const CropDialog = named(() => import('./components/CropDialog'), 'CropDialog');
 const GalleryDialog = named(() => import('./components/GalleryDialog'), 'GalleryDialog');
 const PhotoLibrary = named(() => import('./components/PhotoLibrary'), 'PhotoLibrary');
 const SettingsDialog = named(() => import('./components/SettingsDialog'), 'SettingsDialog');
 const Viewer3D = named(() => import('./components/Viewer3D'), 'Viewer3D');
+const PerfMonitor = named(() => import('./components/PerfMonitor'), 'PerfMonitor');
 import { Header } from './components/Header';
 import { FeatureFinder } from './components/FeatureFinder';
 import { BackPane } from './components/panes/BackPane';
@@ -46,7 +48,8 @@ export default function App() {
     galleryOpen = useApp((s) => s.ui.gallery),
     libraryOpen = useApp((s) => s.ui.library),
     settingsOpen = useApp((s) => s.ui.settings),
-    viewerOpen = useApp((s) => !!s.ui.viewer);
+    viewerOpen = useApp((s) => !!s.ui.viewer),
+    perfOpen = useApp((s) => s.ui.perf);
   const headFont = useApp((s) => s.design.headFont),
     quoteFont = useApp((s) => s.design.quoteFont),
     backFont = useApp((s) => s.design.back.font),
@@ -70,6 +73,7 @@ export default function App() {
         () => import('./components/Landing'),
         () => import('./components/SizeGuide'),
         () => import('./components/Paper3D'),
+        () => import('./components/InstagramStudio'),
         () => import('./components/CropDialog'),
         () => import('./components/GalleryDialog'),
         () => import('./components/PhotoLibrary'),
@@ -115,7 +119,17 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
-        {screen === 'home' ? <Landing /> : screen === 'sizes' ? <SizeGuide /> : screen === 'paper' ? <Paper3D /> : <Studio />}
+        {screen === 'home' ? (
+          <Landing />
+        ) : screen === 'sizes' ? (
+          <SizeGuide />
+        ) : screen === 'paper' ? (
+          <Paper3D />
+        ) : screen === 'instagram' ? (
+          <InstagramStudio />
+        ) : (
+          <Studio />
+        )}
       </Suspense>
       <Suspense fallback={null}>
         {cropOpen && <CropDialog />}
@@ -123,6 +137,7 @@ export default function App() {
         {settingsOpen && <SettingsDialog />}
         {libraryOpen && <PhotoLibrary />}
         {viewerOpen && <Viewer3D />}
+        {perfOpen && <PerfMonitor />}
       </Suspense>
       <FeatureFinder />
       <Toast />

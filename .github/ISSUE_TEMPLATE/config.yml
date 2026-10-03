@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/RVicky172/Chitthi/security/advisories/new
+    about: Report vulnerabilities privately, not as a public issue.
+  - name: Troubleshooting guide
+    url: https://github.com/RVicky172/Chitthi/blob/main/docs/TROUBLESHOOTING.md
+    about: Fixes for common problems with photos, saving, printing and installing.

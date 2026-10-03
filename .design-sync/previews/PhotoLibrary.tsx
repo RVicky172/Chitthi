@@ -1,4 +1,4 @@
-import { PhotoLibrary, applyTheme, installFontLinks, productDesign, replaceCard, samplePhoto, setPhotos, setUI, storePhotos } from 'chitthi-postcard-studio';
+import { PhotoLibrary, applyTheme, installFontLinks, productDesign, replaceCard, samplePhoto, setPhotos, setUI, storePhotos } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

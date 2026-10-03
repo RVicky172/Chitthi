@@ -1,4 +1,4 @@
-import { WordsPane, applyTheme, installFontLinks, setDesign, productDesign, replaceCard } from 'chitthi-postcard-studio';
+import { WordsPane, applyTheme, installFontLinks, setDesign, productDesign, replaceCard } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

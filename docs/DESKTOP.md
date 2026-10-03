@@ -11,7 +11,7 @@ offline: fonts and sample photos ship inside the app.
 | Downloads | Browser download | Native **Save as…** dialog |
 | Fonts | Google Fonts | Bundled offline (`npm run fetch:fonts`) |
 | Offline | Service worker | Always offline |
-| Extras | — | Native menus, `.chitthi` design files, auto-updates, **MCP server for AI agents** (`Chitthi --mcp`, or live from Settings → AI; see [MCP.md](MCP.md)) |
+| Extras | — | Native menus, `.chitthi` design files, auto-updates, **Performance monitor with real CPU and memory per process** (View → Performance monitor), **MCP server for AI agents** (`Chitthi --mcp`, or live from Settings → AI; see [MCP.md](MCP.md)) |
 | Pexels photo search | Your key in Settings, or the dev/preview server's key | Your key in **File → Settings** (`Ctrl+,`), kept in the app only |
 | AI services | Those that allow browser calls (see [AI.md](AI.md)); keys in the browser | Every service, including Black Forest Labs, Replicate and Ideogram. Requests run in the main process; keys are encrypted with the OS (`safeStorage`) in `ai-keys.json` beside the library folder and never reach the page |
 
@@ -57,6 +57,27 @@ npm run desktop:dist    # installers in release/: NSIS .exe (Windows) or .dmg + 
 ```
 
 macOS builds must run on a Mac and Windows builds on Windows (or use the CI workflow).
+
+## The full video studio
+
+The photo & video studio runs in the browser too, but long and demanding video work belongs here: a browser tab has
+limited memory and is slowed down in the background. In the desktop app ([MEDIA-STUDIO.md](MEDIA-STUDIO.md#in-the-browser-and-in-the-desktop-app)):
+
+- Reels up to 3 minutes and YouTube videos up to 3 hours, up to 500 clips, video files up to 50 GB;
+- YouTube exports in 1080p, 1440p or 4K, at 30 or 60 fps;
+- long exports are written straight to the chosen file through the main process (`desktop:openWrite` /
+  `desktop:write` / `desktop:closeWrite`, files only the user picked in a save dialog), so memory stays flat;
+- encoding and decoding use the graphics card's hardware codecs through WebCodecs.
+
+## Hardening in the packaged app
+
+- **Electron fuses** (`electronFuses` in `electron-builder.yml`): `NODE_OPTIONS` and `--inspect` are ignored, app code
+  loads only from `app.asar`, and the archive is integrity-checked. `RunAsNode` stays on because `Chitthi --mcp`
+  starts its stdio relay (`electron/mcp-stdio.cjs`) with `ELECTRON_RUN_AS_NODE`. Check a build with
+  `npx @electron/fuses read --app "release/win-unpacked/Chitthi Studio.exe"`.
+- **Permissions**: every browser permission request is refused except fullscreen and writing to the clipboard.
+- **IPC**: handlers are registered through `electron/ipc.cjs`, which refuses messages from any frame other than the
+  app's own page. Add new handlers with its `handle` and `on`, never `ipcMain` directly.
 
 ## Code signing
 

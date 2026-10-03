@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { YearField } from 'chitthi-postcard-studio';
+import { YearField } from 'chitthi-studio';
 
 export const CalendarYear = () => {
   const [year, setYear] = useState(2027);

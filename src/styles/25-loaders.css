@@ -1,0 +1,139 @@
+/* ---------- loaders ---------- */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+  vertical-align: -3px;
+  flex: none;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.btn .spinner {
+  width: 14px;
+  height: 14px;
+}
+.cardwrap {
+  position: relative;
+}
+.stage-loading {
+  position: absolute;
+  z-index: 5;
+  inset: auto 50% 24px auto;
+  translate: 50% 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 99px;
+  background: rgba(20, 18, 16, 0.86);
+  color: #fff;
+  font-size: 0.86rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+.px-ph img {
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+}
+.px-ph img.loaded {
+  opacity: 1;
+}
+.px-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.28) 50%, transparent 80%) 0 0 / 250% 100%;
+  animation: skel 1.3s ease-in-out infinite;
+}
+.px-busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(20, 18, 16, 0.55);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.px-busy .spinner {
+  width: 26px;
+  height: 26px;
+  border-width: 3px;
+}
+.px-ph[aria-busy='true']::after {
+  display: none;
+}
+.px-expand {
+  align-self: flex-start;
+}
+.px.wide .px-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.px.wide .px-ph small {
+  font-size: 0.74rem;
+  padding: 16px 10px 8px;
+}
+/* Linked photographer credit under each Pexels result */
+.px-by {
+  margin: 3px 1px 0;
+  font-size: 0.66rem;
+  line-height: 1.25;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.px-by a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+}
+.px-by a:hover {
+  color: var(--accent);
+}
+.px.wide .px-by {
+  font-size: 0.74rem;
+}
+/* Credit link beside a photo's name (library, Photos step) */
+.credit {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+}
+.credit a:hover {
+  color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+.guide-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.guide-list b {
+  color: var(--text);
+}

@@ -13,22 +13,27 @@ import { join } from 'node:path';
 
 const OUT = join(process.cwd(), 'public', 'samples');
 
-/** What the samples need: festival, travel and family photos for postcards, 12 calendar months and frames. */
+/**
+ * What the samples need: festival, travel and nature photos for postcards, 12 calendar months and frames.
+ * Rule: no photos of people (faces, hands, crowds, distant figures). Check every result by eye before keeping it.
+ */
 const QUERIES = [
   ['diwali', 'diwali diya lamps', 'landscape'],
-  ['holi', 'holi festival colours', 'landscape'],
-  ['birthday', 'birthday cake candles', 'landscape'],
-  ['backwaters', 'kerala backwaters boat', 'landscape'],
+  ['holi-bowls', 'holi colour powder bowls', 'landscape'],
+  ['stars-hanging', 'star lanterns hanging', 'portrait'],
+  ['onam-pookalam', 'onam pookalam flowers', 'landscape'],
+  ['monsoon-rain', 'rain on green leaves', 'landscape'],
   ['himalaya', 'himalaya mountains snow', 'landscape'],
   ['monsoon', 'monsoon rain green hills india', 'landscape'],
-  ['beach', 'goa beach sunset', 'landscape'],
-  ['tajmahal', 'taj mahal', 'landscape'],
+  ['wheat-fields', 'golden wheat field', 'landscape'],
+  ['puri-temple', 'jagannath temple puri', 'landscape'],
   ['marigold', 'marigold flowers', 'landscape'],
-  ['desert', 'rajasthan desert camel', 'landscape'],
+  ['mustard-punjab', 'mustard field punjab', 'landscape'],
   ['tea', 'tea plantation hills', 'landscape'],
   ['lotus', 'lotus flower pond', 'landscape'],
-  ['family', 'indian family portrait smiling', 'portrait'],
-  ['kids', 'children playing outdoors india', 'portrait'],
+  ['puri-sunset', 'jagannath temple puri sunset', 'portrait'],
+  ['mustard-bloom', 'mustard flowers close up', 'portrait'],
+  ['kites-line', 'kites blue sky', 'portrait'],
 ];
 
 function readKey() {

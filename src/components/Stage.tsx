@@ -10,6 +10,7 @@ import { getState, patchPhoto, setUI, useApp } from '../state/store';
 import type { Layout, Photo, Rect } from '../types';
 import { Seg } from './common';
 import { CubeIcon, PrevIcon, NextIcon } from './icons';
+import { MoreMenu } from './MoreMenu';
 import { PhotoTray } from './PhotoTray';
 
 interface Drag {
@@ -115,7 +116,7 @@ export function Stage() {
             onChange={(v) => setUI({ side: v })}
           />
         </div>
-        <div className="pill">
+        <div className="pill hide-sm">
           <label className="check">
             <input type="checkbox" checked={guides} onChange={(e) => setUI({ guides: e.target.checked })} /> Print guides
           </label>
@@ -155,11 +156,20 @@ export function Stage() {
           </div>
         )}
         <div className="pill">
-          <button type="button" className="pbtn" onClick={() => void open3D()}>
+          <button type="button" className="pbtn" aria-label="3D view" onClick={() => void open3D()}>
             <CubeIcon />
-            3D view
+            <span className="hide-sm">3D view</span>
           </button>
         </div>
+        {/* Phones: the two view toggles fold into a menu so the bar stays on one row above the card. */}
+        <MoreMenu
+          className="show-sm pill-menu"
+          label="View options"
+          items={[
+            { key: 'guides', label: 'Print guides (trim and safe area)', checked: guides, onSelect: () => setUI({ guides: !guides }) },
+            { key: 'proof', label: 'Print colours (how colours print)', checked: proof, onSelect: () => setUI({ proof: !proof }) },
+          ]}
+        />
       </div>
       <div className="cardwrap" ref={wrap} aria-busy={!!loading}>
         {loading && (
@@ -168,69 +178,71 @@ export function Stage() {
             {loading}
           </div>
         )}
-        <canvas
-          key={flipKey}
-          ref={cv}
-          role="img"
-          tabIndex={draggable ? 0 : undefined}
-          aria-label={`${side === 'front' ? 'Front' : 'Back'} of the ${design.product === 'frame' ? 'print' : design.product === 'magnet' ? 'magnet' : design.product}${draggable ? '. Arrow keys move the photo in the selected slot, Shift for bigger steps, plus and minus to zoom.' : ''}`}
-          onKeyDown={(e) => {
-            // Keyboard equivalent of dragging / wheel-zooming the photo in the selected slot.
-            const L = layout.current,
-              list = getState().photos;
-            if (!draggable || !L?.slots.length || !list.length) return;
-            const slot = Math.min(getState().ui.slot, L.slots.length - 1),
-              ph = list[slotPhotoIndex(slot, list.length, page, L.slots.length)],
-              step = e.shiftKey ? 0.2 : 0.05,
-              clamp = (v: number) => Math.max(-1, Math.min(1, v));
-            const move: Record<string, () => void> = {
-              ArrowLeft: () => patchPhoto(ph.id, { px: clamp(ph.px - step) }),
-              ArrowRight: () => patchPhoto(ph.id, { px: clamp(ph.px + step) }),
-              ArrowUp: () => patchPhoto(ph.id, { py: clamp(ph.py - step) }),
-              ArrowDown: () => patchPhoto(ph.id, { py: clamp(ph.py + step) }),
-              '+': () => patchPhoto(ph.id, { zoom: Math.min(4, ph.zoom * 1.1) }),
-              '=': () => patchPhoto(ph.id, { zoom: Math.min(4, ph.zoom * 1.1) }),
-              '-': () => patchPhoto(ph.id, { zoom: Math.max(1, ph.zoom / 1.1) }),
-            };
-            const fn = move[e.key];
-            if (!fn) return;
-            e.preventDefault();
-            fn();
-          }}
-          className={`${flipKey ? 'flip' : ''} ${draggable ? 'draggable' : ''} ${dragging ? 'dragging' : ''}`}
-          style={{ width: tw * scale, height: th * scale, borderRadius: guides ? 2 : circle ? '50%' : corner ? corner * scale : 2 }}
-          onPointerDown={(e) => {
-            const h = hit(e.clientX, e.clientY);
-            if (!h) return;
-            selectSlot(h.slot);
-            e.currentTarget.setPointerCapture(e.pointerId);
-            drag.current = { id: h.ph.id, d: h.d, sx: e.clientX, sy: e.clientY, px: h.ph.px, py: h.ph.py };
-            setDragging(true);
-          }}
-          onPointerMove={(e) => {
-            const g = drag.current,
-              el = cv.current;
-            if (!g || !el) return;
-            const ph = getState().photos.find((p) => p.id === g.id);
-            if (!ph) return;
-            const k = el.width / el.getBoundingClientRect().width,
-              sc = coverScale(ph, g.d);
-            const ox = ph.sw * sc - g.d.w,
-              oy = ph.sh * sc - g.d.h;
-            patchPhoto(g.id, {
-              px: ox > 0 ? Math.max(-1, Math.min(1, g.px - (2 * (e.clientX - g.sx) * k) / ox)) : ph.px,
-              py: oy > 0 ? Math.max(-1, Math.min(1, g.py - (2 * (e.clientY - g.sy) * k) / oy)) : ph.py,
-            });
-          }}
-          onPointerUp={() => {
-            drag.current = null;
-            setDragging(false);
-          }}
-          onPointerCancel={() => {
-            drag.current = null;
-            setDragging(false);
-          }}
-        />
+        <div className={guides ? 'trim bleed' : 'trim'}>
+          <canvas
+            key={flipKey}
+            ref={cv}
+            role="img"
+            tabIndex={draggable ? 0 : undefined}
+            aria-label={`${side === 'front' ? 'Front' : 'Back'} of the ${design.product === 'frame' ? 'print' : design.product === 'magnet' ? 'magnet' : design.product}${draggable ? '. Arrow keys move the photo in the selected slot, Shift for bigger steps, plus and minus to zoom.' : ''}`}
+            onKeyDown={(e) => {
+              // Keyboard equivalent of dragging / wheel-zooming the photo in the selected slot.
+              const L = layout.current,
+                list = getState().photos;
+              if (!draggable || !L?.slots.length || !list.length) return;
+              const slot = Math.min(getState().ui.slot, L.slots.length - 1),
+                ph = list[slotPhotoIndex(slot, list.length, page, L.slots.length)],
+                step = e.shiftKey ? 0.2 : 0.05,
+                clamp = (v: number) => Math.max(-1, Math.min(1, v));
+              const move: Record<string, () => void> = {
+                ArrowLeft: () => patchPhoto(ph.id, { px: clamp(ph.px - step) }),
+                ArrowRight: () => patchPhoto(ph.id, { px: clamp(ph.px + step) }),
+                ArrowUp: () => patchPhoto(ph.id, { py: clamp(ph.py - step) }),
+                ArrowDown: () => patchPhoto(ph.id, { py: clamp(ph.py + step) }),
+                '+': () => patchPhoto(ph.id, { zoom: Math.min(4, ph.zoom * 1.1) }),
+                '=': () => patchPhoto(ph.id, { zoom: Math.min(4, ph.zoom * 1.1) }),
+                '-': () => patchPhoto(ph.id, { zoom: Math.max(1, ph.zoom / 1.1) }),
+              };
+              const fn = move[e.key];
+              if (!fn) return;
+              e.preventDefault();
+              fn();
+            }}
+            className={`${flipKey ? 'flip' : ''} ${draggable ? 'draggable' : ''} ${dragging ? 'dragging' : ''}`}
+            style={{ width: tw * scale, height: th * scale, borderRadius: guides ? 2 : circle ? '50%' : corner ? corner * scale : 2 }}
+            onPointerDown={(e) => {
+              const h = hit(e.clientX, e.clientY);
+              if (!h) return;
+              selectSlot(h.slot);
+              e.currentTarget.setPointerCapture(e.pointerId);
+              drag.current = { id: h.ph.id, d: h.d, sx: e.clientX, sy: e.clientY, px: h.ph.px, py: h.ph.py };
+              setDragging(true);
+            }}
+            onPointerMove={(e) => {
+              const g = drag.current,
+                el = cv.current;
+              if (!g || !el) return;
+              const ph = getState().photos.find((p) => p.id === g.id);
+              if (!ph) return;
+              const k = el.width / el.getBoundingClientRect().width,
+                sc = coverScale(ph, g.d);
+              const ox = ph.sw * sc - g.d.w,
+                oy = ph.sh * sc - g.d.h;
+              patchPhoto(g.id, {
+                px: ox > 0 ? Math.max(-1, Math.min(1, g.px - (2 * (e.clientX - g.sx) * k) / ox)) : ph.px,
+                py: oy > 0 ? Math.max(-1, Math.min(1, g.py - (2 * (e.clientY - g.sy) * k) / oy)) : ph.py,
+              });
+            }}
+            onPointerUp={() => {
+              drag.current = null;
+              setDragging(false);
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+              setDragging(false);
+            }}
+          />
+        </div>
       </div>
       {side === 'front' && <PhotoTray />}
       <p className="caption">

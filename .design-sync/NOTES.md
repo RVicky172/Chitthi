@@ -9,6 +9,10 @@ Chitthi is an app, not a published component library. The sync ships it through 
 - Converter: `node .ds-sync/package-build.mjs --config .design-sync/config.json --node-modules ./node_modules --out ./ds-bundle` (no `--entry` flag needed; it's in config).
 - Render check / capture: no playwright browser download needed – install the `playwright` npm package into `.ds-sync` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` and run with `DS_CHROMIUM_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe"` (Windows machine with Chrome).
 - Windows/Git-Bash: long heredocs containing some characters fail to parse (`unexpected EOF`); write scripts with the editor and run them from a file.
+- CSS: `src/styles.css` is only an ordered list of `@import`s of `src/styles/NN-*.css`. The converter copies
+  `cssEntry` as-is (it does not inline imports), so `cssEntry` is `dist-lib/styles.css`, the flattened copy that
+  `npm run build:lib` writes (`scripts/flatten-css.mjs`). Run `build:lib` before every sync, or the upload ships a
+  stylesheet whose imports point at files that aren't there (every card unstyled).
 - UI fonts come from the Google Fonts `@import` at the top of `src/styles.css` (moved there from `index.html` so designs get them too). Card fonts (46 families) load at runtime via `installFontLinks()` – no `@font-face` to ship. validate prints `[FONT_REMOTE]` for Geist/Hind/Mukta: expected.
 
 ## Previews

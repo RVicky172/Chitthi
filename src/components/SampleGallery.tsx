@@ -5,21 +5,21 @@ import { cardMM } from '../engine/design';
 import { renderCard } from '../engine/render';
 import { ensureFonts, fontsFor } from '../lib/fonts';
 import { open3D, openSample } from '../state/actions';
-import type { Design, Photo } from '../types';
 import { CubeIcon, ProductIcon } from './icons';
 
 interface Rendered {
   def: SampleDef;
-  design: Design;
-  photos: Photo[];
   credits: SampleCredit[];
+  /** Credits the sample was built from, to rebuild it (with its photos) for "Use this". */
+  all: SampleCredit[];
   front: string;
   back: string;
   w: number;
   h: number;
 }
 
-// Renders are kept for the session: reopening the gallery is instant.
+// Renders (two small JPEG data URLs each) are kept for the session, so reopening the gallery is instant. The decoded
+// photos are not: they are dropped once the thumbnails are drawn and reloaded when a sample is used.
 const cache = new Map<string, Rendered>();
 
 async function renderSample(def: SampleDef, credits: SampleCredit[]): Promise<Rendered> {
@@ -34,9 +34,14 @@ async function renderSample(def: SampleDef, credits: SampleCredit[]): Promise<Re
       renderCard(cv, side, px, 0, { d: s.design, photos: s.photos });
       return cv.toDataURL('image/jpeg', 0.86);
     };
-  const r = { def, ...s, front: face('front'), back: face('back'), w, h };
+  const r = { def, credits: s.credits, all: credits, front: face('front'), back: face('back'), w, h };
   cache.set(def.id, r);
   return r;
+}
+
+async function applySample(r: Rendered): Promise<void> {
+  const s = await buildSample(r.def, r.all);
+  await openSample(s.design, s.photos);
 }
 
 function Credit({ credits }: { credits: SampleCredit[] }) {
@@ -69,7 +74,7 @@ function SampleCard({ r }: { r: Rendered }) {
       <b>{r.def.title}</b>
       <Credit credits={r.credits} />
       <div className="acts">
-        <button type="button" className="sbtn accent" onClick={() => void openSample(r.design, r.photos)}>
+        <button type="button" className="sbtn accent" onClick={() => void applySample(r)}>
           Use this
         </button>
         <button type="button" className="sbtn" onClick={view}>

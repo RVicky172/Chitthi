@@ -121,6 +121,8 @@ export function searchPexels(query: string, orientation: PexelsOrientation | nul
   if (!hit) {
     hit = request(params);
     cache.set(id, hit);
+    // Keep the last 60 searches (a few hundred KB of JSON); the oldest go first.
+    if (cache.size > 60) cache.delete(cache.keys().next().value!);
     hit.catch(() => cache.delete(id));
   }
   return hit;
@@ -193,7 +195,7 @@ const THEME_WORDS: Record<string, string> = {
   holi: 'holi colours',
   rakhi: 'raksha bandhan rakhi',
   eid: 'eid moon lanterns',
-  navratri: 'navratri garba',
+  navratri: 'navratri dandiya sticks',
   ganesh: 'ganesh chaturthi',
   janmashtami: 'krishna flute',
   lohri: 'bonfire night',
@@ -205,9 +207,9 @@ const THEME_WORDS: Record<string, string> = {
   onam: 'onam pookalam flowers',
   christmas: 'christmas lights',
   bday: 'birthday cake candles',
-  kids: 'kids birthday party balloons',
-  parents: 'parents smiling together',
-  friends: 'friends laughing',
+  kids: 'colourful balloons',
+  parents: 'flowers bouquet',
+  friends: 'string lights polaroids',
   milestone: 'celebration confetti',
   spring: 'spring blossom',
   monsoon: 'monsoon rain green',
@@ -235,8 +237,8 @@ const MONTH_WORDS = [
 const PRODUCT_WORDS: Record<Design['product'], string[]> = {
   postcard: ['india travel', 'beach sunset', 'old city street'],
   calendar: ['landscape nature', 'india travel'],
-  frame: ['family portrait', 'mountain landscape', 'couple wedding'],
-  magnet: ['cute puppy', 'family smiling', 'travel landmark', 'flowers close up'],
+  frame: ['mountain landscape', 'botanical flowers', 'architecture detail'],
+  magnet: ['cute puppy', 'travel landmark', 'flowers close up', 'colourful pattern'],
 };
 
 /** Search ideas for the current design: the month (calendars), the occasion, then the product. */

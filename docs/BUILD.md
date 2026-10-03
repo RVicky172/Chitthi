@@ -19,12 +19,17 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | --- | --- |
 | `npm run dev` | Vite dev server on http://localhost:5173 with hot reload; proxies `/api/pexels` when a key is set |
 | `npm run typecheck` | `tsc -b`: strict type check of app and tooling |
+| `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
+| `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |
+| `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [TESTING.md](TESTING.md) |
+| `npm run test:e2e` | Playwright browser tests with an axe accessibility check against the production build (`e2e/`). First run: `npx playwright install chromium` |
 | `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview, the order sheet, the AI service against a fake provider and every agent tool (`src/dev/selftest.ts`). Exits 1 on any failure |
 | `npm run mcp` | The MCP server from source (headless): its own Vite server on port 5197 and cache (`.vite-mcp`), then `electron . --mcp`. stdout carries only the protocol. See [MCP.md](MCP.md) |
+| `npm run check:licenses` | Fails if any package the app ships (desktop `dependencies` and the libraries bundled into `dist/`) has a licence outside the policy in [LICENSING.md](LICENSING.md), or if app code imports an unlisted package (`scripts/check-licenses.mjs`) |
 | `npm run test:mcp` | Starts `npm run mcp` and runs the official MCP client against it: lists tools, resources and prompts, builds a calendar, renders a preview, checks, exports a PDF, and checks errors (`scripts/mcp-smoke.mjs`). With `CHITTHI_MCP_APP=<path to Chitthi.exe>` it tests a packaged or installed app instead |
 | `npm run build` | Type check, production bundle into `dist/`, then `scripts/check-bundle.mjs`: fails if the start-up script grows past 350 KB or contains AI code (which must load with `import()`) |
-| `npm run preview` | Serves `dist/` on http://localhost:8080 (same Pexels proxy) |
-| `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` for the design-system sync (`src/index.ts`) |
+| `npm run preview` | Serves `dist/` on http://localhost:8080 (same Pexels proxy). Bound to `localhost` on purpose: the proxy adds your key, so never expose preview on a public address |
+| `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` and a flattened `dist-lib/styles.css` (`scripts/flatten-css.mjs`) for the design-system sync (`src/index.ts`) |
 | `npm run fetch:samples` | Downloads the gallery sample photos from Pexels into `public/samples/` with credits (needs the key) |
 | `npm run fetch:fonts` | Downloads every card and UI font into `electron/resources/fonts/` for the offline desktop app |
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |
@@ -56,8 +61,8 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 docker compose up -d --build        # http://localhost:8080
 ```
 
-`Dockerfile` is two stages: `node:22-alpine` runs `npm ci && npm run build`, then
-`nginxinc/nginx-unprivileged:1.27-alpine` serves `dist/` on port 8080 as a non-root user. The compose file runs it
+`Dockerfile` is two stages, each base image pinned by digest: `node:22-alpine` runs `npm ci && npm run build`, then
+`nginxinc/nginx-unprivileged:1.30-alpine` serves `dist/` on port 8080 as a non-root user. The compose file runs it
 read-only with a tmpfs `/tmp` and no capabilities. nginx (`nginx/default.conf`):
 
 - caches `/assets/*` (hashed) for a year, and always revalidates `index.html`, `sw.js` and the manifest;
@@ -66,6 +71,8 @@ read-only with a tmpfs `/tmp` and no capabilities. nginx (`nginx/default.conf`):
 - answers `GET /healthz` with `ok` for the container health check.
 
 Serve it over HTTPS (behind Caddy, Traefik or another nginx) for the service worker to register on a real domain.
+`.dockerignore` keeps `.env*` files and build output out of the image build. Running it in production:
+[OPERATIONS.md](OPERATIONS.md).
 
 ## How the running app works
 
@@ -90,7 +97,7 @@ The desktop app is the same `dist/` inside Electron ([DESKTOP.md](DESKTOP.md) ha
   CSP, stores the library as JSON files, and provides dialogs, menus, the `.chitthi` file association and updates.
 - `electron/preload.cjs` exposes `window.chitthiDesktop`, the only bridge from the sandboxed page. The web code
   detects it (`src/platform/desktop.ts`) and switches storage, downloads and menus.
-- `electron-builder.yml` packages `dist/`, the two electron scripts and `package.json`, adds
+- `electron-builder.yml` packages `dist/`, the `electron/` scripts and `package.json`, flips the Electron fuses, adds
   `electron/resources/fonts` as `fonts/`, and builds an NSIS installer (Windows x64) and DMG + ZIP (macOS x64 and
   arm64). The ZIPs and `latest*.yml` files feed the auto-updater.
 
@@ -98,7 +105,7 @@ Local installers:
 
 ```bash
 npm run fetch:fonts      # once; the fonts folder is gitignored
-npm run desktop:dist     # release/Chitthi-Setup-<version>-x64.exe or Chitthi-<version>-<arch>.dmg
+npm run desktop:dist     # release/Chitthi-Studio-Setup-<version>-x64.exe or Chitthi-Studio-<version>-<arch>.dmg
 ```
 
 ## Releasing a new version
@@ -114,6 +121,8 @@ flowchart LR
   F --> G
   G --> H[Installed apps update themselves]
 ```
+
+Follow the checklist in [RELEASE.md](RELEASE.md); in short:
 
 1. `npm version X.Y.Z --no-git-tag-version` (updates `package.json` and the lock file), bump `APP_CACHE`, and update
    the image tag in `docker-compose.yml`.

@@ -1,12 +1,12 @@
 {
-  "name": "Chitthi – Print Studio",
+  "name": "Chitthi Studio",
   "short_name": "Chitthi",
   "description": "Design postcards, calendars, framed prints and fridge magnets for Indian festivals, birthdays and seasons, then download print-ready files.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F4EDE1",
-  "theme_color": "#7A4A2B",
+  "background_color": "#FAFAF9",
+  "theme_color": "#1B1A18",
   "icons": [
     { "src": "favicon/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "favicon/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

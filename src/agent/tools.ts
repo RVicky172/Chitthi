@@ -108,6 +108,10 @@ const toBlob = (cv: HTMLCanvasElement, type = 'image/png', q?: number) =>
 
 /** Pexels results the agent has seen, so add_pexels_photo can use one by id (with its credit). */
 const pexelsSeen = new Map<number, PexelsPhoto>();
+const remember = (p: PexelsPhoto) => {
+  pexelsSeen.set(p.id, p);
+  if (pexelsSeen.size > 500) pexelsSeen.delete(pexelsSeen.keys().next().value!);
+};
 
 export const TOOLS: AgentTool[] = [
   /* ---------- catalogue ---------- */
@@ -393,7 +397,7 @@ export const TOOLS: AgentTool[] = [
     readOnly: true,
     run: async (a) => {
       const r = await searchPexels(s(a.query), (s(a.orientation) || null) as 'landscape' | 'portrait' | 'square' | null, 1);
-      for (const p of r.photos) pexelsSeen.set(p.id, p);
+      for (const p of r.photos) remember(p);
       return ok(`${r.total_results} results; showing ${r.photos.length}. Add one with add_pexels_photo.`, r.photos.map((p) => ({ id: p.id, alt: p.alt, photographer: p.photographer, size: [p.width, p.height], page: p.url })));
     },
   },

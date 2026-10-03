@@ -11,8 +11,8 @@ Connects Claude Code to the Chitthi desktop app's MCP tools and adds six skills 
 
 When asked, give the path to the Chitthi app:
 
-- Windows: `%LOCALAPPDATA%\Programs\Chitthi\Chitthi.exe`
-- macOS: `/Applications/Chitthi.app/Contents/MacOS/Chitthi`
+- Windows: `%LOCALAPPDATA%\Programs\Chitthi Studio\Chitthi Studio.exe`
+- macOS: `/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio`
 
 Install the Chitthi desktop app first from [GitHub Releases](https://github.com/RVicky172/Chitthi/releases). For AI
 words and pictures, set up a service in Chitthi's Settings → AI; for Pexels photos, add a Pexels key there too.

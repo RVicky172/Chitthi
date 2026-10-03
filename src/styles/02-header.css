@@ -1,0 +1,134 @@
+/* shared card surface */
+.bar,
+.rail,
+.panel,
+dialog,
+.fp-pop {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+
+/* header */
+.bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 12px 0;
+  padding: 8px 10px 8px 14px;
+  border-radius: var(--r-lg);
+  height: 60px;
+  position: relative;
+  z-index: 6;
+}
+.bar svg.logo,
+.lnav svg.logo {
+  width: 44px;
+  height: 44px;
+  color: var(--accent);
+  flex: none;
+}
+.home {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.wordmark {
+  display: block;
+  margin: 0;
+  font: 400 1.85rem/1 var(--display);
+  letter-spacing: -0.01em;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.bar .acts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bar .sep {
+  width: 1px;
+  height: 24px;
+  background: var(--line);
+  margin: 0 2px;
+}
+.btn {
+  border: 1px solid var(--line-strong);
+  background: var(--field);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-height: 40px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--elev-1);
+  transition:
+    background var(--dur-fast),
+    border-color var(--dur-fast),
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur);
+}
+.btn:hover {
+  background: var(--field-hover);
+  border-color: var(--muted);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: none;
+}
+.btn.primary {
+  background: var(--grad);
+  border-color: transparent;
+  /* umber in light, cream in dark: --on-accent keeps the text >= 7:1 on either */
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: var(--glow);
+}
+.btn.primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn.primary:active {
+  transform: translateY(0) scale(0.97);
+}
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.btn.ghost:hover {
+  background: var(--field);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.btn svg {
+  width: 17px;
+  height: 17px;
+}
+.btn.icon {
+  padding: 8px 9px;
+  min-width: 40px;
+  min-height: 40px;
+}
+.btn.icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+label.btn {
+  cursor: pointer;
+}

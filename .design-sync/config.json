@@ -1,12 +1,12 @@
 {
   "projectId": "bf75b110-53c9-4be0-ba63-d733e81e6527",
   "shape": "package",
-  "pkg": "chitthi-postcard-studio",
+  "pkg": "chitthi-studio",
   "globalName": "Chitthi",
   "buildCmd": "npm run build:lib",
   "entry": "./src/index.ts",
   "tsconfig": "tsconfig.app.json",
-  "cssEntry": "src/styles.css",
+  "cssEntry": "dist-lib/styles.css",
   "docsDir": ".design-sync/docs",
   "componentSrcMap": {
     "StepLabel": null,

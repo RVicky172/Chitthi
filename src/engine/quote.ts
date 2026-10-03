@@ -38,6 +38,7 @@ const latin = (s: string) =>
     .replace(/→/g, '->')
     .replace(/✦/g, '*')
     .replace(/₹/g, 'Rs ')
+    // eslint-disable-next-line no-control-regex -- keeps every Latin-1 character the PDF font can draw
     .replace(/[^\u0000-ÿ–—‘’“”•…]/g, '');
 
 const r1 = (n: number) => Math.round(n * 10) / 10;

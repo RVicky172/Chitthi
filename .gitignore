@@ -5,6 +5,10 @@ dist
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# test output (npm run test:e2e)
+test-results/
+playwright-report/
 dist-lib
 .ds-sync/
 ds-bundle/
@@ -21,3 +25,9 @@ release/
 # print samples for the print shop (npm run fetch:print-samples / build:print-samples)
 print-samples-src/
 Print Samples/
+
+# Local Claude Code setup and design-tool notes (per developer, not part of the app)
+.claude/
+.hallmark/
+CLAUDE.md
+skills-lock.json

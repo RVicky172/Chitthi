@@ -10,18 +10,18 @@ import { join } from 'node:path';
 
 const OUT = join(process.cwd(), 'showcase-src');
 
-/** [id, search, orientation] */
+/** [id, search, orientation]. Rule: no photos of people (faces, hands, crowds, distant figures); check results by eye. */
 const QUERIES = [
   ['rangoli', 'rangoli colours diwali', 'landscape'],
-  ['couple', 'indian wedding couple', 'portrait'],
   ['hawamahal', 'hawa mahal jaipur', 'portrait'],
-  ['ghats', 'varanasi ghats boats', 'landscape'],
-  ['chai', 'masala chai cup', 'landscape'],
+  ['holi-bowls', 'holi colour powder bowls', 'landscape'],
   ['spices', 'indian spices market', 'landscape'],
   ['ladakh', 'pangong lake ladakh', 'landscape'],
   ['sunflower', 'sunflower field sunset', 'landscape'],
-  ['grandma', 'indian grandmother smiling', 'portrait'],
-  ['kites', 'colourful kites sky', 'landscape'],
+  ['puri-sunset', 'jagannath temple puri sunset', 'portrait'],
+  ['monsoon-drops', 'rain drops green leaves', 'portrait'],
+  ['diwali-diyas', 'diwali clay lamps', 'landscape'],
+  ['sankranti-kites', 'kite festival sky', 'landscape'],
   ['mumbai', 'mumbai marine drive', 'landscape'],
   ['temple', 'south indian temple gopuram', 'portrait'],
   ['puppy', 'puppy portrait', 'square'],

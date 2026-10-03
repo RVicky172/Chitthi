@@ -1,0 +1,6 @@
+/* ---------- landing refresh ---------- */
+.lfoot a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

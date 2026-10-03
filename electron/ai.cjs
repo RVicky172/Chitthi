@@ -6,7 +6,8 @@
  * service's key. Keys are encrypted with the operating system's key store (Electron safeStorage) in
  * userData/ai-keys.json. Calls run here, so providers without browser (CORS) support work on desktop.
  */
-const { app, ipcMain, safeStorage } = require('electron');
+const { app, safeStorage } = require('electron');
+const { handle } = require('./ipc.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
 const RULES = require('./ai-hosts.json');
@@ -40,6 +41,7 @@ function keyOf(provider) {
   }
 }
 
+const LOOPBACK = ['localhost', '127.0.0.1', '[::1]'];
 const matches = (host, list = []) => list.some((h) => (h.startsWith('.') ? host.endsWith(h) : host === h));
 function allowed(provider, url, base) {
   const r = RULES[provider];
@@ -51,12 +53,20 @@ function allowed(provider, url, base) {
     return { ok: false };
   }
   if (u.protocol === 'https:' && matches(u.hostname, r.resultHosts)) return { ok: true, result: true };
-  if (r.local || r.custom) {
-    // A local or custom service: only its own base URL (saved with its key for custom ones).
-    const saved = keyOf(provider);
-    const origin = (saved && saved.base) || base;
+  if (r.local) {
+    // A service on this computer: loopback only, so the page can't use this as a way to fetch arbitrary sites.
     try {
-      if (origin && u.origin === new URL(origin).origin && (u.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)))
+      if (base && u.origin === new URL(base).origin && LOOPBACK.includes(u.hostname)) return { ok: true };
+    } catch {
+      /* bad base */
+    }
+    return { ok: false };
+  }
+  if (r.custom) {
+    // A custom service: only the base URL the user saved with its key, never one the page sends with the request.
+    const saved = keyOf(provider);
+    try {
+      if (saved && saved.base && u.origin === new URL(saved.base).origin && (u.protocol === 'https:' || LOOPBACK.includes(u.hostname)))
         return { ok: true };
     } catch {
       /* bad base */
@@ -89,7 +99,8 @@ async function request(req) {
   if (!rule || !ok.ok) return { status: 0, statusText: '', headers: {}, body: null, error: 'Chitthi won’t send requests for this provider to that address.' };
   const headers = {};
   for (const [k, v] of Object.entries(req.headers || {})) if (typeof v === 'string' && k.toLowerCase() !== rule.header.toLowerCase()) headers[k] = v;
-  if (!ok.result && !req.noAuth && rule.header) {
+  const keyed = !ok.result && !req.noAuth && !!rule.header;
+  if (keyed) {
     const saved = keyOf(provider);
     if (!saved || !saved.key) return { status: 0, statusText: '', headers: {}, body: null, error: 'Add your API key for this provider in Settings → AI.', kind: 'key' };
     headers[rule.header] = rule.prefix + saved.key;
@@ -107,7 +118,8 @@ async function request(req) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(req.url, { method: req.method || (body ? 'POST' : 'GET'), headers, body, signal: ctl.signal });
+    // A request carrying a key never follows a redirect: custom key headers would go along to the new host.
+    const res = await fetch(req.url, { method: req.method || (body ? 'POST' : 'GET'), headers, body, signal: ctl.signal, redirect: keyed ? 'error' : 'follow' });
     const len = +(res.headers.get('content-length') || 0);
     if (len > MAX_BYTES) return { status: 0, statusText: '', headers: {}, body: null, error: 'The response was too large.' };
     const buf = Buffer.from(await res.arrayBuffer());
@@ -125,13 +137,13 @@ async function request(req) {
 }
 
 function registerAi() {
-  ipcMain.handle('ai:keys', () => {
+  handle('ai:keys', () => {
     const store = readStore(),
       out = {};
     for (const p of Object.keys(RULES)) if (!p.startsWith('_')) out[p] = !!(store[p] && store[p].enc) || !!session[p];
     return out;
   });
-  ipcMain.handle('ai:setKey', (_e, provider, key, base) => {
+  handle('ai:setKey', (_e, provider, key, base) => {
     if (!RULES[provider] || provider.startsWith('_')) throw new Error('Unknown provider');
     const k = String(key || '').trim();
     if (!k || k.length > 4000) throw new Error('That doesn’t look like an API key.');
@@ -143,13 +155,13 @@ function registerAi() {
       delete session[provider];
     } else session[provider] = { key: k, base: b }; // no OS key store: keep it for this run only
   });
-  ipcMain.handle('ai:deleteKey', (_e, provider) => {
+  handle('ai:deleteKey', (_e, provider) => {
     const store = readStore();
     delete store[provider];
     writeStore(store);
     delete session[provider];
   });
-  ipcMain.handle('ai:fetch', (_e, req) => request(req || {}));
+  handle('ai:fetch', (_e, req) => request(req || {}));
 }
 
 module.exports = { registerAi, aiRequest: request };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FontPicker, installFontLinks } from 'chitthi-postcard-studio';
+import { FontPicker, installFontLinks } from 'chitthi-studio';
 
 installFontLinks();
 

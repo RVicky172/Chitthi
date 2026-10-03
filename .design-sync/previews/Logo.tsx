@@ -1,4 +1,4 @@
-import { Logo } from 'chitthi-postcard-studio';
+import { Logo } from 'chitthi-studio';
 
 // The चिट्ठी postmark seal. It draws in currentColor; the header and landing nav colour it var(--accent).
 export const HeaderMark = () => (

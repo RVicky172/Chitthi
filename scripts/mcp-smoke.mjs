@@ -3,7 +3,7 @@
  * End-to-end check of Chitthi's MCP server with the official MCP client: starts `npm run mcp` over stdio, lists tools,
  * resources and prompts, builds a calendar and a postcard through the tools, checks and previews them, and exports a
  * PDF. No AI calls (those need the user's keys). Run: node scripts/mcp-smoke.mjs  (exits 1 on any failure)
- * CHITTHI_MCP_APP=<path to Chitthi.exe> tests a packaged or installed app instead of the source.
+ * CHITTHI_MCP_APP=<path to Chitthi Studio.exe> tests a packaged or installed app instead of the source.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';

@@ -1,4 +1,4 @@
-import { PhotosIcon } from 'chitthi-postcard-studio';
+import { PhotosIcon } from 'chitthi-studio';
 
 // Lucide line icon in currentColor: 24px by default, 17px inside .btn, 14px inside .sbtn.
 export const InButton = () => (

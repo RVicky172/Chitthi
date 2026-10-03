@@ -1,4 +1,4 @@
-import { CalendarFront, installFontLinks, productDesign, replaceCard, samplePhoto, setDesign, setPhotos, switchProduct } from 'chitthi-postcard-studio';
+import { CalendarFront, installFontLinks, productDesign, replaceCard, samplePhoto, setDesign, setPhotos, switchProduct } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

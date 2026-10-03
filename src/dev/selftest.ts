@@ -158,7 +158,39 @@ async function run(): Promise<Result> {
 
   await aiChecks(check);
   await agentChecks(check, r);
+  await perfChecks(check);
   return r;
+}
+
+/* ---------- performance monitor sampler and the undo history's memory guard ---------- */
+
+async function perfChecks(check: (ok: unknown, what: string) => void): Promise<void> {
+  const { watchPerf, perfReport } = await import('../lib/perf');
+  const got = await new Promise<import('../lib/perf').PerfSample | undefined>((done) => {
+    const stop = watchPerf((s) => {
+      if (!s.length) return;
+      stop();
+      done(s[s.length - 1]);
+    });
+    setTimeout(() => (stop(), done(undefined)), 4000);
+  });
+  check(got && got.dom > 0 && got.fps >= 0 && got.busy >= 0 && got.busy <= 100, 'perf: a sample arrives with frame, load and page figures');
+  const rep = JSON.parse(perfReport()) as { app: string; summary: { seconds: number } };
+  check(rep.app === 'Chitthi' && typeof rep.summary.seconds === 'number', 'perf: the report is JSON with a summary');
+
+  const { commit, historyStats, setPhotos } = await import('../state/store');
+  const { updatePhoto } = await import('../engine/photo');
+  const a = samplePhoto(0, 800, 600),
+    cropped = updatePhoto(a, { crop: { x: 0, y: 0, w: 0.5, h: 0.5 } }),
+    recropped = updatePhoto(a, { crop: { x: 0.5, y: 0.5, w: 0.5, h: 0.5 } });
+  setPhotos([cropped]);
+  commit();
+  setPhotos([recropped]);
+  commit();
+  const h = historyStats();
+  check(h.steps >= 2 && h.bytes === cropped.sw * cropped.sh * 4, 'undo history: counts the canvases only it still holds');
+  setPhotos([]);
+  commit();
 }
 
 /* ---------- AI: a fake provider drives the real service, prompts, credits and limits (no network) ---------- */

@@ -1,7 +1,8 @@
 # Third-party notices
 
 Chitthi's own code is under the [MIT License](LICENSE): free for everyone to use, copy, change and share,
-including commercially. It includes or uses the following, each under its own licence.
+including commercially. It includes or uses the following, each under its own licence. The rules for adding to this
+list are in [docs/LICENSING.md](docs/LICENSING.md).
 
 | Component | Licence | Notes |
 | --- | --- | --- |
@@ -12,6 +13,7 @@ including commercially. It includes or uses the following, each under its own li
 | [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) (`@anthropic-ai/sdk`) | MIT | Claude requests for AI writing |
 | [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) (`@modelcontextprotocol/sdk`) | MIT | MCP server in the desktop app |
 | [Zod](https://zod.dev) | MIT | Used by the MCP SDK |
+| [Mediabunny](https://mediabunny.dev) | [MPL-2.0](https://www.mozilla.org/MPL/2.0/) | Video export (MP4 encoding and video decoding). Used unmodified; its source is at https://github.com/Vanilagy/mediabunny |
 | Card and UI fonts from [Google Fonts](https://fonts.google.com) | SIL Open Font License 1.1 (a few Apache 2.0) | Bundled in the desktop app; free to use in printed work |
 | Sample photos in `public/samples/` | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `public/samples/samples.json` and in the app |
 | Landing page example photos in `showcase-src/` (and their renders in `public/showcase/`) | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `showcase-src/photos.json` and on the landing page |
@@ -24,6 +26,9 @@ Designs, photos and files you make with Chitthi are yours. The MIT License cover
   Don't sell unaltered copies of the photos themselves, and don't suggest that people or brands shown endorse you.
 - **AI pictures and words** come from the service you chose, under its terms and your account with it. Chitthi marks
   AI pictures in credits; disclose them as AI-generated where the service or the law requires.
+- **Emoji stickers** are drawn with your device's own emoji font (Segoe UI Emoji, Apple Color Emoji or Noto Color
+  Emoji), so they look as they do elsewhere on your device.
+- **Music you add to a video** must be yours to use; Instagram may mute recognised copyrighted songs.
 - **Fonts you upload** stay on your device. Check that their licence allows use in print (most free fonts do).
 - **Occasion artwork** drawn by Chitthi (diyas, rangoli, confetti and the rest) is part of the MIT-licensed software, so
   it can be used freely in anything you print.

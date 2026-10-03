@@ -8,6 +8,10 @@ on:
     tags: ['v*']
   workflow_dispatch: # manual run: builds the installers as workflow artifacts, no release
 
+# Read-only by default; only the release job may write (it creates the GitHub Release).
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -20,14 +24,15 @@ jobs:
             platform: --mac
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
+      - run: npm run check:licenses
 
       - name: Bundle fonts for offline use
         run: npm run fetch:fonts
@@ -68,7 +73,7 @@ jobs:
           echo "::error title=electron-builder (${{ matrix.os }})::$msg"
 
       # Installers plus the update manifests (latest*.yml) and block maps the in-app updater reads.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: chitthi-${{ matrix.os }}
           path: |
@@ -86,21 +91,21 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: out
           merge-multiple: true
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          name: Chitthi ${{ github.ref_name }}
+          name: Chitthi Studio ${{ github.ref_name }}
           files: out/*
           body: |
-            Chitthi desktop app for Windows and macOS.
+            Chitthi Studio for Windows and macOS.
 
-            **Windows:** download `Chitthi-Setup-*-x64.exe` and run it. It isn't code-signed yet, so if
+            **Windows:** download `Chitthi-Studio-Setup-*-x64.exe` and run it. It isn't code-signed yet, so if
             Windows SmartScreen appears, click **More info → Run anyway**.
 
             **macOS:** download the `.dmg` for your Mac (`arm64` for Apple silicon M1–M4, `x64` for Intel), open it
-            and drag Chitthi into Applications. It isn't notarized yet, so if macOS says the app is damaged or
-            can't be checked, run `xattr -cr /Applications/Chitthi.app` in Terminal once, then open it again.
+            and drag Chitthi Studio into Applications. It isn't notarized yet, so if macOS says the app is damaged or
+            can't be checked, run `xattr -cr "/Applications/Chitthi Studio.app"` in Terminal once, then open it again.

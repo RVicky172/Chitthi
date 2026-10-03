@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -15,6 +16,9 @@ export default defineConfig(({ mode }) => {
         },
       }
     : {};
+  // vite preview serves the production Content Security Policy from the nginx config, so the browser tests
+  // (npm run test:e2e) catch anything the policy would block on a real server.
+  const csp = /Content-Security-Policy "([^"]+)"/.exec(readFileSync('nginx/security-headers.conf', 'utf8'))?.[1];
   return {
     plugins: [react()],
     base: './',
@@ -24,6 +28,7 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 900,
     },
     server: { port: 5173, proxy },
-    preview: { proxy },
+    // Preview adds the server's Pexels key to /api/pexels: keep it on this machine, never on a public address.
+    preview: { host: 'localhost', proxy, headers: csp ? { 'Content-Security-Policy': csp } : {} },
   };
 });

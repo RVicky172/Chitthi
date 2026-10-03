@@ -245,6 +245,10 @@ export function assign(photos: PhotoTraits[], slots: SlotShape[], theme?: Theme)
     pairs: [number, number, number][] = [];
   for (let s = 0; s < n; s++) for (let p = 0; p < photos.length; p++) pairs.push([score(p, s), p, s]);
   pairs.sort((a, b) => b[0] - a[0]);
-  for (const [, p, s] of pairs) if (out[s] < 0 && !taken.has(p)) (out[s] = p), taken.add(p);
+  for (const [, p, s] of pairs)
+    if (out[s] < 0 && !taken.has(p)) {
+      out[s] = p;
+      taken.add(p);
+    }
   return out.filter((p) => p >= 0);
 }

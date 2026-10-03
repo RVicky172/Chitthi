@@ -23,7 +23,9 @@ export type MenuAction =
   | 'settings'
   | 'sizes'
   | 'paper'
-  | 'find';
+  | 'instagram'
+  | 'find'
+  | 'perf';
 
 export interface AiWireRequest {
   provider: string;
@@ -49,13 +51,26 @@ export interface OpenedFile {
   text: string;
 }
 
+/** CPU and memory of every Chitthi process (electron app.getAppMetrics), for the performance monitor. */
+export interface AppMetrics {
+  cores: number;
+  systemMemory: number;
+  /** cpu: % of one core since the last call; mem: working set in bytes. */
+  procs: { type: string; pid: number; cpu: number; mem: number }[];
+}
+
 export interface DesktopBridge {
   info: { version: string; platform: string; localFonts: boolean };
   /** Shows a native save dialog; resolves to the saved path, or null if cancelled. */
   saveFile(name: string, data: ArrayBuffer): Promise<string | null>;
+  /** Streaming save: a save dialog, then writes at byte positions; close(keep = false) deletes the partial file. */
+  openWrite(name: string): Promise<{ id: number; path: string } | null>;
+  writeAt(id: number, position: number, data: ArrayBuffer): Promise<void>;
+  closeWrite(id: number, keep: boolean): Promise<string | null>;
   showInFolder(path: string): Promise<void>;
   openExternal(url: string): Promise<void>;
   openDesignFile(): Promise<OpenedFile | null>;
+  metrics?(): Promise<AppMetrics>;
   onMenu(cb: (action: MenuAction) => void): () => void;
   onOpenFile(cb: (file: OpenedFile) => void): () => void;
   /** AI requests and keys (electron/ai.cjs). Keys can be set, checked and deleted, never read back. */

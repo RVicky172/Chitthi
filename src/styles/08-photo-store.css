@@ -1,0 +1,175 @@
+/* icon placements */
+.sbtn svg {
+  width: 14px;
+  height: 14px;
+}
+.next svg {
+  width: 17px;
+  height: 17px;
+}
+.drop-ico {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.drop-ico svg {
+  width: 24px;
+  height: 24px;
+}
+.pack b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pack b svg {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+.product-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 10px;
+  vertical-align: -6px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.product-ico svg {
+  width: 18px;
+  height: 18px;
+}
+.tray-add svg,
+.pill.month .pbtn svg,
+.galx svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* skeletons: shown while IndexedDB lists load, so the space is reserved and nothing jumps */
+.skel {
+  display: block;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--sunk) 25%, var(--field-hover) 50%, var(--sunk) 75%);
+  background-size: 300% 100%;
+  animation: skel 1.4s ease-in-out infinite;
+}
+@keyframes skel {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+.store-skel {
+  aspect-ratio: 1;
+}
+.gthumb-skel {
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+}
+.line-skel {
+  height: 12px;
+  width: 80%;
+}
+.line-skel.short {
+  width: 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}
+
+/* photo store: every uploaded photo, tap to use */
+.store {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+.store li {
+  position: relative;
+}
+.store-ph {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--sunk);
+  transition:
+    border-color 0.2s,
+    transform 0.2s var(--ease),
+    box-shadow 0.2s;
+}
+.store-ph img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.store-ph:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px -12px var(--shadow);
+}
+.store-ph[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.store-ph b {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+.store-del {
+  /* 22px to look at, 44px to hit: see ::before */
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(24, 20, 16, 0.6);
+  color: #fff;
+  font-size: 0.8rem;
+  line-height: 22px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.store li:hover .store-del,
+.store-del:focus-visible,
+.store-del.sure {
+  opacity: 1;
+}
+.store-del.sure {
+  /* fixed red, not --danger: the lighter dark-mode red can't carry white text */
+  background: #c81e41;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+@media (hover: none) {
+  .store-del {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,68 @@
+/* ---------- tray: take-off, crop and library buttons ---------- */
+.tray-item {
+  position: relative;
+}
+.tray-x {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(20, 18, 16, 0.85);
+  color: #fff;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+.tray-x svg {
+  width: 11px;
+  height: 11px;
+}
+.tray-item:hover .tray-x,
+.tray-x:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .tray-x {
+    opacity: 1;
+  }
+}
+.tray-ph.nofit {
+  opacity: 0.4;
+}
+.tray-tools {
+  display: flex;
+  gap: 6px;
+  padding-left: 6px;
+  margin-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+.tray-tool {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+}
+.tray-tool svg {
+  width: 20px;
+  height: 20px;
+}
+.tray-tool:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.tray-tool:disabled {
+  opacity: 0.4;
+}
+.tray-lib {
+  padding-top: 4px;
+}

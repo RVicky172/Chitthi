@@ -95,7 +95,11 @@ export function PhotosPane() {
         </p>
       )}
       <PexelsSearch />
-      <AiArtworkEntry />
+      {/* AI pictures are their own section, apart from Pexels: made for this card, not found in a stock library. */}
+      <Section id="photos.ai" title="Create pictures with AI" defaultOpen={false}>
+        <p className="hint">A picture made for the selected slot from a description, with your own AI key. It is marked as AI in the credits.</p>
+        <AiArtworkEntry />
+      </Section>
       <Section id="photos.store" title="Photo store">
         <PhotoStore />
       </Section>

@@ -34,9 +34,9 @@ const hind = await subset('Hind', 600, RING.replace(/[ ✦]/g, ''));
 const rozha = await subset('Rozha One', 400, WORD);
 const fonts = `<style>@font-face{font-family:'LogoSans';font-weight:600;src:url(${hind}) format('woff2')}@font-face{font-family:'LogoWord';src:url(${rozha}) format('woff2')}</style>`;
 
-const TILE = `<linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a3c"/><stop offset="1" stop-color="#5f3a22"/></linearGradient>`;
-const CREAM = '#F6ECDC',
-  SAFFRON = '#F0A04B';
+const TILE = `<linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2a27"/><stop offset="1" stop-color="#151413"/></linearGradient>`;
+const CREAM = '#F2F0EB',
+  SAFFRON = '#F0BA59';
 
 /** The navbar logo (120 × 120 units), drawn in cream. */
 const logo = `
@@ -49,7 +49,7 @@ const logo = `
 const svg = (body, defs = '') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs>${TILE}${defs}</defs>${fonts}${body}</svg>\n`;
 
-// Full logo on a rounded umber tile: app icons, home-screen icons, the desktop app.
+// Full logo on a rounded graphite tile: app icons, home-screen icons, the desktop app.
 const full = svg(`<rect width="128" height="128" rx="28" fill="url(#t)"/><g transform="translate(10 10) scale(0.9)">${logo}</g>`);
 // Full-bleed version with the logo inside the safe zone, for icons the OS masks into its own shape.
 const maskable = svg(`<rect width="128" height="128" fill="url(#t)"/><g transform="translate(20 20) scale(0.7333)">${logo}</g>`);

@@ -6,7 +6,7 @@ import { toast } from '../lib/toast';
 import { addFiles, downloadPack, downloadQuote, exportBackup, newCard, open3D, saveDesign, switchProduct } from '../state/actions';
 import { selectSlot } from '../state/photoSlots';
 import { autoArrange } from '../state/traits';
-import { getState, redo, setDesign, setUI, undo, useApp } from '../state/store';
+import { getState, redo, setDesign, setPerf, setUI, undo, useApp } from '../state/store';
 import type { PaneId } from '../types';
 import { revealSection } from './common';
 import { SearchIcon } from './icons';
@@ -37,6 +37,10 @@ function commands(pickFiles: () => void): Cmd[] {
   const c: Cmd[] = [
     { id: 'upload', group: 'Photos', title: 'Add photos from this device', words: 'upload import pictures images files', run: () => (studio('photos'), pickFiles()) },
     { id: 'library', group: 'Photos', title: 'Open the photo library', words: 'photos store all images manage delete remove', run: () => setUI({ library: true, libraryTab: 'mine' }) },
+    { id: 'instagram', group: 'Instagram', title: 'Make Instagram posts (up to 20 photos)', words: 'instagram insta post carousel social share feed story reel batch export edit filter', run: () => setUI({ screen: 'instagram' }) },
+    { id: 'reels', group: 'Video', title: 'Make a Reel or YouTube Short', words: 'reel short video vertical instagram youtube shorts clips music timeline', run: () => (location.hash = '#/instagram/video') },
+    { id: 'youtube', group: 'Video', title: 'Make a YouTube video or vlog', words: 'youtube vlog video edit timeline trim clips 1080p 4k export mp4', run: () => (location.hash = '#/instagram/youtube') },
+    { id: 'ig-batch', group: 'Instagram', title: 'Edit and export photos in a batch', words: 'batch bulk resize crop filter brightness contrast export zip jpeg png instagram', run: () => setUI({ screen: 'instagram' }) },
     { id: 'pexels', group: 'Photos', title: 'Search free photos on Pexels', words: 'stock free images search pexels', run: () => setUI({ library: true, libraryTab: 'pexels' }) },
     {
       id: 'crop',
@@ -102,6 +106,7 @@ function commands(pickFiles: () => void): Cmd[] {
     { id: 'flip', group: 'View', title: 'Flip to the other side', words: 'back front flip turn', run: () => (studio(), setUI({ side: getState().ui.side === 'front' ? 'back' : 'front' })) },
     { id: 'full', group: 'View', title: 'Full screen on / off', words: 'fullscreen full screen maximise maximize', run: () => void toggleFullscreen() },
     { id: 'theme', group: 'View', title: 'Light / dark theme', words: 'dark mode light mode theme appearance', run: toggleTheme },
+    { id: 'perf', group: 'View', title: 'Performance monitor (CPU, memory, frame rate)', words: 'performance cpu memory ram fps speed slow lag monitor stats diagnostics usage', run: () => setPerf(!getState().ui.perf) },
     { id: 'save', group: 'Designs', title: 'Save to gallery', words: 'save keep store', run: () => void saveDesign(false) },
     { id: 'gallery', group: 'Designs', title: 'Open the gallery', words: 'gallery saved designs samples examples', run: () => setUI({ gallery: true }) },
     { id: 'new', group: 'Designs', title: 'Start a new design', words: 'new blank reset start over', run: () => (studio(), newCard()) },

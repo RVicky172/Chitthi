@@ -5,15 +5,20 @@
  * Content Security Policy. It runs sandboxed without Node; everything native (file dialogs, the on-disk library,
  * menus, updates) goes through the small bridge in preload.cjs.
  */
-const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, protocol, session, shell } = require('electron');
+const { handle, on } = require('./ipc.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const fsp = fs.promises;
 
 const DEV_URL = process.env.CHITTHI_DEV_URL || ''; // set by electron/dev.mjs
 // `Chitthi --mcp`: run headless as an MCP server over stdio for AI agents (electron/mcp.cjs), no window.
 const MCP_MODE = process.argv.includes('--mcp');
 const isMac = process.platform === 'darwin';
+// The app is "Chitthi Studio", but its data (gallery, photo library, keys) stays in the folder earlier versions used,
+// so renaming the app never loses anyone's work: %APPDATA%\Chitthi, ~/Library/Application Support/Chitthi.
+app.setPath('userData', path.join(app.getPath('appData'), 'Chitthi'));
 const ORIGIN = 'app://chitthi';
 const DIST = path.join(__dirname, '..', 'dist');
 const FONTS = app.isPackaged ? path.join(process.resourcesPath, 'fonts') : path.join(__dirname, 'resources', 'fonts');
@@ -53,6 +58,9 @@ const CSP = [
   // Pexels photo search (with the user's own key) and the photos it downloads.
   "img-src 'self' data: blob: https://images.pexels.com",
   "connect-src 'self' data: blob: https://api.pexels.com https://images.pexels.com",
+  // The video editor plays local clips and music from blob: URLs; the video encoder starts blob: workers.
+  "media-src 'self' blob:",
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "frame-src 'none'",
@@ -86,6 +94,16 @@ function serveApp() {
   });
 }
 
+/* ------------------------------------------------------------------ permissions */
+// Electron grants every permission by default. The app needs only fullscreen and copying text to the clipboard.
+const ALLOWED_PERMISSIONS = new Set(['fullscreen', 'clipboard-sanitized-write']);
+
+function restrictPermissions() {
+  const ses = session.defaultSession;
+  ses.setPermissionRequestHandler((_wc, permission, done) => done(ALLOWED_PERMISSIONS.has(permission)));
+  ses.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
+}
+
 /* ------------------------------------------------------------------ on-disk library (desktop storage) */
 // userData/library/{designs,photos}/<id>.json and work.json. The browser build keeps IndexedDB.
 
@@ -107,7 +125,7 @@ async function readJson(file) {
   }
 }
 async function readAll(folder) {
-  let names = [];
+  let names;
   try {
     names = (await fsp.readdir(dir(folder))).filter((n) => n.endsWith('.json'));
   } catch {
@@ -122,15 +140,15 @@ function requireId(id) {
 }
 
 function registerStorage() {
-  ipcMain.handle('db:all', () => readAll('designs'));
-  ipcMain.handle('db:get', (_e, id) => readJson(path.join(dir('designs'), `${requireId(id)}.json`)));
-  ipcMain.handle('db:put', (_e, rec) => writeJson(path.join(dir('designs'), `${requireId(rec && rec.id)}.json`), rec));
-  ipcMain.handle('db:del', (_e, id) => fsp.rm(path.join(dir('designs'), `${requireId(id)}.json`), { force: true }));
-  ipcMain.handle('db:getWorkPhotos', async () => (await readJson(path.join(LIB(), 'work.json'))) || []);
-  ipcMain.handle('db:putWorkPhotos', (_e, photos) => writeJson(path.join(LIB(), 'work.json'), Array.isArray(photos) ? photos : []));
+  handle('db:all', () => readAll('designs'));
+  handle('db:get', (_e, id) => readJson(path.join(dir('designs'), `${requireId(id)}.json`)));
+  handle('db:put', (_e, rec) => writeJson(path.join(dir('designs'), `${requireId(rec && rec.id)}.json`), rec));
+  handle('db:del', (_e, id) => fsp.rm(path.join(dir('designs'), `${requireId(id)}.json`), { force: true }));
+  handle('db:getWorkPhotos', async () => (await readJson(path.join(LIB(), 'work.json'))) || []);
+  handle('db:putWorkPhotos', (_e, photos) => writeJson(path.join(LIB(), 'work.json'), Array.isArray(photos) ? photos : []));
   // Photo store: photos/<id>.json holds the full image, photos-meta/<id>.json everything else (name, thumbnail,
   // analysis), so listing the library never reads or sends the full images.
-  ipcMain.handle('db:libAll', async () => {
+  handle('db:libAll', async () => {
     const metas = await readAll('photos-meta'),
       known = new Set(metas.map((m) => m.id));
     // Photos saved before the split: make their meta file once.
@@ -149,14 +167,14 @@ function registerStorage() {
     }
     return metas;
   });
-  ipcMain.handle('db:libUrl', async (_e, id) => ((await readJson(path.join(dir('photos'), `${requireId(id)}.json`))) || {}).url || '');
-  ipcMain.handle('db:libPut', async (_e, p) => {
+  handle('db:libUrl', async (_e, id) => ((await readJson(path.join(dir('photos'), `${requireId(id)}.json`))) || {}).url || '');
+  handle('db:libPut', async (_e, p) => {
     const id = requireId(p && p.id);
     // A details-only update (empty url) keeps the stored full image.
     if (p.url) await writeJson(path.join(dir('photos'), `${id}.json`), { id, url: p.url });
     await writeJson(path.join(dir('photos-meta'), `${id}.json`), { ...p, url: '' });
   });
-  ipcMain.handle('db:libDel', async (_e, id) => {
+  handle('db:libDel', async (_e, id) => {
     await fsp.rm(path.join(dir('photos'), `${requireId(id)}.json`), { force: true });
     await fsp.rm(path.join(dir('photos-meta'), `${requireId(id)}.json`), { force: true });
   });
@@ -169,12 +187,12 @@ let lastDir = null;
 
 function extFilter(name) {
   const ext = path.extname(name).slice(1).toLowerCase();
-  const label = { zip: 'Print pack', pdf: 'PDF', png: 'PNG image', json: 'Gallery backup', chitthi: 'Chitthi design' }[ext] || 'File';
+  const label = { zip: 'Print pack', pdf: 'PDF', png: 'PNG image', json: 'Gallery backup', chitthi: 'Chitthi design', mp4: 'MP4 video' }[ext] || 'File';
   return ext ? [{ name: label, extensions: [ext] }] : [];
 }
 
 function registerFiles() {
-  ipcMain.handle('desktop:saveFile', async (e, name, data) => {
+  handle('desktop:saveFile', async (e, name, data) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const safeName = path.basename(String(name || 'chitthi-file'));
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
@@ -187,12 +205,49 @@ function registerFiles() {
     savedPaths.add(filePath);
     return filePath;
   });
+  // Streaming saves for long exports (video): the user picks the file, then the page writes it piece by piece at given
+  // positions, so a long video never has to fit in memory. Only files opened this way can be written.
+  const streams = new Map();
+  let nextStream = 1;
+  handle('desktop:openWrite', async (e, name) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const safeName = path.basename(String(name || 'chitthi-video.mp4'));
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      defaultPath: path.join(lastDir || app.getPath('videos'), safeName),
+      filters: extFilter(safeName),
+    });
+    if (canceled || !filePath) return null;
+    const fh = await fsp.open(filePath, 'w');
+    const id = nextStream++;
+    streams.set(id, { fh, filePath });
+    lastDir = path.dirname(filePath);
+    return { id, path: filePath };
+  });
+  handle('desktop:write', async (_e, id, position, data) => {
+    const s = streams.get(id);
+    if (!s) throw new Error('That file isn’t open.');
+    if (!Number.isSafeInteger(position) || position < 0) throw new Error('Bad position.');
+    const buf = Buffer.from(data);
+    await s.fh.write(buf, 0, buf.length, position);
+  });
+  handle('desktop:closeWrite', async (_e, id, keep) => {
+    const s = streams.get(id);
+    if (!s) return null;
+    streams.delete(id);
+    await s.fh.close();
+    if (!keep) {
+      await fsp.rm(s.filePath, { force: true });
+      return null;
+    }
+    savedPaths.add(s.filePath);
+    return s.filePath;
+  });
   // Only files this session saved can be revealed: the renderer can't probe arbitrary paths.
-  ipcMain.handle('desktop:showInFolder', (_e, p) => {
+  handle('desktop:showInFolder', (_e, p) => {
     if (savedPaths.has(p)) shell.showItemInFolder(p);
   });
-  ipcMain.handle('desktop:openExternal', (_e, url) => openExternal(url));
-  ipcMain.handle('desktop:openDesignFile', async (e) => {
+  handle('desktop:openExternal', (_e, url) => openExternal(url));
+  handle('desktop:openDesignFile', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
       properties: ['openFile'],
@@ -201,7 +256,13 @@ function registerFiles() {
     if (canceled || !filePaths[0]) return null;
     return readDesignFile(filePaths[0]);
   });
-  ipcMain.on('desktop:info', (e) => {
+  // Performance monitor: CPU (% of one core since the last call) and memory for every Chitthi process.
+  handle('desktop:metrics', () => ({
+    cores: os.cpus().length || 1,
+    systemMemory: os.totalmem(),
+    procs: app.getAppMetrics().map((m) => ({ type: m.type, pid: m.pid, cpu: m.cpu.percentCPUUsage, mem: m.memory.workingSetSize * 1024 })),
+  }));
+  on('desktop:info', (e) => {
     e.returnValue = { version: app.getVersion(), platform: process.platform, localFonts: hasLocalFonts() };
   });
 }
@@ -253,8 +314,8 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    title: 'Chitthi',
-    backgroundColor: '#f4f7fa',
+    title: 'Chitthi Studio',
+    backgroundColor: '#fafaf9',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -354,10 +415,12 @@ function menu() {
         { label: 'Gallery', accelerator: 'CmdOrCtrl+G', click: send('gallery') },
         { label: 'Sizes and layouts', click: send('sizes') },
         { label: 'Paper sizes in 3D', click: send('paper') },
+        { label: 'Photo & video studio', click: send('instagram') },
         { label: 'Find a feature…', ...shown('CmdOrCtrl+K'), click: send('find') },
         { label: '3D view', accelerator: 'CmdOrCtrl+Shift+3', click: send('3d') },
         { label: 'Flip card', ...shown('F'), click: send('flip') },
         { label: 'Light / dark theme', accelerator: 'CmdOrCtrl+Shift+L', click: send('theme') },
+        { label: 'Performance monitor', click: send('perf') },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
@@ -373,7 +436,7 @@ function menu() {
       submenu: [
         { label: 'Check for updates…', enabled: app.isPackaged, click: () => checkForUpdates(true) },
         { label: 'Sample photos: Pexels license', click: () => openExternal('https://www.pexels.com/license/') },
-        ...(isMac ? [] : [{ type: 'separator' }, { label: `About Chitthi ${app.getVersion()}`, click: about }]),
+        ...(isMac ? [] : [{ type: 'separator' }, { label: `About Chitthi Studio ${app.getVersion()}`, click: about }]),
       ],
     },
   ];
@@ -383,8 +446,8 @@ function menu() {
 function about() {
   dialog.showMessageBox(win, {
     type: 'info',
-    title: 'About Chitthi',
-    message: `Chitthi ${app.getVersion()}`,
+    title: 'About Chitthi Studio',
+    message: `Chitthi Studio ${app.getVersion()}`,
     detail: 'Postcards, calendars and framed prints, ready for the print shop.',
   });
 }
@@ -400,7 +463,7 @@ function checkForUpdates(manual) {
     Promise.resolve(run)
       .then((r) => {
         if (manual && (!r || !r.isUpdateAvailable))
-          dialog.showMessageBox(win, { type: 'info', message: 'Chitthi is up to date.' });
+          dialog.showMessageBox(win, { type: 'info', message: 'Chitthi Studio is up to date.' });
       })
       .catch((err) => {
         if (manual) dialog.showErrorBox('Update check failed', String(err && err.message ? err.message : err));
@@ -418,6 +481,7 @@ const agent = require('./mcp.cjs');
 if (MCP_MODE) {
   // Headless agent mode: its own process next to any open Chitthi window (no single-instance lock, no menu).
   app.whenReady().then(async () => {
+    restrictPermissions();
     serveApp();
     registerStorage();
     registerFiles();
@@ -451,6 +515,7 @@ if (MCP_MODE) {
   });
 
   app.whenReady().then(() => {
+    restrictPermissions();
     serveApp();
     registerStorage();
     registerFiles();

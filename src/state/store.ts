@@ -17,7 +17,7 @@ export interface UIState {
   /** Full-screen gallery of saved designs is open. */
   gallery: boolean;
   /** Landing page, the design studio, the sizes guide or paper sizes in 3D (mirrors the URL hash: #/studio, #/sizes, #/paper). */
-  screen: 'home' | 'studio' | 'sizes' | 'paper';
+  screen: 'home' | 'studio' | 'sizes' | 'paper' | 'instagram';
   /** Settings dialog is open. */
   settings: boolean;
   /** Photo library dialog is open, and which tab it shows. */
@@ -25,6 +25,8 @@ export interface UIState {
   libraryTab: 'mine' | 'pexels' | 'ai';
   /** Feature finder (Ctrl+K) is open. */
   finder: boolean;
+  /** Performance monitor widget is shown (remembered on this device). */
+  perf: boolean;
   /** A long task the preview shows a loader for (e.g. a photo downloading), or null. */
   loading: string | null;
   /** Calendar month shown in the preview (0-based from the start month). */
@@ -44,7 +46,15 @@ const LS_KEY = 'chitthi-v3';
 
 /** The screen a URL hash points at. */
 export const screenOf = (hash: string): UIState['screen'] =>
-  hash.startsWith('#/studio') ? 'studio' : hash.startsWith('#/sizes') ? 'sizes' : hash.startsWith('#/paper') ? 'paper' : 'home';
+  hash.startsWith('#/studio')
+    ? 'studio'
+    : hash.startsWith('#/sizes')
+      ? 'sizes'
+      : hash.startsWith('#/paper')
+        ? 'paper'
+        : hash.startsWith('#/instagram')
+          ? 'instagram'
+          : 'home';
 export const hashOf = (screen: UIState['screen']): string => (screen === 'home' ? '' : `#/${screen}`);
 function loadDesign(): Design {
   try {
@@ -55,13 +65,22 @@ function loadDesign(): Design {
   }
 }
 
+const PERF_KEY = 'chitthi-perf';
+function readPerf(): boolean {
+  try {
+    return localStorage.getItem(PERF_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 let state: AppState = {
   design: loadDesign(),
   photos: [],
   designId: null,
   canUndo: false,
   canRedo: false,
-  ui: { side: 'front', guides: false, proof: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, settings: false, library: false, libraryTab: 'mine', loading: null, finder: false, screen: screenOf(location.hash), calPage: 0, fontTick: 0 },
+  ui: { side: 'front', guides: false, proof: false, pane: 'photos', cropId: null, slot: 0, viewer: null, gallery: false, settings: false, library: false, libraryTab: 'mine', loading: null, finder: false, perf: readPerf(), screen: screenOf(location.hash), calPage: 0, fontTick: 0 },
 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
@@ -88,6 +107,28 @@ interface Snap {
   photos: Photo[];
 }
 const hist = { stack: [] as Snap[], i: -1, timer: 0 as ReturnType<typeof setTimeout> | 0, pending: false };
+/*
+ * Memory guard: snapshots share photos by reference, but every crop, rotation or colour look makes a new processed
+ * canvas (up to 16 MP, 64 MB), and undo keeps the old ones alive. Past this many bytes of canvases that only the
+ * history holds, the oldest steps are dropped (at least MIN_STEPS are always kept).
+ */
+const HISTORY_BYTES = 320 * 1024 * 1024,
+  MIN_STEPS = 10;
+/** Bytes of processed canvases held by snapshots other than the current card. */
+function historyBytes(): number {
+  const live = new Set<CanvasImageSource>(state.photos.map((p) => p.src)),
+    seen = new Set<CanvasImageSource>();
+  let bytes = 0;
+  for (const s of hist.stack)
+    for (const p of s.photos)
+      if (p.src !== p.orig && !live.has(p.src) && !seen.has(p.src)) {
+        seen.add(p.src);
+        bytes += p.sw * p.sh * 4;
+      }
+  return bytes;
+}
+/** Undo steps and the extra photo memory they hold, for the performance monitor. */
+export const historyStats = () => ({ steps: hist.stack.length, bytes: historyBytes() });
 function syncUndo(): void {
   const canUndo = hist.i > 0,
     canRedo = hist.i < hist.stack.length - 1;
@@ -104,6 +145,7 @@ export function commit(): void {
   hist.stack = hist.stack.slice(0, hist.i + 1);
   hist.stack.push({ design: state.design, photos: state.photos });
   if (hist.stack.length > 100) hist.stack.shift();
+  while (hist.stack.length > MIN_STEPS && historyBytes() > HISTORY_BYTES) hist.stack.shift();
   hist.i = hist.stack.length - 1;
   syncUndo();
 }
@@ -142,15 +184,26 @@ let lsTimer: ReturnType<typeof setTimeout> | 0 = 0,
   photoSig = '';
 const sigOf = (list: PhotoMeta[]) =>
   JSON.stringify(list.map((p) => [p.name, p.url.length, p.rot, p.flip, p.crop, p.zoom, p.px, p.py, p.look]));
+function persistDesign(): void {
+  lsTimer = 0;
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state.design));
+  } catch {
+    /* storage full or blocked */
+  }
+}
+// A change made just before the tab is closed, reloaded or hidden is written at once instead of being lost.
+if (typeof window !== 'undefined')
+  for (const ev of ['pagehide', 'visibilitychange'] as const)
+    window.addEventListener(ev, () => {
+      if (lsTimer && (ev === 'pagehide' || document.visibilityState === 'hidden')) {
+        clearTimeout(lsTimer);
+        persistDesign();
+      }
+    });
 function schedulePersist(): void {
   if (lsTimer) clearTimeout(lsTimer);
-  lsTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(state.design));
-    } catch {
-      /* storage full or blocked */
-    }
-  }, 400);
+  lsTimer = setTimeout(persistDesign, 400);
   if (idbTimer) clearTimeout(idbTimer);
   idbTimer = setTimeout(() => {
     const metas = state.photos.map(photoMeta),
@@ -188,5 +241,14 @@ export const patchPhoto = (id: string, p: Partial<PhotoMeta>) =>
 export const setUI = (p: Partial<UIState>) => set({ ui: { ...state.ui, ...p } }, false);
 export const setDesignId = (designId: string | null) => set({ designId }, false);
 export const bumpFonts = () => setUI({ fontTick: state.ui.fontTick + 1 });
+/** Show or hide the performance monitor, and remember the choice on this device. */
+export function setPerf(on: boolean): void {
+  try {
+    localStorage.setItem(PERF_KEY, on ? '1' : '0');
+  } catch {
+    /* storage blocked: the choice lasts for this page */
+  }
+  setUI({ perf: on });
+}
 /** Replace the whole card (open from gallery, new card). Stays undoable. */
 export const replaceCard = (design: Design, photos: Photo[], designId: string | null) => set({ design, photos, designId });

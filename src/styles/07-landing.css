@@ -1,0 +1,162 @@
+/* ---------- landing page ---------- */
+#root:has(.landing) {
+  height: auto;
+  min-height: 100%;
+}
+.landing {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.lnav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0;
+  padding: 8px 4px 8px 0;
+  background: var(--glass);
+}
+/* airmail edge: alternating postbox red and postmark blue, the border of an air-mail envelope (brand colours only) */
+.lnav::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--brand-red) 0 9px,
+    var(--glass) 9px 14px,
+    var(--brand-ink) 14px 23px,
+    var(--glass) 23px 28px
+  );
+}
+.lbrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  margin-right: auto;
+  font: 400 1.85rem/1 var(--display);
+}
+.lbrand span {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lnav-links {
+  display: flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+.lnav-links a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color var(--dur-fast) var(--ease);
+}
+.lnav-links a:hover {
+  color: var(--text);
+}
+.lnav-links a:active {
+  transform: translateY(1px);
+}
+.lnav-links a[aria-current='page'] {
+  color: var(--text);
+  font-weight: 600;
+}
+.lnav-links a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 2px;
+  background: var(--accent);
+}
+.lsec {
+  padding: 56px 0;
+  border-top: 1px solid var(--line);
+}
+.lsec h2 {
+  margin: 0;
+  font: 700 clamp(2rem, 3.6vw, 2.8rem) / 1.08 var(--font-head);
+  letter-spacing: -0.015em;
+}
+.lsec-sub {
+  margin: 12px 0 0;
+  max-width: 40rem;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+.product ul,
+.checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+.product ul li,
+.checks li {
+  position: relative;
+  padding-left: 22px;
+}
+.product ul li::before,
+.checks li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.45em;
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+.checks {
+  margin-top: 20px;
+}
+.lfoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 24px 0 calc(28px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+@media (max-width: 600px) {
+  .landing {
+    padding: 0 16px;
+  }
+  .lnav-links,
+  .lnav .btn .lbl {
+    display: none;
+  }
+  .lbrand {
+    font-size: 1.5rem;
+  }
+  .lnav svg.logo {
+    width: 34px;
+    height: 34px;
+  }
+}

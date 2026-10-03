@@ -1,4 +1,4 @@
-import { Viewer3D, applyTheme, installFontLinks, open3D, productDesign, replaceCard, samplePhoto, setDesign, setPhotos } from 'chitthi-postcard-studio';
+import { Viewer3D, applyTheme, installFontLinks, open3D, productDesign, replaceCard, samplePhoto, setDesign, setPhotos } from 'chitthi-studio';
 
 // Cards share one browser storage: start from a clean, known state before setting this card up.
 localStorage.clear();

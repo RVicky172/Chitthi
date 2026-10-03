@@ -4,6 +4,7 @@ import { analyzeImage } from '../engine/analyze';
 import { loadImage, makePhoto, maxPhotos } from '../engine/photo';
 import { db } from '../lib/db';
 import { photoKey } from '../lib/photoKey';
+import { logError } from '../lib/errors';
 import { toast } from '../lib/toast';
 import type { StoredPhoto } from '../types';
 import { placePhoto, selectSlot } from './photoSlots';
@@ -121,7 +122,8 @@ export async function putOnCard(sp: StoredPhoto): Promise<void> {
   try {
     const url = await fullUrl(sp);
     ph = makePhoto(await loadImage(url), sp.name, url);
-  } catch {
+  } catch (e) {
+    logError('handled', e);
     toast(`${sp.name} couldn’t be opened.`);
     return;
   }

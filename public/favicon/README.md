@@ -1,7 +1,7 @@
 # Chitthi icons
 
 Every icon of the product is the navbar logo: the ring with **CHITTHI ✦ PRINT STUDIO ✦** around it and **चिट्ठी** in
-the middle, in cream and saffron on an umber tile.
+the middle, in cream and marigold on a graphite tile.
 
 | File | What it is |
 | --- | --- |

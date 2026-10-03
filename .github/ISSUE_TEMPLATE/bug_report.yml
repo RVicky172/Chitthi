@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in Chitthi doesn't work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For a **security** problem, don't use this form: follow [SECURITY.md](https://github.com/RVicky172/Chitthi/blob/main/SECURITY.md).
+        Please don't paste API keys, and remove anything private from screenshots and reports.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the studio and choose Calendar
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Web app
+        - Desktop app (Windows)
+        - Desktop app (macOS)
+        - MCP / AI agent
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version, browser and OS
+      placeholder: e.g. 2.6.0, Chrome 140 on Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Error report
+      description: From the error screen (**Copy error report**) or **More → Performance monitor → Copy report**, if you have one.
+      render: json

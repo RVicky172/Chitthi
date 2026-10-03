@@ -1,4 +1,4 @@
-import { PhotoThumb, samplePhoto } from 'chitthi-postcard-studio';
+import { PhotoThumb, samplePhoto } from 'chitthi-studio';
 
 // PhotoThumb draws a 116px square cover crop into a canvas (116x116 px unless CSS resizes the canvas).
 const photos = [samplePhoto(0), samplePhoto(1), samplePhoto(2), samplePhoto(3)];
