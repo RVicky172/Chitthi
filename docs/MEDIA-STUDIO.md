@@ -99,17 +99,29 @@ them) and appear in the photo inspector only when set. **Apply this look to all 
 preset, LUT and adjustments, but not the position or rotation. The first photo is the cover; drag photos in the strip to reorder them
 (or Alt + ← / → on a focused thumbnail).
 
-**Masks** (rail). Local adjustments: a mask limits its own settings to part of the photo. **New brush mask**, then
-drag on the photo to paint it (shown in red while the tool is open; **Show the mask in red** turns that off). The brush
-has a size (shown as a circle at the pointer), feather (hard edge to soft) and flow (how much one pass adds; passes
-build up), and **Erase** takes away. A mask's settings are in the inspector: exposure, contrast, highlights, shadows,
+**Masks** (rail). Local adjustments: a mask limits its own settings to part of the photo. A new mask starts as one of
+five kinds (shown in red while the tool is open; **Show the mask in red** turns that off):
+
+- **Brush:** drag on the photo to paint. Size (shown as a circle at the pointer), feather (hard edge to soft) and flow
+  (how much one pass adds; passes build up); **Erase** takes away.
+- **Linear gradient:** full on one side, fading to nothing across its length (a sky). Drag on the photo to draw it from
+  where it is full to where it ends, or drag its centre or end handle.
+- **Radial gradient:** full inside an ellipse, fading out over its feather (a spotlight; invert it for a vignette).
+  Drag to draw a circle, or drag its centre and its two radius handles (the first also turns it).
+- **Colour range:** the photo's colours near one picked by clicking the photo, in light and in shade (OKLab distance),
+  with how wide a range.
+- **Brightness range:** the photo's tones between a darkest and a lightest, with soft edges; a click on the photo
+  picks the tones around that brightness.
+
+Gradient and range settings are sliders in the panel too, so a mask can be shaped entirely from the keyboard. Ranges
+select by the photo's own colours, before its settings, so editing the photo doesn't move them. A mask's settings are in the inspector: exposure, contrast, highlights, shadows,
 whites, blacks, temperature, tint, saturation, clarity, dehaze, sharpening and noise reduction, applied on top of the
 photo's own settings only where the mask is. A mask can be inverted, switched off, renamed or deleted; it is made of
 parts (**Add a brush part**), each joining the parts before it by adding, subtracting or intersecting, and each
-invertible. Up to 16 masks per photo, 8 parts per mask. Masks belong to the photo, not the frame: moving, zooming,
+invertible; a range added as a later part intersects by default, so it narrows the shape (the dark tones of the sky).
+Up to 16 masks per photo, 8 parts per mask. Masks belong to the photo, not the frame: moving, zooming,
 turning or mirroring the photo takes them along. Painting is undone stroke by stroke. Masks stay with their photo
-(**Apply this look to all photos** and presets don't copy them). Gradient and colour-range masks come next
-(P1.7); a mask is painted with a pointer, so keyboard users can make one but not shape it yet.
+(**Apply this look to all photos** and presets don't copy them).
 
 **Text, Elements and Layers** (rail). Layers over the photo, edited in the inspector when selected:
 
@@ -189,8 +201,9 @@ is in use, and is read texel by texel with the same tetrahedral interpolation as
 (256 to 2048 px on its longer side), then laid on the frame as one byte per pixel; both paths read those bytes, so
 they get the same mask. The picture so far, with the mask's settings applied, is mixed in by the mask. Rasters are
 cached by the mask's shape, so moving a mask's slider costs no mask work, and while painting only the newest piece of
-the stroke is drawn. Measured on a 1080 × 1350 frame with two masks: 6–9 ms per frame on the GPU, 23–24 ms while
-painting (both backends, desktop app on Windows); about 0.4 s on Canvas 2D. A 1080 ×
+the stroke is drawn; gradients are worked out only where they change. Measured on a 1080 × 1350 frame with two
+masks: 6–9 ms per frame on the GPU, 22–27 ms while painting, 26–29 ms while dragging a gradient (both backends,
+desktop app on Windows); about 0.45 s on Canvas 2D. A 1080 ×
 1350 frame with a look takes about 6 ms on WebGPU and 11 ms on WebGL2, against 24 ms on Canvas 2D (desktop app, Windows).
 
 **Memory.** Each photo keeps its original file (compressed) and a preview copy of at most 1080 px; 20 photos stay

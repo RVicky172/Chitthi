@@ -22,6 +22,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Photo editor: **masks**. Paint where a set of settings applies (exposure, contrast, highlights, shadows, whites,
   blacks, temperature, tint, saturation, clarity, dehaze, sharpening, noise reduction) with a brush that has size,
   feather, flow and erase; invert, switch off and combine brush parts. Masks move, turn and mirror with the photo.
+- Photo editor: **gradient and range masks**. Linear and radial gradients with handles on the photo, and colour and
+  brightness ranges picked by clicking the photo; every setting also has a slider, so masks can be shaped from the
+  keyboard.
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

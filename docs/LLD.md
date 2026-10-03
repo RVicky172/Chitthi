@@ -28,7 +28,7 @@ src/
     instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
     lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
     presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs)
-    masks.ts                 Masks: model, mergeMasks, brush raster (cached, incremental), frameMask (gpu/mask.ts)
+    masks.ts                 Masks: model, mergeMasks, brush / gradient / range rasters (cached), handles, frameMask
     layers.ts                Text, shapes, stickers, drawings over photos and video: draw, pick, handles, strokes
     video.ts, videoExport.ts Video timeline and frame drawing; MP4 export with Mediabunny (loaded on export)
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs

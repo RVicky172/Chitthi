@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import {
   IG_BATCH_PRESETS,
   IG_CAPTION_MAX,
@@ -16,7 +16,20 @@ import { DEFAULT_ADJUST, type Adjustments } from '../../engine/adjust';
 import { neutralise } from '../../engine/light';
 import { photoPlace, placement, renderIg, showsBackground, type IgEdit, type IgRotation } from '../../engine/instagram';
 import { drawLayers, drawSelection, layerBox } from '../../engine/layers';
-import { BRUSH_RANGES, frameMask, frameToPhoto, type BrushStroke, type Mask } from '../../engine/masks';
+import {
+  BRUSH_RANGES,
+  dragPart,
+  frameMask,
+  frameToPhoto,
+  partHandles,
+  type BrushStroke,
+  type HandleId,
+  type LinearPart,
+  type Mask,
+  type MaskPart,
+  type PhotoPlace,
+  type RadialPart,
+} from '../../engine/masks';
 import { MAX_MB } from '../../engine/photo';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
@@ -62,7 +75,7 @@ import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type 
 import { ColourMixer } from '../ig/ColourMixer';
 import { CurveEditor } from '../ig/CurveEditor';
 import { LookPicker } from '../ig/LookPicker';
-import { addBrushMask, MaskInspector, MaskPanel } from '../ig/MaskPanel';
+import { addMask, MaskInspector, MaskPanel } from '../ig/MaskPanel';
 import { Slider } from '../ig/Slider';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import {
@@ -123,7 +136,7 @@ function dataUrlToBlob(url: string): Blob {
 
 /** The selected mask as a red tint over the photo (the stage only, never exports). */
 function drawMaskOverlay(x: CanvasRenderingContext2D, it: IgItem, mask: Mask, W: number, H: number): void {
-  const f = frameMask(mask, it.preview.width, it.preview.height, photoPlace(it.preview.width, it.preview.height, it.edit, W, H), W, H);
+  const f = frameMask(mask, it.preview.width, it.preview.height, photoPlace(it.preview.width, it.preview.height, it.edit, W, H), W, H, it.preview);
   const tint = document.createElement('canvas');
   tint.width = f.width;
   tint.height = f.height;
@@ -138,10 +151,69 @@ function drawMaskOverlay(x: CanvasRenderingContext2D, it: IgItem, mask: Mask, W:
 }
 
 /**
+ * A gradient's guides on the stage: a linear one's full and empty lines (and its middle, dashed), a radial one's edge
+ * (and where its feather starts, dashed), with their handles. Drawn on the photo, turned and mirrored with it.
+ */
+function drawPartGuide(x: CanvasRenderingContext2D, part: MaskPart, p: PhotoPlace, r: number): void {
+  if (part.kind !== 'linear' && part.kind !== 'radial') return;
+  x.save();
+  x.translate(p.cx, p.cy);
+  x.rotate((p.rot * Math.PI) / 180);
+  if (p.flip) x.scale(-1, 1);
+  x.translate((part.x - 0.5) * p.w, (part.y - 0.5) * p.h);
+  x.rotate((part.angle * Math.PI) / 180);
+  const line = (draw: () => void, dashed = false) => {
+    for (const [colour, wd] of [
+      ['rgba(0,0,0,0.55)', r * 0.45],
+      ['#ffffff', r * 0.22],
+    ] as const) {
+      x.setLineDash(dashed ? [r, r * 0.8] : []);
+      x.strokeStyle = colour;
+      x.lineWidth = Math.max(1, wd);
+      x.beginPath();
+      draw();
+      x.stroke();
+    }
+  };
+  if (part.kind === 'linear') {
+    const w = (part.width * p.w) / 2,
+      L = Math.hypot(p.w, p.h);
+    for (const at of [-w, 0, w])
+      line(() => {
+        x.moveTo(at, -L);
+        x.lineTo(at, L);
+      }, at === 0);
+  } else {
+    const rx = part.rx * p.w,
+      ry = part.ry * p.w,
+      k = 1 - part.feather / 100;
+    line(() => x.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2));
+    if (k > 0.02) line(() => x.ellipse(0, 0, rx * k, ry * k, 0, 0, Math.PI * 2), true);
+  }
+  x.restore();
+  for (const h of partHandles(part, p)) {
+    x.beginPath();
+    x.arc(h.x, h.y, h.id === 'move' ? r * 0.9 : r * 0.7, 0, Math.PI * 2);
+    x.fillStyle = h.id === 'move' ? '#ffffff' : '#e82440';
+    x.fill();
+    x.lineWidth = Math.max(1, r * 0.2);
+    x.strokeStyle = 'rgba(0,0,0,0.6)';
+    x.stroke();
+  }
+}
+
+/** What the stage shows of the masks while the Masks tool is open: the selected mask in red, its gradient's guides. */
+interface MaskView {
+  mask: Mask;
+  part: MaskPart | null;
+  overlay: boolean;
+}
+
+/**
  * Draws one photo, its layers and (for the stage) the selected layer's handles and the selected mask's overlay, at
  * `width` CSS px.
  */
-function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefined, formatId: IgFormatId, width: number, selection: string | null = null, overlay: Mask | null = null) {
+function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefined, formatId: IgFormatId, width: number, selection: string | null = null, view: MaskView | null = null) {
   const tick = useFontsTick(it?.layers ?? []);
   useEffect(() => {
     const cv = ref.current;
@@ -162,8 +234,9 @@ function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefi
     drawLayers(x, it.layers, W, H);
     const sel = selection && it.layers.find((l) => l.id === selection && !l.hidden);
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
-    if (overlay) drawMaskOverlay(x, it, overlay, W, H);
-  }, [ref, it, formatId, width, selection, tick, overlay]);
+    if (view?.overlay) drawMaskOverlay(x, it, view.mask, W, H);
+    if (view?.part) drawPartGuide(x, view.part, photoPlace(it.preview.width, it.preview.height, it.edit, W, H), handleRadius(cv));
+  }, [ref, it, formatId, width, selection, tick, view]);
 }
 
 export function PhotoWorkspace({ mode, onMode }: { mode: StudioMode; onMode: (m: StudioMode) => void }) {
@@ -443,9 +516,16 @@ function PhotoStage({ item }: { item: IgItem }) {
     brush = useIg((s) => s.maskBrush);
   const f = igFormat(format);
   const { width, height } = useFit(box, f.w, f.h, 72);
+  const partSel = useIg((s) => s.partSel);
   const masking = tools.tool === 'mask';
-  const shownMask = masking && brush.overlay ? (item.edit.masks.find((m) => m.id === maskSel) ?? null) : null;
-  useRender(ref, item, format, width, layerSel, shownMask);
+  const selMask = masking ? (item.edit.masks.find((m) => m.id === maskSel) ?? null) : null,
+    selPart = selMask?.parts.find((p) => p.id === partSel) ?? null;
+  const view = useMemo<MaskView | null>(
+    () => (selMask ? { mask: selMask, part: selPart, overlay: brush.overlay } : null),
+    [selMask, selPart, brush.overlay],
+  );
+  const brushing = masking && (!selPart || selPart.kind === 'brush');
+  useRender(ref, item, format, width, layerSel, view);
   const pan = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const i = items.findIndex((x) => x.id === item.id);
 
@@ -499,31 +579,65 @@ function PhotoStage({ item }: { item: IgItem }) {
     adjustPhoto(item.id, neutralise(r / n, g / n, b / n));
     setPicking(false);
   };
-  // The mask brush: a stroke goes into the selected part of the selected mask (a new mask when none is selected), in
-  // the photo's own coordinates, so it stays put when the photo is moved, turned or mirrored.
+  // The Masks tool on the stage, by the selected part: a brush stroke goes into a brush part (a new mask when none is
+  // selected), in the photo's own coordinates, so it stays put when the photo is moved, turned or mirrored; a gradient
+  // is moved by its handles, or drawn anew by a drag elsewhere; a range takes the colour or brightness clicked.
   const stroke = useRef<{ mask: string; part: string; s: BrushStroke; key: string; W: number; H: number; last: [number, number] } | null>(null);
+  const grad = useRef<{ mask: string; orig: LinearPart | RadialPart; handle: HandleId | 'draw'; from: [number, number]; key: string; W: number; H: number } | null>(null);
   const cursor = useRef<HTMLDivElement>(null);
   const putStroke = (st: NonNullable<typeof stroke.current>, s: BrushStroke) =>
     updateMask(
       item.id,
       st.mask,
-      (m) => ({ ...m, parts: m.parts.map((p) => (p.id === st.part ? { ...p, strokes: p.strokes.at(-1) === st.s ? [...p.strokes.slice(0, -1), s] : [...p.strokes, s] } : p)) }),
+      (m) => ({ ...m, parts: m.parts.map((p) => (p.id === st.part && p.kind === 'brush' ? { ...p, strokes: p.strokes.at(-1) === st.s ? [...p.strokes.slice(0, -1), s] : [...p.strokes, s] } : p)) }),
       st.key,
     );
+  const putPart = (maskId: string, part: MaskPart, key = '') => updateMask(item.id, maskId, (m) => ({ ...m, parts: m.parts.map((p) => (p.id === part.id ? part : p)) }), key);
+  /** The photo's own colour around a point on it (3 × 3 pixels of the preview, before any settings). */
+  const photoColour = (u: number, v: number): [number, number, number] | null => {
+    const pv = item.preview,
+      cx = Math.min(pv.width - 2, Math.max(1, Math.round(u * pv.width))),
+      cy = Math.min(pv.height - 2, Math.max(1, Math.round(v * pv.height)));
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+    const d = pv.getContext('2d')?.getImageData(cx - 1, cy - 1, 3, 3).data;
+    if (!d) return null;
+    const c = [0, 0, 0];
+    for (let k = 0; k < d.length; k += 4) for (let j = 0; j < 3; j++) c[j] += d[k + j] / 9;
+    return [Math.round(c[0]), Math.round(c[1]), Math.round(c[2])];
+  };
   const onMask = {
     down: (x: number, y: number, W: number, H: number) => {
       const ig = getIg();
       let mask = item.edit.masks.find((m) => m.id === ig.maskSel);
       if (!mask) {
-        const made = addBrushMask(item);
+        const made = addMask(item);
         if (!made) return toast('A photo can have 16 masks; delete one to add another.');
         mask = made;
       }
-      const partId = getIg().partSel ?? mask.parts[0]?.id;
-      if (!partId) return;
+      const part = mask.parts.find((p) => p.id === getIg().partSel) ?? mask.parts[0];
+      if (!part) return;
       const place = photoPlace(item.preview.width, item.preview.height, item.edit, W, H),
         [u, v] = frameToPhoto(place, x, y),
-        b = getIg().maskBrush;
+        key = `maskdrag:${Date.now()}`;
+      if (part.kind === 'linear' || part.kind === 'radial') {
+        const r = (ref.current ? handleRadius(ref.current) : 8) * 1.8,
+          hit = partHandles(part, place)
+            .filter((h) => Math.hypot(h.x - x, h.y - y) <= r)
+            .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
+        grad.current = { mask: mask.id, orig: part, handle: hit?.id ?? 'draw', from: [u, v], key, W, H };
+        return;
+      }
+      if (part.kind === 'colour' || part.kind === 'luma') {
+        const c = photoColour(u, v);
+        if (!c) return;
+        if (part.kind === 'colour') putPart(mask.id, { ...part, r: c[0], g: c[1], b: c[2] });
+        else {
+          const l = ((0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255) * 100;
+          putPart(mask.id, { ...part, lo: Math.max(0, Math.round(l - 15)), hi: Math.min(100, Math.round(l + 15)) });
+        }
+        return;
+      }
+      const b = getIg().maskBrush;
       const s: BrushStroke = {
         pts: [u, v],
         size: Math.min(BRUSH_RANGES.size[1], Math.max(BRUSH_RANGES.size[0], (b.size * W) / place.w)),
@@ -531,17 +645,22 @@ function PhotoStage({ item }: { item: IgItem }) {
         flow: b.flow,
         erase: b.erase,
       };
-      const st = { mask: mask.id, part: partId, s, key: `maskstroke:${Date.now()}`, W, H, last: [x, y] as [number, number] };
+      const st = { mask: mask.id, part: part.id, s, key, W, H, last: [x, y] as [number, number] };
       stroke.current = st;
       // The part holds the stroke from now on; each move replaces it with a longer one (one undo step).
-      updateMask(item.id, mask.id, (m) => ({ ...m, parts: m.parts.map((p) => (p.id === partId ? { ...p, strokes: [...p.strokes, s] } : p)) }), st.key);
+      updateMask(item.id, mask.id, (m) => ({ ...m, parts: m.parts.map((p) => (p.id === part.id && p.kind === 'brush' ? { ...p, strokes: [...p.strokes, s] } : p)) }), key);
     },
     move: (x: number, y: number) => {
+      const it = getIg().items.find((k) => k.id === item.id);
+      if (!it) return;
+      const g = grad.current;
+      if (g) {
+        const place = photoPlace(it.preview.width, it.preview.height, it.edit, g.W, g.H);
+        putPart(g.mask, dragPart(g.orig, g.handle, g.from, frameToPhoto(place, x, y), place), g.key);
+        return;
+      }
       const st = stroke.current;
       if (!st || Math.hypot(x - st.last[0], y - st.last[1]) < 2) return;
-      const ig = getIg(),
-        it = ig.items.find((k) => k.id === item.id);
-      if (!it) return;
       const [u, v] = frameToPhoto(photoPlace(it.preview.width, it.preview.height, it.edit, st.W, st.H), x, y);
       const s = { ...st.s, pts: [...st.s.pts, u, v] };
       putStroke(st, s);
@@ -550,6 +669,7 @@ function PhotoStage({ item }: { item: IgItem }) {
     },
     up: () => {
       stroke.current = null;
+      grad.current = null;
     },
   };
   const moveCursor = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -618,7 +738,7 @@ function PhotoStage({ item }: { item: IgItem }) {
         {...handlers}
         onPointerDown={picking ? pickGrey : handlers.onPointerDown}
         onPointerMove={(ev) => {
-          if (masking) moveCursor(ev);
+          if (brushing) moveCursor(ev);
           handlers.onPointerMove(ev);
         }}
         onPointerLeave={() => cursor.current && (cursor.current.hidden = true)}
@@ -627,14 +747,22 @@ function PhotoStage({ item }: { item: IgItem }) {
           else handlers.onKeyDown?.(ev);
         }}
       />
-      {masking && <div className="mst-brush" ref={cursor} hidden aria-hidden="true" />}
+      {brushing && <div className="mst-brush" ref={cursor} hidden aria-hidden="true" />}
       <p className="mst-hint">
         {picking
           ? 'Click something that should be grey or white; Escape cancels'
           : masking
-            ? brush.erase
-              ? 'Masks: drag on the photo to erase from the selected mask'
-              : 'Masks: drag on the photo to paint the selected mask'
+            ? selPart?.kind === 'linear'
+              ? 'Masks: drag to draw the gradient, or move its handles'
+              : selPart?.kind === 'radial'
+                ? 'Masks: drag to draw a circle, or move its handles'
+                : selPart?.kind === 'colour'
+                  ? 'Masks: click the photo to pick the colour'
+                  : selPart?.kind === 'luma'
+                    ? 'Masks: click the photo to pick the brightness'
+                    : brush.erase
+                      ? 'Masks: drag on the photo to erase from the selected mask'
+                      : 'Masks: drag on the photo to paint the selected mask'
             : tools.tool === 'draw'
               ? 'Drawing: drag on the photo'
               : 'Drag a layer to move it, or the photo to reposition it'}

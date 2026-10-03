@@ -292,9 +292,9 @@ async function maskParity(
   const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
   const { DEFAULT_ADJUST } = await import('../engine/adjust');
   const { detailNeutral } = await import('../engine/detail');
-  const { newMask, newBrushPart } = await import('../engine/masks');
+  const { newMask, newBrushPart, newPart } = await import('../engine/masks');
   type Mask = import('../engine/masks').Mask;
-  type Part = import('../engine/masks').BrushPart;
+  type Part = import('../engine/masks').MaskPart;
   type Stroke = import('../engine/masks').BrushStroke;
   const { closeGpu, openGpu } = await import('../engine/gpu/device');
   const photos = await Promise.all(
@@ -306,7 +306,7 @@ async function maskParity(
     }),
   );
   const st = (pts: number[], o: Partial<Stroke> = {}): Stroke => ({ pts, size: 0.25, feather: 60, flow: 100, erase: false, ...o });
-  const brush = (strokes: Stroke[], o: Partial<Part> = {}): Part => ({ ...newBrushPart(), strokes, ...o });
+  const brush = (strokes: Stroke[], o: Partial<import('../engine/masks').BrushPart> = {}) => ({ ...newBrushPart(), strokes, ...o });
   const mk = (adjust: object, parts: Part[], o: Partial<Mask> = {}): Mask => ({ ...newMask('T'), parts, adjust: { ...DEFAULT_ADJUST, ...adjust }, ...o });
   const sky = brush([st([0, 0.2, 0.5, 0.25, 1, 0.15], { size: 0.4 })]),
     centre = brush([st([0.5, 0.5], { size: 0.5, feather: 100, flow: 70 }), st([0.5, 0.5, 0.6, 0.6], { erase: true, flow: 50, size: 0.1 })]);
@@ -316,6 +316,12 @@ async function maskParity(
     { look: 'bw', masks: [mk({ exposure: 0.5, highlights: -50 }, [sky, { ...centre, combine: 'subtract' }])] },
     { masks: [mk({ clarity: 50, dehaze: 30 }, [sky, { ...centre, combine: 'intersect' }])] },
     { look: 'warm', masks: [mk({ exposure: -1 }, [sky]), mk({ sharpen: 60, noise: 30, tint: 30 }, [centre])] },
+    // Gradients and ranges (P1.7): a sky gradient, a radial spotlight turned with the photo, the darker tones under a
+    // gradient, the photo's oranges.
+    { masks: [mk({ exposure: -0.8, highlights: -40 }, [{ ...newPart('linear'), angle: 80, width: 0.5 } as Part])] },
+    { masks: [mk({ exposure: 0.6, saturation: 20 }, [{ ...newPart('radial'), x: 0.4, rx: 0.35, ry: 0.2, angle: 30 } as Part], { invert: true })], rot: 90, flip: true },
+    { masks: [mk({ shadows: 50 }, [newPart('linear') as Part, { ...newPart('luma', false), lo: 0, hi: 40 } as Part])] },
+    { masks: [mk({ saturation: 40, temperature: 20 }, [{ ...newPart('colour'), r: 220, g: 120, b: 40, range: 40 } as Part])] },
   ];
   const W = 540,
     H = 675;
@@ -381,6 +387,14 @@ async function maskParity(
   }
   x.getImageData(0, 0, 1, 1);
   const paintMs = (performance.now() - t0) / 30;
+  // Dragging a gradient: a new radial part each frame, rasterised whole.
+  const t1 = performance.now();
+  for (let k = 1; k <= 20; k++) {
+    const part = { ...newPart('radial'), x: 0.3 + k * 0.02, rx: 0.35, ry: 0.25, angle: 20 } as Part;
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, { ...e, masks: [{ ...e.masks[0], parts: [part] }, e.masks[1]] }, 1080, 1350);
+  }
+  x.getImageData(0, 0, 1, 1);
+  const dragMs = (performance.now() - t1) / 20;
   closeGpu();
   const cpuMs = time(2);
   return {
@@ -389,7 +403,7 @@ async function maskParity(
     mean: sum / count,
     where,
     frames,
-    timing: `1080×1350 frame with two masks: ${backend} ${gpuMs.toFixed(1)} ms (${paintMs.toFixed(1)} ms while painting), Canvas 2D ${cpuMs.toFixed(0)} ms`,
+    timing: `1080×1350 frame with two masks: ${backend} ${gpuMs.toFixed(1)} ms (${paintMs.toFixed(1)} ms while painting, ${dragMs.toFixed(1)} ms dragging a gradient), Canvas 2D ${cpuMs.toFixed(0)} ms`,
   };
 }
 

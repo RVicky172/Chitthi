@@ -340,3 +340,75 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
   expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test('gradient and range masks: drawn, moved by handles and keys, narrowed by brightness, picked by colour', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const canvas = page.locator('.mst-canvas');
+  const lum = (x: number, y: number) =>
+    canvas.evaluate(
+      (c: HTMLCanvasElement, [x, y]) => {
+        const d = c.getContext('2d')!.getImageData(Math.round(c.width * x) - 4, Math.round(c.height * y) - 4, 9, 9).data;
+        let s = 0;
+        for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
+        return s / (d.length / 4) / 3;
+      },
+      [x, y],
+    );
+  const before = { top: await lum(0.5, 0.1), bottom: await lum(0.5, 0.9) };
+  const drag = async (from: [number, number], to: [number, number]) => {
+    await canvas.scrollIntoViewIfNeeded();
+    const b = (await canvas.boundingBox())!;
+    await page.mouse.move(b.x + b.width * from[0], b.y + b.height * from[1]);
+    await page.mouse.down();
+    for (let i = 1; i <= 6; i++) await page.mouse.move(b.x + b.width * (from[0] + ((to[0] - from[0]) * i) / 6), b.y + b.height * (from[1] + ((to[1] - from[1]) * i) / 6));
+    await page.mouse.up();
+  };
+
+  await tool(page, 'Masks').click();
+  await page.getByRole('button', { name: 'New linear gradient mask' }).click();
+  await expect(page.getByRole('button', { name: 'Linear gradient 1', pressed: true })).toBeVisible();
+  await page.getByText('Show the mask in red').click();
+  await page.locator('#mk-exposure').fill('-2');
+  // Full at the top, fading out by the middle: the sky darkens, the ground doesn't.
+  await expect.poll(() => lum(0.5, 0.1)).toBeLessThan(before.top - 15);
+  expect(Math.abs((await lum(0.5, 0.9)) - before.bottom)).toBeLessThan(1);
+
+  // From the keyboard: the angle slider turns it to point up (full at the bottom).
+  const angle = page.locator('#mk-angle');
+  await angle.focus();
+  await angle.fill('-90');
+  await expect.poll(() => lum(0.5, 0.9)).toBeLessThan(before.bottom - 15);
+  // Drawn anew by a drag on the photo, from the top down: the top is full again.
+  await drag([0.5, 0.05], [0.5, 0.45]);
+  await expect(page.locator('label[for="mk-angle"] output')).toHaveText('90');
+  await expect.poll(() => lum(0.5, 0.1)).toBeLessThan(before.top - 15);
+
+  // Narrowed to the darkest tones with a brightness range (intersecting by default): the bright sky drops out.
+  await page.getByRole('button', { name: 'Add a brightness range part' }).click();
+  await expect(page.getByRole('combobox', { name: 'How Brightness range 1 joins the parts before it' })).toHaveValue('intersect');
+  await page.locator('#mk-hi').fill('5');
+  await expect.poll(() => lum(0.5, 0.1)).toBeGreaterThan(before.top - 5);
+
+  // A radial mask: its centre handle dragged away from the middle.
+  await page.getByRole('button', { name: 'New radial gradient mask' }).click();
+  await expect(page.locator('label[for="mk-x"] output')).toHaveText('50');
+  await drag([0.5, 0.5], [0.3, 0.35]);
+  await expect(page.locator('label[for="mk-x"] output')).not.toHaveText('50');
+  await expect(page.locator('label[for="mk-y"] output')).not.toHaveText('50');
+
+  // A colour range: a click on the photo picks its colour.
+  await page.getByRole('button', { name: 'New colour range mask' }).click();
+  await expect(page.getByText('Picked colour #808080')).toBeVisible();
+  await canvas.scrollIntoViewIfNeeded();
+  const b = (await canvas.boundingBox())!;
+  await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.15);
+  await expect(page.locator('.ig-swatch')).toContainText(/Picked colour #[0-9a-f]{6}/);
+  await expect(page.locator('.ig-swatch')).not.toContainText('#808080');
+
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  expect(errors).toEqual([]);
+});

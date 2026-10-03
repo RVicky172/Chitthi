@@ -5,7 +5,16 @@ import { MASK_MIX_PROGRAM, maskNodes } from './gpu/mask';
 import type { GpuDevice, GpuTexture } from './gpu/types';
 import { DEFAULT_EDIT, mergeEdit } from './instagram';
 import {
+  dragPart,
   frameToPhoto,
+  newPart,
+  oklab,
+  partHandles,
+  photoToFrame,
+  rasterShape,
+  type LinearPart,
+  type PhotoSample,
+  type RadialPart,
   maskActive,
   mergeMasks,
   newBrushPart,
@@ -208,7 +217,7 @@ describe('mergeMasks', () => {
     ]);
     expect(ms).toHaveLength(2);
     expect(ms[0].parts).toHaveLength(1);
-    expect(ms[0].parts[0].strokes).toEqual([]);
+    expect(ms[0].parts[0]).toMatchObject({ kind: 'brush', strokes: [] });
     expect(ms[1].id).not.toBe('a');
     expect(ms[1].name).toBe('Mask');
   });
@@ -218,8 +227,9 @@ describe('mergeMasks', () => {
     const s = { pts: Array(20000).fill(0.5) };
     const [m] = mergeMasks([{ parts: Array(20).fill({ kind: 'brush', strokes: Array(900).fill(s) }) }]);
     expect(m.parts).toHaveLength(8);
-    expect(m.parts[0].strokes).toHaveLength(400);
-    expect(m.parts[0].strokes[0].pts).toHaveLength(8000);
+    const b = m.parts[0] as BrushPart;
+    expect(b.strokes).toHaveLength(400);
+    expect(b.strokes[0].pts).toHaveLength(8000);
   });
   it('are part of every edit, and older edits have none', () => {
     expect(DEFAULT_EDIT.masks).toEqual([]);
@@ -284,5 +294,214 @@ describe('masks on the GPU', () => {
     maskNodes(nodes, 'source', { ...DEFAULT_ADJUST, exposure: 1 }, frame, 8, 8);
     for (let f = 0; f < 10; f++) pool.give(runNodes(dev, pool, input, nodes));
     expect(uploads).toHaveLength(1);
+  });
+});
+
+describe('gradients', () => {
+  const lin = (o: Partial<LinearPart> = {}) => ({ ...(newPart('linear') as LinearPart), ...o });
+  const rad = (o: Partial<RadialPart> = {}) => ({ ...(newPart('radial') as RadialPart), ...o });
+  it('linear: full before the fade, nothing after it, smooth and falling in between', () => {
+    // Downwards, the fade from y = 30 to y = 70 (of 100).
+    const m = rasterShape(lin({ x: 0.5, y: 0.5, angle: 90, width: 0.4 }), N, N);
+    expect(at(m, 50, 10)).toBe(1);
+    expect(at(m, 50, 90)).toBe(0);
+    expect(at(m, 10, 50)).toBeCloseTo(0.5, 1);
+    for (let y = 31; y < 70; y++) expect(at(m, 50, y)).toBeLessThan(at(m, 50, y - 1) + 1e-9);
+    // Every column is the same along the fade's lines.
+    expect(at(m, 3, 40)).toBeCloseTo(at(m, 97, 40), 9);
+  });
+  it('linear: turns with its angle', () => {
+    const m = rasterShape(lin({ x: 0.5, y: 0.5, angle: 0, width: 0.2 }), N, N);
+    expect([at(m, 10, 50), at(m, 90, 50)]).toEqual([1, 0]);
+  });
+  it('radial: full inside, nothing outside, fading over the feather; an ellipse turned by its angle', () => {
+    const m = rasterShape(rad({ x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, feather: 50 }), N, N);
+    expect(at(m, 50, 50)).toBe(1);
+    expect(at(m, 62, 50)).toBe(1);
+    expect(at(m, 72, 50)).toBeGreaterThan(0);
+    expect(at(m, 72, 50)).toBeLessThan(1);
+    expect(at(m, 85, 50)).toBe(0);
+    const e = rasterShape(rad({ rx: 0.4, ry: 0.1, feather: 0, angle: 90 }), N, N);
+    // Turned a quarter: tall, not wide.
+    expect([at(e, 50, 20), at(e, 20, 50)]).toEqual([1, 0]);
+  });
+});
+
+describe('ranges', () => {
+  /** A 100 × 100 photo: left half dark red, right half a grey ramp from black (top) to white (bottom). */
+  const photo: PhotoSample = (() => {
+    const d = new Uint8ClampedArray(N * N * 4);
+    for (let y = 0; y < N; y++)
+      for (let x = 0; x < N; x++) {
+        const i = (y * N + x) * 4,
+          g = Math.round((y / (N - 1)) * 255);
+        d.set(x < 50 ? [150, 30, 25, 255] : [g, g, g, 255], i);
+      }
+    return { data: d, token: 1 };
+  })();
+  const luma = (o: object) => ({ ...newPart('luma'), ...o }) as Parameters<typeof rasterShape>[0];
+  const colour = (o: object) => ({ ...newPart('colour'), ...o }) as Parameters<typeof rasterShape>[0];
+  it('brightness: the tones in the range, softly edged', () => {
+    const m = rasterShape(luma({ lo: 40, hi: 60, smooth: 10 }), N, N, photo);
+    expect(at(m, 80, 50)).toBe(1);
+    expect(at(m, 80, 5)).toBe(0);
+    expect(at(m, 80, 95)).toBe(0);
+    expect(at(m, 80, 37)).toBeGreaterThan(0);
+    expect(at(m, 80, 37)).toBeLessThan(1);
+  });
+  it('colour: the picked colour and those near it, not greys', () => {
+    const m = rasterShape(colour({ r: 160, g: 35, b: 30, range: 30 }), N, N, photo);
+    expect(at(m, 10, 10)).toBe(1);
+    expect(at(m, 80, 30)).toBe(0);
+    expect(at(m, 80, 70)).toBe(0);
+    // A narrow range misses even a slightly different red.
+    const narrow = rasterShape(colour({ r: 200, g: 60, b: 40, range: 1 }), N, N, photo);
+    expect(at(narrow, 10, 10)).toBe(0);
+  });
+  it('cover everything without the photo, and are cached per photo', () => {
+    const p = newPart('luma');
+    expect(rasterShape(luma({}), 4, 4).every((v) => v === 1)).toBe(true);
+    expect(rasterPart(p, N, N, photo)).toBe(rasterPart(p, N, N, photo));
+    expect(rasterPart(p, N, N, { ...photo, token: 2 })).not.toBe(rasterPart(p, N, N, photo));
+  });
+  it('OKLab puts white at L 1 and black at 0, greys without colour', () => {
+    expect(oklab(255, 255, 255)[0]).toBeCloseTo(1, 3);
+    expect(oklab(0, 0, 0)[0]).toBeCloseTo(0, 6);
+    const g = oklab(128, 128, 128);
+    expect(Math.hypot(g[1], g[2])).toBeLessThan(1e-3);
+  });
+});
+
+describe('new kinds in mergeMasks', () => {
+  it('keep gradients and ranges, clamped, with a range in order', () => {
+    const [m] = mergeMasks([
+      {
+        parts: [
+          { kind: 'linear', x: 9, y: 0.2, angle: 400, width: 0 },
+          { kind: 'radial', rx: 0.5, ry: -1, feather: 300, combine: 'subtract' },
+          { kind: 'colour', r: 300, g: 12.6, b: 'x', range: 0 },
+          { kind: 'luma', lo: 80, hi: 20, smooth: 5, combine: 'intersect' },
+        ],
+      },
+    ]);
+    expect(m.parts.map((p) => p.kind)).toEqual(['linear', 'radial', 'colour', 'luma']);
+    expect(m.parts[0]).toMatchObject({ x: 1.5, y: 0.2, angle: 180, width: 0.01 });
+    expect(m.parts[1]).toMatchObject({ rx: 0.5, ry: 0.01, feather: 100, combine: 'subtract' });
+    expect(m.parts[2]).toMatchObject({ r: 255, g: 13, b: 128, range: 1 });
+    expect(m.parts[3]).toMatchObject({ lo: 20, hi: 80, smooth: 5, combine: 'intersect' });
+  });
+  it('make later range parts intersect by default, shapes add', () => {
+    expect([
+      newPart('colour', false).combine,
+      newPart('luma', false).combine,
+      newPart('radial', false).combine,
+    ]).toEqual(['intersect', 'intersect', 'add']);
+  });
+});
+
+describe('gradient handles', () => {
+  const place = { cx: 200, cy: 150, w: 300, h: 200, rot: 90, flip: true };
+  const flat = { ...place, rot: 0, flip: false };
+  it('photoToFrame undoes frameToPhoto, turned and mirrored', () => {
+    for (const [u, v] of [
+      [0, 0],
+      [0.3, 0.8],
+      [1.2, -0.1],
+    ]) {
+      const [x, y] = photoToFrame(place, u, v),
+        back = frameToPhoto(place, x, y);
+      expect(back[0]).toBeCloseTo(u, 9);
+      expect(back[1]).toBeCloseTo(v, 9);
+    }
+  });
+  it('sit at the centre and at the end or radii of a gradient', () => {
+    const l = { ...(newPart('linear') as LinearPart), x: 0.5, y: 0.5, angle: 0, width: 0.4 };
+    expect(partHandles(l, flat)).toEqual([
+      { id: 'move', x: 200, y: 150 },
+      { id: 'end', x: 260, y: 150 },
+    ]);
+    const r = { ...(newPart('radial') as RadialPart), x: 0.5, y: 0.5, rx: 0.2, ry: 0.1, angle: 0 };
+    const [, rx, ry] = partHandles(r, flat);
+    expect([rx.x, rx.y]).toEqual([260, 150]);
+    expect(ry.x).toBeCloseTo(200, 9);
+    expect(ry.y).toBeCloseTo(180, 9);
+    expect(partHandles(newPart('brush'), flat)).toEqual([]);
+  });
+  it('move, turn and resize a gradient, or draw one anew', () => {
+    const l = { ...(newPart('linear') as LinearPart), x: 0.5, y: 0.5, angle: 0, width: 0.4 };
+    const mv = dragPart(l, 'move', [0.5, 0.5], [0.6, 0.4], flat);
+    expect(mv.x).toBeCloseTo(0.6, 9);
+    expect(mv.y).toBeCloseTo(0.4, 9);
+    // The end dragged to 45 px straight below the centre: the fade now points down and is 90 px (0.3 of the width) long.
+    const e = dragPart(l, 'end', [0.7, 0.5], [0.5, 0.725], flat);
+    expect(e.angle).toBeCloseTo(90, 9);
+    expect(e.width).toBeCloseTo(0.3, 9);
+    const d = dragPart(l, 'draw', [0.2, 0.2], [0.2, 0.8], flat);
+    expect(d.x).toBeCloseTo(0.2, 9);
+    expect(d.y).toBeCloseTo(0.5, 9);
+    expect(d.angle).toBeCloseTo(90, 9);
+    expect(d.width).toBeCloseTo(0.4, 9);
+    const c = dragPart(newPart('radial') as RadialPart, 'draw', [0.5, 0.5], [0.6, 0.5], flat);
+    expect([c.x, c.y, c.angle]).toEqual([0.5, 0.5, 0]);
+    expect(c.rx).toBeCloseTo(0.1, 9);
+    expect(c.ry).toBeCloseTo(0.1, 9);
+  });
+});
+
+/** The plain formulas, every pixel: what the fast loops must equal. */
+const smooth = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+describe('gradient rasters', () => {
+  it('equal the plain formulas at every pixel, at any position, angle and size', () => {
+    const W = 97,
+      H = 61;
+    let worst = 0;
+    for (let k = 0; k < 80; k++) {
+      const l = {
+        ...(newPart('linear') as LinearPart),
+        x: Math.random() * 2 - 0.5,
+        y: Math.random() * 2 - 0.5,
+        angle: Math.random() * 360 - 180,
+        width: 0.01 + Math.random(),
+      };
+      if (k % 7 === 0) l.angle = [0, 90, -90, 180][k % 4];
+      const m = rasterShape(l, W, H);
+      const a = (l.angle * Math.PI) / 180,
+        c = Math.cos(a),
+        s = Math.sin(a),
+        w = Math.max(1, l.width * W);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++)
+          worst = Math.max(
+            worst,
+            Math.abs(m[y * W + x] - (1 - smooth(((x + 0.5 - l.x * W) * c + (y + 0.5 - l.y * H) * s) / w + 0.5))),
+          );
+      const r = {
+        ...(newPart('radial') as RadialPart),
+        x: Math.random(),
+        y: Math.random(),
+        rx: 0.02 + Math.random() * 0.6,
+        ry: 0.02 + Math.random() * 0.6,
+        angle: Math.random() * 360 - 180,
+        feather: Math.random() * 100,
+      };
+      const q = rasterShape(r, W, H);
+      const ra = (r.angle * Math.PI) / 180,
+        rc = Math.cos(ra),
+        rs = Math.sin(ra),
+        Rx = Math.max(1, r.rx * W),
+        Ry = Math.max(1, r.ry * W);
+      const band = Math.min(1, Math.max(r.feather / 100, 1.5 / Math.min(Rx, Ry))),
+        inner = 1 - band;
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++) {
+          const dx = x + 0.5 - r.x * W,
+            dy = y + 0.5 - r.y * H,
+            lx = (dx * rc + dy * rs) / Rx,
+            ly = (dy * rc - dx * rs) / Ry,
+            d = Math.hypot(lx, ly);
+          worst = Math.max(worst, Math.abs(q[y * W + x] - (d <= inner ? 1 : 1 - smooth((d - inner) / band))));
+        }
+    }
+    expect(worst).toBeLessThan(1e-5);
   });
 });

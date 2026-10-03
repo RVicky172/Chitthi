@@ -1,14 +1,15 @@
 import { DEFAULT_ADJUST, mergeAdjust, pixelsNeutral, type Adjustments } from './adjust';
 
 /*
- * Masks (P1.6): local adjustments. A mask is a shape made of parts (a brush now; gradients and colour ranges come with
- * P1.7), combined in order with add, subtract or intersect, optionally inverted, with its own colour settings that
- * apply only where the mask is. Masks are data, never pixels: every part is drawn again from its parameters when a
- * picture is rendered, so a mask stays editable and exports match the preview.
+ * Masks (P1.6, P1.7): local adjustments. A mask is a shape made of parts (brush strokes, linear and radial gradients,
+ * colour and brightness ranges), combined in order with add, subtract or intersect, optionally inverted, with its own
+ * colour settings that apply only where the mask is. Masks are data, never pixels: every part is drawn again from its
+ * parameters when a picture is rendered, so a mask stays editable and exports match the preview.
  *
  * Masks belong to the photo, not the frame: points are shares of the photo's own width and height (before it is
  * rotated or mirrored), sizes are shares of its width. Moving, zooming, turning or mirroring the photo takes its masks
- * along. The mask is rasterised here, in plain code, so the Canvas 2D and GPU paths get the very same mask.
+ * along. The mask is rasterised here, in plain code, so the Canvas 2D and GPU paths get the very same mask. Range parts
+ * select by the photo's own colours, before any of its settings, so editing the photo doesn't move them.
  */
 
 export type MaskCombine = 'add' | 'subtract' | 'intersect';
@@ -27,16 +28,60 @@ export interface BrushStroke {
   erase: boolean;
 }
 
-export interface BrushPart {
+interface PartBase {
   id: string;
-  kind: 'brush';
   /** How this part joins the parts before it (the first part is always added). */
   combine: MaskCombine;
   invert: boolean;
+}
+
+export interface BrushPart extends PartBase {
+  kind: 'brush';
   strokes: BrushStroke[];
 }
 
-export type MaskPart = BrushPart;
+/** Full on one side, fading to nothing across `width`, along the direction `angle` (degrees, 90 = downwards). */
+export interface LinearPart extends PartBase {
+  kind: 'linear';
+  /** The middle of the fade, shares of the photo's width and height. */
+  x: number;
+  y: number;
+  angle: number;
+  /** Length of the fade, as a share of the photo's width. */
+  width: number;
+}
+
+/** Full inside an ellipse, fading out towards its edge over the outer `feather` per cent. */
+export interface RadialPart extends PartBase {
+  kind: 'radial';
+  x: number;
+  y: number;
+  /** Radii, both as shares of the photo's width (equal radii make a circle). */
+  rx: number;
+  ry: number;
+  angle: number;
+  feather: number;
+}
+
+/** The photo's colours near a picked one (0–255 sRGB); `range` 1–100 says how near. */
+export interface ColourRangePart extends PartBase {
+  kind: 'colour';
+  r: number;
+  g: number;
+  b: number;
+  range: number;
+}
+
+/** The photo's tones between `lo` and `hi` (0 black – 100 white), with soft edges of `smooth`. */
+export interface LumaRangePart extends PartBase {
+  kind: 'luma';
+  lo: number;
+  hi: number;
+  smooth: number;
+}
+
+export type MaskPart = BrushPart | LinearPart | RadialPart | ColourRangePart | LumaRangePart;
+export type PartKind = MaskPart['kind'];
 
 export interface Mask {
   id: string;
@@ -64,12 +109,36 @@ export const newBrushPart = (combine: MaskCombine = 'add'): BrushPart => ({
   strokes: [],
 });
 
-export function newMask(name: string): Mask {
-  return { id: maskId(), name, on: true, invert: false, parts: [newBrushPart()], adjust: { ...DEFAULT_ADJUST } };
+/**
+ * A new part of a kind, with settings that show something straight away: a gradient full at the top fading towards
+ * the middle (a sky), a circle in the middle, a mid grey (to be picked), the darker half of the tones. Ranges usually narrow a shape down,
+ * so as a later part they intersect.
+ */
+export function newPart(kind: PartKind, first = true): MaskPart {
+  const base = { id: maskId(kind[0]), invert: false };
+  switch (kind) {
+    case 'brush':
+      return newBrushPart();
+    case 'linear':
+      return { ...base, kind, combine: 'add', x: 0.5, y: 0.4, angle: 90, width: 0.4 };
+    case 'radial':
+      return { ...base, kind, combine: 'add', x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, angle: 0, feather: 50 };
+    case 'colour':
+      return { ...base, kind, combine: first ? 'add' : 'intersect', r: 128, g: 128, b: 128, range: 30 };
+    case 'luma':
+      return { ...base, kind, combine: first ? 'add' : 'intersect', lo: 0, hi: 50, smooth: 20 };
+  }
+}
+
+export function newMask(name: string, kind: PartKind = 'brush'): Mask {
+  return { id: maskId(), name, on: true, invert: false, parts: [newPart(kind)], adjust: { ...DEFAULT_ADJUST } };
 }
 
 /** True when the mask changes the picture: switched on, with parts, and settings that do something. */
 export const maskActive = (m: Mask): boolean => m.on && m.parts.length > 0 && !pixelsNeutral(m.adjust);
+
+/** True when a part selects by the photo's colours, so rasterising it needs the photo. */
+export const usesPhoto = (p: MaskPart): boolean => p.kind === 'colour' || p.kind === 'luma';
 
 /* ---------- validation ---------- */
 
@@ -92,18 +161,65 @@ function mergeStroke(raw: unknown): BrushStroke | null {
   };
 }
 
+/** Ranges of the gradient and range settings: one table for validation and the panel's sliders. */
+export const PART_RANGES = {
+  x: [-0.5, 1.5],
+  y: [-0.5, 1.5],
+  angle: [-180, 180],
+  width: [0.01, 2],
+  rx: [0.01, 2],
+  ry: [0.01, 2],
+  feather: [0, 100],
+  range: [1, 100],
+  lo: [0, 100],
+  hi: [0, 100],
+  smooth: [0, 100],
+} as const;
+
 function mergePart(raw: unknown): MaskPart | null {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
-  if (!o || o.kind !== 'brush') return null;
-  return {
-    id: typeof o.id === 'string' && ID.test(o.id) ? o.id : maskId('b'),
-    kind: 'brush',
+  const kind = o?.kind;
+  if (!o || (kind !== 'brush' && kind !== 'linear' && kind !== 'radial' && kind !== 'colour' && kind !== 'luma'))
+    return null;
+  const d = newPart(kind) as unknown as Record<string, number>;
+  const n = (k: keyof typeof PART_RANGES) => clamp(o[k], PART_RANGES[k][0], PART_RANGES[k][1], d[k]);
+  const base = {
+    id: typeof o.id === 'string' && ID.test(o.id) ? o.id : maskId(kind[0]),
     combine: MASK_COMBINES.includes(o.combine as MaskCombine) ? (o.combine as MaskCombine) : 'add',
     invert: o.invert === true,
-    strokes: (Array.isArray(o.strokes) ? o.strokes.slice(0, MASK_LIMITS.strokes) : [])
-      .map(mergeStroke)
-      .filter((s): s is BrushStroke => !!s),
   };
+  switch (kind) {
+    case 'brush':
+      return {
+        ...base,
+        kind,
+        strokes: (Array.isArray(o.strokes) ? o.strokes.slice(0, MASK_LIMITS.strokes) : [])
+          .map(mergeStroke)
+          .filter((s): s is BrushStroke => !!s),
+      };
+    case 'linear':
+      return { ...base, kind, x: n('x'), y: n('y'), angle: n('angle'), width: n('width') };
+    case 'radial':
+      return {
+        ...base,
+        kind,
+        x: n('x'),
+        y: n('y'),
+        rx: n('rx'),
+        ry: n('ry'),
+        angle: n('angle'),
+        feather: n('feather'),
+      };
+    case 'colour': {
+      const c = (k: string) => Math.round(clamp(o[k], 0, 255, 128));
+      return { ...base, kind, r: c('r'), g: c('g'), b: c('b'), range: n('range') };
+    }
+    case 'luma': {
+      const lo = n('lo'),
+        hi = n('hi');
+      return { ...base, kind, lo: Math.min(lo, hi), hi: Math.max(lo, hi), smooth: n('smooth') };
+    }
+  }
 }
 
 /** The single gate for masks from outside the running app (project files, agent tools): valid masks, or none. */
@@ -305,6 +421,157 @@ export function paintStroke(m: Float32Array, rw: number, rh: number, s: BrushStr
   applyShape(m, m, rw, sh, tail(sh, rw, rh));
 }
 
+/* ---------- gradients and ranges ---------- */
+
+/** The photo at raster size, RGBA, for range parts; `token` tells samples apart in cache keys. */
+export interface PhotoSample {
+  data: Uint8ClampedArray;
+  token: number;
+}
+
+const ss = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+
+/** sRGB 8-bit to linear, once. */
+let LIN: Float32Array | null = null;
+const lin = () => {
+  if (!LIN) {
+    LIN = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const c = i / 255;
+      LIN[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }
+  }
+  return LIN;
+};
+
+/** OKLab (L, a, b) of an 8-bit sRGB colour: a space where distance follows how different colours look. */
+export function oklab(r: number, g: number, b: number, out: number[] = [0, 0, 0]): number[] {
+  const t = lin(),
+    R = t[r],
+    G = t[g],
+    B = t[b];
+  const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B),
+    m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B),
+    s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+  out[0] = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  out[1] = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  out[2] = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return out;
+}
+
+/** OKLab of every pixel of a photo sample, worked out once per sample. */
+const labCache = new WeakMap<Uint8ClampedArray, Float32Array>();
+function labOf(px: Uint8ClampedArray): Float32Array {
+  let lab = labCache.get(px);
+  if (!lab) {
+    lab = new Float32Array((px.length / 4) * 3);
+    const o = [0, 0, 0];
+    for (let i = 0, j = 0; i < px.length; i += 4, j += 3) {
+      oklab(px[i], px[i + 1], px[i + 2], o);
+      lab[j] = o[0];
+      lab[j + 1] = o[1];
+      lab[j + 2] = o[2];
+    }
+    labCache.set(px, lab);
+  }
+  return lab;
+}
+
+/**
+ * A gradient or range part at rw × rh, 0–1. Gradients are worked out at each pixel's centre; ranges need the photo at
+ * the same size (without it, a range covers everything).
+ */
+export function rasterShape(
+  part: Exclude<MaskPart, BrushPart>,
+  rw: number,
+  rh: number,
+  photo?: PhotoSample,
+): Float32Array {
+  const m = new Float32Array(rw * rh);
+  if (part.kind === 'linear') {
+    const a = (part.angle * Math.PI) / 180,
+      c = Math.cos(a),
+      sn = Math.sin(a),
+      w = Math.max(1, part.width * rw),
+      cx = part.x * rw,
+      cy = part.y * rh;
+    // Along a row t changes by c / w per pixel: full where t ≤ 0, empty where t ≥ 1, worked out only in between.
+    for (let y = 0; y < rh; y++) {
+      const row = y * rw,
+        t0 = ((0.5 - cx) * c + (y + 0.5 - cy) * sn) / w + 0.5,
+        dt = c / w;
+      let x0 = 0,
+        x1 = rw;
+      if (Math.abs(dt) > 1e-12) {
+        // Pixels whose t lies strictly between 0 and 1, plus one either side for safety.
+        const xa = -t0 / dt,
+          xb = (1 - t0) / dt;
+        x0 = Math.min(rw, Math.max(0, Math.floor(Math.min(xa, xb)) - 1));
+        x1 = Math.min(rw, Math.max(x0, Math.ceil(Math.max(xa, xb)) + 1));
+        // Before x0 and after x1 the row is all full or all empty; which, by the side of the band.
+        const before = t0 + dt * (x0 - 1) <= 0 ? 1 : 0,
+          after = t0 + dt * x1 <= 0 ? 1 : 0;
+        if (before && x0 > 0) m.fill(1, row, row + x0);
+        if (after) m.fill(1, row + x1, row + rw);
+      }
+      for (let x = x0; x < x1; x++) m[row + x] = 1 - ss(t0 + dt * x);
+    }
+  } else if (part.kind === 'radial') {
+    const a = (part.angle * Math.PI) / 180,
+      c = Math.cos(a),
+      sn = Math.sin(a),
+      Rx = Math.max(1, part.rx * rw),
+      Ry = Math.max(1, part.ry * rw),
+      cx = part.x * rw,
+      cy = part.y * rh,
+      // A feather of 0 still gets a pixel and a half of softening, so the edge isn't jagged.
+      band = Math.min(1, Math.max(part.feather / 100, 1.5 / Math.min(Rx, Ry))),
+      inner = 1 - band,
+      inner2 = inner * inner;
+    // Outside the ellipse's bounding box everything is 0 (as the array starts); inside its core, 1 without a root.
+    const ex = Math.hypot(Rx * c, Ry * sn),
+      ey = Math.hypot(Rx * sn, Ry * c),
+      y0 = Math.max(0, Math.floor(cy - ey)),
+      y1 = Math.min(rh - 1, Math.ceil(cy + ey)),
+      bx0 = Math.max(0, Math.floor(cx - ex)),
+      bx1 = Math.min(rw - 1, Math.ceil(cx + ex));
+    for (let y = y0; y <= y1; y++)
+      for (let x = bx0; x <= bx1; x++) {
+        const dx = x + 0.5 - cx,
+          dy = y + 0.5 - cy,
+          lx = (dx * c + dy * sn) / Rx,
+          ly = (dy * c - dx * sn) / Ry,
+          d2 = lx * lx + ly * ly;
+        if (d2 >= 1) continue;
+        m[y * rw + x] = d2 <= inner2 ? 1 : 1 - ss((Math.sqrt(d2) - inner) / band);
+      }
+  } else if (!photo || photo.data.length !== rw * rh * 4) m.fill(1);
+  else if (part.kind === 'luma') {
+    const px = photo.data,
+      lo = part.lo / 100,
+      hi = part.hi / 100,
+      s = Math.max(0.01, (part.smooth / 100) * 0.5);
+    for (let i = 0; i < m.length; i++) {
+      const l = (0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2]) / 255;
+      m[i] = ss((l - lo + s) / s) * (1 - ss((l - hi) / s));
+    }
+  } else {
+    // Colour: near the picked colour in OKLab, lightness counting half as much as hue and saturation, so a colour in
+    // light and in shade is still picked.
+    const lab = labOf(photo.data),
+      t = oklab(part.r, part.g, part.b),
+      tol = 0.02 + (part.range / 100) * 0.25,
+      half = tol / 2;
+    for (let i = 0, j = 0; i < m.length; i++, j += 3) {
+      const dl = (lab[j] - t[0]) * 0.5,
+        da = lab[j + 1] - t[1],
+        db = lab[j + 2] - t[2];
+      m[i] = 1 - ss((Math.sqrt(dl * dl + da * da + db * db) - half) / half);
+    }
+  }
+  return m;
+}
+
 interface PartRaster {
   strokes: BrushStroke[];
   /** After every stroke but the last (null when unknown). */
@@ -335,11 +602,19 @@ function extends_(a: BrushStroke, b: BrushStroke): boolean {
  * A brush part's coverage at rw × rh, before its own invert. Cached per part and size. A part that differs from the
  * last one drawn only by strokes added at the end, or by its last stroke drawn further (painting), paints only that.
  */
-export function rasterPart(part: MaskPart, rw: number, rh: number): Float32Array {
-  const key = `${rw}x${rh}`,
+export function rasterPart(part: MaskPart, rw: number, rh: number, photo?: PhotoSample): Float32Array {
+  const key = `${rw}x${rh}${usesPhoto(part) ? `:${photo?.token ?? 0}` : ''}`,
     id = `${part.id}:${key}`;
   const hit = partCache.get(part)?.get(key);
   if (hit) return hit.full;
+  if (part.kind !== 'brush') {
+    const full = rasterShape(part, rw, rh, photo),
+      sizes = partCache.get(part) ?? new Map<string, PartRaster>();
+    if (sizes.size > 3) sizes.clear();
+    sizes.set(key, { strokes: [], upto: null, full, live: null });
+    partCache.set(part, sizes);
+    return full;
+  }
   const s = part.strokes,
     prev = lastById.get(id),
     n = prev?.strokes.length ?? 0;
@@ -402,17 +677,22 @@ export function rasterPart(part: MaskPart, rw: number, rh: number): Float32Array
 const maskCache = new WeakMap<MaskPart[], Map<string, Float32Array>>();
 
 /** The whole mask at rw × rh, 0–1: its parts combined in order, then its own invert. Cached; don't change the result. */
-export function rasterMask(mask: Pick<Mask, 'parts' | 'invert'>, rw: number, rh: number): Float32Array {
-  const key = `${mask.invert}:${rw}x${rh}`;
+export function rasterMask(
+  mask: Pick<Mask, 'parts' | 'invert'>,
+  rw: number,
+  rh: number,
+  photo?: PhotoSample,
+): Float32Array {
+  const key = `${mask.invert}:${rw}x${rh}${mask.parts.some(usesPhoto) ? `:${photo?.token ?? 0}` : ''}`;
   const hit = maskCache.get(mask.parts)?.get(key);
   if (hit) return hit;
   let out: Float32Array;
   const only = mask.parts.length === 1 ? mask.parts[0] : null;
-  if (only && !only.invert && !mask.invert) out = rasterPart(only, rw, rh);
+  if (only && !only.invert && !mask.invert) out = rasterPart(only, rw, rh, photo);
   else {
     out = new Float32Array(rw * rh);
     mask.parts.forEach((p, k) => {
-      const c = rasterPart(p, rw, rh),
+      const c = rasterPart(p, rw, rh, photo),
         inv = p.invert,
         mode = k === 0 ? 'add' : p.combine;
       for (let i = 0; i < out.length; i++) {
@@ -453,6 +733,84 @@ export function frameToPhoto(p: PhotoPlace, x: number, y: number): [number, numb
   return [lx / p.w + 0.5, ly / p.h + 0.5];
 }
 
+/** A point on the photo (shares of its own width and height) as frame pixels: frameToPhoto() the other way. */
+export function photoToFrame(p: PhotoPlace, u: number, v: number): [number, number] {
+  let lx = (u - 0.5) * p.w;
+  const ly = (v - 0.5) * p.h;
+  if (p.flip) lx = -lx;
+  const a = (p.rot * Math.PI) / 180;
+  return [p.cx + lx * Math.cos(a) - ly * Math.sin(a), p.cy + lx * Math.sin(a) + ly * Math.cos(a)];
+}
+
+/* ---------- gradient handles ---------- */
+
+export type HandleId = 'move' | 'end' | 'rx' | 'ry';
+export interface Handle {
+  id: HandleId;
+  /** Frame pixels. */
+  x: number;
+  y: number;
+}
+
+/** A step of `len` display pixels along `deg` degrees on the photo, in shares of its width and height. */
+const step = (p: PhotoPlace, deg: number, len: number): [number, number] => {
+  const a = (deg * Math.PI) / 180;
+  return [(Math.cos(a) * len) / p.w, (Math.sin(a) * len) / p.h];
+};
+
+/** The handles of a gradient on the frame: its centre (move), and its end (linear) or its two radii (radial). */
+export function partHandles(part: MaskPart, p: PhotoPlace): Handle[] {
+  if (part.kind !== 'linear' && part.kind !== 'radial') return [];
+  const at = (id: HandleId, du = 0, dv = 0): Handle => {
+    const [x, y] = photoToFrame(p, part.x + du, part.y + dv);
+    return { id, x, y };
+  };
+  if (part.kind === 'linear') return [at('move'), at('end', ...step(p, part.angle, (part.width * p.w) / 2))];
+  return [
+    at('move'),
+    at('rx', ...step(p, part.angle, part.rx * p.w)),
+    at('ry', ...step(p, part.angle + 90, part.ry * p.w)),
+  ];
+}
+
+const lim = (k: keyof typeof PART_RANGES, v: number) => Math.min(PART_RANGES[k][1], Math.max(PART_RANGES[k][0], v));
+
+/**
+ * A gradient dragged on the frame: from `from` to `to` (both shares of the photo), by a handle, or 'draw' for a drag
+ * that wasn't on a handle (a linear gradient from the press to the pointer, or a circle around the press). `orig` is
+ * the part as it was when the drag began.
+ */
+export function dragPart<P extends LinearPart | RadialPart>(
+  orig: P,
+  handle: HandleId | 'draw',
+  from: [number, number],
+  to: [number, number],
+  p: PhotoPlace,
+): P {
+  // Vectors in display pixels, where angles and lengths are true on the photo.
+  const vec = (a: [number, number], b: [number, number]) => [(b[0] - a[0]) * p.w, (b[1] - a[1]) * p.h] as const;
+  const deg = (v: readonly [number, number]) => (Math.atan2(v[1], v[0]) * 180) / Math.PI;
+  const len = (v: readonly [number, number]) => Math.hypot(v[0], v[1]) / p.w;
+  if (handle === 'move')
+    return { ...orig, x: lim('x', orig.x + to[0] - from[0]), y: lim('y', orig.y + to[1] - from[1]) };
+  const fromCentre = vec([orig.x, orig.y], to);
+  if (orig.kind === 'linear') {
+    if (handle === 'end') return { ...orig, angle: deg(fromCentre), width: lim('width', 2 * len(fromCentre)) };
+    const v = vec(from, to);
+    return {
+      ...orig,
+      x: lim('x', (from[0] + to[0]) / 2),
+      y: lim('y', (from[1] + to[1]) / 2),
+      angle: deg(v),
+      width: lim('width', len(v)),
+    };
+  }
+  if (handle === 'rx') return { ...orig, angle: deg(fromCentre), rx: lim('rx', len(fromCentre)) };
+  if (handle === 'ry') return { ...orig, ry: lim('ry', len(fromCentre)) };
+  const r = lim('rx', len(vec(from, to)));
+  return { ...orig, x: lim('x', from[0]), y: lim('y', from[1]), rx: r, ry: r, angle: 0 };
+}
+
 export interface FrameMask {
   /** The mask on the frame, one byte per pixel (0–255), row by row; 0 outside the photo. */
   data: Uint8Array;
@@ -478,15 +836,17 @@ export function frameMask(
   p: PhotoPlace,
   W: number,
   H: number,
+  src?: CanvasImageSource,
 ): FrameMask {
   const long = rasterSize(Math.max(p.w, p.h)),
     [rw, rh] = rasterDims(sw, sh, long),
     fw = Math.max(1, Math.round(W)),
     fh = Math.max(1, Math.round(H)),
-    key = `${mask.invert}:${fw}x${fh}:${p.cx},${p.cy},${p.w},${p.h},${p.rot},${p.flip}:${rw}x${rh}`;
+    photo = src && mask.parts.some(usesPhoto) ? photoSample(src, rw, rh) : undefined,
+    key = `${mask.invert}:${fw}x${fh}:${p.cx},${p.cy},${p.w},${p.h},${p.rot},${p.flip}:${rw}x${rh}:${photo?.token ?? 0}`;
   const hit = frameCache.get(mask.parts)?.get(key);
   if (hit) return hit;
-  const m = rasterMask(mask, rw, rh),
+  const m = rasterMask(mask, rw, rh, photo),
     data = new Uint8Array(fw * fh);
   // Raster position X = u·rw − ½ for photo share u; u and v are linear in the frame pixel, so step them along rows.
   const [u0, v0] = frameToPhoto(p, 0.5, 0.5),
@@ -520,5 +880,31 @@ export function frameMask(
   if (placed.size >= 3) placed.delete(placed.keys().next().value!);
   placed.set(key, out);
   frameCache.set(mask.parts, placed);
+  return out;
+}
+
+/* ---------- the photo, for range parts (needs a DOM) ---------- */
+
+let sampleSeq = 0;
+const samples = new WeakMap<object, Map<string, PhotoSample>>();
+
+/** The photo drawn at rw × rh (as it is, not turned or adjusted), cached per photo and size. */
+export function photoSample(src: CanvasImageSource, rw: number, rh: number): PhotoSample | undefined {
+  const key = `${rw}x${rh}`,
+    hit = samples.get(src)?.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = rw;
+  c.height = rh;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  if (!x) return undefined;
+  x.imageSmoothingEnabled = true;
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(src, 0, 0, rw, rh);
+  const out = { data: x.getImageData(0, 0, rw, rh).data, token: ++sampleSeq };
+  const sizes = samples.get(src) ?? new Map<string, PhotoSample>();
+  if (sizes.size > 3) sizes.clear();
+  sizes.set(key, out);
+  samples.set(src, sizes);
   return out;
 }

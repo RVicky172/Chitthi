@@ -209,7 +209,7 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
   else {
     // Each mask laid on the frame where the photo is: the same raster for both paths.
     const place = photoPlace(sw, sh, e, W, H);
-    const local = masks.map((m) => ({ adjust: m.adjust, mask: frameMask(m, sw, sh, place, W, H) }));
+    const local = masks.map((m) => ({ adjust: m.adjust, mask: frameMask(m, sw, sh, place, W, H, src) }));
     // The same canvas mode on both paths: an accelerated canvas draws the photo's fractional edges differently from a
     // read-back one, which would make the two paths disagree along the edge of the photo.
     const onGpu = !!gpu(),

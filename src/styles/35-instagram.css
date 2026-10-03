@@ -842,3 +842,23 @@
 .ig-parts select {
   max-width: 120px;
 }
+/* Gradient and range masks (P1.7): a row of kinds to start a mask or add a part with; the picked colour. */
+.ig-newmask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.ig-swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.ig-swatch span[aria-hidden] {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
