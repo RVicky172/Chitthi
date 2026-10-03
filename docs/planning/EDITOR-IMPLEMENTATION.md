@@ -14,7 +14,7 @@ change that finishes an item.
 | Phase | Done | Branch / PR | Gate | Release |
 | --- | --- | --- | --- | --- |
 | 0. Foundation (GPU render graph) | 9 of 9 | Merged in #18 | Met: exports match Canvas 2D on every backend; entry chunk under budget | 2.9.0 (with Phase 1 so far, not tagged yet) |
-| 1. Advanced photo editor | 3 of 12 | `feat/editor-phase-1` | Not yet: masked edits at 30 fps at 1080p; RAW opens on Windows and macOS | 2.10.0 |
+| 1. Advanced photo editor | 3 of 12 | P1.1–P1.3 merged in #21; continuing on `feat/editor-phase-1-continued` | Not yet: masked edits at 30 fps at 1080p; RAW opens on Windows and macOS | 2.10.0 |
 | 2. Multi-track timeline | 0 of 12 | — | Not started | 3.0.0 |
 | 3. Colour and finishing | 0 of 9 | — | Not started | 3.1.0 |
 
