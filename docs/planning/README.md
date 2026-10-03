@@ -5,8 +5,8 @@ Future work for Chitthi: what we intend to build and how. Docs about how the app
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [EDITOR-ROADMAP.md](EDITOR-ROADMAP.md) | Advanced photo and video editing: GPU pipeline, masks, multi-track timeline, colour grading, RAW, web vs desktop | Plan, not started |
-| [EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md) | The roadmap as work items per phase: files, tests, gates, dependencies | Plan, not started |
+| [EDITOR-ROADMAP.md](EDITOR-ROADMAP.md) | Advanced photo and video editing: GPU pipeline, masks, multi-track timeline, colour grading, RAW, web vs desktop | In progress |
+| [EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md) | The roadmap as work items per phase: files, tests, gates, dependencies; the **Status** of every item | In progress: Phase 0 done, Phase 1 3 of 12 |
 
 ## Writing a plan
 

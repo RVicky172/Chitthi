@@ -1,6 +1,7 @@
 # Photo & video editor: advanced features plan
 
-Status: plan, not started. Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
+Status: in progress (Phase 0 done; Phase 1 under way); the status of each work item is tracked in
+[EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md#progress). Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
 [Claude doc](https://claude.ai/code/artifact/685d86eb-2eba-4f4d-b6f2-08559f401907). What exists today is in
 [MEDIA-STUDIO.md](../MEDIA-STUDIO.md). How to build it, step by step: [EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md).
 Licence rules for every library it adds: [LICENSING.md](../LICENSING.md).
