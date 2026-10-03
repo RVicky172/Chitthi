@@ -1,3 +1,4 @@
+import { TexturePool } from './graph';
 import type { GpuBackend, GpuDevice } from './types';
 
 /*
@@ -12,6 +13,7 @@ export type GpuPreference = GpuBackend | 'auto';
 let current: GpuDevice | null = null;
 let opening: Promise<GpuDevice | null> | null = null;
 let openedWith: GpuPreference | null = null;
+let pool: TexturePool | null = null;
 
 async function open(prefer: GpuPreference): Promise<GpuDevice | null> {
   if (prefer !== 'webgl2') {
@@ -43,11 +45,22 @@ export function openGpu(prefer: GpuPreference = 'auto'): Promise<GpuDevice | nul
 
 /** The open device, or null (not opened yet, none available, or lost since). Safe to call while drawing. */
 export function gpu(): GpuDevice | null {
-  if (current?.lost) current = null;
+  if (current?.lost) {
+    current = null;
+    pool = null;
+  }
   return current;
 }
 
+/** The texture pool of the open device, made on first use. */
+export function gpuPool(dev: GpuDevice): TexturePool {
+  if (!pool || dev !== current) pool = new TexturePool(dev);
+  return pool;
+}
+
 export function closeGpu(): void {
+  pool?.clear();
+  pool = null;
   current?.destroy();
   current = null;
   opening = null;

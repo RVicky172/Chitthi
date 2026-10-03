@@ -1,4 +1,6 @@
 import { colourNeutral, DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
+import { gpuColour } from './gpu/apply';
+import { gpu } from './gpu/device';
 import { lookPixels } from './photo';
 
 /*
@@ -162,18 +164,24 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
     }
   }
 
-  // The photo, on its own layer so the colour adjustments leave the background alone.
+  // The photo, on its own layer so the colour adjustments leave the background alone. The colour runs on the GPU when
+  // the media studio has opened a device (gpu/apply.ts), else on the CPU here; both give the same pixels.
   if (colourNeutral(e.adjust)) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
   else {
-    const layer = canvas(W, H),
+    // The same canvas mode on both paths: an accelerated canvas draws the photo's fractional edges differently from a
+    // read-back one, which would make the two paths disagree along the edge of the photo.
+    const onGpu = !!gpu(),
+      layer = canvas(W, H),
       lx = layer.getContext('2d', { willReadFrequently: true });
     if (lx) {
       lx.imageSmoothingQuality = 'high';
       drawPhoto(lx, p.cx, p.cy, p.dw, p.dh);
-      const d = lx.getImageData(0, 0, layer.width, layer.height);
-      adjustPixels(d.data, e.adjust);
-      lx.putImageData(d, 0, 0);
-      ctx.drawImage(layer, 0, 0, W, H);
+      if (!onGpu || !gpuColour(ctx, layer, e.adjust, W, H)) {
+        const d = lx.getImageData(0, 0, layer.width, layer.height);
+        adjustPixels(d.data, e.adjust);
+        lx.putImageData(d, 0, 0);
+        ctx.drawImage(layer, 0, 0, W, H);
+      }
     }
   }
 

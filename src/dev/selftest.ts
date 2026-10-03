@@ -195,7 +195,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
     wgsl: 'fn effect(uv: vec2f) -> vec4f { let c = textureSampleLevel(t0, smp, uv, 0.0); return vec4f(c.rgb * P.u[0].x, c.a); }',
   };
 
-  const ran: string[] = [];
+  const ran: ('webgpu' | 'webgl2')[] = [];
   const worst = new Map<string, string>();
   for (const [name, open] of [
     ['webgpu', openWebGPU],
@@ -239,6 +239,11 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
       dev.destroy();
     }
   }
+  for (const name of ran) {
+    const g = await goldenParity(name);
+    check(g.max <= 2 && g.mean <= 0.5, `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${g.max} in ${g.where}, mean ${g.mean.toFixed(3)})`);
+    worst.set(name, `${worst.get(name)}; photos: worst ${g.max}, mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
+  }
   const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
   const d = await openGpu();
   check(ran.length === 0 ? d === null : d?.backend === ran[0], 'gpu: openGpu() picks WebGPU first, then WebGL2');
@@ -246,6 +251,69 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   closeGpu();
   check(gpu() === null, 'gpu: closeGpu() lets it go');
   r.notes.push(`GPU backends checked: ${ran.map((n) => `${n} (largest colour difference ${worst.get(n)})`).join(', ') || 'none available'}`);
+}
+
+/**
+ * P0.6: golden images. Real sample photos drawn by the whole renderIg() (placement, background, rotation, colour,
+ * vignette) at Instagram size, once on the Canvas 2D path and once on the GPU backend, must match: at most 2 levels
+ * apart in any channel and 0.5 on average. This is the gate for turning the GPU path on by default.
+ */
+async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; where: string; frames: number }> {
+  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
+  const { LOOK_IDS } = await import('../engine/adjust');
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const photos = await Promise.all(
+    ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
+      const img = new Image();
+      img.src = `/samples/${f}`;
+      await img.decode();
+      return { f, img };
+    }),
+  );
+  const W = 540,
+    H = 675;
+  const edits = [
+    {},
+    { brightness: 35, contrast: 20 },
+    { saturation: -60, warmth: 40, vignette: 50 },
+    { contrast: 100, brightness: -40 },
+  ];
+  const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, W, H);
+    return x.getImageData(0, 0, W, H).data;
+  };
+  let max = 0,
+    sum = 0,
+    count = 0,
+    frames = 0,
+    where = '';
+  for (const { f, img } of photos)
+    for (const look of LOOK_IDS)
+      for (const [i, adj] of edits.entries()) {
+        // Vary the framing too: whole photo on a blurred background, turned, mirrored.
+        const e = { ...DEFAULT_EDIT, fit: i % 2 ? ('fit' as const) : ('fill' as const), bg: 'blur', rot: (i === 3 ? 90 : 0) as 0 | 90, flip: i === 2, adjust: { ...DEFAULT_EDIT.adjust, look, ...adj } };
+        closeGpu();
+        const cpu = frame(img, e);
+        await openGpu(backend);
+        const got = frame(img, e);
+        frames++;
+        for (let k = 0; k < got.length; k++) {
+          const d = Math.abs(got[k] - cpu[k]);
+          sum += d;
+          count++;
+          if (d > max) {
+            max = d;
+            const px = k >> 2;
+            where = `${f} ${look} ${JSON.stringify(adj)} fit=${e.fit} rot=${e.rot} at ${px % W},${Math.floor(px / W)} cpu ${[...cpu.slice(k - (k % 4), k - (k % 4) + 4)]} gpu ${[...got.slice(k - (k % 4), k - (k % 4) + 4)]}`;
+          }
+        }
+      }
+  closeGpu();
+  return { max, mean: sum / count, where, frames };
 }
 
 /**

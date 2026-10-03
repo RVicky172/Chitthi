@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
- * Runs after `vite build`: keeps the start-up bundle small. The entry chunk must stay under the budget, and AI code
- * (provider SDKs, adapters) must never be in it: it loads only when someone uses an AI feature.
+ * Runs after `vite build`: keeps the start-up bundle small. The entry chunk must stay under the budget, and neither AI
+ * code (provider SDKs, adapters) nor the GPU pipeline may be in it: they load only when someone uses those features.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -20,6 +20,9 @@ const fails = [];
 if (kb > BUDGET_KB) fails.push(`entry chunk ${entry} is ${kb} KB (budget ${BUDGET_KB} KB)`);
 for (const marker of ['dangerouslyAllowBrowser', 'anthropic-version', 'generateContent', 'queue.fal.run'])
   if (code.includes(marker)) fails.push(`AI code (“${marker}”) is in the entry chunk; load it with import()`);
+// The GPU pipeline (engine/gpu/) loads with the media studio, never at start-up.
+for (const marker of ['vec4 effect(vec2 uv)', 'fn effect(uv: vec2f)', 'copyExternalImageToTexture'])
+  if (code.includes(marker)) fails.push(`GPU code (“${marker}”) is in the entry chunk; load it with the media studio`);
 const ai = readdirSync(dir).filter((f) => /^(anthropic|openai|gemini|openaiCompat|stability|fal|bfl|replicate|ideogram)-.*\.js$/.test(f));
 if (fails.length) {
   console.error(`check-bundle failed:\n  ${fails.join('\n  ')}`);

@@ -13,6 +13,8 @@ import { toast } from '../lib/toast';
 import { addUserFont, removeUserFont, useUserFonts } from '../lib/userFonts';
 import { desktop, isDesktop } from '../platform/desktop';
 import { getState, setDesign, setUI, useApp } from '../state/store';
+import { gpuSupport } from '../engine/gpu/device';
+import { gpuEffectsOn, setGpuEffects } from '../lib/gpuSetting';
 import { Check } from './common';
 import { CloseIcon, TrashIcon } from './icons';
 
@@ -181,6 +183,7 @@ export function SettingsDialog() {
           <AiSettings />
         </Suspense>
         <UserFonts />
+        <GpuEffects />
         <section aria-labelledby="setAbout">
           <h3 id="setAbout">About</h3>
           <p className="hint">
@@ -263,6 +266,32 @@ function UserFonts() {
         />
         {busy ? 'Adding…' : 'Upload fonts'}
       </label>
+    </section>
+  );
+}
+
+/** Photo & video effects on the graphics card (P0.5): off by default while the GPU path is being proven. */
+function GpuEffects() {
+  const [on, setOn] = useState(gpuEffectsOn);
+  const [support] = useState(gpuSupport);
+  const any = support.webgpu || support.webgl2;
+  return (
+    <section aria-labelledby="setGpu">
+      <h3 id="setGpu">Photo &amp; video effects</h3>
+      <Check
+        checked={on && any}
+        onChange={(v) => {
+          setGpuEffects(v);
+          setOn(v);
+        }}
+      >
+        Use the graphics card for looks and colour (test version)
+      </Check>
+      <p className="hint">
+        {any
+          ? `Faster previews and exports in the photo & video studio, using ${support.webgpu ? 'WebGPU' : 'WebGL2'}. The pictures are the same either way; turn it off if anything looks wrong.`
+          : 'This browser offers no graphics card access (WebGPU or WebGL2), so effects run on the processor.'}
+      </p>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { startGpuEffects } from '../lib/gpuSetting';
 import { PhotoWorkspace } from './studio/PhotoWorkspace';
 import { MODES, modeOf, type StudioMode } from './studio/Shell';
 import { VideoWorkspace } from './studio/VideoWorkspace';
@@ -9,6 +10,7 @@ import { VideoWorkspace } from './studio/VideoWorkspace';
  */
 export function InstagramStudio() {
   const [mode, setMode] = useState<StudioMode>(() => modeOf(location.hash));
+  useEffect(startGpuEffects, []);
   useEffect(() => {
     const on = () => setMode(modeOf(location.hash));
     window.addEventListener('hashchange', on);
