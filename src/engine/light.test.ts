@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
+import { chainPixels } from './chain';
 import {
   LUMA,
   lightNeutral,
   lightPixel,
-  lookLightPixels,
   neutralise,
   toLinear,
   toneAt,
@@ -108,11 +108,11 @@ describe('tone sliders', () => {
   });
 });
 
-describe('lookLightPixels', () => {
+describe('chainPixels (look and light)', () => {
   it('does nothing when every light setting is zero, and skips transparent pixels', () => {
     expect(lightNeutral(A({ brightness: 50 }))).toBe(true);
     const a = new Uint8ClampedArray([50, 60, 70, 255, 50, 60, 70, 0]);
-    lookLightPixels(a, A({ exposure: 1 }));
+    chainPixels(a, A({ exposure: 1 }));
     expect(a[0]).toBeGreaterThan(50);
     expect([...a.slice(4)]).toEqual([50, 60, 70, 0]);
   });
@@ -126,9 +126,9 @@ describe('look overshoot', () => {
   it('starts the light step from the clamped look, as the GPU does', () => {
     // Vivid pushes strong colours past 255; the light step must treat them as 255, not brighter.
     const a = new Uint8ClampedArray([250, 40, 30, 255]);
-    lookLightPixels(a, A({ look: 'vivid', exposure: -1 }));
+    chainPixels(a, A({ look: 'vivid', exposure: -1 }));
     const b = new Uint8ClampedArray([255, 0, 0, 255]);
-    lookLightPixels(b, A({ exposure: -1 }));
+    chainPixels(b, A({ exposure: -1 }));
     expect(a[0]).toBeLessThanOrEqual(b[0] + 1);
   });
 });

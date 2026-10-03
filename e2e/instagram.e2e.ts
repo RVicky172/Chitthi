@@ -102,3 +102,50 @@ test('light and white balance: sliders, and the eyedropper sets temperature and 
   await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
   expect(errors).toEqual([]);
 });
+
+test('tone curve works from the keyboard, and the colour mixer changes the photo', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(1, 2));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const before = await shot();
+
+  const curve = page.getByRole('group', { name: /^Tone curve, RGB/ });
+  await expect(curve).toBeVisible();
+  // Lift the black point with the keyboard.
+  const first = curve.getByRole('button', { name: /^Point 1 of 2/ });
+  await first.focus();
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowUp');
+  await expect(first).toHaveAccessibleName(/output 30/);
+  // Add a point, nudge it, then delete it.
+  await page.getByRole('button', { name: 'Add point' }).click();
+  const mid = curve.getByRole('button', { name: /^Point 2 of 3/ });
+  await mid.focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Delete');
+  await expect(curve.getByRole('button', { name: /^Point \d of 2/ })).toHaveCount(2);
+  await expect.poll(shot).not.toBe(before);
+  // A click in the middle of the graph adds a point there (input and output about 128).
+  await page.getByRole('button', { name: 'Reset RGB' }).click();
+  const box = (await curve.boundingBox())!;
+  await curve.click({ position: { x: box.width / 2, y: box.height / 2 } });
+  const name = (await curve.getByRole('button', { name: /^Point 2 of 3/ }).getAttribute('aria-label'))!;
+  const [, inp, out] = /input (\d+), output (\d+)/.exec(name)!.map(Number);
+  expect(Math.abs(inp - 128)).toBeLessThan(6);
+  expect(Math.abs(out - 128)).toBeLessThan(6);
+  // Other channels have their own curve.
+  await page.getByRole('group', { name: 'Curve channel' }).getByRole('button', { name: 'Red' }).click();
+  await expect(page.getByRole('group', { name: /^Tone curve, Red/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Reset Red' }).isDisabled();
+
+  // Colour mixer: saturation of the oranges down; the photo changes; reset brings the slider back.
+  await page.getByRole('group', { name: 'Colour mixer setting' }).getByRole('button', { name: 'Saturation' }).click();
+  const afterCurve = await shot();
+  await page.locator('#ig-mix-sat-orange').fill('-80');
+  await expect(page.locator('label[for="ig-mix-sat-orange"] output')).toHaveText('-80');
+  await expect.poll(shot).not.toBe(afterCurve);
+  await page.getByRole('button', { name: 'Reset saturation' }).click();
+  await expect(page.locator('label[for="ig-mix-sat-orange"] output')).toHaveText('0');
+  expect(errors).toEqual([]);
+});

@@ -1,4 +1,6 @@
 import type { LookId } from '../types';
+import { curveNeutral, FLAT_CURVE, mergeCurve, type ToneCurve } from './curve';
+import { FLAT_MIXER, mergeMixer, mixerNeutral, type ColourMixer } from './hsl';
 import { lightNeutral } from './light';
 
 /*
@@ -9,7 +11,7 @@ import { lightNeutral } from './light';
  */
 
 /** Bumped when the stored shape of Adjustments changes; mergeAdjust() reads every older version. */
-export const ADJUST_VERSION = 2; // 2: light and white balance (P1.1); version 1 reads with them at 0
+export const ADJUST_VERSION = 3; // 2: light and white balance (P1.1); 3: tone curve and colour mixer (P1.2). Older versions read with the new settings neutral
 
 export const LOOK_IDS: readonly LookId[] = ['none', 'vivid', 'warm', 'cool', 'bw', 'tinted', 'vintage'];
 
@@ -32,6 +34,10 @@ export interface Adjustments {
   /** Warmer (> 0) or cooler, and magenta (> 0) or green. */
   temperature: number;
   tint: number;
+  /** Tone curve: master and per-channel point lists (engine/curve.ts). */
+  curve: ToneCurve;
+  /** Colour mixer: hue, saturation and luminance for eight colour bands (engine/hsl.ts). */
+  mixer: ColourMixer;
 }
 
 export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
@@ -48,6 +54,8 @@ export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
   blacks: 0,
   temperature: 0,
   tint: 0,
+  curve: FLAT_CURVE,
+  mixer: FLAT_MIXER,
 });
 
 /** The slider settings with their ranges: one table for validation, the UI and agent tools. */
@@ -64,14 +72,14 @@ export const ADJUST_RANGES = {
   blacks: [-100, 100],
   temperature: [-100, 100],
   tint: [-100, 100],
-} as const satisfies Record<Exclude<keyof Adjustments, 'look'>, readonly [number, number]>;
+} as const satisfies Record<Exclude<keyof Adjustments, 'look' | 'curve' | 'mixer'>, readonly [number, number]>;
 
 type Slider = keyof typeof ADJUST_RANGES;
 const SLIDERS = Object.keys(ADJUST_RANGES) as Slider[];
 
 /** True when the colour of the photo is left as it is (the vignette is drawn on top, so it doesn't count). */
 export const colourNeutral = (a: Adjustments): boolean =>
-  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth && lightNeutral(a);
+  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth && lightNeutral(a) && curveNeutral(a.curve) && mixerNeutral(a.mixer);
 
 const num = (v: unknown, [lo, hi]: readonly [number, number]): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : 0;
@@ -85,7 +93,12 @@ const num = (v: unknown, [lo, hi]: readonly [number, number]): number =>
 export function mergeAdjust(raw: unknown): Adjustments {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const look = o.look ?? o.filter;
-  const out: Adjustments = { ...DEFAULT_ADJUST, look: LOOK_IDS.includes(look as LookId) ? (look as LookId) : 'none' };
+  const out: Adjustments = {
+    ...DEFAULT_ADJUST,
+    look: LOOK_IDS.includes(look as LookId) ? (look as LookId) : 'none',
+    curve: mergeCurve(o.curve),
+    mixer: mergeMixer(o.mixer),
+  };
   for (const k of SLIDERS) out[k] = num(o[k], ADJUST_RANGES[k]);
   return out;
 }

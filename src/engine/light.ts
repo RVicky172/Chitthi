@@ -1,5 +1,4 @@
 import type { Adjustments } from './adjust';
-import { lookPixel } from './photo';
 
 /*
  * Light and white balance (docs/planning/EDITOR-IMPLEMENTATION.md, P1.1): temperature and tint, exposure, then
@@ -7,8 +6,9 @@ import { lookPixel } from './photo';
  * output never changes), these work in linear light, the way a camera's sensor counts it, so exposure behaves like
  * opening the aperture and white balance like changing the light.
  *
- * This file is the reference: lookLightPixels() is the Canvas 2D path and what the unit tests check; the GPU program
- * (gpu/colour.ts LIGHT_PROGRAM) mirrors it line for line and the self-test compares the two.
+ * This file is the reference: lightPixel() is what the unit tests check, and chain.ts chainPixels() runs the same maths
+ * per pixel on the Canvas 2D path. The GPU program (gpu/colour.ts LIGHT_PROGRAM) mirrors it line for line and the
+ * self-test compares the two.
  */
 
 /** sRGB (0–1) to linear light, the exact piecewise curve. */
@@ -21,12 +21,12 @@ export const toSrgb = (c: number): number => (c <= 0.0031308 ? c * 12.92 : 1.055
  * half an 8-bit level. Linear to sRGB is indexed by the square root, which spreads the steps into the dark tones where
  * that curve is steepest. Values outside the tables use the exact functions.
  */
-const STEPS = 4096;
+export const STEPS = 4096;
 const LIN = new Float64Array(STEPS + 2),
   SRGB = new Float64Array(STEPS + 2);
 let built = false;
 /** Fills the tables on first use (not at import, so loading the module stays free). */
-function tables(): void {
+export function tables(): void {
   if (built) return;
   for (let i = 0; i <= STEPS + 1; i++) {
     const u = Math.min(1, i / STEPS);
@@ -36,7 +36,7 @@ function tables(): void {
   built = true;
 }
 /** toLinear() of an sRGB value given in 0–255, clamped to that range first. */
-function linFast(v: number): number {
+export function linFast(v: number): number {
   const t = LIN;
   if (v <= 0) return 0;
   if (v >= 255) return 1; // the look may overshoot; like the GPU, light starts from the clamped value
@@ -45,7 +45,7 @@ function linFast(v: number): number {
   return t[i] + (t[i + 1] - t[i]) * (x - i);
 }
 /** toSrgb() of a linear value, in 0–1 (not clamped above). */
-function srgbFast(v: number): number {
+export function srgbFast(v: number): number {
   const t = SRGB;
   if (v <= 0) return 0;
   if (v >= 1) return toSrgb(v);
@@ -167,57 +167,8 @@ export function lightPixel(
   return [o[0], o[1], o[2]];
 }
 
-/**
- * The look, then light and white balance, on raw RGBA pixels (the Canvas 2D path), rounding once at the end: the
- * light sliders can lift dark tones several times over, which would magnify any rounding in between. Transparent
- * pixels keep their colour. Only for settings where the light is not neutral; otherwise use lookPixels().
- */
-export function lookLightPixels(px: Uint8ClampedArray, a: Adjustments): void {
-  const ex = 2 ** a.exposure,
-    wb = wbGains(a.temperature, a.tint),
-    g0 = wb[0] * ex,
-    g1 = wb[1] * ex,
-    g2 = wb[2] * ex,
-    look = a.look !== 'none',
-    // The tone sliders depend only on a pixel's brightness, so their effect is one table per picture: linear
-    // brightness y (indexed by its square root) to the new linear brightness.
-    tone = a.highlights || a.shadows || a.whites || a.blacks ? toneTable(a) : null,
-    o = [0, 0, 0];
-  tables();
-  for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3] === 0) continue;
-    if (look) lookPixel(px[i], px[i + 1], px[i + 2], a.look, o);
-    else {
-      o[0] = px[i];
-      o[1] = px[i + 1];
-      o[2] = px[i + 2];
-    }
-    let lr = linFast(o[0]) * g0,
-      lg = linFast(o[1]) * g1,
-      lb = linFast(o[2]) * g2;
-    if (tone) {
-      const y = LUMA[0] * lr + LUMA[1] * lg + LUMA[2] * lb;
-      if (y > 1e-6) {
-        let ny: number;
-        if (y < 1) {
-          const x = Math.sqrt(y) * STEPS,
-            j = x | 0;
-          ny = tone[j] + (tone[j + 1] - tone[j]) * (x - j);
-        } else ny = toLinear(toneAt(toSrgb(y), a));
-        const k = ny / y;
-        lr *= k;
-        lg *= k;
-        lb *= k;
-      }
-    }
-    px[i] = srgbFast(lr) * 255;
-    px[i + 1] = srgbFast(lg) * 255;
-    px[i + 2] = srgbFast(lb) * 255;
-  }
-}
-
 /** New linear brightness for each linear brightness y, indexed by sqrt(y) (0–1), for the tone sliders. */
-function toneTable(a: Adjustments): Float64Array {
+export function toneTable(a: Adjustments): Float64Array {
   const t = new Float64Array(STEPS + 2);
   for (let i = 0; i <= STEPS + 1; i++) {
     const u = Math.min(1, i / STEPS);

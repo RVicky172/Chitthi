@@ -65,6 +65,11 @@ position by dragging or arrow keys, rotate, mirror, six filters (the same looks 
 - **Light:** exposure (±4 stops), contrast, highlights, shadows, whites and blacks.
 - **Colour:** temperature and tint, with **Pick a neutral grey** (click something that should be grey or white and the
   white balance is set from it; Escape cancels), and saturation.
+- **Tone curve:** an RGB curve and one each for red, green and blue. Click the graph to add a point and drag it,
+  double-click a point to remove it; or Tab to a point, move it with the arrow keys (Shift for bigger steps) and remove it
+  with Delete. Points are joined by a smooth curve that never overshoots them (`src/engine/curve.ts`).
+- **Colour mixer:** hue, saturation and luminance for eight colour bands (red, orange, yellow, green, aqua, blue,
+  purple, magenta). Colours between two bands get a blend of both, and greys are never changed (`src/engine/hsl.ts`).
 - **Effects:** vignette.
 
 Exposure, white balance and the four tone sliders work in linear light (`src/engine/light.ts`): exposure behaves like

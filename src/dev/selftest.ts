@@ -262,6 +262,8 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
 async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; where: string; frames: number }> {
   const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
   const { LOOK_IDS } = await import('../engine/adjust');
+  const { FLAT_CURVE } = await import('../engine/curve');
+  const { FLAT_MIXER } = await import('../engine/hsl');
   const { closeGpu, openGpu } = await import('../engine/gpu/device');
   const photos = await Promise.all(
     ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
@@ -273,12 +275,17 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
   );
   const W = 540,
     H = 675;
-  const edits = [
+  const edits: Partial<import('../engine/adjust').Adjustments>[] = [
     {},
     { brightness: 35, contrast: 20 },
     { saturation: -60, warmth: 40, vignette: 50 },
     { contrast: 100, brightness: -40 },
     { exposure: 0.7, highlights: -60, shadows: 50, temperature: -40, tint: 20 },
+    {
+      curve: { ...FLAT_CURVE, rgb: [[0, 0], [0.3, 0.22], [0.7, 0.8], [1, 1]], r: [[0, 0], [0.5, 0.55], [1, 1]] },
+      mixer: { ...FLAT_MIXER, hue: [0, 30, 0, -40, 0, 20, 0, 0], sat: [20, 40, -30, 0, 0, -50, 0, 0], lum: [0, 20, 0, -30, 0, 0, 0, 0] },
+      shadows: 30,
+    },
   ];
   const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
     const c = document.createElement('canvas');
@@ -353,6 +360,8 @@ async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
 async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check: (ok: unknown, what: string) => void, name: string): Promise<string> {
   const { adjustPixels } = await import('../engine/instagram');
   const { DEFAULT_ADJUST, LOOK_IDS } = await import('../engine/adjust');
+  const { FLAT_CURVE } = await import('../engine/curve');
+  const { FLAT_MIXER } = await import('../engine/hsl');
   const { colourNodes } = await import('../engine/gpu/colour');
   const { runNodes, TexturePool } = await import('../engine/gpu/graph');
   // 64×64: hue across, brightness down, with a band of greys and a few half-transparent pixels.
@@ -378,7 +387,7 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
   const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
   const input = dev.upload(bmp, N, N),
     pool = new TexturePool(dev);
-  const sliders = [
+  const sliders: Partial<import('../engine/adjust').Adjustments>[] = [
     {},
     { brightness: 40 },
     { contrast: -60 },
@@ -390,6 +399,11 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
     { exposure: -1.5, highlights: -80, shadows: 70 },
     { temperature: 80, tint: -50, whites: 60, blacks: -60 },
     { exposure: 0.5, shadows: 100, contrast: 30 },
+    // Tone curve and colour mixer (P1.2).
+    { curve: { ...FLAT_CURVE, rgb: [[0, 0], [0.25, 0.15], [0.75, 0.85], [1, 1]] } },
+    { curve: { ...FLAT_CURVE, b: [[0, 0.1], [0.5, 0.4], [1, 0.95]] }, exposure: -0.5 },
+    { mixer: { ...FLAT_MIXER, hue: [40, -60, 0, 80, 0, -100, 0, 50], sat: [-100, 60, 0, 0, 100, -40, 0, 0], lum: [0, 0, 80, -80, 0, 50, -50, 0] } },
+    { curve: { ...FLAT_CURVE, rgb: [[0, 0.05], [0.5, 0.6], [1, 0.9]] }, mixer: { ...FLAT_MIXER, sat: [80, 80, 80, -80, -80, -80, 0, 0] }, temperature: 30, contrast: 20 },
   ];
   let max = 0,
     bad = '',

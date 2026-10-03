@@ -57,6 +57,8 @@ import { fullUrl, useLibrary } from '../../state/library';
 import type { StoredPhoto } from '../../types';
 import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
+import { ColourMixer } from '../ig/ColourMixer';
+import { CurveEditor } from '../ig/CurveEditor';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import {
   AddPhotoIcon,
@@ -762,6 +764,14 @@ function EditPanel({ item }: { item: IgItem }) {
         <Slider id="ig-ti" label="Tint" value={a.tint} min={-100} max={100} onChange={(tint) => setA({ tint })} />
         <Slider id="ig-sa" label="Saturation" value={a.saturation} min={-100} max={100} onChange={(saturation) => setA({ saturation })} />
         {a.warmth !== 0 && <Slider id="ig-wa" label="Warmth" value={a.warmth} min={-100} max={100} onChange={(warmth) => setA({ warmth })} />}
+      </div>
+      <div className="ig-group">
+        <h3>Tone curve</h3>
+        <CurveEditor curve={a.curve} onChange={(curve) => setA({ curve })} />
+      </div>
+      <div className="ig-group">
+        <h3>Colour mixer</h3>
+        <ColourMixer idPrefix="ig-mix" mixer={a.mixer} onChange={(mixer) => setA({ mixer })} />
       </div>
       <div className="ig-group">
         <h3>Effects</h3>
