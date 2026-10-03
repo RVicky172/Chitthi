@@ -19,6 +19,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Photo and video editors: **saved presets**. Save a photo's colour settings under a name, apply them in one click or
   to every photo of the batch, rename and delete them, and move them between devices as a preset file that carries
   the LUTs they use.
+- Photo editor: **masks**. Paint where a set of settings applies (exposure, contrast, highlights, shadows, whites,
+  blacks, temperature, tint, saturation, clarity, dehaze, sharpening, noise reduction) with a brush that has size,
+  feather, flow and erase; invert, switch off and combine brush parts. Masks move, turn and mirror with the photo.
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

@@ -8,7 +8,7 @@ import { brushWidth, type LayerTools } from '../../state/instagram';
  * the canvas's own pixels, so layers (stored as shares of the frame) map 1:1 to what is drawn. With the draw tool a
  * stroke goes into the selected drawing (or a new one); otherwise a press picks the topmost layer under the pointer and
  * drags it, or its resize / rotate handle when it is selected. A press on no layer goes to `onBackground` (the photo
- * editor pans the photo with it).
+ * editor pans the photo with it). With the mask tool (photo editor) every press, move and release goes to `onMask`.
  */
 
 export interface LayerPointerOptions {
@@ -26,6 +26,12 @@ export interface LayerPointerOptions {
   onRemove: (id: string) => void;
   /** Ends an undo step (pointer up), so the next drag is its own step. */
   onEndStep?: () => void;
+  /** The mask brush: canvas pixels of the press and each move, and the release. */
+  onMask?: {
+    down: (x: number, y: number, W: number, H: number) => void;
+    move: (x: number, y: number) => void;
+    up: () => void;
+  };
   onBackground?: {
     down: (e: ReactPointerEvent<HTMLCanvasElement>) => void;
     move: (e: ReactPointerEvent<HTMLCanvasElement>) => void;
@@ -37,7 +43,8 @@ export interface LayerPointerOptions {
 type Drag =
   | { mode: 'move' | 'resize' | 'rotate'; id: string; orig: Layer; box: Box; x0: number; y0: number; key: string }
   | { mode: 'draw'; base: DrawLayer | null; pts: number[]; key: string; others: Layer[]; index: number }
-  | { mode: 'background' };
+  | { mode: 'background' }
+  | { mode: 'mask' };
 
 let dragSeq = 0;
 
@@ -66,6 +73,11 @@ export function useLayerPointer(o: LayerPointerOptions) {
       W = cv.width,
       H = cv.height;
     const { layers, selected, tools, t } = opts.current;
+    if (tools.tool === 'mask' && opts.current.onMask) {
+      drag.current = { mode: 'mask' };
+      opts.current.onMask.down(px, py, W, H);
+      return;
+    }
     if (tools.tool === 'draw') {
       const sel = layers.find((l) => l.id === selected);
       const base = sel && sel.kind === 'draw' && sel.rot === 0 && (t === undefined || ((sel.start ?? 0) <= t && t < (sel.end ?? Infinity))) ? sel : null;
@@ -117,6 +129,7 @@ export function useLayerPointer(o: LayerPointerOptions) {
     const [px, py] = at(cv, e),
       W = cv.width,
       H = cv.height;
+    if (d.mode === 'mask') return opts.current.onMask?.move(px, py);
     if (d.mode === 'draw') {
       const n = d.pts.length;
       // Skip points closer than a pixel: smoother lines, smaller files.
@@ -144,6 +157,7 @@ export function useLayerPointer(o: LayerPointerOptions) {
     const d = drag.current;
     drag.current = null;
     if (d?.mode === 'background') opts.current.onBackground?.up();
+    if (d?.mode === 'mask') opts.current.onMask?.up();
     opts.current.onEndStep?.();
   };
 

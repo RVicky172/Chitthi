@@ -14,8 +14,9 @@ import {
 } from '../../data/instagram';
 import { DEFAULT_ADJUST, type Adjustments } from '../../engine/adjust';
 import { neutralise } from '../../engine/light';
-import { placement, renderIg, showsBackground, type IgEdit, type IgRotation } from '../../engine/instagram';
+import { photoPlace, placement, renderIg, showsBackground, type IgEdit, type IgRotation } from '../../engine/instagram';
 import { drawLayers, drawSelection, layerBox } from '../../engine/layers';
+import { BRUSH_RANGES, frameMask, frameToPhoto, type BrushStroke, type Mask } from '../../engine/masks';
 import { MAX_MB } from '../../engine/photo';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
@@ -49,6 +50,7 @@ import {
   setTools,
   undo,
   updateLayer,
+  updateMask,
   useIg,
   zipOf,
   type IgItem,
@@ -60,6 +62,8 @@ import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type 
 import { ColourMixer } from '../ig/ColourMixer';
 import { CurveEditor } from '../ig/CurveEditor';
 import { LookPicker } from '../ig/LookPicker';
+import { addBrushMask, MaskInspector, MaskPanel } from '../ig/MaskPanel';
+import { Slider } from '../ig/Slider';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import {
   AddPhotoIcon,
@@ -71,6 +75,7 @@ import {
   ImageIcon,
   InstagramIcon,
   LayersIcon,
+  MaskIcon,
   NextIcon,
   PhotosIcon,
   PrevIcon,
@@ -94,9 +99,10 @@ import { StudioShell, useFit, type RailItem, type StudioMode } from './Shell';
  * engine/instagram.ts and engine/layers.ts.
  */
 
-type Tool = 'media' | 'text' | 'elements' | 'draw' | 'layers';
+type Tool = 'media' | 'masks' | 'text' | 'elements' | 'draw' | 'layers';
 const RAIL: RailItem<Tool>[] = [
   { id: 'media', label: 'Photos', icon: <ImageIcon /> },
+  { id: 'masks', label: 'Masks', icon: <MaskIcon /> },
   { id: 'text', label: 'Text', icon: <TypeIcon /> },
   { id: 'elements', label: 'Elements', icon: <ShapesIcon /> },
   { id: 'draw', label: 'Draw', icon: <BrushIcon /> },
@@ -115,8 +121,27 @@ function dataUrlToBlob(url: string): Blob {
   return new Blob([bytes], { type });
 }
 
-/** Draws one photo, its layers and (for the stage) the selected layer's handles, at `width` CSS px. */
-function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefined, formatId: IgFormatId, width: number, selection: string | null = null) {
+/** The selected mask as a red tint over the photo (the stage only, never exports). */
+function drawMaskOverlay(x: CanvasRenderingContext2D, it: IgItem, mask: Mask, W: number, H: number): void {
+  const f = frameMask(mask, it.preview.width, it.preview.height, photoPlace(it.preview.width, it.preview.height, it.edit, W, H), W, H);
+  const tint = document.createElement('canvas');
+  tint.width = f.width;
+  tint.height = f.height;
+  const t = tint.getContext('2d');
+  if (!t) return;
+  const img = t.createImageData(f.width, f.height),
+    d = new Uint32Array(img.data.buffer);
+  // Red at half strength where the mask is full (little-endian RGBA: alpha in the top byte).
+  for (let i = 0; i < f.data.length; i++) if (f.data[i]) d[i] = ((f.data[i] >> 1) << 24) | 0x4024e8;
+  t.putImageData(img, 0, 0);
+  x.drawImage(tint, 0, 0, W, H);
+}
+
+/**
+ * Draws one photo, its layers and (for the stage) the selected layer's handles and the selected mask's overlay, at
+ * `width` CSS px.
+ */
+function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefined, formatId: IgFormatId, width: number, selection: string | null = null, overlay: Mask | null = null) {
   const tick = useFontsTick(it?.layers ?? []);
   useEffect(() => {
     const cv = ref.current;
@@ -137,7 +162,8 @@ function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefi
     drawLayers(x, it.layers, W, H);
     const sel = selection && it.layers.find((l) => l.id === selection && !l.hidden);
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
-  }, [ref, it, formatId, width, selection, tick]);
+    if (overlay) drawMaskOverlay(x, it, overlay, W, H);
+  }, [ref, it, formatId, width, selection, tick, overlay]);
 }
 
 export function PhotoWorkspace({ mode, onMode }: { mode: StudioMode; onMode: (m: StudioMode) => void }) {
@@ -150,11 +176,12 @@ export function PhotoWorkspace({ mode, onMode }: { mode: StudioMode; onMode: (m:
   const [tool, setTool] = useState<Tool | null>(() => (getIg().items.length ? 'text' : 'media'));
   const [exporting, setExporting] = useState(false);
   const current = items.find((x) => x.id === selected) ?? items[0];
+  const maskSel = useIg((s) => s.maskSel);
   const f = igFormat(format);
 
-  // The Draw tool is the only one that draws on the stage.
+  // The Draw tool draws layers on the stage; the Masks tool paints the selected mask.
   useEffect(() => {
-    setTools({ tool: tool === 'draw' ? 'draw' : 'select' });
+    setTools({ tool: tool === 'draw' ? 'draw' : tool === 'masks' ? 'mask' : 'select' });
     return () => setTools({ tool: 'select' });
   }, [tool]);
 
@@ -191,6 +218,8 @@ export function PhotoWorkspace({ mode, onMode }: { mode: StudioMode; onMode: (m:
       <MediaPanel />
     ) : !layerProps ? (
       <p className="hint mst-pad">Add photos first: choose Photos in the tool rail.</p>
+    ) : tool === 'masks' ? (
+      <MaskPanel item={current!} />
     ) : tool === 'text' ? (
       <AddText {...layerProps} />
     ) : tool === 'elements' ? (
@@ -245,7 +274,17 @@ export function PhotoWorkspace({ mode, onMode }: { mode: StudioMode; onMode: (m:
         </>
       }
       panel={panel}
-      inspector={current ? layerSel && layerProps ? <LayerProps {...layerProps} /> : <EditPanel item={current} /> : <p className="hint mst-pad">Nothing selected yet.</p>}
+      inspector={
+        !current ? (
+          <p className="hint mst-pad">Nothing selected yet.</p>
+        ) : tool === 'masks' && maskSel && current.edit.masks.some((m) => m.id === maskSel) ? (
+          <MaskInspector item={current} />
+        ) : layerSel && layerProps ? (
+          <LayerProps {...layerProps} />
+        ) : (
+          <EditPanel item={current} />
+        )
+      }
       stage={current ? <PhotoStage item={current} /> : <EmptyStage onAdd={() => setTool('media')} />}
       dock={<PhotoStrip />}
     >
@@ -399,10 +438,14 @@ function PhotoStage({ item }: { item: IgItem }) {
   const format = useIg((s) => s.format),
     items = useIg((s) => s.items),
     layerSel = useIg((s) => s.layerSel),
-    tools = useIg((s) => s.tools);
+    tools = useIg((s) => s.tools),
+    maskSel = useIg((s) => s.maskSel),
+    brush = useIg((s) => s.maskBrush);
   const f = igFormat(format);
   const { width, height } = useFit(box, f.w, f.h, 72);
-  useRender(ref, item, format, width, layerSel);
+  const masking = tools.tool === 'mask';
+  const shownMask = masking && brush.overlay ? (item.edit.masks.find((m) => m.id === maskSel) ?? null) : null;
+  useRender(ref, item, format, width, layerSel, shownMask);
   const pan = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const i = items.findIndex((x) => x.id === item.id);
 
@@ -456,9 +499,72 @@ function PhotoStage({ item }: { item: IgItem }) {
     adjustPhoto(item.id, neutralise(r / n, g / n, b / n));
     setPicking(false);
   };
+  // The mask brush: a stroke goes into the selected part of the selected mask (a new mask when none is selected), in
+  // the photo's own coordinates, so it stays put when the photo is moved, turned or mirrored.
+  const stroke = useRef<{ mask: string; part: string; s: BrushStroke; key: string; W: number; H: number; last: [number, number] } | null>(null);
+  const cursor = useRef<HTMLDivElement>(null);
+  const putStroke = (st: NonNullable<typeof stroke.current>, s: BrushStroke) =>
+    updateMask(
+      item.id,
+      st.mask,
+      (m) => ({ ...m, parts: m.parts.map((p) => (p.id === st.part ? { ...p, strokes: p.strokes.at(-1) === st.s ? [...p.strokes.slice(0, -1), s] : [...p.strokes, s] } : p)) }),
+      st.key,
+    );
+  const onMask = {
+    down: (x: number, y: number, W: number, H: number) => {
+      const ig = getIg();
+      let mask = item.edit.masks.find((m) => m.id === ig.maskSel);
+      if (!mask) {
+        const made = addBrushMask(item);
+        if (!made) return toast('A photo can have 16 masks; delete one to add another.');
+        mask = made;
+      }
+      const partId = getIg().partSel ?? mask.parts[0]?.id;
+      if (!partId) return;
+      const place = photoPlace(item.preview.width, item.preview.height, item.edit, W, H),
+        [u, v] = frameToPhoto(place, x, y),
+        b = getIg().maskBrush;
+      const s: BrushStroke = {
+        pts: [u, v],
+        size: Math.min(BRUSH_RANGES.size[1], Math.max(BRUSH_RANGES.size[0], (b.size * W) / place.w)),
+        feather: b.feather,
+        flow: b.flow,
+        erase: b.erase,
+      };
+      const st = { mask: mask.id, part: partId, s, key: `maskstroke:${Date.now()}`, W, H, last: [x, y] as [number, number] };
+      stroke.current = st;
+      // The part holds the stroke from now on; each move replaces it with a longer one (one undo step).
+      updateMask(item.id, mask.id, (m) => ({ ...m, parts: m.parts.map((p) => (p.id === partId ? { ...p, strokes: [...p.strokes, s] } : p)) }), st.key);
+    },
+    move: (x: number, y: number) => {
+      const st = stroke.current;
+      if (!st || Math.hypot(x - st.last[0], y - st.last[1]) < 2) return;
+      const ig = getIg(),
+        it = ig.items.find((k) => k.id === item.id);
+      if (!it) return;
+      const [u, v] = frameToPhoto(photoPlace(it.preview.width, it.preview.height, it.edit, st.W, st.H), x, y);
+      const s = { ...st.s, pts: [...st.s.pts, u, v] };
+      putStroke(st, s);
+      st.s = s;
+      st.last = [x, y];
+    },
+    up: () => {
+      stroke.current = null;
+    },
+  };
+  const moveCursor = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    const c = cursor.current;
+    if (!c) return;
+    const d = brush.size * e.currentTarget.getBoundingClientRect().width;
+    c.style.width = c.style.height = `${d}px`;
+    c.style.transform = `translate(${e.clientX - d / 2}px, ${e.clientY - d / 2}px)`;
+    c.hidden = false;
+  };
+
   const handlers = useLayerPointer({
     canvas: ref,
     layers: item.layers,
+    onMask,
     selected: layerSel,
     tools,
     onSelect: selectLayer,
@@ -505,19 +611,33 @@ function PhotoStage({ item }: { item: IgItem }) {
       <canvas
         ref={ref}
         tabIndex={0}
-        className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}${picking ? ' picking' : ''}`}
+        className={`mst-canvas${tools.tool === 'draw' || masking ? ' drawing' : ''}${picking ? ' picking' : ''}`}
         style={{ width, height }}
         aria-label={`Photo ${i + 1} of ${items.length} as a ${f.ratio} Instagram post, with ${item.layers.length} layer${item.layers.length === 1 ? '' : 's'}. Drag a layer to move it, its corner handle to resize, its top handle to turn it. Drag elsewhere, or use the arrow keys, to move the photo; plus and minus zoom. Delete removes the selected layer.`}
         onDoubleClick={() => document.getElementById('layer-text')?.focus()}
         {...handlers}
         onPointerDown={picking ? pickGrey : handlers.onPointerDown}
+        onPointerMove={(ev) => {
+          if (masking) moveCursor(ev);
+          handlers.onPointerMove(ev);
+        }}
+        onPointerLeave={() => cursor.current && (cursor.current.hidden = true)}
         onKeyDown={(ev) => {
           if (picking && ev.key === 'Escape') setPicking(false);
           else handlers.onKeyDown?.(ev);
         }}
       />
+      {masking && <div className="mst-brush" ref={cursor} hidden aria-hidden="true" />}
       <p className="mst-hint">
-        {picking ? 'Click something that should be grey or white; Escape cancels' : tools.tool === 'draw' ? 'Drawing: drag on the photo' : 'Drag a layer to move it, or the photo to reposition it'}
+        {picking
+          ? 'Click something that should be grey or white; Escape cancels'
+          : masking
+            ? brush.erase
+              ? 'Masks: drag on the photo to erase from the selected mask'
+              : 'Masks: drag on the photo to paint the selected mask'
+            : tools.tool === 'draw'
+              ? 'Drawing: drag on the photo'
+              : 'Drag a layer to move it, or the photo to reposition it'}
       </p>
     </div>
   );
@@ -646,36 +766,6 @@ function StripThumb(p: {
         <TrashIcon />
       </button>
     </li>
-  );
-}
-
-function Slider({
-  id,
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  reset = min < 0 ? 0 : min,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  /** What a double-click sets: 0, or the minimum when 0 is out of range, unless given. */
-  reset?: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="ig-slider">
-      <label htmlFor={id}>
-        {label} <output htmlFor={id}>{step < 1 ? value.toFixed(2) : Math.round(value)}</output>
-      </label>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} onDoubleClick={() => onChange(reset)} />
-    </div>
   );
 }
 

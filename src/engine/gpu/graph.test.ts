@@ -16,6 +16,7 @@ function fakeDevice() {
     lost: false,
     upload: (_s, width, height) => ({ width, height, id: `up${made++}` }) as GpuTexture,
     uploadData: (_d, width, height) => ({ width, height, id: `data${made++}` }) as GpuTexture,
+    uploadMask: (_d, width, height) => ({ width, height, id: `mask${made++}` }) as GpuTexture,
     target: (width, height) => ({ width, height, id: `t${made++}` }) as GpuTexture,
     pass: (program, inputs, _u, out) => void passes.push({ program, input: inputs[0], inputs: [...inputs], out }),
     present: () => {

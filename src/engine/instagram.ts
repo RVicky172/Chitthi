@@ -3,6 +3,7 @@ import { DETAIL_WIDTH, detailPixels } from './detail';
 import { gpuColour } from './gpu/apply';
 import { gpu } from './gpu/device';
 import { chainNeutral, chainPixels } from './chain';
+import { frameMask, maskActive, mergeMasks, type FrameMask, type Mask, type PhotoPlace } from './masks';
 import { lookPixels } from './photo';
 
 /*
@@ -27,6 +28,8 @@ export interface IgEdit {
   flip: boolean;
   /** Colour: look, sliders and vignette. */
   adjust: Adjustments;
+  /** Local adjustments (engine/masks.ts), applied in order after the photo's own colour settings. */
+  masks: Mask[];
 }
 
 export const DEFAULT_EDIT: IgEdit = {
@@ -38,9 +41,10 @@ export const DEFAULT_EDIT: IgEdit = {
   rot: 0,
   flip: false,
   adjust: { ...DEFAULT_ADJUST },
+  masks: [],
 };
 
-/** The edits that "Apply to all" copies: the look of a photo, not where it is placed. */
+/** The edits that "Apply to all" copies: the look of a photo, not where it is placed (nor its masks, drawn on it). */
 export const LOOK_KEYS = ['fit', 'bg', 'adjust'] as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -63,6 +67,7 @@ export function mergeEdit(raw: unknown): IgEdit {
     rot: ROTATIONS.includes(o.rot as IgRotation) ? (o.rot as IgRotation) : 0,
     flip: o.flip === true,
     adjust: mergeAdjust(o.adjust ?? o),
+    masks: mergeMasks(o.masks),
   };
 }
 
@@ -83,6 +88,13 @@ export function placement(sw: number, sh: number, e: Pick<IgEdit, 'fit' | 'zoom'
     dw,
     dh,
   };
+}
+
+/** Where and how the photo is drawn on a W×H frame, for laying its masks over it (and painting them). */
+export function photoPlace(sw: number, sh: number, e: IgEdit, W: number, H: number): PhotoPlace {
+  const p = placement(sw, sh, e, W, H),
+    turned = e.rot % 180 !== 0;
+  return { cx: p.cx, cy: p.cy, w: turned ? p.dh : p.dw, h: turned ? p.dw : p.dh, rot: e.rot, flip: e.flip };
 }
 
 /** True when the photo leaves part of the frame empty, so the background shows. */
@@ -118,6 +130,26 @@ export function adjustPixels(a: Uint8ClampedArray, e: Adjustments): void {
     a[i] = r;
     a[i + 1] = g;
     a[i + 2] = b;
+  }
+}
+
+/**
+ * One mask on the Canvas 2D path: the picture so far with the mask's settings applied, mixed into it by the mask
+ * (0 keeps the picture, 1 takes the adjusted one). The GPU does the same with gpu/mask.ts.
+ */
+export function maskPixels(px: Uint8ClampedArray, W: number, H: number, a: Adjustments, mask: FrameMask): void {
+  const m = mask.data;
+  if (mask.width !== W || mask.height !== H) return;
+  const b = px.slice();
+  adjustPixels(b, a);
+  detailPixels(b, W, H, a, W / DETAIL_WIDTH);
+  for (let i = 0; i < px.length; i += 4) {
+    const k = m[i >> 2];
+    if (!k || !px[i + 3]) continue;
+    const t = k / 255;
+    px[i] += (b[i] - px[i]) * t;
+    px[i + 1] += (b[i + 1] - px[i + 1]) * t;
+    px[i + 2] += (b[i + 2] - px[i + 2]) * t;
   }
 }
 
@@ -172,8 +204,12 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
 
   // The photo, on its own layer so the colour adjustments leave the background alone. The colour runs on the GPU when
   // the media studio has opened a device (gpu/apply.ts), else on the CPU here; both give the same pixels.
-  if (pixelsNeutral(e.adjust)) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
+  const masks = (e.masks ?? []).filter(maskActive);
+  if (pixelsNeutral(e.adjust) && !masks.length) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
   else {
+    // Each mask laid on the frame where the photo is: the same raster for both paths.
+    const place = photoPlace(sw, sh, e, W, H);
+    const local = masks.map((m) => ({ adjust: m.adjust, mask: frameMask(m, sw, sh, place, W, H) }));
     // The same canvas mode on both paths: an accelerated canvas draws the photo's fractional edges differently from a
     // read-back one, which would make the two paths disagree along the edge of the photo.
     const onGpu = !!gpu(),
@@ -182,11 +218,12 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
     if (lx) {
       lx.imageSmoothingQuality = 'high';
       drawPhoto(lx, p.cx, p.cy, p.dw, p.dh);
-      if (!onGpu || !gpuColour(ctx, layer, e.adjust, W, H)) {
+      if (!onGpu || !gpuColour(ctx, layer, e.adjust, W, H, local)) {
         const d = lx.getImageData(0, 0, layer.width, layer.height);
         adjustPixels(d.data, e.adjust);
         // Detail sizes are for a 1080 px frame, scaled to this one, so preview and export match.
         detailPixels(d.data, layer.width, layer.height, e.adjust, layer.width / DETAIL_WIDTH);
+        for (const l of local) maskPixels(d.data, layer.width, layer.height, l.adjust, l.mask);
         lx.putImageData(d, 0, 0);
         ctx.drawImage(layer, 0, 0, W, H);
       }

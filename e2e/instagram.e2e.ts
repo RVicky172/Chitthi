@@ -278,3 +278,65 @@ test('saved presets: save, rename, export, kept after a reload, applied to all p
   await expect(page.getByText(/Those presets can’t be imported\. This isn’t a Chitthi Studio preset file/)).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('masks: a brush mask brightens only where it is painted, can be erased, switched off and undone', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const canvas = page.locator('.mst-canvas');
+  const shot = () => canvas.evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  /** Mean brightness of a 9×9 patch at a share of the canvas. */
+  const lum = (x: number, y: number) =>
+    canvas.evaluate(
+      (c: HTMLCanvasElement, [x, y]) => {
+        const d = c.getContext('2d')!.getImageData(Math.round(c.width * x) - 4, Math.round(c.height * y) - 4, 9, 9).data;
+        let s = 0;
+        for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
+        return s / (d.length / 4) / 3;
+      },
+      [x, y],
+    );
+  const before = { mid: await lum(0.5, 0.5), corner: await lum(0.15, 0.15) };
+  const original = await shot();
+
+  await tool(page, 'Masks').click();
+  await page.getByRole('button', { name: 'New brush mask' }).click();
+  await expect(page.getByRole('button', { name: 'Mask 1', pressed: true })).toBeVisible();
+  // Paint a stroke across the middle (on a phone the photo sits above the panel: bring it into view first).
+  const paint = async () => {
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width * (0.3 + i * 0.05), box.y + box.height * 0.5);
+    await page.mouse.up();
+  };
+  await paint();
+  await expect(page.getByRole('button', { name: /Brush 1 · 1 stroke$/ })).toBeVisible();
+  // The overlay shows the mask; without it, the photo is unchanged until the mask has settings.
+  await expect.poll(shot).not.toBe(original);
+  await page.getByText('Show the mask in red').click();
+  await expect.poll(shot).toBe(original);
+
+  await page.locator('#mk-exposure').fill('2');
+  await expect.poll(() => lum(0.5, 0.5)).toBeGreaterThan(before.mid + 20);
+  expect(Math.abs((await lum(0.15, 0.15)) - before.corner)).toBeLessThan(1);
+  const brightened = await lum(0.5, 0.5);
+
+  // Erasing the same line takes it away again.
+  await page.getByRole('group', { name: 'Brush mode' }).getByRole('button', { name: 'Erase' }).click();
+  await paint();
+  await expect(page.getByRole('button', { name: /Brush 1 · 2 strokes$/ })).toBeVisible();
+  await expect.poll(() => lum(0.5, 0.5)).toBeLessThan(brightened - 20);
+  // Undo brings the erased stroke back; switching the mask off shows the photo as it was.
+  await page.keyboard.press('Control+z');
+  await expect(page.getByRole('button', { name: /Brush 1 · 1 stroke$/ })).toBeVisible();
+  await expect.poll(() => lum(0.5, 0.5)).toBeGreaterThan(before.mid + 20);
+  await page.getByLabel('Apply Mask 1').uncheck();
+  await expect.poll(shot).toBe(original);
+
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  expect(errors).toEqual([]);
+});

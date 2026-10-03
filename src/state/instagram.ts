@@ -4,6 +4,7 @@ import { brushDef, type BrushId } from '../data/layers';
 import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, LOOK_KEYS, renderIg, type IgEdit } from '../engine/instagram';
 import { drawLayers, type Layer } from '../engine/layers';
+import type { Mask } from '../engine/masks';
 import { ensureFonts } from '../lib/fonts';
 import { checkFile, loadImage } from '../engine/photo';
 import { logError } from '../lib/errors';
@@ -32,9 +33,9 @@ export interface IgItem {
   layers: Layer[];
 }
 
-/** Layer tools, shared by the photo and video editors. */
+/** Layer tools, shared by the photo and video editors. 'mask': the photo editor's mask brush paints on the stage. */
 export interface LayerTools {
-  tool: 'select' | 'draw';
+  tool: 'select' | 'draw' | 'mask';
   brush: BrushId;
   brushColor: string;
   /** Multiplies the brush's own width (0.5-4). */
@@ -59,8 +60,22 @@ export interface IgState {
   tools: LayerTools;
   /** The white-balance eyedropper is waiting for a click on the photo. */
   picking: boolean;
+  /** The selected mask of the selected photo, and the part of it the brush paints into. */
+  maskSel: string | null;
+  partSel: string | null;
+  maskBrush: MaskBrush;
   canUndo: boolean;
   canRedo: boolean;
+}
+
+/** The mask brush (P1.6). Size is a share of the frame width, as on screen; strokes store it relative to the photo. */
+export interface MaskBrush {
+  size: number;
+  feather: number;
+  flow: number;
+  erase: boolean;
+  /** Show the selected mask as a red overlay on the stage (never in exports). */
+  overlay: boolean;
 }
 
 const PREF = 'chitthi-ig-prefs';
@@ -85,6 +100,9 @@ let state: IgState = {
   layerSel: null,
   tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
   picking: false,
+  maskSel: null,
+  partSel: null,
+  maskBrush: { size: 0.08, feather: 50, flow: 100, erase: false, overlay: true },
   canUndo: false,
   canRedo: false,
 };
@@ -92,7 +110,7 @@ let state: IgState = {
 const listeners = new Set<() => void>();
 function set(patch: Partial<IgState>): void {
   // Anything that changes the pictures makes earlier rendered files stale.
-  const stale = Object.keys(patch).some((k) => !['ready', 'busy', 'selected', 'caption', 'layerSel', 'tools', 'canUndo', 'canRedo'].includes(k));
+  const stale = Object.keys(patch).some((k) => !['ready', 'busy', 'selected', 'caption', 'layerSel', 'tools', 'maskSel', 'partSel', 'maskBrush', 'canUndo', 'canRedo'].includes(k));
   state = { ...state, ...(stale && !('ready' in patch) ? { ready: null } : {}), ...patch };
   if ('format' in patch || 'limit' in patch || 'fileType' in patch || 'quality' in patch) {
     try {
@@ -120,10 +138,16 @@ export function useIg<T>(sel: (s: IgState) => T): T {
 export const setIg = (patch: Partial<Pick<IgState, 'format' | 'fileType' | 'quality' | 'caption'>>) => set(patch);
 
 /** Selects a photo (and drops the layer selection, which belongs to the previous photo). */
-export const selectPhoto = (id: string | null) => set({ selected: id, layerSel: null });
+export const selectPhoto = (id: string | null) => set({ selected: id, layerSel: null, maskSel: null, partSel: null });
 export const selectLayer = (id: string | null) => set({ layerSel: id });
 export const setTools = (patch: Partial<LayerTools>) => set({ tools: { ...state.tools, ...patch } });
 export const setPicking = (picking: boolean) => set({ picking });
+/** Selects a mask, and the part the brush paints into (its first part unless given). */
+export function selectMask(id: string | null, part?: string | null): void {
+  const m = state.items.find((x) => x.id === state.selected)?.edit.masks.find((k) => k.id === id);
+  set({ maskSel: m ? m.id : null, partSel: m ? (part !== undefined ? part : (m.parts[0]?.id ?? null)) : null });
+}
+export const setMaskBrush = (patch: Partial<MaskBrush>) => set({ maskBrush: { ...state.maskBrush, ...patch } });
 /** Brush width as a share of the frame width, for the current tools. */
 export const brushWidth = (t: LayerTools) => brushDef(t.brush).width * t.brushScale;
 
@@ -155,7 +179,16 @@ function restore(items: IgItem[]): void {
   lastKey = '';
   const sel = items.some((x) => x.id === state.selected) ? state.selected : (items[0]?.id ?? null);
   const layerOk = items.some((x) => x.layers.some((l) => l.id === state.layerSel));
-  set({ items, selected: sel, layerSel: layerOk ? state.layerSel : null, ...flags() });
+  const mask = items.find((x) => x.id === sel)?.edit.masks.find((m) => m.id === state.maskSel);
+  const partOk = !!mask?.parts.some((p) => p.id === state.partSel);
+  set({
+    items,
+    selected: sel,
+    layerSel: layerOk ? state.layerSel : null,
+    maskSel: mask ? mask.id : null,
+    partSel: partOk ? state.partSel : (mask?.parts[0]?.id ?? null),
+    ...flags(),
+  });
 }
 export function undo(): void {
   const prev = past.pop();
@@ -320,6 +353,19 @@ export function adjustPhoto(id: string, patch: Partial<Adjustments>): void {
     `adjust:${id}:${Object.keys(patch).sort().join(',')}`,
     state.items.map((x) => (x.id === id ? { ...x, edit: { ...x.edit, adjust: { ...x.edit.adjust, ...patch } } } : x)),
   );
+}
+
+/** Replaces a photo's masks; `key` groups a run of changes (a stroke being drawn, a slider) into one undo step. */
+export function setMasks(id: string, masks: Mask[], key = ''): void {
+  change(
+    key,
+    state.items.map((x) => (x.id === id ? { ...x, edit: { ...x.edit, masks } } : x)),
+  );
+}
+/** Changes one mask of a photo. */
+export function updateMask(id: string, maskId: string, f: (m: Mask) => Mask, key = ''): void {
+  const it = state.items.find((x) => x.id === id);
+  if (it) setMasks(id, it.edit.masks.map((m) => (m.id === maskId ? f(m) : m)), key);
 }
 
 /** Changes the colour settings of every photo in the batch, as one undo step (a preset applied to all). */

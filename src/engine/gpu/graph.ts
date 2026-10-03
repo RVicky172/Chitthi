@@ -9,15 +9,19 @@ import { COPY_PROGRAM } from './types';
  */
 
 /**
- * A texture of data a node reads besides pictures (a LUT). Built by pure code like the rest of a node; the pool uploads
- * it once per key and keeps it, so a video doesn't upload it every frame.
+ * A texture a node reads besides the pictures of the graph: a LUT's numbers (rgba) or an image such as a mask. Built
+ * by pure code like the rest of a node; the pool uploads it once per key and keeps it, so a video doesn't upload it
+ * every frame.
  */
 export interface DataInput {
-  /** Same key, same contents: a LUT's id. */
+  /** Same key, same contents: a LUT's id, a mask raster's key. */
   key: string;
   width: number;
   height: number;
-  rgba: Float32Array;
+  rgba?: Float32Array;
+  image?: TexImageSource;
+  /** One byte per pixel: a mask. */
+  r8?: Uint8Array;
 }
 
 /** What a node reads: the node just before it, the graph's input, the output of an earlier node (its index), or data. */
@@ -34,8 +38,8 @@ export interface GraphNode {
 /** Spare render targets kept per size. */
 export const SPARES = 6;
 
-/** Data textures kept, most recently used last. */
-export const DATA_KEPT = 4;
+/** Data textures kept, most recently used last: a LUT per picture and a mask each, for the masks a photo may have. */
+export const DATA_KEPT = 12;
 
 /** Render targets kept for reuse, by size, and data textures by key. One pool per device. */
 export class TexturePool {
@@ -60,7 +64,10 @@ export class TexturePool {
   data(d: DataInput): GpuTexture {
     let t = this.kept.get(d.key);
     if (t) this.kept.delete(d.key);
-    else t = this.dev.uploadData(d.rgba, d.width, d.height);
+    else if (d.rgba) t = this.dev.uploadData(d.rgba, d.width, d.height);
+    else if (d.r8) t = this.dev.uploadMask(d.r8, d.width, d.height);
+    else if (d.image) t = this.dev.upload(d.image, d.width, d.height);
+    else throw new Error(`data input ${d.key} has no contents`);
     this.kept.set(d.key, t);
     for (const [k, old] of this.kept) {
       if (this.kept.size <= DATA_KEPT) break;

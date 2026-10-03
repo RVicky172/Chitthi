@@ -99,6 +99,18 @@ them) and appear in the photo inspector only when set. **Apply this look to all 
 preset, LUT and adjustments, but not the position or rotation. The first photo is the cover; drag photos in the strip to reorder them
 (or Alt + ← / → on a focused thumbnail).
 
+**Masks** (rail). Local adjustments: a mask limits its own settings to part of the photo. **New brush mask**, then
+drag on the photo to paint it (shown in red while the tool is open; **Show the mask in red** turns that off). The brush
+has a size (shown as a circle at the pointer), feather (hard edge to soft) and flow (how much one pass adds; passes
+build up), and **Erase** takes away. A mask's settings are in the inspector: exposure, contrast, highlights, shadows,
+whites, blacks, temperature, tint, saturation, clarity, dehaze, sharpening and noise reduction, applied on top of the
+photo's own settings only where the mask is. A mask can be inverted, switched off, renamed or deleted; it is made of
+parts (**Add a brush part**), each joining the parts before it by adding, subtracting or intersecting, and each
+invertible. Up to 16 masks per photo, 8 parts per mask. Masks belong to the photo, not the frame: moving, zooming,
+turning or mirroring the photo takes them along. Painting is undone stroke by stroke. Masks stay with their photo
+(**Apply this look to all photos** and presets don't copy them). Gradient and colour-range masks come next
+(P1.7); a mask is painted with a pointer, so keyboard users can make one but not shape it yet.
+
 **Text, Elements and Layers** (rail). Layers over the photo, edited in the inspector when selected:
 
 | Layer | What it offers |
@@ -147,6 +159,8 @@ step.
 | Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/data/presets.ts` |
 | `.cube` parser, tetrahedral lookup and the LUTs loaded this session; imported LUTs on the device | `src/engine/lut.ts`; `src/lib/userLuts.ts` |
 | Saved presets: validation (`mergePreset`) and the preset file; the list and its storage | `src/engine/presets.ts`; `src/state/presets.ts` |
+| Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`; `src/engine/gpu/mask.ts` |
+| Masks panel and the mask's settings (inspector) | `src/components/ig/MaskPanel.tsx` |
 | Presets, LUTs and saved presets panel (both editors) | `src/components/ig/LookPicker.tsx` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
@@ -169,7 +183,14 @@ and the vignette are drawn on top with Canvas 2D. It is on by default (**Setting
 the same pixels as the Canvas 2D path, which is used when it is off, when the browser has no GPU access, or if the GPU
 fails on a frame. The self-test compares the two on real photos (at most 2 levels apart, 0.067 on average). A LUT
 goes to the GPU packed into a 2D texture (one tile per blue slice; 585 × 520 for 65³), uploaded once and kept while it
-is in use, and is read texel by texel with the same tetrahedral interpolation as the Canvas 2D path. A 1080 ×
+is in use, and is read texel by texel with the same tetrahedral interpolation as the Canvas 2D path.
+
+**Masks on the GPU.** A mask is rasterised once, in plain code, at a size that follows how big the photo is shown
+(256 to 2048 px on its longer side), then laid on the frame as one byte per pixel; both paths read those bytes, so
+they get the same mask. The picture so far, with the mask's settings applied, is mixed in by the mask. Rasters are
+cached by the mask's shape, so moving a mask's slider costs no mask work, and while painting only the newest piece of
+the stroke is drawn. Measured on a 1080 × 1350 frame with two masks: 6–9 ms per frame on the GPU, 23–24 ms while
+painting (both backends, desktop app on Windows); about 0.4 s on Canvas 2D. A 1080 ×
 1350 frame with a look takes about 6 ms on WebGPU and 11 ms on WebGL2, against 24 ms on Canvas 2D (desktop app, Windows).
 
 **Memory.** Each photo keeps its original file (compressed) and a preview copy of at most 1080 px; 20 photos stay

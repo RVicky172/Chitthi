@@ -239,7 +239,12 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
       dev.destroy();
     }
   }
+  await knownMask(check);
   for (const name of ran) {
+    const mk = await maskParity(name);
+    check(mk.max <= 2, `gpu ${name}: masked colour edits match Canvas 2D within 2 levels (worst ${mk.max} in ${mk.where})`);
+    check(mk.detailMax <= 3, `gpu ${name}: masked detail effects match Canvas 2D within 3 levels (worst ${mk.detailMax})`);
+    r.notes.push(`${name} masks: worst ${mk.max} (with detail ${mk.detailMax}), mean ${mk.mean.toFixed(3)} over ${mk.frames} frames; ${mk.timing}`);
     const g = await goldenParity(name);
     check(g.max <= 2 && g.mean <= 0.5, `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${g.max} in ${g.where}, mean ${g.mean.toFixed(3)})`);
     check(g.detailMax <= 3, `gpu ${name}: detail effects match Canvas 2D within 3 levels (worst ${g.detailMax} in ${g.detailWhere})`);
@@ -253,6 +258,139 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   closeGpu();
   check(gpu() === null, 'gpu: closeGpu() lets it go');
   r.notes.push(`GPU backends checked: ${ran.map((n) => `${n} (largest colour difference ${worst.get(n)})`).join(', ') || 'none available'}`);
+}
+
+/**
+ * P1.6: a known mask, drawn where it should be. A hard brush stroke across the middle of the photo, laid on a frame with
+ * the photo placed, turned a quarter and mirrored: full inside the stroke, empty away from it and outside the photo.
+ */
+async function knownMask(check: (ok: unknown, what: string) => void): Promise<void> {
+  const { newMask, newBrushPart, frameMask } = await import('../engine/masks');
+  const { DEFAULT_EDIT, photoPlace } = await import('../engine/instagram');
+  const mask = { ...newMask('Known'), parts: [{ ...newBrushPart(), strokes: [{ pts: [0, 0.5, 1, 0.5], size: 0.1, feather: 0, flow: 100, erase: false }] }] };
+  const alpha = (f: import('../engine/masks').FrameMask, x: number, y: number) => f.data[y * f.width + x];
+  // A 400 × 200 photo whole in a 400 × 400 frame: it fills rows 100–300, the stroke runs along row 200, 40 px tall.
+  const flat = frameMask(mask, 400, 200, photoPlace(400, 200, { ...DEFAULT_EDIT, fit: 'fit' }, 400, 400), 400, 400)!;
+  check(alpha(flat, 200, 200) === 255 && alpha(flat, 50, 210) === 255, 'masks: a brush stroke is full along its line');
+  check(alpha(flat, 200, 150) === 0 && alpha(flat, 200, 50) === 0, 'masks: nothing away from the stroke, nor outside the photo');
+  // Turned a quarter: the stroke now runs down column 200 of the frame; mirrored as well, it still does.
+  for (const flip of [false, true]) {
+    const e = { ...DEFAULT_EDIT, fit: 'fit' as const, rot: 90 as const, flip };
+    const t = frameMask({ ...mask }, 400, 200, photoPlace(400, 200, e, 400, 400), 400, 400);
+    check(alpha(t, 200, 60) === 255 && alpha(t, 150, 200) === 0, `masks: the stroke turns with the photo${flip ? ', mirrored' : ''}`);
+  }
+}
+
+/**
+ * P1.6: masks on real photos, Canvas 2D against a GPU backend: brush masks with colour and with detail settings, an
+ * inverted one, parts combined, two masks on top of a look. Plus the time a 1080 × 1350 frame with two masks takes,
+ * the phase gate's 30 frames a second being 33 ms.
+ */
+async function maskParity(
+  backend: 'webgpu' | 'webgl2',
+): Promise<{ max: number; detailMax: number; mean: number; where: string; frames: number; timing: string }> {
+  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
+  const { DEFAULT_ADJUST } = await import('../engine/adjust');
+  const { detailNeutral } = await import('../engine/detail');
+  const { newMask, newBrushPart } = await import('../engine/masks');
+  type Mask = import('../engine/masks').Mask;
+  type Part = import('../engine/masks').BrushPart;
+  type Stroke = import('../engine/masks').BrushStroke;
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const photos = await Promise.all(
+    ['diwali.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
+      const img = new Image();
+      img.src = `/samples/${f}`;
+      await img.decode();
+      return { f, img };
+    }),
+  );
+  const st = (pts: number[], o: Partial<Stroke> = {}): Stroke => ({ pts, size: 0.25, feather: 60, flow: 100, erase: false, ...o });
+  const brush = (strokes: Stroke[], o: Partial<Part> = {}): Part => ({ ...newBrushPart(), strokes, ...o });
+  const mk = (adjust: object, parts: Part[], o: Partial<Mask> = {}): Mask => ({ ...newMask('T'), parts, adjust: { ...DEFAULT_ADJUST, ...adjust }, ...o });
+  const sky = brush([st([0, 0.2, 0.5, 0.25, 1, 0.15], { size: 0.4 })]),
+    centre = brush([st([0.5, 0.5], { size: 0.5, feather: 100, flow: 70 }), st([0.5, 0.5, 0.6, 0.6], { erase: true, flow: 50, size: 0.1 })]);
+  const cases: { look?: 'warm' | 'bw'; masks: Mask[]; rot?: 0 | 90; flip?: boolean }[] = [
+    { masks: [mk({ exposure: 1, temperature: -40 }, [sky])] },
+    { masks: [mk({ shadows: 60, saturation: 40, contrast: 20 }, [centre], { invert: true })], rot: 90, flip: true },
+    { look: 'bw', masks: [mk({ exposure: 0.5, highlights: -50 }, [sky, { ...centre, combine: 'subtract' }])] },
+    { masks: [mk({ clarity: 50, dehaze: 30 }, [sky, { ...centre, combine: 'intersect' }])] },
+    { look: 'warm', masks: [mk({ exposure: -1 }, [sky]), mk({ sharpen: 60, noise: 30, tint: 30 }, [centre])] },
+  ];
+  const W = 540,
+    H = 675;
+  const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, W, H);
+    return x.getImageData(0, 0, W, H).data;
+  };
+  let max = 0,
+    detailMax = 0,
+    sum = 0,
+    count = 0,
+    frames = 0,
+    where = '';
+  for (const { f, img } of photos)
+    for (const [i, c] of cases.entries()) {
+      const e = { ...DEFAULT_EDIT, rot: c.rot ?? 0, flip: !!c.flip, adjust: { ...DEFAULT_ADJUST, look: c.look ?? ('none' as const) }, masks: c.masks };
+      const detail = c.masks.some((m) => !detailNeutral(m.adjust));
+      closeGpu();
+      const cpu = frame(img, e);
+      await openGpu(backend);
+      const got = frame(img, e);
+      frames++;
+      for (let k = 0; k < got.length; k++) {
+        const d = Math.abs(got[k] - cpu[k]);
+        sum += d;
+        count++;
+        if (detail) detailMax = Math.max(detailMax, d);
+        else if (d > max) {
+          max = d;
+          where = `${f} case ${i}`;
+        }
+      }
+    }
+  // Timing: two masks (colour; clarity with sharpening) on a 1080 × 1350 frame, after the first (cached) draw.
+  const img = photos[1].img,
+    e = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, look: 'warm' as const }, masks: [mk({ exposure: 0.8, shadows: 40 }, [sky]), mk({ clarity: 40, sharpen: 40 }, [centre], { invert: true })] };
+  const c = document.createElement('canvas');
+  c.width = 1080;
+  c.height = 1350;
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const time = (reps: number) => {
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    x.getImageData(0, 0, 1, 1);
+    const t0 = performance.now();
+    for (let k = 0; k < reps; k++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    x.getImageData(0, 0, 1, 1);
+    return (performance.now() - t0) / reps;
+  };
+  await openGpu(backend);
+  const gpuMs = time(15);
+  // While painting, every frame has a new mask: the stroke being drawn grows by a point (as pointer moves arrive), the
+  // rest is cached. 30 moves across the photo with a large brush.
+  let pts = [0.1, 0.9];
+  const t0 = performance.now();
+  for (let k = 1; k <= 30; k++) {
+    pts = [...pts, 0.1 + k * 0.025, 0.9 - k * 0.01];
+    const part = { ...sky, strokes: [...sky.strokes, st(pts)] };
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, { ...e, masks: [{ ...e.masks[0], parts: [part] }, e.masks[1]] }, 1080, 1350);
+  }
+  x.getImageData(0, 0, 1, 1);
+  const paintMs = (performance.now() - t0) / 30;
+  closeGpu();
+  const cpuMs = time(2);
+  return {
+    max,
+    detailMax,
+    mean: sum / count,
+    where,
+    frames,
+    timing: `1080×1350 frame with two masks: ${backend} ${gpuMs.toFixed(1)} ms (${paintMs.toFixed(1)} ms while painting), Canvas 2D ${cpuMs.toFixed(0)} ms`,
+  };
 }
 
 /**

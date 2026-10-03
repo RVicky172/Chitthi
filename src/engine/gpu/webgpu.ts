@@ -219,6 +219,12 @@ export async function openWebGPU(): Promise<GpuDevice | null> {
       dev.queue.writeTexture({ texture: t.tex }, toHalf(rgba), { bytesPerRow: width * 8 }, [width, height]);
       return t;
     },
+    uploadMask(data, width, height) {
+      check(width, height);
+      const t = make(width, height, 'r8unorm', GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST);
+      dev.queue.writeTexture({ texture: t.tex }, data, { bytesPerRow: width }, [width, height]);
+      return t;
+    },
     target(width, height) {
       check(width, height);
       return make(width, height, 'rgba16float', TARGET);

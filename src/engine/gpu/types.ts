@@ -49,6 +49,8 @@ export interface GpuDevice {
    * floats. Programs read it texel by texel (texelFetch / textureLoad), not through the sampler.
    */
   uploadData(rgba: Float32Array, width: number, height: number): GpuTexture;
+  /** A one-channel 8-bit texture (a mask), width × height bytes, top row first. Programs read it as `.r`. */
+  uploadMask(data: Uint8Array, width: number, height: number): GpuTexture;
   /** A new texture to render into, with 16-bit float channels where the device can render to them. */
   target(width: number, height: number): GpuTexture;
   /** Runs a program over the inputs into out. uniforms holds program.uniforms × 4 floats. */

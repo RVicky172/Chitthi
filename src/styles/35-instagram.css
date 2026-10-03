@@ -797,3 +797,48 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/* Masks (P1.6): the photo's masks and the parts of the selected one, one row each. */
+.ig-masks,
+.ig-parts {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.ig-masks li,
+.ig-parts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.ig-masks li.on,
+.ig-parts li.on {
+  border-color: var(--accent);
+}
+.ig-mask-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 6px 4px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ig-mask-name small {
+  color: var(--muted);
+}
+.ig-mask-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ig-parts select {
+  max-width: 120px;
+}

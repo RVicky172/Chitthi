@@ -941,3 +941,17 @@
     max-height: none;
   }
 }
+/* The mask brush's size on the stage (P1.6): follows the pointer, never takes it. */
+.mst-brush {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.mst-brush[hidden] {
+  display: none;
+}

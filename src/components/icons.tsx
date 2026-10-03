@@ -1,5 +1,6 @@
 import {
   Activity,
+  Blend,
   ArrowRight,
   Box,
   Brush,
@@ -130,6 +131,7 @@ export const ImageIcon = () => <Image {...base} />;
 export const TypeIcon = () => <Type {...base} />;
 export const ShapesIcon = () => <Shapes {...base} />;
 export const BrushIcon = () => <Brush {...base} />;
+export const MaskIcon = () => <Blend {...base} />;
 export const MusicIcon = () => <Music {...base} />;
 export const LayersIcon = () => <Layers {...base} />;
 export const ScissorsIcon = () => <Scissors {...base} />;

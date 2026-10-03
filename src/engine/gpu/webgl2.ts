@@ -170,6 +170,22 @@ export function openWebGL2(): GpuDevice | null {
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, rgba);
       return t;
     },
+    uploadMask(data, width, height) {
+      check(width, height);
+      const tex = gl.createTexture();
+      if (!tex) throw new Error('WebGL2: could not create a texture');
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R8, width, height);
+      // Rows of one byte per pixel aren't 4-byte aligned in general.
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RED, gl.UNSIGNED_BYTE, data);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      return { width, height, tex, fbo: null, float: false } as GlTex;
+    },
     target(width, height) {
       check(width, height);
       return make(width, height, floatTargets);
