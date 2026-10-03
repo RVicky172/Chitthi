@@ -270,7 +270,7 @@ function UserFonts() {
   );
 }
 
-/** Photo & video effects on the graphics card (P0.5): off by default while the GPU path is being proven. */
+/** Photo & video effects on the graphics card (P0.5, on by default since P0.9). */
 function GpuEffects() {
   const [on, setOn] = useState(gpuEffectsOn);
   const [support] = useState(gpuSupport);
@@ -285,11 +285,11 @@ function GpuEffects() {
           setOn(v);
         }}
       >
-        Use the graphics card for looks and colour (test version)
+        Use the graphics card for looks and colour
       </Check>
       <p className="hint">
         {any
-          ? `Faster previews and exports in the photo & video studio, using ${support.webgpu ? 'WebGPU' : 'WebGL2'}. The pictures are the same either way; turn it off if anything looks wrong.`
+          ? `Faster previews and exports in the photo & video studio, using ${support.webgpu ? 'WebGPU' : 'WebGL2'}. The pictures are the same either way; turn it off if anything looks wrong, and please tell us.`
           : 'This browser offers no graphics card access (WebGPU or WebGL2), so effects run on the processor.'}
       </p>
     </section>

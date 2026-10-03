@@ -242,7 +242,8 @@ test.describe('graphics card effects', () => {
     await page.addInitScript(() => localStorage.setItem('chitthi-gpu-effects', '1'));
   });
 
-  test('are offered in Settings and remembered', async ({ page }) => {
+  test('are on by default, and turning them off is remembered', async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem('chitthi-gpu-effects'));
     await page.goto('./#/studio/postcard');
     await page.keyboard.press('Control+K');
     await page.keyboard.type('Settings');
@@ -250,7 +251,7 @@ test.describe('graphics card effects', () => {
     const box = page.getByRole('checkbox', { name: /Use the graphics card for looks and colour/ });
     await expect(box).toBeChecked();
     await box.uncheck();
-    expect(await page.evaluate(() => localStorage.getItem('chitthi-gpu-effects'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('chitthi-gpu-effects'))).toBe('0');
   });
 
   test('a photo with a look, and a Reel with a look, export without errors', async ({ page }) => {

@@ -16,6 +16,8 @@ each step is tested, and what must be true before the next phase starts. Every l
 | P0.5 Wire into the renderers | Done | `renderIg()` (and so `renderFrame()` and every export) runs the colour step on the GPU when the media studio has opened a device (`engine/gpu/apply.ts`), else on the CPU; any GPU failure falls back for that frame. Setting: **Settings → Photo & video effects** (`lib/gpuSetting.ts`), off by default. Layers and vignette stay on Canvas 2D. Found and fixed: the layer canvas must use the same mode on both paths, or photo edges rasterise differently |
 | P0.6 Golden-image tests | Done | Self-test renders 4 real photos × 7 looks × 4 edits (fill and whole photo, blurred background, rotation, mirror, vignette) through `renderIg()` on Canvas 2D and on each backend: worst 2 levels, mean 0.067, 112 frames each on WebGPU and WebGL2. e2e: setting in Settings, photo ZIP and Reel MP4 export with it on, no console errors |
 | P0.7 Loading and budgets | Done | GPU code is in the media studio's chunk; backends load with `import()`. `check-bundle.mjs` fails if shader code reaches the entry chunk |
+| P0.8 Desktop frame path for big files | Not needed | Video clips are already read lazily from disk: export uses Mediabunny's `BlobSource` over the picked `File` (reads only the byte ranges it needs) and playback uses `blob:` URLs, which the browser streams. Only music is read whole, for its waveform. Revisit with proxies (P2.11) |
+| P0.9 Switch over | Done | GPU effects on by default; off is remembered. Measured per 1080 × 1350 frame with a look: Canvas 2D 23–25 ms, WebGL2 11 ms, WebGPU 6 ms (self-test note) |
 
 ## How the work is organised
 

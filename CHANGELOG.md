@@ -12,6 +12,14 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Planning folder (`docs/planning/`) with the editor roadmap and its implementation plan.
 - README: every feature of both studios, requirements, web vs desktop, and screenshots of the photo & video studio.
 
+### Changed
+
+- Photo & video studio: looks and colour sliders run on the graphics card (WebGPU, or WebGL2), with the same pixels as
+  before: about 4× faster per frame on WebGPU and 2× on WebGL2. On by default; **Settings → Photo & video effects**
+  turns it off. Browsers without GPU access keep the previous path.
+- Photo and clip edits keep their colour settings in their own object, ready for curves, masks and LUTs (no visible
+  change).
+
 ### Fixed
 
 - Video editor: the browser limit for Reels showed as "2 minutes" instead of 90 seconds.

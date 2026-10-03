@@ -243,6 +243,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
     const g = await goldenParity(name);
     check(g.max <= 2 && g.mean <= 0.5, `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${g.max} in ${g.where}, mean ${g.mean.toFixed(3)})`);
     worst.set(name, `${worst.get(name)}; photos: worst ${g.max}, mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
+    r.notes.push(await gpuTiming(name));
   }
   const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
   const d = await openGpu();
@@ -314,6 +315,34 @@ async function goldenParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number
       }
   closeGpu();
   return { max, mean: sum / count, where, frames };
+}
+
+/** Time per Instagram-size frame with a look and sliders, Canvas 2D against a GPU backend. A note, not a check. */
+async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
+  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const img = new Image();
+  img.src = '/samples/marigold.jpg';
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = 1080;
+  c.height = 1350;
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const e = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_EDIT.adjust, look: 'tinted' as const, brightness: 20, contrast: 15, warmth: 10 } };
+  const time = () => {
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    x.getImageData(0, 0, 1, 1);
+    const t0 = performance.now();
+    for (let i = 0; i < 15; i++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    x.getImageData(0, 0, 1, 1); // wait for the drawing to finish
+    return (performance.now() - t0) / 15;
+  };
+  closeGpu();
+  const cpu = time();
+  await openGpu(backend);
+  const gpu = time();
+  closeGpu();
+  return `1080×1350 frame: Canvas 2D ${cpu.toFixed(1)} ms, ${backend} ${gpu.toFixed(1)} ms`;
 }
 
 /**
