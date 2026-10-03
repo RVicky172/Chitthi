@@ -27,6 +27,7 @@ src/
     photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks), lookPixels
     instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
     lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
+    presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs)
     layers.ts                Text, shapes, stickers, drawings over photos and video: draw, pick, handles, strokes
     video.ts, videoExport.ts Video timeline and frame drawing; MP4 export with Mediabunny (loaded on export)
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
@@ -39,6 +40,7 @@ src/
     library.ts               Photo store (every upload), putOnCard
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
     instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
+    presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
     video.ts                 Video editor: clips, layers, music, playhead, undo, export
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
@@ -408,7 +410,8 @@ One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPho
 - Photos are matched between a design and the library by `photoKey()` (`lib/photoKey.ts`): data length plus an
   FNV-1a hash of 4 KB from the start and end, instead of comparing multi-megabyte strings.
 - Desktop: IPC to `library/designs/<id>.json`, `library/photos/<id>.json` (full image), `library/photos-meta/<id>.json`
-  (everything else, created on first run for older libraries) and `library/work.json`, written atomically
+  (everything else, created on first run for older libraries), `library/presets/<id>.json` (saved presets; the main
+  process checks the id, name, shape and a 64 KB size, the page validates with `mergePreset()`) and `library/work.json`, written atomically
   (temporary file + rename). Ids are validated against `/^[A-Za-z0-9_-]{1,100}$/`.
 
 ## 6. Desktop shell (`electron/`)

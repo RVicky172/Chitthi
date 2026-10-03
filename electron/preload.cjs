@@ -51,5 +51,8 @@ contextBridge.exposeInMainWorld('chitthiDesktop', {
     libUrl: invoke('db:libUrl'),
     libPut: invoke('db:libPut'),
     libDel: invoke('db:libDel'),
+    presetAll: invoke('db:presetAll'),
+    presetPut: invoke('db:presetPut'),
+    presetDel: invoke('db:presetDel'),
   },
 });

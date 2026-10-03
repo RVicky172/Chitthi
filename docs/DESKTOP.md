@@ -23,7 +23,8 @@ Desktop data folder (**File → Open library folder**):
 - Windows: `%APPDATA%\Chitthi\library`
 - macOS: `~/Library/Application Support/Chitthi/library`
 
-It contains `designs/<id>.json`, `photos/<id>.json` (the photo store) and `work.json` (the card in progress).
+It contains `designs/<id>.json`, `photos/<id>.json` (the photo store), `presets/<id>.json` (saved presets of the
+photo & video editors) and `work.json` (the card in progress).
 Files made by agent tools go to `Documents/Chitthi agent output`.
 
 Command-line: `Chitthi --mcp` starts the MCP server for an agent over stdio, with no window. It runs beside an open

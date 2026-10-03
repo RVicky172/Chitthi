@@ -16,6 +16,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   dehaze, grain), sized to look the same in the preview and the exported photo.
 - Photo and video editors: **Presets and LUTs**. The looks are built-in presets, and **Import .cube** adds 3D LUTs
   (up to 65³) with an amount slider. Imported LUTs stay on the device until removed.
+- Photo and video editors: **saved presets**. Save a photo's colour settings under a name, apply them in one click or
+  to every photo of the batch, rename and delete them, and move them between devices as a preset file that carries
+  the LUTs they use.
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

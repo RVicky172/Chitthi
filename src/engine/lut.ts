@@ -116,6 +116,56 @@ function lutId(data: Float32Array, size: number, min: number[], max: number[]): 
   return `${(h1 >>> 0).toString(36)}${(h2 >>> 0).toString(36)}`;
 }
 
+/** A LUT as it travels in a preset file (engine/presets.ts): the table as little-endian 32-bit floats in base64. */
+export interface LutJson {
+  title: string;
+  size: number;
+  min: number[];
+  max: number[];
+  data: string;
+}
+
+export function lutToJson(l: Lut): LutJson {
+  const bytes = new Uint8Array(l.data.length * 4),
+    view = new DataView(bytes.buffer);
+  l.data.forEach((v, i) => view.setFloat32(i * 4, v, true));
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return { title: l.title, size: l.size, min: [...l.min], max: [...l.max], data: btoa(bin) };
+}
+
+/** Reads a LUT from a preset file with the same checks as a .cube file; the id is recomputed from the contents. */
+export function lutFromJson(raw: unknown): Lut {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const size = o.size,
+    triple = (v: unknown) =>
+      Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x))
+        ? (v as [number, number, number])
+        : null;
+  if (typeof size !== 'number' || !Number.isInteger(size) || size < 2 || size > LUT_MAX_SIZE)
+    throw new LutError('A LUT in the file has an unusable size.');
+  const min = triple(o.min),
+    max = triple(o.max);
+  if (!min || !max || min.some((v, i) => !(max[i] > v))) throw new LutError('A LUT in the file has an unusable range.');
+  let bin: string;
+  try {
+    bin = atob(typeof o.data === 'string' ? o.data : '');
+  } catch {
+    throw new LutError('A LUT in the file is damaged.');
+  }
+  if (bin.length !== size ** 3 * 12) throw new LutError('A LUT in the file is damaged.');
+  const view = new DataView(new ArrayBuffer(bin.length)),
+    data = new Float32Array(size ** 3 * 3);
+  for (let i = 0; i < bin.length; i++) view.setUint8(i, bin.charCodeAt(i));
+  for (let i = 0; i < data.length; i++) {
+    const v = view.getFloat32(i * 4, true);
+    if (!Number.isFinite(v)) throw new LutError('A LUT in the file is damaged.');
+    data[i] = Math.min(64, Math.max(-64, v));
+  }
+  const title = typeof o.title === 'string' && o.title.trim() ? o.title.trim().slice(0, 80) : 'LUT';
+  return { id: lutId(data, size, min, max), title, size, data, min, max };
+}
+
 /** The id pattern mergeAdjust() accepts. */
 export const LUT_ID = /^[0-9a-z]{2,16}$/;
 

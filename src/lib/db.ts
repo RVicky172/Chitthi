@@ -1,4 +1,5 @@
 import { desktop, type DesktopBridge } from '../platform/desktop';
+import type { SavedPreset } from '../engine/presets';
 import type { PhotoMeta, SavedDesign, StoredPhoto } from '../types';
 
 /* In the browser, everything is stored in the user's own browser (IndexedDB). */
@@ -7,12 +8,14 @@ function open(): Promise<IDBDatabase> {
   if (!dbp) {
     dbp = new Promise((res, rej) => {
       if (!('indexedDB' in window)) return rej(new Error('IndexedDB unavailable'));
-      const r = indexedDB.open('chitthi', 4);
+      const r = indexedDB.open('chitthi', 5);
       r.onupgradeneeded = (e) => {
         const db = r.result;
         if (!db.objectStoreNames.contains('designs')) db.createObjectStore('designs', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('work')) db.createObjectStore('work', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('library')) db.createObjectStore('library', { keyPath: 'id' });
+        // v5: saved presets of the photo & video editors (P1.5).
+        if (!db.objectStoreNames.contains('presets')) db.createObjectStore('presets', { keyPath: 'id' });
         // v4: full images move to their own store, so listing the library reads only names and thumbnails.
         if (!db.objectStoreNames.contains('libfull')) {
           db.createObjectStore('libfull', { keyPath: 'id' });
@@ -42,7 +45,7 @@ function open(): Promise<IDBDatabase> {
   }
   return dbp;
 }
-function run<T>(store: 'designs' | 'work' | 'library' | 'libfull', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function run<T>(store: 'designs' | 'work' | 'library' | 'libfull' | 'presets', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return open().then(
     (db) =>
       new Promise<T>((res, rej) => {
@@ -83,6 +86,10 @@ const browserDB = {
     await run('libfull', 'readwrite', (s) => s.delete(id));
     return run('library', 'readwrite', (s) => s.delete(id));
   },
+  /* saved presets of the photo & video editors; read through mergePreset() by state/presets.ts */
+  presetAll: () => run<SavedPreset[]>('presets', 'readonly', (s) => s.getAll()),
+  presetPut: (p: SavedPreset) => run('presets', 'readwrite', (s) => s.put(p)),
+  presetDel: (id: string) => run('presets', 'readwrite', (s) => s.delete(id)),
 };
 
 /* The desktop app keeps its own library as files on disk (see electron/main.cjs), separate from any browser. */

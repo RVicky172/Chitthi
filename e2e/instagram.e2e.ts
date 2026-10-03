@@ -217,3 +217,64 @@ test('presets and LUTs: a .cube file is imported, applied by amount, kept on the
   await expect.poll(shot).toBe(fresh);
   expect(errors).toEqual([]);
 });
+
+test('saved presets: save, rename, export, kept after a reload, applied to all photos, deleted and imported', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('dialog', (d) => void d.accept());
+  await upload(page, SAMPLES.slice(0, 1));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const exposure = page.locator('label[for="ig-ex"] output');
+  const presets = page.getByRole('radiogroup', { name: 'Presets' });
+
+  await page.locator('#ig-ex').fill('1');
+  await page.locator('#ig-ct').fill('25');
+  await expect(page.getByRole('button', { name: 'Save as preset' })).toBeDisabled();
+  await page.getByLabel('New preset name').fill('  Bright   day ');
+  await page.getByRole('button', { name: 'Save as preset' }).click();
+  await expect(presets.getByRole('radio', { name: 'Bright day' })).toHaveAttribute('aria-checked', 'true');
+  // Moving a slider leaves the preset's settings: no longer shown as applied.
+  await page.locator('#ig-ct').fill('0');
+  await expect(presets.getByRole('radio', { name: 'Bright day' })).toHaveAttribute('aria-checked', 'false');
+
+  // Rename in the manager (Enter commits).
+  await page.getByText(/^Your presets \(1\)$/).click();
+  const nameField = page.getByLabel('Name of preset Bright day');
+  await nameField.fill('Bright noon');
+  await nameField.press('Enter');
+  await expect(presets.getByRole('radio', { name: 'Bright noon' })).toBeVisible();
+
+  // Export: a preset file with the preset in it.
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export presets' }).click();
+  const file = await (await dl).path();
+  const json = JSON.parse(readFileSync(file, 'utf8'));
+  expect(json.format).toBe('chitthi-presets');
+  expect(json.presets[0]).toMatchObject({ name: 'Bright noon', adjust: { exposure: 1, contrast: 25 } });
+
+  // Kept on this device: after a reload, apply it to a whole batch at once.
+  await page.reload();
+  await upload(page, SAMPLES.slice(1, 3));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(2);
+  await expect(exposure).toHaveText('0.00');
+  await page.getByText(/^Your presets \(1\)$/).click();
+  await page.getByRole('button', { name: 'Apply Bright noon to all photos' }).click();
+  await expect(exposure).toHaveText('1.00');
+  await strip(page).getByRole('button', { name: /Photo 1:/ }).click();
+  await expect(exposure).toHaveText('1.00');
+  await expect(page.locator('label[for="ig-ct"] output')).toHaveText('25');
+
+  // Delete it (after confirming), then bring it back from the file; a second import adds nothing.
+  await page.getByRole('button', { name: 'Delete preset Bright noon' }).click();
+  await expect(presets.getByRole('radio', { name: 'Bright noon' })).toHaveCount(0);
+  await expect(page.getByText(/^Your presets \(0\)$/)).toBeVisible();
+  const importer = page.locator('.ig-presets input[type=file]');
+  await importer.setInputFiles(file);
+  await expect(page.getByText('1 preset added.')).toBeVisible();
+  await expect(presets.getByRole('radio', { name: 'Bright noon' })).toBeVisible();
+  await importer.setInputFiles(file);
+  await expect(page.getByText('0 presets added, 1 already here.')).toBeVisible();
+  await importer.setInputFiles({ name: 'other.json', mimeType: 'application/json', buffer: Buffer.from('{"designs": []}') });
+  await expect(page.getByText(/Those presets can’t be imported\. This isn’t a Chitthi Studio preset file/)).toBeVisible();
+  expect(errors).toEqual([]);
+});

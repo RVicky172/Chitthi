@@ -68,6 +68,13 @@ position by dragging or arrow keys, rotate, mirror, then:
   slider; it runs last in the colour chain, after the mixer. Imported LUTs stay on this device (IndexedDB, in the
   browser and the desktop app) for every photo and clip, until removed. Files that aren't a usable 3D LUT (a 1D LUT,
   a wrong number of values, a size over 65) are refused with the reason (`src/engine/lut.ts`).
+- **Saved presets:** **Save as preset** keeps every colour setting of the photo (or clip) under a name; saved presets
+  join the built-in ones and apply in one click. **Your presets** renames them, deletes them, applies one to every
+  photo of the batch (**To all**, one undo step), and exports or imports them as a preset file (JSON). A preset file
+  carries the LUTs its presets use, so they work on another device; importing the same preset twice adds it once, and
+  a taken name gets a number. Presets are kept on this device: IndexedDB in the browser, `library/presets/` in the
+  desktop app's data folder. There is no syncing between devices; the file is how presets travel
+  (`src/engine/presets.ts`, `src/state/presets.ts`).
 - **Light:** exposure (±4 stops), contrast, highlights, shadows, whites and blacks.
 - **Colour:** temperature and tint, with **Pick a neutral grey** (click something that should be grey or white and the
   white balance is set from it; Escape cancels), and saturation.
@@ -139,6 +146,8 @@ step.
 | --- | --- |
 | Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/data/presets.ts` |
 | `.cube` parser, tetrahedral lookup and the LUTs loaded this session; imported LUTs on the device | `src/engine/lut.ts`; `src/lib/userLuts.ts` |
+| Saved presets: validation (`mergePreset`) and the preset file; the list and its storage | `src/engine/presets.ts`; `src/state/presets.ts` |
+| Presets, LUTs and saved presets panel (both editors) | `src/components/ig/LookPicker.tsx` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |

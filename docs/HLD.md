@@ -135,6 +135,8 @@ install newer versions. A `v*` tag pushed to GitHub builds and publishes both pl
 | Current card's photos | IndexedDB `chitthi` / `work` | `library/work.json` | Until replaced |
 | Photo store (every upload) | IndexedDB `library` | `library/photos/<id>.json` | Until deleted |
 | Gallery designs | IndexedDB `designs` | `library/designs/<id>.json` | Until deleted |
+| Saved presets (photo & video editors) | IndexedDB `presets` | `library/presets/<id>.json` | Until deleted |
+| Imported LUTs | IndexedDB `chitthi-luts` | same (app origin) | Until removed |
 | Settings (Pexels key, search on/off, theme) | `localStorage` | same | Until changed |
 | AI settings (services, models, limits, usage) | `localStorage` `chitthi-ai` | same | Until changed |
 | AI keys | `localStorage` (or `sessionStorage` for this tab only) | `ai-keys.json` in the app data folder, encrypted with `safeStorage` | Until deleted in Settings |

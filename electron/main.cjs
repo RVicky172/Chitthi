@@ -178,6 +178,18 @@ function registerStorage() {
     await fsp.rm(path.join(dir('photos'), `${requireId(id)}.json`), { force: true });
     await fsp.rm(path.join(dir('photos-meta'), `${requireId(id)}.json`), { force: true });
   });
+  // Saved presets of the photo & video editors: presets/<id>.json. The page validates what it reads (mergePreset);
+  // here only the shape and size are checked, so nothing else lands in the data folder.
+  handle('db:presetAll', () => readAll('presets'));
+  handle('db:presetPut', (_e, p) => {
+    const id = requireId(p && p.id);
+    if (typeof p.name !== 'string' || !p.name.trim() || p.name.length > 60) throw new Error('Invalid preset name');
+    if (!p.adjust || typeof p.adjust !== 'object' || Array.isArray(p.adjust)) throw new Error('Invalid preset');
+    const rec = { id, name: p.name, adjust: p.adjust, created: Number.isFinite(p.created) ? p.created : Date.now() };
+    if (JSON.stringify(rec).length > 64 * 1024) throw new Error('Preset too large');
+    return writeJson(path.join(dir('presets'), `${id}.json`), rec);
+  });
+  handle('db:presetDel', (_e, id) => fsp.rm(path.join(dir('presets'), `${requireId(id)}.json`), { force: true }));
 }
 
 /* ------------------------------------------------------------------ files: save / open / reveal */

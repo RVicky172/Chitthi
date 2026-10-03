@@ -83,6 +83,12 @@ export async function importCube(file: File): Promise<Lut> {
   if (file.size > LUT_MAX_BYTES)
     throw new LutError(`That file is over ${LUT_MAX_BYTES / 1048576} MB; a 65³ LUT is about 9 MB.`);
   const lut = parseCube(await file.text(), file.name);
+  await keepLut(lut);
+  return lut;
+}
+
+/** Loads a LUT for the renderers and keeps it in the library (from a .cube file, or a preset file's LUTs). */
+export async function keepLut(lut: Lut): Promise<void> {
   addLut(lut);
   if (!list.some((m) => m.id === lut.id)) {
     const meta: LutMeta = { id: lut.id, title: lut.title, size: lut.size, added: Date.now() };
@@ -93,7 +99,6 @@ export async function importCube(file: File): Promise<Lut> {
       .then(() => tx('meta', 'readwrite', (s) => s.put(meta)))
       .catch(() => undefined);
   }
-  return lut;
 }
 
 /** Makes sure a stored LUT's table is loaded; resolves to it, or undefined when it is no longer stored. */

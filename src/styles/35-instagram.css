@@ -764,3 +764,36 @@
   flex: 1 1 140px;
   min-width: 0;
 }
+/* Saved presets (P1.5): a name and Save on one row; the manager lists each preset with its actions. */
+.ig-preset-save {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ig-preset-save input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ig-presets {
+  margin-top: 10px;
+}
+.ig-presets summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.ig-presets ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.ig-presets li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ig-presets li input {
+  flex: 1 1 auto;
+  min-width: 0;
+}

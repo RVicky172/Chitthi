@@ -1,3 +1,4 @@
+import type { SavedPreset } from '../engine/presets';
 import type { PhotoMeta, SavedDesign, StoredPhoto } from '../types';
 
 /*
@@ -103,6 +104,10 @@ export interface DesktopBridge {
     libUrl(id: string): Promise<string>;
     libPut(p: StoredPhoto): Promise<unknown>;
     libDel(id: string): Promise<unknown>;
+    /** Saved presets of the photo & video editors, as stored (unvalidated). */
+    presetAll(): Promise<SavedPreset[]>;
+    presetPut(p: SavedPreset): Promise<unknown>;
+    presetDel(id: string): Promise<unknown>;
   };
 }
 

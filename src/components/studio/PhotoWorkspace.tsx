@@ -24,6 +24,7 @@ import { desktop, isDesktop } from '../../platform/desktop';
 import {
   addLayer,
   addPhotos,
+  adjustAll,
   applyLookToAll,
   canShareFiles,
   clearBatch,
@@ -744,7 +745,19 @@ function EditPanel({ item }: { item: IgItem }) {
       </div>
       <div className="ig-group">
         <h3>Presets and LUTs</h3>
-        <LookPicker idPrefix="ig" adjust={a} onChange={setA} />
+        <LookPicker
+          idPrefix="ig"
+          adjust={a}
+          onChange={setA}
+          onApplyAll={
+            many
+              ? (adjust) => {
+                  adjustAll(adjust);
+                  toast('Preset applied to every photo.');
+                }
+              : undefined
+          }
+        />
       </div>
       <div className="ig-group">
         <h3>Light</h3>
