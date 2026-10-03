@@ -196,6 +196,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   };
 
   const ran: string[] = [];
+  const worst = new Map<string, string>();
   for (const [name, open] of [
     ['webgpu', openWebGPU],
     ['webgl2', async () => openWebGL2()],
@@ -230,6 +231,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
       check(threw, `gpu ${name}: refuses textures larger than the device allows`);
       dev.release(t);
       dev.release(out);
+      worst.set(name, await colourParity(dev, check, name));
       check(!dev.lost, `gpu ${name}: still open after the checks`);
     } catch (e) {
       r.failed.push(`gpu ${name} threw: ${e instanceof Error ? e.message : e}`);
@@ -243,7 +245,72 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   check(gpu() === d && (await openGpu()) === d, 'gpu: the device is opened once and reused');
   closeGpu();
   check(gpu() === null, 'gpu: closeGpu() lets it go');
-  r.notes.push(`GPU backends checked: ${ran.join(', ') || 'none available'}`);
+  r.notes.push(`GPU backends checked: ${ran.map((n) => `${n} (largest colour difference ${worst.get(n)})`).join(', ') || 'none available'}`);
+}
+
+/**
+ * P0.4: the GPU colour programs give the same pixels as the Canvas 2D path (adjustPixels), for every look and a spread
+ * of slider settings, within 2 levels per channel. Returns the largest difference seen.
+ */
+async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check: (ok: unknown, what: string) => void, name: string): Promise<string> {
+  const { adjustPixels } = await import('../engine/instagram');
+  const { DEFAULT_ADJUST, LOOK_IDS } = await import('../engine/adjust');
+  const { colourNodes } = await import('../engine/gpu/colour');
+  const { runNodes, TexturePool } = await import('../engine/gpu/graph');
+  // 64×64: hue across, brightness down, with a band of greys and a few half-transparent pixels.
+  const N = 64,
+    src = new Uint8ClampedArray(N * N * 4);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4,
+        h = (x / N) * 6,
+        v = 255 * (1 - y / N),
+        f = h - Math.floor(h),
+        rgb = [
+          [1, f, 0],
+          [1 - f, 1, 0],
+          [0, 1, f],
+          [0, 1 - f, 1],
+          [f, 0, 1],
+          [1, 0, 1 - f],
+        ][Math.floor(h) % 6];
+      const grey = x < 4;
+      src.set([grey ? v : rgb[0] * v, grey ? v : rgb[1] * v, grey ? v : rgb[2] * v, x === 10 && y % 8 === 0 ? 128 : 255], i);
+    }
+  const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+  const input = dev.upload(bmp, N, N),
+    pool = new TexturePool(dev);
+  const sliders = [{}, { brightness: 40 }, { contrast: -60 }, { saturation: 80, warmth: -50 }, { brightness: -100, contrast: 100 }, { saturation: -100, warmth: 100 }];
+  let max = 0,
+    bad = '',
+    sum = 0,
+    count = 0;
+  for (const look of LOOK_IDS)
+    for (const sl of sliders) {
+      const a = { ...DEFAULT_ADJUST, look, ...sl };
+      const nodes = colourNodes(a);
+      if (!nodes.length) continue;
+      const cpu = src.slice();
+      adjustPixels(cpu, a);
+      const out = runNodes(dev, pool, input, nodes);
+      const got = await dev.read(out);
+      pool.give(out);
+      for (let i = 0; i < got.length; i++) {
+        if (src[i - (i % 4) + 3] === 0) continue;
+        const d = Math.abs(got[i] - cpu[i]);
+        sum += d;
+        count++;
+        if (d > max) {
+          max = d;
+          bad = `${look} ${JSON.stringify(sl)}`;
+        }
+      }
+    }
+  dev.release(input);
+  pool.clear();
+  check(max <= 2, `gpu ${name}: colour matches the Canvas 2D path within 2 levels (worst ${max}, ${bad})`);
+  check(sum / count <= 0.5, `gpu ${name}: colour differs from the Canvas 2D path by at most 0.5 levels on average (${(sum / count).toFixed(3)})`);
+  return `${max}, mean ${(sum / count).toFixed(3)}`;
 }
 
 /* ---------- performance monitor sampler and the undo history's memory guard ---------- */

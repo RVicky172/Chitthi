@@ -11,6 +11,8 @@ each step is tested, and what must be true before the next phase starts. Every l
 | --- | --- | --- |
 | P0.1 Edit model split | Done | `engine/adjust.ts` (`Adjustments`, `mergeAdjust()`), `IgEdit.adjust`, `mergeEdit()`; colour edits through `adjustPhoto` / `adjustClip` |
 | P0.2 GPU device layer | Done | `engine/gpu/` (`types.ts`, `webgpu.ts`, `webgl2.ts`, `device.ts`): upload, pass, present, read; explicit WebGPU bind group layouts; self-test runs every backend the machine offers. Dev-only types: `@webgpu/types` (BSD-3-Clause) |
+| P0.3 Render graph | Done | `engine/gpu/graph.ts`: `GraphNode`, `runNodes()` ping-pongs pooled textures (`TexturePool`, two spares per size). Phase 0 graphs are a straight line |
+| P0.4 Shaders for today's looks | Done | `engine/gpu/colour.ts`: all 7 looks and the 4 sliders in WGSL and GLSL; `colourNodes()` builds the nodes. Kept in today's 0–255 sRGB maths, rounding to 8 bits after the look as the CPU does, so output matches; linear light arrives with Phase 1's new tools. Self-test: worst 2 levels, mean 0.041 on both backends |
 
 ## How the work is organised
 
