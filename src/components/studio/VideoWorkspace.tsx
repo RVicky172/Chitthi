@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IG_FILTERS } from '../../data/instagram';
 import { drawSelection, layerBox } from '../../engine/layers';
 import { MOTIONS, bitrateFor, clipAt, clipLength, fmtTime, formatsFor, renderFrame, timeline, totalLength, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { saveFile } from '../../lib/download';
@@ -40,6 +39,7 @@ import {
 } from '../../state/video';
 import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
+import { LookPicker } from '../ig/LookPicker';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, InstagramIcon, LayersIcon, MusicIcon, RedoIcon, ReelIcon, ShapesIcon, ShareIcon, TrashIcon, TypeIcon, UndoIcon, YouTubeIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
@@ -527,13 +527,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
       </div>
       <div className="ig-group">
         <h3>Colour</h3>
-        <div className="chips" role="radiogroup" aria-label="Filter">
-          {IG_FILTERS.map(([id, label]) => (
-            <button key={id} type="button" role="radio" className="chip" aria-checked={e.adjust.look === id} onClick={() => adjustClip(c.id, { look: id })}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <LookPicker idPrefix="v" adjust={e.adjust} onChange={(patch) => adjustClip(c.id, patch)} />
         <Range id="v-br" label="Brightness" value={e.adjust.brightness} min={-100} max={100} step={1} show={String(e.adjust.brightness)} onChange={(brightness) => adjustClip(c.id, { brightness })} />
         <Range id="v-ct" label="Contrast" value={e.adjust.contrast} min={-100} max={100} step={1} show={String(e.adjust.contrast)} onChange={(contrast) => adjustClip(c.id, { contrast })} />
         <Range id="v-sa" label="Saturation" value={e.adjust.saturation} min={-100} max={100} step={1} show={String(e.adjust.saturation)} onChange={(saturation) => adjustClip(c.id, { saturation })} />

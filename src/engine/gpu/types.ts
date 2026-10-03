@@ -44,6 +44,11 @@ export interface GpuDevice {
 
   /** Copies an image, canvas, bitmap or video frame into a new texture (straight alpha, 8 bits per channel). */
   upload(src: TexImageSource, width: number, height: number): GpuTexture;
+  /**
+   * A texture holding data rather than a picture (a LUT): width × height RGBA floats, top row first, stored as 16-bit
+   * floats. Programs read it texel by texel (texelFetch / textureLoad), not through the sampler.
+   */
+  uploadData(rgba: Float32Array, width: number, height: number): GpuTexture;
   /** A new texture to render into, with 16-bit float channels where the device can render to them. */
   target(width: number, height: number): GpuTexture;
   /** Runs a program over the inputs into out. uniforms holds program.uniforms × 4 floats. */

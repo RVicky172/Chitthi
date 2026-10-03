@@ -272,7 +272,7 @@ test.describe('graphics card effects', () => {
     await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES.slice(0, 2));
     await expect(page.locator('.tl-clip')).toHaveCount(2);
     await page.locator('.tl-clip').first().click({ position: { x: 20, y: 10 } });
-    await page.getByRole('radiogroup', { name: 'Filter' }).getByRole('radio', { name: 'Vintage' }).click();
+    await page.getByRole('radiogroup', { name: 'Presets' }).getByRole('radio', { name: 'Vintage' }).click();
     await page.getByRole('button', { name: 'Export', exact: true }).click();
     await page.getByRole('button', { name: /Export MP4/ }).click();
     const save = page.getByRole('button', { name: /Download MP4/ });

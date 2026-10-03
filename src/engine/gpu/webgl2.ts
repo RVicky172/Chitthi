@@ -160,6 +160,16 @@ export function openWebGL2(): GpuDevice | null {
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, src);
       return t;
     },
+    uploadData(rgba, width, height) {
+      check(width, height);
+      const t = make(width, height, true);
+      gl.bindTexture(gl.TEXTURE_2D, t.tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      // RGBA16F takes FLOAT input in WebGL2 and converts it; it is always readable, even where it can't be rendered to.
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, rgba);
+      return t;
+    },
     target(width, height) {
       check(width, height);
       return make(width, height, floatTargets);

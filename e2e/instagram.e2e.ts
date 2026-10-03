@@ -174,3 +174,46 @@ test('detail and effects: sharpening with its radius, noise reduction, clarity, 
   expect(readFileSync(await (await zip).path()).toString('latin1')).toContain('chitthi-instagram-4x5-01.jpg');
   expect(errors).toEqual([]);
 });
+
+test('presets and LUTs: a .cube file is imported, applied by amount, kept on the device and removed', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await upload(page, SAMPLES.slice(2, 3));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const original = await shot();
+  // The built-in looks are presets now.
+  const presets = page.getByRole('radiogroup', { name: 'Presets' });
+  await presets.getByRole('radio', { name: 'Warm' }).click();
+  await expect(presets.getByRole('radio', { name: 'Warm' })).toHaveAttribute('aria-checked', 'true');
+  await presets.getByRole('radio', { name: 'Original' }).click();
+
+  const cubeInput = page.locator('.ig-lut input[type=file]');
+  // Not a 3D LUT: refused, with the reason.
+  await cubeInput.setInputFiles({ name: 'curve.cube', mimeType: 'text/plain', buffer: Buffer.from('LUT_1D_SIZE 2\n0 0 0\n1 1 1\n') });
+  await expect(page.getByText(/That LUT can’t be used\. This is a 1D LUT/)).toBeVisible();
+  // A 2³ table that swaps red and blue.
+  const rows: string[] = [];
+  for (let b = 0; b < 2; b++) for (let g = 0; g < 2; g++) for (let r = 0; r < 2; r++) rows.push(`${b} ${g} ${r}`);
+  await cubeInput.setInputFiles({ name: 'swap.cube', mimeType: 'text/plain', buffer: Buffer.from(`TITLE "Swap red and blue"\nLUT_3D_SIZE 2\n${rows.join('\n')}\n`) });
+  const select = page.getByLabel('LUT', { exact: true });
+  await expect(select.locator('option:checked')).toHaveText('Swap red and blue');
+  await expect.poll(shot).not.toBe(original);
+  // Amount 0 is the photo as it was; a double-click puts it back to 100.
+  await page.locator('#ig-lutamt').fill('0');
+  await expect.poll(shot).toBe(original);
+  await page.locator('#ig-lutamt').dblclick();
+  await expect(page.locator('label[for="ig-lutamt"] output')).toHaveText('100');
+
+  // Kept on this device: after a reload it is still in the list and applies again.
+  await page.reload();
+  await upload(page, SAMPLES.slice(2, 3));
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const fresh = await shot();
+  await select.selectOption({ label: 'Swap red and blue' });
+  await expect.poll(shot).not.toBe(fresh);
+  await page.getByRole('button', { name: 'Remove this LUT from the device' }).click();
+  await expect(select.locator('option')).toHaveText(['None']);
+  await expect.poll(shot).toBe(fresh);
+  expect(errors).toEqual([]);
+});

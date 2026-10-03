@@ -60,8 +60,14 @@ hashtags). Re-check these when Instagram changes its app; only `src/data/instagr
 The Photos editor's tools are in the rail; the selected photo or layer is edited in the inspector.
 
 **The photo** (inspector, when no layer is selected). **Fill the frame** (cropped) or **Whole photo** (with a colour or blurred-photo background), zoom (1–4×),
-position by dragging or arrow keys, rotate, mirror, six filters (the same looks as the print studio), then:
+position by dragging or arrow keys, rotate, mirror, then:
 
+- **Presets and LUTs:** the print studio's looks (Vivid, Warm, Cool, Black and white, Hand-tinted, Vintage) as
+  built-in presets; a preset sets only what it holds, so these change the look and keep every slider. **Import .cube**
+  adds a 3D LUT (the Adobe / Resolve `.cube` format, 2 to 65 points per side, up to 16 MB), applied with an amount
+  slider; it runs last in the colour chain, after the mixer. Imported LUTs stay on this device (IndexedDB, in the
+  browser and the desktop app) for every photo and clip, until removed. Files that aren't a usable 3D LUT (a 1D LUT,
+  a wrong number of values, a size over 65) are refused with the reason (`src/engine/lut.ts`).
 - **Light:** exposure (±4 stops), contrast, highlights, shadows, whites and blacks.
 - **Colour:** temperature and tint, with **Pick a neutral grey** (click something that should be grey or white and the
   white balance is set from it; Escape cancels), and saturation.
@@ -83,7 +89,7 @@ Exposure, white balance and the four tone sliders work in linear light (`src/eng
 the camera's, white balance like changing the light, and the tone sliders move the brightness of all three channels
 together so colours keep their hue. Brightness and warmth from 2.8 still work (the video editor and older edits use
 them) and appear in the photo inspector only when set. **Apply this look to all photos** copies the frame, background,
-filter and adjustments, but not the position or rotation. The first photo is the cover; drag photos in the strip to reorder them
+preset, LUT and adjustments, but not the position or rotation. The first photo is the cover; drag photos in the strip to reorder them
 (or Alt + ← / → on a focused thumbnail).
 
 **Text, Elements and Layers** (rail). Layers over the photo, edited in the inspector when selected:
@@ -131,7 +137,8 @@ step.
 
 | Part | File |
 | --- | --- |
-| Formats, limits, filters | `src/data/instagram.ts` |
+| Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/data/presets.ts` |
+| `.cube` parser, tetrahedral lookup and the LUTs loaded this session; imported LUTs on the device | `src/engine/lut.ts`; `src/lib/userLuts.ts` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
@@ -151,7 +158,9 @@ any preview size and in every export.
 through `src/engine/gpu/`: the photo is placed on a layer with Canvas 2D, its colour is processed on the GPU, and layers
 and the vignette are drawn on top with Canvas 2D. It is on by default (**Settings → Photo & video effects**) and gives
 the same pixels as the Canvas 2D path, which is used when it is off, when the browser has no GPU access, or if the GPU
-fails on a frame. The self-test compares the two on real photos (at most 2 levels apart, 0.067 on average). A 1080 ×
+fails on a frame. The self-test compares the two on real photos (at most 2 levels apart, 0.067 on average). A LUT
+goes to the GPU packed into a 2D texture (one tile per blue slice; 585 × 520 for 65³), uploaded once and kept while it
+is in use, and is read texel by texel with the same tetrahedral interpolation as the Canvas 2D path. A 1080 ×
 1350 frame with a look takes about 6 ms on WebGPU and 11 ms on WebGL2, against 24 ms on Canvas 2D (desktop app, Windows).
 
 **Memory.** Each photo keeps its original file (compressed) and a preview copy of at most 1080 px; 20 photos stay
@@ -205,7 +214,7 @@ full-size equivalent of the trim handles.
 
 Per clip, in the inspector: duration (photos) or trim and sound volume (videos), movement for photos (still, zoom in
 or out, pan four ways), fade in from black, framing (fill or whole picture with a blurred background, zoom, position)
-and colour (six filters, brightness, contrast, saturation, warmth). Layers are the same text, shapes, stickers and
+and colour (the presets and LUTs of the photo editor, brightness, contrast, saturation, warmth). Layers are the same text, shapes, stickers and
 drawings as photos, each with **Appears at** and **Disappears at** times; new ones start at the playhead.
 
 ### In the browser and in the desktop app

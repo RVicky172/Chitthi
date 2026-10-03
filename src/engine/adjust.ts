@@ -3,6 +3,7 @@ import { curveNeutral, FLAT_CURVE, mergeCurve, type ToneCurve } from './curve';
 import { FLAT_MIXER, mergeMixer, mixerNeutral, type ColourMixer } from './hsl';
 import { detailNeutral } from './detail';
 import { lightNeutral } from './light';
+import { LUT_ID, lutById } from './lut';
 
 /*
  * The colour settings of a photo or a video clip, kept apart from where the picture sits in the frame (engine/instagram.ts
@@ -12,7 +13,7 @@ import { lightNeutral } from './light';
  */
 
 /** Bumped when the stored shape of Adjustments changes; mergeAdjust() reads every older version. */
-export const ADJUST_VERSION = 4; // 2: light and white balance (P1.1); 3: tone curve and colour mixer (P1.2); 4: detail and effects (P1.3). Older versions read with the new settings at their defaults
+export const ADJUST_VERSION = 5; // 2: light and white balance (P1.1); 3: tone curve and colour mixer (P1.2); 4: detail and effects (P1.3); 5: LUT (P1.4). Older versions read with the new settings at their defaults
 
 export const LOOK_IDS: readonly LookId[] = ['none', 'vivid', 'warm', 'cool', 'bw', 'tinted', 'vintage'];
 
@@ -48,6 +49,9 @@ export interface Adjustments {
   clarity: number;
   dehaze: number;
   grain: number;
+  /** An imported 3D LUT (engine/lut.ts) by its id, '' for none, and how strongly it applies, 0–100. */
+  lut: string;
+  lutAmount: number;
 }
 
 export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
@@ -73,6 +77,8 @@ export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
   clarity: 0,
   dehaze: 0,
   grain: 0,
+  lut: '',
+  lutAmount: 100,
 });
 
 /** The slider settings with their ranges: one table for validation, the UI and agent tools. */
@@ -96,7 +102,8 @@ export const ADJUST_RANGES = {
   clarity: [-100, 100],
   dehaze: [-100, 100],
   grain: [0, 100],
-} as const satisfies Record<Exclude<keyof Adjustments, 'look' | 'curve' | 'mixer'>, readonly [number, number]>;
+  lutAmount: [0, 100],
+} as const satisfies Record<Exclude<keyof Adjustments, 'look' | 'curve' | 'mixer' | 'lut'>, readonly [number, number]>;
 
 type Slider = keyof typeof ADJUST_RANGES;
 const SLIDERS = Object.keys(ADJUST_RANGES) as Slider[];
@@ -106,7 +113,10 @@ export const pixelsNeutral = (a: Adjustments): boolean => colourNeutral(a) && de
 
 /** True when the colour of the photo is left as it is (the vignette is drawn on top, so it doesn't count). */
 export const colourNeutral = (a: Adjustments): boolean =>
-  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth && lightNeutral(a) && curveNeutral(a.curve) && mixerNeutral(a.mixer);
+  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth && lightNeutral(a) && curveNeutral(a.curve) && mixerNeutral(a.mixer) && lutNeutral(a);
+
+/** True when no LUT applies: none set, its amount at 0, or its table not loaded in this session. */
+export const lutNeutral = (a: Pick<Adjustments, 'lut' | 'lutAmount'>): boolean => !a.lut || !(a.lutAmount > 0) || !lutById(a.lut);
 
 const num = (v: unknown, [lo, hi]: readonly [number, number], fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
@@ -125,6 +135,7 @@ export function mergeAdjust(raw: unknown): Adjustments {
     look: LOOK_IDS.includes(look as LookId) ? (look as LookId) : 'none',
     curve: mergeCurve(o.curve),
     mixer: mergeMixer(o.mixer),
+    lut: typeof o.lut === 'string' && LUT_ID.test(o.lut) ? o.lut : '',
   };
   for (const k of SLIDERS) out[k] = num(o[k], ADJUST_RANGES[k], DEFAULT_ADJUST[k]);
   return out;

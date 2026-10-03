@@ -1,4 +1,4 @@
-import type { Adjustments } from './adjust';
+import { lutNeutral, type Adjustments } from './adjust';
 import { curveNeutral, curveTable, readTable } from './curve';
 import { hslPixel, mixerNeutral, mixerParams } from './hsl';
 import {
@@ -14,10 +14,11 @@ import {
   toSrgb,
   wbGains,
 } from './light';
+import { lutById, lutPixel, lutScale } from './lut';
 import { lookPixel } from './photo';
 
 /*
- * The colour chain on the Canvas 2D path: look → light and white balance → tone curve → colour mixer, per pixel, with
+ * The colour chain on the Canvas 2D path: look → light and white balance → tone curve → colour mixer → LUT, per pixel, with
  * one rounding to 8 bits at the end. Light can lift dark tones and curves can be steep, so rounding between the steps
  * would magnify small differences; the GPU programs (gpu/colour.ts) skip it too, and the self-test compares the two.
  * Each step runs only when it changes something. The older sliders (brightness, contrast, saturation, warmth) follow in
@@ -26,7 +27,7 @@ import { lookPixel } from './photo';
 
 /** True when only the look (or nothing) is set, so the plain lookPixels() loop will do. */
 export const chainNeutral = (a: Adjustments): boolean =>
-  lightNeutral(a) && curveNeutral(a.curve) && mixerNeutral(a.mixer);
+  lightNeutral(a) && curveNeutral(a.curve) && mixerNeutral(a.mixer) && lutNeutral(a);
 
 export function chainPixels(px: Uint8ClampedArray, a: Adjustments): void {
   const look = a.look !== 'none',
@@ -41,6 +42,9 @@ export function chainPixels(px: Uint8ClampedArray, a: Adjustments): void {
     tone = a.highlights || a.shadows || a.whites || a.blacks ? toneTable(a) : null,
     curve = curveNeutral(a.curve) ? null : curveTable(a.curve),
     mixer = mixerNeutral(a.mixer) ? null : mixerParams(a.mixer),
+    lut = lutNeutral(a) ? null : lutById(a.lut)!,
+    sc = lut ? lutScale(lut) : null,
+    mix = a.lutAmount / 100,
     o = [0, 0, 0];
   tables();
   for (let i = 0; i < px.length; i += 4) {
@@ -90,6 +94,17 @@ export function chainPixels(px: Uint8ClampedArray, a: Adjustments): void {
       r = o[0];
       g = o[1];
       b = o[2];
+    }
+    if (lut) {
+      // Every earlier step leaves 0–1 on the GPU (its programs clamp as they write), so the LUT and its mix start from
+      // there too. Output outside 0–1 is kept until the final clamp.
+      r = Math.min(1, Math.max(0, r));
+      g = Math.min(1, Math.max(0, g));
+      b = Math.min(1, Math.max(0, b));
+      lutPixel(lut, r, g, b, o, sc!);
+      r += (o[0] - r) * mix;
+      g += (o[1] - g) * mix;
+      b += (o[2] - b) * mix;
     }
     px[i] = r * 255;
     px[i + 1] = g * 255;

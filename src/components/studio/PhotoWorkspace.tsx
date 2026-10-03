@@ -5,7 +5,6 @@ import {
   IG_CAPTION_PREVIEW,
   IG_FILE_TYPES,
   IG_FILE_WARN_BYTES,
-  IG_FILTERS,
   IG_FORMATS,
   IG_HASHTAG_MAX,
   IG_MAX_BATCH,
@@ -59,6 +58,7 @@ import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { ColourMixer } from '../ig/ColourMixer';
 import { CurveEditor } from '../ig/CurveEditor';
+import { LookPicker } from '../ig/LookPicker';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import {
   AddPhotoIcon,
@@ -743,14 +743,8 @@ function EditPanel({ item }: { item: IgItem }) {
         </div>
       </div>
       <div className="ig-group">
-        <h3>Filter</h3>
-        <div className="chips" role="radiogroup" aria-label="Filter">
-          {IG_FILTERS.map(([id, label]) => (
-            <button key={id} type="button" role="radio" className="chip" aria-checked={a.look === id} onClick={() => setA({ look: id })}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <h3>Presets and LUTs</h3>
+        <LookPicker idPrefix="ig" adjust={a} onChange={setA} />
       </div>
       <div className="ig-group">
         <h3>Light</h3>
@@ -818,7 +812,7 @@ function EditPanel({ item }: { item: IgItem }) {
             className="sbtn accent"
             onClick={() => {
               applyLookToAll(item.id);
-              toast('Frame, filter and adjustments copied to every photo.');
+              toast('Frame, preset, LUT and adjustments copied to every photo.');
             }}
           >
             Apply this look to all photos

@@ -8,8 +8,20 @@ import { COPY_PROGRAM } from './types';
  * Phase 0 graphs are a straight line; masks (Phase 1) and transitions (Phase 2) add branches.
  */
 
-/** What a node reads: the node just before it, the graph's input, or the output of an earlier node (its index). */
-export type NodeInput = 'prev' | 'source' | number;
+/**
+ * A texture of data a node reads besides pictures (a LUT). Built by pure code like the rest of a node; the pool uploads
+ * it once per key and keeps it, so a video doesn't upload it every frame.
+ */
+export interface DataInput {
+  /** Same key, same contents: a LUT's id. */
+  key: string;
+  width: number;
+  height: number;
+  rgba: Float32Array;
+}
+
+/** What a node reads: the node just before it, the graph's input, the output of an earlier node (its index), or data. */
+export type NodeInput = 'prev' | 'source' | number | DataInput;
 
 export interface GraphNode {
   program: GpuProgram;
@@ -22,9 +34,13 @@ export interface GraphNode {
 /** Spare render targets kept per size. */
 export const SPARES = 6;
 
-/** Render targets kept for reuse, by size. One pool per device. */
+/** Data textures kept, most recently used last. */
+export const DATA_KEPT = 4;
+
+/** Render targets kept for reuse, by size, and data textures by key. One pool per device. */
 export class TexturePool {
   private free = new Map<string, GpuTexture[]>();
+  private kept = new Map<string, GpuTexture>();
   private readonly dev: GpuDevice;
   constructor(dev: GpuDevice) {
     this.dev = dev;
@@ -40,9 +56,24 @@ export class TexturePool {
     if (list.length >= SPARES) this.dev.release(t);
     else this.free.set(k, [...list, t]);
   }
+  /** The texture for a data input, uploaded on first use; the least recently used goes once DATA_KEPT are held. */
+  data(d: DataInput): GpuTexture {
+    let t = this.kept.get(d.key);
+    if (t) this.kept.delete(d.key);
+    else t = this.dev.uploadData(d.rgba, d.width, d.height);
+    this.kept.set(d.key, t);
+    for (const [k, old] of this.kept) {
+      if (this.kept.size <= DATA_KEPT) break;
+      this.dev.release(old);
+      this.kept.delete(k);
+    }
+    return t;
+  }
   clear(): void {
     for (const list of this.free.values()) for (const t of list) this.dev.release(t);
     this.free.clear();
+    for (const t of this.kept.values()) this.dev.release(t);
+    this.kept.clear();
   }
 }
 
@@ -59,13 +90,15 @@ export function runNodes(
   nodes: readonly GraphNode[],
 ): GpuTexture {
   const steps = nodes.length ? nodes : [{ program: COPY_PROGRAM, uniforms: new Float32Array(4) }];
+  // Each input as a node index (-1 for the graph's input) or a data texture.
   const refs = steps.map((n, i) =>
-    (n.inputs ?? ['prev']).map((r): number => (r === 'prev' ? i - 1 : r === 'source' ? -1 : r)),
+    (n.inputs ?? ['prev']).map((r): number | GpuTexture => (r === 'prev' ? i - 1 : r === 'source' ? -1 : typeof r === 'number' ? r : pool.data(r))),
   );
   // The last node that reads each output; the final output is kept for the caller.
   const lastUse = steps.map(() => -1);
   refs.forEach((rs, i) =>
     rs.forEach((r) => {
+      if (typeof r !== 'number') return;
       if (r >= i) throw new Error(`node ${i} (${steps[i].program.id}) reads node ${r}, which comes after it`);
       if (r >= 0) lastUse[r] = Math.max(lastUse[r], i);
     }),
@@ -75,13 +108,13 @@ export function runNodes(
     const out = pool.take(input.width, input.height);
     dev.pass(
       n.program,
-      refs[i].map((r) => (r < 0 ? input : outs[r]!)),
+      refs[i].map((r) => (typeof r !== 'number' ? r : r < 0 ? input : outs[r]!)),
       n.uniforms,
       out,
     );
     outs[i] = out;
     for (const r of refs[i])
-      if (r >= 0 && lastUse[r] === i && r !== steps.length - 1) {
+      if (typeof r === 'number' && r >= 0 && lastUse[r] === i && r !== steps.length - 1) {
         pool.give(outs[r]!);
         outs[r] = null;
       }

@@ -33,6 +33,46 @@ const shader = (p: GpuProgram, premultiply: boolean) =>
   return ${premultiply ? 'vec4f(c.rgb * c.a, c.a)' : 'c'};
 }`;
 
+/** 32-bit floats to 16-bit float bits, rounded to nearest even (rgba16float takes no other input). */
+export function toHalf(src: Float32Array): Uint16Array {
+  const f = new Float32Array(1),
+    u = new Uint32Array(f.buffer),
+    out = new Uint16Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    f[0] = src[i];
+    const x = u[0],
+      sign = (x >>> 16) & 0x8000,
+      exp = (x >>> 23) & 0xff,
+      man = x & 0x7fffff;
+    let h: number;
+    if (exp === 0xff) h = sign | 0x7c00 | (man ? 0x200 : 0);
+    else {
+      const e = exp - 127 + 15;
+      if (e >= 0x1f) h = sign | 0x7c00;
+      else if (e <= 0) {
+        // Subnormal halves (or zero).
+        if (e < -10) h = sign;
+        else {
+          const m = man | 0x800000,
+            shift = 14 - e,
+            half = 1 << (shift - 1);
+          let v = m >>> shift;
+          const rest = m & ((1 << shift) - 1);
+          if (rest > half || (rest === half && v & 1)) v++;
+          h = sign | v;
+        }
+      } else {
+        let v = (e << 10) | (man >>> 13);
+        const rest = man & 0x1fff;
+        if (rest > 0x1000 || (rest === 0x1000 && v & 1)) v++;
+        h = sign | v;
+      }
+    }
+    out[i] = h;
+  }
+  return out;
+}
+
 /** Opens a WebGPU device, or null where the browser has none (or refuses one). */
 export async function openWebGPU(): Promise<GpuDevice | null> {
   if (typeof navigator === 'undefined' || !navigator.gpu || typeof document === 'undefined') return null;
@@ -171,6 +211,12 @@ export async function openWebGPU(): Promise<GpuDevice | null> {
         { texture: t.tex, premultipliedAlpha: false },
         [width, height],
       );
+      return t;
+    },
+    uploadData(rgba, width, height) {
+      check(width, height);
+      const t = make(width, height, 'rgba16float', GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST);
+      dev.queue.writeTexture({ texture: t.tex }, toHalf(rgba), { bytesPerRow: width * 8 }, [width, height]);
       return t;
     },
     target(width, height) {

@@ -26,6 +26,7 @@ src/
     patterns.ts              Procedural occasion artwork (PAT)
     photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks), lookPixels
     instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
+    lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
     layers.ts                Text, shapes, stickers, drawings over photos and video: draw, pick, handles, strokes
     video.ts, videoExport.ts Video timeline and frame drawing; MP4 export with Mediabunny (loaded on export)
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
@@ -44,6 +45,7 @@ src/
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
+    userLuts.ts              Imported .cube LUTs: IndexedDB storage, loaded into engine/lut.ts when chosen
     perf.ts                  Performance monitor sampler (CPU / load, frames, memory, photos, storage) and report
     errors.ts                In-memory log of recent errors (uncaught, rejections, render, handled) for the reports;
                              components/ErrorBoundary.tsx shows the error screen

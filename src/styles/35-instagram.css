@@ -752,3 +752,15 @@
   margin-right: 6px;
   vertical-align: 0;
 }
+/* Presets and LUTs (P1.4): the LUT row is its label, the list and the import button. */
+.ig-lut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ig-lut select {
+  flex: 1 1 140px;
+  min-width: 0;
+}

@@ -256,6 +256,26 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
 }
 
 /**
+ * P1.4: a creative LUT for the parity checks, made the way users bring them, as .cube text: a teal-and-orange split
+ * with an S-curve, strongly non-linear so the interpolation is exercised. Loaded for the renderers; returns its id.
+ */
+async function testLut(size: number): Promise<string> {
+  const { addLut, parseCube } = await import('../engine/lut');
+  const lines = [`TITLE "Self-test ${size}"`, `LUT_3D_SIZE ${size}`];
+  for (let b = 0; b < size; b++)
+    for (let g = 0; g < size; g++)
+      for (let r = 0; r < size; r++) {
+        const c = [r, g, b].map((v) => v / (size - 1)),
+          l = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2],
+          s = (v: number) => v * v * (3 - 2 * v);
+        lines.push([s(c[0]) * 0.9 + l * 0.15, c[1] * 0.85 + 0.05, c[2] * 0.7 + (1 - l) * 0.25].map((v) => v.toFixed(6)).join(' '));
+      }
+  const lut = parseCube(lines.join('\n'));
+  addLut(lut);
+  return lut.id;
+}
+
+/**
  * P0.6: golden images. Real sample photos drawn by the whole renderIg() (placement, background, rotation, colour,
  * vignette) at Instagram size, once on the Canvas 2D path and once on the GPU backend, must match: at most 2 levels
  * apart in any channel and 0.5 on average. This is the gate for turning the GPU path on by default.
@@ -269,6 +289,7 @@ async function goldenParity(
   const { FLAT_CURVE } = await import('../engine/curve');
   const { FLAT_MIXER } = await import('../engine/hsl');
   const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const lut = await testLut(33);
   const photos = await Promise.all(
     ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
       const img = new Image();
@@ -294,6 +315,9 @@ async function goldenParity(
     { sharpen: 60, noise: 40, contrast: 10 },
     { clarity: 50, dehaze: 40, grain: 50, exposure: 0.3 },
     { dehaze: -50, clarity: -40, sharpen: 30, sharpenMask: 50, sharpenRadius: 2 },
+    // LUTs (P1.4).
+    { lut },
+    { lut, lutAmount: 60, exposure: 0.3, saturation: 15 },
   ];
   const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
     const c = document.createElement('canvas');
@@ -407,6 +431,10 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
   const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
   const input = dev.upload(bmp, N, N),
     pool = new TexturePool(dev);
+  const { identityLut, addLut } = await import('../engine/lut');
+  const identity = identityLut(17);
+  addLut(identity);
+  const [lut17, lut65] = [await testLut(17), await testLut(65)];
   const sliders: Partial<import('../engine/adjust').Adjustments>[] = [
     {},
     { brightness: 40 },
@@ -424,6 +452,11 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
     { curve: { ...FLAT_CURVE, b: [[0, 0.1], [0.5, 0.4], [1, 0.95]] }, exposure: -0.5 },
     { mixer: { ...FLAT_MIXER, hue: [40, -60, 0, 80, 0, -100, 0, 50], sat: [-100, 60, 0, 0, 100, -40, 0, 0], lum: [0, 0, 80, -80, 0, 50, -50, 0] } },
     { curve: { ...FLAT_CURVE, rgb: [[0, 0.05], [0.5, 0.6], [1, 0.9]] }, mixer: { ...FLAT_MIXER, sat: [80, 80, 80, -80, -80, -80, 0, 0] }, temperature: 30, contrast: 20 },
+    // LUTs (P1.4): small and largest tables, part strength, after other steps.
+    { lut: lut17 },
+    { lut: lut65 },
+    { lut: lut17, lutAmount: 35 },
+    { lut: lut65, exposure: 0.8, mixer: { ...FLAT_MIXER, hue: [30, 0, 0, -40, 0, 0, 0, 0] }, brightness: 10 },
   ];
   let max = 0,
     bad = '',
@@ -450,6 +483,13 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
         }
       }
     }
+  // An identity LUT leaves every pixel as it was, on the GPU too.
+  const same = runNodes(dev, pool, input, colourNodes({ ...DEFAULT_ADJUST, lut: identity.id }));
+  const kept = await dev.read(same);
+  pool.give(same);
+  let moved = 0;
+  for (let i = 0; i < kept.length; i++) if (src[i - (i % 4) + 3] && Math.abs(kept[i] - src[i]) > moved) moved = Math.abs(kept[i] - src[i]);
+  check(moved <= 1, `gpu ${name}: an identity LUT changes nothing (largest change ${moved})`);
   dev.release(input);
   pool.clear();
   check(max <= 2, `gpu ${name}: colour matches the Canvas 2D path within 2 levels (worst ${max}, ${bad})`);

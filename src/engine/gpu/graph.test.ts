@@ -9,14 +9,15 @@ import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from '
 function fakeDevice() {
   let made = 0;
   const released: GpuTexture[] = [];
-  const passes: { program: GpuProgram; input: GpuTexture; out: GpuTexture }[] = [];
+  const passes: { program: GpuProgram; input: GpuTexture; inputs: GpuTexture[]; out: GpuTexture }[] = [];
   const dev: GpuDevice = {
     backend: 'webgl2',
     maxSize: 8192,
     lost: false,
     upload: (_s, width, height) => ({ width, height, id: `up${made++}` }) as GpuTexture,
+    uploadData: (_d, width, height) => ({ width, height, id: `data${made++}` }) as GpuTexture,
     target: (width, height) => ({ width, height, id: `t${made++}` }) as GpuTexture,
-    pass: (program, inputs, _u, out) => void passes.push({ program, input: inputs[0], out }),
+    pass: (program, inputs, _u, out) => void passes.push({ program, input: inputs[0], inputs: [...inputs], out }),
     present: () => {
       throw new Error('not in tests');
     },

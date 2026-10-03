@@ -3,6 +3,7 @@ import { CURVE_SAMPLES, curveNeutral, curveTable } from '../curve';
 import { mixerNeutral, mixerParams } from '../hsl';
 import { lightNeutral, wbGains } from '../light';
 import type { GraphNode } from './graph';
+import { lutNode } from './lut';
 import type { GpuProgram } from './types';
 
 /*
@@ -128,7 +129,7 @@ export function lightUniforms(a: Adjustments): Float32Array {
 }
 
 /** Index of the "keep unrounded" flag in each chain program's uniforms, set on every step of the chain but the last. */
-const UNROUNDED: Record<string, number> = { look: 1, light: 8, curve: 0, mixer: 0 };
+const UNROUNDED: Record<string, number> = { look: 1, light: 8, curve: 0, mixer: 0, lut: 0 };
 
 /**
  * The tone curve (P1.2): the 129-sample tables of engine/curve.ts curveTable() in u[1…], red then green then blue, read
@@ -319,10 +320,10 @@ export function adjustUniforms(a: Adjustments): Float32Array {
   ]);
 }
 
-/** The nodes for a picture's colour settings: the look, light and white balance, then the older sliders, each only when it changes something. */
+/** The nodes for a picture's colour settings: the look, light and white balance, curve, mixer and LUT, then the older sliders, each only when it changes something. */
 export function colourNodes(a: Adjustments): GraphNode[] {
   if (colourNeutral(a)) return [];
-  // The chain (look, light, curve, mixer) rounds once, after its last step, as chain.ts chainPixels() does.
+  // The chain (look, light, curve, mixer, LUT) rounds once, after its last step, as chain.ts chainPixels() does.
   const nodes: GraphNode[] = [];
   if (a.look !== 'none') nodes.push({ program: LOOK_PROGRAM, uniforms: new Float32Array([LOOK_IDS.indexOf(a.look), 0, 0, 0]) });
   if (!lightNeutral(a)) nodes.push({ program: LIGHT_PROGRAM, uniforms: lightUniforms(a) });
@@ -336,6 +337,8 @@ export function colourNodes(a: Adjustments): GraphNode[] {
     u.set(mixerParams(a.mixer), 4);
     nodes.push({ program: MIXER_PROGRAM, uniforms: u });
   }
+  const lut = lutNode(a);
+  if (lut) nodes.push(lut);
   for (const n of nodes.slice(0, -1)) n.uniforms[UNROUNDED[n.program.id]] = 1;
   if (a.brightness || a.contrast || a.saturation || a.warmth) nodes.push({ program: ADJUST_PROGRAM, uniforms: adjustUniforms(a) });
   return nodes;

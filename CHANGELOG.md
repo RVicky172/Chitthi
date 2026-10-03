@@ -14,6 +14,8 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   saturation and luminance for eight colour bands).
 - Photo editor: **Detail** (sharpening with radius and masking, noise reduction) and more **Effects** (clarity,
   dehaze, grain), sized to look the same in the preview and the exported photo.
+- Photo and video editors: **Presets and LUTs**. The looks are built-in presets, and **Import .cube** adds 3D LUTs
+  (up to 65³) with an amount slider. Imported LUTs stay on the device until removed.
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.
