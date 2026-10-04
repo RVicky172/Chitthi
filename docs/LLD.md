@@ -438,7 +438,9 @@ One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPho
 | `agent:call` | main → page | An MCP request for the page (`__list`, `__resource`, `__prompt` or a tool) |
 | `agent:reply` | page → main | Its result (id 0: the page is ready) |
 | `agent:writeFiles` | invoke | Save tool output to Documents/Chitthi agent output (unique names) |
-| `agent:readPhoto` | invoke | Read a JPG / PNG / WebP ≤ 25 MB for `add_photo` and `add_batch_photo` |
+| `agent:readPhoto` | invoke | Read a JPG / PNG / WebP ≤ 25 MB (or a camera RAW ≤ 300 MB) for `add_photo` and `add_batch_photo` |
+| `raw:available` | invoke | Whether LibRaw's RAW developer is installed (`electron/raw.cjs`) |
+| `raw:develop` | invoke | Develop a RAW file's bytes (≤ 300 MB, RAW extension) to 16-bit linear RGB; returns width, height and the pixels |
 | `agent:status` / `agent:setLive` | invoke | Live MCP endpoint: state, and turn it on or off (returns URL and token) |
 
 `app://chitthi` is a privileged standard scheme serving `dist/` (and `fonts/` from resources) with the CSP header on

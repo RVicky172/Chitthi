@@ -37,6 +37,11 @@ jobs:
       - name: Bundle fonts for offline use
         run: npm run fetch:fonts
 
+      # LibRaw's RAW developer: official builds for Windows and Apple silicon, Intel Mac compiled from the source
+      # release (each checked by SHA-256; scripts/fetch-libraw.mjs).
+      - name: Fetch the RAW developer
+        run: npm run fetch:libraw
+
       - run: npm run build
 
       - name: Package and sign

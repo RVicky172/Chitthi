@@ -81,6 +81,11 @@ export interface DesktopBridge {
     deleteKey(provider: string): Promise<void>;
     fetch(req: AiWireRequest): Promise<AiWireResponse>;
   };
+  /** RAW photos (electron/raw.cjs): LibRaw develops the file's bytes to 16-bit linear RGB, sRGB primaries. */
+  raw?: {
+    available(): Promise<boolean>;
+    develop(bytes: ArrayBuffer, name: string, opts?: { half?: boolean }): Promise<{ width: number; height: number; data: Uint16Array }>;
+  };
   /** Agent (MCP) connection for the live app (electron/mcp.cjs). */
   agent?: {
     status(): Promise<{ on: boolean; url: string; token: string }>;

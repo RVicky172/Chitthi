@@ -320,8 +320,11 @@ export function adjustUniforms(a: Adjustments): Float32Array {
   ]);
 }
 
-/** The nodes for a picture's colour settings: the look, light and white balance, curve, mixer and LUT, then the older sliders, each only when it changes something. */
-export function colourNodes(a: Adjustments): GraphNode[] {
+/**
+ * The nodes for a picture's colour settings: the look, light and white balance, curve, mixer and LUT, then the older
+ * sliders, each only when it changes something. `deep` (the 16-bit TIFF export, P1.9) keeps every step unrounded.
+ */
+export function colourNodes(a: Adjustments, deep = false): GraphNode[] {
   if (colourNeutral(a)) return [];
   // The chain (look, light, curve, mixer, LUT) rounds once, after its last step, as chain.ts chainPixels() does.
   const nodes: GraphNode[] = [];
@@ -339,7 +342,7 @@ export function colourNodes(a: Adjustments): GraphNode[] {
   }
   const lut = lutNode(a);
   if (lut) nodes.push(lut);
-  for (const n of nodes.slice(0, -1)) n.uniforms[UNROUNDED[n.program.id]] = 1;
+  for (const n of deep ? nodes : nodes.slice(0, -1)) n.uniforms[UNROUNDED[n.program.id]] = 1;
   if (a.brightness || a.contrast || a.saturation || a.warmth) nodes.push({ program: ADJUST_PROGRAM, uniforms: adjustUniforms(a) });
   return nodes;
 }

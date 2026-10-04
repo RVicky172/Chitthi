@@ -59,6 +59,7 @@ There is no Chitthi backend, account system or analytics. AI requests go from th
 | **@modelcontextprotocol/sdk** | 1.31 | MCP server in the main process (`electron/mcp.cjs`) | Official SDK: protocol, Streamable HTTP transport, schemas. Never in the web bundle |
 | **zod** | 4.6 | Required by the MCP SDK | — |
 | **Electron `safeStorage`** | 44 | AI keys encrypted with the OS (DPAPI on Windows, Keychain on macOS) | Keys usable by the main process only |
+| **LibRaw** (`dcraw_emu`) | 0.22.2 | Develops camera RAW files in the main process (`electron/raw.cjs`); LGPL-2.1 / CDDL-1.0, an approved exception, shipped unmodified as a separate program |
 | **electron-updater** | 6.8 | Auto-updates from GitHub Releases (`latest.yml`, `latest-mac.yml`) |
 
 ## Delivery

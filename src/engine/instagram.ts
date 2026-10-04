@@ -160,14 +160,10 @@ const canvas = (w: number, h: number) => {
   return c;
 };
 
-/**
- * Draws a finished post into ctx (W×H): background, the photo placed, rotated and mirrored, its colour adjusted, and
- * the vignette. src is the photo (sw × sh); a smaller copy works for previews.
- */
-export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, sw: number, sh: number, e: IgEdit, W: number, H: number): void {
-  const p = placement(sw, sh, e, W, H);
+/** Draws the photo (src, sw × sh) into x centred at cx, cy at dw × dh, turned and mirrored as the edit says. */
+function photoDrawer(src: CanvasImageSource, e: IgEdit) {
   const turned = e.rot % 180 !== 0;
-  const drawPhoto = (x: CanvasRenderingContext2D, cx: number, cy: number, dw: number, dh: number) => {
+  return (x: CanvasRenderingContext2D, cx: number, cy: number, dw: number, dh: number) => {
     x.save();
     x.translate(cx, cy);
     x.rotate((e.rot * Math.PI) / 180);
@@ -177,10 +173,16 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
     x.drawImage(src, -w / 2, -h / 2, w, h);
     x.restore();
   };
+}
+
+/**
+ * The background, only where the photo leaves part of the frame empty: a colour, or a blurred copy of the photo. Part
+ * of renderIg(); the 16-bit export (engine/deep.ts) draws it on its own and lays the photo over it in full precision.
+ */
+export function drawBackground(ctx: CanvasRenderingContext2D, src: CanvasImageSource, sw: number, sh: number, e: IgEdit, W: number, H: number): void {
+  const drawPhoto = photoDrawer(src, e);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-
-  // Background: only when the photo leaves part of the frame empty.
   if (showsBackground(sw, sh, e, W, H)) {
     if (e.bg === 'blur') {
       // A blurred copy: the photo covering the frame at 1/32 size, scaled back up (works in every browser).
@@ -201,6 +203,25 @@ export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, 
       ctx.fillRect(0, 0, W, H);
     }
   }
+}
+
+/** The vignette's darkening at frame pixel (x, y), 0–1, exactly as renderIg()'s radial gradient draws it. */
+export function vignetteAt(x: number, y: number, W: number, H: number, vignette: number): number {
+  if (!(vignette > 0)) return 0;
+  const r0 = Math.min(W, H) * 0.35,
+    r1 = Math.hypot(W, H) / 2,
+    t = Math.min(1, Math.max(0, (Math.hypot(x - W / 2, y - H / 2) - r0) / (r1 - r0)));
+  return t * (clamp(vignette, 0, 100) / 100) * 0.6;
+}
+
+/**
+ * Draws a finished post into ctx (W×H): background, the photo placed, rotated and mirrored, its colour adjusted, and
+ * the vignette. src is the photo (sw × sh); a smaller copy works for previews.
+ */
+export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, sw: number, sh: number, e: IgEdit, W: number, H: number): void {
+  const p = placement(sw, sh, e, W, H);
+  const drawPhoto = photoDrawer(src, e);
+  drawBackground(ctx, src, sw, sh, e, W, H);
 
   // The photo, on its own layer so the colour adjustments leave the background alone. The colour runs on the GPU when
   // the media studio has opened a device (gpu/apply.ts), else on the CPU here; both give the same pixels.

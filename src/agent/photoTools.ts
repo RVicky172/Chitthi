@@ -123,6 +123,7 @@ const photoInfo = (it: IgItem) => ({
   id: it.id,
   name: it.name,
   pixels: [it.w, it.h],
+  raw: !!it.raw,
   selected: getIg().selected === it.id,
   framing: { fit: it.edit.fit, bg: it.edit.bg, zoom: it.edit.zoom, px: it.edit.px, py: it.edit.py, rot: it.edit.rot, flip: it.edit.flip },
   adjust: changed(it.edit.adjust),
@@ -290,10 +291,11 @@ export const PHOTO_TOOLS: AgentTool[] = [
   {
     name: 'add_batch_photo',
     title: 'Add a photo to the photo studio',
-    description: 'Adds a JPG, PNG or WebP photo to the photo studio’s batch (up to its limit, at most 20), from a local file path (desktop) or an https URL the user owns or may use.',
+    description:
+      'Adds a JPG, PNG, WebP or camera RAW photo (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 …) to the photo studio’s batch (up to its limit, at most 20), from a local file path (desktop) or an https URL the user owns or may use. The desktop app develops RAW files in 16 bits; export them as TIFF with set_photo_options to keep that precision.',
     inputSchema: obj({ path: str('Local file path'), url: str('https URL of an image'), name: str('Name to show for the photo') }),
     run: async (a, env) => {
-      const { name, blob } = await fetchImage(a, env);
+      const { name, blob } = await fetchImage(a, env, { raw: true });
       const before = new Set(getIg().items.map((x) => x.id));
       const msgs = await addPhotos([{ name, blob }]);
       const added = getIg().items.find((x) => !before.has(x.id));

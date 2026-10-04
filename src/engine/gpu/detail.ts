@@ -269,7 +269,7 @@ function blurUniforms(k: Kernel, dx: number, dy: number, mode: 0 | 1): Float32Ar
  * The detail settings as graph nodes for a W×H picture, appended after `base` earlier nodes (their indices start at
  * base). The first reads the node before it ('prev'), or the graph input when base is 0.
  */
-export function detailNodes(a: Adjustments, W: number, H: number, base: number): GraphNode[] {
+export function detailNodes(a: Adjustments, W: number, H: number, base: number, deep = false): GraphNode[] {
   if (detailNeutral(a)) return [];
   const scale = W / DETAIL_WIDTH,
     tx = 1 / W,
@@ -306,7 +306,7 @@ export function detailNodes(a: Adjustments, W: number, H: number, base: number):
       [img, blur(img, a.sharpenRadius * scale)],
     );
   if (a.grain > 0) step(GRAIN_PROGRAM, [(a.grain / 100) * 0.12, GRAIN_CELL * scale, W, H], [img]);
-  // The last step rounds to 8 bits, like detailPixels(); it is always the final node.
-  steps[steps.length - 1].uniforms[4] = 1;
+  // The last step rounds to 8 bits, like detailPixels(); it is always the final node. Not in a deep (16-bit) render.
+  if (!deep) steps[steps.length - 1].uniforms[4] = 1;
   return nodes;
 }

@@ -35,6 +35,29 @@ fn effect(uv: vec2f) -> vec4f {
 }`,
 };
 
+/** The mix for a deep (16-bit) render: the same, without rounding the result to 8 bits. */
+export const MASK_MIX_DEEP_PROGRAM: GpuProgram = {
+  id: 'maskmixdeep',
+  inputs: 3,
+  uniforms: 1,
+  glsl: `
+vec4 effect(vec2 uv) {
+  vec4 a = texture(t0, uv);
+  if (a.a == 0.0) return a;
+  vec3 b = texture(t1, uv).rgb;
+  float m = floor(texture(t2, uv).r * 255.0 + 0.5) / 255.0;
+  return vec4(clamp(a.rgb + (b - a.rgb) * m, 0.0, 1.0), a.a);
+}`,
+  wgsl: `
+fn effect(uv: vec2f) -> vec4f {
+  let a = textureSampleLevel(t0, smp, uv, 0.0);
+  if (a.a == 0.0) { return a; }
+  let b = textureSampleLevel(t1, smp, uv, 0.0).rgb;
+  let m = floor(textureSampleLevel(t2, smp, uv, 0.0).r * 255.0 + 0.5) / 255.0;
+  return vec4f(clamp(a.rgb + (b - a.rgb) * m, vec3f(0.0), vec3f(1.0)), a.a);
+}`,
+};
+
 /**
  * Appends one mask's nodes to a graph whose picture so far is `from` (the last node, or the source when the graph is
  * empty): the mask's colour and detail steps, then the mix. Returns the mix node's index, or `from` unchanged when the
@@ -47,14 +70,15 @@ export function maskNodes(
   mask: FrameMask,
   W: number,
   H: number,
+  deep = false,
 ): NodeInput {
   const start = nodes.length;
   // The colour nodes read 'prev', the detail nodes the node before them: both are `from`, the graph's last output.
-  nodes.push(...colourNodes(a));
-  nodes.push(...detailNodes(a, W, H, nodes.length));
+  nodes.push(...colourNodes(a, deep));
+  nodes.push(...detailNodes(a, W, H, nodes.length, deep));
   if (nodes.length === start) return from;
   nodes.push({
-    program: MASK_MIX_PROGRAM,
+    program: deep ? MASK_MIX_DEEP_PROGRAM : MASK_MIX_PROGRAM,
     uniforms: new Float32Array(4),
     inputs: [from, nodes.length - 1, { key: mask.key, width: mask.width, height: mask.height, r8: mask.data }],
   });

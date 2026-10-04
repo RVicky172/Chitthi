@@ -547,3 +547,47 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
   expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test('RAW files on the web open their built-in preview; TIFF exports 16 bits where the graphics card allows', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  // A synthetic DNG (no camera, no licence question) carrying a sample photo as its preview, as cameras store theirs.
+  const { syntheticDng } = await import('../src/engine/tiff');
+  const dng = Buffer.from(syntheticDng(new Uint8Array(readFileSync(path.join('public', 'samples', 'marigold.jpg')))));
+  await page.locator('.mst-drop input[type=file]').setInputFiles([{ name: 'flowers.dng', mimeType: '', buffer: dng }]);
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  await expect(page.getByRole('alert')).toContainText('flowers.dng: showing the camera’s built-in JPEG preview');
+  // The preview is the photo, not the raw sensor data: the stage shows colour.
+  const canvas = page.locator('.mst-canvas');
+  await expect
+    .poll(() =>
+      canvas.evaluate((c: HTMLCanvasElement) => {
+        const d = c.getContext('2d')!.getImageData(Math.round(c.width / 2) - 20, Math.round(c.height / 2) - 20, 40, 40).data;
+        let sat = 0;
+        for (let i = 0; i < d.length; i += 4) sat += Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+        return sat / (d.length / 4);
+      }),
+    )
+    .toBeGreaterThan(20);
+
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const types = page.getByRole('group', { name: 'File type' });
+  await expect(types.getByRole('button', { name: 'JPEG' })).toBeVisible();
+  const floats = await page.evaluate(() => {
+    if ((navigator as Navigator & { gpu?: unknown }).gpu) return true;
+    return !!document.createElement('canvas').getContext('webgl2')?.getExtension('EXT_color_buffer_float');
+  });
+  await expect(types.getByRole('button', { name: 'TIFF (16-bit)' })).toHaveCount(floats ? 1 : 0);
+  if (floats) {
+    await types.getByRole('button', { name: 'TIFF (16-bit)' }).click();
+    const zip = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
+    const bytes = readFileSync(await (await zip).path());
+    const at = bytes.indexOf(Buffer.from([0x49, 0x49, 42, 0]));
+    expect(bytes.toString('latin1')).toContain('chitthi-instagram-4x5-01.tif');
+    expect(at).toBeGreaterThan(0);
+    // 1080 × 1350 pixels, three 16-bit values each.
+    expect(bytes.length).toBeGreaterThan(1080 * 1350 * 6);
+  }
+  expect(errors).toEqual([]);
+});

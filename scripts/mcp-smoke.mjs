@@ -2,13 +2,16 @@
 /*
  * End-to-end check of Chitthi's MCP server with the official MCP client: starts `npm run mcp` over stdio, lists tools,
  * resources and prompts, builds a calendar and a postcard through the tools, checks and previews them, and exports a
- * PDF; then edits a sample photo in the photo studio (colour, a mask, a preset) and exports it. No AI calls (those need the user's keys). Run: node scripts/mcp-smoke.mjs  (exits 1 on any failure)
+ * PDF; then edits a sample photo in the photo studio (colour, a mask, a preset) and exports it, and develops a synthetic
+ * DNG with LibRaw and exports it as a 16-bit TIFF (needs npm run fetch:libraw). No AI calls (those need the user's keys). Run: node scripts/mcp-smoke.mjs  (exits 1 on any failure)
  * CHITTHI_MCP_APP=<path to Chitthi Studio.exe> tests a packaged or installed app instead of the source.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { syntheticDng } from '../src/engine/tiff.ts';
 
 const app = process.env.CHITTHI_MCP_APP;
 const transport = new StdioClientTransport(
@@ -74,6 +77,9 @@ try {
   check(adj.exposure === 0.3 && adj.shadows === 40 && adj.mixer.sat[1] === 20, 'adjust_photo sets light and colour mixer');
   const mask = jsonOf(await call('add_mask', { kind: 'radial', name: 'Flower', part: { x: 0.5, y: 0.5, rx: 0.25, ry: 0.25 }, adjust: { clarity: 30 } }));
   check(mask.active === true && mask.parts[0].kind === 'radial', 'add_mask adds a radial mask');
+  // An AI subject mask: the bundled model runs in its worker (WebAssembly under the app's CSP) before the tool returns.
+  const ai = jsonOf(await call('add_mask', { kind: 'ai', name: 'Subject', adjust: { exposure: 0.3 } }));
+  check(ai.parts[0].kind === 'ai' && ai.active === true, 'add_mask finds the subject with the on-device model');
   const look = await call('render_photo_preview', { maxPx: 512, mask: mask.id });
   const pimg = look.content.find((c) => c.type === 'image');
   check(pimg && pimg.mimeType === 'image/png' && pimg.data.length > 1000, 'render_photo_preview returns a PNG');
@@ -85,6 +91,19 @@ try {
   check(!!photoFile && existsSync(photoFile), `export_photos wrote ${photoFile}`);
   const badMask = await client.callTool({ name: 'edit_mask', arguments: { mask: 'nope' } });
   check(badMask.isError === true, 'an unknown mask returns a tool error');
+
+  // RAW (P1.9): a synthetic DNG developed by LibRaw in 16 bits, exported as a 16-bit TIFF.
+  const dng = join(tmpdir(), 'chitthi-smoke.dng');
+  writeFileSync(dng, syntheticDng());
+  await call('remove_batch_photo', { all: true });
+  const raw = jsonOf(await call('add_batch_photo', { path: dng }));
+  check(raw.raw === true && raw.pixels[0] === 96 && raw.pixels[1] === 64, `add_batch_photo develops a DNG (${raw.pixels})`);
+  await call('adjust_photo', { settings: { exposure: 0.5, clarity: 20 } });
+  await call('set_photo_options', { fileType: 'tiff', format: 'square' });
+  const tifPath = /Files written:\n(.+)/.exec(textOf(await call('export_photos')))?.[1]?.trim();
+  const tif = tifPath && existsSync(tifPath) ? readFileSync(tifPath) : null;
+  check(!!tif && tif.subarray(0, 4).equals(Buffer.from([0x49, 0x49, 42, 0])) && tif.length > 1080 * 1080 * 6, `export_photos wrote a 16-bit TIFF ${tifPath}`);
+  await call('set_photo_options', { fileType: 'jpeg', format: 'portrait' });
 } catch (e) {
   fails.push(String(e && e.stack ? e.stack : e));
   console.error(e);

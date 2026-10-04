@@ -11,6 +11,8 @@ import { checkFile, loadImage } from '../engine/photo';
 import { logError } from '../lib/errors';
 import { makeZip } from '../lib/zip';
 import { encodePhoto, isPhotoType, PHOTO_TYPES } from '../engine/photoExport';
+import { embeddedJpeg, isRawName, rawToRgba8, type RawImage } from '../engine/raw';
+import { desktop } from '../platform/desktop';
 
 /*
  * The Instagram studio's state: a batch of photos, each with its own edits, the post format, the batch limit and the
@@ -33,6 +35,8 @@ export interface IgItem {
   edit: IgEdit;
   /** Text, shapes, stickers and drawings over the photo, bottom first (engine/layers.ts). */
   layers: Layer[];
+  /** The file is a camera RAW, developed by the desktop app (P1.9) for the preview and again for each export. */
+  raw?: boolean;
 }
 
 /** Layer tools, shared by the photo and video editors. 'mask': the photo editor's mask brush paints on the stage. */
@@ -264,6 +268,34 @@ export function setLimit(n: number): number {
 }
 
 let seq = 0;
+const newId = () => `ig${Date.now().toString(36)}${(seq++).toString(36)}`;
+
+/** A canvas holding 8-bit RGBA pixels. */
+function canvasOf(px: { width: number; height: number; data: Uint8ClampedArray }): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = px.width;
+  c.height = px.height;
+  const x = c.getContext('2d');
+  if (!x) throw new Error('No canvas');
+  x.putImageData(new ImageData(px.data as Uint8ClampedArray<ArrayBuffer>, px.width, px.height), 0, 0);
+  return c;
+}
+
+/** Develops a RAW file with LibRaw in the desktop app (half size: still well over the 1920 px a post needs). */
+async function developRaw(name: string, file: Blob): Promise<RawImage> {
+  if (!desktop?.raw) throw new Error('RAW files are developed in the desktop app.');
+  return desktop.raw.develop(await file.arrayBuffer(), name, { half: true });
+}
+
+/** True when this app can develop RAW files (the desktop app with its RAW developer installed). */
+let rawReady: Promise<boolean> | null = null;
+export const canDevelopRaw = (): Promise<boolean> => (rawReady ??= desktop?.raw ? desktop.raw.available().catch(() => false) : Promise.resolve(false));
+
+async function makeRawItem(name: string, file: Blob): Promise<IgItem> {
+  const img = await developRaw(name, file);
+  return { id: newId(), name, file, w: img.width, h: img.height, preview: canvasOf(rawToRgba8(img, PREVIEW_MAX)), edit: { ...DEFAULT_EDIT }, layers: [], raw: true };
+}
+
 async function makeItem(name: string, file: Blob): Promise<IgItem> {
   const url = URL.createObjectURL(file);
   try {
@@ -278,7 +310,7 @@ async function makeItem(name: string, file: Blob): Promise<IgItem> {
     if (!x) throw new Error('No canvas');
     x.imageSmoothingQuality = 'high';
     x.drawImage(img, 0, 0, preview.width, preview.height);
-    return { id: `ig${Date.now().toString(36)}${(seq++).toString(36)}`, name, file, w, h, preview, edit: { ...DEFAULT_EDIT }, layers: [] };
+    return { id: newId(), name, file, w, h, preview, edit: { ...DEFAULT_EDIT }, layers: [] };
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -296,13 +328,24 @@ export async function addPhotos(files: { name: string; blob: Blob; type?: string
   set({ busy: 'Adding photos…' });
   const added: IgItem[] = [];
   for (const f of take) {
-    const why = checkFile(new File([f.blob], f.name, { type: f.type ?? f.blob.type }));
+    const why = checkFile(new File([f.blob], f.name, { type: f.type ?? f.blob.type }), { raw: true });
     if (why) {
       msgs.push(why);
       continue;
     }
     try {
-      added.push(await makeItem(f.name, f.blob));
+      if (!isRawName(f.name)) added.push(await makeItem(f.name, f.blob));
+      else if (await canDevelopRaw()) added.push(await makeRawItem(f.name, f.blob));
+      else {
+        // The web app can't develop RAW: it opens the JPEG preview the camera stored in the file.
+        const jpeg = embeddedJpeg(new Uint8Array(await f.blob.arrayBuffer()));
+        if (!jpeg) {
+          msgs.push(`${f.name} is a camera RAW file without a preview Chitthi Studio can open. Open it in the desktop app, or export a JPEG from your camera app.`);
+          continue;
+        }
+        added.push(await makeItem(f.name, new Blob([jpeg as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })));
+        msgs.push(`${f.name}: showing the camera’s built-in JPEG preview. The desktop app opens the full RAW, in 16 bits.`);
+      }
     } catch (e) {
       logError('handled', e);
       msgs.push(`${f.name} couldn’t be read. The file may be damaged.`);
@@ -392,6 +435,29 @@ export const resetPhoto = (id: string) => editPhoto(id, { ...DEFAULT_EDIT });
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/** The image to draw for an export: the file decoded, or for a RAW the file developed (8-bit) and kept as 16-bit. */
+async function exportSource(it: IgItem): Promise<{ img: CanvasImageSource; w: number; h: number; raw: RawImage | null; done: () => void }> {
+  if (it.raw) {
+    const raw = await developRaw(it.name, it.file),
+      c = canvasOf(rawToRgba8(raw, Math.max(raw.width, raw.height)));
+    return { img: c, w: c.width, h: c.height, raw, done: () => (c.width = c.height = 1) };
+  }
+  const url = URL.createObjectURL(it.file);
+  try {
+    const img = await loadImage(url);
+    return { img, w: img.naturalWidth, h: img.naturalHeight, raw: null, done: () => undefined };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** The 16-bit TIFF of one photo (engine/deep.ts): the photo in full precision, background and layers as drawn. */
+async function renderTiff(it: IgItem, s: Awaited<ReturnType<typeof exportSource>>, W: number, H: number): Promise<Blob> {
+  const [{ deepFromRaw, renderDeepPost }, { tiff16 }] = await Promise.all([import('../engine/deep'), import('../engine/tiff')]);
+  const rgb = await renderDeepPost({ img: s.img, w: s.w, h: s.h, deep: s.raw ? deepFromRaw(s.raw) : undefined, sample: it.preview, e: it.edit, layers: it.layers, W, H });
+  return new Blob([tiff16(W, H, rgb) as Uint8Array<ArrayBuffer>], { type: 'image/tiff' });
+}
+
 /** Renders every photo at full size in the chosen format and file type. One photo is in full-size memory at a time. */
 export async function renderBatch(onProgress?: (done: number, total: number) => void): Promise<File[]> {
   const f = igFormat(state.format),
@@ -411,22 +477,25 @@ export async function renderBatch(onProgress?: (done: number, total: number) => 
     // AI masks: the photo's segmentations (made on its preview, as the stage shows them) are used for the full size too.
     const targets = aiTargets(it.edit.masks);
     if (targets.length) await (await import('../ai/segment')).ensureSegments(it.preview, targets);
-    const url = URL.createObjectURL(it.file);
+    const s = await exportSource(it);
+    let blob: Blob;
     try {
-      const img = await loadImage(url);
-      shareSegments(it.preview, img);
-      ctx.clearRect(0, 0, f.w, f.h);
-      // JPEG has no transparency: start from white so empty corners never turn black.
-      if (type === 'image/jpeg') {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, f.w, f.h);
+      shareSegments(it.preview, s.img);
+      if (state.fileType === 'tiff') blob = await renderTiff(it, s, f.w, f.h);
+      else {
+        ctx.clearRect(0, 0, f.w, f.h);
+        // JPEG has no transparency: start from white so empty corners never turn black.
+        if (type === 'image/jpeg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, f.w, f.h);
+        }
+        renderIg(ctx, s.img, s.w, s.h, it.edit, f.w, f.h);
+        drawLayers(ctx, it.layers, f.w, f.h);
+        blob = await encodePhoto(cv, state.fileType, state.quality);
       }
-      renderIg(ctx, img, img.naturalWidth, img.naturalHeight, it.edit, f.w, f.h);
-      drawLayers(ctx, it.layers, f.w, f.h);
     } finally {
-      URL.revokeObjectURL(url);
+      s.done();
     }
-    const blob = await encodePhoto(cv, state.fileType, state.quality);
     out.push(new File([blob], `chitthi-instagram-${f.ratio.replace(':', 'x')}-${pad(i + 1)}.${ext}`, { type }));
   }
   onProgress?.(state.items.length, state.items.length);

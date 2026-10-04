@@ -31,6 +31,11 @@ contextBridge.exposeInMainWorld('chitthiDesktop', {
     deleteKey: invoke('ai:deleteKey'),
     fetch: invoke('ai:fetch'),
   },
+  // RAW photos: the main process develops the file's bytes with LibRaw and returns 16-bit linear RGB.
+  raw: {
+    available: invoke('raw:available'),
+    develop: invoke('raw:develop'),
+  },
   // Agent (MCP) tools: the main process forwards tool calls here and writes the files they produce.
   agent: {
     status: invoke('agent:status'),

@@ -62,6 +62,10 @@ export interface GpuDevice {
   present(tex: GpuTexture): HTMLCanvasElement | OffscreenCanvas;
   /** Reads a texture back as 8-bit straight RGBA, top row first. For tests and exports; slow. */
   read(tex: GpuTexture): Promise<Uint8ClampedArray>;
+  /** True when targets hold 16-bit floats, so readFloat() gives more than 8 bits (the 16-bit TIFF export needs it). */
+  readonly floatTargets: boolean;
+  /** Reads a texture back as straight RGBA floats, 0–1, top row first. For the 16-bit TIFF export; slow. */
+  readFloat(tex: GpuTexture): Promise<Float32Array>;
   release(tex: GpuTexture): void;
   destroy(): void;
 }

@@ -17,6 +17,7 @@ files:
   - electron/ai-hosts.json
   - electron/mcp.cjs
   - electron/mcp-stdio.cjs
+  - electron/raw.cjs
   - package.json
   - LICENSE
   - THIRD_PARTY_NOTICES.md
@@ -43,6 +44,10 @@ electronFuses:
 extraResources:
   - from: electron/resources/fonts
     to: fonts
+  # LibRaw's RAW developer for this platform and architecture (npm run fetch:libraw; electron/raw.cjs), with its
+  # licences and source note. LGPL-2.1 / CDDL-1.0, a separate unmodified program (docs/LICENSING.md).
+  - from: electron/resources/libraw/${platform}-${arch}
+    to: libraw
 
 fileAssociations:
   - ext: chitthi

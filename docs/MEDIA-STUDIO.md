@@ -40,9 +40,11 @@ is 1080 px wide.
 | Landscape | 1.91:1 | 1080 × 566 | Feed posts and carousels |
 | Story | 9:16 | 1080 × 1920 | Stories and Reel covers, not feed carousels |
 
-Files are JPEG (default; sRGB, quality 60–100, default 92), PNG, WebP or AVIF. WebP and AVIF are for websites and
-messages (post JPEG to Instagram) and are offered only where the browser can write them, found by encoding a tiny
-picture (`src/engine/photoExport.ts`); every file is checked to be the type asked for. Chrome, Edge, Firefox and the
+Files are JPEG (default; sRGB, quality 60–100, default 92), PNG, WebP, AVIF or **TIFF (16-bit)**. WebP and AVIF are
+for websites and messages (post JPEG to Instagram) and are offered only where the browser can write them, found by
+encoding a tiny picture (`src/engine/photoExport.ts`); every file is checked to be the type asked for. TIFF is for
+printing and further editing: 16 bits per channel, uncompressed (about 9 MB for 1080 × 1350), offered where the graphics
+card can render in floats (WebGPU, or WebGL2 with float targets), on the web and in the desktop app. Chrome, Edge, Firefox and the
 desktop app write WebP; AVIF stays hidden until a browser writes it. The app warns when a file is over 8 MB, the limit of
 Instagram's publishing API. Data: `src/data/instagram.ts`.
 
@@ -167,6 +169,27 @@ a slider movement is one step.
 Photos come from the device (file picker or drag and drop) or from the photo library. JPG, PNG and WebP up to 25 MB,
 the same checks as the print studio.
 
+## RAW photos
+
+Camera RAW files (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2, PEF, SRW and more; up to 300 MB) can be added to the batch.
+
+- **Desktop app:** the file is developed by LibRaw (its `dcraw_emu` program, run by the main process: camera white
+  balance, sRGB primaries, linear 16 bits, half size, which is still well over the 1920 px a post needs). The editor
+  shows an 8-bit preview made from it and edits it like any photo; each export develops it again, so the batch holds
+  only the file. Exported as **TIFF (16-bit)**, the photo keeps the RAW's precision through every edit: a deep shadow
+  pushed three stops keeps about 930 tones where an 8-bit file keeps 57. The page sends LibRaw the file's bytes, never
+  a path, and the file is developed in a private temporary folder that is deleted straight after (`electron/raw.cjs`).
+- **Web app:** a browser can't run LibRaw, so the RAW file opens the full-size JPEG preview every camera stores inside it
+  (`embeddedJpeg()`), with a note that the desktop app opens the full RAW.
+
+**How the 16-bit TIFF is made** (`src/engine/deep.ts`). The photo is placed on the frame in floats from its linear
+source (the developed RAW, or an 8-bit photo decoded), then goes through the same colour, detail and mask programs as
+the preview on the graphics card, with every rounding step left out (half-float intermediates), and is read back as
+floats. The background and the vignette follow the 8-bit picture's own rules; text, stickers and image layers are added
+as the difference they make to the 8-bit picture, so every blend mode works and the photo under them keeps its
+precision. The self-test holds the 16-bit picture to the 8-bit one within 4 levels on both GPU backends. The TIFF
+writer is our own (`src/engine/tiff.ts`).
+
 ## Export and posting
 
 - **Download all (ZIP)**: `chitthi-instagram-4x5-01.jpg` … in one ZIP. Desktop: a save dialog.
@@ -195,6 +218,8 @@ step.
 | Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`; `src/engine/gpu/mask.ts` |
 | Masks panel and the mask's settings (inspector) | `src/components/ig/MaskPanel.tsx` |
 | AI masks: the models, their download and check, the worker (ONNX Runtime Web); the maps kept per photo; panel status | `src/ai/segment/`; `src/engine/segments.ts`; `src/components/ig/useAiMask.ts` |
+| RAW files: developing with LibRaw (desktop); RAW names, the embedded preview, 8-bit previews from 16-bit data | `electron/raw.cjs`, `scripts/fetch-libraw.mjs`; `src/engine/raw.ts` |
+| The 16-bit render and the TIFF writer | `src/engine/deep.ts`; `src/engine/tiff.ts` |
 | Presets, LUTs and saved presets panel (both editors) | `src/components/ig/LookPicker.tsx` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
@@ -246,7 +271,11 @@ and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with te
 video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; accessibility). Agents:
 the self-test draws an AI mask from a stand-in map, runs the real subject model in its worker and checks the sky model
 is never downloaded without consent; `e2e/instagram.e2e.ts` finds a subject with the real model under the production
-CSP (desktop project). The self-test also drives every photo tool on a generated photo (settings and their clamping, white balance, masks seen in
+CSP (desktop project). RAW and 16-bit: Vitest checks the TIFF writer, the embedded-preview reader and a synthetic DNG
+(`syntheticDng()`, made by the tests, so no camera file or licence is involved); the self-test checks float read-back
+and holds the 16-bit render to the 8-bit picture on each backend; `npm run test:mcp` develops the synthetic DNG with
+LibRaw and exports a 16-bit TIFF; e2e opens a RAW's preview on the web and exports a TIFF. The self-test also drives
+every photo tool on a generated photo (settings and their clamping, white balance, masks seen in
 the preview, a LUT, presets in and out, export), and `npm run test:mcp` edits a sample photo over MCP.
 
 ## Video editor: Reels, Shorts and YouTube

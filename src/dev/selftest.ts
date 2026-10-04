@@ -231,6 +231,13 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
         threw = true;
       }
       check(threw, `gpu ${name}: refuses textures larger than the device allows`);
+      // P1.9: half-float data in, float out, for the 16-bit TIFF export.
+      const fl = Float32Array.from({ length: W * H * 4 }, (_, i) => (i % 4 === 3 ? 1 : ((i * 7919) % 1000) / 1000));
+      const fin = dev.uploadData(fl, W, H);
+      dev.pass(COPY_PROGRAM, [fin], new Float32Array(4), out);
+      const back = await dev.readFloat(out);
+      check(dev.floatTargets && back.length === fl.length && back.every((v, i) => Math.abs(v - fl[i]) <= 0.0005), `gpu ${name}: floats read back to half-float precision`);
+      dev.release(fin);
       dev.release(t);
       dev.release(out);
       worst.set(name, await colourParity(dev, check, name));
@@ -260,6 +267,10 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
     check(g.detailMax <= 3, `gpu ${name}: detail effects match Canvas 2D within 3 levels (worst ${g.detailMax} in ${g.detailWhere})`);
     worst.set(name, `${worst.get(name)}; photos: worst ${g.max} (detail effects ${g.detailMax}), mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
     r.notes.push(await gpuTiming(name));
+    const dp = await deepParity(name);
+    check(dp.max <= 4 && dp.mean <= 0.6, `gpu ${name}: the 16-bit render matches the 8-bit picture (worst ${dp.max.toFixed(1)} in ${dp.where}, mean ${dp.mean.toFixed(3)})`);
+    check(dp.levels[0] >= 3 * dp.levels[1], `gpu ${name}: 16 bits keep the tones 8 bits lose (${dp.levels[0]} against ${dp.levels[1]} in a pushed shadow ramp)`);
+    r.notes.push(`${name} 16-bit render: worst ${dp.max.toFixed(1)}, mean ${dp.mean.toFixed(3)} levels over ${dp.frames} frames; a shadow ramp pushed 3 stops keeps ${dp.levels[0]} tones (8 bits: ${dp.levels[1]})`);
   }
   const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
   const d = await openGpu();
@@ -268,6 +279,119 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   closeGpu();
   check(gpu() === null, 'gpu: closeGpu() lets it go');
   r.notes.push(`GPU backends checked: ${ran.map((n) => `${n} (largest colour difference ${worst.get(n)})`).join(', ') || 'none available'}`);
+}
+
+/**
+ * P1.9: the 16-bit render behind the TIFF export, on one GPU backend. It must agree with the 8-bit picture (renderIg()
+ * and drawLayers(), what the preview shows) within a few levels on real photos with colour, detail, masks, framing,
+ * a vignette and a layer, and it must keep the precision a RAW file brings: a dark ramp pushed three stops keeps many
+ * more distinct tones than the same ramp in 8 bits.
+ */
+async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; frames: number; levels: [number, number]; where: string }> {
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const { renderDeepPost } = await import('../engine/deep');
+  const { DEFAULT_EDIT, photoPlace, renderIg } = await import('../engine/instagram');
+  const { DEFAULT_ADJUST } = await import('../engine/adjust');
+  const L = await import('../engine/layers');
+  const { frameToPhoto, newPart } = await import('../engine/masks');
+  await openGpu(backend);
+  // Photos softened a little and about frame size: how two methods shrink fine detail differs (that's resampling, not
+  // what this compares), so both paths start from pictures they sample alike.
+  const load = async (f: string) => {
+    const im = new Image();
+    im.src = `/samples/${f}`;
+    await im.decode();
+    const c = document.createElement('canvas'),
+      k = 700 / Math.max(im.naturalWidth, im.naturalHeight);
+    c.width = Math.round(im.naturalWidth * k);
+    c.height = Math.round(im.naturalHeight * k);
+    const g = c.getContext('2d', { willReadFrequently: true })!;
+    g.filter = 'blur(2px)';
+    g.drawImage(im, 0, 0, c.width, c.height);
+    const d = g.getImageData(0, 0, c.width, c.height);
+    for (let i = 3; i < d.data.length; i += 4) d.data[i] = 255;
+    g.putImageData(d, 0, 0);
+    return c;
+  };
+  const photos = await Promise.all(['marigold.jpg', 'himalaya.jpg'].map(load));
+  const W = 540,
+    H = 675;
+  const radial = { ...newPart('radial'), x: 0.5, y: 0.5, rx: 0.25, ry: 0.25 };
+  const label = { ...L.newShape('rect'), x: 0.5, y: 0.85, w: 0.6, h: 0.12, fill: '#ffffff', stroke: '', text: '', opacity: 0.8, blend: 'multiply' as const };
+  const cases: { e: import('../engine/instagram').IgEdit; layers: import('../engine/layers').Layer[] }[] = [
+    { e: { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, look: 'warm', exposure: 0.3, shadows: 30, curve: { ...DEFAULT_ADJUST.curve, rgb: [[0, 0], [0.3, 0.25], [0.7, 0.78], [1, 1]] } } }, layers: [] },
+    {
+      e: {
+        ...DEFAULT_EDIT,
+        fit: 'fit',
+        bg: '#204060',
+        rot: 90,
+        flip: true,
+        adjust: { ...DEFAULT_ADJUST, vignette: 40, mixer: { ...DEFAULT_ADJUST.mixer, sat: [30, 30, 0, -40, 0, 20, 0, 0] } },
+        masks: [{ id: 'm1', name: 'Spot', on: true, invert: false, parts: [radial], adjust: { ...DEFAULT_ADJUST, exposure: -1 } }],
+      },
+      layers: [label],
+    },
+    { e: { ...DEFAULT_EDIT, zoom: 1.6, px: 0.4, adjust: { ...DEFAULT_ADJUST, clarity: 30, sharpen: 40, temperature: 25 } }, layers: [] },
+  ];
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  let max = 0,
+    sum = 0,
+    count = 0,
+    frames = 0,
+    where = '';
+  for (const [pi, img] of photos.entries()) {
+    const sample = img;
+    for (const [ci, k] of cases.entries()) {
+      x.fillStyle = '#ffffff';
+      x.fillRect(0, 0, W, H);
+      renderIg(x, img, img.width, img.height, k.e, W, H);
+      L.drawLayers(x, k.layers, W, H);
+      const flat = x.getImageData(0, 0, W, H).data;
+      const deep = await renderDeepPost({ img, w: img.width, h: img.height, sample, e: k.e, layers: k.layers, W, H });
+      frames++;
+      // Away from the photo's edges (where antialiasing differs by method), every pixel within a few levels.
+      const place = photoPlace(img.width, img.height, k.e, W, H);
+      for (let y = 0; y < H; y++)
+        for (let xx = 0; xx < W; xx++) {
+          const [u, v] = frameToPhoto(place, xx + 0.5, y + 0.5);
+          if (Math.abs(u * place.w) < 2.5 || Math.abs((1 - u) * place.w) < 2.5 || Math.abs(v * place.h) < 2.5 || Math.abs((1 - v) * place.h) < 2.5) continue;
+          for (let ch = 0; ch < 3; ch++) {
+            const d = Math.abs(deep[(y * W + xx) * 3 + ch] / 257 - flat[(y * W + xx) * 4 + ch]);
+            sum += d;
+            count++;
+            if (d > max) {
+              max = d;
+              where = `photo ${pi} case ${ci} at ${xx},${y}`;
+            }
+          }
+        }
+    }
+  }
+  // Precision: a dark ramp (the bottom 4 % of the range, as a RAW holds shadows) pushed three stops.
+  const N = 1080,
+    ramp = new Float32Array(N * 4 * 3);
+  for (let y = 0; y < 4; y++) for (let i = 0; i < N; i++) ramp.fill((i / (N - 1)) * 0.04, (y * N + i) * 3, (y * N + i) * 3 + 3);
+  const rc = document.createElement('canvas');
+  rc.width = N;
+  rc.height = 4;
+  const rx = rc.getContext('2d', { willReadFrequently: true })!;
+  const id = rx.createImageData(N, 4);
+  const { encodeSrgb } = await import('../engine/raw');
+  for (let i = 0; i < N * 4; i++) {
+    id.data.fill(Math.round(encodeSrgb(ramp[i * 3]) * 255), i * 4, i * 4 + 3);
+    id.data[i * 4 + 3] = 255;
+  }
+  rx.putImageData(id, 0, 0);
+  const push = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, exposure: 3 } };
+  const deepRamp = await renderDeepPost({ img: rc, w: N, h: 4, deep: { w: N, h: 4, rgb: ramp }, sample: rc, e: push, layers: [], W: N, H: 4 });
+  const flatRamp = await renderDeepPost({ img: rc, w: N, h: 4, sample: rc, e: push, layers: [], W: N, H: 4 });
+  const tones = (a: Uint16Array) => new Set(Array.from({ length: N }, (_, i) => a[(N + i) * 3 + 1])).size;
+  closeGpu();
+  return { max, mean: sum / count, frames, levels: [tones(deepRamp), tones(flatRamp)], where };
 }
 
 /**

@@ -218,6 +218,16 @@ export function openWebGL2(): GpuDevice | null {
       if (tmp) device.release(tmp);
       return out;
     },
+    floatTargets,
+    async readFloat(tex) {
+      const t = tex as GlTex;
+      if (!t.float) return Float32Array.from(await device.read(tex), (v) => v / 255);
+      // EXT_color_buffer_float lets a float framebuffer be read as floats.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo(t));
+      const out = new Float32Array(t.width * t.height * 4);
+      gl.readPixels(0, 0, t.width, t.height, gl.RGBA, gl.FLOAT, out);
+      return out;
+    },
     release(tex) {
       const t = tex as GlTex;
       if (t.fbo) gl.deleteFramebuffer(t.fbo);

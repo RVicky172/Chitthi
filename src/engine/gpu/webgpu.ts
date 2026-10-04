@@ -33,6 +33,16 @@ const shader = (p: GpuProgram, premultiply: boolean) =>
   return ${premultiply ? 'vec4f(c.rgb * c.a, c.a)' : 'c'};
 }`;
 
+/** 16-bit float bits to numbers (reading rgba16float textures back). */
+export function fromHalf(h: number): number {
+  const s = h & 0x8000 ? -1 : 1,
+    e = (h >>> 10) & 0x1f,
+    m = h & 0x3ff;
+  if (e === 0) return s * m * 2 ** -24;
+  if (e === 0x1f) return m ? NaN : s * Infinity;
+  return s * (1 + m / 1024) * 2 ** (e - 15);
+}
+
 /** 32-bit floats to 16-bit float bits, rounded to nearest even (rgba16float takes no other input). */
 export function toHalf(src: Float32Array): Uint16Array {
   const f = new Float32Array(1),
@@ -260,6 +270,24 @@ export async function openWebGPU(): Promise<GpuDevice | null> {
       buf.unmap();
       buf.destroy();
       if (tmp) device.release(tmp);
+      return out;
+    },
+    floatTargets: true,
+    async readFloat(tex) {
+      const t = tex as WgTex;
+      if (t.format !== 'rgba16float') return Float32Array.from(await device.read(tex), (v) => v / 255);
+      const row = Math.ceil((t.width * 8) / 256) * 256;
+      const buf = dev.createBuffer({ size: row * t.height, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+      const enc = dev.createCommandEncoder();
+      enc.copyTextureToBuffer({ texture: t.tex }, { buffer: buf, bytesPerRow: row }, [t.width, t.height]);
+      dev.queue.submit([enc.finish()]);
+      await buf.mapAsync(GPUMapMode.READ);
+      const src = new Uint16Array(buf.getMappedRange());
+      const out = new Float32Array(t.width * t.height * 4);
+      for (let y = 0; y < t.height; y++)
+        for (let x = 0; x < t.width * 4; x++) out[y * t.width * 4 + x] = fromHalf(src[(y * row) / 2 + x]);
+      buf.unmap();
+      buf.destroy();
       return out;
     },
     release(tex) {

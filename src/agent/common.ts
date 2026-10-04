@@ -1,3 +1,5 @@
+import { isRawName } from '../engine/raw';
+
 /*
  * Shared by the agent tool registries (tools.ts for print designs, photoTools.ts for the photo studio): the tool shape,
  * JSON Schema helpers, argument readers and the error type whose message goes back to the agent.
@@ -40,8 +42,8 @@ export class ToolError extends Error {}
 export const toBlob = (cv: HTMLCanvasElement, type = 'image/png', q?: number) =>
   new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new ToolError('The image couldn’t be made.'))), type, q));
 
-/** An image the agent names by local path (desktop) or https URL, checked to be JPG, PNG or WebP. */
-export async function fetchImage(a: Record<string, unknown>, env: AgentEnv): Promise<{ name: string; blob: Blob }> {
+/** An image the agent names by local path (desktop) or https URL, checked to be JPG, PNG or WebP (or camera RAW, with `raw`). */
+export async function fetchImage(a: Record<string, unknown>, env: AgentEnv, opts: { raw?: boolean } = {}): Promise<{ name: string; blob: Blob }> {
   let blob: Blob, name: string;
   if (typeof a.path === 'string' && a.path) {
     if (!env.readPhoto) throw new ToolError('Local files can be added in the desktop app only.');
@@ -54,6 +56,7 @@ export async function fetchImage(a: Record<string, unknown>, env: AgentEnv): Pro
     blob = await r.blob();
     name = s(a.name) || decodeURIComponent(a.url.split('/').pop() ?? 'photo').slice(0, 60);
   } else throw new ToolError('Give a local file path or an https URL.');
-  if (!/^image\/(jpeg|png|webp)$/.test(blob.type)) throw new ToolError('Only JPG, PNG or WebP images can be used.');
+  if (opts.raw && (blob.type === 'image/x-raw' || isRawName(name))) return { name, blob };
+  if (!/^image\/(jpeg|png|webp)$/.test(blob.type)) throw new ToolError(opts.raw ? 'Only JPG, PNG, WebP or camera RAW photos can be used.' : 'Only JPG, PNG or WebP images can be used.');
   return { name, blob };
 }

@@ -110,9 +110,9 @@ overwrite a saved design, as `delete_preset` does to delete a preset. Tools that
 | | `open_saved` | Open one |
 | | `save_design` | Save (copy, or overwrite with `confirm`) |
 | Photo studio | `get_photo_batch` | Post format, file type, and each photo's id, framing, changed settings, masks |
-| | `add_batch_photo` | A JPG / PNG / WebP from a local path or an https URL into the batch (up to 20) |
+| | `add_batch_photo` | A JPG / PNG / WebP or camera RAW (developed in 16 bits by LibRaw) from a local path or an https URL into the batch (up to 20) |
 | | `remove_batch_photo` | One photo, or all |
-| | `set_photo_options` | Post format (4:5, 1:1, 3:4, 1.91:1, 9:16), file type, quality, batch limit |
+| | `set_photo_options` | Post format (4:5, 1:1, 3:4, 1.91:1, 9:16), file type (JPEG, PNG, WebP, AVIF, 16-bit TIFF where the app can write it), quality, batch limit |
 | | `frame_photo` | Fill or fit (with a colour or blurred background), zoom, position, turn, mirror |
 | Colour | `adjust_photo` | Look, light, white balance, tone curve, colour mixer, detail, effects, vignette, LUT; one photo or `all` |
 | | `white_balance_from_point` | The eyedropper: neutral grey at a point of the frame |
@@ -171,7 +171,8 @@ MCP client ──stdio──► relay (Electron binary in Node mode, electron/mc
   browser `Origin` or a non-loopback `Host` refused (DNS rebinding), 5 MB request limit. Live mode is off by default
   and stops when turned off or when Chitthi closes.
 - No tool returns API keys. AI tools use the keys the user saved in Settings, through the main process.
-- Files are written only to the agent output folder; photos are read only if they are JPG / PNG / WebP under 25 MB.
+- Files are written only to the agent output folder; photos are read only if they are JPG / PNG / WebP under 25 MB, or
+  camera RAW files under 300 MB.
   LUTs and preset files are passed as text, so no other file can be read by path.
 - Overwriting a saved design needs `confirm: true`.
 

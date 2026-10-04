@@ -121,7 +121,7 @@ Do this in the same pull request that adds the dependency.
 | Package | Licence | How its terms are met | Approved |
 | --- | --- | --- | --- |
 | [Mediabunny](https://mediabunny.dev) | MPL-2.0 | Used unmodified from npm, loaded with `import()` on export; source linked in THIRD_PARTY_NOTICES.md. If we ever patch it, the patched files are published under MPL 2.0 | Already in use (2.7.0) |
-| [LibRaw](https://www.libraw.org) | LGPL-2.1 or CDDL-1.0 | For RAW photos on desktop (P1.9): a separate helper program or shared library, unmodified, never in the web bundle, shipped with its licence texts and a link to its exact source. Not an npm package, so it is checked with the release's native files rather than by `check-licenses.mjs` | Approved 4 October 2026 (work starts with P1.9) |
+| [LibRaw](https://www.libraw.org) 0.22.2 | LGPL-2.1 or CDDL-1.0 | RAW photos on desktop (P1.9): LibRaw's own `dcraw_emu` program (with `libraw.dll` on Windows), unmodified, started by the main process as a separate program, never in the web bundle. `scripts/fetch-libraw.mjs` takes LibRaw's official Windows and Apple silicon builds and builds the Intel Mac copy from the source release with LibRaw's own configure script; every archive is checked by SHA-256. Each copy ships in `resources/libraw` with LICENSE.LGPL, LICENSE.CDDL, COPYRIGHT and SOURCE.txt (the exact source archive and how the copy was made); users may replace it. Not an npm package, so `check-licenses.mjs` doesn't see it | Approved 4 October 2026; shipped with P1.9 |
 
 ## Register
 
@@ -143,7 +143,7 @@ Candidates named in the editor roadmap, to be checked again when each is actuall
 
 | Component | Phase | Licence (as published) | Status | Notes |
 | --- | --- | --- | --- | --- |
-| LibRaw | 1 (desktop) | LGPL 2.1 or CDDL 1.0 | Exception approved (see above) | Separate shared library / helper program, unmodified, source linked |
+| LibRaw | 1 (desktop) | LGPL 2.1 or CDDL 1.0 | Shipped (exception above) | `dcraw_emu` as a separate program, unmodified, source linked |
 | MediaPipe Tasks Vision (`@mediapipe/tasks-vision`) | 1 | Apache 2.0 (code) | Not used | Its models are people-only (and a few objects); P1.8 uses the U²-Net models above |
 | AVIF encoder (libavif / libaom, WASM) | 1 | BSD-2-Clause | Allowed | Only if canvas can't export AVIF |
 | Speech-to-text model for captions | 3 | Depends on model | To check | Weights and runtime licensed separately |

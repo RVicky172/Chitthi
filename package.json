@@ -30,6 +30,7 @@
     "build:lib": "node node_modules/typescript-native/bin/tsc -p tsconfig.lib.json && node scripts/flatten-css.mjs",
     "fetch:samples": "node scripts/fetch-samples.mjs",
     "fetch:fonts": "node scripts/fetch-fonts.mjs",
+    "fetch:libraw": "node scripts/fetch-libraw.mjs",
     "fetch:showcase": "node scripts/fetch-showcase.mjs",
     "fetch:print-samples": "node scripts/fetch-print-samples.mjs",
     "build:showcase": "node scripts/build-showcase.mjs",

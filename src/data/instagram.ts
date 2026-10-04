@@ -50,6 +50,7 @@ export const IG_FILE_TYPES: [IgFileType, string, string][] = [
   ['png', 'PNG', 'Lossless; Instagram converts it to JPEG on upload'],
   ['webp', 'WebP', 'Smaller than JPEG at the same quality, for websites and messages; post JPEG to Instagram'],
   ['avif', 'AVIF', 'The smallest files, for websites; post JPEG to Instagram'],
+  ['tiff', 'TIFF (16-bit)', 'For printing and further editing: 16 bits per channel, the full precision of a RAW file; large files, not for Instagram'],
 ];
 /** Above this a photo may be refused by some upload paths (Instagram's publishing API allows 8 MB). */
 export const IG_FILE_WARN_BYTES = 8 * 1024 * 1024;

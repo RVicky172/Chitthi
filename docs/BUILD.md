@@ -32,6 +32,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` and a flattened `dist-lib/styles.css` (`scripts/flatten-css.mjs`) for the design-system sync (`src/index.ts`) |
 | `npm run fetch:samples` | Downloads the gallery sample photos from Pexels into `public/samples/` with credits (needs the key) |
 | `npm run fetch:fonts` | Downloads every card and UI font into `electron/resources/fonts/` for the offline desktop app |
+| `npm run fetch:libraw` | Downloads LibRaw's RAW developer into `electron/resources/libraw/<platform>-<arch>/` (official Windows and Apple silicon builds; on macOS also builds the Intel copy from source), each checked by SHA-256. Needed for RAW photos in the desktop app and by `npm run test:mcp` |
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |
 | `npm run fetch:showcase` | Downloads the landing page example photos from Pexels into `showcase-src/` (needs the key) |
 | `npm run build:showcase` | With `npm run dev` running: renders the landing examples (`src/data/showcase.ts`) into `public/showcase/*.webp` and `src/data/showcase.json`, using Electron |
@@ -98,13 +99,14 @@ The desktop app is the same `dist/` inside Electron ([DESKTOP.md](DESKTOP.md) ha
 - `electron/preload.cjs` exposes `window.chitthiDesktop`, the only bridge from the sandboxed page. The web code
   detects it (`src/platform/desktop.ts`) and switches storage, downloads and menus.
 - `electron-builder.yml` packages `dist/`, the `electron/` scripts and `package.json`, flips the Electron fuses, adds
-  `electron/resources/fonts` as `fonts/`, and builds an NSIS installer (Windows x64) and DMG + ZIP (macOS x64 and
+  `electron/resources/fonts` as `fonts/` and the platform's LibRaw as `libraw/`, and builds an NSIS installer (Windows x64) and DMG + ZIP (macOS x64 and
   arm64). The ZIPs and `latest*.yml` files feed the auto-updater.
 
 Local installers:
 
 ```bash
 npm run fetch:fonts      # once; the fonts folder is gitignored
+npm run fetch:libraw     # once; LibRaw for RAW photos (gitignored too)
 npm run desktop:dist     # release/Chitthi-Studio-Setup-<version>-x64.exe or Chitthi-Studio-<version>-<arch>.dmg
 ```
 
@@ -115,7 +117,7 @@ flowchart LR
   A[Bump version in package.json<br/>and APP_CACHE in sw.js] --> B[Commit and push]
   B --> C[git tag vX.Y.Z<br/>git push origin vX.Y.Z]
   C --> D[GitHub Actions: desktop-release.yml]
-  D --> E[windows-latest: npm ci, fetch:fonts,<br/>build, electron-builder --win]
+  D --> E[windows-latest: npm ci, fetch:fonts, fetch:libraw,<br/>build, electron-builder --win]
   D --> F[macos-latest: same with --mac]
   E --> G[release job: one GitHub Release<br/>with all installers + latest*.yml]
   F --> G

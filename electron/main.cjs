@@ -491,6 +491,7 @@ function checkForUpdates(manual) {
 /* ------------------------------------------------------------------ lifecycle */
 
 const { registerAi } = require('./ai.cjs');
+const { registerRaw } = require('./raw.cjs');
 const agent = require('./mcp.cjs');
 
 if (MCP_MODE) {
@@ -501,6 +502,7 @@ if (MCP_MODE) {
     registerStorage();
     registerFiles();
     registerAi();
+    registerRaw();
     try {
       await agent.startHeadless({ url: `${DEV_URL || `${ORIGIN}/index.html`}?agent`, preload: path.join(__dirname, 'preload.cjs') });
     } catch (e) {
@@ -535,6 +537,7 @@ if (MCP_MODE) {
     registerStorage();
     registerFiles();
     registerAi();
+    registerRaw();
     // Live agent connection (Settings → AI): drives this window when turned on.
     agent.registerAgentIpc(() => (win ? win.webContents : null));
     menu();

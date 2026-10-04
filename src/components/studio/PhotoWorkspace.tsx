@@ -33,6 +33,7 @@ import {
   type RadialPart,
 } from '../../engine/masks';
 import { MAX_MB } from '../../engine/photo';
+import { RAW_EXTS } from '../../engine/raw';
 import { encodableTypes, PHOTO_TYPES } from '../../engine/photoExport';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
@@ -384,12 +385,15 @@ function EmptyStage({ onAdd }: { onAdd: () => void }) {
       <label className="btn primary mst-file">
         <AddPhotoIcon />
         Add photos
-        <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => void addPhotos([...(e.target.files ?? [])].map((f) => ({ name: f.name, blob: f, type: f.type }))).then((m) => (setMsgs(m), onAdd()))} />
+        <input type="file" accept={PHOTO_ACCEPT} multiple onChange={(e) => void addPhotos([...(e.target.files ?? [])].map((f) => ({ name: f.name, blob: f, type: f.type }))).then((m) => (setMsgs(m), onAdd()))} />
       </label>
       {msgs.length > 0 && <p className="hint bad">{msgs[0]}</p>}
     </div>
   );
 }
+
+/** Photos the file pickers offer: the web image types, and camera RAW files (developed in the desktop app, P1.9). */
+const PHOTO_ACCEPT = ['image/jpeg', 'image/png', 'image/webp', ...RAW_EXTS.map((e) => `.${e}`)].join(',');
 
 function MediaPanel() {
   const items = useIg((s) => s.items),
@@ -415,8 +419,8 @@ function MediaPanel() {
           <span>
             <b>Choose photos</b> or drop them here
           </span>
-          <small>JPG, PNG or WebP up to {MAX_MB} MB</small>
-          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => void add(e.target.files).then(() => (e.target.value = ''))} />
+          <small>JPG, PNG or WebP up to {MAX_MB} MB; camera RAW {isDesktop ? 'in 16 bits' : '(its built-in preview)'}</small>
+          <input type="file" accept={PHOTO_ACCEPT} multiple onChange={(e) => void add(e.target.files).then(() => (e.target.value = ''))} />
         </label>
         {msgs.length > 0 && (
           <ul className="msgs" role="alert">
@@ -860,7 +864,7 @@ function PhotoStrip() {
             <label title="Add photos">
               <AddPhotoIcon />
               <span className="vh">Add photos</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => void addPhotos([...(e.target.files ?? [])].map((f) => ({ name: f.name, blob: f, type: f.type }))).then((m) => ((e.target.value = ''), m[0] && toast(m[0])))} />
+              <input type="file" accept={PHOTO_ACCEPT} multiple onChange={(e) => void addPhotos([...(e.target.files ?? [])].map((f) => ({ name: f.name, blob: f, type: f.type }))).then((m) => ((e.target.value = ''), m[0] && toast(m[0])))} />
             </label>
           </li>
         )}

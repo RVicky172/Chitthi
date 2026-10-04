@@ -23,6 +23,8 @@ function fakeDevice() {
       throw new Error('not in tests');
     },
     read: async () => new Uint8ClampedArray(),
+    floatTargets: true,
+    readFloat: async () => new Float32Array(),
     release: (t) => void released.push(t),
     destroy: () => {},
   };
@@ -152,5 +154,19 @@ describe('detail nodes and branching graphs', () => {
         { program: COPY_PROGRAM, uniforms: new Float32Array(4) },
       ]),
     ).toThrow(/comes after/);
+  });
+});
+
+describe('deep (16-bit) nodes', () => {
+  const a = { ...DEFAULT_ADJUST, look: 'warm' as const, exposure: 0.5, sharpen: 40 };
+  it('leave every colour step unrounded', () => {
+    const shallow = colourNodes(a),
+      deep = colourNodes(a, true);
+    expect(shallow.at(-1)!.uniforms[8]).toBe(0);
+    expect(deep.at(-1)!.uniforms[8]).toBe(1);
+  });
+  it('leave the last detail step unrounded', () => {
+    expect(detailNodes(a, 1080, 1350, 0).at(-1)!.uniforms[4]).toBe(1);
+    expect(detailNodes(a, 1080, 1350, 0, true).at(-1)!.uniforms[4]).toBe(0);
   });
 });

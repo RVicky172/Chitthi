@@ -1,4 +1,5 @@
 import type { LookId, Photo, PhotoMeta } from '../types';
+import { isRawName, RAW_MAX_MB } from './raw';
 
 export const MAX_MB = 25;
 export const MAX_PHOTOS = 4;
@@ -7,12 +8,14 @@ export const maxPhotos = (product: string): number => (product === 'calendar' ? 
 const MAX_PIXELS = 16e6; // stays under mobile Safari's canvas limit
 
 /** Returns a user-facing reason when a file can't be used, or null when it's fine. */
-export function checkFile(f: File): string | null {
+/** `raw`: camera RAW files are welcome (the photo studio, P1.9); elsewhere they are refused like any unknown type. */
+export function checkFile(f: File, opts: { raw?: boolean } = {}): string | null {
   const ext = (f.name.includes('.') ? (f.name.split('.').pop() ?? '') : '').toLowerCase();
   const type = (f.type || '').toLowerCase();
   if (/heic|heif/.test(type) || ext === 'heic' || ext === 'heif')
     return `${f.name}: HEIC photos from iPhone can’t be opened in the browser. Save it as JPG (Share › Save as JPEG, or set Settings › Camera › Formats › Most Compatible).`;
   if (ext === 'tif' || ext === 'tiff' || type.includes('tiff')) return `${f.name}: TIFF isn’t supported. Save it as JPG or PNG.`;
+  if (opts.raw && isRawName(f.name)) return f.size > RAW_MAX_MB * 1048576 ? `${f.name} is over ${RAW_MAX_MB} MB.` : f.size ? null : `${f.name} is empty. Choose the file again.`;
   if (ext === 'gif' || type === 'image/gif') return `${f.name}: GIF images are too low in quality for printing. Use JPG or PNG.`;
   if (ext === 'bmp' || type.includes('bmp')) return `${f.name}: BMP isn’t supported. Save it as JPG or PNG.`;
   if (ext === 'svg' || type.includes('svg')) return `${f.name}: SVG drawings can’t be used as photos. Export it as PNG.`;

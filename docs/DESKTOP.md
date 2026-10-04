@@ -11,6 +11,7 @@ offline: fonts and sample photos ship inside the app.
 | Downloads | Browser download | Native **Save as…** dialog |
 | Fonts | Google Fonts | Bundled offline (`npm run fetch:fonts`) |
 | Offline | Service worker | Always offline |
+| RAW photos | The camera's built-in JPEG preview | Developed in 16 bits by LibRaw (a separate program in `resources/libraw`) |
 | Extras | — | Native menus, `.chitthi` design files, auto-updates, **Performance monitor with real CPU and memory per process** (View → Performance monitor), **MCP server for AI agents** (`Chitthi --mcp`, or live from Settings → AI; see [MCP.md](MCP.md)) |
 | Pexels photo search | Your key in Settings, or the dev/preview server's key | Your key in **File → Settings** (`Ctrl+,`), kept in the app only |
 | AI services | Those that allow browser calls (see [AI.md](AI.md)); keys in the browser | Every service, including Black Forest Labs, Replicate and Ideogram. Requests run in the main process; keys are encrypted with the OS (`safeStorage`) in `ai-keys.json` beside the library folder and never reach the page |
@@ -35,6 +36,7 @@ Chitthi window without disturbing it, and quits when the agent disconnects.
 ```sh
 npm install
 npm run fetch:fonts     # once: downloads the offline fonts into electron/resources/fonts (gitignored)
+npm run fetch:libraw    # once: LibRaw's RAW developer into electron/resources/libraw (gitignored)
 npm run desktop:dev     # Vite dev server + Electron with hot reload
 npm run desktop:start   # production build in Electron, as users get it
 ```

@@ -9,9 +9,10 @@ const browser =
 const cv = {} as HTMLCanvasElement;
 
 describe('photo export types', () => {
-  it('cover JPEG, PNG, WebP and AVIF, each with its own type and extension', () => {
-    expect(PHOTO_TYPE_IDS).toEqual(['jpeg', 'png', 'webp', 'avif']);
-    expect(new Set(PHOTO_TYPE_IDS.map((t) => PHOTO_TYPES[t].ext)).size).toBe(4);
+  it('cover JPEG, PNG, WebP, AVIF and 16-bit TIFF, each with its own type and extension', () => {
+    expect(PHOTO_TYPE_IDS).toEqual(['jpeg', 'png', 'webp', 'avif', 'tiff']);
+    expect(PHOTO_TYPES.tiff.lossy).toBe(false);
+    expect(new Set(PHOTO_TYPE_IDS.map((t) => PHOTO_TYPES[t].ext)).size).toBe(5);
     expect(PHOTO_TYPES.png.lossy).toBe(false);
     expect([isPhotoType('webp'), isPhotoType('gif'), isPhotoType(3)]).toEqual([true, false, false]);
   });

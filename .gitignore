@@ -20,6 +20,7 @@ ds-bundle/
 
 # desktop build
 electron/resources/fonts/
+electron/resources/libraw/
 release/
 
 # print samples for the print shop (npm run fetch:print-samples / build:print-samples)

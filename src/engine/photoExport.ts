@@ -1,10 +1,11 @@
 /*
- * Photo file types for export (P1.11): JPEG and PNG everywhere, WebP and AVIF where this browser can encode them.
+ * Photo file types for export (P1.11): JPEG and PNG everywhere, WebP and AVIF where this browser can encode them, and
+ * 16-bit TIFF (P1.9) where the graphics card can render in floats (written by engine/tiff.ts, not by a canvas).
  * canvas.toBlob() quietly falls back to PNG for a type it can't write, so support is found by encoding a tiny picture
  * and looking at what comes back, once per type, and every export checks the type it got.
  */
 
-export type PhotoType = 'jpeg' | 'png' | 'webp' | 'avif';
+export type PhotoType = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff';
 
 export interface PhotoTypeDef {
   mime: string;
@@ -19,6 +20,7 @@ export const PHOTO_TYPES: Record<PhotoType, PhotoTypeDef> = {
   png: { mime: 'image/png', ext: 'png', label: 'PNG', lossy: false },
   webp: { mime: 'image/webp', ext: 'webp', label: 'WebP', lossy: true },
   avif: { mime: 'image/avif', ext: 'avif', label: 'AVIF', lossy: true },
+  tiff: { mime: 'image/tiff', ext: 'tif', label: 'TIFF (16-bit)', lossy: false },
 };
 export const PHOTO_TYPE_IDS = Object.keys(PHOTO_TYPES) as PhotoType[];
 
@@ -37,6 +39,7 @@ const probes = new Map<PhotoType, Promise<boolean>>();
 /** True when this browser writes this type (JPEG and PNG always do). The encoder is for tests. */
 export function canEncode(type: PhotoType, encode?: Encoder): Promise<boolean> {
   if (type === 'jpeg' || type === 'png') return Promise.resolve(true);
+  if (type === 'tiff') return import('./deep').then((m) => m.deepSupported()).catch(() => false);
   if (encode) return encode(PHOTO_TYPES[type].mime, 0.8).then((b) => b?.type === PHOTO_TYPES[type].mime);
   let p = probes.get(type);
   if (!p) {

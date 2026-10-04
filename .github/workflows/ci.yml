@@ -30,6 +30,8 @@ jobs:
       - run: npm run build
       - run: npm run test:unit
       - run: npm test
+      # The MCP smoke test develops a synthetic DNG with LibRaw (scripts/fetch-libraw.mjs).
+      - run: npm run fetch:libraw
       - run: npm run test:mcp
       - name: Browser tests and accessibility check
         run: |

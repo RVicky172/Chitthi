@@ -31,6 +31,10 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Photo editor: **AI masks**. **Find: Subject, Background, Sky** makes a mask from what an AI model finds in the
   photo, on the device (photos never leave it); paint over it to refine it. The subject model ships with the app; the
   sky model (176 MB) is downloaded once, only after you agree, and kept on the device.
+- Photo editor: **camera RAW files** (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 and more). The desktop app develops them
+  with LibRaw in 16 bits; the web app opens the JPEG preview stored in the file.
+- Photo editor: export as **TIFF (16-bit)**, keeping a RAW file's precision through every edit, wherever the graphics
+  card can render in floats.
 - MCP: 22 tools for the photo studio, so agents can add photos, frame them, set every colour setting (one photo or
   all), set the white balance from a point, add and shape masks, apply, save, export and import presets, import LUTs,
   look at a preview (with a mask shown) and export the batch; AI masks too (`find_with_ai` asks before the sky

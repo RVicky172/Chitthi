@@ -34,6 +34,7 @@ const {
 
 const CALL_TIMEOUT_MS = 10 * 60 * 1000; // exports and AI pictures can take a while
 const PHOTO_MAX = 25 * 1024 * 1024;
+const { RAW_EXTS, RAW_MAX } = require('./raw.cjs');
 const PHOTO_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 
 const outDir = () => path.join(app.getPath('documents'), 'Chitthi agent output');
@@ -86,10 +87,13 @@ function registerAgentIpc(getLiveContents) {
     // Reading a photo by path is for agents only: refused unless an agent can be connected (headless or live).
     if (!headless && !live) throw new Error('Photos can be added by path only while an agent is connected.');
     const file = path.resolve(String(p || ''));
-    const type = PHOTO_TYPES[path.extname(file).toLowerCase()];
-    if (!type) throw new Error('Only JPG, PNG or WebP photos can be added.');
+    const ext = path.extname(file).toLowerCase(),
+      raw = RAW_EXTS.has(ext),
+      type = raw ? 'image/x-raw' : PHOTO_TYPES[ext];
+    if (!type) throw new Error('Only JPG, PNG, WebP or camera RAW photos can be added.');
     const st = await fsp.stat(file);
-    if (!st.isFile() || st.size > PHOTO_MAX) throw new Error('That photo is missing or larger than 25 MB.');
+    const max = raw ? RAW_MAX : PHOTO_MAX;
+    if (!st.isFile() || st.size > max) throw new Error(`That photo is missing or larger than ${max / 1048576} MB.`);
     const buf = await fsp.readFile(file);
     return { name: path.basename(file), data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length), type };
   });
