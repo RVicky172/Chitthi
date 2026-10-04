@@ -6,9 +6,9 @@
 
 **Your photos, made into postcards, calendars and prints, Instagram posts, Reels and YouTube videos.**
 
-Indian festival, birthday and season themes · print-ready PDFs with bleed and crop marks · Instagram photos with text,
-stickers and drawings · a video editor for Reels and vlogs · runs entirely on your device, in the browser or as a
-desktop app
+Indian festival, birthday and season themes · print-ready PDFs with bleed and crop marks · a photo editor with curves,
+masks (AI too), presets and RAW · a video editor for Reels and vlogs · runs entirely on your device, in the browser or
+as a desktop app
 
 [![Release](https://img.shields.io/github/v/release/RVicky172/Chitthi?label=release)](https://github.com/RVicky172/Chitthi/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-7a4a2b)](LICENSE)
@@ -22,6 +22,7 @@ desktop app
 ## Contents
 
 [What it does](#what-it-does) · [Highlights](#highlights) · [Screenshots](#screenshots) · [Get started](#get-started) ·
+[Use cases](#use-cases) ·
 [Print studio](#print-studio) · [Photo & video studio](#photo--video-studio) · [AI writing and pictures](#ai-writing-and-pictures) ·
 [AI agents (MCP)](#ai-agents-mcp) · [Performance monitor](#performance-monitor) · [Keyboard shortcuts](#keyboard-shortcuts) ·
 [Web or desktop](#web-or-desktop) · [Requirements](#requirements) · [Privacy and security](#privacy-and-security) ·
@@ -36,14 +37,15 @@ paid tier.
 | Studio | Makes | You get |
 | --- | --- | --- |
 | **Print studio** | Postcards, calendars, framed prints, fridge magnets, matching envelopes | Print-shop PDFs with bleed and crop marks, 300 dpi PNGs, a print pack ZIP with specs and a quote request |
-| **Photo & video studio** | Instagram photos and carousels, Reels and Shorts, YouTube videos | 1080 px JPEG / PNG files or a ZIP; H.264 + AAC MP4 videos with fast start, up to 4K60 in the desktop app |
+| **Photo & video studio** | Instagram photos and carousels, Reels and Shorts, YouTube videos | 1080 px JPEG, PNG, WebP, AVIF or 16-bit TIFF files or a ZIP; H.264 + AAC MP4 videos with fast start, up to 4K60 in the desktop app |
 
 <p align="center">
   <img src="docs/screenshots/home-studios.webp" alt="The home page's two studios side by side: the print studio with a Jaipur postcard, and the photo & video studio with the photo editor's tone curve and colour mixer" width="900" />
 </p>
 
-It runs as a web app (installable, works offline) and as a desktop app for Windows and macOS. Version 2.8.0; what
-changed in each release is in the [CHANGELOG](CHANGELOG.md).
+It runs as a web app (installable, works offline) and as a desktop app for Windows and macOS. Version 2.8.0, with the
+advanced photo editor (2.10.0) in the [CHANGELOG](CHANGELOG.md)'s Unreleased section. The app has its own
+documentation too: **Docs** in the site menu (`#/docs`), for using it and for developers.
 
 ## Highlights
 
@@ -59,12 +61,17 @@ changed in each release is in the [CHANGELOG](CHANGELOG.md).
   each slot, auto-arranges them and centres crops on the subject. Free Pexels photos come with their credits.
 - **See it before you print.** 3D preview of every design and envelope, a print-colours soft proof, and a page with
   every paper size in 3D at true scale.
-- **Instagram, Reels and YouTube.** Batch up to 20 photos with text, shapes, stickers and drawings; edit Reels,
-  Shorts and vlogs on a timeline with music, and export MP4 files made on your device.
+- **An advanced photo editor.** Exposure, highlights, shadows and white balance in linear light; tone curves, a colour
+  mixer, sharpening, noise reduction, clarity and dehaze; presets and 3D LUTs; masks painted, drawn as gradients, picked
+  by colour or brightness, or **found by AI on your device** (subject, background, sky). All on the graphics card.
+- **RAW and 16 bits.** Camera RAW files developed by LibRaw in the desktop app, exported as 16-bit TIFFs that keep
+  their precision through every edit.
+- **Instagram, Reels and YouTube.** Batch up to 20 photos with text, shapes, stickers, drawings and image layers with
+  blend modes; edit Reels, Shorts and vlogs on a timeline with music, and export MP4 files made on your device.
 - **Optional AI, your own key.** Greetings, calendar captions and slot-shaped artwork from Claude, OpenAI, Gemini,
   a local Ollama and 12 more services, in 12 languages.
-- **Works with AI agents.** The desktop app is an MCP server with 34 tools; a Claude Code plugin adds six workflow
-  skills.
+- **Works with AI agents.** The desktop app is an MCP server with 56 tools for print designs and photo editing; a
+  Claude Code plugin adds six workflow skills.
 - **Private by design.** No account and no server: photos, designs and keys never leave the device.
 
 ## Screenshots
@@ -87,8 +94,12 @@ changed in each release is in the [CHANGELOG](CHANGELOG.md).
     <td><img src="docs/screenshots/perf-monitor.webp" alt="Studio with the performance monitor open: main thread load, input delay, frames, memory, photos and storage" /><br /><sub><b>Performance monitor</b>: CPU, memory and responsiveness, live</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/media-photo.webp" alt="Photo & video studio, Instagram photos: a batch of four photos, a bowl of Holi colours with the words Happy Holi and a party sticker, the shapes and stickers panel on the left and the sticker's settings on the right" /><br /><sub><b>Instagram photos</b>: a batch of up to 20 with text, shapes, stickers and drawings</sub></td>
+    <td><img src="docs/screenshots/media-photo.webp" alt="Photo & video studio, Instagram photos: a batch of four photos, a bowl of Holi colours with the words Happy Holi and a party sticker, the shapes, image and stickers panel on the left and the sticker's settings with its blend mode on the right" /><br /><sub><b>Instagram photos</b>: a batch of up to 20 with text, shapes, stickers, drawings and images</sub></td>
     <td><img src="docs/screenshots/media-video.webp" alt="Photo & video studio, YouTube video: the title 'A week in Odisha' over the Puri temple, a timeline with five clips, a text layer and a music track with its waveform" /><br /><sub><b>YouTube video</b>: clips, timed text and music on a timeline, exported as MP4</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/media-masks.webp" alt="Photo editor, Masks: the Puri temple found by AI as the subject and shown in red, with the mask's own exposure, temperature and clarity in the inspector" /><br /><sub><b>AI masks</b>: the subject, background or sky, found on your device</sub></td>
+    <td><img src="docs/screenshots/docs.webp" alt="The documentation page, Photo editor: a side list of pages for using Chitthi and for developers, and a table of Instagram formats" /><br /><sub><b>Documentation</b>: in the app, for using it and for developers</sub></td>
   </tr>
 </table>
 
@@ -114,7 +125,9 @@ changed in each release is in the [CHANGELOG](CHANGELOG.md).
 ```bash
 npm install
 npm run dev              # web app at http://localhost:5173
-npm run desktop:dev      # desktop app with hot reload (run `npm run fetch:fonts` once first)
+npm run fetch:fonts      # once, for the desktop app: offline fonts
+npm run fetch:libraw     # once, for the desktop app: LibRaw for RAW photos
+npm run desktop:dev      # desktop app with hot reload
 ```
 
 **Deploy the web app** (nginx, non-root, read-only file system):
@@ -130,6 +143,19 @@ rollback: [docs/OPERATIONS.md](docs/OPERATIONS.md); every script and the release
 **Free photo search** needs a free [Pexels](https://www.pexels.com/api/) API key, entered in **Settings** and kept on
 the device only. For development, put `PEXELS_API_KEY=…` in `.env.local` and the dev server proxies searches. Licence
 rules and a production proxy recipe: [docs/PEXELS.md](docs/PEXELS.md).
+
+## Use cases
+
+| You want to | Use |
+| --- | --- |
+| Send a festival card to family | Print studio: a postcard with an occasion theme, words in your language, a print pack for the shop |
+| Make a year calendar from your photos | Print studio: a calendar with festivals marked, a caption per month, a quote request for 50 copies |
+| Post a carousel from a trip | Photo editor: 20 photos, one preset applied to all, the sky darkened with an AI sky mask, shared to Instagram |
+| Edit RAW photos for print | Desktop app: develop the RAW, edit in 16 bits, export TIFFs for the lab |
+| Make a Reel or a vlog | Video editor: clips and photos with movement, timed text, music; MP4 made on your device |
+| Automate any of these | An AI agent over MCP: the same tools, from Claude Code or another client ([AI agents](#ai-agents-mcp)) |
+| Run it for your team or family | Self-host the web app with Docker ([Get started](#get-started)) |
+| Add a size, a theme or an AI service | They are data and small adapters ([docs/SPECIFICATIONS.md](docs/SPECIFICATIONS.md), [docs/AI.md](docs/AI.md)) |
 
 ## Print studio
 
@@ -194,13 +220,13 @@ It is an editor with a tool rail, a canvas stage, an inspector and a dock, in th
 
 | Mode | Makes | Formats |
 | --- | --- | --- |
-| **Instagram photos** | Up to 20 photos in one batch (presets 2, 4, 10), as JPEG or PNG files, a ZIP, or shared to the Instagram app with the caption copied | 4:5, 1:1, 3:4, 1.91:1, 9:16, all 1080 px wide |
+| **Instagram photos** | Up to 20 photos in one batch (presets 2, 4, 10), as JPEG, PNG, WebP, AVIF or 16-bit TIFF files, a ZIP, or shared to the Instagram app with the caption copied | 4:5, 1:1, 3:4, 1.91:1, 9:16, all 1080 px wide |
 | **Reels & Shorts** | A vertical MP4 from photos and clips, shared or downloaded | 9:16, 4:5, 1:1 |
 | **YouTube video** | A 16:9 vlog edited on a timeline and saved straight to a file | 1080p; 1440p and 4K in the desktop app |
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/media-editor.webp" alt="Photo editor: the Puri temple in the Hand-tinted look, with the photo inspector on the right showing fill or whole photo, zoom, rotate, mirror, the seven filters and the brightness, contrast, saturation, warmth and vignette sliders, and four photos in the strip below" /><br /><sub><b>Photo editor</b>: framing, six looks and five adjustments, then <i>Apply this look to all photos</i></sub></td>
+    <td width="50%"><img src="docs/screenshots/media-editor.webp" alt="Photo editor: the Puri temple at sunset with a warm look, lifted shadows and an S-shaped tone curve; the inspector shows the light, colour and tone curve sections, and four photos in the strip below" /><br /><sub><b>Photo editor</b>: light, colour, tone curve, colour mixer, detail, presets and LUTs</sub></td>
     <td width="50%"><img src="docs/screenshots/media-reel.webp" alt="Reels & Shorts editor: a vertical 9:16 frame of Holi colour bowls with the words Festival memories and a party sticker, the clip inspector with Zoom in movement selected, and a timeline with four clips, a sticker, a text layer and music" /><br /><sub><b>Reels & Shorts</b>: a 9:16 video with movement on photos, timed text and stickers, and music</sub></td>
   </tr>
 </table>
@@ -209,12 +235,26 @@ It is an editor with a tool rail, a canvas stage, an inspector and a dock, in th
 <summary><b>Editing photos</b></summary>
 
 - **The photo:** fill the frame or show the whole photo on a colour or blurred background; zoom, position, rotate,
-  mirror; six looks plus brightness, contrast, saturation, warmth and vignette. **Apply this look to all photos**
-  copies the look to the batch.
+  mirror. **Apply this look to all photos** copies the look to the batch.
+- **Light and colour:** exposure (±4 stops), contrast, highlights, shadows, whites and blacks in linear light;
+  temperature and tint with an eyedropper; saturation; a tone curve (RGB and per channel, keyboard too); a colour mixer
+  (hue, saturation and luminance for eight bands).
+- **Detail and effects:** sharpening with radius and edge masking, noise reduction, clarity, dehaze, vignette, grain.
+- **Presets and LUTs:** seven built-in looks; save your own (applied to one photo or the batch, exported as a file
+  that carries its LUTs); import `.cube` 3D LUTs with an amount.
+- **Masks:** brush (size, feather, flow, erase), linear and radial gradients with handles, colour and brightness
+  ranges, and **Subject, Background and Sky found by AI on your device**; parts combine by adding, subtracting or
+  intersecting, and each mask has its own light, colour and detail settings. The sky model (176 MB) downloads once,
+  only after you agree.
+- **RAW:** camera RAW files (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 …) are developed in 16 bits by LibRaw in the
+  desktop app; the web app opens the JPEG preview stored in them.
 - **Layers:** text (six one-tap styles, any of the 46 fonts or your own, outline, background, shadow); 11 shapes,
-  seven of which hold words; 40 emoji stickers; freehand drawings with pen, marker, highlighter and neon brushes.
-  Every layer can be dragged, resized, turned, nudged with the keys, faded, hidden, reordered, duplicated and deleted.
-  **Copy these layers to every photo** puts the same title on the whole batch.
+  seven of which hold words; 40 emoji stickers; freehand drawings with pen, marker, highlighter and neon brushes;
+  image layers for logos and textures. Every layer has a blend mode and can have a mask (a fade or a spot), and can be
+  dragged, resized, turned, nudged with the keys, faded, hidden, reordered, duplicated and deleted. **Copy these layers
+  to every photo** puts the same title on the whole batch.
+- **Export:** JPEG, PNG, WebP and AVIF (where the browser writes them), and **TIFF (16-bit)** where the graphics card
+  can render in floats; effects run on the graphics card (WebGPU or WebGL2) with the same pixels as the Canvas 2D path.
 - **Batch:** drag photos to reorder (the first is the cover), 80 steps of undo, caption and hashtag counters
   (2,200 characters, 30 hashtags), a warning for files over 8 MB.
 
@@ -267,11 +307,16 @@ your own account. Keys stay on your device: in browser storage on the web, encry
 desktop app, where the page can never read them back. Black Forest Labs, Replicate and Ideogram refuse browser calls,
 so they work in the desktop app only. Details: [docs/AI.md](docs/AI.md).
 
+**AI masks need no service at all:** the photo editor's subject and sky models run on your device (ONNX Runtime Web in
+a worker), with no key and no upload.
+
 ## AI agents (MCP)
 
-The desktop app is an [MCP](https://modelcontextprotocol.io) server with 34 tools, 5 workflow prompts and 5
-resources: an agent can create designs, write the words, find Pexels photos or create pictures, check print quality,
-render previews and export print packs, PDFs and quote requests. The tools cover the print studio.
+The desktop app is an [MCP](https://modelcontextprotocol.io) server with 56 tools, 5 workflow prompts and 5
+resources. For print (34 tools), an agent can create designs, write the words, find Pexels photos or create pictures,
+check print quality, render previews and export print packs, PDFs and quote requests. For the photo studio (22 tools),
+it can add photos (RAW too), set any colour setting on one photo or the whole batch, add masks (AI included), use and
+save presets and LUTs, look at previews and export, 16-bit TIFF included.
 
 In **Claude Code**, the plugin adds the server and six skills (festival postcard, year calendar, print quote, photo
 sourcing, AI artwork, print samples):
@@ -283,7 +328,8 @@ sourcing, AI artwork, print samples):
 
 When asked, give the app's path (Windows: `%LOCALAPPDATA%\Programs\Chitthi Studio\Chitthi Studio.exe`, macOS:
 `/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio`), then ask, for example, *"Make a Diwali postcard for
-my Nani in Hindi with a Pexels photo and export the print pack"*. Files go to **Documents/Chitthi agent output**.
+my Nani in Hindi with a Pexels photo and export the print pack"* or *"Add the photos in this folder, warm them up,
+darken the sky with a sky mask and export 4:5 JPEGs"*. Files go to **Documents/Chitthi agent output**.
 
 Other ways to connect:
 
@@ -351,6 +397,7 @@ Both are built from the same code and make the same files. The desktop app adds 
 | Saving | Browser downloads | Native **Save as…** dialogs, `.chitthi` files from the File menu |
 | Storage | IndexedDB in the browser | JSON files in the app's data folder (**File → Open library folder**) |
 | Video | Reels up to 90 s, YouTube up to 15 min at 1080p30 | Up to 3 hours, 4K, 60 fps, 50 GB files |
+| RAW photos | The JPEG preview stored in the file | Developed in 16 bits by LibRaw |
 | AI services | Those that allow browser calls | All, with keys encrypted by the OS |
 | Extras | — | MCP server, real CPU and memory in the performance monitor, native menus |
 
@@ -364,7 +411,8 @@ files. More: [docs/DESKTOP.md](docs/DESKTOP.md).
 | **Print studio** | Current Chrome, Edge, Firefox or Safari |
 | **Video editor (web)** | WebCodecs: Chrome or Edge 94+, Firefox 130+, Safari 26. Saving long videos straight to a file needs Chrome or Edge |
 | **Desktop app** | Windows 10 or later (x64), or macOS on Intel or Apple silicon |
-| **Photos** | JPG, PNG or WebP up to 25 MB. iPhone HEIC photos must be converted to JPG first |
+| **Photos** | JPG, PNG or WebP up to 25 MB; camera RAW up to 300 MB (full RAW in the desktop app). iPhone HEIC photos must be converted to JPG first |
+| **16-bit TIFF and fast effects** | A graphics card with WebGPU, or WebGL2 with float render targets (most computers from the last decade) |
 | **Building from source** | Node.js 20.19+ or 22.12+; Docker for the web image |
 
 ## Privacy and security
@@ -372,8 +420,9 @@ files. More: [docs/DESKTOP.md](docs/DESKTOP.md).
 - **Your data stays on your device.** Designs, the photo library, uploaded fonts, settings and AI keys are kept in
   IndexedDB and `localStorage` in the browser, or as files in the app's data folder on desktop. Nothing syncs between
   devices. Full policy: [PRIVACY.md](PRIVACY.md).
-- **The only network calls** are fonts (web), Pexels search, the AI service you chose, and update checks (desktop).
-  There are no accounts and no analytics.
+- **The only network calls** are fonts (web), Pexels search, the AI service you chose, the sky model for AI masks
+  (downloaded once from Hugging Face, only if you agree, and checked by SHA-256), and update checks (desktop). There
+  are no accounts and no analytics.
 - **Hardened by default:** a strict Content Security Policy on web and desktop; a sandboxed, context-isolated desktop
   renderer that accepts IPC only from its own page; Electron fuses locked; AI keys attached only for known hosts and
   never sent on redirects. Self-hosted deployments that use a custom AI service must add its host to `connect-src` in
@@ -392,6 +441,7 @@ reader; not yet tested end to end with screen readers): [docs/ACCESSIBILITY.md](
 | Document | Contents |
 | --- | --- |
 | **Using the app** | |
+| Docs in the app (`#/docs`) | Getting started, the print studio, the photo and video editors, AI, questions; for developers: agents, self-hosting, building and extending |
 | [MEDIA STUDIO](docs/MEDIA-STUDIO.md) | The photo & video studio: Instagram formats and limits with sources, layers, the timeline, Reels and YouTube export, browser vs desktop |
 | [SPECIFICATIONS](docs/SPECIFICATIONS.md) | Print specifications, where they live, adding sizes, layouts and products |
 | [Print quotes](docs/print-quote/README.md) | Ready-to-send specification and quote PDFs for printers |
@@ -420,24 +470,25 @@ reader; not yet tested end to end with screen readers): [docs/ACCESSIBILITY.md](
 
 ## Development
 
-**Tech stack:** React 19 and TypeScript (strict) on Vite; Canvas 2D for every preview and print file; jsPDF for PDFs;
-WebCodecs and [Mediabunny](https://mediabunny.dev) for video; Electron for the desktop app; nginx in Docker for the
-web. No backend. Why each piece: [docs/TECHNOLOGIES.md](docs/TECHNOLOGIES.md).
+**Tech stack:** React 19 and TypeScript (strict) on Vite; Canvas 2D for every print file and WebGPU / WebGL2 for photo
+effects; jsPDF for PDFs; WebCodecs and [Mediabunny](https://mediabunny.dev) for video; ONNX Runtime Web for AI masks;
+LibRaw for RAW photos (desktop); Electron for the desktop app; nginx in Docker for the web. No backend. Why each piece: [docs/TECHNOLOGIES.md](docs/TECHNOLOGIES.md).
 
 ```text
 src/
   main.tsx, App.tsx     Entry, screens (home, studio, sizes guide, paper sizes in 3D, photo & video studio), routing, shortcuts
   types.ts              Shared types (Design, Photo, Layout, SizeDef, …)
-  data/                 Specifications as data: products, sizes, layouts, themes, fonts, holidays, Instagram formats, layer shapes
-  engine/               Framework-free: print layout and rendering, photo processing, PDF / PNG / ZIP export, Instagram, layers, video and MP4 export
+  data/                 Specifications as data: products, sizes, layouts, themes, fonts, holidays, Instagram formats, presets, the in-app docs
+  engine/               Framework-free: print layout and rendering, PDF / PNG / ZIP export, the photo engine (light, curves, masks, LUTs,
+                        GPU pipeline, RAW, 16-bit render, TIFF), layers, video and MP4 export
   state/                Stores with undo/redo: print design (autosaved), photo batch, video project; photo slots and library
   lib/                  Storage, fonts, Pexels client, performance sampler, downloads, file streaming, ZIP, toasts, error log
-  ai/                   AI service, prompt templates, provider adapters (loaded on demand), keys, transport
+  ai/                   AI service, prompt templates, provider adapters (loaded on demand), keys, transport; segment/ = AI masks
   agent/                Agent tools, MCP prompts and resources, and the page side of the MCP bridge
   platform/             Desktop bridge and menu commands
   components/           React UI: pages, print studio panes, photo & video studio, dialogs, 3D views, menus, performance monitor
   styles.css, styles/   The stylesheet, split by feature (numbered files keep the cascade order)
-electron/               Desktop main process, preload bridge, IPC guard, AI requests and the MCP server
+electron/               Desktop main process, preload bridge, IPC guard, AI requests, the MCP server and the RAW developer
 plugins/chitthi/        Claude Code plugin: MCP server config and skills
 public/                 Service worker, manifest, icons, sample photos, landing renders
 nginx/                  Web server config, security headers and CSP
@@ -454,18 +505,21 @@ docs/                   Design, operations and planning documentation, screensho
 | `npm run check:licenses` | Fails if anything the app ships has a licence outside [the policy](docs/LICENSING.md) |
 | `npm run build` | Type check, production bundle, and a check that the start-up script stays under 350 KB with no AI code in it |
 | `npm run test:unit` | Vitest unit tests: design loading, photo processing, Instagram layout and colour maths, layers and the video timeline, where API keys may be sent |
-| `npm test` | Renders every product × size × orientation × layout (front, back, envelope), builds a print pack per product, and checks saved designs, festival dates, credits, AI (against a fake provider), every agent tool and the performance sampler, inside Electron |
-| `npm run test:mcp` | Runs the MCP server end to end with the official MCP client |
+| `npm test` | Renders every product × size × orientation × layout (front, back, envelope), builds a print pack per product, compares the GPU and Canvas 2D photo paths (and the 16-bit render), runs the AI subject model, and checks saved designs, festival dates, credits, AI (against a fake provider), every agent tool and the performance sampler, inside Electron |
+| `npm run test:mcp` | Runs the MCP server end to end with the official MCP client: a print design, a photo edit with an AI mask, and a RAW developed to a 16-bit TIFF |
 | `npm run test:e2e` | Playwright browser tests of the production build at desktop and phone sizes (print studio, Instagram photos, Reel and YouTube exports), with an axe accessibility check |
+| `npm run fetch:libraw` | LibRaw's RAW developer for the desktop app (needed by `test:mcp` too) |
+| `npm run screenshots` | Remakes the README screenshots from the running app |
 | `npm run desktop:pack` / `desktop:dist` | Unpacked desktop app / installers in `release/` |
 
 All scripts: [docs/BUILD.md](docs/BUILD.md). How the tests work and how to add one: [docs/TESTING.md](docs/TESTING.md).
 
 ## Roadmap
 
-Next for the photo & video studio: a shared GPU pipeline, then advanced photo editing (masks, curves, HSL, presets, RAW on
-desktop), a multi-track timeline (keyframes, transitions, speed, audio tracks) and a colour page (wheels, LUTs, scopes,
-auto captions). Every one of these will be free for everyone, in the web and desktop apps, like everything in Chitthi
+Done: the shared GPU pipeline and the advanced photo editor (light and colour, curves, mixer, detail, presets and LUTs,
+masks with AI, blend modes and image layers, WebP / AVIF, RAW and 16-bit TIFF, agent tools), released as 2.10.0 once
+its last check passes. Next: a multi-track timeline (keyframes, transitions, speed, audio tracks), then a colour page
+(wheels, scopes, auto captions). Every one of these will be free for everyone, in the web and desktop apps, like everything in Chitthi
 today. The plan and its work items are in [docs/planning/](docs/planning/README.md). Ideas and bug reports
 are welcome as [issues](https://github.com/RVicky172/Chitthi/issues/new/choose).
 

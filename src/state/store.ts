@@ -17,7 +17,7 @@ export interface UIState {
   /** Full-screen gallery of saved designs is open. */
   gallery: boolean;
   /** Landing page, the design studio, the sizes guide or paper sizes in 3D (mirrors the URL hash: #/studio, #/sizes, #/paper). */
-  screen: 'home' | 'studio' | 'sizes' | 'paper' | 'instagram';
+  screen: 'home' | 'studio' | 'sizes' | 'paper' | 'instagram' | 'docs';
   /** Settings dialog is open. */
   settings: boolean;
   /** Photo library dialog is open, and which tab it shows. */
@@ -54,7 +54,9 @@ export const screenOf = (hash: string): UIState['screen'] =>
         ? 'paper'
         : hash.startsWith('#/instagram')
           ? 'instagram'
-          : 'home';
+          : hash.startsWith('#/docs')
+            ? 'docs'
+            : 'home';
 export const hashOf = (screen: UIState['screen']): string => (screen === 'home' ? '' : `#/${screen}`);
 function loadDesign(): Design {
   try {

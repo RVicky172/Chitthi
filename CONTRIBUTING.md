@@ -56,7 +56,9 @@ permissive licences ship without review, and the new component goes in [THIRD_PA
 1. Branch from `main` (`feat/…`, `fix/…`, `docs/…`).
 2. Keep a pull request to one change, and say why in the description.
 3. Update the docs the change affects, and add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
-4. Include a screenshot for visible UI changes, at desktop and phone width.
+4. Include a screenshot for visible UI changes, at desktop and phone width. If the change shows in a README screenshot,
+   remake it with `npm run screenshots` (add a scene in `scripts/screenshots.mjs` for a new screen), and update the
+   in-app documentation in `src/data/docs.ts` when a feature changes.
 5. CI must be green before review.
 
 ## Reporting bugs and ideas

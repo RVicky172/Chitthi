@@ -459,7 +459,7 @@ export function Landing() {
           <a href="https://github.com/RVicky172/Chitthi/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
             MIT License
           </a>
-          . <a href="#/sizes">Sizes guide</a> ·{' '}
+          . <a href="#/docs">Documentation</a> · <a href="#/sizes">Sizes guide</a> ·{' '}
           <a href="https://github.com/RVicky172/Chitthi" target="_blank" rel="noopener noreferrer">
             Source
           </a>

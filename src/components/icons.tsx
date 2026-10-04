@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Activity,
   Blend,
   ArrowRight,
@@ -116,6 +117,7 @@ export const SuggestIcon = () => <Lightbulb {...base} />;
 export const SearchIcon = () => <Search {...base} />;
 export const SettingsIcon = () => <Settings {...base} />;
 export const RulerIcon = () => <Ruler {...base} />;
+export const DocsIcon = () => <BookOpen {...base} />;
 export const MoreIcon = () => <Ellipsis {...base} />;
 export const MenuIcon = () => <Menu {...base} />;
 export const ActivityIcon = () => <Activity {...base} />;

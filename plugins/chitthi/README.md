@@ -1,6 +1,8 @@
 # Chitthi plugin for Claude Code
 
-Connects Claude Code to the Chitthi desktop app's MCP tools and adds six skills for common print jobs.
+Connects Claude Code to the Chitthi desktop app's MCP tools (56: print designs and the photo studio) and adds six
+skills for common print jobs. The photo-studio tools (colour, masks with AI, presets, RAW to 16-bit TIFF) need no
+skill: ask for what you want, for example "add the photos in this folder, warm them up and export 4:5 JPEGs".
 
 ## Install
 

@@ -44,6 +44,11 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   CI and before release builds.
 - Planning folder (`docs/planning/`) with the editor roadmap and its implementation plan.
 - README: every feature of both studios, requirements, web vs desktop, and screenshots of the photo & video studio.
+- **Documentation in the app** (`#/docs`, **Docs** in the site menu, the footer and **Find a feature**): getting
+  started, the print studio, the photo and video editors, AI, questions and fixes; and for developers, AI agents and
+  their use cases, self-hosting, building and extending. Works on phones, with the keyboard and screen readers.
+- README: use cases, the advanced photo editor, AI masks, RAW and 16-bit TIFF, 56 agent tools; every screenshot remade
+  from the current app by `npm run screenshots` (new: AI masks, the documentation).
 
 ### Changed
 

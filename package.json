@@ -31,6 +31,7 @@
     "fetch:samples": "node scripts/fetch-samples.mjs",
     "fetch:fonts": "node scripts/fetch-fonts.mjs",
     "fetch:libraw": "node scripts/fetch-libraw.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
     "fetch:showcase": "node scripts/fetch-showcase.mjs",
     "fetch:print-samples": "node scripts/fetch-print-samples.mjs",
     "build:showcase": "node scripts/build-showcase.mjs",

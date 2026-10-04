@@ -50,9 +50,12 @@ HTTPS is also required for the service worker (offline use) to register on a rea
 Every response carries the headers in `nginx/security-headers.conf`: `X-Content-Type-Options`, `Referrer-Policy`,
 `X-Frame-Options`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and the Content Security Policy.
 
-The CSP's `connect-src` lists the AI services the web app can call. If your users need a **custom
-OpenAI-compatible service**, add its origin there and rebuild; otherwise the browser blocks the call. Don't loosen
-`script-src`.
+The CSP's `connect-src` lists the AI services the web app can call, and `huggingface.co` with its CDN `*.hf.co` for
+the AI sky-mask model (downloaded only when a user agrees). If your users need a **custom OpenAI-compatible
+service**, add its origin there and rebuild; otherwise the browser blocks the call. `script-src` carries
+`'wasm-unsafe-eval'` so the AI-mask models can run as WebAssembly (it allows no JavaScript `eval`); don't loosen it
+further. The image now ships the subject model (4.6 MB) and ONNX Runtime's WebAssembly (14 MB) as hashed assets,
+served like any other.
 
 Check the headers after a deploy:
 

@@ -470,6 +470,7 @@ App
 ├─ Landing                       home: hero, product cards (live renders), how it works
 ├─ SizeGuide                     #/sizes: size table, to-scale diagram, layouts at the chosen size
 ├─ Paper3D                       #/paper: every size in 3D at true relative scale (see below)
+├─ DocsPage                      #/docs[/page[/section]]: the in-app documentation, rendered from src/data/docs.ts
 │    (the three pages share SiteNav: brand, page links and actions, Find, Settings, full screen, Open studio)
 ├─ Studio
 │  ├─ Header                     product switcher, Find, Photos (library), theme, sizes guide, settings, full screen,

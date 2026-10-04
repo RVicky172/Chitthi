@@ -25,7 +25,13 @@ Reports stay on your clipboard; nothing is sent automatically. Read one before y
 
 | Problem | Cause and fix |
 | --- | --- |
-| "… couldn't be read" or "HEIC photos … can't be opened" | Only JPG, PNG and WebP are supported. On iPhone, save the photo as JPEG first, or set Settings › Camera › Formats › Most Compatible |
+| "… couldn't be read" or "HEIC photos … can't be opened" | JPG, PNG and WebP are supported (and camera RAW in the photo studio). On iPhone, save the photo as JPEG first, or set Settings › Camera › Formats › Most Compatible |
+| A RAW file opens small or looks like the camera's JPEG | In a browser, a RAW file opens the JPEG preview stored inside it. The desktop app develops the full RAW in 16 bits |
+| "The RAW developer isn't installed" (desktop, from source) | Run `npm run fetch:libraw` once; installed apps include it |
+| A Sky mask asks to download a model | The sky model (176 MB) isn't shipped with the app. Choose **Download the sky model** once; it is kept on the device. Subject and background masks need no download |
+| "The download stopped" or "The model couldn't be downloaded" | Check the connection and try again; a download that sends nothing for a minute is stopped. A self-hosted web app must allow `huggingface.co` and `*.hf.co` in its CSP |
+| TIFF (16-bit) isn't in the export list | It needs graphics-card effects (**Settings → Photo & video effects**) on a GPU that can render in floats; otherwise use PNG |
+| Photo effects are slow | Turn on **Settings → Photo & video effects** so they run on the graphics card |
 | A photo prints soft | It has too few pixels for the size. The Photos step shows the dpi: aim for 300, accept 200 |
 | Photo search asks for a key | Add a free Pexels key in **Settings**, or hide photo search there |
 | "Pexels didn't accept that API key" | Copy the key again from your Pexels account; keys are case-sensitive |

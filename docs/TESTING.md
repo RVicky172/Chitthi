@@ -7,8 +7,8 @@ Five suites check Chitthi, from fast unit tests to the packaged app. CI runs all
 | --- | --- | --- | --- |
 | `npm run lint` | ESLint (`eslint.config.js`) | Node | ~10 s |
 | `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
-| `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~20 s |
-| `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` | Electron (headless MCP) + the official MCP client | ~20 s |
+| `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
+| `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~30 s |
 | `npm run test:e2e` | Browser tests with axe, `e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
 
 `npm run build` also guards the bundle: it fails if the start-up script passes 350 KB or contains AI code.
@@ -18,6 +18,9 @@ Five suites check Chitthi, from fast unit tests to the packaged app. CI runs all
 Pure logic that runs without a browser: design loading and validation (`mergeDesign`), layout geometry for every
 product × size × layout, where API keys may be sent (`keyAllowed`, `isResultHost`), photo fingerprints, and the
 Instagram formats, batch limit, placement and colour maths, and the video formats, bitrates and per-platform limits.
+The photo editor: light, curves, mixer, detail, LUT parsing, presets, masks (cached rasters against painting from
+nothing, gradients against their formulas, AI parts from a map), GPU node graphs, the TIFF writer, the RAW embedded
+preview reader and a synthetic DNG, segmentation map stretching and the pinned models.
 
 Add a test next to the module as `name.test.ts`. Keep it free of DOM and canvas: anything that needs them belongs in
 the self-test. Test files are type-checked with the app but left out of the library build.
@@ -26,7 +29,11 @@ the self-test. Test files are type-checked with the app but left out of the libr
 
 The broad regression net. It renders every product × size × orientation × layout (front, back, envelope and template:
 about 1,900 designs), builds a print pack per product, and checks saved designs, festival dates, credits, the AI
-service against a fake provider, every agent tool and the performance sampler: about 6,000 checks.
+service against a fake provider, every agent tool and the performance sampler. For the photo editor, on every GPU
+backend the machine has (WebGPU, WebGL2): colour, detail and mask parity with Canvas 2D on real photos, float
+read-back, the 16-bit render against the 8-bit picture and its extra precision, timings; an AI mask from a stand-in
+map and the real subject model in its worker; and every photo tool end to end on a generated photo. About 6,100
+checks.
 
 Add a check in `src/dev/selftest.ts` with its `check(condition, 'what')` helper. Run one in the browser by opening
 the dev server with `?selftest` and calling `window.__chitthiSelfTest()` in the console.
@@ -35,6 +42,8 @@ the dev server with `?selftest` and calling `window.__chitthiSelfTest()` in the 
 
 Starts the MCP server over stdio and drives it with the official client: lists tools, resources and prompts, builds a
 calendar and a postcard, renders a preview, checks a design, exports a PDF, and checks that bad input returns an error.
+Then the photo studio: a sample photo by path, colour settings, a radial and an AI subject mask, a preview, a preset
+and the export; and a synthetic DNG developed by LibRaw and exported as a 16-bit TIFF.
 Point it at a packaged app with `CHITTHI_MCP_APP=<path to Chitthi.exe>`, which also checks the Electron fuses and the
 packaged file list.
 
@@ -43,6 +52,9 @@ packaged file list.
 Builds `dist/`, serves it with `vite preview`, and in Chromium at desktop (1400×900) and phone (Pixel 7) sizes checks
 that the home page and studio load without console errors, that every product switches, that the card in progress
 survives a reload, and that home, studio and the sizes guide have no serious or critical WCAG 2.2 A/AA problems (axe).
+The photo and video studio files cover the batch, every editing panel (light, curves, detail, presets and LUTs, masks
+with brush, gradients, ranges and the real AI subject model, layers with blend modes and masks), export formats incl.
+16-bit TIFF, RAW files on the web, Reel and YouTube exports; `e2e/docs.e2e.ts` covers the in-app documentation.
 `e2e/instagram.e2e.ts` covers the photo studio: the batch limit, editing and reordering, a ZIP of 1080 px JPEGs,
 the posting flow, the caption counter, and accessibility. `e2e/editors.e2e.ts` covers layers, drawing and undo, and
 exports a Reel with text and generated music, checking the MP4 (`ftyp`, `moov` before `mdat`, H.264, AAC,

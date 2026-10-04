@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { canFullscreen, toggleFullscreen, useFullscreen } from '../lib/fullscreen';
 import { setUI, type UIState } from '../state/store';
-import { CubeIcon, FullscreenIcon, InstagramIcon, Logo, MenuIcon, RulerIcon, SearchIcon, SettingsIcon } from './icons';
+import { CubeIcon, DocsIcon, FullscreenIcon, InstagramIcon, Logo, MenuIcon, RulerIcon, SearchIcon, SettingsIcon } from './icons';
 import { MoreMenu, type MenuItem } from './MoreMenu';
 
 export interface NavLink {
@@ -25,17 +25,18 @@ function go(href: string) {
   document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-type ToolScreen = Extract<UIState['screen'], 'sizes' | 'paper' | 'instagram'>;
+type ToolScreen = Extract<UIState['screen'], 'sizes' | 'paper' | 'instagram' | 'docs'>;
 
 /** The tool pages: shown as links in the bar on wide screens, and in the Menu below 1100px. */
 const TOOLS: { screen: ToolScreen; label: string; short: string; icon: ReactNode }[] = [
   { screen: 'instagram', label: 'Photo & video studio', short: 'Photo & video', icon: <InstagramIcon /> },
   { screen: 'sizes', label: 'Sizes and layouts guide', short: 'Sizes guide', icon: <RulerIcon /> },
   { screen: 'paper', label: 'Paper sizes in 3D', short: 'Paper in 3D', icon: <CubeIcon /> },
+  { screen: 'docs', label: 'Documentation', short: 'Docs', icon: <DocsIcon /> },
 ];
 
 /**
- * The top bar of the site pages (home, sizes guide, paper sizes in 3D, Instagram posts): brand, the tool pages as plain
+ * The top bar of the site pages (home, sizes guide, paper sizes in 3D, documentation): brand, the tool pages as plain
  * links, the page's own sections in an "On this page" dropdown, page actions, Find, Settings, full screen and "Open
  * studio". Below 1100px the links, dropdown and page actions fold into one Menu; below 600px Find, Settings and full
  * screen join them, so the bar never wraps or scrolls sideways. An airmail stripe runs along its bottom edge.

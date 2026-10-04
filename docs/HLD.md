@@ -83,13 +83,13 @@ flowchart TB
 | Block | Responsibility |
 | --- | --- |
 | **Data** (`src/data/`) | Declarative specifications: products, sizes, layouts, themes and wishes, fonts, gallery samples |
-| **Engine** (`src/engine/`) | Pure drawing and file logic. Given a `Design` and photos it computes layouts, draws any face at any resolution, and builds PDFs, PNGs and the ZIP pack. No React |
+| **Engine** (`src/engine/`) | Pure drawing and file logic. Given a `Design` and photos it computes layouts, draws any face at any resolution, and builds PDFs, PNGs and the ZIP pack; the photo engine (light, curves, mixer, detail, LUTs, masks on a GPU render graph with a Canvas 2D fallback, the 16-bit render, RAW and TIFF) and the video engine. No React |
 | **State** (`src/state/`) | One app store (design, photos, UI) with undo/redo and autosave; user actions such as adding photos, switching product, export and gallery |
 | **UI** (`src/components/`) | Landing page, studio (header, step rail, step panes, live stage), gallery, 3D viewer, crop tool, sizes guide, paper sizes in 3D, settings |
 | **Platform and services** (`src/lib/`, `src/platform/`) | Storage abstraction (IndexedDB or desktop files), font loading, Pexels client, desktop bridge and menus |
-| **AI** (`src/ai/`) | Facade over provider adapters: words and captions sized to the layout, slot-shaped pictures, prompt templates, keys, daily limits. Loaded only when used |
-| **Agent tools** (`src/agent/`) | One registry of 34 tools, plus MCP prompts and resources, that call the store and engine; the page side of the MCP server |
-| **Desktop shell** (`electron/`) | Window, `app://` protocol with CSP, file-based library, save/open dialogs, menus, file association, auto-update |
+| **AI** (`src/ai/`) | Facade over provider adapters: words and captions sized to the layout, slot-shaped pictures, prompt templates, keys, daily limits. On-device segmentation for AI masks (`segment/`: ONNX Runtime Web in a worker). Loaded only when used |
+| **Agent tools** (`src/agent/`) | One registry of 56 tools (34 for print, 22 for the photo studio), plus MCP prompts and resources, that call the stores and engine; the page side of the MCP server |
+| **Desktop shell** (`electron/`) | Window, `app://` protocol with CSP, file-based library, save/open dialogs, menus, file association, auto-update; the RAW developer (LibRaw's `dcraw_emu`, a separate program) |
 
 ## 5. Key flows
 

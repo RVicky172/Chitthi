@@ -72,6 +72,7 @@ function commands(pickFiles: () => void): Cmd[] {
     { id: 'frame', group: 'Size and layout', title: 'Frame, mat or paper colour', words: 'border colour color mat paper', run: () => studio('layout', 'layout.frame') },
     { id: 'sizes', group: 'Size and layout', title: 'Compare every size and layout', words: 'sizes guide bleed safe area pixels sheet', run: () => setUI({ screen: 'sizes' }) },
     { id: 'paper3d', group: 'Size and layout', title: 'See paper sizes in 3D', words: '3d paper sizes compare actual real scale sheet envelope a4 a3 stack', run: () => setUI({ screen: 'paper' }) },
+    { id: 'docs', group: 'Help', title: 'Read the documentation', words: 'docs documentation help guide manual how faq developer mcp agent self host build', run: () => setUI({ screen: 'docs' }) },
     { id: 'occasion', group: 'Occasion', title: 'Choose an occasion theme', words: 'festival diwali holi birthday season theme artwork', run: () => studio('occasion', 'occasion.themes') },
     { id: 'plain', group: 'Occasion', title: 'Use my own colours (plain card)', words: 'plain colours colors no theme background', run: () => studio('occasion', 'occasion.plain') },
     { id: 'words', group: 'Words', title: 'Edit the greeting and quote', words: 'text greeting quote wish message signature words', run: () => studio('words', 'words.text') },

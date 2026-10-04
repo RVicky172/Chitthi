@@ -6,6 +6,7 @@ const named = <K extends string>(load: () => Promise<Record<K, () => JSX.Element
 const Landing = named(() => import('./components/Landing'), 'Landing');
 const SizeGuide = named(() => import('./components/SizeGuide'), 'SizeGuide');
 const Paper3D = named(() => import('./components/Paper3D'), 'Paper3D');
+const DocsPage = named(() => import('./components/DocsPage'), 'DocsPage');
 const InstagramStudio = named(() => import('./components/InstagramStudio'), 'InstagramStudio');
 const CropDialog = named(() => import('./components/CropDialog'), 'CropDialog');
 const GalleryDialog = named(() => import('./components/GalleryDialog'), 'GalleryDialog');
@@ -75,6 +76,7 @@ export default function App() {
         () => import('./components/Landing'),
         () => import('./components/SizeGuide'),
         () => import('./components/Paper3D'),
+        () => import('./components/DocsPage'),
         () => import('./components/InstagramStudio'),
         () => import('./components/CropDialog'),
         () => import('./components/GalleryDialog'),
@@ -127,6 +129,8 @@ export default function App() {
           <SizeGuide />
         ) : screen === 'paper' ? (
           <Paper3D />
+        ) : screen === 'docs' ? (
+          <DocsPage />
         ) : screen === 'instagram' ? (
           <InstagramStudio />
         ) : (

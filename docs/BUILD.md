@@ -32,6 +32,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run build:lib` | Emits `.d.ts` files to `dist-lib/types` and a flattened `dist-lib/styles.css` (`scripts/flatten-css.mjs`) for the design-system sync (`src/index.ts`) |
 | `npm run fetch:samples` | Downloads the gallery sample photos from Pexels into `public/samples/` with credits (needs the key) |
 | `npm run fetch:fonts` | Downloads every card and UI font into `electron/resources/fonts/` for the offline desktop app |
+| `npm run screenshots` | Remakes the README screenshots in `docs/screenshots/` from the running app (its own Vite server and Chromium; sample designs and photos, no Pexels search) (`scripts/screenshots.mjs`); `node scripts/screenshots.mjs docs media-masks` remakes some |
 | `npm run fetch:libraw` | Downloads LibRaw's RAW developer into `electron/resources/libraw/<platform>-<arch>/` (official Windows and Apple silicon builds; on macOS also builds the Intel copy from source), each checked by SHA-256. Needed for RAW photos in the desktop app and by `npm run test:mcp` |
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |
 | `npm run fetch:showcase` | Downloads the landing page example photos from Pexels into `showcase-src/` (needs the key) |
