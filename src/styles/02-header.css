@@ -24,8 +24,7 @@ dialog,
   position: relative;
   z-index: 6;
 }
-.bar svg.logo,
-.lnav svg.logo {
+.bar svg.logo {
   width: 44px;
   height: 44px;
   color: var(--accent);

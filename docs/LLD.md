@@ -471,7 +471,8 @@ App
 ├─ SizeGuide                     #/sizes: size table, to-scale diagram, layouts at the chosen size
 ├─ Paper3D                       #/paper: every size in 3D at true relative scale (see below)
 ├─ DocsPage                      #/docs[/page[/section]]: the in-app documentation, rendered from src/data/docs.ts
-│    (the three pages share SiteNav: brand, page links and actions, Find, Settings, full screen, Open studio)
+│    (the site pages share SiteNav: brand, guide links and "On this page", gallery, Find, theme, Settings, full
+│     screen, and both studios as one pair of buttons; links and tools fold into the Menu below 1200 and 760 px)
 ├─ Studio
 │  ├─ Header                     product switcher, Find, Photos (library), theme, sizes guide, settings, full screen,
 │  │                             undo/redo, save, print pack, and a More menu (MoreMenu) for whatever doesn't fit

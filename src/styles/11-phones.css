@@ -131,17 +131,12 @@
     min-width: 44px;
     min-height: 44px;
   }
-  .lbrand {
-    min-height: 44px;
-  }
   .chip,
   .fp-cats button,
-  .sbtn,
-  .lnav-links a {
+  .sbtn {
     display: inline-flex;
     align-items: center;
   }
-  .lnav-links a,
   .check {
     min-height: 44px;
   }

@@ -52,6 +52,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Site nav (home, guides, docs): redrawn. Both studios are in the bar as a pair of buttons (**Print studio** and
+  **Photo & video**, **Print** and **Post** on phones) instead of one "Open studio"; a light/dark theme switch; the
+  bar and its airmail edge span the window; links and tools fold into the Menu in two steps, so the bar never
+  crowds. On tablets and phones the home page opens on its headline and buttons, with the scroll demo below.
+- Home page: the photo editor's newer tools (AI masks, presets, RAW, 16-bit TIFF) and up-to-date screenshots.
+
 - Home page: Chitthi Studio as one studio for what you print and what you post. A new hero, the two studios side by
   side, a section per platform (Instagram posts and carousels, Reels and Shorts, YouTube) with its sizes, limits and
   formats beside the real editor, and the photo editor's new tools; the print sections follow under "Print studio".

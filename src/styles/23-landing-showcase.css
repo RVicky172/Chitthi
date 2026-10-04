@@ -4,7 +4,7 @@
  * Hallmark · pre-emit critique: P5 H4 E4 S5 R4 V4
  *
  * Landing page. Full-bleed matte bands (the studio's stage) carry the real renders; narrow paper bands carry the words.
- * Classes shared with the sizes and paper guides (.landing, .lnav, .lsec, .lsec-sub, .lfoot) are restyled under .ld
+ * Classes shared with the sizes and paper guides (.landing, .lsec, .lsec-sub, .lfoot) are restyled under .ld
  * only, so those pages keep their look until they move to design.md.
  */
 
@@ -18,21 +18,6 @@
   --elev-1: 0 0 0 0 transparent;
   max-width: none;
   padding: 0;
-}
-.ld .lnav {
-  top: env(safe-area-inset-top, 0px);
-  margin: 0;
-  padding: 8px var(--gutter);
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: var(--glass);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-.ld .lnav-links a,
-.ld .lnav-dd .mm-btn {
-  border-radius: 6px;
 }
 .ld .btn.primary:hover {
   filter: none;
@@ -887,19 +872,18 @@
 
 /* ---------- tablets ---------- */
 @media (max-width: 960px) {
-  /* phones and tablets: the stage on top, the words and the current step below it */
+  /* phones and tablets: the headline and the studio buttons first, the stage below them with the current step */
   .jn-pin {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 20px;
-    padding: 16px var(--gutter) 20px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px var(--gutter) 16px;
   }
   .jn-stage {
-    order: -1;
-    padding: 28px;
+    padding: 20px;
   }
   .ld-journey:not(.still) .jn-pin {
-    grid-template-rows: minmax(36dvh, 1fr) auto;
+    grid-template-rows: auto minmax(30dvh, 1fr);
   }
   .ld-journey:not(.still) .hero-cta .btn:not(.primary) {
     display: none;

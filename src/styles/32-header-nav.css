@@ -183,22 +183,6 @@
   color: var(--accent);
 }
 
-/* Page nav dropdowns read like the links they replace: quiet text, a chevron that turns when open. */
-.lnav-dd .mm-btn {
-  gap: 4px;
-  padding: 6px 8px 6px 10px;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-.lnav-dd .mm-btn:hover,
-.lnav-dd .mm-btn[aria-expanded='true'] {
-  color: var(--text);
-  background: var(--field);
-}
 .mm-chev {
   display: inline-flex;
   transition: transform var(--dur-fast) var(--ease);
@@ -209,17 +193,6 @@
 }
 .mm-btn[aria-expanded='true'] .mm-chev {
   transform: rotate(180deg);
-}
-
-/* Page nav: keep the brand and "Open studio" on one line at every width. */
-.lnav {
-  min-width: 0;
-}
-.lnav .btn {
-  white-space: nowrap;
-}
-.lnav-links a {
-  white-space: nowrap;
 }
 
 /* Phones: logo and actions on the first row, the product switcher full width under them (icon over a short name). */
@@ -283,13 +256,3 @@
   flex-wrap: nowrap;
 }
 
-/* "Chitthi Studio" in the page nav: "Studio" a step lighter; phones show the logo and "Chitthi" only. */
-.lbrand em {
-  font-style: normal;
-  opacity: 0.7;
-}
-@media (max-width: 600px) {
-  .lbrand em {
-    display: none;
-  }
-}

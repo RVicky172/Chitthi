@@ -44,7 +44,7 @@ function Shot({ img, className, eager }: { img?: ShowcaseImage; className?: stri
 const FEATURES: [ReactNode, string, string][] = [
   [<MonitorSmartphone key="p" />, 'Exact sizes for every platform', 'Instagram feed and Story, Reels and Shorts, YouTube up to 4K: each made at the size and in the format that platform asks for.'],
   [<Clapperboard key="v" />, 'A real video timeline', 'Trim, split and reorder clips, time your text and stickers, slide the music by its waveform, and export an MP4 on your device.'],
-  [<SlidersHorizontal key="e" />, 'Pro-grade photo editing', 'Exposure, white balance, tone curve, colour mixer, sharpening, noise reduction, clarity, dehaze and grain, free for everyone.'],
+  [<SlidersHorizontal key="e" />, 'Advanced photo editing', 'Exposure, white balance, tone curves, a colour mixer, masks found by AI, presets and LUTs, and RAW to 16-bit TIFF, free for everyone.'],
   [<Cpu key="g" />, 'Fast, on your graphics card', 'Looks and adjustments run on the graphics card, with exactly the same result in the preview and the exported file.'],
   [<Printer key="r" />, 'Print-ready files', 'Bleed, crop marks, 300 dpi PNGs, sheet layouts and a quote request for the print shop, in one ZIP.'],
   [<Mail key="m" />, 'Matching envelopes', 'A standard envelope for every design, printed ready-made or folded from a template, and opened in 3D.'],
@@ -52,7 +52,7 @@ const FEATURES: [ReactNode, string, string][] = [
   [<Type key="t" />, 'Your own fonts', 'Upload a TTF, OTF or WOFF once and use it in any design or caption, alongside 46 fonts for Indian scripts.'],
   [<Box key="b" />, '3D preview', 'Spin any design, flip through a wall calendar, see all twelve months at once, or open the envelope.'],
   [<Sparkles key="a" />, 'AI with your own key', 'Greetings, calendar captions and artwork from Claude, OpenAI, Gemini, a local Ollama and more. Optional.'],
-  [<Bot key="g2" />, 'Works with AI agents', 'The desktop app is an MCP server with 34 tools, and a Claude Code plugin adds six workflow skills.'],
+  [<Bot key="g2" />, 'Works with AI agents', 'The desktop app is an MCP server with 56 tools for print designs and photo editing, and a Claude Code plugin adds six workflow skills.'],
   [<ShieldCheck key="s" />, 'Private and free', 'No account and no upload: your photos never leave your device. Free and open source, with no paid tier.'],
 ];
 
@@ -93,7 +93,7 @@ const MEDIA: { id: string; href: string; ratio: string; r: number; size: string;
     title: 'Instagram posts and carousels',
     where: 'Portrait 4:5, square, 3:4, landscape and Story 9:16',
     text: 'A batch of up to 20 photos, each with its own look, text, stickers, shapes and drawings, ready to share to Instagram from your phone.',
-    specs: ['1080 px wide, the width Instagram shows', 'Up to 20 photos, the carousel limit', 'Caption counter: 2,200 characters, 30 hashtags', 'JPEG or PNG, or straight to the share sheet'],
+    specs: ['1080 px wide, the width Instagram shows', 'Up to 20 photos, the carousel limit', 'Caption counter: 2,200 characters, 30 hashtags', 'JPEG, PNG, WebP or 16-bit TIFF, or straight to the share sheet'],
     shot: '/showcase/studio-photo.webp',
     alt: 'The Instagram photo editor: a batch of four photos, a bowl of Holi colours with the words Happy Holi and a party sticker',
     cta: 'Make a post',
@@ -131,12 +131,13 @@ const MEDIA: { id: string; href: string; ratio: string; r: number; size: string;
   },
 ];
 
-/** What the photo editor offers (P1.1–P1.3 of docs/planning/EDITOR-IMPLEMENTATION.md). */
+/** What the photo editor offers (Phase 1 of docs/planning/EDITOR-IMPLEMENTATION.md). */
 const EDITOR: [string, string][] = [
   ['Light and white balance', 'Exposure, highlights, shadows, whites and blacks, in linear light like a camera; pick a grey to fix the colour.'],
   ['Tone curve and colour mixer', 'An RGB curve and one per channel, and hue, saturation and luminance for eight colours.'],
-  ['Detail and effects', 'Sharpening that skips smooth skin and sky, noise reduction, clarity, dehaze and grain.'],
-  ['Layers on top', 'Text in any of 46 fonts or your own, shapes that hold words, stickers and freehand drawing.'],
+  ['Masks, found by AI', 'Paint, draw a gradient or pick a colour, or let a model on your device find the subject, background or sky.'],
+  ['Presets, LUTs and RAW', 'Save your looks, import .cube LUTs, open camera RAW files on desktop and export 16-bit TIFFs.'],
+  ['Detail and layers', 'Sharpening, noise reduction, clarity, dehaze and grain; text, stickers, drawings and images with blend modes.'],
 ];
 
 type Filter = 'all' | ProductId;
@@ -203,16 +204,16 @@ export function Landing() {
               <h3>Made to post</h3>
               <img
                 className="shot ld-pillar-shot ld-screen"
-                src="/showcase/studio-editor.webp"
+                src="/showcase/studio-curve.webp"
                 width={1600}
                 height={1000}
-                alt="The photo editor: marigolds with a tone curve and the colour mixer open beside them"
+                alt="The photo editor: the Puri temple at sunset with a warm look and an S-shaped tone curve, the light and colour sliders beside it"
                 loading="lazy"
                 decoding="async"
               />
               <p>Instagram posts and carousels, Reels and Shorts, and YouTube videos, each at the size and in the format its platform asks for.</p>
               <ul className="checks">
-                <li>Photo editing with curves, colour mixer and detail</li>
+                <li>Photo editing with curves, masks found by AI, presets and RAW</li>
                 <li>A video timeline with text, stickers and music</li>
                 <li>MP4s ready for Instagram and YouTube</li>
               </ul>
@@ -260,7 +261,7 @@ export function Landing() {
           <div>
             <h2>A photo editor, not a filter app</h2>
             <p className="lsec-sub">
-              The tools of a professional photo editor, free for everyone, in the browser and the desktop app. They run on your
+              The tools of a serious photo editor, free for everyone, in the browser and the desktop app. They run on your
               graphics card, and the preview, the exported photo and every video frame come out exactly the same.
             </p>
             <dl className="ld-editor-list">
@@ -280,7 +281,7 @@ export function Landing() {
             src="/showcase/studio-editor.webp"
             width={1600}
             height={1000}
-            alt="The photo editor with a tone curve and the colour mixer, on a photo of marigolds"
+            alt="The photo editor's masks: the Puri temple found by AI as the subject and shown in red, with the mask's own exposure, temperature and clarity"
             loading="lazy"
             decoding="async"
           />

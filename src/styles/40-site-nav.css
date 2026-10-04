@@ -1,0 +1,264 @@
+/* ---------- site nav: the top bar of the home page, the guides and the docs (components/SiteNav.tsx) ----------
+ * One row at every width: brand · guide links and "On this page" · tools · the two studios · Menu. The background and
+ * the airmail edge span the window (drawn by pseudo-elements, clipped by #root so nothing scrolls sideways); the
+ * contents keep to the page's measure. Links and tools fold into the Menu below 1200px, then below 760px; the studios
+ * never fold, they only shorten their names on phones.
+ */
+#root:has(.snav) {
+  overflow-x: clip;
+}
+.snav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  margin-bottom: 4px;
+}
+.snav::before,
+.snav::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.snav::before {
+  inset-block: 0;
+  z-index: -1;
+  background: var(--glass);
+}
+/* airmail edge: postbox red and postmark blue, the border of an air-mail envelope (brand colours only) */
+.snav::after {
+  bottom: -4px;
+  height: 4px;
+  background: repeating-linear-gradient(-45deg, var(--brand-red) 0 9px, var(--glass) 9px 14px, var(--brand-ink) 14px 23px, var(--glass) 23px 28px);
+}
+.snav-in {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 60px;
+}
+.ld .snav-in {
+  width: min(1200px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.snav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-height: 44px;
+  margin-right: 18px;
+  color: var(--text);
+  text-decoration: none;
+  font: 400 1.75rem/1 var(--display);
+  white-space: nowrap;
+}
+.snav-brand svg.logo {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  color: var(--accent);
+}
+.snav-brand em {
+  font-style: normal;
+  opacity: 0.7;
+}
+
+.snav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.snav-links a,
+.snav-dd .mm-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+.snav-dd .mm-btn {
+  gap: 4px;
+  padding-right: 8px;
+}
+.snav-links a:hover,
+.snav-dd .mm-btn:hover,
+.snav-dd .mm-btn[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--sunk);
+}
+.snav-links a[aria-current='page'] {
+  color: var(--text);
+  font-weight: 600;
+}
+.snav-links a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.snav-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.snav-tools .btn.icon {
+  width: 40px;
+  height: 40px;
+  color: var(--muted);
+}
+.snav-tools .btn.icon:hover {
+  color: var(--text);
+}
+
+/* The two studios: one dark pill, two halves, each with its icon. */
+.snav-studios {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-left: 8px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.snav-studios button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: inherit;
+  font: 600 0.92rem/1 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.snav-studios button + button {
+  position: relative;
+}
+.snav-studios button + button::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: color-mix(in oklab, var(--on-accent) 26%, transparent);
+}
+.snav-studios button:hover {
+  background: color-mix(in oklab, var(--on-accent) 14%, transparent);
+}
+.snav-studios button:active {
+  transform: translateY(1px);
+}
+.snav-studios button:focus-visible {
+  outline: 2px solid var(--on-accent);
+  outline-offset: -4px;
+}
+.snav-studios svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.snav-menu .mm-btn {
+  width: 40px;
+  height: 40px;
+}
+
+/* What shows at which width (and which Menu rows stand in for what is hidden). */
+.sn-short,
+.sn-narrow,
+.mm-list li.sn-lg,
+.mm-list li.sn-sm {
+  display: none;
+}
+@media (max-width: 1199px) {
+  .sn-wide {
+    display: none !important;
+  }
+  .sn-narrow {
+    display: block;
+    margin-left: 4px;
+  }
+  .mm-list li.sn-lg {
+    display: block;
+  }
+}
+@media (max-width: 759px) {
+  .sn-mid,
+  .snav-tools {
+    display: none !important;
+  }
+  .mm-list li.sn-sm {
+    display: block;
+  }
+  .snav-brand {
+    margin-right: auto;
+    font-size: 1.5rem;
+  }
+  .snav-brand svg.logo {
+    width: 36px;
+    height: 36px;
+  }
+  .snav-brand em {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .ld .snav-in {
+    width: calc(100% - 32px);
+  }
+}
+@media (max-width: 519px) {
+  .sn-long {
+    display: none;
+  }
+  .sn-short {
+    display: inline;
+  }
+  .snav-studios {
+    margin-left: 4px;
+  }
+  .snav-studios button {
+    gap: 6px;
+    padding: 0 10px;
+  }
+}
+@media (max-width: 340px) {
+  .snav-brand span {
+    display: none;
+  }
+}
+
+/* In-page links ("On this page") stop just below the sticky bar, not under it. */
+.landing [id] {
+  scroll-margin-top: 76px;
+}
