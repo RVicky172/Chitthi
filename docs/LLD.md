@@ -62,9 +62,11 @@ src/
     secrets.ts, settings.ts  Keys (SecretStore); chosen services, models, daily limits and usage
     prompts/                 Versioned templates: words.ts (greetings, captions, messages), artwork.ts (pictures)
     providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram
+    segment/                 AI masks (P1.8): index.ts (models on the device, download + SHA-256 check, segmentPhoto),
+                             models.ts (the two models), worker.ts (ONNX Runtime Web), models/u2netp.onnx
   agent/
-    tools.ts                 The 55 agent tools: JSON Schema input and a handler each (34 for print designs here)
-    photoTools.ts            The 21 photo studio tools: batch, framing, colour, masks, presets, LUTs, preview, export
+    tools.ts                 The 56 agent tools: JSON Schema input and a handler each (34 for print designs here)
+    photoTools.ts            The 22 photo studio tools: batch, framing, colour, masks (AI too), presets, LUTs, preview, export
     common.ts                Tool shape, schema helpers, reading an image by path or URL
     prompts.ts               MCP prompts (workflows) and resources (design, specs, photo rules)
     bridge.ts                Page side of MCP: runs one call at a time, returns text, images and files

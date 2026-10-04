@@ -4,20 +4,24 @@ import {
   newMask,
   newPart,
   PART_RANGES,
+  type AiPart,
   type Mask,
   type MaskCombine,
   type MaskPart,
   type PartKind,
 } from '../../engine/masks';
+import type { AiTarget } from '../../engine/segments';
 import { selectMask, setMaskBrush, setMasks, updateMask, useIg, type IgItem } from '../../state/instagram';
 import { Check, Seg } from '../common';
 import { TrashIcon } from '../icons';
 import { Slider } from './Slider';
+import { findWithAi, useAiStatus } from './useAiMask';
 
 /*
- * The photo editor's masks (P1.6, P1.7). The panel lists the photo's masks (add, select, switch off, delete), the parts
+ * The photo editor's masks (P1.6, P1.7, P1.8). The panel lists the photo's masks (add, select, switch off, delete), the parts
  * of the selected one (brush, linear and radial gradients, colour and brightness ranges, each joining the parts
- * before it by adding, subtracting or intersecting) and the selected part's settings. Brushes are painted and
+ * before it by adding, subtracting or intersecting; AI parts find the subject or the sky on this device) and the
+ * selected part's settings. Brushes are painted and
  * gradients dragged on the stage (PhotoWorkspace); every gradient and range setting is a slider here as well, so a
  * mask can be shaped from the keyboard. The inspector holds the selected mask's own settings.
  */
@@ -42,11 +46,25 @@ const NAMES: Record<PartKind, string> = {
   radial: 'Radial gradient',
   colour: 'Colour range',
   luma: 'Brightness range',
+  ai: 'AI',
+};
+const TARGETS: Record<AiTarget, string> = { subject: 'Subject', sky: 'Sky' };
+
+/** "Brush 2": the part's kind (an AI part: what it finds) and its number among the parts of that kind. */
+export const partLabel = (parts: MaskPart[], p: MaskPart) => {
+  const name = (x: MaskPart) => (x.kind === 'ai' ? TARGETS[x.target] : NAMES[x.kind]);
+  return `${name(p)} ${parts.filter((x) => name(x) === name(p)).indexOf(p) + 1}`;
 };
 
-/** "Brush 2": the part's kind and its number among the parts of that kind. */
-export const partLabel = (parts: MaskPart[], p: MaskPart) =>
-  `${NAMES[p.kind]} ${parts.filter((x) => x.kind === p.kind).indexOf(p) + 1}`;
+/** New masks found by AI: what each button makes (the background is the subject inverted). */
+const AI_MASKS: [string, AiTarget, boolean][] = [
+  ['Subject', 'subject', false],
+  ['Background', 'subject', true],
+  ['Sky', 'sky', false],
+];
+
+/** An AI part finding `target` (inverted for the background). */
+const aiPart = (target: AiTarget, invert = false, first = true): AiPart => ({ ...(newPart('ai', first) as AiPart), target, invert });
 
 /** The next free "Mask n" name. */
 const nextName = (masks: Mask[], base: string) => {
@@ -60,6 +78,15 @@ export function addMask(item: IgItem, kind: PartKind = 'brush'): Mask | null {
   setMasks(item.id, [...item.edit.masks, m]);
   selectMask(m.id);
   return m;
+}
+
+/** Adds a mask that an AI model shapes, selects it and starts finding its target. */
+function addAiMask(item: IgItem, name: string, target: AiTarget, invert: boolean): void {
+  if (item.edit.masks.length >= MASK_LIMITS.masks) return;
+  const m: Mask = { ...newMask(nextName(item.edit.masks, name), 'ai'), parts: [aiPart(target, invert)] };
+  setMasks(item.id, [...item.edit.masks, m]);
+  selectMask(m.id);
+  void findWithAi(item, target);
 }
 
 export function MaskPanel({ item }: { item: IgItem }) {
@@ -96,6 +123,21 @@ export function MaskPanel({ item }: { item: IgItem }) {
               onClick={() => addMask(item, kind)}
             >
               {short}
+            </button>
+          ))}
+        </div>
+        <div className="ig-newmask" role="group" aria-label="New mask found by AI">
+          <span className="hint">Find:</span>
+          {AI_MASKS.map(([name, target, invert]) => (
+            <button
+              key={name}
+              type="button"
+              className="sbtn"
+              aria-label={`New ${name.toLowerCase()} mask, found by AI`}
+              disabled={masks.length >= MASK_LIMITS.masks}
+              onClick={() => addAiMask(item, name, target, invert)}
+            >
+              {name}
             </button>
           ))}
         </div>
@@ -250,6 +292,23 @@ export function MaskPanel({ item }: { item: IgItem }) {
                 {short}
               </button>
             ))}
+            {(['subject', 'sky'] as const).map((target) => (
+              <button
+                key={target}
+                type="button"
+                className="sbtn"
+                aria-label={`Add a ${target} part, found by AI`}
+                disabled={mask.parts.length >= MASK_LIMITS.parts}
+                onClick={() => {
+                  const p = aiPart(target, false, !mask.parts.length);
+                  setParts([...mask.parts, p]);
+                  selectMask(mask.id, p.id);
+                  void findWithAi(item, target);
+                }}
+              >
+                {TARGETS[target]}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -300,7 +359,17 @@ export function MaskPanel({ item }: { item: IgItem }) {
           </p>
         </div>
       )}
-      {part && part.kind !== 'brush' && (
+      {part?.kind === 'ai' && (
+        <AiPartSettings
+          item={item}
+          part={part}
+          onTarget={(target) => {
+            patchPart(part.id, { target });
+            void findWithAi(item, target);
+          }}
+        />
+      )}
+      {part && part.kind !== 'brush' && part.kind !== 'ai' && (
         <PartSettings part={part} onPatch={(patch, k) => patchPart(part.id, patch, `maskpart:${part.id}:${k}`)} />
       )}
     </div>
@@ -314,7 +383,7 @@ export function PartSettings({
   idPrefix = 'mk',
   inLayer = false,
 }: {
-  part: Exclude<MaskPart, { kind: 'brush' }>;
+  part: Exclude<MaskPart, { kind: 'brush' } | { kind: 'ai' }>;
   onPatch: (patch: Partial<MaskPart>, key: string) => void;
   idPrefix?: string;
   /** A layer's mask: positions are within the layer, and there are no handles on the stage to mention. */
@@ -401,6 +470,44 @@ export function PartSettings({
       {num('lo', 'Darkest')}
       {num('hi', 'Lightest', 100)}
       {num('smooth', 'Smoothness', 20)}
+    </div>
+  );
+}
+
+/** An AI part: what it finds, and what the segmenter is doing (asking before a download, working, failed). */
+function AiPartSettings({ item, part, onTarget }: { item: IgItem; part: AiPart; onTarget: (t: AiTarget) => void }) {
+  const st = useAiStatus(item.id, part.target);
+  return (
+    <div className="ig-group">
+      <h3>Found by AI</h3>
+      <Seg<AiTarget>
+        label="What to find"
+        value={part.target}
+        options={[
+          ['subject', 'Subject'],
+          ['sky', 'Sky'],
+        ]}
+        onChange={onTarget}
+      />
+      <p className="hint" role="status">
+        {st?.state === 'working'
+          ? `Finding the ${part.target}${st.progress !== undefined ? `: downloading the model, ${Math.round(st.progress * 100)} %` : '…'}`
+          : st?.state === 'error'
+            ? st.message
+            : st?.state === 'download'
+              ? `Finding the sky needs a one-time download of the sky model (${Math.round(st.bytes / 1e6)} MB, MIT licence) from Hugging Face. It stays on this device; your photos never leave it.`
+              : `Found on this device by an AI model. To refine it, paint on the photo: Paint adds to the mask, Erase takes away. Tick Invert for everything but the ${part.target}.`}
+      </p>
+      {st?.state === 'download' && (
+        <button type="button" className="btn" onClick={() => void findWithAi(item, part.target, true)}>
+          Download the sky model
+        </button>
+      )}
+      {st?.state === 'error' && (
+        <button type="button" className="sbtn" onClick={() => void findWithAi(item, part.target)}>
+          Try again
+        </button>
+      )}
     </div>
   );
 }

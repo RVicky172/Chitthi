@@ -116,10 +116,11 @@ overwrite a saved design, as `delete_preset` does to delete a preset. Tools that
 | | `frame_photo` | Fill or fit (with a colour or blurred background), zoom, position, turn, mirror |
 | Colour | `adjust_photo` | Look, light, white balance, tone curve, colour mixer, detail, effects, vignette, LUT; one photo or `all` |
 | | `white_balance_from_point` | The eyedropper: neutral grey at a point of the frame |
-| Masks | `add_mask` | A local adjustment: brush, linear or radial gradient, colour or brightness range, with its own settings |
+| Masks | `add_mask` | A local adjustment: brush, linear or radial gradient, colour or brightness range, or AI (subject, sky), with its own settings |
 | | `edit_mask` | Name, on/off, invert, the mask's settings |
 | | `set_mask_part` | Add or change a part (combine with add, subtract or intersect); brush strokes as points |
 | | `remove_mask` | A mask or one part |
+| | `find_with_ai` | Run the on-device model for a photo's AI parts (subject, sky); `allowDownload` only after the user agrees to the sky model's one-time 176 MB download |
 | Presets | `list_presets` | Built-in looks and saved presets with their settings |
 | | `apply_preset` | To one photo or `all` |
 | | `save_preset` | A photo's colour settings under a name |

@@ -116,6 +116,17 @@ five kinds (shown in red while the tool is open; **Show the mask in red** turns 
 - **Brightness range:** the photo's tones between a darkest and a lightest, with soft edges; a click on the photo
   picks the tones around that brightness.
 
+**Found by AI** (**Find: Subject, Background, Sky**). An AI model on this device finds the photo's main subject or its
+sky; the background is the subject inverted. Photos never leave the device. To refine the result, paint on the photo:
+Paint adds a brush part that adds to the mask, Erase one that takes away. **Subject** and **Sky** can also be added as
+parts of any mask (a sky narrowed by a brightness range, say). The subject model (U²-Net-p, 4.6 MB) ships with the
+app and takes about a second per photo. The sky model (skyseg, 176 MB) is too big to ship: the first sky mask asks
+before downloading it from Hugging Face, the file is checked against its SHA-256, and it is kept on the device (the
+browser's private file storage; in the desktop app, inside its data folder), so it downloads once. Each map is made
+once per photo and kept for the session; the export uses it at full size. The models find one main subject well; in
+a busy scene with many small things (a field of flowers) the subject mask may cover only some of them, and a photo
+without sky can still get a faint sky mask, so check the red overlay (`src/ai/segment/`, `src/engine/segments.ts`).
+
 Gradient and range settings are sliders in the panel too, so a mask can be shaped entirely from the keyboard. Ranges
 select by the photo's own colours, before its settings, so editing the photo doesn't move them. A mask's settings are in the inspector: exposure, contrast, highlights, shadows,
 whites, blacks, temperature, tint, saturation, clarity, dehaze, sharpening and noise reduction, applied on top of the
@@ -183,6 +194,7 @@ step.
 | Saved presets: validation (`mergePreset`) and the preset file; the list and its storage | `src/engine/presets.ts`; `src/state/presets.ts` |
 | Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`; `src/engine/gpu/mask.ts` |
 | Masks panel and the mask's settings (inspector) | `src/components/ig/MaskPanel.tsx` |
+| AI masks: the models, their download and check, the worker (ONNX Runtime Web); the maps kept per photo; panel status | `src/ai/segment/`; `src/engine/segments.ts`; `src/components/ig/useAiMask.ts` |
 | Presets, LUTs and saved presets panel (both editors) | `src/components/ig/LookPicker.tsx` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
@@ -232,7 +244,9 @@ Browser: `e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEG
 and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
 `moov` before `mdat`, H.264, AAC and 1080 × 1920; timeline trim and reorder by dragging, split and delete; a YouTube
 video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; accessibility). Agents:
-the self-test drives every photo tool on a generated photo (settings and their clamping, white balance, masks seen in
+the self-test draws an AI mask from a stand-in map, runs the real subject model in its worker and checks the sky model
+is never downloaded without consent; `e2e/instagram.e2e.ts` finds a subject with the real model under the production
+CSP (desktop project). The self-test also drives every photo tool on a generated photo (settings and their clamping, white balance, masks seen in
 the preview, a LUT, presets in and out, export), and `npm run test:mcp` edits a sample photo over MCP.
 
 ## Video editor: Reels, Shorts and YouTube

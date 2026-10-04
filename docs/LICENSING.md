@@ -121,6 +121,7 @@ Do this in the same pull request that adds the dependency.
 | Package | Licence | How its terms are met | Approved |
 | --- | --- | --- | --- |
 | [Mediabunny](https://mediabunny.dev) | MPL-2.0 | Used unmodified from npm, loaded with `import()` on export; source linked in THIRD_PARTY_NOTICES.md. If we ever patch it, the patched files are published under MPL 2.0 | Already in use (2.7.0) |
+| [LibRaw](https://www.libraw.org) | LGPL-2.1 or CDDL-1.0 | For RAW photos on desktop (P1.9): a separate helper program or shared library, unmodified, never in the web bundle, shipped with its licence texts and a link to its exact source. Not an npm package, so it is checked with the release's native files rather than by `check-licenses.mjs` | Approved 4 October 2026 (work starts with P1.9) |
 
 ## Register
 
@@ -128,12 +129,22 @@ What ships today (checked by `npm run check:licenses`, October 2026, version 2.8
 permissive, plus the Mediabunny exception. Dual-licensed packages (DOMPurify: MPL-2.0 or Apache-2.0) are used under
 their permissive option.
 
+Models (P1.8, October 2026):
+
+| Model | File (SHA-256) | Licence | Source | Loaded from | Notes |
+| --- | --- | --- | --- | --- | --- |
+| U²-Net-p (subject) | `u2netp.onnx`, 4,574,861 bytes, `309c8469…4ddd8` | Apache-2.0 (the U-2-Net repository; the weights have no separate statement) | [xuebinqin/U-2-Net](https://github.com/xuebinqin/U-2-Net); ONNX export from [rembg](https://github.com/danielgatis/rembg) v0.0.0 release (MIT) | Bundled (`src/ai/segment/models/`) | Weights' licence implied by the repository; trained on DUTS-TR, whose terms aren't stated. Accepted on 4 October 2026 |
+| skyseg (sky) | `skyseg.onnx`, 175,997,079 bytes, `ab9c34c6…a1d39` | MIT (model card) | [JianyuanWang/skyseg](https://huggingface.co/JianyuanWang/skyseg) at revision `3ba8c6df`; derived from [xiongzhu666/Sky-Segmentation-and-Post-processing](https://github.com/xiongzhu666/Sky-Segmentation-and-Post-processing) (MIT) | Downloaded on first use after the user agrees, checked by SHA-256, kept in OPFS | Training data not stated. Accepted on 4 October 2026 |
+
+Runtime: `onnxruntime-web` 1.30 (MIT) and its dependencies, all permissive, in `BUNDLED` in `scripts/check-licenses.mjs`.
+The full hashes are in `src/ai/segment/models.ts`.
+
 Candidates named in the editor roadmap, to be checked again when each is actually added:
 
 | Component | Phase | Licence (as published) | Status | Notes |
 | --- | --- | --- | --- | --- |
-| LibRaw | 1 (desktop) | LGPL 2.1 or CDDL 1.0 | Needs an exception | Separate shared library / helper program, unmodified, source linked |
-| MediaPipe Tasks Vision (`@mediapipe/tasks-vision`) | 1 | Apache 2.0 (code) | Allowed (code) | Each segmentation model's card checked separately before use |
+| LibRaw | 1 (desktop) | LGPL 2.1 or CDDL 1.0 | Exception approved (see above) | Separate shared library / helper program, unmodified, source linked |
+| MediaPipe Tasks Vision (`@mediapipe/tasks-vision`) | 1 | Apache 2.0 (code) | Not used | Its models are people-only (and a few objects); P1.8 uses the U²-Net models above |
 | AVIF encoder (libavif / libaom, WASM) | 1 | BSD-2-Clause | Allowed | Only if canvas can't export AVIF |
 | Speech-to-text model for captions | 3 | Depends on model | To check | Weights and runtime licensed separately |
 | FFmpeg (native, LGPL build) | 3 (desktop) | LGPL 2.1+ | Needs an exception | No `--enable-gpl`, no `--enable-nonfree`; ProRes needs review |

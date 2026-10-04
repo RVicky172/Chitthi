@@ -32,6 +32,14 @@ work in the desktop app, where requests run in the main process. Model names in 
 **Load my models** lists the account's real models from services that offer a models endpoint, and any model name
 can be typed.
 
+## AI masks (on the device)
+
+The photo editor's **Find: Subject, Background, Sky** masks use small segmentation models that run on the device
+(ONNX Runtime Web in a worker), not an AI service: no key, no account, and photos never leave the device. The subject
+model ships with the app; the sky model is downloaded once from Hugging Face after the user agrees, checked against
+its SHA-256 and kept on the device. Details: [MEDIA-STUDIO.md](MEDIA-STUDIO.md) (Masks); licences in
+[LICENSING.md](LICENSING.md#register).
+
 ## Keys and privacy
 
 | | Web app | Desktop app |

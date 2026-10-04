@@ -28,9 +28,13 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Photo and video editors: **image layers** (logos, frames, textures), a **blend mode** on every layer, and **layer
   masks** (a fade or a spot within the layer).
 - Photo editor: export as **WebP**, and **AVIF** where the browser can write it, besides JPEG and PNG.
-- MCP: 21 tools for the photo studio, so agents can add photos, frame them, set every colour setting (one photo or
+- Photo editor: **AI masks**. **Find: Subject, Background, Sky** makes a mask from what an AI model finds in the
+  photo, on the device (photos never leave it); paint over it to refine it. The subject model ships with the app; the
+  sky model (176 MB) is downloaded once, only after you agree, and kept on the device.
+- MCP: 22 tools for the photo studio, so agents can add photos, frame them, set every colour setting (one photo or
   all), set the white balance from a point, add and shape masks, apply, save, export and import presets, import LUTs,
-  look at a preview (with a mask shown) and export the batch.
+  look at a preview (with a mask shown) and export the batch; AI masks too (`find_with_ai` asks before the sky
+  model's download).
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

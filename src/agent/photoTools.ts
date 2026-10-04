@@ -7,6 +7,7 @@ import { drawLayers } from '../engine/layers';
 import { neutralise } from '../engine/light';
 import { LUT_MAX_BYTES, lutById, LutError, parseCube } from '../engine/lut';
 import {
+  aiTargets,
   frameMask,
   MASK_COMBINES,
   MASK_LIMITS,
@@ -49,7 +50,7 @@ import { bool, fetchImage, n, num, obj, ok, s, str, toBlob, ToolError, type Agen
  * is on the photo studio's Undo stack.
  */
 
-const PART_KINDS: readonly PartKind[] = ['brush', 'linear', 'radial', 'colour', 'luma'];
+const PART_KINDS: readonly PartKind[] = ['brush', 'linear', 'radial', 'colour', 'luma', 'ai'];
 
 /** What each slider does, for the schema (ranges come from ADJUST_RANGES). */
 const ABOUT: Record<keyof typeof ADJUST_RANGES, string> = {
@@ -106,7 +107,9 @@ const PART_SETTINGS =
   'radial: x, y, rx, ry (radii), angle, feather 0–100 (full inside, fading over the outer feather %). ' +
   'colour: colour "#rrggbb" (or r, g, b 0–255), range 1–100 (how near a colour counts). ' +
   'luma: lo, hi (0 black – 100 white), smooth 0–100. ' +
-  'brush: strokes (replace) or addStrokes (append), each {pts: [x0, y0, x1, y1, …], size (share of the photo width, 0.002–0.6), feather 0–100, flow 1–100, erase}.';
+  'brush: strokes (replace) or addStrokes (append), each {pts: [x0, y0, x1, y1, …], size (share of the photo width, 0.002–0.6), feather 0–100, flow 1–100, erase}. ' +
+  'ai: target "subject" or "sky", found on this device by an AI model (the background: subject with invert: true); refine it with a brush part that adds or subtracts. ' +
+  'The sky model needs a one-time download (about 176 MB): if a tool says so, ask the user, then call find_with_ai with allowDownload: true.';
 
 /* ---------- reading and describing ---------- */
 
@@ -213,6 +216,27 @@ function putMask(it: IgItem, m: Mask): Mask {
   const at = it.edit.masks.findIndex((x) => x.id === m.id);
   setMasks(it.id, at < 0 ? [...it.edit.masks, clean] : it.edit.masks.map((x, i) => (i === at ? clean : x)));
   return clean;
+}
+
+/* ---------- AI masks ---------- */
+
+/**
+ * Makes the segmentations a photo's AI mask parts need. Returns a note for the agent when a model must be downloaded
+ * first (and allowDownload isn't set); other failures throw.
+ */
+async function findAi(it: IgItem, allowDownload = false): Promise<string> {
+  const targets = aiTargets(it.edit.masks);
+  if (!targets.length) return '';
+  const seg = await import('../ai/segment');
+  try {
+    await seg.ensureSegments(it.preview, targets, { allowDownload });
+    return '';
+  } catch (e) {
+    if (e instanceof seg.NeedsDownload)
+      return ` ${e.message} Ask the user whether to download it; if they agree, call find_with_ai with allowDownload: true. Until then the sky part is empty.`;
+    if (e instanceof seg.SegmentError) throw new ToolError(e.message);
+    throw e;
+  }
 }
 
 /* ---------- pictures ---------- */
@@ -444,7 +468,8 @@ export const PHOTO_TOOLS: AgentTool[] = [
       m.adjust = { ...DEFAULT_ADJUST, ...cleanAdjust(DEFAULT_ADJUST, raw).patch };
       m.invert = a.invert === true;
       const out = putMask(it, m);
-      return ok(`Mask ${out.id} added.${maskActive(out) ? '' : ' It changes nothing yet: give it settings with edit_mask.'}`, maskInfo(out));
+      const note = await findAi(fresh(it.id));
+      return ok(`Mask ${out.id} added.${maskActive(out) ? '' : ' It changes nothing yet: give it settings with edit_mask.'}${note}`, maskInfo(out));
     },
   },
   {
@@ -511,7 +536,7 @@ export const PHOTO_TOOLS: AgentTool[] = [
         parts = [...m.parts, shapePart(newPart(kind, !m.parts.length), record(a.settings), a.combine, a.invert)];
       }
       const out = putMask(it, { ...m, parts });
-      return ok('Mask part set.', maskInfo(out));
+      return ok(`Mask part set.${await findAi(fresh(it.id))}`, maskInfo(out));
     },
   },
   {
@@ -532,6 +557,20 @@ export const PHOTO_TOOLS: AgentTool[] = [
         it.edit.masks.filter((x) => x.id !== m.id),
       );
       return ok(`Mask removed; ${it.edit.masks.length - 1} left.`);
+    },
+  },
+
+  {
+    name: 'find_with_ai',
+    title: 'Find the subject or sky with AI',
+    description:
+      'Runs the on-device AI model for every AI mask part of a photo (subject, sky), so the masks follow what it finds. The sky model needs a one-time download of about 176 MB from Hugging Face: pass allowDownload: true only after the user agreed. Photos never leave the device.',
+    inputSchema: obj({ photo: photoArg, allowDownload: bool('The user agreed to download a model that isn’t on the device yet') }),
+    run: async (a) => {
+      const it = target(a.photo);
+      if (!aiTargets(it.edit.masks).length) throw new ToolError('This photo has no AI mask parts. Add one with add_mask (kind "ai").');
+      const note = await findAi(it, a.allowDownload === true);
+      return ok(note ? note.trim() : `Found ${aiTargets(it.edit.masks).join(' and ')}.`);
     },
   },
 
@@ -679,10 +718,11 @@ export const PHOTO_TOOLS: AgentTool[] = [
     readOnly: true,
     run: async (a) => {
       const it = itemOf(a.photo);
+      const note = await findAi(it);
       const cv = await drawPhoto(it, Math.min(1024, Math.max(256, n(a.maxPx, 800))), typeof a.mask === 'string' && a.mask ? a.mask : undefined);
       const image = await toBlob(cv);
       cv.width = cv.height = 0;
-      return { text: `Photo ${it.id} (“${it.name}”), ${igFormat(getIg().format).ratio}.`, image };
+      return { text: `Photo ${it.id} (“${it.name}”), ${igFormat(getIg().format).ratio}.${note}`, image };
     },
   },
   {
@@ -692,6 +732,10 @@ export const PHOTO_TOOLS: AgentTool[] = [
     inputSchema: obj(),
     run: async () => {
       if (!getIg().items.length) throw new ToolError('The photo studio has no photos. Add one with add_batch_photo.');
+      for (const it of getIg().items) {
+        const note = await findAi(it);
+        if (note) throw new ToolError(`Photo ${it.id}:${note}`);
+      }
       const files = await renderBatch();
       return { text: `${files.length} photo(s) exported.`, files: files.map((f) => ({ name: f.name, blob: f })) };
     },

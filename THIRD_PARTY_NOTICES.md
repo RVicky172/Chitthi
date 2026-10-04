@@ -14,6 +14,9 @@ list are in [docs/LICENSING.md](docs/LICENSING.md).
 | [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) (`@modelcontextprotocol/sdk`) | MIT | MCP server in the desktop app |
 | [Zod](https://zod.dev) | MIT | Used by the MCP SDK |
 | [Mediabunny](https://mediabunny.dev) | [MPL-2.0](https://www.mozilla.org/MPL/2.0/) | Video export (MP4 encoding and video decoding). Used unmodified; its source is at https://github.com/Vanilagy/mediabunny |
+| [ONNX Runtime Web](https://onnxruntime.ai) (`onnxruntime-web`), with onnxruntime-common, flatbuffers, long, protobufjs, guid-typescript, platform | MIT (flatbuffers, long: Apache-2.0; protobufjs: BSD-3-Clause; guid-typescript: ISC) | Runs the AI mask models on the device |
+| [U²-Net-p](https://github.com/xuebinqin/U-2-Net) model (`src/ai/segment/models/u2netp.onnx`) | [Apache-2.0](https://github.com/xuebinqin/U-2-Net/blob/master/LICENSE) | Subject masks. Weights by Xuebin Qin et al.; ONNX file from [rembg](https://github.com/danielgatis/rembg) (MIT). Unmodified |
+| [skyseg](https://huggingface.co/JianyuanWang/skyseg) model | MIT | Sky masks. Not shipped: downloaded once by the app when the user agrees, from a pinned revision |
 | Card and UI fonts from [Google Fonts](https://fonts.google.com) | SIL Open Font License 1.1 (a few Apache 2.0) | Bundled in the desktop app; free to use in printed work |
 | Sample photos in `public/samples/` | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `public/samples/samples.json` and in the app |
 | Landing page example photos in `showcase-src/` (and their renders in `public/showcase/`) | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `showcase-src/photos.json` and on the landing page |

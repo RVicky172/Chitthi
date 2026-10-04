@@ -4,7 +4,8 @@ import { brushDef, type BrushId } from '../data/layers';
 import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, LOOK_KEYS, renderIg, type IgEdit } from '../engine/instagram';
 import { drawLayers, type Layer } from '../engine/layers';
-import type { Mask } from '../engine/masks';
+import { aiTargets, type Mask } from '../engine/masks';
+import { shareSegments } from '../engine/segments';
 import { ensureFonts } from '../lib/fonts';
 import { checkFile, loadImage } from '../engine/photo';
 import { logError } from '../lib/errors';
@@ -407,9 +408,13 @@ export async function renderBatch(onProgress?: (done: number, total: number) => 
   await ensureFonts(state.items.flatMap((it) => it.layers.flatMap((l) => (l.kind === 'text' || l.kind === 'shape' ? [l.font] : []))));
   for (const [i, it] of state.items.entries()) {
     onProgress?.(i, state.items.length);
+    // AI masks: the photo's segmentations (made on its preview, as the stage shows them) are used for the full size too.
+    const targets = aiTargets(it.edit.masks);
+    if (targets.length) await (await import('../ai/segment')).ensureSegments(it.preview, targets);
     const url = URL.createObjectURL(it.file);
     try {
       const img = await loadImage(url);
+      shareSegments(it.preview, img);
       ctx.clearRect(0, 0, f.w, f.h);
       // JPEG has no transparency: start from white so empty corners never turn black.
       if (type === 'image/jpeg') {

@@ -9,7 +9,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /** Libraries Vite bundles into the web app (devDependencies, but shipped to every browser). Add new ones here. */
-const BUNDLED = ['react', 'react-dom', 'jspdf', 'lucide-react', 'mediabunny', '@anthropic-ai/sdk'];
+const BUNDLED = ['react', 'react-dom', 'jspdf', 'lucide-react', 'mediabunny', '@anthropic-ai/sdk', 'onnxruntime-web'];
 
 /** Permissive licences: allowed without review (keep their notices). SPDX identifiers. */
 const ALLOWED = new Set(['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'Zlib', 'BlueOak-1.0.0', 'Unlicense', 'CC0-1.0', 'Python-2.0']);

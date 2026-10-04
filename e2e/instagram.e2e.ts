@@ -494,3 +494,56 @@ test('export formats: WebP where the browser writes it, AVIF only where it does,
   await expect(page.locator('#ig-q')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('AI masks: the subject is found on the device, refined with the brush; the sky model asks before downloading', async ({ page }, info) => {
+  // One real-model run is enough: the desktop project only (the phone project has the same code).
+  test.skip(info.project.name !== 'desktop', 'real model on the desktop project only');
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  const downloads: string[] = [];
+  page.on('request', (r) => /huggingface\.co|hf\.co/.test(r.url()) && downloads.push(r.url()));
+  await upload(page, [path.join('public', 'samples', 'marigold.jpg')]);
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  const canvas = page.locator('.mst-canvas');
+  const pixels = () => canvas.evaluate((c: HTMLCanvasElement) => Array.from(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data));
+
+  await tool(page, 'Masks').click();
+  await page.getByRole('button', { name: 'New subject mask, found by AI' }).click();
+  await expect(page.getByRole('list', { name: 'Masks of this photo' }).getByRole('button', { name: 'Subject 1', pressed: true })).toBeVisible();
+  await expect(page.getByText(/Found on this device by an AI model/)).toBeVisible({ timeout: 30_000 });
+  await page.getByText('Show the mask in red').click();
+  const before = await pixels();
+  await page.locator('#mk-exposure').fill('-2');
+  // Darkened where the subject is, and only there: some of the photo changes, not all of it.
+  await expect
+    .poll(async () => {
+      const after = await pixels();
+      let changed = 0;
+      for (let i = 0; i < after.length; i += 4) if (Math.abs(after[i + 1] - before[i + 1]) > 20) changed++;
+      return changed / (after.length / 4);
+    })
+    .toBeGreaterThan(0.03);
+  const after = await pixels();
+  let changed = 0;
+  for (let i = 0; i < after.length; i += 4) if (Math.abs(after[i + 1] - before[i + 1]) > 20) changed++;
+  expect(changed / (after.length / 4)).toBeLessThan(0.9);
+
+  // Painting over the AI part refines it with a new brush part.
+  await canvas.scrollIntoViewIfNeeded();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.1);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.1);
+  await page.mouse.up();
+  await expect(page.getByRole('button', { name: /Brush 1 · 1 stroke$/ })).toBeVisible();
+
+  // The sky model isn't on the device: the app asks, and downloads nothing until the user agrees.
+  await page.getByRole('button', { name: 'New sky mask, found by AI' }).click();
+  await expect(page.getByRole('button', { name: 'Download the sky model' })).toBeVisible();
+  await expect(page.getByText(/one-time download of the sky model \(176 MB/)).toBeVisible();
+  expect(downloads).toEqual([]);
+
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  expect(errors).toEqual([]);
+});

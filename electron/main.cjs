@@ -47,17 +47,20 @@ const MIME = {
   '.woff': 'font/woff',
   '.ttf': 'font/ttf',
   '.txt': 'text/plain; charset=utf-8',
+  '.wasm': 'application/wasm',
 };
 
 // Google Fonts stay allowed as a fallback for builds made without `npm run fetch:fonts`.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // AI masks run their model with WebAssembly (ONNX Runtime Web), which needs 'wasm-unsafe-eval' (no JavaScript eval).
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   // Pexels photo search (with the user's own key) and the photos it downloads.
   "img-src 'self' data: blob: https://images.pexels.com",
-  "connect-src 'self' data: blob: https://api.pexels.com https://images.pexels.com",
+  // ...and the sky model, downloaded once from Hugging Face (its CDN is *.hf.co) when the user agrees.
+  "connect-src 'self' data: blob: https://api.pexels.com https://images.pexels.com https://huggingface.co https://*.hf.co",
   // The video editor plays local clips and music from blob: URLs; the video encoder starts blob: workers.
   "media-src 'self' blob:",
   "worker-src 'self' blob:",

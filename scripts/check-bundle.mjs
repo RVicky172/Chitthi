@@ -18,7 +18,7 @@ const code = readFileSync(join(dir, entry), 'utf8');
 const kb = Math.round(Buffer.byteLength(code) / 1024);
 const fails = [];
 if (kb > BUDGET_KB) fails.push(`entry chunk ${entry} is ${kb} KB (budget ${BUDGET_KB} KB)`);
-for (const marker of ['dangerouslyAllowBrowser', 'anthropic-version', 'generateContent', 'queue.fal.run'])
+for (const marker of ['dangerouslyAllowBrowser', 'anthropic-version', 'generateContent', 'queue.fal.run', 'InferenceSession'])
   if (code.includes(marker)) fails.push(`AI code (“${marker}”) is in the entry chunk; load it with import()`);
 // The GPU pipeline (engine/gpu/) loads with the media studio, never at start-up.
 for (const marker of ['vec4 effect(vec2 uv)', 'fn effect(uv: vec2f)', 'copyExternalImageToTexture'])

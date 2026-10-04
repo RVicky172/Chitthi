@@ -159,6 +159,7 @@ async function run(): Promise<Result> {
   await aiChecks(check);
   await agentChecks(check, r);
   await photoAgentChecks(check, r);
+  await aiMaskChecks(check, r);
   await perfChecks(check);
   await gpuChecks(check, r);
   return r;
@@ -832,6 +833,65 @@ async function agentChecks(check: (ok: unknown, what: string) => void, r: Result
   r.notes.push(`${TOOLS.length} agent tools, ${PROMPTS.length} prompts, ${RESOURCES.length} resources checked`);
 }
 
+/* ---------- AI masks (P1.8): a stand-in segmentation drawn as a mask, then the real subject model in its worker ---------- */
+
+async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+  const { setSegment } = await import('../engine/segments');
+  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
+  const { DEFAULT_ADJUST } = await import('../engine/adjust');
+  const { newMask, newPart } = await import('../engine/masks');
+  // A grey picture with a red disc in the middle: what any subject model should find.
+  const src = document.createElement('canvas');
+  src.width = src.height = 320;
+  const sx = src.getContext('2d')!;
+  sx.fillStyle = 'rgb(150,150,150)';
+  sx.fillRect(0, 0, 320, 320);
+  sx.fillStyle = 'rgb(210,40,40)';
+  sx.beginPath();
+  sx.arc(160, 160, 70, 0, Math.PI * 2);
+  sx.fill();
+
+  // Stand-in segmenter: the top half is the "sky". An AI mask darkening the sky darkens only the top.
+  const fake = document.createElement('canvas');
+  fake.width = fake.height = 100;
+  fake.getContext('2d')!.drawImage(src, 0, 0, 100, 100);
+  setSegment(fake, 'sky', { w: 2, h: 2, data: new Float32Array([1, 1, 0, 0]) });
+  const part = { ...newPart('ai'), target: 'sky' as const };
+  const mask = { ...newMask('Sky', 'ai'), parts: [part], adjust: { ...DEFAULT_ADJUST, exposure: -3 } };
+  const out = document.createElement('canvas');
+  out.width = out.height = 100;
+  const ox = out.getContext('2d', { willReadFrequently: true })!;
+  renderIg(ox, fake, 100, 100, { ...DEFAULT_EDIT, masks: [mask] }, 100, 100);
+  const px = (x: number, y: number) => ox.getImageData(x, y, 1, 1).data[1];
+  check(px(10, 5) < 60 && px(10, 95) > 120, `AI mask: a found sky darkens only the sky (top ${px(10, 5)}, bottom ${px(10, 95)})`);
+  renderIg(ox, fake, 100, 100, { ...DEFAULT_EDIT, masks: [{ ...mask, parts: [{ ...part, invert: true }] }] }, 100, 100);
+  check(px(10, 5) > 120 && px(10, 95) < 60, 'AI mask: an inverted part takes everything else');
+
+  // The real subject model (bundled), in its worker with ONNX Runtime Web.
+  try {
+    const seg = await import('../ai/segment');
+    const t0 = performance.now();
+    await seg.segmentPhoto(src, 'subject');
+    const ms = performance.now() - t0;
+    const { segmentOf, segmentAt } = await import('../engine/segments');
+    const m = segmentOf(src, 'subject')!;
+    const centre = segmentAt(m, 0.5, 0.5),
+      corner = segmentAt(m, 0.05, 0.05);
+    check(m && centre > 0.5 && corner < 0.5, `AI mask: U²-Net-p finds the disc (centre ${centre.toFixed(2)}, corner ${corner.toFixed(2)})`);
+    let needs = false;
+    if (!(await seg.modelOnDevice('sky')))
+      needs = await seg.segmentPhoto(src, 'sky').then(
+        () => false,
+        (e) => e instanceof seg.NeedsDownload,
+      );
+    else needs = true;
+    check(needs, 'AI mask: the sky model is never downloaded without the user agreeing');
+    r.notes.push(`AI subject mask: ${Math.round(ms)} ms for the first photo (model load and one 320 × 320 run, one thread)`);
+  } catch (e) {
+    r.failed.push(`AI mask: the subject model threw: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
 /* ---------- agent tools for the photo studio (P1.12): adjustments, masks, presets and LUTs end to end ---------- */
 
 async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
@@ -925,6 +985,18 @@ async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: R
     await call('remove_mask', { mask: m.id });
     check(item().edit.masks.length === 0, 'photo tools: remove_mask removes the mask');
     check(await fails('edit_mask', { mask: 'nope' }), 'photo tools: an unknown mask is a tool error');
+
+    // AI masks: the subject is found before the tool returns; the sky asks for the user's agreement first.
+    const { segmentOf } = await import('../engine/segments');
+    const ai = (await call('add_mask', { kind: 'ai', name: 'Subject', adjust: { exposure: 1 } })).json as { id: string; parts: { kind: string; target: string }[] };
+    check(ai.parts[0].kind === 'ai' && ai.parts[0].target === 'subject' && !!segmentOf(item().preview, 'subject'), 'photo tools: an AI mask finds the subject');
+    const { modelOnDevice } = await import('../ai/segment');
+    if (!(await modelOnDevice('sky'))) {
+      const sky = await call('set_mask_part', { mask: ai.id, kind: 'ai', settings: { target: 'sky' } });
+      check(/download/.test(sky.text) && /allowDownload/.test(sky.text), 'photo tools: the sky model needs the user’s agreement');
+      check(/download/.test((await call('find_with_ai', {})).text), 'photo tools: find_with_ai asks before downloading');
+    }
+    await call('remove_mask', { mask: ai.id });
 
     // A 2³ LUT that swaps red and blue: the warm photo turns cool.
     const cube = ['TITLE "Selftest swap"', 'LUT_3D_SIZE 2'];

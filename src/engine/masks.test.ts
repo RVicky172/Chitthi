@@ -4,7 +4,10 @@ import { runNodes, TexturePool, type GraphNode } from './gpu/graph';
 import { MASK_MIX_PROGRAM, maskNodes } from './gpu/mask';
 import type { GpuDevice, GpuTexture } from './gpu/types';
 import { DEFAULT_EDIT, mergeEdit } from './instagram';
+import { segmentAt, segmentOf, segmentVersion, setSegment, shareSegments } from './segments';
 import {
+  aiTargets,
+  type AiPart,
   dragPart,
   frameToPhoto,
   newPart,
@@ -503,5 +506,50 @@ describe('gradient rasters', () => {
         }
     }
     expect(worst).toBeLessThan(1e-5);
+  });
+});
+
+describe('AI parts (P1.8)', () => {
+  // A 4 × 2 map: the left half found (1), the right half not (0).
+  const seg = { w: 4, h: 2, data: new Float32Array([1, 1, 0, 0, 1, 1, 0, 0]) };
+  const sample = (segs: PhotoSample['segs']): PhotoSample => ({ data: new Uint8ClampedArray(40 * 20 * 4), token: 1, segs });
+
+  it('are kept by the gate, with a known target', () => {
+    const [m] = mergeMasks([{ name: 'Sky', parts: [{ kind: 'ai', target: 'sky', invert: true }, { kind: 'ai', target: 'moon' }] }]);
+    expect(m.parts.map((p) => (p.kind === 'ai' ? p.target : p.kind))).toEqual(['sky', 'subject']);
+    expect(m.parts[0].invert).toBe(true);
+  });
+
+  it('list the targets of masks that are on', () => {
+    const on = { ...newMask('A', 'ai'), parts: [{ ...(newPart('ai') as AiPart), target: 'sky' as const }] };
+    const off = { ...newMask('B', 'ai'), on: false };
+    expect(aiTargets([on, off, newMask('C', 'linear')])).toEqual(['sky']);
+  });
+
+  it('draw the map over the whole photo, and nothing before it is found', () => {
+    const part = newPart('ai') as AiPart;
+    const m = rasterShape(part, 40, 20, sample({ subject: seg }));
+    expect(m[5 * 40 + 5]).toBeCloseTo(1);
+    expect(m[5 * 40 + 35]).toBeCloseTo(0);
+    expect(m[5 * 40 + 19]).toBeGreaterThan(0.3);
+    expect(m[5 * 40 + 19]).toBeLessThan(0.7);
+    expect(rasterShape(part, 40, 20, sample({})).every((v) => v === 0)).toBe(true);
+    expect(rasterShape({ ...part, target: 'sky' }, 40, 20, sample({ subject: seg })).every((v) => v === 0)).toBe(true);
+  });
+
+  it('read the map bilinearly', () => {
+    expect(segmentAt(seg, 0.125, 0.25)).toBe(1);
+    expect(segmentAt(seg, 0.5, 0.5)).toBeCloseTo(0.5);
+    expect(segmentAt(seg, 0.99, 0.99)).toBe(0);
+  });
+
+  it('a segmentation arriving changes the version that keys cached samples', () => {
+    const src = {};
+    const v0 = segmentVersion(src);
+    setSegment(src, 'subject', seg);
+    expect(segmentVersion(src)).toBeGreaterThan(v0);
+    const copy = {};
+    shareSegments(src, copy);
+    expect(segmentOf(copy, 'subject')).toBe(seg);
   });
 });

@@ -20,6 +20,7 @@ kept small on purpose. The one runtime library besides React is jsPDF, and it is
 | **CSS** | — | One stylesheet, light and dark themes via custom properties | No CSS framework; `color-mix`, container-friendly grids, `prefers-reduced-motion` handled |
 | **CSS 3D transforms** | browser | 3D viewer: card flip, ring of months, wall calendar, opening envelope | No WebGL dependency; images are the rendered faces |
 | **@anthropic-ai/sdk** | 0.129 | Claude words (`src/ai/providers/anthropic.ts`) | Official SDK: typed requests, structured output, refusal handling. Bundled into the Claude chunk only, loaded with `import()` the first time Claude is used |
+| **ONNX Runtime Web** | 1.30 | AI masks: runs the subject and sky models in a worker (`src/ai/segment/`) | MIT; WebAssembly, one thread, on the device. Loaded with `import()` the first time an AI mask is used (14 MB of WebAssembly, cached) |
 | **FontFace API** | browser | Fonts the user uploads | Registers stored font files so the canvas draws with them; no server needed |
 
 Hand-written helpers instead of libraries: ZIP writer with CRC-32 (`src/lib/zip.ts`) for the print pack, PNG `pHYs`
@@ -36,6 +37,7 @@ few kilobytes.
 | **Google Fonts** | Card and UI fonts on the web | Web: first visit. Desktop: no (bundled) |
 | **AI providers** (Anthropic, OpenAI, Google Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together, Stability, fal.ai, Black Forest Labs, Replicate, Ideogram, local Ollama / LM Studio) | AI words and pictures with the user's own key | Optional. See [AI.md](AI.md) |
 | **GitHub Releases** | Desktop installers and auto-update feed | Desktop updates only |
+| **Hugging Face** (`huggingface.co`, CDN `*.hf.co`) | The sky model for AI masks, downloaded once (176 MB) after the user agrees | Optional |
 
 There is no Chitthi backend, account system or analytics. AI requests go from the device to the provider the user chose.
 

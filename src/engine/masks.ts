@@ -1,8 +1,9 @@
 import { DEFAULT_ADJUST, mergeAdjust, pixelsNeutral, type Adjustments } from './adjust';
+import { AI_TARGETS, segmentAt, segmentOf, segmentVersion, type AiTarget, type Segment } from './segments';
 
 /*
- * Masks (P1.6, P1.7): local adjustments. A mask is a shape made of parts (brush strokes, linear and radial gradients,
- * colour and brightness ranges), combined in order with add, subtract or intersect, optionally inverted, with its own
+ * Masks (P1.6, P1.7, P1.8): local adjustments. A mask is a shape made of parts (brush strokes, linear and radial
+ * gradients, colour and brightness ranges, the subject or sky an AI model finds), combined in order with add, subtract or intersect, optionally inverted, with its own
  * colour settings that apply only where the mask is. Masks are data, never pixels: every part is drawn again from its
  * parameters when a picture is rendered, so a mask stays editable and exports match the preview.
  *
@@ -80,7 +81,16 @@ export interface LumaRangePart extends PartBase {
   smooth: number;
 }
 
-export type MaskPart = BrushPart | LinearPart | RadialPart | ColourRangePart | LumaRangePart;
+/**
+ * What an AI model finds in the photo (engine/segments.ts): its main subject, or its sky. The background is the subject
+ * inverted. The part holds only the target; the map is made for each photo by the segmenter and kept for the session.
+ */
+export interface AiPart extends PartBase {
+  kind: 'ai';
+  target: AiTarget;
+}
+
+export type MaskPart = BrushPart | LinearPart | RadialPart | ColourRangePart | LumaRangePart | AiPart;
 export type PartKind = MaskPart['kind'];
 
 export interface Mask {
@@ -127,6 +137,8 @@ export function newPart(kind: PartKind, first = true): MaskPart {
       return { ...base, kind, combine: first ? 'add' : 'intersect', r: 128, g: 128, b: 128, range: 30 };
     case 'luma':
       return { ...base, kind, combine: first ? 'add' : 'intersect', lo: 0, hi: 50, smooth: 20 };
+    case 'ai':
+      return { ...base, kind, combine: 'add', target: 'subject' };
   }
 }
 
@@ -137,8 +149,13 @@ export function newMask(name: string, kind: PartKind = 'brush'): Mask {
 /** True when the mask changes the picture: switched on, with parts, and settings that do something. */
 export const maskActive = (m: Mask): boolean => m.on && m.parts.length > 0 && !pixelsNeutral(m.adjust);
 
-/** True when a part selects by the photo's colours, so rasterising it needs the photo. */
-export const usesPhoto = (p: MaskPart): boolean => p.kind === 'colour' || p.kind === 'luma';
+/** The AI targets the masks that are switched on use: segmentations to make before drawing them (export, agents). */
+export const aiTargets = (masks: readonly Mask[]): AiTarget[] => [
+  ...new Set(masks.filter((m) => m.on).flatMap((m) => m.parts.flatMap((p) => (p.kind === 'ai' ? [p.target] : [])))),
+];
+
+/** True when a part selects by the photo's contents (its colours, or what a model found), so rasterising it needs the photo. */
+export const usesPhoto = (p: MaskPart): boolean => p.kind === 'colour' || p.kind === 'luma' || p.kind === 'ai';
 
 /* ---------- validation ---------- */
 
@@ -179,7 +196,7 @@ export const PART_RANGES = {
 function mergePart(raw: unknown): MaskPart | null {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
   const kind = o?.kind;
-  if (!o || (kind !== 'brush' && kind !== 'linear' && kind !== 'radial' && kind !== 'colour' && kind !== 'luma'))
+  if (!o || (kind !== 'brush' && kind !== 'linear' && kind !== 'radial' && kind !== 'colour' && kind !== 'luma' && kind !== 'ai'))
     return null;
   const d = newPart(kind) as unknown as Record<string, number>;
   const n = (k: keyof typeof PART_RANGES) => clamp(o[k], PART_RANGES[k][0], PART_RANGES[k][1], d[k]);
@@ -219,6 +236,8 @@ function mergePart(raw: unknown): MaskPart | null {
         hi = n('hi');
       return { ...base, kind, lo: Math.min(lo, hi), hi: Math.max(lo, hi), smooth: n('smooth') };
     }
+    case 'ai':
+      return { ...base, kind, target: AI_TARGETS.includes(o.target as AiTarget) ? (o.target as AiTarget) : 'subject' };
   }
 }
 
@@ -423,10 +442,11 @@ export function paintStroke(m: Float32Array, rw: number, rh: number, s: BrushStr
 
 /* ---------- gradients and ranges ---------- */
 
-/** The photo at raster size, RGBA, for range parts; `token` tells samples apart in cache keys. */
+/** The photo at raster size, RGBA, for range parts, and its segmentations for AI parts; `token` tells samples apart in cache keys. */
 export interface PhotoSample {
   data: Uint8ClampedArray;
   token: number;
+  segs?: Partial<Record<AiTarget, Segment>>;
 }
 
 const ss = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -545,6 +565,10 @@ export function rasterShape(
         if (d2 >= 1) continue;
         m[y * rw + x] = d2 <= inner2 ? 1 : 1 - ss((Math.sqrt(d2) - inner) / band);
       }
+  } else if (part.kind === 'ai') {
+    // The model's map, read at each raster pixel's centre; none yet (still working, or no model): an empty part.
+    const s = photo?.segs?.[part.target];
+    if (s) for (let y = 0; y < rh; y++) for (let x = 0; x < rw; x++) m[y * rw + x] = segmentAt(s, (x + 0.5) / rw, (y + 0.5) / rh);
   } else if (!photo || photo.data.length !== rw * rh * 4) m.fill(1);
   else if (part.kind === 'luma') {
     const px = photo.data,
@@ -888,9 +912,12 @@ export function frameMask(
 let sampleSeq = 0;
 const samples = new WeakMap<object, Map<string, PhotoSample>>();
 
-/** The photo drawn at rw × rh (as it is, not turned or adjusted), cached per photo and size. */
+/**
+ * The photo drawn at rw × rh (as it is, not turned or adjusted), with its segmentations so far, cached per photo, size
+ * and segmentation version (a new segmentation makes a new sample, so rasters that use it are drawn again).
+ */
 export function photoSample(src: CanvasImageSource, rw: number, rh: number): PhotoSample | undefined {
-  const key = `${rw}x${rh}`,
+  const key = `${rw}x${rh}:${segmentVersion(src)}`,
     hit = samples.get(src)?.get(key);
   if (hit) return hit;
   const c = document.createElement('canvas');
@@ -901,7 +928,12 @@ export function photoSample(src: CanvasImageSource, rw: number, rh: number): Pho
   x.imageSmoothingEnabled = true;
   x.imageSmoothingQuality = 'high';
   x.drawImage(src, 0, 0, rw, rh);
-  const out = { data: x.getImageData(0, 0, rw, rh).data, token: ++sampleSeq };
+  const segs: Partial<Record<AiTarget, Segment>> = {};
+  for (const t of AI_TARGETS) {
+    const s = segmentOf(src, t);
+    if (s) segs[t] = s;
+  }
+  const out = { data: x.getImageData(0, 0, rw, rh).data, token: ++sampleSeq, segs };
   const sizes = samples.get(src) ?? new Map<string, PhotoSample>();
   if (sizes.size > 3) sizes.clear();
   sizes.set(key, out);

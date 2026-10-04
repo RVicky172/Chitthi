@@ -27,6 +27,10 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       chunkSizeWarningLimit: 900,
     },
+    // The segmentation worker (src/ai/segment/) is an ES module worker: ONNX Runtime Web imports modules.
+    worker: { format: 'es' },
+    // ONNX Runtime Web is already an ES module; pre-bundling it on first use would reload the dev page mid-run.
+    optimizeDeps: { exclude: ['onnxruntime-web'] },
     server: { port: 5173, proxy },
     // Preview adds the server's Pexels key to /api/pexels: keep it on this machine, never on a public address.
     preview: { host: 'localhost', proxy, headers: csp ? { 'Content-Security-Policy': csp } : {} },

@@ -21,6 +21,8 @@ import {
   dragPart,
   frameMask,
   frameToPhoto,
+  MASK_LIMITS,
+  newBrushPart,
   partHandles,
   type BrushStroke,
   type HandleId,
@@ -56,6 +58,7 @@ import {
   resetPhoto,
   restackLayer,
   selectLayer,
+  selectMask,
   selectPhoto,
   setIg,
   setLayers,
@@ -78,6 +81,7 @@ import { CurveEditor } from '../ig/CurveEditor';
 import { LookPicker } from '../ig/LookPicker';
 import { addMask, MaskInspector, MaskPanel } from '../ig/MaskPanel';
 import { Slider } from '../ig/Slider';
+import { useSegmentsTick } from '../ig/useAiMask';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import {
   AddPhotoIcon,
@@ -215,7 +219,8 @@ interface MaskView {
  * `width` CSS px.
  */
 function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefined, formatId: IgFormatId, width: number, selection: string | null = null, view: MaskView | null = null) {
-  const tick = useFontsTick(it?.layers ?? []);
+  const tick = useFontsTick(it?.layers ?? []),
+    segs = useSegmentsTick();
   useEffect(() => {
     const cv = ref.current;
     if (!cv || !it || width <= 0) return;
@@ -237,7 +242,7 @@ function useRender(ref: RefObject<HTMLCanvasElement | null>, it: IgItem | undefi
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
     if (view?.overlay) drawMaskOverlay(x, it, view.mask, W, H);
     if (view?.part) drawPartGuide(x, view.part, photoPlace(it.preview.width, it.preview.height, it.edit, W, H), handleRadius(cv));
-  }, [ref, it, formatId, width, selection, tick, view]);
+  }, [ref, it, formatId, width, selection, tick, segs, view]);
 }
 
 export function PhotoWorkspace({ mode, onMode }: { mode: StudioMode; onMode: (m: StudioMode) => void }) {
@@ -582,7 +587,8 @@ function PhotoStage({ item }: { item: IgItem }) {
   };
   // The Masks tool on the stage, by the selected part: a brush stroke goes into a brush part (a new mask when none is
   // selected), in the photo's own coordinates, so it stays put when the photo is moved, turned or mirrored; a gradient
-  // is moved by its handles, or drawn anew by a drag elsewhere; a range takes the colour or brightness clicked.
+  // is moved by its handles, or drawn anew by a drag elsewhere; a range takes the colour or brightness clicked. Painting
+  // over an AI part refines it: a new brush part that adds (Paint) or subtracts (Erase).
   const stroke = useRef<{ mask: string; part: string; s: BrushStroke; key: string; W: number; H: number; last: [number, number] } | null>(null);
   const grad = useRef<{ mask: string; orig: LinearPart | RadialPart; handle: HandleId | 'draw'; from: [number, number]; key: string; W: number; H: number } | null>(null);
   const cursor = useRef<HTMLDivElement>(null);
@@ -615,11 +621,20 @@ function PhotoStage({ item }: { item: IgItem }) {
         if (!made) return toast('A photo can have 16 masks; delete one to add another.');
         mask = made;
       }
-      const part = mask.parts.find((p) => p.id === getIg().partSel) ?? mask.parts[0];
+      let part = mask.parts.find((p) => p.id === getIg().partSel) ?? mask.parts[0];
       if (!part) return;
       const place = photoPlace(item.preview.width, item.preview.height, item.edit, W, H),
         [u, v] = frameToPhoto(place, x, y),
         key = `maskdrag:${Date.now()}`;
+      let erase = getIg().maskBrush.erase;
+      if (part.kind === 'ai') {
+        if (mask.parts.length >= MASK_LIMITS.parts) return toast('A mask can have 8 parts; delete one to refine it with the brush.');
+        const bp = newBrushPart(erase ? 'subtract' : 'add');
+        updateMask(item.id, mask.id, (m) => ({ ...m, parts: [...m.parts, bp] }), key);
+        selectMask(mask.id, bp.id);
+        part = bp;
+        erase = false;
+      }
       if (part.kind === 'linear' || part.kind === 'radial') {
         const r = (ref.current ? handleRadius(ref.current) : 8) * 1.8,
           hit = partHandles(part, place)
@@ -644,7 +659,7 @@ function PhotoStage({ item }: { item: IgItem }) {
         size: Math.min(BRUSH_RANGES.size[1], Math.max(BRUSH_RANGES.size[0], (b.size * W) / place.w)),
         feather: b.feather,
         flow: b.flow,
-        erase: b.erase,
+        erase,
       };
       const st = { mask: mask.id, part: part.id, s, key, W, H, last: [x, y] as [number, number] };
       stroke.current = st;
