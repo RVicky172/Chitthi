@@ -63,7 +63,9 @@ src/
     prompts/                 Versioned templates: words.ts (greetings, captions, messages), artwork.ts (pictures)
     providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram
   agent/
-    tools.ts                 The 34 agent tools: JSON Schema input and a handler each
+    tools.ts                 The 55 agent tools: JSON Schema input and a handler each (34 for print designs here)
+    photoTools.ts            The 21 photo studio tools: batch, framing, colour, masks, presets, LUTs, preview, export
+    common.ts                Tool shape, schema helpers, reading an image by path or URL
     prompts.ts               MCP prompts (workflows) and resources (design, specs, photo rules)
     bridge.ts                Page side of MCP: runs one call at a time, returns text, images and files
   platform/
@@ -434,7 +436,7 @@ One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPho
 | `agent:call` | main → page | An MCP request for the page (`__list`, `__resource`, `__prompt` or a tool) |
 | `agent:reply` | page → main | Its result (id 0: the page is ready) |
 | `agent:writeFiles` | invoke | Save tool output to Documents/Chitthi agent output (unique names) |
-| `agent:readPhoto` | invoke | Read a JPG / PNG / WebP ≤ 25 MB for `add_photo` |
+| `agent:readPhoto` | invoke | Read a JPG / PNG / WebP ≤ 25 MB for `add_photo` and `add_batch_photo` |
 | `agent:status` / `agent:setLive` | invoke | Live MCP endpoint: state, and turn it on or off (returns URL and token) |
 
 `app://chitthi` is a privileged standard scheme serving `dist/` (and `fonts/` from resources) with the CSP header on

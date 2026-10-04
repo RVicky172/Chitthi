@@ -20,6 +20,8 @@ import { selectSlot } from '../state/photoSlots';
 import { getState, replaceCard, setBack, setDesign, setUI } from '../state/store';
 import { autoArrange } from '../state/traits';
 import type { Design, LayoutId, Orient, ProductId } from '../types';
+import { bool, fetchImage, n, num, obj, ok, s, str, toBlob, ToolError, type AgentTool } from './common';
+import { PHOTO_TOOLS } from './photoTools';
 
 /*
  * Agent tools (Command pattern): every studio capability an AI agent may use, as {name, description, JSON Schema,
@@ -28,40 +30,6 @@ import type { Design, LayoutId, Orient, ProductId } from '../types';
  * and Undo reverts what an agent did in the live app. Files a tool makes are written by the desktop app into the
  * agent output folder and returned as paths; images for the agent to look at come back small (≤ 1024 px).
  */
-
-export interface ToolFile {
-  name: string;
-  blob: Blob;
-}
-export interface ToolResult {
-  text: string;
-  json?: unknown;
-  image?: Blob;
-  files?: ToolFile[];
-}
-export interface AgentTool {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  readOnly?: boolean;
-  destructive?: boolean;
-  run(args: Record<string, unknown>, env: AgentEnv): Promise<ToolResult>;
-}
-export interface AgentEnv {
-  /** Desktop: reads an image file the agent names (the main process checks type and size). */
-  readPhoto?: (path: string) => Promise<{ name: string; data: ArrayBuffer; type: string }>;
-}
-
-const obj = (properties: Record<string, unknown> = {}, required: string[] = []) => ({ type: 'object', properties, required, additionalProperties: false });
-const str = (description: string, extra: Record<string, unknown> = {}) => ({ type: 'string', description, ...extra });
-const num = (description: string, extra: Record<string, unknown> = {}) => ({ type: 'number', description, ...extra });
-const bool = (description: string) => ({ type: 'boolean', description });
-
-const s = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
-const n = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
-const ok = (text: string, json?: unknown): ToolResult => ({ text, json });
-class ToolError extends Error {}
 
 /** A compact description of the design an agent can reason about. */
 function summary(d: Design = getState().design) {
@@ -102,9 +70,6 @@ function patchDesign(patch: Record<string, unknown>): string[] {
   setDesign(mergeDesign(next));
   return ignored;
 }
-
-const toBlob = (cv: HTMLCanvasElement, type = 'image/png', q?: number) =>
-  new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new ToolError('The image couldn’t be made.'))), type, q));
 
 /** Pexels results the agent has seen, so add_pexels_photo can use one by id (with its credit). */
 const pexelsSeen = new Map<number, PexelsPhoto>();
@@ -363,19 +328,7 @@ export const TOOLS: AgentTool[] = [
     description: 'Adds a JPG, PNG or WebP photo to the design (into the selected slot) and the photo library, from a local file path (desktop) or an https URL the user owns or may use.',
     inputSchema: obj({ path: str('Local file path'), url: str('https URL of an image'), name: str('Name to show for the photo') }),
     run: async (a, env) => {
-      let data: Blob, name: string;
-      if (typeof a.path === 'string' && a.path) {
-        if (!env.readPhoto) throw new ToolError('Local files can be added in the desktop app only.');
-        const f = await env.readPhoto(a.path);
-        data = new Blob([f.data], { type: f.type });
-        name = s(a.name) || f.name;
-      } else if (typeof a.url === 'string' && /^https:\/\//.test(a.url)) {
-        const r = await fetch(a.url);
-        if (!r.ok) throw new ToolError(`The image couldn’t be downloaded (${r.status}).`);
-        data = await r.blob();
-        name = s(a.name) || decodeURIComponent(a.url.split('/').pop() ?? 'photo').slice(0, 60);
-      } else throw new ToolError('Give a local file path or an https URL.');
-      if (!/^image\/(jpeg|png|webp)$/.test(data.type)) throw new ToolError('Only JPG, PNG or WebP images can be used.');
+      const { name, blob: data } = await fetchImage(a, env);
       const url = await new Promise<string>((ok2, fail) => {
         const fr = new FileReader();
         fr.onload = () => ok2(String(fr.result));
@@ -616,7 +569,11 @@ export const TOOLS: AgentTool[] = [
       return ok(`Saved “${getState().design.designName || 'design'}”.`);
     },
   },
+
+  /* ---------- photo studio (adjustments, masks, presets, LUTs) ---------- */
+  ...PHOTO_TOOLS,
 ];
 
 export const TOOLS_BY_NAME: Record<string, AgentTool> = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
 export { ToolError };
+export type { AgentEnv, AgentTool, ToolFile, ToolResult } from './common';

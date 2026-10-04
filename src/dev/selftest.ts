@@ -158,6 +158,7 @@ async function run(): Promise<Result> {
 
   await aiChecks(check);
   await agentChecks(check, r);
+  await photoAgentChecks(check, r);
   await perfChecks(check);
   await gpuChecks(check, r);
   return r;
@@ -818,7 +819,7 @@ async function agentChecks(check: (ok: unknown, what: string) => void, r: Result
     check(sc.type === 'object' && sc.properties && (sc.required ?? []).every((k) => k in sc.properties!), `tool ${t.name}: valid input schema`);
     check(t.description.length > 20, `tool ${t.name}: has a description`);
   }
-  for (const t of TOOLS.filter((x) => x.readOnly && !['search_pexels', 'list_saved'].includes(x.name))) {
+  for (const t of TOOLS.filter((x) => x.readOnly && !['search_pexels', 'list_saved', 'render_photo_preview'].includes(x.name))) {
     try {
       const out = await t.run(t.name === 'list_sizes' ? { product: 'postcard' } : t.name === 'list_festivals' ? { year: 2027 } : {}, {});
       check(out.text, `tool ${t.name}: runs`);
@@ -829,6 +830,144 @@ async function agentChecks(check: (ok: unknown, what: string) => void, r: Result
   for (const p of PROMPTS) check(p.build({ occasion: 'Diwali', year: '2027', subject: 'kites' }).length > 80, `prompt ${p.name}: builds`);
   for (const res of RESOURCES) check((await res.read()).length > 20, `resource ${res.uri}: reads`);
   r.notes.push(`${TOOLS.length} agent tools, ${PROMPTS.length} prompts, ${RESOURCES.length} resources checked`);
+}
+
+/* ---------- agent tools for the photo studio (P1.12): adjustments, masks, presets and LUTs end to end ---------- */
+
+async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+  const { TOOLS_BY_NAME: T } = await import('../agent/tools');
+  const ig = await import('../state/instagram');
+  const { DEFAULT_ADJUST } = await import('../engine/adjust');
+  const { forgetLut } = await import('../lib/userLuts');
+  const call = async (name: string, args: Record<string, unknown> = {}) => T[name].run(args, {});
+  const fails = async (name: string, args: Record<string, unknown>) => call(name, args).then(() => false, () => true);
+  /** Mean RGB of a region of a tool's preview image, by shares of its size. */
+  const mean = async (blob: Blob | undefined, x0: number, y0: number, x1: number, y1: number): Promise<[number, number, number]> => {
+    const bmp = await createImageBitmap(blob!);
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    x.drawImage(bmp, 0, 0);
+    const X = Math.round(x0 * c.width),
+      Y = Math.round(y0 * c.height);
+    const d = x.getImageData(X, Y, Math.max(1, Math.round(x1 * c.width) - X), Math.max(1, Math.round(y1 * c.height) - Y)).data;
+    const s = [0, 0, 0];
+    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k];
+    return s.map((v) => v / (d.length / 4)) as [number, number, number];
+  };
+  const lum = (c: number[]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const preview = async (extra: Record<string, unknown> = {}) => (await call('render_photo_preview', { maxPx: 256, ...extra })).image;
+  const top = (img: Blob | undefined) => mean(img, 0.3, 0.05, 0.7, 0.3).then(lum),
+    bottom = (img: Blob | undefined) => mean(img, 0.3, 0.7, 0.7, 0.95).then(lum);
+
+  // An even, warm mid-tone photo (a cast the temperature slider can correct): white balance, exposure and masks show
+  // plainly against it.
+  const src = document.createElement('canvas');
+  src.width = 400;
+  src.height = 500;
+  const sx = src.getContext('2d')!;
+  sx.fillStyle = 'rgb(150,128,110)';
+  sx.fillRect(0, 0, 400, 500);
+  const blob = await new Promise<Blob>((ok) => src.toBlob((b) => ok(b!), 'image/png'));
+  const { format, fileType } = ig.getIg();
+  let lutId = '',
+    presetId = '';
+  try {
+    ig.clearBatch();
+    await ig.addPhotos([{ name: 'selftest.png', blob }]);
+    const batch = (await call('get_photo_batch')).json as { photos: { id: string }[] };
+    check(batch.photos.length === 1, 'photo tools: the batch lists the photo');
+    const item = () => ig.getIg().items[0];
+
+    const before = lum(await mean(await preview(), 0.2, 0.2, 0.8, 0.8));
+    const adj = await call('adjust_photo', { settings: { exposure: 1, contrast: 500, mixer: { sat: { blue: -40 } }, curve: { r: [[0, 0], [1, 0.9]] }, bogus: 1 } });
+    const a = item().edit.adjust;
+    check(a.exposure === 1 && a.contrast === 100, 'photo tools: adjust_photo sets and clamps sliders');
+    check(a.mixer.sat[5] === -40 && a.mixer.sat[0] === 0 && a.curve.r[1][1] === 0.9 && a.curve.rgb.length === 2, 'photo tools: partial mixer and curve');
+    check(/bogus/.test(adj.text), 'photo tools: unknown settings are reported');
+    check(lum(await mean(await preview(), 0.2, 0.2, 0.8, 0.8)) > before + 20, 'photo tools: exposure brightens the preview');
+    await call('adjust_photo', { reset: true, settings: {} });
+    check(JSON.stringify(item().edit.adjust) === JSON.stringify(DEFAULT_ADJUST), 'photo tools: reset restores the defaults');
+
+    const wb = (await call('white_balance_from_point', { x: 0.5, y: 0.5 })).json as { temperature: number };
+    const [wr, , wbl] = await mean(await preview(), 0.4, 0.4, 0.6, 0.6);
+    check(wb.temperature < 0 && Math.abs(wr - wbl) < 8, `photo tools: white balance neutralises the picked colour (r ${wr.toFixed(0)}, b ${wbl.toFixed(0)})`);
+    await call('adjust_photo', { reset: true, settings: {} });
+
+    const frame = await call('frame_photo', { zoom: 9, rot: 90 });
+    check((frame.json as { zoom: number }).zoom === 4 && item().edit.rot === 90, 'photo tools: frame_photo clamps and turns');
+    await call('frame_photo', { zoom: 1, rot: 0 });
+
+    // A sky fade: full at the top, gone by the middle, darkening by two stops.
+    const m = (await call('add_mask', { kind: 'linear', name: 'Sky', part: { x: 0.5, y: 0.5, angle: 90, width: 0.05 }, adjust: { exposure: -2 } })).json as { id: string };
+    let img = await preview();
+    const t1 = await top(img),
+      b1 = await bottom(img);
+    check(t1 < b1 - 30, `photo tools: a linear mask darkens only its side (top ${t1.toFixed(0)}, bottom ${b1.toFixed(0)})`);
+    const red = await mean(await preview({ mask: m.id }), 0.3, 0.05, 0.7, 0.3);
+    check(red[0] > red[2] + 60, 'photo tools: the preview shows the mask in red');
+    await call('edit_mask', { mask: m.id, invert: true });
+    img = await preview();
+    check((await top(img)) > (await bottom(img)) + 30, 'photo tools: edit_mask inverts');
+    const two = (await call('set_mask_part', { mask: m.id, kind: 'colour', settings: { colour: '#96806e', range: 20 } })).json as {
+      parts: { id: string; combine: string; r: number }[];
+    };
+    check(two.parts.length === 2 && two.parts[1].combine === 'intersect' && two.parts[1].r === 150, 'photo tools: set_mask_part adds a colour range that intersects');
+    await call('set_mask_part', { mask: m.id, part: two.parts[1].id, combine: 'subtract', settings: { range: 50, bogus: 3 } });
+    const p2 = item().edit.masks[0].parts[1] as unknown as Record<string, unknown>;
+    check(p2.combine === 'subtract' && p2.range === 50 && !('bogus' in p2), 'photo tools: set_mask_part changes a part through the gate');
+    await call('set_mask_part', { mask: m.id, kind: 'brush', settings: { addStrokes: [{ pts: [0.2, 0.2, 0.8, 0.8], size: 0.1 }] } });
+    const brush = item().edit.masks[0].parts[2];
+    check(brush?.kind === 'brush' && brush.strokes.length === 1, 'photo tools: brush strokes by points');
+    await call('remove_mask', { mask: m.id, part: two.parts[1].id });
+    check(item().edit.masks[0].parts.length === 2, 'photo tools: remove_mask removes a part');
+    await call('remove_mask', { mask: m.id });
+    check(item().edit.masks.length === 0, 'photo tools: remove_mask removes the mask');
+    check(await fails('edit_mask', { mask: 'nope' }), 'photo tools: an unknown mask is a tool error');
+
+    // A 2³ LUT that swaps red and blue: the warm photo turns cool.
+    const cube = ['TITLE "Selftest swap"', 'LUT_3D_SIZE 2'];
+    for (let b = 0; b < 2; b++) for (let g = 0; g < 2; g++) for (let rr = 0; rr < 2; rr++) cube.push(`${b} ${g} ${rr}`);
+    lutId = ((await call('import_lut', { cube: cube.join('\n') })).json as { id: string }).id;
+    check(((await call('list_luts')).json as { id: string }[]).some((l) => l.id === lutId), 'photo tools: an imported LUT is listed');
+    await call('adjust_photo', { photo: 'all', settings: { lut: lutId } });
+    const [lr, , lb] = await mean(await preview(), 0.4, 0.4, 0.6, 0.6);
+    check(lb > lr + 25, `photo tools: the LUT applies (r ${lr.toFixed(0)}, b ${lb.toFixed(0)})`);
+    check(await fails('adjust_photo', { settings: { lut: 'zz00000000' } }), 'photo tools: an unknown LUT is a tool error');
+    check(await fails('import_lut', { cube: 'LUT_1D_SIZE 2\n0 0 0\n1 1 1' }), 'photo tools: a 1D LUT is refused');
+
+    await call('adjust_photo', { settings: { exposure: 0.5 } });
+    presetId = ((await call('save_preset', { name: 'Selftest preset' })).json as { id: string }).id;
+    const listed = (await call('list_presets')).json as { builtIn: unknown[]; saved: { id: string }[] };
+    check(listed.builtIn.length === 7 && listed.saved.some((p) => p.id === presetId), 'photo tools: presets listed');
+    await call('apply_preset', { preset: 'look:bw' });
+    check(item().edit.adjust.look === 'bw' && item().edit.adjust.exposure === 0.5, 'photo tools: a built-in preset sets only its look');
+    await call('adjust_photo', { reset: true, settings: {} });
+    await call('apply_preset', { preset: presetId, photo: 'all' });
+    const ap = item().edit.adjust;
+    check(ap.exposure === 0.5 && ap.lut === lutId && ap.look === 'none', 'photo tools: a saved preset replaces the settings');
+    const file = JSON.parse(await (await call('export_presets', { presets: [presetId] })).files![0].blob.text());
+    check(file.format === 'chitthi-presets' && file.presets.length === 1 && file.luts.length === 1, 'photo tools: export_presets carries the LUT');
+    const imp = await call('import_presets', { json: JSON.stringify(file) });
+    check((imp.json as { skipped: number }).skipped === 1, 'photo tools: importing the same preset skips it');
+    check(await fails('delete_preset', { preset: presetId }), 'photo tools: deleting a preset needs confirm');
+    await call('delete_preset', { preset: presetId, confirm: true });
+    presetId = '';
+
+    await call('set_photo_options', { format: 'square', fileType: 'png' });
+    const out = await call('export_photos');
+    const bmp = await createImageBitmap(out.files![0].blob);
+    check(out.files!.length === 1 && out.files![0].blob.type === 'image/png' && bmp.width === 1080 && bmp.height === 1080, 'photo tools: export_photos writes the batch');
+    check(await fails('adjust_photo', { photo: 'nope', settings: {} }), 'photo tools: an unknown photo is a tool error');
+  } catch (e) {
+    r.failed.push(`photo tools threw: ${e instanceof Error ? e.message : e}`);
+  } finally {
+    if (presetId) await call('delete_preset', { preset: presetId, confirm: true }).catch(() => undefined);
+    if (lutId) await forgetLut(lutId);
+    ig.clearBatch();
+    ig.setIg({ format, fileType });
+  }
 }
 
 declare global {

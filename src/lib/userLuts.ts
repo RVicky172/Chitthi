@@ -67,6 +67,9 @@ export function loadLutLibrary(): Promise<void> {
   return loading;
 }
 
+/** The stored LUTs, by name (once loadLutLibrary() has read them). */
+export const getLutLibrary = (): LutMeta[] => list;
+
 /** The stored LUTs, by name; re-renders when one is added or removed. */
 export function useLutLibrary(): LutMeta[] {
   return useSyncExternalStore(

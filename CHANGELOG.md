@@ -28,6 +28,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Photo and video editors: **image layers** (logos, frames, textures), a **blend mode** on every layer, and **layer
   masks** (a fade or a spot within the layer).
 - Photo editor: export as **WebP**, and **AVIF** where the browser can write it, besides JPEG and PNG.
+- MCP: 21 tools for the photo studio, so agents can add photos, frame them, set every colour setting (one photo or
+  all), set the white balance from a point, add and shape masks, apply, save, export and import presets, import LUTs,
+  look at a preview (with a mask shown) and export the batch.
 
 - Licensing policy for libraries, models and assets (`docs/LICENSING.md`) and `npm run check:licenses`, which runs in
   CI and before release builds.

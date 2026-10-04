@@ -2,12 +2,13 @@
 /*
  * End-to-end check of Chitthi's MCP server with the official MCP client: starts `npm run mcp` over stdio, lists tools,
  * resources and prompts, builds a calendar and a postcard through the tools, checks and previews them, and exports a
- * PDF. No AI calls (those need the user's keys). Run: node scripts/mcp-smoke.mjs  (exits 1 on any failure)
+ * PDF; then edits a sample photo in the photo studio (colour, a mask, a preset) and exports it. No AI calls (those need the user's keys). Run: node scripts/mcp-smoke.mjs  (exits 1 on any failure)
  * CHITTHI_MCP_APP=<path to Chitthi Studio.exe> tests a packaged or installed app instead of the source.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const app = process.env.CHITTHI_MCP_APP;
 const transport = new StdioClientTransport(
@@ -63,6 +64,27 @@ try {
   check(!!file && existsSync(file), `export_pdf wrote ${file}`);
   const bad = await client.callTool({ name: 'set_layout', arguments: { layout: 'nope' } });
   check(bad.isError === true, 'bad input returns a tool error, not a crash');
+
+  // Photo studio: a sample photo by path, colour settings, a mask, a preview and the export.
+  const jsonOf = (r) => JSON.parse(textOf(r).split('\n').slice(1).join('\n'));
+  await call('remove_batch_photo', { all: true });
+  const added = jsonOf(await call('add_batch_photo', { path: resolve('public/samples/marigold.jpg') }));
+  check(/^ig/.test(added.id), `add_batch_photo added ${added.id}`);
+  const adj = jsonOf(await call('adjust_photo', { settings: { exposure: 0.3, shadows: 40, mixer: { sat: { orange: 20 } } } }));
+  check(adj.exposure === 0.3 && adj.shadows === 40 && adj.mixer.sat[1] === 20, 'adjust_photo sets light and colour mixer');
+  const mask = jsonOf(await call('add_mask', { kind: 'radial', name: 'Flower', part: { x: 0.5, y: 0.5, rx: 0.25, ry: 0.25 }, adjust: { clarity: 30 } }));
+  check(mask.active === true && mask.parts[0].kind === 'radial', 'add_mask adds a radial mask');
+  const look = await call('render_photo_preview', { maxPx: 512, mask: mask.id });
+  const pimg = look.content.find((c) => c.type === 'image');
+  check(pimg && pimg.mimeType === 'image/png' && pimg.data.length > 1000, 'render_photo_preview returns a PNG');
+  const presets = jsonOf(await call('list_presets'));
+  check(presets.builtIn.some((p) => p.id === 'look:warm'), 'list_presets lists the built-in looks');
+  await call('apply_preset', { preset: 'look:warm', photo: 'all' });
+  const exp = textOf(await call('export_photos'));
+  const photoFile = /Files written:\n(.+)/.exec(exp)?.[1]?.trim();
+  check(!!photoFile && existsSync(photoFile), `export_photos wrote ${photoFile}`);
+  const badMask = await client.callTool({ name: 'edit_mask', arguments: { mask: 'nope' } });
+  check(badMask.isError === true, 'an unknown mask returns a tool error');
 } catch (e) {
   fails.push(String(e && e.stack ? e.stack : e));
   console.error(e);

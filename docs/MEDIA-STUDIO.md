@@ -194,6 +194,7 @@ step.
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
 | Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx`, `VideoWorkspace.tsx`, `Timeline.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
 | Styles | `src/styles/36-media-studio.css` (workspace, timeline), `src/styles/35-instagram.css` (panels and controls) |
+| Agent tools for the photo studio (MCP): batch, framing, colour, masks, presets, LUTs, preview, export | `src/agent/photoTools.ts` |
 
 The preview, the thumbnails and the exported files all go through `renderIg()` and `drawLayers()`, so the files match
 the preview. Layer positions are shares of the frame and sizes are shares of its width, so layers keep their place at
@@ -216,6 +217,11 @@ masks: 6–9 ms per frame on the GPU, 22–27 ms while painting, 26–29 ms whil
 desktop app on Windows); about 0.45 s on Canvas 2D. A 1080 ×
 1350 frame with a look takes about 6 ms on WebGPU and 11 ms on WebGL2, against 24 ms on Canvas 2D (desktop app, Windows).
 
+**Agents.** The desktop app's MCP server ([MCP.md](MCP.md)) can edit photos too: add them to the batch, set any
+colour setting, add and shape masks, use and save presets, import LUTs, look at a preview and export. The tools call
+the same store actions as the panels and pass the same validators (`mergeAdjust`, `mergeMasks`, `mergeEdit`), so an
+agent can set nothing a panel couldn't; in a live session each change is selected and on the Undo stack.
+
 **Memory.** Each photo keeps its original file (compressed) and a preview copy of at most 1080 px; 20 photos stay
 around 100 MB. Full-size pixels exist only while one photo is being exported. The batch lasts for the session; the
 format, batch size and file settings are remembered.
@@ -225,7 +231,9 @@ format, batch size and file settings are remembered.
 Browser: `e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
 and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
 `moov` before `mdat`, H.264, AAC and 1080 × 1920; timeline trim and reorder by dragging, split and delete; a YouTube
-video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; accessibility).
+video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; accessibility). Agents:
+the self-test drives every photo tool on a generated photo (settings and their clamping, white balance, masks seen in
+the preview, a LUT, presets in and out, export), and `npm run test:mcp` edits a sample photo over MCP.
 
 ## Video editor: Reels, Shorts and YouTube
 

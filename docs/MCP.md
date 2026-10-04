@@ -2,7 +2,8 @@
 
 Chitthi's desktop app is an [MCP](https://modelcontextprotocol.io) server. Agents such as Claude Code, Claude Desktop,
 VS Code and Cursor can use its tools to build designs, write words, add photos, check print quality and export
-print-ready files, through exactly the same code as the studio. A Claude Code **plugin** adds the server and six
+print-ready files, and edit photos in the photo studio (colour, masks, presets, LUTs), through exactly the same code
+as the studio. A Claude Code **plugin** adds the server and six
 workflow **skills** in one step.
 
 MCP needs the desktop app: a web page can't run a server. The web app has the same AI features in the studio.
@@ -64,12 +65,13 @@ Claude Desktop: `claude_desktop_config.json`. VS Code and Cursor: their MCP sett
 claude mcp add chitthi-dev -- npm --prefix /path/to/Chitthi run --silent mcp
 ```
 
-`npm run test:mcp` connects the official MCP client to it and runs a build, check, preview and export end to end.
+`npm run test:mcp` connects the official MCP client to it and runs a build, check, preview and export end to end, then
+edits a sample photo in the photo studio and exports it.
 
 ## Tools
 
 Read-only tools are annotated `readOnlyHint`; `save_design` is `destructiveHint` and needs `confirm: true` to
-overwrite a saved design. Tools that call the user's AI or Pexels account are annotated `openWorldHint`.
+overwrite a saved design, as `delete_preset` does to delete a preset. Tools that call the user's AI or Pexels account are annotated `openWorldHint`.
 
 | Group | Tool | What it does |
 | --- | --- | --- |
@@ -107,8 +109,34 @@ overwrite a saved design. Tools that call the user's AI or Pexels account are an
 | Gallery | `list_saved` | Saved designs |
 | | `open_saved` | Open one |
 | | `save_design` | Save (copy, or overwrite with `confirm`) |
+| Photo studio | `get_photo_batch` | Post format, file type, and each photo's id, framing, changed settings, masks |
+| | `add_batch_photo` | A JPG / PNG / WebP from a local path or an https URL into the batch (up to 20) |
+| | `remove_batch_photo` | One photo, or all |
+| | `set_photo_options` | Post format (4:5, 1:1, 3:4, 1.91:1, 9:16), file type, quality, batch limit |
+| | `frame_photo` | Fill or fit (with a colour or blurred background), zoom, position, turn, mirror |
+| Colour | `adjust_photo` | Look, light, white balance, tone curve, colour mixer, detail, effects, vignette, LUT; one photo or `all` |
+| | `white_balance_from_point` | The eyedropper: neutral grey at a point of the frame |
+| Masks | `add_mask` | A local adjustment: brush, linear or radial gradient, colour or brightness range, with its own settings |
+| | `edit_mask` | Name, on/off, invert, the mask's settings |
+| | `set_mask_part` | Add or change a part (combine with add, subtract or intersect); brush strokes as points |
+| | `remove_mask` | A mask or one part |
+| Presets | `list_presets` | Built-in looks and saved presets with their settings |
+| | `apply_preset` | To one photo or `all` |
+| | `save_preset` | A photo's colour settings under a name |
+| | `delete_preset` | A saved preset (`confirm`) |
+| | `export_presets` / `import_presets` | A preset file with the LUTs its presets use |
+| | `list_luts` / `import_lut` | Imported 3D LUTs; import from `.cube` text or an https URL |
+| Photo output | `render_photo_preview` | PNG of a photo as it will be posted (≤ 1024 px), optionally with a mask shown in red |
+| | `export_photos` | Every photo at full size in the chosen format and file type |
 
 Files a tool makes are written to **Documents/Chitthi agent output** and returned as paths.
+
+**Photo studio coordinates.** Mask positions are shares of the photo's own width and height (0–1, before it is turned
+or mirrored) and sizes are shares of its width, so masks stay put when the photo is framed differently. Points for
+`white_balance_from_point` are shares of the post frame, as seen in `render_photo_preview`. Every setting goes through
+the same validators as a loaded file (`mergeAdjust`, `mergeMasks`, `mergeEdit`): numbers are clamped to the panels'
+ranges and unknown settings are reported back. In live mode the photo being changed is selected, and every change is
+on the photo studio's Undo stack. Video clips get their tools with the multi-track timeline (P2.12).
 
 **Resources:** `chitthi://design/current`, `chitthi://specs/sizes`, `chitthi://specs/layouts`,
 `chitthi://print-specs`, `chitthi://rules/photos`.
@@ -143,6 +171,7 @@ MCP client ──stdio──► relay (Electron binary in Node mode, electron/mc
   and stops when turned off or when Chitthi closes.
 - No tool returns API keys. AI tools use the keys the user saved in Settings, through the main process.
 - Files are written only to the agent output folder; photos are read only if they are JPG / PNG / WebP under 25 MB.
+  LUTs and preset files are passed as text, so no other file can be read by path.
 - Overwriting a saved design needs `confirm: true`.
 
 ## Troubleshooting

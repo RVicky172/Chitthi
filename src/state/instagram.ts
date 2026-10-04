@@ -374,6 +374,11 @@ export function adjustAll(patch: Partial<Adjustments>): void {
   change('', state.items.map((x) => ({ ...x, edit: { ...x.edit, adjust: { ...x.edit.adjust, ...patch } } })));
 }
 
+/** Changes the colour settings of every photo in the batch, each from its own, as one undo step (agent tools). */
+export function adjustEach(f: (a: Adjustments) => Adjustments): void {
+  change('', state.items.map((x) => ({ ...x, edit: { ...x.edit, adjust: f(x.edit.adjust) } })));
+}
+
 /** Copies the look of one photo (fit, background, look, adjustments, vignette) to every photo in the batch. */
 export function applyLookToAll(id: string): void {
   const src = state.items.find((x) => x.id === id);
