@@ -1,7 +1,7 @@
 {
   "name": "chitthi",
   "displayName": "Chitthi Studio",
-  "version": "2.8.0",
+  "version": "2.10.0",
   "description": "Design postcards, calendars, frame prints and fridge magnets in the Chitthi desktop app from Claude Code: MCP tools to build, check and export print-ready files, plus skills for festival postcards, year calendars, print quotes, Pexels photo sourcing and AI artwork.",
   "author": { "name": "RVicky172", "url": "https://github.com/RVicky172" },
   "homepage": "https://github.com/RVicky172/Chitthi/blob/main/docs/MCP.md",

@@ -9,6 +9,8 @@ anything surprising or deferred.
 
 > **Deferred (2026-10-06):** T022, T023, T030, T033 and T040–T047 (and T091's CI half, T092) wait for the
 > maintainer's hardware checks; they are on the roadmap backlog. Everything else is done.
+> **Changed (2026-10-06, D-007):** the release (T040–T047) goes ahead now; T022, T023, T030, T033 stay in the
+> backlog as post-release checks.
 
 ## Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)
 
@@ -178,10 +180,19 @@ anything surprising or deferred.
 
 ## Release 2.10.0 (plan §5)
 
-- [ ] **T040** — Release changes (AC-10): CHANGELOG Unreleased → `## [2.10.0] — <date>`; `npm version 2.10.0
+- [x] **T040** — Release changes (AC-10): CHANGELOG Unreleased → `## [2.10.0] — <date>`; `npm version 2.10.0
       --no-git-tag-version`; `APP_CACHE` v15 → v16; `docker-compose.yml` `chitthi-studio:2.10.0`; plugin version;
       README's version sentence; `editor-implementation.md` Phase 1 Done (gate numbers from T022, T033), status line.
       · files: those · test: `npm run check`, `npm run build`; grep finds no stale `2.8.0` outside history
+  - **Result (2026-10-06):** CHANGELOG `## [2.10.0] - 2026-10-06` with an empty Unreleased above it; compare links
+    fixed (`[Unreleased]` still compared from v2.7.0 and 2.8.0 had none: now v2.10.0...HEAD, v2.8.0...v2.10.0,
+    v2.7.0...v2.8.0); `npm version 2.10.0 --no-git-tag-version` (package.json + lock); `APP_CACHE` v15 → v16;
+    `docker-compose.yml` `chitthi-studio:2.10.0`; plugin 2.10.0; README "Version 2.10.0, with the advanced photo
+    editor"; `editor-implementation.md` Phase 1 row: merged and released in 2.10.0, gate "to confirm after the
+    release (D-007)" with the numbers so far. `2.8.0` left only where it is history ("written against 2.8.0",
+    `licensing.md`'s dated count, the roadmap's baseline line). D-007 recorded. All gates on the release code:
+    check 743, licences 168, build 327 KB, e2e 67 / 7 skipped, self-test 6,115 / 0, MCP passed. The local Docker
+    check couldn't run (Docker Desktop not running): the dry run's CI covers it.
 - [ ] **T041** 👤 — Merge `feat/editor-phase-1-continued` into `main` (fast-forward if possible) and push `main`,
       with the maintainer's OK at the time. · test: `git log main` shows the release commit
 - [ ] **T042** 👤 — Dry run (D2): Desktop release workflow by hand on `main`: `ci` green (lint, licences, build, unit,

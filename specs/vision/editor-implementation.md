@@ -18,7 +18,7 @@ change that finishes an item.
 | Phase | Done | Branch / PR | Gate | Release |
 | --- | --- | --- | --- | --- |
 | 0. Foundation (GPU render graph) | 9 of 9 | Merged in #18 | Met: exports match Canvas 2D on every backend; entry chunk under budget | 2.10.0 (with Phase 1; 2.9.0 was never tagged) |
-| 1. Advanced photo editor | 12 of 12 | P1.1–P1.3 merged in #21; P1.4–P1.12 on `feat/editor-phase-1-continued` | To confirm: masked edits measured at 22–29 ms a frame while painting or dragging a gradient at 1080 × 1350 on the desktop app (still to check on a mid-range laptop in Chrome); RAW and 16-bit TIFF done (P1.9) | 2.10.0 |
+| 1. Advanced photo editor | 12 of 12 | P1.1–P1.3 merged in #21; P1.4–P1.12 merged into `main` and released in 2.10.0 (2026-10-06) | To confirm after the release (D-007, roadmap backlog): masked edits at 30 fps in Chrome on a mid-range laptop (`npm run measure:gate`; 16.6 ms between updates on the development machine) and RAW on macOS; measured so far 22–29 ms a frame painting or dragging a gradient at 1080 × 1350 on the desktop app; RAW and 16-bit TIFF checked on Windows (CR3, NEF, ARW) | 2.10.0 |
 | 2. Multi-track timeline | 0 of 12 | — | Not started | 3.0.0 |
 | 3. Colour and finishing | 0 of 9 | — | Not started | 3.1.0 |
 

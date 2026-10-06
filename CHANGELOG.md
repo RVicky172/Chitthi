@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-10-06
+
 ### Added
 
 - Photo editor: **Light** (exposure, contrast, highlights, shadows, whites, blacks) and **Colour** (temperature, tint,
@@ -215,7 +217,9 @@ Chitthi Studio: the photo & video studio (Instagram photos, Reels & Shorts, YouT
 
 - Desktop app for Windows and macOS (Electron) with auto-updates from GitHub Releases.
 
-[Unreleased]: https://github.com/RVicky172/Chitthi/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/RVicky172/Chitthi/compare/v2.10.0...HEAD
+[2.10.0]: https://github.com/RVicky172/Chitthi/compare/v2.8.0...v2.10.0
+[2.8.0]: https://github.com/RVicky172/Chitthi/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/RVicky172/Chitthi/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/RVicky172/Chitthi/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/RVicky172/Chitthi/compare/v2.4.0...v2.5.0
