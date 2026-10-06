@@ -99,14 +99,30 @@ anything surprising or deferred.
     project's media ids) has it, not "only `data:image/` sources" as the plan said. Break-test: removing the
     `images.has` check failed "image layers need a picture the project has", restored. One test bug fixed
     (`toMatchObject({ start: undefined })` needs the key present). `layers.test.ts` 25 tests; `npm run check` 819.
-- [ ] **T014** — Failing tests for §2: `fromSequence` (AC-2: back-to-back starts, the music clip with offset, volume,
+- [x] **T014** — Failing tests for §2: `fromSequence` (AC-2: back-to-back starts, the music clip with offset, volume,
       `toEnd`, an empty `A1` without music, layers unchanged); `toDocument` → JSON → `mergeProject` round trips for
       every fixture (AC-7); v1 → clip times equal the reference placement; ≥ 30 malformed documents (AC-6: `null`,
       strings, arrays, NaN / Infinity, negative and huge times, `in ≥ out`, `out > srcDur`, unknown track, missing
       media, duplicate ids, 600 clips, 20 tracks, bad `edit`, bad layers, unknown version) → valid project, reasons in
       `dropped`, never throws. · files: `src/engine/timeline.test.ts` · test: fails
-- [ ] **T015** — Implement §2 (`toDocument`, `fromSequence`, `mergeProject`) until T014 passes. · files:
+- [x] **T015** — Implement §2 (`toDocument`, `fromSequence`, `mergeProject`) until T014 passes. · files:
       `src/engine/timeline.ts` · test: T014 (AC-6, AC-7)
+  - **Result T014 + T015 (2026-10-06):** 61 tests written first (60 failed: functions missing). In
+    `src/engine/timeline.ts`: `DocMedia` (id, kind photo / video / audio / image, name, type, size, pixel size,
+    source length: described, never embedded), `DocClip`, `DocAudio`, `ProjectDoc` (a `Project` plus version 1,
+    kind, format, fps, quality, media), `fromSequence` (2.x clips back to back on `V1`, the song as `music` on `A1`
+    with `in` = offset and `toEnd`, every other field kept), `toDocument` (only a project's own fields) and
+    `mergeProject(raw, desktop)` → `{ doc, dropped }`: no version → 2.x shape upgraded through `fromSequence`;
+    version ≠ 1 → empty project, "newer version"; settings checked against `formatsFor` / `limitsFor` (desktop-only
+    formats refused on the web); media, tracks (`V1` video and `A1` audio always present with those kinds; 8 + 8 /
+    4 + 4), clips (track must be a picture track, media of the same kind, photo `dur` finite ≥ 0, video
+    `0 ≤ in < out ≤ srcDur` with `out` clamped to the source, else dropped; `edit` via `mergeEdit`; motion, fade,
+    volume), sound clips, layers via `mergeLayers` with the media's image ids; duplicate ids renamed; `pack` last;
+    one `try` around all. Tests: for all 12 fixtures the 2.x document → v1 → JSON → gate is unchanged, nothing
+    dropped, starts and frames and sound equal the frozen 2.x; `toDocument` keeps no blobs / URLs / thumbnails /
+    unknown fields; **34 malformed documents** each give a valid project (own-rule checks + a second pass changes
+    nothing) and never throw; reasons say why. Break-tests: no "nothing left to play" rule → "in ≥ out" failed;
+    `toDocument` copying whole clips → the key test failed; both restored. `npm run check` 880 tests; entry 327 KB.
 
 ## Core: store and export
 

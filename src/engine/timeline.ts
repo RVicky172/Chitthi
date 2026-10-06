@@ -1,5 +1,19 @@
-import type { Layer } from './layers';
-import { clipLength, frameRange, type ClipTiming } from './video';
+import { mergeEdit, type IgEdit } from './instagram';
+import { mergeLayers, type Layer } from './layers';
+import {
+  MOTIONS,
+  V_PHOTO_SECONDS,
+  clipLength,
+  formatsFor,
+  frameRange,
+  limitsFor,
+  type ClipTiming,
+  type Motion,
+  type VFormatId,
+  type VFps,
+  type VKind,
+  type VQuality,
+} from './video';
 
 /*
  * The video editor's project as tracks (P2.1, specs/features/201-track-model), free of DOM and React. Clips sit on a
@@ -176,4 +190,372 @@ export function audioPlan(p: Project): SoundSource[] {
     });
   }
   return out;
+}
+
+/* ---------- the project document and its gate ---------- */
+
+export type MediaKind = 'photo' | 'video' | 'audio' | 'image';
+
+/** A file the project uses, described (never embedded): where it lives is up to whoever saves the project. */
+export interface DocMedia {
+  id: string;
+  kind: MediaKind;
+  name: string;
+  /** MIME type. */
+  type: string;
+  /** Bytes. */
+  size: number;
+  /** Pixels (0 for sound). */
+  w: number;
+  h: number;
+  /** Seconds (0 for pictures). */
+  srcDur: number;
+}
+
+/** A picture clip as saved: its timing, look and motion, and the media it shows. */
+export interface DocClip extends TimedClip {
+  media: string;
+  edit: IgEdit;
+  motion: Motion;
+  fade: boolean;
+  /** Its own sound, 0–1 (photos: 0). */
+  volume: number;
+}
+
+export interface DocAudio extends AudioClip {
+  media: string;
+}
+
+/** A project as JSON. Version 1 is the track model; a document without a version is a 2.x project (clips in a row). */
+export interface ProjectDoc extends Project<DocClip> {
+  version: 1;
+  kind: VKind;
+  format: VFormatId;
+  fps: VFps;
+  quality: VQuality;
+  audio: DocAudio[];
+  media: DocMedia[];
+}
+
+/**
+ * A 2.x project on tracks: the clips back to back on the main video track, the song as a music clip that plays to the
+ * end of the video from its offset. Every other field of the clips and the song is kept.
+ */
+export function fromSequence<
+  C extends ClipTiming & { id: string },
+  M extends { offset: number; volume: number; dur: number },
+>(seq: {
+  clips: C[];
+  music: M | null;
+  layers: Layer[];
+  fadeOut: boolean;
+}): Project<C & { track: string; start: number }> & { audio: (AudioClip & Omit<M, 'offset' | 'volume' | 'dur'>)[] } {
+  const clips = pack(seq.clips.map((c) => ({ ...c, track: MAIN_VIDEO, start: 0 })));
+  let audio: (AudioClip & Omit<M, 'offset' | 'volume' | 'dur'>)[] = [];
+  if (seq.music) {
+    const { offset, volume, dur, ...rest } = seq.music;
+    audio = [{ ...rest, id: 'music', track: MUSIC, start: 0, in: offset, volume, toEnd: true, srcDur: dur }];
+  }
+  return { tracks: defaultTracks(), clips, audio, layers: seq.layers, fadeOut: seq.fadeOut };
+}
+
+/** The JSON form of a project: only the fields a project is made of (no files, URLs, thumbnails or view state). */
+export function toDocument(p: ProjectDoc): ProjectDoc {
+  return {
+    version: 1,
+    kind: p.kind,
+    format: p.format,
+    fps: p.fps,
+    quality: p.quality,
+    fadeOut: p.fadeOut,
+    tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
+    clips: p.clips.map(({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume }) => ({
+      id,
+      track,
+      start,
+      media,
+      kind,
+      dur,
+      in: i,
+      out,
+      edit,
+      motion,
+      fade,
+      volume,
+    })),
+    audio: p.audio.map(({ id, track, start, media, in: i, volume, toEnd, srcDur }) => ({
+      id,
+      track,
+      start,
+      media,
+      in: i,
+      volume,
+      toEnd,
+      srcDur,
+    })),
+    layers: p.layers,
+    media: p.media.map(({ id, kind, name, type, size, w, h, srcDur }) => ({
+      id,
+      kind,
+      name,
+      type,
+      size,
+      w,
+      h,
+      srcDur,
+    })),
+  };
+}
+
+const ID = /^[A-Za-z0-9_-]{1,40}$/;
+const MEDIA_KINDS: readonly MediaKind[] = ['photo', 'video', 'audio', 'image'];
+const TRACK_KINDS: readonly TrackKind[] = ['video', 'overlay', 'audio'];
+const MOTION_IDS: readonly string[] = MOTIONS.map(([m]) => m);
+/** The longest source or timeline time the gate accepts, seconds (a day). */
+const MAX_TIME = 86400;
+const obj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+const fin = (v: unknown, lo: number, hi: number) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null;
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+let gen = 0;
+const freshId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(gen++).toString(36)}`;
+
+function emptyDoc(desktop: boolean): ProjectDoc {
+  return {
+    version: 1,
+    kind: 'reel',
+    format: 'reel',
+    fps: limitsFor('reel', desktop).fps[0],
+    quality: 'standard',
+    fadeOut: true,
+    tracks: defaultTracks(),
+    clips: [],
+    audio: [],
+    layers: [],
+    media: [],
+  };
+}
+
+/** A 2.x document (no version) as a version 1 candidate, still to go through the gate. */
+function upgrade(o: Record<string, unknown>): Record<string, unknown> {
+  const clips = arr(o.clips).filter((c): c is Record<string, unknown> => !!obj(c));
+  const m = obj(o.music);
+  const seq = fromSequence({
+    clips: clips.map((c) => ({
+      ...c,
+      kind: c.kind === 'video' ? ('video' as const) : ('photo' as const),
+      dur: Number(c.dur),
+      in: Number(c.in),
+      out: Number(c.out),
+      id: String(c.id),
+    })),
+    music: m ? { ...m, offset: Number(m.offset), volume: Number(m.volume), dur: Number(m.dur) } : null,
+    layers: [],
+    fadeOut: o.fadeOut !== false,
+  });
+  return { ...o, version: 1, tracks: seq.tracks, clips: seq.clips, audio: seq.audio, music: undefined };
+}
+
+/**
+ * The single gate for project data from outside the running app (project files; 2.x projects): a valid version 1
+ * project and what it dropped or changed, and why. Values out of range are clamped or replaced by defaults; clips on a
+ * missing or wrong track or without their media, and unknown fields, are dropped; ids are made unique; the main track
+ * is packed. Never throws.
+ */
+export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc; dropped: string[] } {
+  const dropped: string[] = [];
+  try {
+    let o = obj(raw);
+    if (!o) return { doc: emptyDoc(desktop), dropped: ['This isn’t a project.'] };
+    if (o.version === undefined) o = upgrade(o);
+    else if (o.version !== 1)
+      return {
+        doc: emptyDoc(desktop),
+        dropped: [
+          `This project is from a newer version of Chitthi Studio (version ${String(o.version).slice(0, 10)}).`,
+        ],
+      };
+
+    // Settings.
+    const kind: VKind = o.kind === 'vlog' ? 'vlog' : 'reel';
+    const formats = formatsFor(kind);
+    const format = formats.find((f) => f.id === o.format && (desktop || !f.desktopOnly))?.id ?? formats[0].id;
+    const L = limitsFor(kind, desktop);
+    const fps = L.fps.includes(o.fps as VFps) ? (o.fps as VFps) : L.fps[0];
+    const quality: VQuality = o.quality === 'high' ? 'high' : 'standard';
+    const fadeOut = o.fadeOut !== false;
+
+    // Media.
+    const media: DocMedia[] = [];
+    for (const r of arr(o.media)) {
+      const m = obj(r);
+      if (
+        !m ||
+        typeof m.id !== 'string' ||
+        !ID.test(m.id) ||
+        media.some((x) => x.id === m.id) ||
+        !MEDIA_KINDS.includes(m.kind as MediaKind)
+      ) {
+        dropped.push('A media entry was unreadable and was left out.');
+        continue;
+      }
+      media.push({
+        id: m.id,
+        kind: m.kind as MediaKind,
+        name: text(m.name, 200),
+        type: text(m.type, 100),
+        size: fin(m.size, 0, Number.MAX_SAFE_INTEGER) ?? 0,
+        w: Math.round(fin(m.w, 0, 100000) ?? 0),
+        h: Math.round(fin(m.h, 0, 100000) ?? 0),
+        srcDur: fin(m.srcDur, 0, MAX_TIME) ?? 0,
+      });
+    }
+    const mediaOf = (id: unknown) => media.find((m) => m.id === id);
+
+    // Tracks: the main video and music tracks always exist, with their kinds; the rest within the limits.
+    const T = TRACK_LIMITS(desktop);
+    const tracks: Track[] = [];
+    for (const r of arr(o.tracks)) {
+      const t = obj(r);
+      if (
+        !t ||
+        typeof t.id !== 'string' ||
+        !ID.test(t.id) ||
+        tracks.some((x) => x.id === t.id) ||
+        !TRACK_KINDS.includes(t.kind as TrackKind)
+      ) {
+        dropped.push('A track was unreadable and was left out.');
+        continue;
+      }
+      const kindT: TrackKind = t.id === MAIN_VIDEO ? 'video' : t.id === MUSIC ? 'audio' : (t.kind as TrackKind);
+      const full =
+        kindT === 'audio'
+          ? tracks.filter((x) => x.kind === 'audio').length >= T.audio
+          : tracks.filter(isVisual).length >= T.visual;
+      if (full) {
+        dropped.push(
+          `A project holds up to ${T.visual} picture and ${T.audio} sound tracks here; “${text(t.name, 40)}” was left out.`,
+        );
+        continue;
+      }
+      tracks.push({
+        id: t.id,
+        kind: kindT,
+        name: text(t.name, 40) || (kindT === 'audio' ? 'Audio' : 'Video'),
+        hidden: t.hidden === true,
+        muted: t.muted === true,
+        locked: t.locked === true,
+      });
+    }
+    for (const d of defaultTracks())
+      if (!tracks.some((t) => t.id === d.id)) {
+        if (d.kind === 'video' && tracks.filter(isVisual).length >= T.visual)
+          tracks.splice(tracks.findLastIndex(isVisual), 1);
+        if (d.kind === 'audio' && tracks.filter((t) => t.kind === 'audio').length >= T.audio)
+          tracks.splice(
+            tracks.findLastIndex((t) => t.kind === 'audio'),
+            1,
+          );
+        tracks.splice(d.kind === 'video' ? 0 : tracks.length, 0, d);
+      }
+    const trackOf = (id: unknown) => tracks.find((t) => t.id === id);
+
+    // Picture clips.
+    const ids = new Set<string>();
+    const unique = (v: unknown, prefix: string) => {
+      let id = typeof v === 'string' && ID.test(v) ? v : '';
+      if (!id || ids.has(id)) {
+        if (id) dropped.push(`Two items had the id “${id}”; one was renamed.`);
+        id = freshId(prefix);
+      }
+      ids.add(id);
+      return id;
+    };
+    const clips: DocClip[] = [];
+    const rawClips = arr(o.clips);
+    if (rawClips.length > L.clips)
+      dropped.push(`A project holds up to ${L.clips} clips here; ${rawClips.length - L.clips} were left out.`);
+    for (const r of rawClips.slice(0, L.clips)) {
+      const c = obj(r);
+      if (!c) {
+        dropped.push('A clip was unreadable and was left out.');
+        continue;
+      }
+      const cKind = c.kind === 'video' ? 'video' : 'photo';
+      const tr = trackOf(c.track);
+      if (!tr || !isVisual(tr)) {
+        dropped.push('A clip on a missing or sound track was left out.');
+        continue;
+      }
+      const m = mediaOf(c.media);
+      if (!m || m.kind !== cKind) {
+        dropped.push(`A ${cKind} clip without its media was left out.`);
+        continue;
+      }
+      let dur = 0,
+        cin = 0,
+        out = 0;
+      if (cKind === 'photo') dur = fin(c.dur, 0, L.seconds) ?? V_PHOTO_SECONDS;
+      else {
+        cin = fin(c.in, 0, MAX_TIME) ?? 0;
+        out = Math.min(fin(c.out, 0, MAX_TIME) ?? m.srcDur, m.srcDur);
+        if (!(cin < out)) {
+          dropped.push('A video clip with nothing left to play was left out.');
+          continue;
+        }
+      }
+      clips.push({
+        id: unique(c.id, 'v'),
+        track: tr.id,
+        start: fin(c.start, 0, MAX_TIME) ?? 0,
+        media: m.id,
+        kind: cKind,
+        dur,
+        in: cin,
+        out,
+        edit: mergeEdit(c.edit),
+        motion: (MOTION_IDS.includes(c.motion as string) ? c.motion : cKind === 'photo' ? 'zoom-in' : 'none') as Motion,
+        fade: c.fade === true,
+        volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
+      });
+    }
+
+    // Sound clips.
+    const audio: DocAudio[] = [];
+    for (const r of arr(o.audio)) {
+      const a = obj(r);
+      const tr = a && trackOf(a.track);
+      const m = a && mediaOf(a.media);
+      if (!a || !tr || tr.kind !== 'audio' || !m || m.kind !== 'audio') {
+        dropped.push('A sound on a missing or picture track, or without its media, was left out.');
+        continue;
+      }
+      audio.push({
+        id: unique(a.id, 'a'),
+        track: tr.id,
+        start: fin(a.start, 0, MAX_TIME) ?? 0,
+        media: m.id,
+        in: Math.min(fin(a.in, 0, MAX_TIME) ?? 0, m.srcDur),
+        volume: fin(a.volume, 0, 1) ?? 0.8,
+        toEnd: a.toEnd !== false,
+        srcDur: m.srcDur,
+      });
+    }
+
+    const images = new Set(media.filter((m) => m.kind === 'image').map((m) => m.id));
+    const layers = mergeLayers(o.layers, images);
+    if (arr(o.layers).length > layers.length)
+      dropped.push(`${arr(o.layers).length - layers.length} layer(s) couldn’t be read and were left out.`);
+
+    return {
+      doc: { version: 1, kind, format, fps, quality, fadeOut, tracks, clips: pack(clips), audio, layers, media },
+      dropped,
+    };
+  } catch (e) {
+    return {
+      doc: emptyDoc(desktop),
+      dropped: [...dropped, `The project couldn’t be read (${e instanceof Error ? e.message : 'unknown error'}).`],
+    };
+  }
 }
