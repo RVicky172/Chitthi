@@ -146,6 +146,11 @@ test was flaky (3 runs each of the self-test, MCP and e2e suites).
 | G8 | DoD 9: 15 catch blocks show an error without `logError('handled', e)`; most are expected user errors (bad font or preset file, clipboard blocked), but 5 export failures in `src/state/actions.ts` (lines 128–176: PDF, document, envelope, image, print pack) and the gallery save (line 300) should be logged | T091 scan | bug fix |
 | G9 | `src/assests/` (misspelt): 14 Pexels photos (31 MB) that nothing references and no credits list names | T022 | the maintainer: wire into samples with credits, or remove |
 
+**Status (2026-10-06):** G6, G7 and G8 fixed as bug fixes before `001` (`df57d6d`, `001` tasks T001–T004): `npm audit`
+0 high (one moderate advisory without a fix remains, build-time only); the MCP smoke test deletes its files; all 14
+shown errors log (G8's 15th was a false positive in the scan), guarded by `src/lib/errors.test.ts`. G5: CI now runs
+only at a release (D-006), first at `001`'s dry run. G1–G4 and G9 open as listed.
+
 Fixed inside `000` (Q1 small fixes, not gaps): every doc mismatch found by T020, T021, T023, T031 and T032 (see
 their Result notes), the MCP test time in `specs/testing-strategy.md` (~30 s → ~10 s) and the entry-size comment in
 `scripts/check-bundle.mjs` (~333 → ~326 KB). Not ours: 15 broken links inside third-party skills vendored under

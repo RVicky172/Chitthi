@@ -175,7 +175,8 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 - **Headers** (web): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` and COOP.
   The container runs as non-root with a read-only file system. HSTS is set at the TLS proxy ([OPERATIONS.md](../docs/OPERATIONS.md)).
 - **Supply chain**: dependencies, GitHub Actions (pinned by SHA) and Docker base images (pinned by digest) are kept
-  current by Dependabot; CodeQL scans every pull request. Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
+  current by Dependabot; CodeQL scans every pull request. A release builds its installers only after the full CI
+  (`ci.yml`, called by `desktop-release.yml`) passes on the tag. Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 
 ## 8. Quality attributes
 
@@ -185,10 +186,11 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Offline | Service worker (web); everything bundled (desktop) |
 | Performance | Lazy jsPDF; deferred thumbnail redraws; per-session caches for sample renders and Pexels results; photos pre-processed once (crop, rotate, look) |
 | Memory | Explicit budgets: 16 MP per photo, undo history capped at 320 MB of extra photo canvases, caches limited or dropped after use, AI and agent images size-capped. A built-in performance monitor shows CPU (desktop), main-thread load, memory and photo memory ([PERFORMANCE.md](../docs/PERFORMANCE.md)) |
-| Responsive UI | One layout from 1920 px to 360 px with no sideways scrolling: secondary header actions fold into a More / Menu list instead of wrapping ([LLD §8](lld.md#8-components))
+| Responsive UI | One layout from 1920 px to 360 px with no sideways scrolling: secondary header actions fold into a More / Menu list instead of wrapping ([LLD §8](lld.md#8-components)) |
 | Accessibility | Keyboard-operable stage (arrow keys and zoom), labelled controls, live regions, WCAG AA contrast in both themes, reduced-motion support |
 | Maintainability | Specifications as data ([SPECIFICATIONS.md](../docs/SPECIFICATIONS.md)); engine free of UI code; strict TypeScript with exhaustive `Record<ProductId, …>` maps |
 | Portability | One build for web and desktop; platform differences are behind `lib/db.ts` and `platform/desktop.ts` |
+| Verification | Five suites run locally (`npm run check` per task, all of them per feature, [testing-strategy.md](testing-strategy.md)); CI runs them once per release before the installers are built; the photo editor's frame-rate budget is measured in real Chrome with `npm run measure:gate` ([PERFORMANCE.md](../docs/PERFORMANCE.md#measuring-the-photo-editors-frame-rate)) |
 
 ## 9. Main design decisions
 
@@ -204,6 +206,7 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Desktop AI calls in the main process | Keys never reach the page; no CORS limits | IPC copies of image bytes (capped at 40 MB) |
 | One tool registry for agents, running in the page | Agents use exactly the studio's code; live mode shows every change with undo | Headless mode needs a hidden window |
 | MCP over loopback HTTP plus a stdio relay | Electron's main process can't read stdin on Windows; one server serves both modes | An extra small process in headless mode |
+| CI only at a release (D-006), called by the release workflow | Day-to-day checks are local and fast; a release can't publish installers past a red CI | Pull requests and `main` aren't checked by CI (CodeQL still scans them); the Docker image is first checked at the release's dry run |
 
 ## 10. Conventions
 

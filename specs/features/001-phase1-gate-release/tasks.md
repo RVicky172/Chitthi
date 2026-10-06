@@ -7,6 +7,9 @@ test. Test-first: each "tests" task must fail before its paired implementation m
 When a task is done, tick it and add an indented **Result (YYYY-MM-DD):** note: what was done, numbers measured,
 anything surprising or deferred.
 
+> **Deferred (2026-10-06):** T022, T023, T030, T033 and T040–T047 (and T091's CI half, T092) wait for the
+> maintainer's hardware checks; they are on the roadmap backlog. Everything else is done.
+
 ## Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)
 
 - [x] **T001** — G6: `npm audit fix` (no `--force`); then `npm audit`, `npm run check`, `npm run build`,
@@ -197,10 +200,20 @@ anything surprising or deferred.
 
 ## Verify
 
-- [ ] **T090** — `specs/architecture.md` / `specs/build.md`: the release pipeline now runs CI first (plan §2); any
+- [x] **T090** — `specs/architecture.md` / `specs/build.md`: the release pipeline now runs CI first (plan §2); any
       structure this feature established. · test: link check
+  - **Result (2026-10-06):** `architecture.md`: §7 Supply chain says a release builds installers only after CI
+    passes on the tag; §8 new **Verification** row (local suites, CI once per release, `measure:gate`); §9 new
+    decision row "CI only at a release (D-006)" with its trade-off (no CI on PRs or `main`; CodeQL still scans; the
+    Docker image first checked at the dry run). Fixed in passing: the §8 "Responsive UI" row lacked its closing pipe.
+    `build.md` was done in T011 (diagram + step 4). Links 15, 0 broken.
 - [ ] **T091** — Every Definition-of-Done gate green: locally (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
       `check:licenses`) and in the tag's CI (T043); record the numbers.
+  - **Local half (2026-10-06, at `a283e6a` + T090 docs):** `npm run check` exit 0 (19 files, 743 tests, 0 lint errors,
+    5 known warnings, 6 s); `check:licenses` 168 OK; `build` entry 327 KB / 350; `npm audit` 0 high (8 moderate =
+    the sprintf-js advisory, T001); `npm test` 6,115 checks, 0 failed (85 s); `test:mcp` passed, removed its 4 files;
+    `test:e2e` × 3: 67 passed / 7 skipped each, no failure lines. The one unexplained e2e failure (T004, run 1 of 5)
+    hasn't recurred in 8 runs since. **Still to do:** the tag's CI run (T043) and a final local run after T040.
 - [ ] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 001 → ✔️, `memory/progress.md`,
       `memory/MEMORY.md` (next: Phase 2 from `201`), `000`'s Known gaps G5–G8 marked handled.
 

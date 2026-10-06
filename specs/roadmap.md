@@ -19,7 +19,7 @@ _Goal:_ record the app as it stands (2.8.0 plus the unreleased editor Phases 0�
 | #   | Feature | Spec | Status |
 | --- | ------- | ---- | ------ |
 | 000 | Baseline: print studio, photo & video studio, desktop app, MCP, AI, GPU render graph (editor P0.1–P0.9), advanced photo editor (P1.1–P1.12) | [spec](features/000-baseline/spec.md) | ✔️ |
-| 001 | Phase 1 gate and 2.10.0 release: masked edits measured on a mid-range laptop in Chrome; first macOS build with Intel LibRaw; tag 2.10.0 | [spec](features/001-phase1-gate-release/spec.md) | 🚧 |
+| 001 | Phase 1 gate and 2.10.0 release: masked edits measured on a mid-range laptop in Chrome; first macOS build with Intel LibRaw; tag 2.10.0 | [spec](features/001-phase1-gate-release/spec.md) | ⏸️ waiting on hardware checks (backlog) |
 
 **Exit criteria:** every Definition-of-Done gate passes on a clean clone; the Phase 1 gate in
 [editor-implementation.md](vision/editor-implementation.md#progress) is met and 2.10.0 is released.
@@ -73,6 +73,13 @@ Print studio, site and anything outside the editor phases take the next free num
 | --- | ------- | ---- | ------ |
 
 ## Backlog (unscheduled ideas)
+
+- **Deferred 001 checks on the maintainer's hardware** (2026-10-06; 001 and the 2.10.0 release wait for them):
+  the Phase 1 gate on a mid-range laptop in Chrome (`npm run measure:gate`, plus `npm test`'s timing and the
+  performance monitor in the packaged app: 001 T022, T023); the Intel LibRaw build and RAW files in the arm64 and x64
+  macOS apps (T030, T033). Then the release itself: T040 version and CHANGELOG, T041 merge into `main`, T042 dry run,
+  T043 tag `v2.10.0`, T044–T047 clean installs, update from 2.8.0, web redeploy. How: the 👤 tasks in
+  [001 tasks](features/001-phase1-gate-release/tasks.md).
 
 - Firefox and Safari (WebKit) projects in Playwright ([testing-strategy.md](testing-strategy.md#not-automated-yet)).
 - The media studio's own "Still to do" list in [docs/MEDIA-STUDIO.md](../docs/MEDIA-STUDIO.md).

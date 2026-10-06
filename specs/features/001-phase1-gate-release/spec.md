@@ -84,6 +84,13 @@ an ARW at least):
   are not gated (backlog, `000` G3).
 - Security: no new IPC, host or permission. Signing per Q5.
 
+## Deferred (2026-10-06)
+
+Everything that can run on the development machine is done (bug fixes G6–G8, CI at the release, the gate
+measurement, the Windows RAW check, docs). The rest needs the maintainer's hardware or go-ahead and is on the
+roadmap backlog until then: AC-1–AC-3 (laptop), AC-5, AC-6 (Mac), and the release, AC-10–AC-15. 2.10.0 is not
+tagged until they pass.
+
 ## Out of Scope
 
 - New editor features; Phase 2 (`201` onwards).
@@ -138,3 +145,4 @@ an ARW at least):
 - 2026-10-06 — AC-1, AC-2, Q2: measured as the time between preview updates instead of display-frame intervals
   (found in T020: at 120 Hz most frames carry no new input, so the frame median stayed at 8 ms even with the CPU
   slowed 4× while the preview updated only ~25 times a second). Limits unchanged. Approved by the maintainer.
+- 2026-10-06 — Hardware checks and the release deferred to the roadmap backlog by the maintainer (see Deferred).

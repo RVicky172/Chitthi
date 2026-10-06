@@ -22,7 +22,7 @@ change that finishes an item.
 | 2. Multi-track timeline | 0 of 12 | — | Not started | 3.0.0 |
 | 3. Colour and finishing | 0 of 9 | — | Not started | 3.1.0 |
 
-Next up: the Phase 1 gate (masked edits on a mid-range laptop in Chrome) and the first macOS release build, which compiles the Intel Mac LibRaw for the first time; then the 2.10.0 release and Phase 2. P1.12's tools grew with P1.8 (AI mask parts, `find_with_ai`) and P1.9 (RAW by path, TIFF export).
+Next up: the Phase 1 gate (masked edits on a mid-range laptop in Chrome) and the first macOS release build, which compiles the Intel Mac LibRaw for the first time; then the 2.10.0 release and Phase 2. These are feature [001](../features/001-phase1-gate-release/spec.md); its hardware checks are deferred to the [roadmap backlog](../roadmap.md#backlog-unscheduled-ideas) (2026-10-06), and the measuring script for the gate is ready (`npm run measure:gate`). P1.12's tools grew with P1.8 (AI mask parts, `find_with_ai`) and P1.9 (RAW by path, TIFF export).
 
 ### Notes on finished items
 
