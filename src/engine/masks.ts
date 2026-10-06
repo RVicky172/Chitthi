@@ -193,7 +193,7 @@ export const PART_RANGES = {
   smooth: [0, 100],
 } as const;
 
-function mergePart(raw: unknown): MaskPart | null {
+export function mergePart(raw: unknown): MaskPart | null {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
   const kind = o?.kind;
   if (!o || (kind !== 'brush' && kind !== 'linear' && kind !== 'radial' && kind !== 'colour' && kind !== 'luma' && kind !== 'ai'))

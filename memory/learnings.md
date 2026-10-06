@@ -11,6 +11,8 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   `python -c "b=open('f','rb').read(); print(b.count(b'\r\n'), b.count(b'\n'))"`.
 - Scripted edits through a Bash heredoc on this machine can mangle `…`, `’` and backslash escapes (`\b` became a
   backspace). Write the edit script to a file with the Write tool, or use the Edit tool.
+- Git Bash's `sed -i` rewrites a whole CRLF file as LF, even for a one-line change (201 T013, `layers.ts`). Use the
+  Edit tool or a Python script with `newline=''` on CRLF files, or restore the endings afterwards.
 
 ## Tests
 

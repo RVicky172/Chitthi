@@ -30,7 +30,7 @@ _Goal:_ a real timeline with tracks, edit tools, keyframes, transitions, speed a
 
 | #   | Feature (work item) | Spec | Status |
 | --- | ------------------- | ---- | ------ |
-| 201 | Track model and migration (P2.1) | — | ⬜ |
+| 201 | Track model and migration (P2.1) | [spec](features/201-track-model/spec.md) | 🚧 |
 | 202 | Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2) | — | ⬜ |
 | 203 | Compositing many tracks, picture-in-picture (P2.3) | — | ⬜ |
 | 204 | Decoder pool with look-ahead (P2.4) | — | ⬜ |

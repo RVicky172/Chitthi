@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-06 — 201 (spec, plan, tasks; T001–T003)
+
+**Done:** 201 spec (Q1–Q7 accepted), plan (D1–D3 accepted; AC-3 reworded to identical inputs), tasks. T001: the
+self-test makes a 2 s H.264 test clip in memory with Mediabunny and decodes it (`src/dev/videoChecks.ts`). T002:
+timing baseline on 2.x code: preview fastest run 10.1–11.4 ms, export 2.64–2.76 s (60 clips, 24 s 1080p, WebGPU);
+medians are noisy (later runs slower). T003: frozen 2.x reference + 12 fixtures (`timeline.testkit.ts`).
+**Next:** T010/T011 the model, test-first.
+**Blockers:** AC-5 measuring rule (fastest run vs median) needs the maintainer's OK.
+
 ## 2026-10-06 — 001 (T010–T011, T020–T021, T031–T032)
 
 **Done:** CI is a reusable workflow the Desktop release runs first (`build` needs `ci`); docs say CI runs once per
