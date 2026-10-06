@@ -27,8 +27,10 @@ release/
 print-samples-src/
 Print Samples/
 
-# Local Claude Code setup and design-tool notes (per developer, not part of the app)
-.claude/
+# Claude Code: the project's skills, commands and CLAUDE.md are shared; personal settings and design-tool notes
+# stay local. scroll-world has no known source or licence (specs/licensing.md), so it is not committed.
+.claude/*
+!.claude/commands/
+!.claude/skills/
+.claude/skills/scroll-world/
 .hallmark/
-CLAUDE.md
-skills-lock.json

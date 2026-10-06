@@ -21,6 +21,7 @@ list are in [specs/licensing.md](specs/licensing.md).
 | Card and UI fonts from [Google Fonts](https://fonts.google.com) | SIL Open Font License 1.1 (a few Apache 2.0) | Bundled in the desktop app; free to use in printed work |
 | Sample photos in `public/samples/` | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `public/samples/samples.json` and in the app |
 | Landing page example photos in `showcase-src/` (and their renders in `public/showcase/`) | [Pexels License](https://www.pexels.com/license/) | Photographers are credited in `showcase-src/photos.json` and on the landing page |
+| [Hallmark](https://github.com/nutlope/hallmark) Claude Code skill (`.claude/skills/hallmark/`) | MIT | Design guidance for contributors' AI agents. In the repository only, not shipped in the app; licence in the folder |
 
 ## Your designs and photos
 

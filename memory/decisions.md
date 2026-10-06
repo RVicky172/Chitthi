@@ -47,3 +47,13 @@ Definition of Done adds `test:e2e`, `build`, `test`, `test:mcp` and `check:licen
 **Alternatives:** document the three commands without a script.
 **Consequences:** One command to run before ticking any task.
 
+## D-005 — Claude Code skills, commands and CLAUDE.md are committed (2026-10-06)
+
+**Context:** `.claude/` and `CLAUDE.md` were gitignored as per-developer, so the `/spec-*` commands and the
+session-start rules existed on one machine only.
+**Decision:** Commit `CLAUDE.md`, `.claude/commands/`, `.claude/skills/` (sdd-setup, hallmark with its MIT LICENSE)
+and `skills-lock.json`. `.claude/settings.local.json` stays ignored. `scroll-world` stays local: no known source or
+licence (`specs/licensing.md`).
+**Alternatives:** keep them local per developer.
+**Consequences:** Every contributor and agent session gets the same workflow; third-party skills follow the licence
+policy like any other asset.
