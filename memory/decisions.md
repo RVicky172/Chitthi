@@ -57,3 +57,16 @@ licence (`specs/licensing.md`).
 **Alternatives:** keep them local per developer.
 **Consequences:** Every contributor and agent session gets the same workflow; third-party skills follow the licence
 policy like any other asset.
+
+## D-006 — CI runs only for a release tag, never on feature branches (2026-10-06)
+
+**Context:** `ci.yml` runs on every pull request and every push to `main`; feature branches had no CI run (000 gap
+G5). The maintainer decided CI is a release step, not a per-branch or per-PR one.
+**Decision:** Never run CI on feature branches. CI runs once, when a new version tag (`vX.Y.Z`) is being released;
+that run is the full check of the project before the release goes out. Day-to-day verification is local:
+`npm run check` per task, the full Definition of Done gates before a feature is Implemented.
+**Alternatives:** CI on every PR and push to `main` (today's `ci.yml`); CI on every push to any branch.
+**Consequences:** Local gate runs (recorded in each feature's Result notes) are the evidence for a feature; a red CI
+at tag time blocks the release. Docker image and the Windows runner are first checked at the release tag.
+Follow-ups (not done yet): `ci.yml` triggers (today `push: main` + `pull_request`) to change to the release tag,
+and `specs/release.md`'s "`main` is green in CI" step to "CI is green for the tag".

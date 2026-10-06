@@ -12,6 +12,7 @@
 - **Next step:** `001` — Phase 1 gate (masked edits on a mid-range laptop in Chrome), first macOS build with Intel
   LibRaw, release 2.10.0 (`/spec-new 001`). Bug fixes from 000's Known gaps, before 001's release: npm audit (G6),
   MCP test output folder (G7), `logError` in export failures (G8). Then Phase 2 from `201`.
+- **CI:** only for a release tag, never on feature branches (D-006); `ci.yml` triggers not changed yet.
 - **Blockers:** none
 
 ## Files

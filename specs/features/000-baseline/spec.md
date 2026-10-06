@@ -140,7 +140,7 @@ test was flaky (3 runs each of the self-test, MCP and e2e suites).
 | G2 | macOS gates not run; only Windows 11 here | plan | `001` (first macOS build, Intel LibRaw) |
 | G3 | Firefox and Safari have no test project (Playwright runs Chromium only) | plan | roadmap backlog |
 | G4 | The Phase 1 gate (masked edits on a mid-range laptop in Chrome) is still unmeasured | plan | `001` |
-| G5 | The branch has no CI run (`ci.yml` runs on pushes to `main` and on PRs), so the Docker image job hasn't run on the baseline; nearest green run is `main` @ `cc192e1` | T016 | `001` (its PR to `main` runs CI) |
+| G5 | The branch has no CI run (`ci.yml` runs on pushes to `main` and on PRs), so the Docker image job hasn't run on the baseline; nearest green run is `main` @ `cc192e1` | T016 | `001`: CI runs once, for the 2.10.0 tag (D-006: never on feature branches) |
 | G6 | `npm audit`: 10 advisories (8 moderate, 2 high), all in build tools: electron-builder's chain (`@electron/get`, `got` → `http-cache-semantics`, high) and Vite → postcss → `source-map-js` (high); nothing in the shipped app | T002 | bug fix (`npm audit fix` or upgrades, logged in `memory/progress.md`) before `001`'s release |
 | G7 | `npm run test:mcp` writes its exports (a PDF, a JPEG and a 7 MB TIFF, ~7.6 MB a run) into the real `Documents/Chitthi agent output` and never removes them | T014 | bug fix: a test-only output folder (`electron/mcp.cjs` `outDir()`, `scripts/mcp-smoke.mjs`) |
 | G8 | DoD 9: 15 catch blocks show an error without `logError('handled', e)`; most are expected user errors (bad font or preset file, clipboard blocked), but 5 export failures in `src/state/actions.ts` (lines 128–176: PDF, document, envelope, image, print pack) and the gallery save (line 300) should be logged | T091 scan | bug fix |
@@ -188,3 +188,4 @@ their Result notes), the MCP test time in `specs/testing-strategy.md` (~30 s →
 - 2026-10-06 — Plan approved, tasks written; In Progress.
 - 2026-10-06 — Baseline inventory, numbers and Known gaps (G1–G9) written; every AC proven (tasks.md Result
   notes); Implemented.
+- 2026-10-06 — G5's owner: CI runs only for a release tag (D-006), so the first CI run of the baseline is 2.10.0's.
