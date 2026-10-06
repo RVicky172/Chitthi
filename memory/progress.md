@@ -11,6 +11,18 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-06 — 2.10.0 release: dry run 1 failed, test fix
+
+**Done:** released 2.10.0 from `feat/editor-phase-1-continued` per D-007 (merged into `main` `5c029ff`). Dry run 1
+(run 37507302121): CI `docker` passed (first image check of the baseline, G5), CI `check` failed in e2e: "AI masks"
+(`instagram.e2e.ts:498`) timed out twice. Cause (trace): the test read the whole canvas back as a JS array, 8.4–8.8 s
+on the software-rendered runner, longer than the 5 s poll. The feature worked (screenshot). Bug fix: compare in the
+page, return one number, poll up to 30 s; break-tested (exposure 0 → fails). Local e2e 67 / 7 skipped.
+**Next:** dry run 2, then tag v2.10.0.
+**Blockers:** none
+
+---
+
 ## 2026-10-06 — 001 (T010–T011, T020–T021, T031–T032)
 
 **Done:** CI is a reusable workflow the Desktop release runs first (`build` needs `ci`); docs say CI runs once per
