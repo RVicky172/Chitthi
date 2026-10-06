@@ -6,7 +6,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const BUDGET_KB = 350; // current entry ~333 KB plus headroom: raise only on purpose
+const BUDGET_KB = 350; // current entry ~326 KB plus headroom: raise only on purpose
 const dir = 'dist/assets';
 const html = readFileSync('dist/index.html', 'utf8');
 const entry = /src="\.\/assets\/(index-[^"]+\.js)"/.exec(html)?.[1];

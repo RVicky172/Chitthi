@@ -1,6 +1,6 @@
 # 000 — Baseline
 
-**Status:** In Progress <!-- Draft | Approved | In Progress | Implemented | Superseded -->
+**Status:** Implemented <!-- Draft | Approved | In Progress | Implemented | Superseded -->
 **Roadmap phase:** Baseline · **Created:** 2026-10-06 · **Owner:** RVicky172
 
 ## Summary
@@ -28,16 +28,16 @@ behaviour.
 
 ### Inventory (what exists)
 
-- [ ] **AC-1:** The spec's **Baseline inventory** section lists every capability area below, each with one line on
+- [x] **AC-1:** The spec's **Baseline inventory** section lists every capability area below, each with one line on
       what it does and a link to the doc that describes it in detail: print studio (4 products, sizes, layouts,
       themes, print packs with bleed), photo studio (batch, layers, the Phase 1 editor: light, colour, curve, mixer,
       detail, presets, LUTs, masks incl. AI masks, RAW, WebP/AVIF/16-bit TIFF export), video studio (Reels / Shorts,
       YouTube, MP4 export), desktop app (Windows, macOS; storage, RAW, updates), MCP server and Claude Code plugin,
       AI with the user's key, Pexels search, in-app docs. No area of the app's top-level routes (`home`, `studio`,
       `sizes`, `paper`, `instagram`, `docs`) is missing. _(manual review)_
-- [ ] **AC-2:** Every link in the inventory resolves to an existing file and heading. _(manual check, or a link
+- [x] **AC-2:** Every link in the inventory resolves to an existing file and heading. _(manual check, or a link
       checker run recorded in the Result note)_
-- [ ] **AC-3:** The inventory records the baseline's measured numbers already in
+- [x] **AC-3:** The inventory records the baseline's measured numbers already in
       `specs/vision/editor-implementation.md` (GPU vs Canvas 2D parity: worst 2 levels for colour edits, 3 with detail
       effects; frame times per 1080 × 1350 frame) and the count of agent tools registered in `src/agent/`
       (`tools.ts` and `photoTools.ts`), matching the count stated in `docs/MCP.md` and the README.
@@ -48,29 +48,29 @@ behaviour.
 On a fresh clone of the baseline commit, after `npm ci` (and `npx playwright install chromium`,
 `npm run fetch:libraw`), on Windows 11:
 
-- [ ] **AC-4:** `npm run check` exits 0: typecheck clean, ESLint 0 errors and no more than the 5 known react-hooks
+- [x] **AC-4:** `npm run check` exits 0: typecheck clean, ESLint 0 errors and no more than the 5 known react-hooks
       warnings, every Vitest test passing. _(gate run, output summary in the Result note)_
-- [ ] **AC-5:** `npm run build` exits 0 with the entry chunk ≤ 350 KB and no AI or shader code in it; the entry chunk's
+- [x] **AC-5:** `npm run build` exits 0 with the entry chunk ≤ 350 KB and no AI or shader code in it; the entry chunk's
       size is recorded. _(gate run)_
-- [ ] **AC-6:** `npm run test:e2e` passes on both the desktop and phone projects with 0 axe violations and 0 console
+- [x] **AC-6:** `npm run test:e2e` passes on both the desktop and phone projects with 0 axe violations and 0 console
       errors (CSP included). _(gate run)_
-- [ ] **AC-7:** `npm test` (Electron self-test) reports 0 failures; the total check count is recorded (expected
+- [x] **AC-7:** `npm test` (Electron self-test) reports 0 failures; the total check count is recorded (expected
       about 6,000). _(gate run)_
-- [ ] **AC-8:** `npm run test:mcp` passes, including developing the DNG with LibRaw. _(gate run)_
-- [ ] **AC-9:** `npm run check:licenses` exits 0, and every shipped package (`dependencies` in `package.json` and
+- [x] **AC-8:** `npm run test:mcp` passes, including developing the DNG with LibRaw. _(gate run)_
+- [x] **AC-9:** `npm run check:licenses` exits 0, and every shipped package (`dependencies` in `package.json` and
       the bundled devDependencies in `BUNDLED` in `scripts/check-licenses.mjs`) appears in `THIRD_PARTY_NOTICES.md`
       and in `specs/tech-stack.md`. _(gate run + manual check)_
 
 ### Docs match the code
 
-- [ ] **AC-10:** `specs/architecture.md` and `specs/lld.md` name every directory under `src/` and `electron/`, and
+- [x] **AC-10:** `specs/architecture.md` and `specs/lld.md` name every directory under `src/` and `electron/`, and
       every module they name exists. Mismatches are fixed in the docs (not the code). _(manual check)_
-- [ ] **AC-11:** `CHANGELOG.md`'s **Unreleased** section covers every Phase 0–1 work item marked Done in
+- [x] **AC-11:** `CHANGELOG.md`'s **Unreleased** section covers every Phase 0–1 work item marked Done in
       `specs/vision/editor-implementation.md`. _(manual check)_
 
 ### Known gaps
 
-- [ ] **AC-12:** A **Known gaps** section lists every gate failure, flaky test (a test that failed at least once in
+- [x] **AC-12:** A **Known gaps** section lists every gate failure, flaky test (a test that failed at least once in
       3 runs of its suite), doc mismatch that wasn't fixed, and Definition-of-Done item the baseline doesn't meet
       (e.g. a user-facing feature without an agent tool — video clips get theirs in P2.12). Each gap names where it
       will be handled: a bug fix logged in `memory/progress.md`, feature `001`, a `2xx`/`3xx`/`4xx` feature, or the
@@ -84,7 +84,8 @@ On a fresh clone of the baseline commit, after `npm ci` (and `npx playwright ins
 
 ## Baseline inventory
 
-**Baseline:** `fd2baaf9fb9132a979dac54c2b3ae1b67aef5c0f` on `feat/editor-phase-1-continued` · **Version:** 2.8.0 +
+**Baseline:** `e549542bed2e12b36fe7ff1e1a210179e4a5b5ac` on `feat/editor-phase-1-continued` (gates run at `fd2baaf`;
+`e549542` adds only doc fixes, re-checked in T090) · **Version:** 2.8.0 +
 Unreleased (editor Phases 0–1; ships as 2.10.0 in `001`, no 2.9.0 tagged).
 
 One line per capability area; the linked doc is the detailed record. Routes are the hash routes in `App.tsx`
@@ -128,6 +129,28 @@ row named in brackets) and measured on the clean clone (tasks T012, T013). Frame
 | Entry chunk | 326 KB of the 350 KB budget | T012 |
 | Agent tools | 56 = 34 print (`src/agent/tools.ts`) + 22 photo studio (`photoTools.ts`); README, CHANGELOG, `lld.md`, `architecture.md` and the in-app docs say 56, and `docs/MCP.md`'s tool table names all 56 | code |
 
+## Known gaps
+
+What the baseline doesn't meet, found by tasks T002–T032, each with where it will be handled. No gate failed and no
+test was flaky (3 runs each of the self-test, MCP and e2e suites).
+
+| # | Gap | Found in | Handled in |
+| --- | --- | --- | --- |
+| G1 | Video clips have no agent tools (Constitution XI / DoD 7) | plan | `212` (P2.12) |
+| G2 | macOS gates not run; only Windows 11 here | plan | `001` (first macOS build, Intel LibRaw) |
+| G3 | Firefox and Safari have no test project (Playwright runs Chromium only) | plan | roadmap backlog |
+| G4 | The Phase 1 gate (masked edits on a mid-range laptop in Chrome) is still unmeasured | plan | `001` |
+| G5 | The branch has no CI run (`ci.yml` runs on pushes to `main` and on PRs), so the Docker image job hasn't run on the baseline; nearest green run is `main` @ `cc192e1` | T016 | `001` (its PR to `main` runs CI) |
+| G6 | `npm audit`: 10 advisories (8 moderate, 2 high), all in build tools: electron-builder's chain (`@electron/get`, `got` → `http-cache-semantics`, high) and Vite → postcss → `source-map-js` (high); nothing in the shipped app | T002 | bug fix (`npm audit fix` or upgrades, logged in `memory/progress.md`) before `001`'s release |
+| G7 | `npm run test:mcp` writes its exports (a PDF, a JPEG and a 7 MB TIFF, ~7.6 MB a run) into the real `Documents/Chitthi agent output` and never removes them | T014 | bug fix: a test-only output folder (`electron/mcp.cjs` `outDir()`, `scripts/mcp-smoke.mjs`) |
+| G8 | DoD 9: 15 catch blocks show an error without `logError('handled', e)`; most are expected user errors (bad font or preset file, clipboard blocked), but 5 export failures in `src/state/actions.ts` (lines 128–176: PDF, document, envelope, image, print pack) and the gallery save (line 300) should be logged | T091 scan | bug fix |
+| G9 | `src/assests/` (misspelt): 14 Pexels photos (31 MB) that nothing references and no credits list names | T022 | the maintainer: wire into samples with credits, or remove |
+
+Fixed inside `000` (Q1 small fixes, not gaps): every doc mismatch found by T020, T021, T023, T031 and T032 (see
+their Result notes), the MCP test time in `specs/testing-strategy.md` (~30 s → ~10 s) and the entry-size comment in
+`scripts/check-bundle.mjs` (~333 → ~326 KB). Not ours: 15 broken links inside third-party skills vendored under
+`.claude/skills/`.
+
 ## Out of Scope
 
 - New features or behaviour changes of any kind.
@@ -163,3 +186,5 @@ row named in brackets) and measured on the clean clone (tasks T012, T013). Frame
 - 2026-10-06 — AC-3: tools are registered in both `tools.ts` and `photoTools.ts`. AC-9: "runtime dependency" means
   every shipped package, incl. bundled devDependencies (only 3 are in `dependencies`). Found while planning.
 - 2026-10-06 — Plan approved, tasks written; In Progress.
+- 2026-10-06 — Baseline inventory, numbers and Known gaps (G1–G9) written; every AC proven (tasks.md Result
+  notes); Implemented.

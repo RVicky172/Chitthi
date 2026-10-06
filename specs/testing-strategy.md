@@ -9,7 +9,7 @@ Five suites check Chitthi, from fast unit tests to the packaged app. CI runs all
 | `npm run lint` | ESLint (`eslint.config.js`) | Node | ~10 s |
 | `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
 | `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
-| `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~30 s |
+| `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~10 s |
 | `npm run test:e2e` | Browser tests with axe, `e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
 
 `npm run build` also guards the bundle: it fails if the start-up script passes 350 KB or contains AI code.

@@ -7,13 +7,11 @@
 - **Phase:** Baseline. App at 2.8.0 + unreleased editor Phases 0–1 (12/12 items, on branch
   `feat/editor-phase-1-continued`). Spec-driven development set up on 2026-10-06 (D-001); engineering docs moved
   `docs/` → `specs/`, editor plans → `specs/vision/` (D-002).
-- **Active feature:** `000-baseline` (🚧): T001–T032 done (inventory, numbers, links) (all gates green on a clean clone
-  at `fd2baaf`). `src/assests/` kept by the user's call → Known gap.
-- **Next step:** T090 (commit the doc fixes — needs the user's go-ahead — then re-run check + build on the
-  clone), T091 Known gaps, T092 close (clone at
-  `D:\CodeBase\chitthi-000`);
-  then `001` — Phase 1 gate (masked edits on a mid-range laptop in Chrome), first macOS build with Intel LibRaw,
-  release 2.10.0. Then Phase 2 from `201`.
+- **Active feature:** none. `000-baseline` ✔️ Implemented 2026-10-06 (baseline `e549542`; gates green on a clean
+  clone; Known gaps G1–G9 in its spec).
+- **Next step:** `001` — Phase 1 gate (masked edits on a mid-range laptop in Chrome), first macOS build with Intel
+  LibRaw, release 2.10.0 (`/spec-new 001`). Bug fixes from 000's Known gaps, before 001's release: npm audit (G6),
+  MCP test output folder (G7), `logError` in export failures (G8). Then Phase 2 from `201`.
 - **Blockers:** none
 
 ## Files

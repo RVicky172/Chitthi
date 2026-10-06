@@ -123,7 +123,7 @@ references it.
     `showcase-src/photos.json`. **User's call (2026-10-06): keep it**, so no removal, no D-006, nothing to re-run.
     → Known gaps (T091): unused, misspelt `src/assests/`, owner: the user (to wire into samples, with credits, or
     remove).
-- [ ] **T023** [P] — CHANGELOG coverage (§7): map each Done item P0.1–P0.9 (P0.8 skipped, "Not needed") and
+- [x] **T023** [P] — CHANGELOG coverage (§7): map each Done item P0.1–P0.9 (P0.8 skipped, "Not needed") and
       P1.1–P1.12 to its Unreleased line; add missing lines. Put the mapping table in the Result note. · files:
       `CHANGELOG.md` · test: every item mapped (AC-11)
   - **Result (2026-10-06):** every Done item maps to an Unreleased line (v2.8.0 → HEAD, 54 commits); no line added.
@@ -156,7 +156,7 @@ references it.
 
 ## Inventory
 
-- [ ] **T030** — Write `## Baseline inventory` in `spec.md` (§4): baseline hash and version, a table of capability
+- [x] **T030** — Write `## Baseline inventory` in `spec.md` (§4): baseline hash and version, a table of capability
       areas (area · what it does · detailed doc), built from the `App.tsx` routes and the README feature list.
       · files: `spec.md` · test: every route and README feature area appears (AC-1)
   - **Result (2026-10-06):** `## Baseline inventory` added above Out of Scope: baseline hash `fd2baaf` (T090 updates
@@ -165,7 +165,7 @@ references it.
     names plus the README's highlights (smart photos, 3D and paper, performance monitor, hosting). Links checked
     with a scratch checker (`links.mjs`: relative paths, exact case, GitHub heading slugs): 22 links, 0 broken;
     break-tested with a bad anchor, a missing file and a wrong-case file name, all three reported.
-- [ ] **T031** — Numbers (§4): parity tolerances and frame times from `editor-implementation.md` (linked to their
+- [x] **T031** — Numbers (§4): parity tolerances and frame times from `editor-implementation.md` (linked to their
       rows), self-test check count (T013), entry chunk size (T012), agent-tool count (grep `src/agent/tools.ts` and
       `photoTools.ts`) compared with README and `docs/MCP.md`. Set the self-test count in
       `specs/testing-strategy.md` and `CLAUDE.md` to the measured one. · files: `spec.md`,
@@ -179,7 +179,7 @@ references it.
     since P1.8 added `find_with_ai`)"; self-test count "~6,000" → "~6,100" in `CLAUDE.md` and the in-app docs
     (`src/data/docs.ts`, a text string); `testing-strategy.md` already said about 6,100. Links 23, 0 broken;
     `npm run check` exit 0 (741 tests).
-- [ ] **T032** — Link check (§5): throwaway scratch script checks relative links and `#anchors` (GitHub slugs) in
+- [x] **T032** — Link check (§5): throwaway scratch script checks relative links and `#anchors` (GitHub slugs) in
       `spec.md`, `specs/**/*.md` and `docs/**/*.md`; fix broken ones. · files: any Markdown with a broken link ·
       test: 0 broken links in the inventory (AC-2) and in `specs/` and `docs/`
   - **Result (2026-10-06):** scratch `links.mjs` (from T030): Markdown links and `src`/`href` attributes outside code,
@@ -192,16 +192,35 @@ references it.
 
 ## Verify
 
-- [ ] **T090** — If T022 or any fix changed the tree after T001, commit, update the hash in the inventory, and re-run
+- [x] **T090** — If T022 or any fix changed the tree after T001, commit, update the hash in the inventory, and re-run
       on the clone (`git pull`) the gates the change could affect (at least `npm run check` and `npm run build`).
       · test: those gates exit 0
-- [ ] **T091** — Write `## Known gaps` in `spec.md` (§10): every gate failure, flaky test, unfixed mismatch and unmet
+  - **Result (2026-10-06):** committed the T020–T032 doc fixes as `e549542` (`docs(000): baseline inventory, module
+    map and doc fixes`; 14 files, docs plus one text string in `src/data/docs.ts`), with the user's OK. Inventory hash
+    → `e549542`. On the clone after `git pull`: `npm run check` exit 0 (0 errors, 5 known warnings, 741 tests, 7 s);
+    `npm run build` exit 0, entry 326 KB; and, because the in-app docs text changed, `npm run test:e2e` once: 67
+    passed, 7 skipped, as in T015. Self-test and MCP not re-run: nothing they cover changed. Git warned about LF on
+    commit: the working tree mixes CRLF files (`lld.md`, CHANGELOG, THIRD_PARTY_NOTICES) and LF files, none mixed
+    within a file, and git stores LF either way (`core.autocrlf`).
+- [x] **T091** — Write `## Known gaps` in `spec.md` (§10): every gate failure, flaky test, unfixed mismatch and unmet
       Definition-of-Done item from T002–T032, each with its owner. Starts with: video clips have no agent tools →
       `212`; macOS gates not run → `001`; Firefox/Safari not tested → backlog. · files: `spec.md` · test: every
       entry names an owner (AC-12)
-- [ ] **T092** — Tick the proven ACs in `spec.md` (Status `Implemented`), roadmap 000 → ✔️, `memory/progress.md`
+  - **Result (2026-10-06):** 9 gaps (G1–G9), each with an owner: `212` (1), `001` (3: macOS, Phase 1 gate, CI on
+    the PR), backlog (1), bug fixes (3: npm audit, MCP test output folder, `logError`), the maintainer (1:
+    `src/assests/`). No gate failure or flaky test to list. New while writing it: a scan of every `catch` that
+    shows an error (scratch `logerr.py`) for DoD 9: 28 show one, 15 without `logError`, 6 of which should log (G8).
+    `npm audit` traced: all 10 advisories are build-time (electron-builder, Vite → postcss), nothing shipped (G6).
+    Fixed as Q1 small fixes rather than listed: `testing-strategy.md` MCP time ~30 s → ~10 s, `check-bundle.mjs`
+    comment ~333 → ~326 KB. Links in `spec.md`: 25, 0 broken.
+- [x] **T092** — Tick the proven ACs in `spec.md` (Status `Implemented`), roadmap 000 → ✔️, `memory/progress.md`
       entry, `memory/MEMORY.md` Current State → next is `001`; learnings for anything that cost > 10 minutes.
       Delete `D:\CodeBase\chitthi-000`. · files: `spec.md`, `specs/roadmap.md`, `memory/*`
+  - **Result (2026-10-06):** check and build re-run after the `check-bundle.mjs` comment fix: exit 0, 741 tests,
+    entry 326 KB. AC-1 … AC-12 ticked (evidence: T030, T032, T031, T010/T090, T012/T090, T015, T013, T014,
+    T011/T020, T021, T023, T091), Status `Implemented`, roadmap 000 ✔️, `memory/progress.md` entry, `MEMORY.md`
+    → next is `001`. Learning recorded: line endings differ per file, and Git Bash's `grep` can't see CRs. Clone was
+    clean at `e549542`; deleted.
 
 No `specs/architecture.md` task beyond T021: this feature establishes no new structure.
 

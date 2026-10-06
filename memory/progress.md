@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-06 — 000-baseline (T090–T092) ✔️
+
+**Done:** doc fixes committed as `e549542` (user's OK); on the clean clone check, build (326 KB) and e2e (67 passed)
+green again. Known gaps G1–G9 in the spec (G6 npm audit: build tools only; G7 MCP test leaves files in Documents;
+G8 15 shown errors without `logError`, 6 that should log). Small fixes: MCP test time ~10 s in testing-strategy,
+check-bundle comment 326 KB. All 12 ACs ticked, spec Implemented, roadmap 000 ✔️, clone deleted.
+**Next:** `001` (Phase 1 gate, macOS build, 2.10.0); G6–G8 as bug fixes before its release.
+**Blockers:** none
+
 ## 2026-10-06 — 000-baseline (T030–T032)
 
 **Done:** `spec.md` Baseline inventory (16 areas, all 6 routes, linked docs) and Numbers (plan parity / frame times

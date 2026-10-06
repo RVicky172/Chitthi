@@ -5,6 +5,7 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 
 ## Docs
 
-- On this Windows checkout the Markdown in the working tree is CRLF (`core.autocrlf`; no `.gitattributes` rule for
-  `.md`). A Python or sed edit that inserts LF-only lines leaves mixed endings; use the Edit tool, or write CRLF
-  explicitly, and compare the count of CR-terminated lines with `wc -l`.
+- Line endings in the working tree differ per file (e.g. `specs/lld.md`, `CHANGELOG.md` CRLF; most others LF);
+  git stores LF (`core.autocrlf`, no `.gitattributes` rule for `.md`). Keep each file's own endings when editing by
+  script. Git Bash's `grep -c $'\r$'` does not see the CRs, so it can't tell them apart: count bytes instead, e.g.
+  `python -c "b=open('f','rb').read(); print(b.count(b'\r\n'), b.count(b'\n'))"`.
