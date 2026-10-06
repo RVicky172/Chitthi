@@ -126,6 +126,7 @@ export async function downloadPrintFile(): Promise<void> {
     const { blob, name } = await buildPDF(input());
     await saveFile(name, blob);
   } catch (e) {
+    logError('handled', e);
     toast(e instanceof Error && e.message ? e.message : 'The file couldn’t be created.');
   }
 }
@@ -138,6 +139,7 @@ export async function downloadQuote(kind: 'design' | 'catalog'): Promise<void> {
     const f = kind === 'design' ? await q.buildQuoteRequest(input()) : await q.buildQuoteCatalog();
     await saveFile(f.name, f.blob);
   } catch (e) {
+    logError('handled', e);
     toast(e instanceof Error && e.message ? e.message : 'The document couldn’t be created.');
   }
 }
@@ -153,6 +155,7 @@ export async function downloadEnvelope(kind: 'pdf' | 'template'): Promise<void> 
     }
     await saveFile(f.name, f.blob);
   } catch (e) {
+    logError('handled', e);
     toast(e instanceof Error && e.message ? e.message : 'The envelope file couldn’t be created.');
   }
 }
@@ -163,6 +166,7 @@ export async function downloadPNG(pg: PrintPage): Promise<void> {
     const { blob, name } = await buildPNG(pg, input());
     await saveFile(name, blob);
   } catch (e) {
+    logError('handled', e);
     toast(e instanceof Error && e.message ? e.message : 'The image couldn’t be created.');
   }
 }
@@ -174,6 +178,7 @@ export async function downloadPack(onStep?: (msg: string) => void): Promise<void
     const { blob, name } = await buildPack(input(), onStep);
     await saveFile(name, blob);
   } catch (e) {
+    logError('handled', e);
     toast(e instanceof Error && e.message ? e.message : 'The print pack couldn’t be created.');
   }
 }
@@ -298,6 +303,7 @@ export async function saveDesign(asNew: boolean): Promise<void> {
     toast(`Saved “${rec.name}” to your gallery.`);
     window.dispatchEvent(new Event('chitthi:gallery'));
   } catch (e) {
+    logError('handled', e);
     toast(
       e instanceof DOMException && e.name === 'QuotaExceededError'
         ? 'Your browser is out of space for the gallery. Delete an older design and try again.'
@@ -392,7 +398,8 @@ export async function importText(name: string, text: string): Promise<void> {
         ? `Restored ${ok.length} design${ok.length > 1 ? 's' : ''}${skip ? `; ${skip} skipped because they were damaged` : ''}.`
         : 'No designs in that file could be read.',
     );
-  } catch {
+  } catch (e) {
+    logError('handled', e);
     toast(single ? 'That file isn’t a Chitthi design.' : 'That file isn’t a Chitthi gallery backup.');
   }
 }

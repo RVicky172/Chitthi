@@ -3,6 +3,7 @@ import { perfReport, watchPerf, type PerfInfo, type PerfSample } from '../lib/pe
 import { toast } from '../lib/toast';
 import { setPerf } from '../state/store';
 import { ActivityIcon, CloseIcon } from './icons';
+import { logError } from '../lib/errors';
 
 /*
  * Performance monitor: a small floating panel with the app's CPU (desktop) or main-thread load (web), frame rate,
@@ -63,7 +64,8 @@ export function PerfMonitor() {
     try {
       await navigator.clipboard.writeText(perfReport());
       toast(`Performance report copied (${samples.length} seconds of samples).`);
-    } catch {
+    } catch (e) {
+      logError('handled', e);
       toast('Couldn’t copy: the browser blocked the clipboard.');
     }
   };

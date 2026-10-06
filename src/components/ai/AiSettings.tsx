@@ -7,6 +7,7 @@ import { aiSettings, baseFor, onAiSettings, setAiSettings, usageToday, type AiSe
 import { toast } from '../../lib/toast';
 import { desktop, isDesktop } from '../../platform/desktop';
 import { Check } from '../common';
+import { logError } from '../../lib/errors';
 
 /*
  * Settings → AI: which service writes words and which makes pictures, each provider's key (the user's own), base
@@ -142,6 +143,7 @@ function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }
                   setModels(m);
                   toast(m.length ? `${m.length} models loaded: pick one from the Model list.` : 'No models were listed; type the model name.');
                 } catch (e) {
+                  logError('handled', e);
                   toast(e instanceof Error ? e.message : 'The model list couldn’t be loaded.');
                 } finally {
                   setBusy(false);
@@ -174,6 +176,7 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
     try {
       setMsg({ ok: true, text: await testProvider(p.id) });
     } catch (e) {
+      logError('handled', e);
       setMsg({ ok: false, text: e instanceof Error ? e.message : 'The test failed.' });
     } finally {
       setBusy(false);

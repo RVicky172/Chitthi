@@ -5,10 +5,12 @@
  * PDF; then edits a sample photo in the photo studio (colour, a mask, a preset) and exports it, and develops a synthetic
  * DNG with LibRaw and exports it as a 16-bit TIFF (needs npm run fetch:libraw). No AI calls (those need the user's keys). Run: node scripts/mcp-smoke.mjs  (exits 1 on any failure)
  * CHITTHI_MCP_APP=<path to Chitthi Studio.exe> tests a packaged or installed app instead of the source.
+ * The tools write their files to the user's Documents/Chitthi agent output; every file this run makes is deleted at the
+ * end, pass or fail.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { syntheticDng } from '../src/engine/tiff.ts';
@@ -23,12 +25,16 @@ const check = (ok, what) => {
   console.log(`${ok ? '✓' : '✗'} ${what}`);
   if (!ok) fails.push(what);
 };
+const textOf = (r) => r.content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+// Every path after "Files written:" in a tool's reply, so the run can clean up after itself.
+const written = [];
 const call = async (name, args = {}) => {
   const r = await client.callTool({ name, arguments: args });
   if (r.isError) throw new Error(`${name}: ${r.content?.[0]?.text}`);
+  const files = /Files written:\n([\s\S]+)/.exec(textOf(r))?.[1];
+  if (files) written.push(...files.split('\n').map((f) => f.trim()).filter((f) => existsSync(f)));
   return r;
 };
-const textOf = (r) => r.content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
 
 try {
   await client.connect(transport);
@@ -95,6 +101,7 @@ try {
   // RAW (P1.9): a synthetic DNG developed by LibRaw in 16 bits, exported as a 16-bit TIFF.
   const dng = join(tmpdir(), 'chitthi-smoke.dng');
   writeFileSync(dng, syntheticDng());
+  written.push(dng);
   await call('remove_batch_photo', { all: true });
   const raw = jsonOf(await call('add_batch_photo', { path: dng }));
   check(raw.raw === true && raw.pixels[0] === 96 && raw.pixels[1] === 64, `add_batch_photo develops a DNG (${raw.pixels})`);
@@ -109,6 +116,8 @@ try {
   console.error(e);
 } finally {
   await client.close().catch(() => undefined);
+  for (const f of written) rmSync(f, { force: true });
+  console.log(`removed the ${written.length} files this run wrote`);
 }
 console.log(fails.length ? `\n${fails.length} failed` : '\nMCP smoke test passed');
 process.exit(fails.length ? 1 : 0);

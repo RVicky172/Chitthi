@@ -4,6 +4,7 @@ import { ensureFont, installFontLinks } from '../lib/fonts';
 import { toast } from '../lib/toast';
 import { addUserFont, useUserFonts } from '../lib/userFonts';
 import type { FontCat } from '../types';
+import { logError } from '../lib/errors';
 
 interface Props {
   label: string;
@@ -49,6 +50,7 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
       setOpen(false);
       toast(`“${name}” added to your fonts. It stays on this device for every design.`);
     } catch (e) {
+      logError('handled', e);
       toast(e instanceof Error ? e.message : 'That font couldn’t be added.');
     } finally {
       setBusy(false);

@@ -11,6 +11,18 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-06 — 001 (T001–T004: bug fixes G6–G8, plus spec / plan / tasks)
+
+**Done:** 001 spec (Q1–Q10 accepted), plan (D1–D3 accepted; D-006 amended: one dry run per release, CodeQL keeps
+its triggers), tasks. Bug fixes from 000's gaps: **G6** `npm audit fix` (lockfile only, all dev: electron-builder
+26.17.0, source-map-js 1.2.2, http-cache-semantics 4.3.0) → 0 high; one moderate advisory left (sprintf-js, no fix
+exists, build-time only). **G7** `mcp-smoke.mjs` deletes every file it writes, pass or fail; 73 old files (106 MB)
+cleared with the maintainer's OK. **G8** `logError('handled', e)` in all 14 shown-error catches (000 counted 15; one
+was a false positive in `presets.ts`), guarded by `src/lib/errors.test.ts`. All gates green (743 unit tests, 6,115
+self-test checks, MCP incl. the packaged app); e2e one unexplained failure in 5 runs (name not captured).
+**Next:** T010 (CI as a reusable workflow called by the release), T011 docs, then T020 measuring script.
+**Blockers:** none
+
 ## 2026-10-06 — 000-baseline (T090–T092) ✔️
 
 **Done:** doc fixes committed as `e549542` (user's OK); on the clean clone check, build (326 KB) and e2e (67 passed)

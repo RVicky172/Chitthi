@@ -17,6 +17,7 @@ import { gpuSupport } from '../engine/gpu/device';
 import { gpuEffectsOn, setGpuEffects } from '../lib/gpuSetting';
 import { Check } from './common';
 import { CloseIcon, TrashIcon } from './icons';
+import { logError } from '../lib/errors';
 
 // The AI section loads with the dialog's first opening, not with the app.
 const AiSettings = lazy(() => import('./ai/AiSettings'));
@@ -218,6 +219,7 @@ function UserFonts() {
         const name = await addUserFont(f);
         toast(`“${name}” added to your fonts.`);
       } catch (e) {
+        logError('handled', e);
         toast(e instanceof Error ? e.message : 'That font couldn’t be added.');
       }
     }

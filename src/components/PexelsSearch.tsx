@@ -19,6 +19,7 @@ import { usePhotoSlots } from '../state/photoSlots';
 import { setUI, useApp } from '../state/store';
 import { Section, Seg } from './common';
 import { ExpandIcon, SearchIcon } from './icons';
+import { logError } from '../lib/errors';
 
 type Shape = 'fit' | 'any' | PexelsOrientation;
 type Status =
@@ -76,8 +77,12 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
       }));
     } catch (e) {
       if (id !== run.current) return;
+      // A missing or refused key is a state the panel explains (add a key), not a failure to report.
       if (e instanceof PexelsKeyError) setStatus({ kind: 'key', refused: e.refused });
-      else setStatus({ kind: 'error', msg: e instanceof Error ? e.message : 'The search didn’t work.' });
+      else {
+        logError('handled', e);
+        setStatus({ kind: 'error', msg: e instanceof Error ? e.message : 'The search didn’t work.' });
+      }
     } finally {
       if (id === run.current) setMore(false);
     }
@@ -98,7 +103,8 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
       await storePhotos([ph]);
       await putOnCard({ id: '', added: Date.now(), ...ph });
       toast(`Added to ${where}. Photo by ${p.photographer} on Pexels.`);
-    } catch {
+    } catch (e) {
+      logError('handled', e);
       toast('That photo couldn’t be downloaded from Pexels. Try another one.');
     } finally {
       setBusy(null);

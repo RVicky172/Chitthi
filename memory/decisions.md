@@ -70,3 +70,6 @@ that run is the full check of the project before the release goes out. Day-to-da
 at tag time blocks the release. Docker image and the Windows runner are first checked at the release tag.
 Follow-ups (not done yet): `ci.yml` triggers (today `push: main` + `pull_request`) to change to the release tag,
 and `specs/release.md`'s "`main` is green in CI" step to "CI is green for the tag".
+**Amended (2026-10-06, 001 plan D2, D3):** a release may have one dry run before its tag: the Desktop release workflow
+run by hand (`workflow_dispatch`) on `main`, which runs CI and builds installers without publishing. CodeQL
+(`codeql.yml`: pull requests, pushes to `main`, weekly) is a security scan, not the CI gates, and keeps its triggers.
