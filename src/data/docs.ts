@@ -585,7 +585,7 @@ export const DOC_PAGES: DocPage[] = [
               rows: [
                 ['`npm run lint`, `npm run typecheck`', 'ESLint and strict TypeScript'],
                 ['`npm run test:unit`', 'Vitest: the pure logic (design loading, colour maths, masks, LUTs, TIFF, RAW)'],
-                ['`npm test`', 'About 6,000 checks inside Electron: every product × size × layout, GPU parity, AI masks, every agent tool'],
+                ['`npm test`', 'About 6,100 checks inside Electron: every product × size × layout, GPU parity, AI masks, every agent tool'],
                 ['`npm run test:mcp`', 'The MCP server end to end, including RAW to 16-bit TIFF'],
                 ['`npm run test:e2e`', 'Playwright on the production build at desktop and phone sizes, with accessibility checks'],
               ],

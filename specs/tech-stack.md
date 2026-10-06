@@ -6,26 +6,28 @@
 **Last updated:** 2026-10-06
 
 Chitthi is a client-side app: all design, rendering and file generation runs on the user's device. The stack is
-kept small on purpose. The one runtime library besides React is jsPDF, and it is only loaded when a PDF is made.
+kept small on purpose. Besides React and the icons, every runtime library (jsPDF, Mediabunny, the Anthropic SDK, ONNX
+Runtime Web) is loaded with `import()` only when its feature is first used, so none is in the start-up bundle.
 
 ## Application
 
 | Technology | Version | Used for | Why |
 | --- | --- | --- | --- |
 | **TypeScript** | 7.0 | All app code, strict mode | One typed `Design` model shared by UI, renderer and export; the compiler finds every place a new product or layout must be handled |
-| **React** | 19.3 | UI components | `useSyncExternalStore` for the app store, `useDeferredValue` so thumbnails redraw at low priority |
+| **React** (`react`, `react-dom`) | 19.3 | UI components | `useSyncExternalStore` for the app store, `useDeferredValue` so thumbnails redraw at low priority |
 | **WebGPU / WebGL2** | browser | Looks and colour in the photo & video studio (`src/engine/gpu/`) | 2–4× faster than per-pixel JavaScript, with the same output; WebGL2 where WebGPU is missing, Canvas 2D where neither is. The base for masks, curves and grading (specs/vision/) |
 | **Canvas 2D API** | browser | Every card face, thumbnail and print file | One renderer for preview and print: what you see is exactly what prints. Resolution-independent (drawn in mm × pixels-per-mm) |
 | **jsPDF** | 4.2 | Print PDF and sheet PDF | Loaded with `import()` only when exporting, so it costs nothing at start-up |
-| **lucide-react** | 1.48 | Interface icons | One consistent 24 px line icon set |
+| **lucide-react** | 1.51 | Interface icons | One consistent 24 px line icon set |
 | **Google Fonts** | — | 46 card font families (Latin, Devanagari, Gurmukhi, Bengali, Tamil, …) and the UI fonts | Loaded on demand per family (`src/lib/fonts.ts`); bundled offline in the desktop app |
 | **IndexedDB** | browser | Gallery, photo store, current card's photos (web) | Holds large data-URL photos that don't fit in `localStorage` |
 | **localStorage** | browser | Current design, per-product last design, settings (Pexels key, search on/off, theme) | Small, synchronous values |
 | **Service Worker** | browser | Offline use of the web app, font caching | `public/sw.js`, network-first for pages, cache-first for hashed assets |
 | **CSS** | — | One stylesheet, light and dark themes via custom properties | No CSS framework; `color-mix`, container-friendly grids, `prefers-reduced-motion` handled |
 | **CSS 3D transforms** | browser | 3D viewer: card flip, ring of months, wall calendar, opening envelope | No WebGL dependency; images are the rendered faces |
+| **Mediabunny** | 1.61 | Video export: decodes the clips and encodes H.264 + AAC MP4 with the index at the front (`src/engine/videoExport.ts`) | Thin layer over the browser's WebCodecs; far faster than ffmpeg.wasm (see below). MPL-2.0, an approved exception, used unmodified ([licensing.md](licensing.md)). Loaded with `import()` on the first export |
 | **@anthropic-ai/sdk** | 0.129 | Claude words (`src/ai/providers/anthropic.ts`) | Official SDK: typed requests, structured output, refusal handling. Bundled into the Claude chunk only, loaded with `import()` the first time Claude is used |
-| **ONNX Runtime Web** | 1.30 | AI masks: runs the subject and sky models in a worker (`src/ai/segment/`) | MIT; WebAssembly, one thread, on the device. Loaded with `import()` the first time an AI mask is used (14 MB of WebAssembly, cached) |
+| **ONNX Runtime Web** (`onnxruntime-web`) | 1.30 | AI masks: runs the subject and sky models in a worker (`src/ai/segment/`) | MIT; WebAssembly, one thread, on the device. Loaded with `import()` the first time an AI mask is used (14 MB of WebAssembly, cached) |
 | **FontFace API** | browser | Fonts the user uploads | Registers stored font files so the canvas draws with them; no server needed |
 
 Hand-written helpers instead of libraries: ZIP writer with CRC-32 (`src/lib/zip.ts`) for the print pack, PNG `pHYs`
@@ -53,7 +55,7 @@ There is no Chitthi backend, account system or analytics. AI requests go from th
 | **Node.js** | 20.19+ / 22.12+ (CI, releases and Docker: 26) | Build tooling, scripts. `npm run docs:specs` needs 22.18+ (runs `.ts` directly) |
 | **Vite** | 8.3 | Dev server with hot reload, production bundle, dev/preview proxy for Pexels |
 | **@vitejs/plugin-react** | 6.1 | JSX / React Fast Refresh |
-| **tsc (project references)** | 7.0 | `npm run typecheck` and the build; `tsconfig.lib.json` emits `.d.ts` for the design-system sync. TypeScript 7 is the native compiler (package alias `typescript-native`). TypeScript 5.9 stays installed as `typescript` only because typescript-eslint needs its JavaScript API (it supports TypeScript below 6.1); remove it once typescript-eslint supports 7 |
+| **tsc (project references)** | 7.0 | `npm run typecheck` and the build; `tsconfig.lib.json` emits `.d.ts` for the design-system sync. TypeScript 7 is the native compiler (package alias `typescript-native`). TypeScript 6.0 stays installed as `typescript` only because typescript-eslint needs its JavaScript API (it supports TypeScript below 6.1); remove it once typescript-eslint supports 7 |
 
 ## Desktop
 
@@ -61,9 +63,9 @@ There is no Chitthi backend, account system or analytics. AI requests go from th
 | --- | --- | --- |
 | **Electron** | 44 | Windows and macOS app; serves `dist/` from a private `app://chitthi` origin with a strict CSP |
 | **electron-builder** | 26 | NSIS installer (Windows x64), DMG + ZIP (macOS x64 and arm64), `.chitthi` file association |
-| **@modelcontextprotocol/sdk** | 1.31 | MCP server in the main process (`electron/mcp.cjs`) | Official SDK: protocol, Streamable HTTP transport, schemas. Never in the web bundle |
-| **zod** | 4.6 | Required by the MCP SDK | — |
-| **Electron `safeStorage`** | 44 | AI keys encrypted with the OS (DPAPI on Windows, Keychain on macOS) | Keys usable by the main process only |
+| **@modelcontextprotocol/sdk** | 1.31 | MCP server in the main process (`electron/mcp.cjs`). Official SDK: protocol, Streamable HTTP transport, schemas. Never in the web bundle |
+| **zod** | 4.6 | Required by the MCP SDK |
+| **Electron `safeStorage`** | 44 | AI keys encrypted with the OS (DPAPI on Windows, Keychain on macOS); usable by the main process only |
 | **LibRaw** (`dcraw_emu`) | 0.22.2 | Develops camera RAW files in the main process (`electron/raw.cjs`); LGPL-2.1 / CDDL-1.0, an approved exception, shipped unmodified as a separate program |
 | **electron-updater** | 6.8 | Auto-updates from GitHub Releases (`latest.yml`, `latest-mac.yml`) |
 

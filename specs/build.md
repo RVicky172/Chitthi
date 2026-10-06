@@ -4,7 +4,7 @@ How Chitthi is built for each target, how the running app works, and how a new v
 
 ## Prerequisites
 
-- Node.js 20.19+ or 22.12+ (CI uses 22). `npm run docs:specs` needs 22.18+ because it runs TypeScript files directly.
+- Node.js 20.19+ or 22.12+ (CI, releases and the Docker build use 26). `npm run docs:specs` needs 22.18+ because it runs TypeScript files directly.
 - For the desktop app: Windows builds on Windows, macOS builds (DMG) on macOS.
 - Optional: Docker, and a Pexels API key in `.env.local` (see [PEXELS.md](../docs/PEXELS.md)).
 

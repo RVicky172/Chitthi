@@ -82,6 +82,52 @@ On a fresh clone of the baseline commit, after `npm ci` (and `npx playwright ins
   recorded, not changed.
 - Accessibility / security / compatibility: none new; AC-6 records that today's axe and CSP checks pass.
 
+## Baseline inventory
+
+**Baseline:** `fd2baaf9fb9132a979dac54c2b3ae1b67aef5c0f` on `feat/editor-phase-1-continued` · **Version:** 2.8.0 +
+Unreleased (editor Phases 0–1; ships as 2.10.0 in `001`, no 2.9.0 tagged).
+
+One line per capability area; the linked doc is the detailed record. Routes are the hash routes in `App.tsx`
+(`screenOf()` in `src/state/store.ts`).
+
+| Area | Route | What it does | Detailed doc |
+| --- | --- | --- | --- |
+| Home | `home` | Landing page: the two studios side by side, a section per platform and per print product, live renders | [README: What it does](../../../README.md#what-it-does) |
+| Print studio | `studio` | 4 products (postcards, calendars, framed prints, fridge magnets) in 34 sizes and 47 layouts, 25 occasion themes, 46 fonts; six steps with a live preview that is what prints; matching envelopes | [README: Print studio](../../../README.md#print-studio), [SPECIFICATIONS.md](../../../docs/SPECIFICATIONS.md) |
+| Print files | `studio` | Print-shop PDFs with bleed and crop marks, sheet PDFs, 300 dpi PNGs, print pack ZIP with print spec, quote request and envelope; print-colours soft proof; 3D preview | [README: Print studio](../../../README.md#print-studio), [lld §4.4 Export](../../lld.md#44-export-exportts) |
+| Smart photos and library | `studio` | Photo analysis (shape, colour, light, sharpness), ranking per slot, auto-arrange, subject-centred crops; the photo library | [lld §4.6](../../lld.md#46-photo-analysis-and-arrangement-engineanalyzets-statetraitsts) |
+| Sizes guide | `sizes` | Size table, to-scale diagram, layouts at the chosen size | [SPECIFICATIONS.md: Current sizes](../../../docs/SPECIFICATIONS.md#current-sizes) |
+| Paper sizes in 3D | `paper` | Every size on a cutting mat at true relative scale, side by side, stacked or imposed, plus an actual-size view | [lld §8 Components](../../lld.md#8-components) |
+| Photo studio | `instagram` | Instagram batch of up to 20 photos (4:5, 1:1, 3:4, 1.91:1, 9:16 at 1080 px) with text, shape, sticker, drawing and image layers, blend modes and layer masks | [MEDIA-STUDIO.md: Instagram photos](../../../docs/MEDIA-STUDIO.md#instagram-photos-formats) |
+| Photo editor (Phase 1) | `instagram` | Light and white balance, tone curve, colour mixer, detail and effects, presets and `.cube` LUTs, saved presets, brush / gradient / range masks and AI masks (subject, sky, background), on the GPU with a Canvas 2D fallback | [MEDIA-STUDIO.md: Editing](../../../docs/MEDIA-STUDIO.md#editing), [editor-implementation.md](../../vision/editor-implementation.md) |
+| RAW and photo export | `instagram` | Camera RAW (LibRaw on desktop, embedded JPEG on web); JPEG, PNG, WebP, AVIF (where the browser writes it), 16-bit TIFF; ZIP or share | [MEDIA-STUDIO.md: RAW photos](../../../docs/MEDIA-STUDIO.md#raw-photos), [Export and posting](../../../docs/MEDIA-STUDIO.md#export-and-posting) |
+| Video studio | `instagram/video`, `instagram/youtube` | Reels / Shorts (9:16, 4:5, 1:1) and YouTube (16:9, up to 4K60 on desktop) on a timeline with music; H.264 + AAC MP4 with fast start, streamed to a file for YouTube | [MEDIA-STUDIO.md: Video editor](../../../docs/MEDIA-STUDIO.md#video-editor-reels-shorts-and-youtube) |
+| In-app docs | `docs` | Using the app and developer pages, rendered from `src/data/docs.ts` | [README: Documentation](../../../README.md#documentation) |
+| AI with the user's key | (dialogs) | Greetings, captions, messages and slot-shaped artwork from 16 services; keys only for allowed hosts; on-device AI masks | [AI.md](../../../docs/AI.md) |
+| Pexels search | (dialog) | Free photos with credits, key never in the app | [PEXELS.md](../../../docs/PEXELS.md) |
+| Desktop app | — | Windows and macOS (Electron): file-based storage, RAW developer, native save, menus, `.chitthi` files, auto-updates, performance monitor with per-process CPU and memory | [DESKTOP.md](../../../docs/DESKTOP.md), [PERFORMANCE.md](../../../docs/PERFORMANCE.md) |
+| MCP server and Claude Code plugin | — | `Chitthi --mcp` or live from Settings: 56 agent tools, prompts and resources; the plugin adds the server and six skills | [MCP.md](../../../docs/MCP.md), [plugin README](../../../plugins/chitthi/README.md) |
+| Web app hosting | — | Static `dist/` on nginx in Docker with the production CSP; installable, offline via the service worker | [OPERATIONS.md](../../../docs/OPERATIONS.md) |
+
+### Numbers
+
+Recorded from the editor plan ([Notes on finished items](../../vision/editor-implementation.md#notes-on-finished-items),
+row named in brackets) and measured on the clean clone (tasks T012, T013). Frames are 1080 × 1350.
+
+| What | Value | Source |
+| --- | --- | --- |
+| GPU vs Canvas 2D parity, colour edits | worst 2 levels, mean 0.067 (112 frames per backend) | plan [P0.6] |
+| … with detail effects | worst 3 levels, mean 0.061 (252 frames) | plan [P1.3] |
+| … masks | worst 2 (3 with detail), mean 0.033 (P1.6), 0.025 over 27 frames (P1.7) | plan [P1.6], [P1.7] |
+| … measured at the baseline | colour worst 2, mean 0.034; photos worst 2 (detail 3), mean 0.059 over 308 frames; masks worst 2 (detail 3), mean 0.025 over 27 frames | T013 |
+| Frame time with a look | Canvas 2D 23–25 ms, WebGL2 11 ms, WebGPU 6 ms | plan [P0.9] |
+| … measured at the baseline | Canvas 2D 25.1 ms, WebGL2 6.7 ms, WebGPU 6.8 ms | T013 |
+| Detail effects (clarity, sharpening, noise reduction) | GPU about 1–2 ms; Canvas 2D about 0.8 s (baseline: 5.8–7.3 ms vs 633–668 ms) | plan [P1.3], T013 |
+| Two masks | WebGPU 6.2 ms, WebGL2 9.5 ms, painting 23–24 ms, dragging a gradient 26–29 ms; Canvas 2D about 0.4 s (baseline WebGPU: 5.3 ms, painting 20.8 ms, dragging 20.5 ms) | plan [P1.6], [P1.7], T013 |
+| Self-test checks | 6,115, 0 failed (3 runs) | T013 |
+| Entry chunk | 326 KB of the 350 KB budget | T012 |
+| Agent tools | 56 = 34 print (`src/agent/tools.ts`) + 22 photo studio (`photoTools.ts`); README, CHANGELOG, `lld.md`, `architecture.md` and the in-app docs say 56, and `docs/MCP.md`'s tool table names all 56 | code |
+
 ## Out of Scope
 
 - New features or behaviour changes of any kind.

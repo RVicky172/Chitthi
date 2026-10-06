@@ -6,7 +6,7 @@ list are in [specs/licensing.md](specs/licensing.md).
 
 | Component | Licence | Notes |
 | --- | --- | --- |
-| [React](https://react.dev) | MIT | UI library |
+| [React](https://react.dev) (`react`, `react-dom`) | MIT | UI library |
 | [jsPDF](https://github.com/parallax/jsPDF) | MIT | PDF export |
 | [Lucide](https://lucide.dev) icons (`lucide-react`) | ISC | Interface icons |
 | [Electron](https://www.electronjs.org), electron-updater | MIT | Desktop app |

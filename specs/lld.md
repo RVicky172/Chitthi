@@ -8,9 +8,13 @@ are relative to the repository root.
 ```text
 src/
   main.tsx                 Entry: applies the saved theme, loads bundled UI fonts on desktop, mounts <App>, registers the service worker
-  App.tsx                  Screens (home / studio / sizes), hash routing, start-up effects, keyboard shortcuts
+  App.tsx                  Screens (home / studio / sizes / paper / instagram / docs), hash routing, start-up effects,
+                           keyboard shortcuts
   index.ts                 Library entry for the design-system sync (re-exports; never mounts)
   types.ts                 Every shared type: Design, Photo, Layout, SizeDef, CalendarSettings, …
+  vite-env.d.ts            Type references: Vite client, @webgpu/types
+  assets/                  fonts/: the Schibsted Grotesk UI font (WOFF2, Latin and Latin Extended), bundled by Vite
+  assests/                 Unused Pexels photos (Images/postcards/), nothing imports them (000 Known gaps)
   data/                    Specifications as data
     products.ts              PRODUCTS, productOf, sizesFor, MONTHS
     sizes.ts                 SIZES, SIZE_GROUPS, sizeLabel
@@ -19,6 +23,11 @@ src/
     fonts.ts                 46 font families with category and weights
     samples.ts               Gallery samples built from Pexels photos in public/samples/
     showcase.ts, .json       Landing page examples (definitions) and their pre-rendered images (manifest)
+    printSamples.ts          The 12 print samples for test prints and quotes (npm run build:print-samples)
+    docs.ts                  The in-app documentation (#/docs) as pages of blocks, rendered by DocsPage.tsx
+    instagram.ts             Instagram post formats and limits
+    layers.ts                Layer shapes, stickers, text styles, brushes and palette for photos and video
+    presets.ts               Built-in presets of the photo & video editors (looks)
   engine/                  Framework-free; no React imports
     design.ts                DEFAULT_DESIGN, productDesign, mergeDesign, cardMM, calPages, cornerMM, resolveTheme, inks
     layout.ts                computeLayout, slotCount, slotPhotoIndex
@@ -26,12 +35,25 @@ src/
     patterns.ts              Procedural occasion artwork (PAT)
     photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks), lookPixels
     instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
+    adjust.ts                A photo's or clip's colour settings as parameters (never pixels), kept apart from framing
+    light.ts                 Light and white balance in linear light: temperature, tint, exposure, tones (P1.1)
+    curve.ts, hsl.ts         Tone curve (monotone spline, per channel) and colour mixer (8 bands) (P1.2)
+    chain.ts                 The Canvas 2D colour chain: look → light → curve → mixer → LUT, one rounding at the end
+    detail.ts                Noise reduction, dehaze, clarity, sharpening, grain, sized for a 1080 px frame (P1.3)
     lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
     presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs)
     masks.ts                 Masks: model, mergeMasks, brush / gradient / range rasters (cached), handles, frameMask
+    segments.ts              AI segmentation maps (subject, sky) per picture source, for AI mask parts (P1.8)
     photoExport.ts           Photo file types (JPEG, PNG, WebP, AVIF): which this browser writes, encodePhoto
+    raw.ts, tiff.ts          Camera RAW: developed pixels → preview and linear source; 16-bit TIFF writer (P1.9)
+    deep.ts                  The 16-bit float render behind the TIFF export (P1.9)
+    gpu/                     The GPU render graph (P0.2–P0.5, P1.3–P1.6), with the Canvas 2D path as fallback:
+                             types.ts (device contract), device.ts (WebGPU, else WebGL2, else none), webgpu.ts,
+                             webgl2.ts, graph.ts (nodes, runNodes), colour.ts, detail.ts, lut.ts, mask.ts (programs
+                             mirroring the CPU code), apply.ts (the GPU step of renderIg)
     layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
-    video.ts, videoExport.ts Video timeline and frame drawing; MP4 export with Mediabunny (loaded on export)
+    video.ts                 Video timeline and frame drawing (renderFrame), formats, per-platform limits
+    videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny, loaded on export
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
     envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
     color.ts, sample.ts      Colour maths and drawing helpers; painted stand-in photos
@@ -50,6 +72,8 @@ src/
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
     userLuts.ts              Imported .cube LUTs: IndexedDB storage, loaded into engine/lut.ts when chosen
+    fileSink.ts              A file the video export streams into (desktop IPC or the File System Access API)
+    gpuSetting.ts            The "use the graphics card" setting, kept on this device (P0.5, P0.9)
     perf.ts                  Performance monitor sampler (CPU / load, frames, memory, photos, storage) and report
     errors.ts                In-memory log of recent errors (uncaught, rejections, render, handled) for the reports;
                              components/ErrorBoundary.tsx shows the error screen
@@ -73,11 +97,16 @@ src/
   platform/
     desktop.ts               Typed window.chitthiDesktop bridge (absent in browsers)
     menu.ts                  Desktop menu commands → actions
-  dev/showcase.ts          Development only: renders the landing examples for npm run build:showcase
+  dev/                     Development only, never in production builds
+    selftest.ts              The checks behind npm test (opened at ?selftest in Electron)
+    showcase.ts              Renders the landing examples for npm run build:showcase
+    printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
-                           VideoWorkspace, Timeline, Dialog), ig/ = layer editing shared by photos and video
+                           VideoWorkspace, Timeline, Dialog), ig/ = editing panels shared by photos and video (layers,
+                           masks, curves, colour mixer, looks), panes/ = the print studio's step panes, ai/ = AI
+                           settings, words and artwork dialogs
   styles.css               Ordered @imports of styles/ (section 8, Styles)
-  styles/                  The stylesheet split by feature: 01-base.css … 34-error-boundary.css, in cascade order
+  styles/                  The stylesheet split by feature: 01-base.css … 40-site-nav.css, in cascade order
 electron/
   main.cjs                 Main process: window, app:// protocol + CSP, file library, dialogs, menus, updater
   preload.cjs              contextBridge: the only system access for the page
@@ -85,8 +114,12 @@ electron/
   ai.cjs, ai-hosts.json    AI requests with encrypted keys; allowed hosts and auth header per provider
   mcp.cjs                  MCP server (official SDK): loopback HTTP, headless start, agent IPC
   mcp-stdio.cjs            stdio ↔ HTTP relay run by the Electron binary in Node mode (headless)
+  raw.cjs                  RAW photos: develops the page's bytes with LibRaw's dcraw_emu to 16-bit linear RGB (P1.9)
   dev.mjs                  Runs Vite + Electron together for development
-scripts/                   fetch-samples, fetch-fonts, spec-tables (docs)
+  resources/               Not in git, fetched before packaging: fonts/ (npm run fetch:fonts) and
+                           libraw/<platform>-<arch>/ (npm run fetch:libraw)
+scripts/                   Build, test and fetch scripts (specs/build.md): check-bundle, check-licenses, test, mcp-smoke,
+                           fetch-* (samples, fonts, LibRaw), build-* (showcase, print samples, favicons), spec-tables
 ```
 
 Dependency rule: `components → state → engine → data`. `engine` never imports from `state` or `components`, so it
@@ -459,7 +492,8 @@ over `agent:call` and wait for `agent:reply`. Images come back as base64 PNG, fi
 
 ## 7. Routing and screens
 
-The hash is the source of truth: `#/studio[/product]`, `#/sizes[/product]`, `#/paper`, or empty for home. `App` listens to
+The hash is the source of truth: `#/studio[/product]`, `#/sizes[/product]`, `#/paper`,
+`#/instagram[/video|/youtube]`, `#/docs[/page[/section]]`, or empty for home (`screenOf` in `state/store.ts`). `App` listens to
 `hashchange` / `popstate` → `setUI({screen})`, and writes the hash when `ui.screen` changes, so Back works. Dialogs
 (gallery, settings, crop, 3D viewer) are flags in `ui` that drive native `<dialog>` elements.
 
@@ -470,6 +504,8 @@ App
 ├─ Landing                       home: hero, product cards (live renders), how it works
 ├─ SizeGuide                     #/sizes: size table, to-scale diagram, layouts at the chosen size
 ├─ Paper3D                       #/paper: every size in 3D at true relative scale (see below)
+├─ InstagramStudio              #/instagram[/video|/youtube]: the photo & video studio (studio/: PhotoWorkspace,
+│                                VideoWorkspace on Shell + Timeline; docs/MEDIA-STUDIO.md)
 ├─ DocsPage                      #/docs[/page[/section]]: the in-app documentation, rendered from src/data/docs.ts
 │    (the site pages share SiteNav: brand, guide links and "On this page", gallery, Find, theme, Settings, full
 │     screen, and both studios as one pair of buttons; links and tools fold into the Menu below 1200 and 760 px)
