@@ -24,6 +24,7 @@
     "test": "node scripts/test.mjs",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
+    "measure:gate": "playwright test --config playwright.measure.config.ts",
     "mcp": "node scripts/mcp-dev.mjs",
     "test:mcp": "node scripts/mcp-smoke.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",

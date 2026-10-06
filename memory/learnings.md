@@ -17,3 +17,7 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 - When running a suite to count results, keep its failure lines: `npm run test:e2e 2>&1 | tail -2` showed only
   "66 passed" and lost the name of a test that failed once (001 T004). Grep for `✘` / `failed` / `flaky` instead.
 - A source scan for `setError\(` also matches `PresetError(`: use word boundaries (`\bsetError\(`).
+- A frame-rate check from `requestAnimationFrame` intervals can't see slow updates when input is slower than the
+  display (at 120 Hz most frames carry no move): measure the time between handled input events instead (001 T020).
+- On Windows, Node's `setTimeout(16)` often waits ~31 ms (timer tick 15.6 ms): pace with `performance.now()` and
+  `setImmediate` when timing matters. And `chrome.exe --version` doesn't print a version there: it opens a window.

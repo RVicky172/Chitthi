@@ -59,7 +59,7 @@ npm run desktop:pack    # unpacked app in release/ for a quick check (unsigned)
 npm run desktop:dist    # installers in release/: NSIS .exe (Windows) or .dmg + .zip (macOS)
 ```
 
-macOS builds must run on a Mac and Windows builds on Windows (or use the CI workflow).
+macOS builds must run on a Mac and Windows builds on Windows (or run the **Desktop release** workflow by hand: CI, then both installers as artifacts, nothing published).
 
 ## The full video studio
 

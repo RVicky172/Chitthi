@@ -11,6 +11,17 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-06 — 001 (T010–T011, T020–T021, T031–T032)
+
+**Done:** CI is a reusable workflow the Desktop release runs first (`build` needs `ci`); docs say CI runs once per
+release (D-006 follow-ups done). `npm run measure:gate` (installed Chrome, headed, 15 MP photo, two masks): gate
+metric changed to the time between preview updates (rAF median hid a 4× CPU throttle), pacing via
+`performance.now()` (Windows timers); this machine 16.6 / 19 ms PASS, throttled 41 / 55 ms FAIL; spec AC-1/AC-2/Q2
+updated with the maintainer's OK; `docs/PERFORMANCE.md` section. RAW set (CC0 CR3, NEF, ARW + synthetic DNG) all
+developed by LibRaw in the packaged Windows app and exported as 16-bit TIFF.
+**Next:** 👤 T022/T023 (laptop), T030/T033 (Mac), then T040 release changes, T041 merge, T042 dry run, T043 tag.
+**Blockers:** the remaining tasks need the maintainer's hardware or go-ahead.
+
 ## 2026-10-06 — 001 (T001–T004: bug fixes G6–G8, plus spec / plan / tasks)
 
 **Done:** 001 spec (Q1–Q10 accepted), plan (D1–D3 accepted; D-006 amended: one dry run per release, CodeQL keeps

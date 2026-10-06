@@ -32,10 +32,11 @@ It adds no new editor feature.
 On the reference laptop (Q1), Chrome stable, the production web build, a 1080 × 1350 Instagram photo with two masks
 (one brush, one linear gradient) and a look applied, GPU effects on:
 
-- [ ] **AC-1:** Painting with the mask brush continuously for 10 s: median frame time ≤ 33.3 ms (30 fps) and 95th
-      percentile ≤ 50 ms. _(manual measurement, method per Q2, recorded with the GPU backend used)_
+- [ ] **AC-1:** Painting with the mask brush continuously for 10 s, a pointer move every 16 ms: the time between
+      preview updates has a median ≤ 33.3 ms (30 fps) and a 95th percentile ≤ 50 ms.
+      _(scripted measurement, `npm run measure:gate`, method per Q2, recorded with the GPU backend used)_
 - [ ] **AC-2:** Dragging the gradient's handle continuously for 10 s: the same limits as AC-1.
-      _(manual measurement)_
+      _(scripted measurement)_
 - [ ] **AC-3:** The same two measurements in the desktop app on the same laptop, recorded for comparison (no limit
       beyond AC-1's). _(manual measurement)_
 
@@ -95,9 +96,11 @@ an ARW at least):
 - **Q1** _(resolved)_ Which machine is the "mid-range laptop"? _Answer (accepted 2026-10-06):_ a laptop you have access to with
   a 4-core / 8-thread CPU from 2020 or later, integrated graphics (e.g. Intel Iris Xe or AMD Radeon Vega), 8–16 GB
   RAM, on battery-saver off and plugged in; its model, CPU, GPU, RAM and Chrome version are recorded with the result.
-- **Q2** _(resolved)_ How are frame times measured? _Answer (accepted 2026-10-06):_ the app's performance monitor (frames drawn)
-  plus Chrome DevTools' Performance panel trace for each 10 s run; median and 95th percentile of the frame
-  intervals, 3 runs each, the worst run counts.
+- **Q2** _(resolved)_ How are frame times measured? _Answer (accepted 2026-10-06, method changed the same day, see
+  Changelog):_ `npm run measure:gate` drives Chrome with a pointer move every 16 ms and records when the page has
+  handled each move (each one redraws the preview); median and 95th percentile of the time between those updates,
+  3 runs each, the worst run counts. Display-frame intervals are recorded too, as a jank check. The performance
+  monitor is a hand cross-check.
 - **Q3** _(resolved)_ Which Macs can you test on? _Answer (accepted 2026-10-06):_ an Apple silicon Mac runs AC-5 and AC-6 (the
   x64 app under Rosetta 2 is a real test of the Intel `dcraw_emu`); a real Intel Mac only if one is at hand. If no
   Mac is available at all, the macOS ACs can't be met and the release would ship Windows-verified only, which needs
@@ -132,3 +135,6 @@ an ARW at least):
 - 2026-10-06 — Plan decisions D1–D3 accepted. AC-9 widened from the 6 export/gallery failures to every shown error
   (D1, Definition of Done item 9 as written).
 - 2026-10-06 — Plan approved, tasks written; In Progress.
+- 2026-10-06 — AC-1, AC-2, Q2: measured as the time between preview updates instead of display-frame intervals
+  (found in T020: at 120 Hz most frames carry no new input, so the frame median stayed at 8 ms even with the CPU
+  slowed 4× while the preview updated only ~25 times a second). Limits unchanged. Approved by the maintainer.

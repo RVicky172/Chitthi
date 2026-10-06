@@ -64,18 +64,35 @@ anything surprising or deferred.
 
 ## CI at the release (plan §2, D-006)
 
-- [ ] **T010** — `ci.yml`: `on: workflow_call` only; `desktop-release.yml`: a first job `ci` that calls it, `build`
+- [x] **T010** — `ci.yml`: `on: workflow_call` only; `desktop-release.yml`: a first job `ci` that calls it, `build`
       `needs: ci`; header comments say when each runs. · files: `.github/workflows/ci.yml`,
       `.github/workflows/desktop-release.yml` · test: both parse as YAML and a local check confirms `build.needs`
       is `ci` and `ci.yml` has no `push`/`pull_request`; the real proof is the dry run, T042 (AC-11)
-- [ ] **T011** [P] — Docs: CI runs once for a release (and its dry run), CodeQL stays on PRs:
+  - **Result (2026-10-06):** `ci.yml`: `on: workflow_call` only; its `concurrency` block (cancel in progress per ref)
+    removed, since a release's CI must never be cancelled and the caller decides when it runs; jobs `check` and
+    `docker` unchanged. `desktop-release.yml`: new first job `ci: uses: ./.github/workflows/ci.yml`, `build: needs:
+    ci` (so `release` → `build` → `ci`); headers say CI runs only here, on a tag or the manual dry run. Scratch check
+    (`wf.cjs`, js-yaml from `node_modules`): 7 structural checks, **3 failed on the old files, 7/7 pass now**; CodeQL
+    untouched. Not provable locally: GitHub's own validation of the reusable call → T042.
+- [x] **T011** [P] — Docs: CI runs once for a release (and its dry run), CodeQL stays on PRs:
       `specs/testing-strategy.md`, `specs/release.md` ("CI is green for the tag", dry run step), `specs/build.md`,
       `docs/OPERATIONS.md`, `CONTRIBUTING.md` (also Node 22 → 26), `specs/architecture.md` §7 if it names CI.
       · files: those · test: grep finds no "CI … every pull request" left; link check 0 broken
+  - **Result (2026-10-06):** rewritten: `testing-strategy.md` intro (local gates; CI once per release),
+    `release.md` (gates pass locally on `main`; new **dry run** step; "Tag and publish" says CI runs first and a red
+    CI stops it, with how to delete a failed tag), `build.md` (diagram gets a `ci` node; step 4), `OPERATIONS.md`
+    (Docker image checked per release, so check a base-image update yourself: `docker compose build/up`, `/healthz`),
+    `CONTRIBUTING.md` (Node 22 → 26; run the full checks and say so in the PR; CodeQL still scans PRs),
+    `ACCESSIBILITY.md` (axe runs in `test:e2e` and at each release, not "every pull request"), `DESKTOP.md` (cross-
+    platform builds via the dry run), CHANGELOG Unreleased → Changed line, D-006 follow-ups marked done. Fixed in
+    passing in `release.md`: the plugin version bump was missing (CLAUDE.md lists it) and the exe is
+    `Chitthi Studio.exe`, not `Chitthi.exe`. Left as they are: CHANGELOG history, `architecture.md` §7 (CodeQL),
+    `licensing.md` ("runs in CI and before every release build": still true), README's "the checks CI runs". Grep:
+    no claim of CI on pull requests left; links 37 files / 161 / 0 broken; `npm run check` exit 0.
 
 ## Chrome gate (plan §3)
 
-- [ ] **T020** — Measuring script: `playwright.measure.config.ts` (installed Chrome, headed, production build on
+- [x] **T020** — Measuring script: `playwright.measure.config.ts` (installed Chrome, headed, production build on
       `vite preview`), `e2e/gate.measure.ts` (photo from `public/samples/`, a look, a brush mask with exposure and a
       linear gradient mask; 10 s painting and 10 s handle drag with moves every 16 ms; rAF intervals → frames,
       median, p95, max, backend; 3 runs each; fails if the backend isn't WebGPU or WebGL2), `npm run measure:gate`.
@@ -83,8 +100,27 @@ anything surprising or deferred.
       `Emulation.setCPUThrottlingRate`) must report clearly higher numbers. `npm run test:e2e` must not pick it up.
       · files: `e2e/gate.measure.ts`, `playwright.measure.config.ts`, `package.json` · test: script output; test:e2e
       count unchanged (74)
-- [ ] **T021** [P] — `docs/PERFORMANCE.md`: "Measuring the photo editor's frame rate" (what `measure:gate` does,
+  - **Result (2026-10-06):** `npm run measure:gate` (own config, `channel: 'chrome'`, headed, `vite build` +
+    `vite preview` on port 4175, 1440 × 900). Photo `puri-temple.jpg` (3200 × 4800, 15 MP) in the 4:5 post, look
+    Warm, Mask 1 linear gradient + clarity 30, Mask 2 brush + exposure 1; per run 10 s painting a figure-of-eight
+    stroke and 10 s dragging the gradient's centre handle in a circle (undone after), 3 runs; asserts each run left
+    one more stroke and the drag moved the gradient; prints Chrome, GPU (WebGPU adapter or WebGL2 renderer; fails on
+    a software one), CPU, RAM, OS; writes `test-results/gate.json`; exits 1 over the limits. **Metric changed
+    (spec AC-1/AC-2/Q2, approved):** the first version measured rAF intervals, and its 4× CPU-throttle break-test
+    *passed* (median 8.4 ms at 120 Hz: frames without input dilute it, while only ~245 moves were handled in 10 s).
+    Now the gate is the time between handled pointer moves (a window `pointermove` listener after the app's), moves
+    paced every 16 ms; rAF frames are kept as a jank column. Second fix: pacing with `setTimeout(16)` gave a p95 of
+    ~33 ms on this machine (Windows timers tick every 15.6 ms), so it waits on `performance.now()` with
+    `setImmediate`. **This machine** (Core Ultra 9 285K, 24 threads, 127 GB, NVIDIA Blackwell, WebGPU, Chrome
+    154.0.8037.98): worst run paint median 16.6 / p95 19.0 / max 31 ms, drag 16.6 / 18.7 / 27 ms, ~610 updates and
+    ~1,197 frames per 10 s: PASS. **Break-test** `GATE_CPU_THROTTLE=4`: paint 41.0 / 51.3 ms, drag 41.5 / 55.0 ms,
+    ~245 updates: **FAIL**, as it must. `npm run test:e2e` still lists 74 tests; ESLint clean; `npm run check`
+    exit 0. Not a mid-range machine: the gate itself is T022.
+- [x] **T021** [P] — `docs/PERFORMANCE.md`: "Measuring the photo editor's frame rate" (what `measure:gate` does,
       the limits, how to read it). · files: `docs/PERFORMANCE.md` · test: link check
+  - **Result (2026-10-06):** section added before "Investigating a slowdown": the budget, both commands (incl. the
+    throttled self-check), what the run does, a table of the columns with their limits, the software-renderer rule,
+    `test-results/gate.json`, and why display-frame intervals can't be the measure. Links 0 broken.
 - [ ] **T022** 👤 — The gate on the reference laptop (Q1, Q2): record model, CPU, GPU, RAM, OS, Chrome version,
       plugged in; `npm ci`, `npx playwright install chromium` not needed (installed Chrome); `npm run measure:gate`,
       3 runs each; worst run against median ≤ 33.3 ms, p95 ≤ 50 ms. One run with the performance monitor open as a
@@ -98,11 +134,41 @@ anything surprising or deferred.
       `lipo -archs` says `x86_64`, and both `darwin-arm64/` and `darwin-x64/` hold the program, licences and
       `SOURCE.txt`. If the build fails, fix the configure flags in `scripts/fetch-libraw.mjs` (same source). ·
       files: `scripts/fetch-libraw.mjs` only if needed · test: `lipo -archs`, `file` output
-- [ ] **T031** [P] — RAW test set (Q4): a CR3, a NEF and an ARW from raw.pixls.us (CC0) plus the smoke test's
+- [x] **T031** [P] — RAW test set (Q4): a CR3, a NEF and an ARW from raw.pixls.us (CC0) plus the smoke test's
       synthetic DNG, in a folder outside the repo; record URLs, cameras and SHA-256. · files: none · test: Result note
-- [ ] **T032** — Windows x64 (AC-4): `npm run desktop:pack`; open each RAW file in `release/win-unpacked`: developed
+  - **Result (2026-10-06):** downloaded to the session scratchpad (`raw-set/`, not in the repo, not shipped); the site
+    releases every sample under CC0. Magic bytes checked (ARW, NEF: TIFF `II*\0`; CR3: ISO-BMFF `ftypcrx`).
+
+    | File | Camera | URL | Size | SHA-256 |
+    | --- | --- | --- | --- | --- |
+    | `IMG_6310.CR3` | Canon EOS R10 | `https://raw.pixls.us/data/Canon/Canon%20EOS%20R10/IMG_6310.CR3` | 34.7 MB | `2dc0bbdf04c93ca6…acd097` |
+    | `DSC_0750.NEF` | Nikon Z 6 | `https://raw.pixls.us/data/Nikon/Z%206/DSC_0750.NEF` | 47.5 MB | `b4cdb8ecf8a971ec…a7ab5e15f` |
+    | `_DSC0009.ARW` | Sony ILCE-7M3 (A7 III) | `https://raw.pixls.us/data/Sony/ILCE-7M3/_DSC0009.ARW` | 25.6 MB | `250784580ea52744…5bb50d0f` |
+    | `synthetic.dng` | `syntheticDng()` (`src/engine/tiff.ts`) | — | 49.6 KB | — |
+
+    Full hashes: CR3 `2dc0bbdf04c93ca62c914604f644c735286037912d6fba609d0cb78d00acd097`, NEF
+    `b4cdb8ecf8a971ec023dd242251c6cbfb19966914e37c2311dc9813a7ab5e15f`, ARW
+    `250784580ea527442c09004417bb0eead484f2bf3ee8f9121a776ac65bb50d0f`. For the Mac (T033): download the same
+    three URLs and compare the hashes.
+- [x] **T032** — Windows x64 (AC-4): `npm run desktop:pack`; open each RAW file in `release/win-unpacked`: developed
       picture (not the embedded preview), then 16-bit TIFF export (`II*\0`, > 1080 × 1080 × 6 bytes).
       · test: manual check, results per file
+  - **Result (2026-10-06):** `desktop:pack` rebuilt on the current code (after T004). Checked through the packaged
+    app's own MCP tools (`Chitthi Studio.exe --mcp`: the same page code as the UI, in its hidden window) with a
+    throwaway client (`raw-check.mjs`, kept in the scratchpad, not committed): `add_batch_photo` → `raw: true`
+    (set only when LibRaw developed the file; the embedded-preview path never sets it), `render_photo_preview` saved
+    and looked at, then TIFF export, header and BitsPerSample (tag 258) read, the file deleted.
+
+    | File | Opened in | Developed size | Export | TIFF |
+    | --- | --- | --- | --- | --- |
+    | CR3 (Canon EOS R10) | 0.9 s | 3000 × 2000 | 1.4 s | `II*`, 16-bit, 8.7 MB |
+    | NEF (Nikon Z 6) | 0.7 s | 3032 × 2020 | 1.3 s | `II*`, 16-bit, 8.7 MB |
+    | ARW (Sony A7 III) | 0.5 s | 3012 × 2012 | 1.3 s | `II*`, 16-bit, 8.7 MB |
+    | synthetic DNG | 0.0 s | 96 × 64 | 0.2 s | `II*`, 16-bit, 8.7 MB |
+
+    Sizes are LibRaw's half-size development (`-h`) of 24 MP sensors. The previews (1080 × 1350 posts) show natural
+    colour, right way up, no casts. TIFF = 1080 × 1350 × 3 × 2 bytes. The output folder was empty afterwards. A
+    by-hand look in the open window is part of T044.
 - [ ] **T033** 👤 — macOS (AC-5, AC-6): `npm run build`, `npx electron-builder --mac --arm64 --dir` and
       `--x64 --dir`; the RAW set in both apps (x64 under Rosetta 2), developed and exported as 16-bit TIFF;
       `file …/Resources/libraw/…/dcraw_emu` in the x64 app says x86_64. · test: manual check, results per file and arch

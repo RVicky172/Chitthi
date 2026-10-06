@@ -1,19 +1,15 @@
-# Checks every pull request and every push to main: lint, type check and production build, the self-test suite and the
-# MCP smoke test (both run Electron, which works on Windows runners without a virtual display), and the Docker image.
-# Actions are pinned by commit SHA; Dependabot (.github/dependabot.yml) proposes updates.
+# The full check of a release: lint, licences, type check and production build, unit tests, the self-test suite and the
+# MCP smoke test (both run Electron, which works on Windows runners without a virtual display), the browser tests, and
+# the Docker image. It never runs on its own (D-006: no CI on feature branches or pull requests): the Desktop release
+# workflow calls it first, on a version tag or on its manual dry run, and builds the installers only if it passes.
+# Day-to-day checks are local (specs/testing-strategy.md). Actions are pinned by commit SHA; Dependabot proposes updates.
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   check:

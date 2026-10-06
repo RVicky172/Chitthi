@@ -118,8 +118,9 @@ flowchart LR
   A[Bump version in package.json<br/>and APP_CACHE in sw.js] --> B[Commit and push]
   B --> C[git tag vX.Y.Z<br/>git push origin vX.Y.Z]
   C --> D[GitHub Actions: desktop-release.yml]
-  D --> E[windows-latest: npm ci, fetch:fonts, fetch:libraw,<br/>build, electron-builder --win]
-  D --> F[macos-latest: same with --mac]
+  D --> CI[ci job: ci.yml, every gate<br/>and the Docker image]
+  CI --> E[windows-latest: npm ci, fetch:fonts, fetch:libraw,<br/>build, electron-builder --win]
+  CI --> F[macos-latest: same with --mac]
   E --> G[release job: one GitHub Release<br/>with all installers + latest*.yml]
   F --> G
   G --> H[Installed apps update themselves]
@@ -131,8 +132,9 @@ Follow the checklist in [release.md](release.md); in short:
    the image tag in `docker-compose.yml`.
 2. Run `npm run typecheck && npm run build` (and `npm run docs:specs` if specifications changed).
 3. Commit and push, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. The **Desktop release** workflow builds both platforms in parallel and a final job publishes the GitHub Release.
-   A manual run (`workflow_dispatch`) builds the installers as artifacts without publishing.
+4. The **Desktop release** workflow runs CI first (`ci.yml`; D-006: the only CI run, never on branches or pull
+   requests), then builds both platforms in parallel, and a final job publishes the GitHub Release. A manual run
+   (`workflow_dispatch`) is the release's dry run: CI, then the installers as artifacts, without publishing.
 5. Redeploy the web app: `docker compose up -d --build` on the server.
 
 Signing: without certificates the builds are unsigned (Windows SmartScreen and macOS Gatekeeper warnings; the release

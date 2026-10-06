@@ -58,6 +58,36 @@ component is undone in its cleanup (checked across `src/` for this page).
   passes 350 KB or contains AI code (`scripts/check-bundle.mjs`).
 - The preview draws each photo from a GPU texture (~2 ms a render for 12 MP photos in Chrome).
 
+## Measuring the photo editor's frame rate
+
+The photo editor's budget (the Phase 1 gate in
+[editor-implementation.md](../specs/vision/editor-implementation.md#phase-1-advanced-photo-editor)): while painting a
+mask or dragging a gradient, the preview keeps up at **30 fps** on a mid-range laptop in Chrome. `npm run
+measure:gate` checks it:
+
+```bash
+npm run measure:gate                       # uses the Chrome installed on this machine; a window opens for ~1 minute
+GATE_CPU_THROTTLE=4 npm run measure:gate   # the same with the page's CPU slowed 4×: must fail (checks the check)
+```
+
+It builds the web app, opens the photo studio in Chrome (headed, so the real graphics card is used), adds a 15 MP
+photo with a look, a gradient mask with clarity and a brush mask with exposure, then 3 times: 10 s of painting and 10 s
+of dragging the gradient's centre handle, with a pointer move every 16 ms. Each move the page handles redraws the
+preview, so the **time between handled moves** is the time between preview updates. A machine that keeps up shows
+about 16–17 ms (as fast as the moves come); a slower one shows how long an update takes.
+
+| Column | Meaning | Limit (worst run) |
+| --- | --- | --- |
+| updates | Moves handled in the 10 s (≈ 600 when keeping up) | — |
+| median, p95 | Time between preview updates | ≤ 33.3 ms (30 fps), ≤ 50 ms |
+| max | The longest single wait | — |
+| frames, longest | Display frames drawn and the longest one: jank, not the gate | — |
+
+The first lines name Chrome, the graphics card (the WebGPU adapter, or the WebGL2 renderer), CPU, memory and system;
+the run fails on a software renderer. The results are saved to `test-results/gate.json`. It is never part of
+`npm run test:e2e`. Display-frame intervals alone can't be the measure: at 60–120 Hz most frames carry no new input
+and would hide slow updates.
+
 ## Investigating a slowdown
 
 1. Open the monitor, reproduce the slow action, and watch **Main thread busy** / **CPU** and **Input delay**.

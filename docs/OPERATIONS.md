@@ -104,5 +104,7 @@ previous one, then point the service back at it. Visitors' browsers revalidate `
 ## Keeping it patched
 
 Dependabot opens weekly pull requests for npm packages, GitHub Actions and the two Docker base images. CI builds and
-smoke-tests the image on every pull request. Rebuild and redeploy after merging a base-image update, even without an
-app release.
+smoke-tests the image once per release (and its dry run), not on pull requests, so before deploying a base-image
+update between releases, build and check it yourself: `docker compose build`, `docker compose up -d`, then
+`curl -sf http://127.0.0.1:8080/healthz`. Rebuild and redeploy after merging a base-image update, even without an app
+release.

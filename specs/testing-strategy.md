@@ -1,7 +1,10 @@
 # Testing strategy
 
-Five suites check Chitthi, from fast unit tests to the packaged app. CI runs all of them on every pull request
-(`.github/workflows/ci.yml`, on a Windows runner because the Electron suites need a desktop session).
+Five suites check Chitthi, from fast unit tests to the packaged app. They run locally: `npm run check` after every
+task, all of them before a feature is done (the Definition of Done in `constitution.md`). CI runs all of them once per
+release (D-006): the Desktop release workflow calls `.github/workflows/ci.yml` on a version tag, or on its manual dry
+run, before it builds the installers (a Windows runner, because the Electron suites need a desktop session). There is
+no CI on feature branches or pull requests.
 
 | Command | Suite | Runs in | Time |
 | --- | --- | --- | --- |

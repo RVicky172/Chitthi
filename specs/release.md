@@ -6,26 +6,31 @@ checklist to follow each time, and what to do when a release goes wrong.
 
 ## Before tagging
 
-- [ ] `main` is green in CI (lint, build, unit, self-test, MCP, browser and Docker checks).
+- [ ] Every Definition-of-Done gate passes locally on `main` (CI does not run on branches or pull requests, D-006).
 - [ ] [CHANGELOG.md](../CHANGELOG.md): move **Unreleased** under the new version and date; call out security fixes.
 - [ ] `npm version X.Y.Z --no-git-tag-version` (package.json and the lock file).
-- [ ] Bump `APP_CACHE` in `public/sw.js`, and the image tag in `docker-compose.yml`.
+- [ ] Bump `APP_CACHE` in `public/sw.js`, the image tag in `docker-compose.yml`, and the version in
+      `plugins/chitthi/.claude-plugin/plugin.json`.
 - [ ] `npm run docs:specs` if sizes, layouts or products changed.
 - [ ] Docs updated for anything users or operators will notice.
 - [ ] Desktop smoke check of the packaged app:
-      `npm run desktop:pack`, open `release/win-unpacked/Chitthi.exe` (or the macOS app), make a card, export a print
-      pack, then `CHITTHI_MCP_APP=<path to the exe> npm run test:mcp`.
+      `npm run desktop:pack`, open `release/win-unpacked/Chitthi Studio.exe` (or the macOS app), make a card, export a
+      print pack, then `CHITTHI_MCP_APP=<path to the exe> npm run test:mcp`.
+- [ ] Commit and push `main`, then the **dry run**: run the **Desktop release** workflow by hand on `main` (Actions →
+      Desktop release → Run workflow). CI must be green (lint, licences, build, unit, self-test, MCP, browser and
+      Docker checks) and the installers build; nothing is published.
 
 ## Tag and publish
 
 ```bash
-git commit -am "Release X.Y.Z: <one line>"
 git tag vX.Y.Z
-git push origin main vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-The **Desktop release** workflow builds Windows and macOS and publishes one GitHub Release with the installers and the
-`latest*.yml` update manifests.
+The **Desktop release** workflow runs CI first (`ci.yml`, the release's only CI run, D-006); if it passes, it builds
+Windows and macOS and publishes one GitHub Release with the installers and the `latest*.yml` update manifests. A red
+CI stops it before anything is built or published: fix, push, and tag again (delete the failed tag first with
+`git push origin :refs/tags/vX.Y.Z`).
 
 ## After publishing
 

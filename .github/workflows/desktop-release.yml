@@ -1,19 +1,25 @@
-# Builds the desktop installers when a version tag (v2.0.0, …) is pushed and attaches them to one GitHub Release.
-# Windows and macOS build in parallel; a final job creates the release, so the two never race to create it.
-# Signing secrets are described in docs/DESKTOP.md. Without them the builds still run, unsigned.
+# A release: when a version tag (v2.0.0, …) is pushed, CI runs first (ci.yml, the project's only CI run, D-006); if it
+# passes, the desktop installers are built and attached to one GitHub Release. Windows and macOS build in parallel; a
+# final job creates the release, so the two never race to create it. A manual run is the release's dry run: CI and
+# the installers as workflow artifacts, no release. Signing secrets are described in docs/DESKTOP.md. Without them
+# the builds still run, unsigned.
 name: Desktop release
 
 on:
   push:
     tags: ['v*']
-  workflow_dispatch: # manual run: builds the installers as workflow artifacts, no release
+  workflow_dispatch: # dry run: CI, then the installers as workflow artifacts, no release
 
 # Read-only by default; only the release job may write (it creates the GitHub Release).
 permissions:
   contents: read
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: ci
     strategy:
       fail-fast: false
       matrix:

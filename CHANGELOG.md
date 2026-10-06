@@ -52,6 +52,10 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- CI runs once per release instead of on every pull request and push to `main`: the Desktop release workflow runs
+  every check (lint, licences, build, unit, self-test, MCP, browser tests, Docker image) first, and builds and
+  publishes the installers only if they pass; a manual run is the release's dry run. Day-to-day checks are local.
+  CodeQL still scans pull requests.
 - Spec-driven development: engineering docs moved from `docs/` to `specs/` (HLD → `architecture.md`, LLD →
   `lld.md`, TECHNOLOGIES → `tech-stack.md`, TESTING → `testing-strategy.md`, `licensing.md`, `build.md`,
   `release.md`), the editor plans from `docs/planning/` to `specs/vision/`, with a constitution, workflow, roadmap,

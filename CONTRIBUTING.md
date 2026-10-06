@@ -4,7 +4,7 @@ Thanks for helping. This guide covers setup, the checks a change must pass, and 
 
 ## Set up
 
-You need Node.js 20.19 or newer (22 is what CI uses) and Git.
+You need Node.js 20.19 or newer (26 is what releases and CI use) and Git.
 
 ```bash
 git clone https://github.com/RVicky172/Chitthi.git
@@ -30,8 +30,8 @@ Product docs (how the app behaves) are in `docs/`; engineering docs are in `spec
 
 ## Before you open a pull request
 
-`npm run check` (type check, lint, unit tests) is the quick check while you work. Before a pull request, run what CI
-runs:
+`npm run check` (type check, lint, unit tests) is the quick check while you work. Before a pull request, run the full
+checks (the same ones CI runs at each release; there is no CI on pull requests):
 
 ```bash
 npm run lint         # ESLint: no errors allowed
@@ -68,7 +68,8 @@ permissive licences ship without review, and the new component goes in [THIRD_PA
 4. Include a screenshot for visible UI changes, at desktop and phone width. If the change shows in a README screenshot,
    remake it with `npm run screenshots` (add a scene in `scripts/screenshots.mjs` for a new screen), and update the
    in-app documentation in `src/data/docs.ts` when a feature changes.
-5. CI must be green before review.
+5. Say in the description that the full checks above pass on your machine. CI runs only for a release, so it won't
+   check the pull request for you (CodeQL's security scan still does).
 
 ## Reporting bugs and ideas
 
