@@ -28,6 +28,7 @@ export interface DocPage {
 
 const GH = 'https://github.com/RVicky172/Chitthi';
 const DOC = (f: string) => `${GH}/blob/main/docs/${f}`;
+const SPEC = (f: string) => `${GH}/blob/main/specs/${f}`;
 
 export const DOC_PAGES: DocPage[] = [
   {
@@ -568,7 +569,7 @@ export const DOC_PAGES: DocPage[] = [
                 ['An occasion theme or font', '`src/data/themes.ts`, `src/data/fonts.ts`'],
                 ['An AI service', `An adapter in \`src/ai/providers/\` and its host in \`electron/ai-hosts.json\` ([AI.md](${DOC('AI.md')}))`],
                 ['An agent tool', '`src/agent/tools.ts` or `photoTools.ts`, with a self-test check'],
-                ['A library, model or asset', `Check the licence first: permissive only ([LICENSING.md](${DOC('LICENSING.md')}))`],
+                ['A library, model or asset', `Check the licence first: permissive only ([licensing.md](${SPEC('licensing.md')}))`],
               ],
             },
           },
@@ -590,7 +591,7 @@ export const DOC_PAGES: DocPage[] = [
               ],
             },
           },
-          { p: `How the tests work: [TESTING.md](${DOC('TESTING.md')}). Contributing: [CONTRIBUTING.md](${GH}/blob/main/CONTRIBUTING.md).` },
+          { p: `How the tests work: [testing-strategy.md](${SPEC('testing-strategy.md')}). Contributing: [CONTRIBUTING.md](${GH}/blob/main/CONTRIBUTING.md).` },
         ],
       },
     ],

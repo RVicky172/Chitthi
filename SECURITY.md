@@ -49,6 +49,6 @@ Out of scope:
 
 ## How Chitthi is protected
 
-[docs/HLD.md §7](docs/HLD.md#7-security) describes the design: no backend, a strict Content Security Policy, a
+[specs/architecture.md §7](specs/architecture.md#7-security) describes the design: no backend, a strict Content Security Policy, a
 sandboxed Electron renderer with a narrow IPC bridge, keys encrypted by the operating system on desktop, and an MCP
 endpoint on loopback only with a random token.

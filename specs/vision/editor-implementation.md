@@ -1,11 +1,15 @@
 # Photo & video editor: implementation plan
 
 Status: **in progress**: Phase 0 is done and merged; Phase 1's work items are all done (12 of 12); its gate is still to confirm. Written 3 October 2026
-against version 2.8.0; this page is updated as each item lands. It turns [EDITOR-ROADMAP.md](EDITOR-ROADMAP.md) (the
+against version 2.8.0; this page is updated as each item lands. It turns [editor-roadmap.md](editor-roadmap.md) (the
 what and why) into work items: which files change, in what order, how each step is tested, and what must be true before
-the next phase starts. Every library it adds goes through [LICENSING.md](../LICENSING.md) first.
+the next phase starts. Every library it adds goes through [licensing.md](../licensing.md) first.
 
 ## Progress
+
+> Since 6 October 2026 work follows the spec-driven workflow ([workflow.md](../workflow.md)): Phase 2 and 3 items
+> become features `2xx` / `3xx` in [roadmap.md](../roadmap.md), which tracks their status; their spec, plan and
+> tasks live in `specs/features/`. The tables below stay as the original breakdown and the record of Phases 0–1.
 
 Each work item's state is in the **Status** column of its phase table below: **Done**, **Next** (being worked on),
 **To do**, or **Not needed** (with the reason in the notes). Update the column, this summary and the notes in the same
@@ -64,15 +68,15 @@ What was built, decisions taken along the way, and measurements, so later work c
 - **Free for everyone.** Chitthi stays open source under MIT with no subscription, paid tier, licence key, account or
   usage limit added by us. No work item adds a payment check, a locked feature or a "pro" edition. Desktop-only items
   are limited by technology, not price. A dependency that would need a paid or per-user licence is replaced (see
-  [LICENSING.md](../LICENSING.md)).
+  [licensing.md](../licensing.md)).
 
 ### Definition of done for every work item
 
 1. `npm run lint`, `typecheck`, `build`, `test:unit`, `test`, `test:mcp`, `test:e2e` and `check:licenses` pass.
 2. Pure logic has Vitest tests; anything that renders has a self-test check (`src/dev/selftest.ts`).
 3. The feature is reachable by agents: a tool in `src/agent/tools.ts` (or an extended one), covered by the self-test.
-4. Docs updated: [MEDIA-STUDIO.md](../MEDIA-STUDIO.md) for behaviour, [LLD.md](../LLD.md) for structure,
-   [LICENSING.md](../LICENSING.md) and THIRD_PARTY_NOTICES.md for any new dependency, CHANGELOG.
+4. Docs updated: [MEDIA-STUDIO.md](../../docs/MEDIA-STUDIO.md) for behaviour, [lld.md](../lld.md) for structure,
+   [licensing.md](../licensing.md) and THIRD_PARTY_NOTICES.md for any new dependency, CHANGELOG.
 5. Works at phone width, with keyboard and screen reader (axe passes); respects `prefers-reduced-motion`.
 6. Errors that are caught and shown to the user call `logError('handled', e)`.
 
@@ -89,7 +93,7 @@ Goal: the same pixels as today, produced by a GPU pipeline both editors share. N
 | P0.5 | Done | **Wire into the renderers.** `renderIg()` and `renderFrame()` (`engine/video.ts`) call the graph when `settings.gpu` is on; layers (`engine/layers.ts`) still draw with Canvas 2D on top. Video frames go to the GPU without a CPU copy (`importExternalTexture` / `texImage2D` with a `VideoFrame`) | `engine/instagram.ts`, `engine/video.ts`, `engine/videoExport.ts` | Export a Reel and a 1080p video with the flag on and off; compare |
 | P0.6 | Done | **Golden-image tests.** Render a fixed set of photos × looks × adjustment values with Canvas 2D and with each GPU backend; fail if any channel differs by more than 2 levels or the mean by more than 0.5 | `src/dev/selftest.ts`, sample photos (no people) in `public/samples/` | This is the phase gate |
 | P0.7 | Done | **Loading and budgets.** The GPU module loads with `import()` on first use of an editor; extend `scripts/check-bundle.mjs` with markers so shader code can't reach the entry chunk | `scripts/check-bundle.mjs` | `npm run build` |
-| P0.8 | Not needed | **Desktop frame path for big files.** Read large videos in chunks through IPC instead of a whole `File` in memory | `electron/main.cjs`, `lib/fileSink.ts`, new IPC handler | MCP smoke test with a 2 GB+ file (manual, recorded in TESTING.md) |
+| P0.8 | Not needed | **Desktop frame path for big files.** Read large videos in chunks through IPC instead of a whole `File` in memory | `electron/main.cjs`, `lib/fileSink.ts`, new IPC handler | MCP smoke test with a 2 GB+ file (manual, recorded in testing-strategy.md) |
 | P0.9 | Done | **Switch over.** Turn `settings.gpu` on by default; keep Canvas 2D as the fallback when no GPU is available | settings, MEDIA-STUDIO.md | Full suite on Chrome, Firefox (WebGL2) and Electron |
 
 New dependencies: none. Shaders are written by hand, like the rest of the colour maths.
@@ -115,7 +119,7 @@ Goal: Lightroom-style global and local adjustments, presets and RAW on desktop.
 | P1.11 | Done | **Export formats.** PNG and WebP via canvas; AVIF only where the browser can encode it (otherwise hidden); 16-bit TIFF from RAW on desktop (written by our own small TIFF writer, like the PNG `pHYs` helper) | `engine/export.ts` or new `engine/photoExport.ts` | Unit test for the TIFF header; e2e downloads |
 | P1.12 | Done | **Agent tools and docs** for adjustments, masks and presets | `src/agent/tools.ts`, `docs/MCP.md`, `MEDIA-STUDIO.md` | MCP smoke test |
 
-New dependencies to clear in [LICENSING.md](../LICENSING.md) before their item starts: a segmentation runtime and
+New dependencies to clear in [licensing.md](../licensing.md) before their item starts: a segmentation runtime and
 model (P1.8, cleared and recorded), LibRaw (P1.9, exception approved).
 
 **Gate:** masked edits stay at 30 fps preview at 1080p in Chrome on a mid-range laptop; RAW opens on Windows and macOS.
@@ -133,7 +137,7 @@ Goal: a real timeline with tracks, edit tools, keyframes, transitions, speed and
 | P2.5 | To do | **Keyframes.** `Animated<T>` values with linear, ease and hold interpolation on any numeric property (position, scale, opacity, volume, mask, adjustments); keyframe lane in the timeline | new `engine/keyframes.ts`, `Timeline.tsx` | Vitest for interpolation |
 | P2.6 | To do | **Transitions.** Cross-dissolve, dip to colour, wipe, slide, zoom, as shaders that take two frames | `gpu/nodes/transition.ts` | Golden frames |
 | P2.7 | To do | **Speed.** Constant speed, reverse, freeze frame, then speed ramps (time remap curve). Sound re-timed for constant speed, muted for ramps and reverse at first | `engine/timeline.ts`, `engine/videoExport.ts` | Vitest for time remapping |
-| P2.8 | To do | **Audio tracks.** Several tracks, clip waveforms, volume keyframes, ducking (lower music under speech by measuring clip loudness), loudness target for YouTube and Instagram | `engine/videoExport.ts`, new `engine/audio.ts` | Vitest for the mix maths; listen test noted in TESTING.md |
+| P2.8 | To do | **Audio tracks.** Several tracks, clip waveforms, volume keyframes, ducking (lower music under speech by measuring clip loudness), loudness target for YouTube and Instagram | `engine/videoExport.ts`, new `engine/audio.ts` | Vitest for the mix maths; listen test noted in testing-strategy.md |
 | P2.9 | To do | **Voice-over.** Record from the microphone; desktop needs a permission handler for media in `electron/main.cjs` | `components/studio/VideoWorkspace.tsx`, `electron/main.cjs` | e2e with a fake media stream |
 | P2.10 | To do | **Markers, in/out, export a range; text animations; compound clips and groups** | `engine/timeline.ts`, `engine/layers.ts` | Vitest; e2e |
 | P2.11 | To do | **Proxies and frame cache (desktop first).** Low-resolution proxies made with WebCodecs and Mediabunny (no new library), stored on disk; render-ahead cache for effect-heavy sections; raise desktop limits only after measuring | `engine/videoExport.ts`, new `engine/proxy.ts`, `electron/main.cjs` | MCP smoke: 4K project plays from proxies |
@@ -156,7 +160,7 @@ Goal: a colour page with scopes, captions, retouching, and professional outputs 
 | P3.4 | To do | **Grade tools.** Copy and paste grades, apply a LUT to the whole timeline, match one clip to another (statistics transfer) | `engine/adjust.ts` | Vitest |
 | P3.5 | To do | **Auto captions.** On-device speech model in a worker, loaded on demand; words become timed text layers in the existing styles; desktop can use a larger model. Check Hindi and Hinglish accuracy before choosing a model | new `src/ai/captions/` | Self-test with a fake recogniser; accuracy sample noted in the plan |
 | P3.6 | To do | **Spot heal and clone** (photo first): clone stamp, then patch-based heal | `gpu/nodes/heal.ts`, `engine/masks.ts` | Golden images |
-| P3.7 | To do | **Professional outputs on desktop.** LGPL FFmpeg helper program for HEVC 10-bit and professional inputs (HEVC, DNxHR); hardware encoders from the OS; PQ / HLG output path. ProRes only after the licence review in LICENSING.md | new `electron/ffmpeg.cjs`, `extraResources` | MCP smoke: export and probe a 10-bit file |
+| P3.7 | To do | **Professional outputs on desktop.** LGPL FFmpeg helper program for HEVC 10-bit and professional inputs (HEVC, DNxHR); hardware encoders from the OS; PQ / HLG output path. ProRes only after the licence review in licensing.md | new `electron/ffmpeg.cjs`, `extraResources` | MCP smoke: export and probe a 10-bit file |
 | P3.8 | To do | **AI object removal (desktop).** Inpainting model in a helper or worker; model licence must allow commercial use | `src/ai/inpaint/` | Self-test with a fake model |
 | P3.9 | To do | **Agent tools and docs** for grading, scopes and captions | `src/agent/tools.ts`, docs | MCP smoke test |
 
@@ -172,7 +176,7 @@ an inpainting model (P3.8).
 | UI | Playwright (`npm run test:e2e`) | Panels, curve and wheel controls by keyboard, presets, timeline edits; axe on each new panel; phone width |
 | Agents | `npm run test:mcp` | New tools end to end against the desktop app |
 | Licences | `npm run check:licenses` | Every shipped package's licence; imports of unlisted packages |
-| Performance | Self-test timings | 1080p preview frame time on web; 4K on desktop; recorded per release in [PERFORMANCE.md](../PERFORMANCE.md) |
+| Performance | Self-test timings | 1080p preview frame time on web; 4K on desktop; recorded per release in [PERFORMANCE.md](../../docs/PERFORMANCE.md) |
 
 ## Risks to watch while building
 
@@ -211,7 +215,7 @@ Findings, from the sources linked; nothing is added to the app until this is app
 Proposal: ONNX Runtime Web in a worker, loaded with `import()` on first use; U²-Net-p for subject and background
 (background = inverted subject) and skyseg for sky, both **self-hosted** with the app (about 7 MB of models, no new
 external host; the desktop installer bundles them), each refinable with the brush. To decide: whether the implied
-weight licences (U²-Net-p, skyseg) and unstated training data are acceptable under LICENSING.md's model rules, or whether
+weight licences (U²-Net-p, skyseg) and unstated training data are acceptable under licensing.md's model rules, or whether
 to wait for models with explicit weight licences (BiRefNet for subject, desktop first; no permissive sky model found
 yet). Sources: [MediaPipe Image Segmenter](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter),
 [U-2-Net](https://github.com/xuebinqin/U-2-Net), [Open background removal models](https://withoutbg.com/models),

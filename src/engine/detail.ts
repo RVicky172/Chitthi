@@ -1,7 +1,7 @@
 import type { Adjustments } from './adjust';
 
 /*
- * Detail and effects (docs/planning/EDITOR-IMPLEMENTATION.md, P1.3): noise reduction, dehaze, clarity, sharpening and
+ * Detail and effects (specs/vision/editor-implementation.md, P1.3): noise reduction, dehaze, clarity, sharpening and
  * grain, in that order, after the colour settings. Unlike the colour chain these look at neighbouring pixels, so their
  * sizes are given for a frame 1080 px wide and scaled to the frame being drawn: the small preview and the full-size
  * export look the same.

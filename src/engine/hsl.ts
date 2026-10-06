@@ -1,5 +1,5 @@
 /*
- * The colour mixer (docs/planning/EDITOR-IMPLEMENTATION.md, P1.2): hue, saturation and luminance for eight colour
+ * The colour mixer (specs/vision/editor-implementation.md, P1.2): hue, saturation and luminance for eight colour
  * bands, like a camera app's HSL panel. A pixel's adjustment is blended from the two bands its hue falls between, so
  * colours change smoothly and nothing jumps at a band edge. Greys have no hue and are left alone: every change is
  * weighted by how coloured the pixel is. Works on display values (sRGB 0–1), like the tone curve.

@@ -131,7 +131,7 @@ const MEDIA: { id: string; href: string; ratio: string; r: number; size: string;
   },
 ];
 
-/** What the photo editor offers (Phase 1 of docs/planning/EDITOR-IMPLEMENTATION.md). */
+/** What the photo editor offers (Phase 1 of specs/vision/editor-implementation.md). */
 const EDITOR: [string, string][] = [
   ['Light and white balance', 'Exposure, highlights, shadows, whites and blacks, in linear light like a camera; pick a grey to fix the colour.'],
   ['Tone curve and colour mixer', 'An RGB curve and one per channel, and hue, saturation and luminance for eight colours.'],

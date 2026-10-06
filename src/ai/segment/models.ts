@@ -2,7 +2,7 @@ import type { AiTarget } from '../../engine/segments';
 import u2netpUrl from './models/u2netp.onnx?url';
 
 /*
- * The segmentation models (P1.8), one per target, with what LICENSING.md's register records for them. Both are U²-Net
+ * The segmentation models (P1.8), one per target, with what licensing.md's register records for them. Both are U²-Net
  * networks: a 320 × 320 RGB picture in (ImageNet mean and deviation), a 320 × 320 map of shares 0–1 as the first output.
  * U²-Net-p ships with the app; skyseg (the full U²-Net, trained for skies) is too big to ship, so it is downloaded on
  * first use, only after the user agrees, from a pinned revision, and checked against its SHA-256 before it is used.

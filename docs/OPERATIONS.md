@@ -2,7 +2,7 @@
 
 How to run the Chitthi web app in production: the container, TLS, headers, updates and rollback. The app is static
 files with no backend and no user data on the server, so operations are mostly about serving those files safely.
-[BUILD.md](BUILD.md) covers building; [DESKTOP.md](DESKTOP.md) covers the desktop app.
+[build.md](../specs/build.md) covers building; [DESKTOP.md](DESKTOP.md) covers the desktop app.
 
 ## What runs
 

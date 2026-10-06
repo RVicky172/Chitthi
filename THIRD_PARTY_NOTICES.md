@@ -2,7 +2,7 @@
 
 Chitthi's own code is under the [MIT License](LICENSE): free for everyone to use, copy, change and share,
 including commercially. It includes or uses the following, each under its own licence. The rules for adding to this
-list are in [docs/LICENSING.md](docs/LICENSING.md).
+list are in [specs/licensing.md](specs/licensing.md).
 
 | Component | Licence | Notes |
 | --- | --- | --- |

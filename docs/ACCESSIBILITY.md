@@ -18,7 +18,7 @@ down to 360 px wide.
 
 Every pull request runs an [axe](https://github.com/dequelabs/axe-core) scan of the home page, the studio and the
 sizes guide at desktop and phone sizes, and fails on any serious or critical WCAG 2.2 A/AA problem
-([TESTING.md](TESTING.md#browser-tests-playwright)).
+([testing-strategy.md](../specs/testing-strategy.md#browser-tests-playwright)).
 
 ## Known limits
 

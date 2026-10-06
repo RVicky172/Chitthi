@@ -38,7 +38,7 @@ The photo editor's **Find: Subject, Background, Sky** masks use small segmentati
 (ONNX Runtime Web in a worker), not an AI service: no key, no account, and photos never leave the device. The subject
 model ships with the app; the sky model is downloaded once from Hugging Face after the user agrees, checked against
 its SHA-256 and kept on the device. Details: [MEDIA-STUDIO.md](MEDIA-STUDIO.md) (Masks); licences in
-[LICENSING.md](LICENSING.md#register).
+[licensing.md](../specs/licensing.md#register).
 
 ## Keys and privacy
 

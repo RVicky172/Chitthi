@@ -52,6 +52,11 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Spec-driven development: engineering docs moved from `docs/` to `specs/` (HLD → `architecture.md`, LLD →
+  `lld.md`, TECHNOLOGIES → `tech-stack.md`, TESTING → `testing-strategy.md`, `licensing.md`, `build.md`,
+  `release.md`), the editor plans from `docs/planning/` to `specs/vision/`, with a constitution, workflow, roadmap,
+  feature templates, `/spec-*` commands and a committed `memory/` folder. `docs/` keeps the product and user docs.
+  New `npm run check` (typecheck, lint, unit tests).
 - Site nav (home, guides, docs): redrawn. Both studios are in the bar as a pair of buttons (**Print studio** and
   **Photo & video**, **Print** and **Post** on phones) instead of one "Open studio"; a light/dark theme switch; the
   bar and its airmail edge span the window; links and tools fold into the Menu in two steps, so the bar never

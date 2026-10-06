@@ -2,7 +2,7 @@ import { TexturePool } from './graph';
 import type { GpuBackend, GpuDevice } from './types';
 
 /*
- * Picks and keeps the GPU device for the editors (docs/planning/EDITOR-IMPLEMENTATION.md, P0.2): WebGPU where the
+ * Picks and keeps the GPU device for the editors (specs/vision/editor-implementation.md, P0.2): WebGPU where the
  * browser has it, else WebGL2, else none, in which case the editors keep drawing with Canvas 2D. Opening is async
  * (WebGPU needs it), so the editors call openGpu() when they start and gpu() from then on, synchronously, while drawing.
  * A lost device (driver reset, too many contexts) is dropped; the next openGpu() opens a fresh one.

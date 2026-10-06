@@ -1,7 +1,7 @@
 # Release checklist
 
 A release is a version tag: it builds the desktop installers (which installed apps update to) and is what web
-deployments run. [BUILD.md → Releasing](BUILD.md#releasing-a-new-version) explains the pipeline; this page is the
+deployments run. [build.md → Releasing](build.md#releasing-a-new-version) explains the pipeline; this page is the
 checklist to follow each time, and what to do when a release goes wrong.
 
 ## Before tagging
@@ -33,17 +33,17 @@ The **Desktop release** workflow builds Windows and macOS and publishes one GitH
 - [ ] Signed builds: check the signature (Windows: file Properties → Digital Signatures; macOS:
       `spctl -a -vv /Applications/Chitthi.app` says "Notarized Developer ID").
 - [ ] An installed older version finds the update (Help → Check for updates…).
-- [ ] Redeploy the web app ([OPERATIONS.md → Upgrade](OPERATIONS.md#upgrade)).
+- [ ] Redeploy the web app ([OPERATIONS.md → Upgrade](../docs/OPERATIONS.md#upgrade)).
 
 ## Signing
 
 Releases should be signed (Windows code-signing certificate or Azure Trusted Signing; Apple Developer ID with
 notarization). Until the signing secrets are added, builds are unsigned and SmartScreen and Gatekeeper warn users.
-[DESKTOP.md → Code signing](DESKTOP.md#code-signing) lists the secrets.
+[DESKTOP.md → Code signing](../docs/DESKTOP.md#code-signing) lists the secrets.
 
 ## When a release goes wrong
 
-**Web:** redeploy the previous tag ([OPERATIONS.md → Roll back](OPERATIONS.md#roll-back)).
+**Web:** redeploy the previous tag ([OPERATIONS.md → Roll back](../docs/OPERATIONS.md#roll-back)).
 
 **Desktop:** the auto-updater installs whatever the newest published release is, so act quickly:
 

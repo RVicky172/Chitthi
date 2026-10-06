@@ -1,10 +1,10 @@
 # Photo & video editor: advanced features plan
 
 Status: in progress (Phase 0 done; Phase 1 under way); the status of each work item is tracked in
-[EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md#progress). Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
+[editor-implementation.md](editor-implementation.md#progress). Written 2 October 2026 against version 2.8.0. Living copy with the drawings:
 [Claude doc](https://claude.ai/code/artifact/685d86eb-2eba-4f4d-b6f2-08559f401907). What exists today is in
-[MEDIA-STUDIO.md](../MEDIA-STUDIO.md). How to build it, step by step: [EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md).
-Licence rules for every library it adds: [LICENSING.md](../LICENSING.md).
+[MEDIA-STUDIO.md](../../docs/MEDIA-STUDIO.md). How to build it, step by step: [editor-implementation.md](editor-implementation.md).
+Licence rules for every library it adds: [licensing.md](../licensing.md).
 
 **Free and open source, always.** "Advanced" here means professional-grade tools, not a paid edition. Every feature in
 this plan ships to everyone, free, under the MIT License, in the web app and the desktop app alike: no subscription,
@@ -54,7 +54,7 @@ pixel effect runs on the CPU through Canvas 2D, and the timeline holds one video
 | Export | H.264 + AAC MP4 with fast start; Reels in memory; YouTube streamed to disk; up to 4K60 on desktop | 8-bit SDR only; no HEVC, ProRes or image-sequence output |
 | Limits | Web: Reels 90 s, YouTube 15 min, 1080p30. Desktop: 3 h, 500 clips, 50 GB files, 4K60 | Set by tab memory and background throttling |
 
-The source for all of this is [MEDIA-STUDIO.md](../MEDIA-STUDIO.md) and the engines in `src/engine/` (`instagram.ts`,
+The source for all of this is [MEDIA-STUDIO.md](../../docs/MEDIA-STUDIO.md) and the engines in `src/engine/` (`instagram.ts`,
 `layers.ts`, `video.ts`, `videoExport.ts`). Its own "Still to do" list already names cross-fades, speed and reverse,
 more audio tracks, clip waveforms and text animations.
 
@@ -241,7 +241,7 @@ Four phases, about 34 to 42 weeks for one full-time developer, each ending at a 
 starts. Phase 0 delivers nothing visible but is what makes every later phase cheap.
 
 The **Progress** column is updated as work lands; every work item's own status is in
-[EDITOR-IMPLEMENTATION.md](EDITOR-IMPLEMENTATION.md#progress).
+[editor-implementation.md](editor-implementation.md#progress).
 
 | Phase | Progress | Effort (estimate, one developer) | Web and desktop | Desktop only | Gate to the next phase |
 | --- | --- | --- | --- | --- | --- |
@@ -269,7 +269,7 @@ and match it pixel for pixel before switching over.
 | Masking and healing quality expectations set by Adobe | Users judge harshly | Ship brush and gradient masks first; label AI masks as refinable |
 | New features in agent tools | MCP tools fall behind the UI | Add tools in the same change, as for existing features |
 
-**Licensing to check before adding a dependency** (the full policy and checklist are in [LICENSING.md](../LICENSING.md))
+**Licensing to check before adding a dependency** (the full policy and checklist are in [licensing.md](../licensing.md))
 
 - LibRaw: LGPL 2.1 or CDDL 1.0. Link dynamically in the desktop app and ship its notices.
 - FFmpeg: use an LGPL build only (no GPL encoders such as x264) to stay compatible with the MIT app; hardware encoders
@@ -294,4 +294,4 @@ Opened on 2 October 2026.
 - [MediaPipe Image Segmenter](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter)
 - [LibRaw: about and licensing](https://www.libraw.org/about)
 - [ffmpeg.wasm FAQ](https://ffmpegwasm.netlify.app/docs/faq)
-- Chitthi's own [MEDIA-STUDIO.md](../MEDIA-STUDIO.md) and `src/engine/` (version 2.8.0)
+- Chitthi's own [MEDIA-STUDIO.md](../../docs/MEDIA-STUDIO.md) and `src/engine/` (version 2.8.0)

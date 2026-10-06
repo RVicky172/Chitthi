@@ -6,7 +6,7 @@ How Chitthi is built for each target, how the running app works, and how a new v
 
 - Node.js 20.19+ or 22.12+ (CI uses 22). `npm run docs:specs` needs 22.18+ because it runs TypeScript files directly.
 - For the desktop app: Windows builds on Windows, macOS builds (DMG) on macOS.
-- Optional: Docker, and a Pexels API key in `.env.local` (see [PEXELS.md](PEXELS.md)).
+- Optional: Docker, and a Pexels API key in `.env.local` (see [PEXELS.md](../docs/PEXELS.md)).
 
 ```bash
 npm install
@@ -21,11 +21,11 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run typecheck` | TypeScript 7 (`tsc -b`, the native compiler from the `typescript-native` package): strict type check of app and tooling, about 10× faster than 5.9 |
 | `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
 | `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |
-| `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [TESTING.md](TESTING.md) |
+| `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [testing-strategy.md](testing-strategy.md) |
 | `npm run test:e2e` | Playwright browser tests with an axe accessibility check against the production build (`e2e/`). First run: `npx playwright install chromium` |
 | `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview, the order sheet, the AI service against a fake provider and every agent tool (`src/dev/selftest.ts`). Exits 1 on any failure |
-| `npm run mcp` | The MCP server from source (headless): its own Vite server on port 5197 and cache (`.vite-mcp`), then `electron . --mcp`. stdout carries only the protocol. See [MCP.md](MCP.md) |
-| `npm run check:licenses` | Fails if any package the app ships (desktop `dependencies` and the libraries bundled into `dist/`) has a licence outside the policy in [LICENSING.md](LICENSING.md), or if app code imports an unlisted package (`scripts/check-licenses.mjs`) |
+| `npm run mcp` | The MCP server from source (headless): its own Vite server on port 5197 and cache (`.vite-mcp`), then `electron . --mcp`. stdout carries only the protocol. See [MCP.md](../docs/MCP.md) |
+| `npm run check:licenses` | Fails if any package the app ships (desktop `dependencies` and the libraries bundled into `dist/`) has a licence outside the policy in [licensing.md](licensing.md), or if app code imports an unlisted package (`scripts/check-licenses.mjs`) |
 | `npm run test:mcp` | Starts `npm run mcp` and runs the official MCP client against it: lists tools, resources and prompts, builds a calendar, renders a preview, checks, exports a PDF, and checks errors (`scripts/mcp-smoke.mjs`). With `CHITTHI_MCP_APP=<path to Chitthi.exe>` it tests a packaged or installed app instead |
 | `npm run build` | Type check, production bundle into `dist/`, then `scripts/check-bundle.mjs`: fails if the start-up script grows past 350 KB or contains AI code (which must load with `import()`) |
 | `npm run preview` | Serves `dist/` on http://localhost:8080 (same Pexels proxy). Bound to `localhost` on purpose: the proxy adds your key, so never expose preview on a public address |
@@ -38,7 +38,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run fetch:showcase` | Downloads the landing page example photos from Pexels into `showcase-src/` (needs the key) |
 | `npm run build:showcase` | With `npm run dev` running: renders the landing examples (`src/data/showcase.ts`) into `public/showcase/*.webp` and `src/data/showcase.json`, using Electron |
 | `npm run fetch:print-samples` | Downloads the festival photos for the print samples (no people, print resolution) from Pexels into `print-samples-src/` (gitignored; needs the key) |
-| `npm run build:print-samples` | With `npm run dev` running: renders the 12 print samples (`src/data/printSamples.ts`), one envelope per size, the order sheet and the quote documents into `Print Samples/` (gitignored), using Electron. See [print-quote](print-quote/README.md) |
+| `npm run build:print-samples` | With `npm run dev` running: renders the 12 print samples (`src/data/printSamples.ts`), one envelope per size, the order sheet and the quote documents into `Print Samples/` (gitignored), using Electron. See [print-quote](../docs/print-quote/README.md) |
 | `npm run build:favicons` | Renders every icon in `public/favicon/` and the desktop icon `build/icon.png` from the two SVG sources (uses Electron) |
 | `npm run desktop:dev` | Vite dev server + Electron, with hot reload |
 | `npm run desktop:start` | Production build shown in Electron, exactly as users get it |
@@ -74,7 +74,7 @@ read-only with a tmpfs `/tmp` and no capabilities. nginx (`nginx/default.conf`):
 
 Serve it over HTTPS (behind Caddy, Traefik or another nginx) for the service worker to register on a real domain.
 `.dockerignore` keeps `.env*` files and build output out of the image build. Running it in production:
-[OPERATIONS.md](OPERATIONS.md).
+[OPERATIONS.md](../docs/OPERATIONS.md).
 
 ## How the running app works
 
@@ -83,7 +83,7 @@ Serve it over HTTPS (behind Caddy, Traefik or another nginx) for the service wor
 2. `App` reads the URL hash to choose the screen (home, `#/studio`, `#/sizes`, `#/paper`), restores the last card's photos from
    storage, and starts loading the fonts the design uses.
 3. The studio keeps one `Design` object in the store. Every control writes to it; the stage re-renders through the
-   engine; changes are autosaved and become undo steps (see [LLD.md](LLD.md) §3).
+   engine; changes are autosaved and become undo steps (see [lld.md](lld.md) §3).
 4. Exports render every page again at print resolution in the browser, and download a ZIP, PDF or PNG.
 5. **Offline**: `public/sw.js` caches the app shell and hashed assets (cache-first) and Google Fonts
    (stale-while-revalidate). Pages are network-first so updates arrive. `/api/*` is never cached.
@@ -93,7 +93,7 @@ drop the old cache.
 
 ## Desktop build
 
-The desktop app is the same `dist/` inside Electron ([DESKTOP.md](DESKTOP.md) has the full guide):
+The desktop app is the same `dist/` inside Electron ([DESKTOP.md](../docs/DESKTOP.md) has the full guide):
 
 - `electron/main.cjs` registers the `app://chitthi` scheme, serves `dist/` and the bundled fonts from it with a strict
   CSP, stores the library as JSON files, and provides dialogs, menus, the `.chitthi` file association and updates.
@@ -125,7 +125,7 @@ flowchart LR
   G --> H[Installed apps update themselves]
 ```
 
-Follow the checklist in [RELEASE.md](RELEASE.md); in short:
+Follow the checklist in [release.md](release.md); in short:
 
 1. `npm version X.Y.Z --no-git-tag-version` (updates `package.json` and the lock file), bump `APP_CACHE`, and update
    the image tag in `docker-compose.yml`.
@@ -138,7 +138,7 @@ Follow the checklist in [RELEASE.md](RELEASE.md); in short:
 Signing: without certificates the builds are unsigned (Windows SmartScreen and macOS Gatekeeper warnings; the release
 notes explain the workaround). Add `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`, `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, and
 for notarization `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, as repository secrets. See
-[DESKTOP.md](DESKTOP.md).
+[DESKTOP.md](../docs/DESKTOP.md).
 
 ## Environment variables
 

@@ -138,7 +138,7 @@ docker compose up -d --build     # http://localhost:8080, health check at /healt
 
 Put it behind an HTTPS reverse proxy: the service worker (offline use) needs HTTPS. Bump `APP_CACHE` in
 `public/sw.js` with each release so returning visitors get the new version. Production setup, headers, upgrades and
-rollback: [docs/OPERATIONS.md](docs/OPERATIONS.md); every script and the release process: [docs/BUILD.md](docs/BUILD.md).
+rollback: [docs/OPERATIONS.md](docs/OPERATIONS.md); every script and the release process: [specs/build.md](specs/build.md).
 
 **Free photo search** needs a free [Pexels](https://www.pexels.com/api/) API key, entered in **Settings** and kept on
 the device only. For development, put `PEXELS_API_KEY=…` in `.env.local` and the dev server proxies searches. Licence
@@ -451,18 +451,16 @@ reader; not yet tested end to end with screen readers): [docs/ACCESSIBILITY.md](
 | [DESKTOP](docs/DESKTOP.md) | Desktop app: differences from web, data folder, signing, updates |
 | [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Fixes for common problems with photos, saving, printing and installing |
 | [ACCESSIBILITY](docs/ACCESSIBILITY.md) | Accessibility target, what is checked, known limits |
-| **Design and engineering** | |
-| [HLD](docs/HLD.md) · [LLD](docs/LLD.md) | High-level design (context, deployment, flows, storage, security, decisions); low-level design (modules, data model, store, rendering, export, IPC) |
-| [TECHNOLOGIES](docs/TECHNOLOGIES.md) | The stack and why each piece is used |
 | [PERFORMANCE](docs/PERFORMANCE.md) | The performance monitor, memory and CPU budgets, how to investigate a slowdown |
-| [TESTING](docs/TESTING.md) | The test suites, what each covers, and how to add tests |
-| [LICENSING](docs/LICENSING.md) | Licence policy for libraries, models and assets: what may ship, obligations, checklist |
-| **Building and running** | |
-| [BUILD](docs/BUILD.md) | Scripts, web and Docker build, desktop packaging |
 | [OPERATIONS](docs/OPERATIONS.md) | Running the web app in production: container, TLS and HSTS, headers, upgrade, rollback |
-| [RELEASE](docs/RELEASE.md) | Release checklist, signing, and what to do when a release goes wrong |
-| **Planning** | |
-| [Planning](docs/planning/README.md) | The [editor roadmap](docs/planning/EDITOR-ROADMAP.md) and its [implementation plan](docs/planning/EDITOR-IMPLEMENTATION.md) |
+| **Engineering (`specs/`)** | |
+| [specs/](specs/README.md) | How Chitthi is built: the [constitution](specs/constitution.md) (principles and Definition of Done), the spec-driven [workflow](specs/workflow.md) and the [roadmap](specs/roadmap.md) |
+| [Architecture](specs/architecture.md) · [LLD](specs/lld.md) | High-level design (context, deployment, flows, storage, security, decisions, conventions); low-level design (modules, data model, store, rendering, export, IPC) |
+| [Tech stack](specs/tech-stack.md) | The stack, why each piece is used, and what was rejected |
+| [Testing](specs/testing-strategy.md) | The test suites, what each covers, and how to add tests |
+| [Licensing](specs/licensing.md) | Licence policy for libraries, models and assets: what may ship, obligations, checklist |
+| [Build](specs/build.md) · [Release](specs/release.md) | Scripts, web and Docker build, desktop packaging; release checklist, signing, what to do when a release goes wrong |
+| [Vision](specs/vision/README.md) | The [editor roadmap](specs/vision/editor-roadmap.md) and its [implementation plan](specs/vision/editor-implementation.md) |
 | **Project** | |
 | [SECURITY](SECURITY.md) · [PRIVACY](PRIVACY.md) | Reporting vulnerabilities; what data goes where |
 | [CONTRIBUTING](CONTRIBUTING.md) · [CHANGELOG](CHANGELOG.md) | How to contribute; what changed in each release |
@@ -472,7 +470,7 @@ reader; not yet tested end to end with screen readers): [docs/ACCESSIBILITY.md](
 
 **Tech stack:** React 19 and TypeScript (strict) on Vite; Canvas 2D for every print file and WebGPU / WebGL2 for photo
 effects; jsPDF for PDFs; WebCodecs and [Mediabunny](https://mediabunny.dev) for video; ONNX Runtime Web for AI masks;
-LibRaw for RAW photos (desktop); Electron for the desktop app; nginx in Docker for the web. No backend. Why each piece: [docs/TECHNOLOGIES.md](docs/TECHNOLOGIES.md).
+LibRaw for RAW photos (desktop); Electron for the desktop app; nginx in Docker for the web. No backend. Why each piece: [specs/tech-stack.md](specs/tech-stack.md).
 
 ```text
 src/
@@ -502,7 +500,7 @@ docs/                   Design, operations and planning documentation, screensho
 | `npm run dev` / `npm run desktop:dev` | Web dev server on `http://localhost:5173` / desktop app with hot reload |
 | `npm run lint` | ESLint over the app, the Electron main process and the scripts |
 | `npm run typecheck` | Strict type check of the app and tooling |
-| `npm run check:licenses` | Fails if anything the app ships has a licence outside [the policy](docs/LICENSING.md) |
+| `npm run check:licenses` | Fails if anything the app ships has a licence outside [the policy](specs/licensing.md) |
 | `npm run build` | Type check, production bundle, and a check that the start-up script stays under 350 KB with no AI code in it |
 | `npm run test:unit` | Vitest unit tests: design loading, photo processing, Instagram layout and colour maths, layers and the video timeline, where API keys may be sent |
 | `npm test` | Renders every product × size × orientation × layout (front, back, envelope), builds a print pack per product, compares the GPU and Canvas 2D photo paths (and the 16-bit render), runs the AI subject model, and checks saved designs, festival dates, credits, AI (against a fake provider), every agent tool and the performance sampler, inside Electron |
@@ -512,7 +510,7 @@ docs/                   Design, operations and planning documentation, screensho
 | `npm run screenshots` | Remakes the README screenshots from the running app |
 | `npm run desktop:pack` / `desktop:dist` | Unpacked desktop app / installers in `release/` |
 
-All scripts: [docs/BUILD.md](docs/BUILD.md). How the tests work and how to add one: [docs/TESTING.md](docs/TESTING.md).
+All scripts: [specs/build.md](specs/build.md). How the tests work and how to add one: [specs/testing-strategy.md](specs/testing-strategy.md).
 
 ## Roadmap
 
@@ -520,13 +518,13 @@ Done: the shared GPU pipeline and the advanced photo editor (light and colour, c
 masks with AI, blend modes and image layers, WebP / AVIF, RAW and 16-bit TIFF, agent tools), released as 2.10.0 once
 its last check passes. Next: a multi-track timeline (keyframes, transitions, speed, audio tracks), then a colour page
 (wheels, scopes, auto captions). Every one of these will be free for everyone, in the web and desktop apps, like everything in Chitthi
-today. The plan and its work items are in [docs/planning/](docs/planning/README.md). Ideas and bug reports
+today. The plan is in [specs/vision/](specs/vision/README.md) and the status of each feature in [specs/roadmap.md](specs/roadmap.md). Ideas and bug reports
 are welcome as [issues](https://github.com/RVicky172/Chitthi/issues/new/choose).
 
 ## Contributing
 
 Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks CI runs, code style and pull
-requests. New libraries, models, fonts and other assets must follow the [licensing policy](docs/LICENSING.md).
+requests. New libraries, models, fonts and other assets must follow the [licensing policy](specs/licensing.md).
 
 ## License
 

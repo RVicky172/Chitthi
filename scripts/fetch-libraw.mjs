@@ -2,7 +2,7 @@
 /*
  * Fetches LibRaw's RAW developer (dcraw_emu, LibRaw's own sample program) for the desktop app (P1.9) into
  * electron/resources/libraw/<platform>-<arch>/, which electron-builder ships as extraResources. LibRaw is LGPL-2.1 or
- * CDDL-1.0 (an approved exception, docs/LICENSING.md): it ships unmodified, as a separate program the app starts, with
+ * CDDL-1.0 (an approved exception, specs/licensing.md): it ships unmodified, as a separate program the app starts, with
  * its licence texts and a note pointing to its exact source.
  *
  * Windows x64 and macOS arm64 use LibRaw's official builds; LibRaw publishes no Intel Mac build, so on macOS the

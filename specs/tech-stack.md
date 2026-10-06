@@ -1,4 +1,9 @@
-# Technologies
+# Tech stack
+
+> Approved technologies. Adding, upgrading or replacing anything here requires a licence check
+> ([licensing.md](licensing.md)), an update to this file and an entry in `memory/decisions.md` (Constitution III, VII).
+
+**Last updated:** 2026-10-06
 
 Chitthi is a client-side app: all design, rendering and file generation runs on the user's device. The stack is
 kept small on purpose. The one runtime library besides React is jsPDF, and it is only loaded when a PDF is made.
@@ -9,7 +14,7 @@ kept small on purpose. The one runtime library besides React is jsPDF, and it is
 | --- | --- | --- | --- |
 | **TypeScript** | 7.0 | All app code, strict mode | One typed `Design` model shared by UI, renderer and export; the compiler finds every place a new product or layout must be handled |
 | **React** | 19.3 | UI components | `useSyncExternalStore` for the app store, `useDeferredValue` so thumbnails redraw at low priority |
-| **WebGPU / WebGL2** | browser | Looks and colour in the photo & video studio (`src/engine/gpu/`) | 2–4× faster than per-pixel JavaScript, with the same output; WebGL2 where WebGPU is missing, Canvas 2D where neither is. The base for masks, curves and grading (docs/planning/) |
+| **WebGPU / WebGL2** | browser | Looks and colour in the photo & video studio (`src/engine/gpu/`) | 2–4× faster than per-pixel JavaScript, with the same output; WebGL2 where WebGPU is missing, Canvas 2D where neither is. The base for masks, curves and grading (specs/vision/) |
 | **Canvas 2D API** | browser | Every card face, thumbnail and print file | One renderer for preview and print: what you see is exactly what prints. Resolution-independent (drawn in mm × pixels-per-mm) |
 | **jsPDF** | 4.2 | Print PDF and sheet PDF | Loaded with `import()` only when exporting, so it costs nothing at start-up |
 | **lucide-react** | 1.48 | Interface icons | One consistent 24 px line icon set |
@@ -33,9 +38,9 @@ few kilobytes.
 
 | Service | Used for | Required? |
 | --- | --- | --- |
-| **Pexels API** (`api.pexels.com`, `images.pexels.com`) | In-app photo search; sample gallery photos (downloaded at build time) | Optional. See [PEXELS.md](PEXELS.md) |
+| **Pexels API** (`api.pexels.com`, `images.pexels.com`) | In-app photo search; sample gallery photos (downloaded at build time) | Optional. See [PEXELS.md](../docs/PEXELS.md) |
 | **Google Fonts** | Card and UI fonts on the web | Web: first visit. Desktop: no (bundled) |
-| **AI providers** (Anthropic, OpenAI, Google Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together, Stability, fal.ai, Black Forest Labs, Replicate, Ideogram, local Ollama / LM Studio) | AI words and pictures with the user's own key | Optional. See [AI.md](AI.md) |
+| **AI providers** (Anthropic, OpenAI, Google Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together, Stability, fal.ai, Black Forest Labs, Replicate, Ideogram, local Ollama / LM Studio) | AI words and pictures with the user's own key | Optional. See [AI.md](../docs/AI.md) |
 | **GitHub Releases** | Desktop installers and auto-update feed | Desktop updates only |
 | **Hugging Face** (`huggingface.co`, CDN `*.hf.co`) | The sky model for AI masks, downloaded once (176 MB) after the user agrees | Optional |
 
@@ -75,3 +80,15 @@ There is no Chitthi backend, account system or analytics. AI requests go from th
 Current Chrome, Edge, Firefox and Safari. The app relies on Canvas 2D (`roundRect`, `letterSpacing` where available,
 with fallbacks), `<dialog>`, IndexedDB, `ResizeObserver` and CSS `:has()`. HEIC photos from iPhones must be
 converted to JPG first, because browsers can't decode HEIC.
+
+## Explicitly not used (and why)
+
+| Rejected | Reason |
+| --- | --- |
+| A backend, accounts, analytics | No data custody, no running cost, works offline ([architecture.md §9](architecture.md#9-main-design-decisions)) |
+| GPL / AGPL / non-commercial libraries, models and assets | Incompatible with shipping an MIT app in a bundle and installers ([licensing.md](licensing.md)) |
+| A multi-provider AI SDK | Each provider is a small `fetch` adapter that loads only its own few KB |
+| A CSS framework | One hand-written stylesheet with custom properties is smaller and themable |
+| WebGL / three.js for the 3D viewer | CSS 3D transforms of the rendered faces are enough |
+| ffmpeg.wasm | 2 GB input limit and much slower than WebCodecs + Mediabunny ([vision/editor-roadmap.md](vision/editor-roadmap.md)) |
+| A paid tier, licence keys, "pro" features | Chitthi is free and open source; desktop-only is for technical reasons only |

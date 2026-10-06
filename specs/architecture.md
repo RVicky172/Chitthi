@@ -1,4 +1,11 @@
-# Chitthi – High-level design
+# Chitthi – Architecture (high-level design)
+
+> How the system is organised and the contracts between its parts. Read before touching shared code or adding a
+> module. Modules, data model and algorithms are in the [low-level design](lld.md); the conventions every change
+> follows are in [§10](#10-conventions). Each feature's verify step updates this file (or `lld.md`) with what it
+> established.
+
+**Last updated:** 2026-10-06
 
 ## 1. Purpose and scope
 
@@ -35,8 +42,8 @@ flowchart LR
 
 - Photos never leave the device, except that Pexels photos are downloaded *to* it.
 - The only outbound calls are fonts (web only), optional Pexels search, optional AI requests to the service the user
-  chose with their own key ([AI.md](AI.md)), and update checks (desktop only).
-- Agents connect only to the desktop app, over stdio or a loopback HTTP endpoint with a token ([MCP.md](MCP.md)).
+  chose with their own key ([AI.md](../docs/AI.md)), and update checks (desktop only).
+- Agents connect only to the desktop app, over stdio or a loopback HTTP endpoint with a token ([MCP.md](../docs/MCP.md)).
 
 ## 3. Deployment views
 
@@ -118,13 +125,13 @@ they draw on the canvas and in print files like built-in families.
 
 **Photo search.** The Photos step asks Pexels for photos that match the design (month, occasion, product) and the
 shape of the selected slot. A chosen photo is downloaded, converted to a data URL and handled exactly like an
-upload. See [PEXELS.md](PEXELS.md).
+upload. See [PEXELS.md](../docs/PEXELS.md).
 
 **Saving and sharing.** The gallery stores designs with photos and rendered thumbnails. Designs can be exported as
 single `.chitthi` files or a whole-gallery JSON backup, and restored on another device or app.
 
 **Desktop updates.** On start, the packaged app checks GitHub Releases through electron-updater and offers to
-install newer versions. A `v*` tag pushed to GitHub builds and publishes both platforms ([BUILD.md](BUILD.md)).
+install newer versions. A `v*` tag pushed to GitHub builds and publishes both platforms ([build.md](build.md)).
 
 ## 6. Data and storage
 
@@ -166,7 +173,7 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 - **MCP**: off unless started with `--mcp` or turned on in Settings; loopback only, random bearer token, browser
   origins refused, files written only to one output folder, overwrites need `confirm`.
 - **Headers** (web): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` and COOP.
-  The container runs as non-root with a read-only file system. HSTS is set at the TLS proxy ([OPERATIONS.md](OPERATIONS.md)).
+  The container runs as non-root with a read-only file system. HSTS is set at the TLS proxy ([OPERATIONS.md](../docs/OPERATIONS.md)).
 - **Supply chain**: dependencies, GitHub Actions (pinned by SHA) and Docker base images (pinned by digest) are kept
   current by Dependabot; CodeQL scans every pull request. Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 
@@ -177,10 +184,10 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Print accuracy | All geometry in millimetres; rendering scales by pixels-per-mm, so preview and 300 dpi output share one code path. Bleed extends edge-touching photos; guides show trim and safe area |
 | Offline | Service worker (web); everything bundled (desktop) |
 | Performance | Lazy jsPDF; deferred thumbnail redraws; per-session caches for sample renders and Pexels results; photos pre-processed once (crop, rotate, look) |
-| Memory | Explicit budgets: 16 MP per photo, undo history capped at 320 MB of extra photo canvases, caches limited or dropped after use, AI and agent images size-capped. A built-in performance monitor shows CPU (desktop), main-thread load, memory and photo memory ([PERFORMANCE.md](PERFORMANCE.md)) |
-| Responsive UI | One layout from 1920 px to 360 px with no sideways scrolling: secondary header actions fold into a More / Menu list instead of wrapping ([LLD §8](LLD.md#8-components))
+| Memory | Explicit budgets: 16 MP per photo, undo history capped at 320 MB of extra photo canvases, caches limited or dropped after use, AI and agent images size-capped. A built-in performance monitor shows CPU (desktop), main-thread load, memory and photo memory ([PERFORMANCE.md](../docs/PERFORMANCE.md)) |
+| Responsive UI | One layout from 1920 px to 360 px with no sideways scrolling: secondary header actions fold into a More / Menu list instead of wrapping ([LLD §8](lld.md#8-components))
 | Accessibility | Keyboard-operable stage (arrow keys and zoom), labelled controls, live regions, WCAG AA contrast in both themes, reduced-motion support |
-| Maintainability | Specifications as data ([SPECIFICATIONS.md](SPECIFICATIONS.md)); engine free of UI code; strict TypeScript with exhaustive `Record<ProductId, …>` maps |
+| Maintainability | Specifications as data ([SPECIFICATIONS.md](../docs/SPECIFICATIONS.md)); engine free of UI code; strict TypeScript with exhaustive `Record<ProductId, …>` maps |
 | Portability | One build for web and desktop; platform differences are behind `lib/db.ts` and `platform/desktop.ts` |
 
 ## 9. Main design decisions
@@ -197,3 +204,28 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
 | Desktop AI calls in the main process | Keys never reach the page; no CORS limits | IPC copies of image bytes (capped at 40 MB) |
 | One tool registry for agents, running in the page | Agents use exactly the studio's code; live mode shows every change with undo | Headless mode needs a hidden window |
 | MCP over loopback HTTP plus a stdio relay | Electron's main process can't read stdin on Windows; one server serves both modes | An extra small process in headless mode |
+
+## 10. Conventions
+
+Every change follows these; [CLAUDE.md](../CLAUDE.md) → *Things that bite* has the detail.
+
+- **Layers.** Specifications are data in `src/data/` (add sizes, layouts, products and themes there, not in rendering
+  code). `src/engine/` never imports React. State lives in small `useSyncExternalStore` stores in `src/state/`, each
+  with its own undo/redo (same-key changes within ~800 ms coalesce). UI is in `src/components/`; screens and dialogs
+  are `lazy()`-loaded.
+- **One code path for preview and export.** Print: `render.ts`; photo: the GPU graph with Canvas 2D fallback; video:
+  `renderFrame()`. Never fork an export-only renderer.
+- **One validator per external format.** Loaded designs go through `mergeDesign()`; photo edits, presets and masks have
+  their own gate (`mergeEdit`, `mergeAdjust`, `mergeMasks`, `mergePreset` …). New external formats get one too.
+- **Web vs desktop.** Branch on `desktop` / `isDesktop` from `src/platform/desktop.ts`. Every IPC handler is
+  registered with `handle` / `on` from `electron/ipc.cjs` and validates its arguments. New `electron/` files go in
+  `files:` in `electron-builder.yml`.
+- **Bundle.** Heavy or optional code (AI providers, Mediabunny, jsPDF, ONNX Runtime) loads with `import()`; the
+  entry chunk stays ≤ 350 KB with no AI code (`scripts/check-bundle.mjs`).
+- **CSP.** New hosts, `blob:` workers or media are added in both `nginx/security-headers.conf` and the Electron CSP in
+  `electron/main.cjs`.
+- **Errors.** Caught-and-shown failures call `logError('handled', e)` (`src/lib/errors.ts`).
+- **Styles.** Numbered files imported in cascade order from `src/styles.css`; new ones go at the end. Media studio UI
+  uses the root class `.mst`, never `.ig`.
+- **Agents.** Every user-facing feature is reachable through a tool in `src/agent/tools.ts`, documented in
+  [docs/MCP.md](../docs/MCP.md).

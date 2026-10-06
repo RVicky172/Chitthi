@@ -17,12 +17,21 @@ npm run desktop:dev      # the desktop app with hot reload
 Photo search in development needs a free Pexels key: copy `.env.example` to `.env.local` and fill in
 `PEXELS_API_KEY`. `.env.local` is gitignored; never commit a key.
 
-[README → Development](README.md#development) maps the source folders, and [docs/LLD.md](docs/LLD.md) explains the
+[README → Development](README.md#development) maps the source folders, and [specs/lld.md](specs/lld.md) explains the
 modules.
+
+## Features start with a spec
+
+New features follow the spec-driven workflow in [specs/workflow.md](specs/workflow.md): a numbered folder in
+`specs/features/` with a spec (what and why, testable acceptance criteria), then a plan and tasks, then the code, then
+a check against the Definition of Done in [specs/constitution.md](specs/constitution.md). Bug fixes and refactors
+that don't change behaviour don't need a spec. What's planned and its status: [specs/roadmap.md](specs/roadmap.md).
+Product docs (how the app behaves) are in `docs/`; engineering docs are in `specs/`.
 
 ## Before you open a pull request
 
-Run what CI runs:
+`npm run check` (type check, lint, unit tests) is the quick check while you work. Before a pull request, run what CI
+runs:
 
 ```bash
 npm run lint         # ESLint: no errors allowed
@@ -34,9 +43,9 @@ npm run test:mcp     # MCP server end to end
 npm run test:e2e     # Playwright browser tests with an accessibility check
 ```
 
-[docs/TESTING.md](docs/TESTING.md) says what each suite covers and how to add checks.
+[specs/testing-strategy.md](specs/testing-strategy.md) says what each suite covers and how to add checks.
 
-Adding or upgrading a library, model, font or other asset? Follow [docs/LICENSING.md](docs/LICENSING.md) first: only
+Adding or upgrading a library, model, font or other asset? Follow [specs/licensing.md](specs/licensing.md) first: only
 permissive licences ship without review, and the new component goes in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Code style

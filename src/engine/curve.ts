@@ -1,5 +1,5 @@
 /*
- * The tone curve (docs/planning/EDITOR-IMPLEMENTATION.md, P1.2): a master curve for all three channels and one each for
+ * The tone curve (specs/vision/editor-implementation.md, P1.2): a master curve for all three channels and one each for
  * red, green and blue, drawn on display values (sRGB, 0 to 1 both ways). Points are joined by a monotone cubic spline
  * (Fritsch–Carlson), which never overshoots between points, so a curve drawn rising never dips.
  *

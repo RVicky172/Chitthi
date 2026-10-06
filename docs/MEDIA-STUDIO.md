@@ -354,8 +354,8 @@ streams to disk in about 4 s in the desktop app (Windows, hardware encoder).
 ### Still to do
 
 The longer plan for advanced features (masks, curves, multi-track timeline, keyframes, colour grading, RAW) is in
-[planning/EDITOR-ROADMAP.md](planning/EDITOR-ROADMAP.md), with the work items in
-[planning/EDITOR-IMPLEMENTATION.md](planning/EDITOR-IMPLEMENTATION.md).
+[specs/vision/editor-roadmap.md](../specs/vision/editor-roadmap.md), with the work items in
+[specs/vision/editor-implementation.md](../specs/vision/editor-implementation.md).
 
 | Next | Why it isn't in this version |
 | --- | --- |

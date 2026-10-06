@@ -9,7 +9,7 @@ import { LUT_ID, lutById } from './lut';
  * The colour settings of a photo or a video clip, kept apart from where the picture sits in the frame (engine/instagram.ts
  * IgEdit). They are parameters, never pixels: the renderer applies them each time it draws, so every edit stays
  * changeable and the export matches the preview. Later phases add curves, colour mixer, masks and LUTs here
- * (docs/planning/EDITOR-IMPLEMENTATION.md, P0.1).
+ * (specs/vision/editor-implementation.md, P0.1).
  */
 
 /** Bumped when the stored shape of Adjustments changes; mergeAdjust() reads every older version. */

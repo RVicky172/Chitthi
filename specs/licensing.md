@@ -54,7 +54,7 @@ B`) needs both sides allowed.
 
 ## Native binaries and codecs (desktop)
 
-The roadmap ([planning/EDITOR-ROADMAP.md](planning/EDITOR-ROADMAP.md)) adds native code to the desktop app. Native
+The roadmap ([vision/editor-roadmap.md](vision/editor-roadmap.md)) adds native code to the desktop app. Native
 code brings licence and patent questions that npm packages usually don't.
 
 - **Prefer a separate helper program** started by the main process (`child_process.spawn`) over a Node native addon.
@@ -107,13 +107,13 @@ Do this in the same pull request that adds the dependency.
    - Bundled into the web app (a devDependency that the app imports): add it to `BUNDLED` in
      `scripts/check-licenses.mjs`. Run-time dependency of the desktop app: it belongs in `dependencies`.
    - Add a row to [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
-   - Add it to [TECHNOLOGIES.md](TECHNOLOGIES.md) if it is part of the stack.
+   - Add it to [tech-stack.md](tech-stack.md) if it is part of the stack.
    - Models, binaries and assets: add a row to the register below.
 5. **For an exception**: add it to `EXCEPTIONS` in `scripts/check-licenses.mjs` and to the exceptions table below,
    saying how each condition of its licence is met.
 6. **Upgrades**: the check fails when an approved package changes its licence. Read the new licence before updating
    the exception.
-7. **Release**: the release checklist ([RELEASE.md](RELEASE.md)) relies on CI having run this check; any native
+7. **Release**: the release checklist ([release.md](release.md)) relies on CI having run this check; any native
    binaries or models added since the last release need their licence files in the installer.
 
 ## Approved exceptions

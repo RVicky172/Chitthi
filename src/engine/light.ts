@@ -1,7 +1,7 @@
 import type { Adjustments } from './adjust';
 
 /*
- * Light and white balance (docs/planning/EDITOR-IMPLEMENTATION.md, P1.1): temperature and tint, exposure, then
+ * Light and white balance (specs/vision/editor-implementation.md, P1.1): temperature and tint, exposure, then
  * highlights, shadows, whites and blacks. Unlike the looks and the older sliders (kept in 0–255 sRGB maths so their
  * output never changes), these work in linear light, the way a camera's sensor counts it, so exposure behaves like
  * opening the aperture and white balance like changing the light.

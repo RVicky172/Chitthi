@@ -1,5 +1,5 @@
 /*
- * The GPU device layer's contract (docs/planning/EDITOR-IMPLEMENTATION.md, P0.2). Two backends implement it, WebGPU
+ * The GPU device layer's contract (specs/vision/editor-implementation.md, P0.2). Two backends implement it, WebGPU
  * (gpu/webgpu.ts) and WebGL2 (gpu/webgl2.ts); callers never branch on which one they have. When neither is available
  * the editors keep their Canvas 2D path.
  *

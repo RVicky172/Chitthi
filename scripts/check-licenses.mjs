@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Licence gate for everything Chitthi ships (policy: docs/LICENSING.md). Walks the dependency tree of the packages that
+ * Licence gate for everything Chitthi ships (policy: specs/licensing.md). Walks the dependency tree of the packages that
  * reach users: the desktop app's `dependencies` and the libraries Vite bundles into dist/ (listed in BUNDLED below, as
  * they are devDependencies). Every package must have a licence on the allowed list, or an approved exception. It also
  * fails when app code imports a package that is in neither list, so a new bundled library can't skip the check.
@@ -16,7 +16,7 @@ const ALLOWED = new Set(['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2
 
 /**
  * Packages approved under a weak-copyleft or unusual licence, after review. Each needs a row in the exceptions table
- * of docs/LICENSING.md saying how its terms are met. The value is the licence string the package declares.
+ * of specs/licensing.md saying how its terms are met. The value is the licence string the package declares.
  */
 const EXCEPTIONS = {
   mediabunny: 'MPL-2.0', // used unmodified from npm; source link in THIRD_PARTY_NOTICES.md
@@ -59,7 +59,7 @@ function walk(name, from, via) {
   if (EXCEPTIONS[j.name] !== undefined) {
     if (EXCEPTIONS[j.name] !== lic) fails.push(`${j.name}@${j.version}: licence changed to "${lic}" (approved: ${EXCEPTIONS[j.name]}); review it again`);
   } else if (!lic) fails.push(`${j.name}@${j.version} (via ${via}): no licence declared`);
-  else if (!allowed(lic)) fails.push(`${j.name}@${j.version} (via ${via}): "${lic}" is not on the allowed list; see docs/LICENSING.md`);
+  else if (!allowed(lic)) fails.push(`${j.name}@${j.version} (via ${via}): "${lic}" is not on the allowed list; see specs/licensing.md`);
   for (const d of Object.keys({ ...j.dependencies, ...j.optionalDependencies })) walk(d, dirname(p), via);
 }
 

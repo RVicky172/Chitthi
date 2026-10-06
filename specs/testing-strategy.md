@@ -1,10 +1,11 @@
-# Testing
+# Testing strategy
 
 Five suites check Chitthi, from fast unit tests to the packaged app. CI runs all of them on every pull request
 (`.github/workflows/ci.yml`, on a Windows runner because the Electron suites need a desktop session).
 
 | Command | Suite | Runs in | Time |
 | --- | --- | --- | --- |
+| `npm run check` | Fast gate: `typecheck` + `lint` + `test:unit`. Run after every task | Node | ~15 s |
 | `npm run lint` | ESLint (`eslint.config.js`) | Node | ~10 s |
 | `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
 | `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
@@ -68,5 +69,31 @@ of each failed test.
 ## Not automated yet
 
 - Firefox and Safari (WebKit): add projects in `playwright.config.ts` when needed.
-- Printing on paper: use the print samples (`npm run build:print-samples`, [print-quote](print-quote/README.md)).
-- Signed installers and auto-update: manual, in [RELEASE.md](RELEASE.md).
+- Printing on paper: use the print samples (`npm run build:print-samples`, [print-quote](../docs/print-quote/README.md)).
+- Signed installers and auto-update: manual, in [release.md](release.md).
+
+## Rules
+
+1. **Test-first for pure logic.** Write the failing Vitest test next to the module, then the code.
+2. **Anything that renders gets a self-test check**; preview/export parity is checked against Canvas 2D on every GPU
+   backend the machine has.
+3. **Agent tools are tested too.** A feature reachable from `src/agent/tools.ts` is covered by the self-test, and by
+   `test:mcp` when it crosses the IPC/MCP boundary.
+4. **Time and randomness are inputs.** Logic takes time/seeds as parameters so tests are deterministic.
+5. **No flaky waits.** Wait on real signals (events, DOM attributes, `data-*` readiness), not fixed sleeps. A flaky
+   test is a bug: find the race, don't add retries.
+6. **E2E fails on any console error**, including CSP violations, because `vite preview` serves the production CSP.
+7. **Prove important tests can fail** by briefly breaking the code they cover, then restoring it.
+
+## Commands
+
+```bash
+npm run check          # fast gate — typecheck + lint + unit tests; must pass before any task is ticked
+npm run test:unit      # unit tests only
+npm test               # Electron self-test (~6,100 checks)
+npm run test:mcp       # MCP smoke test (npm run fetch:libraw once first)
+npm run test:e2e       # Playwright + axe on the production build, desktop and phone
+npm run build          # typecheck + vite build + bundle budget (entry chunk ≤ 350 KB, no AI code)
+npm run check:licenses # every shipped package has an allowed licence
+npm run format         # Prettier
+```

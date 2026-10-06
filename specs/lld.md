@@ -1,6 +1,6 @@
 # Chitthi – Low-level design
 
-This document describes the modules, data model and algorithms behind the [high-level design](HLD.md). Paths
+This document describes the modules, data model and algorithms behind the [high-level design](architecture.md). Paths
 are relative to the repository root.
 
 ## 1. Module map
@@ -131,7 +131,7 @@ Sunday switches) take their defaults.
 ### Specifications
 
 `SizeDef {id, grp, products?, name, L, S (mm), inch?, tag?, instax?, native?, corner?, shape?}` and
-`ProductDef {id, name, short, blurb, backLabel, paper, defaults}`. See [SPECIFICATIONS.md](SPECIFICATIONS.md).
+`ProductDef {id, name, short, blurb, backLabel, paper, defaults}`. See [SPECIFICATIONS.md](../docs/SPECIFICATIONS.md).
 
 ### Layout (result of `computeLayout`)
 
@@ -380,7 +380,7 @@ upload button; Settings lists, previews and deletes them.
 | `fetchPexels(photo)` | Downloads up to 3000 px, returns `{name, url: dataURL}` |
 | `pexelsSuggestions(d, page)`, `slotOrientation(d, slot)` | Queries and shape filter from the design |
 
-Full description: [PEXELS.md](PEXELS.md).
+Full description: [PEXELS.md](../docs/PEXELS.md).
 
 ### AI (`src/ai/`)
 
@@ -514,7 +514,7 @@ Performance monitor on desktop; the choice is kept in `localStorage['chitthi-per
 while open and pauses while the page is hidden: frames drawn, long tasks (`PerformanceObserver('longtask')`) as a
 "main thread busy" share, worst timer delay, JS heap (Chromium), DOM size, decoded photo bytes, undo-history bytes and
 storage use; on desktop also CPU and memory per process type from `desktop:metrics`. **Copy report** puts the last
-two minutes of samples and a summary on the clipboard as JSON. See [PERFORMANCE.md](PERFORMANCE.md).
+two minutes of samples and a summary on the clipboard as JSON. See [PERFORMANCE.md](../docs/PERFORMANCE.md).
 
 Steps are built from `Section` (`components/common.tsx`): a titled, collapsible group whose open state is kept in
 `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
@@ -566,18 +566,18 @@ Performance details: layout and month thumbnails redraw from `useDeferredValue` 
 pane and its neighbours are mounted. Sample thumbnails are cached for the session (their decoded photos are not; they
 reload for "Use this"), Pexels results for the last 60 searches. The undo history drops its oldest steps once the
 processed photo canvases only it still holds pass 320 MB (at least 10 steps stay). Memory rules in full:
-[PERFORMANCE.md](PERFORMANCE.md).
+[PERFORMANCE.md](../docs/PERFORMANCE.md).
 
 ## 9. Extension points
 
 | To add | Touch |
 | --- | --- |
-| A size, layout or product | [SPECIFICATIONS.md](SPECIFICATIONS.md) → *Changing specifications* |
+| A size, layout or product | [SPECIFICATIONS.md](../docs/SPECIFICATIONS.md) → *Changing specifications* |
 | An occasion theme | `src/data/themes.ts` (colours, patterns from `PAT`, fonts, greetings); new artwork goes in `engine/patterns.ts` |
 | A font | `src/data/fonts.ts`, then `npm run fetch:fonts` for desktop |
 | An export format | `engine/export.ts` (`pagesOf` / `buildPack`), `ExportFormat` type, `PrintPane` |
 | A setting | `SettingsDialog.tsx`; keep values in `localStorage` via a small module like `lib/pexels.ts` |
-| An AI provider | [AI.md](AI.md) → *Adding a provider* |
-| An agent tool | `src/agent/tools.ts` (schema + handler), then document it in [MCP.md](MCP.md); `npm test` runs every tool |
+| An AI provider | [AI.md](../docs/AI.md) → *Adding a provider* |
+| An agent tool | `src/agent/tools.ts` (schema + handler), then document it in [MCP.md](../docs/MCP.md); `npm test` runs every tool |
 | A prompt template | `src/ai/prompts/*.ts` (bump the version string); MCP workflow prompts in `src/agent/prompts.ts` |
 | A desktop menu command | `MenuAction` (`platform/desktop.ts`), `ACTIONS` (`platform/menu.ts`), template in `electron/main.cjs` |

@@ -2,7 +2,7 @@ import type { GpuDevice, GpuProgram, GpuTexture } from './types';
 import { COPY_PROGRAM } from './types';
 
 /*
- * The render graph (docs/planning/EDITOR-IMPLEMENTATION.md, P0.3). An edit becomes a list of nodes, each one program
+ * The render graph (specs/vision/editor-implementation.md, P0.3). An edit becomes a list of nodes, each one program
  * with its uniforms, built by pure functions (gpu/colour.ts) that can be tested without a GPU. runNodes() runs them in
  * order on the device, ping-ponging between pooled textures so a video preview doesn't allocate every frame.
  * Phase 0 graphs are a straight line; masks (Phase 1) and transitions (Phase 2) add branches.

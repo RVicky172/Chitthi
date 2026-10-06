@@ -45,7 +45,7 @@ extraResources:
   - from: electron/resources/fonts
     to: fonts
   # LibRaw's RAW developer for this platform and architecture (npm run fetch:libraw; electron/raw.cjs), with its
-  # licences and source note. LGPL-2.1 / CDDL-1.0, a separate unmodified program (docs/LICENSING.md).
+  # licences and source note. LGPL-2.1 / CDDL-1.0, a separate unmodified program (specs/licensing.md).
   - from: electron/resources/libraw/${platform}-${arch}
     to: libraw
 
