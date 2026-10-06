@@ -4,18 +4,17 @@
 
 ## Current State (2026-10-06)
 
-- **Phase:** Baseline. App at 2.8.0 + unreleased editor Phases 0–1 (12/12 items, on branch
-  `feat/editor-phase-1-continued`). Spec-driven development set up on 2026-10-06 (D-001); engineering docs moved
-  `docs/` → `specs/`, editor plans → `specs/vision/` (D-002).
-- **Features:** `000-baseline` ✔️ (baseline `e549542`; Known gaps G1–G9, G6–G8 since fixed). `001-phase1-gate-release`
-  ⏸️: everything runnable here is done (G6–G8 fixes, CI at the release, `npm run measure:gate`, Windows RAW check,
-  docs; T091's local gates green). Deferred to the roadmap backlog by the maintainer: laptop gate (T022, T023), Mac
-  RAW (T030, T033), then the release T040–T047. 2.10.0 is not tagged until they pass.
-- **Next step:** to choose (2026-10-06): proposed `201` (P2.1 track model) on a new branch from this one, while 001
-  waits.
-- **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed.
-  CodeQL still scans PRs.
-- **Blockers:** none (001 waits on the maintainer's hardware, by choice)
+- **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
+  Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
+- **Features:** `000-baseline` ✔️. `001-phase1-gate-release` 🚧: released (T040–T043); open: post-release checks on
+  the maintainer's hardware — T044 / T045 clean installs, T046 update from 2.8.0, T047 web redeploy if hosted, and
+  the Phase 1 gate (T022, T023: `npm run measure:gate` on a mid-range laptop) and Mac RAW (T030, T033) per D-007.
+- **Active:** `201-track-model` 🚧 on branch `feat/201-track-model` (T001–T003, T010–T015 done; next T020). That
+  branch predates the release: merge `main` into it before continuing.
+- **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
+  CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`, not yet on this
+  shell's PATH).
+- **Blockers:** none
 
 ## Files
 

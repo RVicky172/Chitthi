@@ -193,13 +193,30 @@ anything surprising or deferred.
     `licensing.md`'s dated count, the roadmap's baseline line). D-007 recorded. All gates on the release code:
     check 743, licences 168, build 327 KB, e2e 67 / 7 skipped, self-test 6,115 / 0, MCP passed. The local Docker
     check couldn't run (Docker Desktop not running): the dry run's CI covers it.
-- [ ] **T041** 👤 — Merge `feat/editor-phase-1-continued` into `main` (fast-forward if possible) and push `main`,
+- [x] **T041** 👤 — Merge `feat/editor-phase-1-continued` into `main` (fast-forward if possible) and push `main`,
       with the maintainer's OK at the time. · test: `git log main` shows the release commit
-- [ ] **T042** 👤 — Dry run (D2): Desktop release workflow by hand on `main`: `ci` green (lint, licences, build, unit,
+  - **Result (2026-10-06):** `main` fast-forwarded from `cc192e1` to `5c029ff` ("Release 2.10.0"), later `1f3b2bc`
+    (the test fix below), with the maintainer's OK; pushed. The push ran only CodeQL (CI no longer runs on `main`).
+- [x] **T042** 👤 — Dry run (D2): Desktop release workflow by hand on `main`: `ci` green (lint, licences, build, unit,
       self-test, MCP, e2e, Docker), then installers as artifacts and no release. · test: run link and result (AC-11)
-- [ ] **T043** 👤 — Tag `v2.10.0` on `main` and push it: the release run's `ci` job green, GitHub Release `v2.10.0`
+  - **Result (2026-10-06):** run 1 (started by the maintainer,
+    [37507302121](https://github.com/RVicky172/Chitthi/actions/runs/37507302121)): `docker` passed (first image
+    check of the baseline, `000` G5), `check` **failed** in e2e: "AI masks" timed out twice (retry too). From the
+    trace (via `gh`): the test read the whole canvas back as a JS array, 8.4–8.8 s on the software-rendered runner,
+    longer than its 5 s poll; the screenshot showed the AI mask working. Bug fix `1f3b2bc`: compare in the page,
+    return one number, poll up to 30 s; break-tested. Run 2 (started with `gh workflow run`,
+    [37510673158](https://github.com/RVicky172/Chitthi/actions/runs/37510673158)): **all green**, `docker` 0.5 min,
+    `check` 8.8 min (743 unit tests, self-test, MCP, e2e), Windows 2.9 min, macOS 5.3 min (the **Intel LibRaw built
+    for the first time**: `darwin-x64 ready`, its `lipo` check passed), `release` skipped; artifacts 154 MB / 663 MB.
+- [x] **T043** 👤 — Tag `v2.10.0` on `main` and push it: the release run's `ci` job green, GitHub Release `v2.10.0`
       with the `.exe`, two `.dmg`, two `.zip`, `latest.yml`, `latest-mac.yml`. · test: run link, asset list
       (AC-11, AC-12)
+  - **Result (2026-10-06):** annotated tag `v2.10.0` on `1f3b2bc` (message: the CHANGELOG's 2.10.0 section);
+    release run [37512716458](https://github.com/RVicky172/Chitthi/actions/runs/37512716458) all green: `docker`
+    0.5 min, `check` 7.0 min, Windows 2.5 min, macOS 5.3 min, `release` 0.9 min. **Published**
+    [Chitthi Studio v2.10.0](https://github.com/RVicky172/Chitthi/releases/tag/v2.10.0) at 18:50 UTC, Latest, not a
+    draft: `Chitthi-Studio-Setup-2.10.0-x64.exe` (154 MB), `Chitthi-Studio-2.10.0-x64.dmg` (171 MB),
+    `-arm64.dmg` (165 MB), the two macOS update zips, block maps, `latest.yml`, `latest-mac.yml`. Unsigned, as Q5.
 - [ ] **T044** 👤 — Windows clean machine or VM: install, make a card and export a print pack, open a photo with a
       mask and export it, `CHITTHI_MCP_APP=<exe> npm run test:mcp`. · test: manual + MCP smoke (AC-13)
 - [ ] **T045** 👤 [P] — macOS (arm64; x64 under Rosetta): the same as T044 from the published `.dmg`s, after

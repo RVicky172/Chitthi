@@ -19,7 +19,7 @@ _Goal:_ record the app as it stands (2.8.0 plus the unreleased editor Phases 0�
 | #   | Feature | Spec | Status |
 | --- | ------- | ---- | ------ |
 | 000 | Baseline: print studio, photo & video studio, desktop app, MCP, AI, GPU render graph (editor P0.1–P0.9), advanced photo editor (P1.1–P1.12) | [spec](features/000-baseline/spec.md) | ✔️ |
-| 001 | Phase 1 gate and 2.10.0 release: masked edits measured on a mid-range laptop in Chrome; first macOS build with Intel LibRaw; tag 2.10.0 | [spec](features/001-phase1-gate-release/spec.md) | 🚧 releasing 2.10.0; hardware checks after (D-007) |
+| 001 | Phase 1 gate and 2.10.0 release: masked edits measured on a mid-range laptop in Chrome; first macOS build with Intel LibRaw; tag 2.10.0 | [spec](features/001-phase1-gate-release/spec.md) | 🚧 2.10.0 released 2026-10-06; post-release checks open (backlog) |
 
 **Exit criteria:** every Definition-of-Done gate passes on a clean clone; the Phase 1 gate in
 [editor-implementation.md](vision/editor-implementation.md#progress) is met and 2.10.0 is released.

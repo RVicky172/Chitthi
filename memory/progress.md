@@ -18,7 +18,10 @@ Newest first. One entry per working session.
 (`instagram.e2e.ts:498`) timed out twice. Cause (trace): the test read the whole canvas back as a JS array, 8.4–8.8 s
 on the software-rendered runner, longer than the 5 s poll. The feature worked (screenshot). Bug fix: compare in the
 page, return one number, poll up to 30 s; break-tested (exposure 0 → fails). Local e2e 67 / 7 skipped.
-**Next:** dry run 2, then tag v2.10.0.
+Dry run 2 green (Intel LibRaw built for the first time); tag `v2.10.0` → release run green →
+**2.10.0 published** 18:50 UTC with all 12 files.
+**Next:** post-release checks (maintainer: clean installs, update from 2.8.0, laptop gate, Mac RAW); then 201 T020
+after merging `main` into `feat/201-track-model`.
 **Blockers:** none
 
 ---
