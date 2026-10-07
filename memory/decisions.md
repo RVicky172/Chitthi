@@ -95,3 +95,28 @@ Only the editor changes; videos are unchanged.
 **Alternatives:** sizes per track kind (music 28 / 44 / 72); music starting at Small (40 px).
 **Consequences:** room in the header for the track name above its three 24 px buttons, and for the waveform. Spec
 Changelog and plan §4 updated.
+
+## D-009 — Magnetic track: undo, duplicate, overlaps, settings (2026-10-07, 202 plan D1–D4)
+
+**Context:** 202 adds a Magnetic switch (on = the video track stays packed, as before; off = gaps allowed) and edit
+tools. Four behaviours needed a rule.
+**Decision:** (D1) undo snapshots carry `magnetic`: switching it on closes the gaps as one undo step, and undoing it
+restores the gaps with Magnetic off; switching it off isn't recorded. (D2) With Magnetic off, a duplicate goes into
+the first gap after the original that fits, else after the last clip; nothing else moves. (D3) With Magnetic off,
+`mergeProject` resolves overlapping clips by moving the later one to the end of the one it overlaps (with a reason),
+never dropping it. (D4) The tool (Select / Roll / Slip / Slide) and the Snap switch are session view settings, not
+undone or saved; Magnetic belongs to the project (in its document, optional, default on).
+**Alternatives:** Magnetic outside undo (a magnetic track could show gaps after an undo); duplicate that ripples;
+dropping overlapping clips; saving the tool and Snap with the project.
+**Consequences:** a magnetic track never shows gaps; Magnetic off never moves clips unless asked; no clip is lost
+when a project is read.
+
+## D-010 — Slide at the ends of a track; 2.x clips under 0.3 s (2026-10-07, 202 T013–T015)
+
+**Context:** AC-8 says a slide keeps the video's length; the plan didn't say what the first and last clips do. 2.x's
+edge drag also lengthened a clip already under 0.3 s (2.x data only) to 0.3 s even when shortening it.
+**Decision:** The last clip on a track can't slide (refused: "no clip after this one"), since moving it would change
+the length. The first clip slides right away from 0 only with Magnetic off (it opens a gap before it); `slide` takes
+`magnetic` and then opens no gap. A clip already under 0.3 s can't be shortened; it can be lengthened.
+**Alternatives:** let the last clip slide (the video's end moves); keep 2.x's jump to 0.3 s.
+**Consequences:** AC-1's comparison with 2.x skips trims of clips under 0.3 s (only the `tinyClips` fixture has any).

@@ -30,6 +30,12 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 
 ## UI
 
+- Playwright's `keyboard.press` reaches the page's `keydown` but never the browser's own shortcuts (Alt + ← doesn't
+  go Back even in headed installed Chrome), so e2e can't test "does `preventDefault` stop the browser shortcut".
+  Injecting real OS keys (`keybd_event`) into a Playwright window is unreliable: Playwright fakes page focus
+  (`document.hasFocus()` true while the window isn't in front), so the keys land elsewhere. Check browser
+  shortcuts by hand (202 T001).
+
 - A menu that focuses its first / checked item in `requestAnimationFrame` (as `MoreMenu` does) loses keys pressed
   right after opening: Playwright's next `press` (or a fast user) lands on the button, and Enter closes the menu.
   Focus in a `useLayoutEffect` on the open state instead (201 T031, the track height menu).
@@ -37,3 +43,16 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   in the scroll area), which took its clicks; the keyboard test passed, only a mouse click showed it. Render such
   menus in a portal on `document.body`, and `stopPropagation` their keys: React events bubble out of a portal to
   the React parents (here the timeline's Space / S / Delete / arrow keys) (201 T032).
+
+## Formatting
+
+- Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier
+  --write` on one rewrites the whole file (+222 / −41 for a 40-line change in 202 T020). Format only new files; edit
+  old ones by hand or by script. To undo, re-apply the change to `git show HEAD:<file>` (stored LF: restore CRLF).
+
+## Engine
+
+- Edit limits computed as sums don't land exactly on a source's ends: `(out − in) − out` is not `−in` in floating
+  point, so a roll to the limit left `in` at −2.8e-17 and `checkTrack` failed. Clamp the stored edge itself
+  (`Math.max(0, in + d)`, `Math.min(srcDur, out + d)`), not just the delta. Only seeded random edits found it
+  (202 T017).

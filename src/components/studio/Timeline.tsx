@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { MIN_LEN, snapTargets, snapTime } from '../../engine/edits';
 import { layerName, type Layer } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, lockedReason, type Track } from '../../engine/timeline';
 import { clipLength, fmtTime } from '../../engine/video';
@@ -41,7 +42,6 @@ import { CopyIcon, HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PauseIco
  */
 
 const SNAP_PX = 8;
-const MIN_LEN = 0.3;
 let dragSeq = 0;
 
 /** Starts a horizontal drag; `move` gets the pointer's distance in px from where it started. */
@@ -139,17 +139,8 @@ export function Timeline() {
     return Math.max(0, Math.min(total, (clientX - r.left) / zoom));
   };
   /** Snaps a time to the nearest clip edge, layer edge or the playhead within a few pixels. */
-  const snap = (v: number, skipLayer?: string) => {
-    const pts = [0, total, getVideo().t, ...placed.flatMap((p) => [p.start, p.end]), ...layers.filter((l) => l.id !== skipLayer).flatMap((l) => [l.start ?? 0, Math.min(l.end ?? total, total)])];
-    let best = v,
-      dist = SNAP_PX / zoom;
-    for (const p of pts)
-      if (Math.abs(p - v) < dist) {
-        dist = Math.abs(p - v);
-        best = p;
-      }
-    return best;
-  };
+  const snap = (v: number, skipLayer?: string) =>
+    snapTime(v, snapTargets(placed.map((p) => p.clip), layers, getVideo().t, total, { layer: skipLayer }), SNAP_PX / zoom);
 
   const seekFrom = (e: ReactPointerEvent) => {
     setPlaying(false);

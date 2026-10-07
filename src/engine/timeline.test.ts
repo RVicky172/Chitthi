@@ -7,6 +7,7 @@ import {
   defaultTracks,
   framePlan,
   fromSequence,
+  gaps,
   lockedReason,
   mergeProject,
   pack,
@@ -179,6 +180,69 @@ describe('track switches (patchTrack) and the lock guard (lockedReason)', () => 
   });
 });
 
+/* ---------- 202 T010: gaps on the main track ---------- */
+
+describe('gaps on the main video track (202)', () => {
+  const clip = (id: string, start: number, len: number, kind: 'photo' | 'video' = 'photo'): TimedClip => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind,
+    dur: kind === 'photo' ? len : 0,
+    in: kind === 'video' ? 1 : 0,
+    out: kind === 'video' ? 1 + len : 0,
+  });
+  const project = (clips: TimedClip[]): Project => ({
+    tracks: defaultTracks(),
+    clips,
+    audio: [],
+    layers: [],
+    fadeOut: true,
+  });
+  // 0–2 photo, gap 2–3.5, 3.5–5.5 photo, gap 5.5–6, 6–8 video.
+  const withGaps = project([clip('a', 0, 2), clip('b', 3.5, 2), clip('c', 6, 2, 'video')]);
+  const lateStart = project([clip('a', 1, 2), clip('b', 3, 1)]);
+
+  it('lists the gaps between clips, and before a first clip that starts later', () => {
+    expect(gaps(withGaps, MAIN_VIDEO)).toEqual([
+      { start: 2, end: 3.5 },
+      { start: 5.5, end: 6 },
+    ]);
+    expect(gaps(lateStart, MAIN_VIDEO)).toEqual([{ start: 0, end: 1 }]);
+    expect(gaps(onTracks(legacyFixtures().mixed), MAIN_VIDEO)).toEqual([]);
+    expect(gaps(withGaps, MUSIC)).toEqual([]);
+    expect(projectLength(withGaps)).toBe(8);
+  });
+
+  it('shows no clip inside a gap; clamps before 0 and at or past the end as 2.x did', () => {
+    expect(videoAt(withGaps, 2.5)).toBeNull();
+    expect(videoAt(withGaps, 2)).toBeNull();
+    expect(videoAt(withGaps, 5.75)).toBeNull();
+    expect(videoAt(withGaps, 1.99)?.clip.id).toBe('a');
+    expect(videoAt(withGaps, 3.5)).toMatchObject({ clip: { id: 'b' }, local: 0 });
+    expect(videoAt(withGaps, -1)).toMatchObject({ clip: { id: 'a' }, local: -1 });
+    expect(videoAt(withGaps, 8)).toMatchObject({ clip: { id: 'c' }, local: 2 });
+    expect(videoAt(withGaps, 9)?.clip.id).toBe('c');
+    expect(videoAt(lateStart, 0.5)).toBeNull();
+    expect(videoAt(lateStart, -1)).toBeNull();
+    expect(videoAt(lateStart, 1)?.clip.id).toBe('a');
+  });
+
+  it('exports every frame: a gap is a span of black frames of its exact length', () => {
+    for (const fps of [30, 60]) {
+      const plan = framePlan(withGaps, fps);
+      expect(plan[0].f0).toBe(0);
+      for (let i = 1; i < plan.length; i++) expect(plan[i].f0).toBe(plan[i - 1].f1);
+      expect(plan.at(-1)!.f1).toBe(8 * fps);
+      expect(plan.map((s) => s.clip?.id ?? null)).toEqual(['a', null, 'b', null, 'c']);
+    }
+    const gap = framePlan(withGaps, 30)[1];
+    expect(gap).toEqual({ clip: null, f0: 60, f1: 105, start: 2 });
+    expect(gap.f1 - gap.f0).toBe(45); // 1.5 s at 30 fps (spec AC-4)
+    expect(framePlan(lateStart, 30)[0]).toEqual({ clip: null, f0: 0, f1: 30, start: 0 });
+  });
+});
+
 /* ---------- T014: the document, the 2.x migration and the gate ---------- */
 
 /** A 2.x project as a document: clips in order with their media, the song, layers (no version). */
@@ -288,6 +352,7 @@ describe('the project document (toDocument, mergeProject)', () => {
       'fps',
       'kind',
       'layers',
+      'magnetic',
       'media',
       'quality',
       'tracks',
@@ -406,6 +471,24 @@ describe('the project document (toDocument, mergeProject)', () => {
     ],
     ['2.x music that is a string', (d) => ({ clips: d.clips, music: 'song', layers: [], media: d.media })],
     ['a 2.x clip list of junk', () => ({ clips: [1, 'a', { kind: 'photo' }], music: null, layers: [] })],
+    ['Magnetic off, clips out of order', (d) => ({ ...d, magnetic: false, clips: d.clips.slice().reverse() })],
+    [
+      'Magnetic off, every clip at 0',
+      (d) => ({ ...d, magnetic: false, clips: d.clips.map((c) => ({ ...c, start: 0 })) }),
+    ],
+    [
+      'Magnetic off, starts as text',
+      (d) => ({ ...d, magnetic: false, clips: d.clips.map((c) => ({ ...c, start: '2' })) }),
+    ],
+    [
+      'Magnetic off, a negative start',
+      (d) => ({ ...d, magnetic: false, clips: d.clips.map((c) => ({ ...c, start: -5 })) }),
+    ],
+    ['Magnetic as text', (d) => ({ ...d, magnetic: 'off' })],
+    [
+      'Magnetic off, a clip inside another',
+      (d) => ({ ...d, magnetic: false, clips: d.clips.map((c, i) => (i === 2 ? { ...c, start: 3.5 } : c)) }),
+    ],
   ];
 
   it(`has ${bad.length} malformed documents (at least 30)`, () => expect(bad.length).toBeGreaterThanOrEqual(30));
@@ -442,5 +525,55 @@ describe('the project document (toDocument, mergeProject)', () => {
       mergeProject({ ...d, clips: d.clips.map((c, i) => (i ? c : { ...c, track: 'V9' })) }, true).dropped.join(' '),
     ).toMatch(/track/i);
     expect(mergeProject(null, true).dropped.length).toBe(1);
+  });
+});
+
+describe('Magnetic in the document (202)', () => {
+  // mixed: photo 3 s, video 4.5 s, photo 1.5 s, video 0.33 s; packed at 0, 3, 7.5, 9.
+  const good = () => mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
+  const starts = (raw: unknown) => mergeProject(raw, true).doc.clips.map((c) => c.start);
+
+  it('missing means on: packed, and written as on', () => {
+    const d = good();
+    expect(d.magnetic).toBe(true);
+    expect(toDocument(d).magnetic).toBe(true);
+    const { magnetic: _, ...noField } = toDocument(d);
+    expect(starts({ ...noField, clips: d.clips.map((c, i) => ({ ...c, start: i * 10 })) })).toEqual([0, 3, 7.5, 9]);
+    expect(mergeProject({ ...noField }, true).doc.magnetic).toBe(true);
+  });
+  it('only false switches it off; on packs a document with gaps', () => {
+    const d = good();
+    expect(mergeProject({ ...d, magnetic: 'off' }, true).doc.magnetic).toBe(true);
+    expect(mergeProject({ ...d, magnetic: 0 }, true).doc.magnetic).toBe(true);
+    expect(starts({ ...d, magnetic: true, clips: d.clips.map((c, i) => ({ ...c, start: i * 10 })) })).toEqual([
+      0, 3, 7.5, 9,
+    ]);
+  });
+  it('off keeps the gaps, and goes through the gate unchanged', () => {
+    const d = { ...good(), magnetic: false };
+    const spaced = { ...d, clips: d.clips.map((c, i) => ({ ...c, start: 1 + i * 10 })) };
+    const once = mergeProject(JSON.parse(JSON.stringify(toDocument(spaced))), true);
+    expect(once.dropped).toEqual([]);
+    expect(once.doc.magnetic).toBe(false);
+    expect(once.doc.clips.map((c) => c.start)).toEqual([1, 11, 21, 31]);
+    expect(mergeProject(JSON.parse(JSON.stringify(toDocument(once.doc))), true).doc).toEqual(once.doc);
+  });
+  it('off sorts the clips by start', () => {
+    const d = { ...good(), magnetic: false };
+    const out = mergeProject({ ...d, clips: d.clips.map((c, i) => ({ ...c, start: 40 - i * 10 })) }, true);
+    expect(out.doc.clips.map((c) => c.start)).toEqual([10, 20, 30, 40]);
+    expect(out.dropped).toEqual([]);
+  });
+  it('off moves an overlapping clip to the end of the clip it overlaps, with a reason (D3)', () => {
+    const d = { ...good(), magnetic: false };
+    // The second clip (4.5 s) starts at 2, inside the first (0–3): it moves to 3.
+    const one = mergeProject({ ...d, clips: d.clips.map((c, i) => ({ ...c, start: [0, 2, 20, 30][i] })) }, true);
+    expect(one.doc.clips.map((c) => c.start)).toEqual([0, 3, 20, 30]);
+    expect(one.dropped.join(' ')).toMatch(/overlapped/);
+    // All at 0: each goes after the one before (the order of the document kept for equal starts).
+    const all = mergeProject({ ...d, clips: d.clips.map((c) => ({ ...c, start: 0 })) }, true);
+    expect(all.doc.clips.map((c) => c.start)).toEqual([0, 3, 7.5, 9]);
+    expect(all.doc.clips.map((c) => c.id)).toEqual(d.clips.map((c) => c.id));
+    expect(all.dropped.length).toBe(3);
   });
 });

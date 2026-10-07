@@ -11,6 +11,37 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-07 — 401 ✔️; 202 T020–T021 (the store)
+
+**Done:** 401 approved by the maintainer (Q1–Q4 as proposed), planned and implemented: Settings › AI › **AI models on
+this device** (`modelState` / `deleteModel` in `ai/segment`, `ModelsOnDevice` in `AiSettings.tsx`), 9 unit tests with
+stubbed OPFS / worker, e2e on desktop and 360 px, docs. All DoD gates green: check 971, build 327 KB, licences 168,
+e2e 76 / 10 skipped / 0 failed, self-test 6,124 / 0, MCP passed. 202 T020–T021: Magnetic, tool and Snap in the video
+store; every edit tool as a store action returning its refusal (19 store tests via a new `loadVideoProject`); check
+990, editors e2e unchanged, self-test 6,124 / 0. Learning: Prettier on old `src/` files rewrites them (undone).
+**Next:** 202 T030 (e2e for the edit tools, test-first), T031–T033 (UI).
+**Blockers:** T001's manual checks (needed before T032 / T033).
+
+## 2026-10-07 — 202 (T012–T018); 401 drafted
+
+**Done:** `src/engine/edits.ts` (new): `checkTrack`, ripple delete, lift, close gap(s), trim (ripple or not),
+moveTo, reorder, roll, slip, slide, nudge, snapping (the timeline now uses it); 68 tests incl. AC-1 against today's
+store, 1,000 seeded edits per operation (AC-11; found two floating-point bugs, see learnings) and timing (AC-12:
+≤ 0.017 ms on 500 clips). `magnetic` in the project document and `mergeProject` (T018). D-010. `npm run check` 965;
+video e2e 11 passed / 7 skipped / 0 failed. Drafted `401-ai-models-on-device` (Settings section to see and delete the
+downloaded sky model; the maintainer asked where browser models live: OPFS `models/skyseg.onnx`).
+**Next:** 202 T020 (store); 401 needs Q1–Q4 answered and approval.
+**Blockers:** T001's manual checks (needed before T032 / T033).
+
+## 2026-10-07 — 202 (spec, plan, tasks; T001 partly, T010–T011)
+
+**Done:** 201 committed and pushed (`452fec2` D-007, `a3adea2` 201). 202 spec (Q1–Q8 accepted), plan (D1–D4 →
+D-009), tasks; branch `feat/202-edit-operations`. T001 spike: the desktop menu has no Alt + arrow accelerator;
+Playwright can't reach browser shortcuts and OS key injection was unreliable (learnings), so 2 manual checks are
+left to the maintainer. T010–T011: gaps in the model (886 unit tests, self-test 6,124 / 0, 201 equivalence intact).
+**Next:** T012–T013 edit operations part 1.
+**Blockers:** T001's manual checks (needed before T032 / T033).
+
 ## 2026-10-07 — 201 verified ✔️ (T040–T041, T090–T092)
 
 **Done:** T040 self-test (200 frames pixel-identical to the 2.x placement at 4 ratios; hidden / muted in the preview

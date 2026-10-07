@@ -53,7 +53,9 @@ src/
                              mirroring the CPU code), apply.ts (the GPU step of renderIg)
     layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
     video.ts                 Video formats, per-platform limits, clip lengths, frame drawing (renderFrame, NO_PICTURE)
-    timeline.ts              Video project as tracks (201): pack, videoAt, framePlan, audioPlan, document, mergeProject
+    timeline.ts              Video project as tracks (201): pack, gaps, videoAt, framePlan, audioPlan, document, mergeProject
+    edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
+                             slide, nudge, snapping, checkTrack
     videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny over framePlan / audioPlan, on export
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
     envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
@@ -66,7 +68,8 @@ src/
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
     instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
     presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
-    video.ts                 Video editor: tracks, clips, layers, music, playhead, undo, lock guards, export
+    video.ts                 Video editor: tracks, clips, layers, music, playhead, undo, lock guards, Magnetic, tool,
+                             Snap, edit actions (through engine/edits.ts), export
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
@@ -87,8 +90,9 @@ src/
     secrets.ts, settings.ts  Keys (SecretStore); chosen services, models, daily limits and usage
     prompts/                 Versioned templates: words.ts (greetings, captions, messages), artwork.ts (pictures)
     providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram
-    segment/                 AI masks (P1.8): index.ts (models on the device, download + SHA-256 check, segmentPhoto),
-                             models.ts (the two models), worker.ts (ONNX Runtime Web), models/u2netp.onnx
+    segment/                 AI masks (P1.8): index.ts (models on the device, download + SHA-256 check, segmentPhoto,
+                             modelState / deleteModel for Settings, 401), models.ts (the two models, modelRow),
+                             worker.ts (ONNX Runtime Web), models/u2netp.onnx
   agent/
     tools.ts                 The 56 agent tools: JSON Schema input and a handler each (34 for print designs here)
     photoTools.ts            The 22 photo studio tools: batch, framing, colour, masks (AI too), presets, LUTs, preview, export
@@ -393,9 +397,12 @@ desktop, 4 + 4 on the web (`TRACK_LIMITS`). A clip is today's `ClipTiming` plus 
 precision); the music is an `AudioClip` on `A1` with `in` = its offset and `toEnd` (plays to the end of the video).
 
 - `pack(clips)` places the main track's clips end to end, summing lengths as 2.x did (bit-identical starts). It runs
-  in one place, the store's `change()`, so every edit keeps the track gapless (201's rule; `202` brings gaps).
-- `projectLength`, `videoAt(p, t)` (the clip and local time on the topmost visible picture track; clamps like 2.x),
-  `framePlan(p, fps)` (the export's frame ranges; one black span when `V1` is hidden) and `audioPlan(p)` (clips' sound
+  in one place, the store's `change()`, and only while **Magnetic** is on (the default, 202): then the track stays
+  gapless as in 201 and 2.x. With Magnetic off clips keep their starts, in start order, and the track can have gaps
+  (`gaps(p, track)`).
+- `projectLength`, `videoAt(p, t)` (the clip and local time on the topmost visible picture track; null inside a gap;
+  clamps like 2.x before 0 and at the end), `framePlan(p, fps)` (the export's frame ranges; a gap is a `{ clip: null }`
+  span of black frames, so frames run 0 → total; one black span when `V1` is hidden) and `audioPlan(p)` (clips' sound
   with 0.03 s ramps, the music unless `A1` is muted, fading out over min(1.5 s, a third)). Preview and export both
   read them; `renderFrame` is unchanged and draws `NO_PICTURE` (black, layers, fade-out) where no clip shows.
 - `patchTrack` (Hide only on picture tracks, Mute only on sound tracks) and `lockedReason`, used by the store's
@@ -405,8 +412,24 @@ precision); the music is an `AudioClip` on `A1` with `in` = its offset and `toEn
   shape maps to tracks). Numbers are checked and clamped, enums checked, edits through `mergeEdit`, layers through
   `mergeLayers` (image layers only with a picture the project has), clips without a known track or media dropped with
   a reason, limits enforced; it never throws.
+- The document has an optional `magnetic` (missing = on; `toDocument` always writes it). On, `mergeProject` packs the
+  main track; off, it sorts it by start and moves a clip that overlaps the one before to that clip's end, with a
+  reason (D-009 D3).
 - `timeline.testkit.ts` keeps the 2.x placement, frame loop and sound list, frozen, with 12 fixtures; unit tests and
   the self-test compare the model against it.
+
+**Edit operations (`engine/edits.ts`, 202).** Pure functions on a project's picture clips, each returning
+`{ clips }` or `{ error }` (never throwing; the same array when nothing changes) with an `EditCtx` (the length limit,
+the lock check): `rippleDelete`, `lift`, `closeGap`, `closeGaps`, `trim(id, side, delta, { ripple })`, `moveTo` (a
+time, else the nearest free spot that fits, else refused: no overwrite), `reorder`, `roll` (the cut between two
+touching clips), `slip` (videos only), `slide` (needs a clip after it; with `magnetic` it opens no gap), `nudge`
+(Alt + arrows per tool) and `snapTargets` / `snapTime`. Limits: 0.3 s (`MIN_LEN`; a 2.x clip already shorter can't be
+shortened), the source, 60 s for photos (`PHOTO_MAX`), the project's length. Video edges are clamped to the source
+and starts at 0 where they move (floating-point sums miss them by 1e-16). `checkTrack` is the invariant (sorted, no
+overlap, inside sources, within the limit, nothing newly under 0.3 s); 1,000 seeded edits per operation keep it and
+pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store (`state/video.ts`) wraps each in one
+undo step (`apply`); `magnetic` is in its undo snapshots (D1), `tool` and `snapping` are view settings (D4), and
+`loadVideoProject` starts a project from ready clips (tests).
 
 Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: not undone, not saved.
 

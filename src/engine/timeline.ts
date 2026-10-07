@@ -135,8 +135,22 @@ export function projectLength(p: Project): number {
   return end;
 }
 
-/** The picture clip showing at time t on the topmost visible picture track, and seconds into it; null for none. The
- * main track clamps as 2.x did: before 0 its first clip, past the end its last. */
+/** A track's gaps: the empty stretches before and between its clips (clips are kept in start order). */
+export function gaps(p: Project, track: string): { start: number; end: number }[] {
+  const out: { start: number; end: number }[] = [];
+  let t = 0;
+  for (const c of p.clips) {
+    if (c.track !== track) continue;
+    // A tiny tolerance: starts summed in floating point may sit a hair after the previous end.
+    if (c.start > t + 1e-9) out.push({ start: t, end: c.start });
+    t = Math.max(t, endOf(c));
+  }
+  return out;
+}
+
+/** The picture clip showing at time t on the topmost visible picture track, and seconds into it; null for none (a
+ * gap shows nothing). The main track clamps as 2.x did: before 0 its first clip (when it starts at 0), at or past the
+ * end its last. */
 export function videoAt<C extends TimedClip>(p: Project<C>, t: number): { clip: C; local: number } | null {
   const visual = p.tracks.filter((tr) => isVisual(tr) && !tr.hidden);
   for (let i = visual.length - 1; i >= 0; i--) {
@@ -145,8 +159,10 @@ export function videoAt<C extends TimedClip>(p: Project<C>, t: number): { clip: 
     const hit = on.find((c) => t >= c.start && t < endOf(c));
     if (hit) return { clip: hit, local: t - hit.start };
     if (visual[i].id === MAIN_VIDEO) {
-      const c = t < 0 ? on[0] : on[on.length - 1];
-      return { clip: c, local: t - c.start };
+      const first = on[0],
+        last = on[on.length - 1];
+      const c = t < 0 && first.start <= 0 ? first : t >= endOf(last) ? last : null;
+      if (c) return { clip: c, local: t - c.start };
     }
   }
   return null;
@@ -154,8 +170,8 @@ export function videoAt<C extends TimedClip>(p: Project<C>, t: number): { clip: 
 
 /**
  * The export's frames: per clip of the visible main track, frame numbers [f0, f1) at fps and its start (local time of
- * frame i = i / fps − start), exactly as 2.x's loop. With the main track hidden: one span of black frames (layers
- * still drawn on top).
+ * frame i = i / fps − start), exactly as 2.x's loop; a gap is a span with no clip (black, layers on top), so the
+ * frames run 0 → total without holes. With the main track hidden: one span of black frames.
  */
 export function framePlan<C extends TimedClip>(
   p: Project<C>,
@@ -166,12 +182,18 @@ export function framePlan<C extends TimedClip>(
   const main = p.tracks.find((t) => t.id === MAIN_VIDEO);
   if (!main || main.hidden) return [{ clip: null, f0: 0, f1: frames, start: 0 }];
   const out: { clip: C | null; f0: number; f1: number; start: number }[] = [];
+  let next = 0,
+    prevEnd = 0;
   for (const c of p.clips) {
     if (c.track !== MAIN_VIDEO) continue;
     const [f0, f1] = frameRange(c.start, endOf(c), fps);
     const last = Math.min(f1, frames);
+    // Frames between the previous clip and this one: a gap. A packed track (2.x) never has any.
+    if (f0 > next) out.push({ clip: null, f0: next, f1: Math.min(f0, frames), start: prevEnd });
+    prevEnd = endOf(c);
     if (f0 >= last) continue;
     out.push({ clip: c, f0, f1: last, start: c.start });
+    next = last;
   }
   return out;
 }
@@ -264,6 +286,8 @@ export interface ProjectDoc extends Project<DocClip> {
   quality: VQuality;
   audio: DocAudio[];
   media: DocMedia[];
+  /** The main track packs its clips end to end (202); missing in a document = on. */
+  magnetic?: boolean;
 }
 
 /**
@@ -297,6 +321,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     fps: p.fps,
     quality: p.quality,
     fadeOut: p.fadeOut,
+    magnetic: p.magnetic !== false,
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
     clips: p.clips.map(({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume }) => ({
       id,
@@ -358,6 +383,7 @@ function emptyDoc(desktop: boolean): ProjectDoc {
     fps: limitsFor('reel', desktop).fps[0],
     quality: 'standard',
     fadeOut: true,
+    magnetic: true,
     tracks: defaultTracks(),
     clips: [],
     audio: [],
@@ -387,10 +413,26 @@ function upgrade(o: Record<string, unknown>): Record<string, unknown> {
 }
 
 /**
+ * The main track of a project with Magnetic off: its clips in start order (equal starts keep the document's order),
+ * and a clip that overlaps the one before it moved to that clip's end, with a reason (D-009 D3). Other tracks as read.
+ */
+function unpacked<C extends TimedClip>(clips: C[], dropped: string[]): C[] {
+  const main = clips.filter((c) => c.track === MAIN_VIDEO).sort((a, b) => a.start - b.start);
+  let end = 0;
+  const placed = main.map((c) => {
+    const start = c.start < end - 1e-6 ? end : c.start;
+    if (start !== c.start) dropped.push('Two clips overlapped on the video track; one was moved to after the other.');
+    end = Math.max(end, start + clipLength(c));
+    return start === c.start ? c : { ...c, start };
+  });
+  return [...placed, ...clips.filter((c) => c.track !== MAIN_VIDEO)];
+}
+
+/**
  * The single gate for project data from outside the running app (project files; 2.x projects): a valid version 1
  * project and what it dropped or changed, and why. Values out of range are clamped or replaced by defaults; clips on a
  * missing or wrong track or without their media, and unknown fields, are dropped; ids are made unique; the main track
- * is packed. Never throws.
+ * is packed (with Magnetic off: sorted, overlaps moved apart). Never throws.
  */
 export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc; dropped: string[] } {
   const dropped: string[] = [];
@@ -414,6 +456,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
     const fps = L.fps.includes(o.fps as VFps) ? (o.fps as VFps) : L.fps[0];
     const quality: VQuality = o.quality === 'high' ? 'high' : 'standard';
     const fadeOut = o.fadeOut !== false;
+    const magnetic = o.magnetic !== false;
 
     // Media.
     const media: DocMedia[] = [];
@@ -578,7 +621,20 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
       dropped.push(`${arr(o.layers).length - layers.length} layer(s) couldn’t be read and were left out.`);
 
     return {
-      doc: { version: 1, kind, format, fps, quality, fadeOut, tracks, clips: pack(clips), audio, layers, media },
+      doc: {
+        version: 1,
+        kind,
+        format,
+        fps,
+        quality,
+        fadeOut,
+        magnetic,
+        tracks,
+        clips: magnetic ? pack(clips) : unpacked(clips, dropped),
+        audio,
+        layers,
+        media,
+      },
       dropped,
     };
   } catch (e) {

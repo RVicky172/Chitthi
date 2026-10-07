@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react';
 import type { Adjustments } from '../engine/adjust';
+import { closeGap, closeGaps, lift, moveTo, nudge, reorder, rippleDelete, roll, slide, slip, trim, type Edit, type EditCtx, type Tool } from '../engine/edits';
 import { DEFAULT_EDIT, type IgEdit } from '../engine/instagram';
 import type { Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
-import { MAIN_VIDEO, MUSIC, defaultTracks, lockedReason, pack, patchTrack, projectLength, type AudioClip, type Project, type Track } from '../engine/timeline';
+import { MAIN_VIDEO, MUSIC, defaultTracks, gaps, lockedReason, pack, patchTrack, projectLength, type AudioClip, type Project, type Track } from '../engine/timeline';
 import { V_PHOTO_SECONDS, bitrateFor, clipLength, formatsFor, limitsFor, vFormat, type Motion, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/video';
 import { logError } from '../lib/errors';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
@@ -11,9 +12,10 @@ import { isDesktop } from '../platform/desktop';
 import type { LayerTools } from './instagram';
 
 /*
- * The video editor's state: tracks (engine/timeline.ts), clips (photos and video files) in order on the main video
- * track, layers over the whole timeline, music on the music track, the playhead and the export. Every change to the
- * clips packs them end to end (`pack`), so each clip's `start` is where 2.x placed it. One project at a time, made as
+ * The video editor's state: tracks (engine/timeline.ts), clips (photos and video files) in start order on the main
+ * video track, layers over the whole timeline, music on the music track, the playhead and the export. With Magnetic on
+ * (the default) every change to the clips packs them end to end (`pack`), so each clip's `start` is where 2.x placed
+ * it; with it off clips keep their times and gaps (202). Edits go through engine/edits.ts. One project at a time, made as
  * a Reel / Short (vertical) or a YouTube video (16:9); switching between them keeps the clips and changes the frame.
  * Memory: video clips stay as their files (played through <video> elements while editing, decoded frame by frame on
  * export); photos keep their file and a preview copy of at most 1080 px. Undo covers the tracks, clips and layers.
@@ -28,7 +30,7 @@ export interface VClip {
   kind: 'photo' | 'video';
   /** The track it is on (201: always the main video track). */
   track: string;
-  /** Seconds from the start of the video; set by `pack` on every change. */
+  /** Seconds from the start of the video; kept packed end to end while Magnetic is on. */
   start: number;
   name: string;
   file: Blob;
@@ -90,6 +92,12 @@ export interface VState {
   music: VMusic | null;
   /** Fade to black over the last half second. */
   fadeOut: boolean;
+  /** The main track packs its clips end to end (202); off, clips keep their times and gaps. Part of the project. */
+  magnetic: boolean;
+  /** The timeline's edit tool (a view setting: not undone, lasts for the session; D4). */
+  tool: Tool;
+  /** Drags snap to edges and the playhead (a view setting). */
+  snapping: boolean;
   quality: VQuality;
   /** Playhead, seconds. */
   t: number;
@@ -120,6 +128,9 @@ let state: VState = {
   tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
   music: null,
   fadeOut: true,
+  magnetic: true,
+  tool: 'select',
+  snapping: true,
   quality: 'standard',
   t: 0,
   zoom: 60,
@@ -133,7 +144,7 @@ let state: VState = {
 };
 
 const listeners = new Set<() => void>();
-const PURE = ['selected', 'layerSel', 'tools', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo'];
+const PURE = ['selected', 'layerSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo'];
 function set(patch: Partial<VState>): void {
   // Anything that changes the video makes the last export stale.
   const stale = Object.keys(patch).some((k) => !PURE.includes(k));
@@ -156,9 +167,11 @@ export function useVideo<T>(sel: (s: VState) => T): T {
 
 /** This project's limits in this app (browser or desktop). */
 export const limits = (kind: VKind = state.kind): VLimits => limitsFor(kind, isDesktop);
-/** The video's length with these clips (packed first, as every change does). */
-const lengthOf = (clips: VClip[], tracks: Track[] = state.tracks) =>
-  projectLength({ tracks, clips: pack(clips), audio: [], layers: [], fadeOut: false });
+/** The video's length with these clips (packed first when magnetic, as every change then does). */
+const lengthOf = (clips: VClip[], tracks: Track[] = state.tracks, magnetic = state.magnetic) =>
+  projectLength({ tracks, clips: magnetic ? pack(clips) : clips, audio: [], layers: [], fadeOut: false });
+/** What the edit operations need to know (engine/edits.ts). */
+const editCtx = (): EditCtx => ({ maxLength: limits().seconds, locked: (track) => lockedReason(state.tracks, track) });
 /** The state as the track model sees it (engine/timeline.ts): for the preview, the timeline and the export. */
 export const projectOf = (s: VState = state): Project<VClip> => ({ tracks: s.tracks, clips: s.clips, audio: musicClips(s.music), layers: s.layers, fadeOut: s.fadeOut });
 /** The video's length (a selector: `useVideo(videoLength)`). */
@@ -170,6 +183,8 @@ export const selectVLayer = (id: string | null) => set({ layerSel: id });
 export const setVTools = (patch: Partial<LayerTools>) => set({ tools: { ...state.tools, ...patch } });
 export const setPlaying = (playing: boolean) => set({ playing: playing && state.clips.length > 0 });
 export const setZoom = (zoom: number) => set({ zoom: Math.max(4, Math.min(400, zoom)) });
+export const setTool = (tool: Tool) => set({ tool });
+export const setSnapping = (snapping: boolean) => set({ snapping });
 export const setVideoOptions = (patch: Partial<Pick<VState, 'format' | 'fadeOut' | 'quality' | 'fps'>>) => set(patch);
 
 /** Switches between a Reel / Short and a YouTube video: the clips stay, the frame and limits change. */
@@ -180,17 +195,19 @@ export function setKind(kind: VKind): void {
   set({ kind, format: f.id, fps });
 }
 
-/* ---------- undo / redo (tracks, clips and layers) ---------- */
+/* ---------- undo / redo (tracks, clips, layers and Magnetic) ---------- */
 interface Snap {
   tracks: Track[];
   clips: VClip[];
   layers: Layer[];
+  /** With the clips, so undoing a gap close brings back the gaps with Magnetic off (D1). */
+  magnetic: boolean;
 }
 const past: Snap[] = [];
 const future: Snap[] = [];
 let lastKey = '',
   lastAt = 0;
-const snap = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers });
+const snap = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers, magnetic: state.magnetic });
 function record(key: string): void {
   const now = Date.now();
   if (key && key === lastKey && now - lastAt < 800) {
@@ -213,9 +230,10 @@ function restore(s: Snap): void {
     tracks: s.tracks,
     clips: s.clips,
     layers: s.layers,
+    magnetic: s.magnetic,
     selected: s.clips.some((c) => c.id === state.selected) ? state.selected : (s.clips[0]?.id ?? null),
     layerSel: s.layers.some((l) => l.id === state.layerSel) ? state.layerSel : null,
-    t: Math.min(state.t, lengthOf(s.clips, s.tracks)),
+    t: Math.min(state.t, lengthOf(s.clips, s.tracks, s.magnetic)),
     ...flags(),
   });
 }
@@ -231,12 +249,36 @@ export function redoV(): void {
   past.push(snap());
   restore(s);
 }
-/** Every undoable change goes through here; changed clips are packed end to end (the one place `pack` runs). */
+/** Every undoable change goes through here; with Magnetic on, changed clips are packed end to end (the one place). */
 function change(key: string, patch: Partial<Snap>, extra: Partial<VState> = {}): void {
   record(key);
-  if (patch.clips) patch = { ...patch, clips: pack(patch.clips) };
+  const magnetic = patch.magnetic ?? state.magnetic;
+  if (patch.clips && magnetic) patch = { ...patch, clips: pack(patch.clips) };
   const clips = patch.clips ?? state.clips;
-  set({ ...patch, ...flags(), ...extra, t: Math.min(extra.t ?? state.t, lengthOf(clips, patch.tracks)) });
+  set({ ...patch, ...flags(), ...extra, t: Math.min(extra.t ?? state.t, lengthOf(clips, patch.tracks, magnetic)) });
+}
+
+/**
+ * Starts a project from clips already made (tests; opening a saved project goes through mergeProject first): no
+ * history, packed when magnetic, else in start order.
+ */
+export function loadVideoProject(p: { clips: VClip[]; tracks?: Track[]; magnetic?: boolean; music?: VMusic | null }): void {
+  past.length = 0;
+  future.length = 0;
+  lastKey = '';
+  const magnetic = p.magnetic !== false;
+  const clips = magnetic ? pack(p.clips) : p.clips.slice().sort((a, b) => a.start - b.start);
+  set({ clips, tracks: p.tracks ?? defaultTracks(), magnetic, music: p.music ?? null, layers: [], layerSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
+}
+
+/**
+ * Magnetic (202, D1): switching it on closes every gap on the main track as one undo step; switching it off changes no
+ * clip and isn't recorded.
+ */
+export function setMagnetic(on: boolean): void {
+  if (on === state.magnetic) return;
+  if (on) change('', { clips: closeGaps(state.clips), magnetic: true });
+  else set({ magnetic: false });
 }
 
 /* ---------- tracks ---------- */
@@ -475,7 +517,9 @@ export function removeClip(id: string): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
   if (i < 0 || clipLocked(id)) return false;
   // The object URL is kept while the clip can still come back through undo; it goes when the page closes.
-  const clips = state.clips.filter((c) => c.id !== id);
+  const r = (state.magnetic ? rippleDelete : lift)(state.clips, id, editCtx());
+  if ('error' in r) return false;
+  const clips = r.clips;
   change('', { clips }, { selected: state.selected === id ? (clips[Math.min(i, clips.length - 1)]?.id ?? null) : state.selected });
   return true;
 }
@@ -486,13 +530,10 @@ export function moveClip(id: string, by: -1 | 1): boolean {
 }
 /** Moves a clip to a new place in the order (dragging on the timeline). */
 export function moveClipTo(id: string, index: number): boolean {
-  const i = state.clips.findIndex((c) => c.id === id);
-  const j = Math.max(0, Math.min(state.clips.length - 1, index));
-  if (i < 0 || i === j || clipLocked(id)) return false;
-  const clips = state.clips.slice();
-  const [c] = clips.splice(i, 1);
-  clips.splice(j, 0, c);
-  change('', { clips });
+  if (clipLocked(id)) return false;
+  const r = reorder(state.clips, id, index, editCtx());
+  if ('error' in r || r.clips === state.clips) return false;
+  change('', { clips: r.clips });
   return true;
 }
 
@@ -500,30 +541,89 @@ export function duplicateClip(id: string): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
   const c = state.clips[i];
   if (!c || clipLocked(id) || total() + clipLength(c) > limits().seconds || state.clips.length >= limits().clips) return false;
+  const copy: VClip = { ...c, id: newId(), fade: false, start: c.start + clipLength(c) };
+  if (!state.magnetic) {
+    // D2: into the first gap after the original that fits, else after the last clip; nothing else moves.
+    const len = clipLength(c);
+    const end = state.clips.reduce((m, x) => (x.track === c.track ? Math.max(m, x.start + clipLength(x)) : m), 0);
+    const room = gaps(projectOf(), c.track).find((g) => g.start >= copy.start - 1e-9 && g.end - g.start >= len - 1e-6);
+    copy.start = room ? room.start : end;
+    const clips = [...state.clips, copy].sort((a, b) => (a.track === b.track ? a.start - b.start : 0));
+    change('', { clips }, { selected: copy.id });
+    return true;
+  }
   const clips = state.clips.slice();
-  clips.splice(i + 1, 0, { ...c, id: newId(), fade: false });
-  change('', { clips }, { selected: clips[i + 1].id });
+  clips.splice(i + 1, 0, copy);
+  change('', { clips }, { selected: copy.id });
   return true;
 }
 
 /** Splits the clip under the playhead into two clips (not on a locked track). */
 export function splitAtPlayhead(): boolean {
-  let t0 = 0;
   for (const [i, c] of state.clips.entries()) {
-    const len = clipLength(c);
-    if (state.t > t0 + 0.2 && state.t < t0 + len - 0.2) {
+    const len = clipLength(c),
+      t0 = c.start;
+    if (c.track === MAIN_VIDEO && state.t > t0 + 0.2 && state.t < t0 + len - 0.2) {
       if (clipLocked(c.id)) return false;
       const local = state.t - t0;
       const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local } : { ...c, dur: local };
-      const b: VClip = c.kind === 'video' ? { ...c, id: newId(), in: c.in + local, fade: false } : { ...c, id: newId(), dur: len - local, fade: false };
+      const b: VClip = c.kind === 'video' ? { ...c, id: newId(), start: t0 + local, in: c.in + local, fade: false } : { ...c, id: newId(), start: t0 + local, dur: len - local, fade: false };
       const clips = state.clips.slice();
       clips.splice(i, 1, a, b);
       change('', { clips }, { selected: b.id });
       return true;
     }
-    t0 += len;
   }
   return false;
+}
+
+/* ---------- edit tools (202): each returns null, or why it was refused ---------- */
+
+/** Applies an edit's result as one undo step (`key` coalesces a drag); nothing is recorded when nothing changed. */
+function apply(r: Edit<VClip>, key = '', extra: Partial<VState> = {}): string | null {
+  if ('error' in r) return r.error;
+  if (r.clips !== state.clips) change(key, { clips: r.clips }, extra);
+  return null;
+}
+/** Shift + Delete: removes a clip and pulls the later ones back, with Magnetic on or off. */
+export function rippleDeleteClip(id: string): string | null {
+  const i = state.clips.findIndex((c) => c.id === id);
+  const r = rippleDelete(state.clips, id, editCtx());
+  const left = 'clips' in r ? r.clips.filter((c) => c.track === MAIN_VIDEO) : [];
+  const next = left[Math.min(i, left.length - 1)]?.id ?? null;
+  return apply(r, '', { selected: state.selected === id ? next : state.selected });
+}
+/** Moves one edge of a clip by `delta` seconds; with Magnetic on, or `ripple` (Shift), the later clips follow. */
+export function trimClip(id: string, side: 'start' | 'end', delta: number, o: { ripple?: boolean } = {}, key = ''): string | null {
+  return apply(trim(state.clips, id, side, delta, { ripple: state.magnetic || !!o.ripple }, editCtx()), key);
+}
+/** Magnetic off: puts a clip at a time, or the nearest free spot where it fits. */
+export const moveClipToTime = (id: string, start: number, key = ''): string | null => apply(moveTo(state.clips, id, start, editCtx()), key);
+export const rollClip = (id: string, delta: number, key = ''): string | null => apply(roll(state.clips, id, delta, editCtx()), key);
+export const slipClip = (id: string, delta: number, key = ''): string | null => apply(slip(state.clips, id, delta, editCtx()), key);
+export const slideClip = (id: string, delta: number, key = ''): string | null => apply(slide(state.clips, id, delta, editCtx(), state.magnetic), key);
+/** Alt + ← / → (Q5): `frames` frames at the project's frame rate with the current tool. */
+export const nudgeClip = (id: string, frames: number): string | null =>
+  apply(nudge(state.clips, id, state.tool, frames, state.fps, state.magnetic, editCtx()), `nudge:${state.tool}:${id}`);
+/** Q / W: ripple-trims the selected clip's start / end to the playhead. */
+export function rippleTrimToPlayhead(side: 'start' | 'end'): string | null {
+  const c = state.clips.find((x) => x.id === state.selected);
+  if (!c) return 'Select a clip first.';
+  const end = c.start + clipLength(c);
+  if (!(state.t > c.start && state.t < end)) return 'Put the playhead inside the clip first.';
+  return apply(trim(state.clips, c.id, side, state.t - (side === 'start' ? c.start : end), { ripple: true }, editCtx()), '', side === 'start' ? { t: c.start } : {});
+}
+/** Closes the gap at a time on the main track (a selected gap's Delete). */
+export const deleteGap = (at: number): string | null => apply(closeGap(state.clips, at, editCtx()));
+/** The Slip keys on the music (Q8): moves where in the song the video's sound starts. */
+export function slipMusic(delta: number): string | null {
+  const m = state.music;
+  if (!m) return 'There’s no music to slip.';
+  const why = musicLocked();
+  if (why) return why;
+  const max = Math.max(0, m.dur - Math.min(total(), m.dur));
+  updateMusic({ offset: Math.max(0, Math.min(max, m.offset + delta)) });
+  return null;
 }
 
 /* ---------- layers ---------- */
