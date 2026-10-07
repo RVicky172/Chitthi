@@ -26,8 +26,9 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 ### II. Test-Gated Delivery
 
-- No task is "done" until its tests pass: `npm run check` (and `npm run test:e2e` if the change affects UI or
-  integration; `npm test` if it renders, exports or adds an agent tool).
+- No task is "done" until its tests pass: `npm run check` (and that area's e2e tests,
+  `npx playwright test e2e/<file>.e2e.ts`, if the change affects UI or integration; never the full suite, D-007;
+  `npm test` if it renders, exports or adds an agent tool).
 - Pure logic is unit-tested, test-first: write the failing test, then the code.
 - Tests wait on real signals, never fixed sleeps; anything time-dependent takes time as an input so tests are
   deterministic.

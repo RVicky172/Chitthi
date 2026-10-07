@@ -41,7 +41,8 @@ can run in parallel with `[P]`. Every AC is covered by at least one task (AC cov
 
 Work one task at a time. After each task:
 
-1. Run `npm run check` (and `npm run test:e2e` if the change affects UI or integration; `npm test` if it renders,
+1. Run `npm run check` (and that area's e2e tests, `npx playwright test e2e/<file>.e2e.ts`, if the change affects
+   UI or integration; never the full suite, which runs once in Stage 5, D-007; `npm test` if it renders,
    exports or touches an agent tool; `npm run test:mcp` if it touches IPC or the MCP server). Fix until green.
 2. Tick the task in `tasks.md` and add a short dated **Result** note under it: what was done, what was measured,
    anything surprising. These notes are the evidence Stage 5 checks.

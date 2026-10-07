@@ -74,3 +74,14 @@ Desktop release workflow runs first (`build` needs it); `specs/release.md`, `tes
 **Amended (2026-10-06, 001 plan D2, D3):** a release may have one dry run before its tag: the Desktop release workflow
 run by hand (`workflow_dispatch`) on `main`, which runs CI and builds installers without publishing. CodeQL
 (`codeql.yml`: pull requests, pushes to `main`, weekly) is a security scan, not the CI gates, and keeps its triggers.
+
+## D-007 — Full e2e runs once per spec, at verification, not after every task (2026-10-07)
+
+**Context:** Running the whole Playwright suite (`npm run test:e2e`) after every UI task made features slow to finish.
+**Decision:** During implementation, don't run the full e2e suite. If a task changes UI or integration, run only the
+e2e tests for that spec's area (`npx playwright test e2e/<file>.e2e.ts [-g "<name>"]`). The full `npm run test:e2e`
+runs once, at the end of each spec, as a Definition of Done gate in `/spec-verify`.
+**Alternatives:** the full suite after every UI or integration task (the old rule in `workflow.md`, `constitution.md`
+and `/spec-implement`).
+**Consequences:** Tasks finish faster. A regression in another area may only show up at verification, and is fixed
+before the spec is marked Implemented. `workflow.md`, `constitution.md` and `.claude/commands/spec-implement.md` say so.
