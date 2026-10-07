@@ -47,7 +47,7 @@ gains `track` and `start`; the music gains `track: 'A1'`. Every function that ch
 place: `change()`), so `addMedia`, `removeClip`, `moveClipTo`, `duplicateClip`, `splitAtPlayhead`, `updateClip`
 behave as today. `total()` reads `projectLength`. Undo snapshots gain `tracks` (hide / mute / lock are undo steps,
 AC-11); music stays outside undo, as today. New actions: `setTrack(id, patch: { hidden | muted | locked })`
-(undoable, key `track:<id>:<field>`) and `setTrackHeight(id, size)` (not undoable, §4). Lock guards: every clip
+(undoable, one step per switch) and `setTrackHeight(id, size)` (not undoable, §4). Lock guards: every clip
 action refuses (returns false with a reason) when its track is locked; `addMedia` refuses with a message when `V1`
 is locked; music offset / volume changes refuse when `A1` is locked. The export job (`exportVideo`) is built from
 the project: `tracks` plus clips with `start`.
@@ -56,10 +56,12 @@ the project: `tracks` plus clips with `start`.
 - Track headers: the `Video` and `Music` header cells (today `aria-hidden` labels) become a `role="group"` named after
   the track, holding three buttons with `aria-pressed`: **Hide** (video) / **Mute** (audio), **Lock**, and a
   **Height** menu button with Small / Medium / Large (40 / 64 / 96 px, Q5; a menu with arrow keys like `MoreMenu`).
-  The layers rows keep their plain label (Q2). Icons from lucide-react (already a dependency); text labels for screen
-  readers; at ≤ 600 px the header shows icons only with the same accessible names.
+  The layers rows keep their plain label (Q2). Icons from lucide-react (already a dependency), icons only at every
+  width (T031: the 84 px header column has no room for words), each with an accessible name and a tooltip; the
+  track name shows above them, except at Small.
 - Height: `trackView: Record<trackId, 'small' | 'medium' | 'large'>` in the store, a `PURE` key (not undo, not
-  stale-making); default medium = today's row heights, so nothing moves at first.
+  stale-making); default medium (64 px) for every track: the video row as today, the music row grows from 2.x's
+  44 px (maintainer's call, 2026-10-07: one set of sizes, room for the header's name and buttons and the waveform).
 - Lock: clip blocks on a locked track show a lock badge, their pointer handlers don't start drags or select, and
   Delete / S / Ctrl+D say "This track is locked" in a toast; the inspector shows the clip read-only.
 - Preview (`VideoStage`): picks the frame with `videoAt(project, t)` (null when `V1` is hidden → black frame with

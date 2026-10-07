@@ -46,6 +46,35 @@ export const defaultTracks = (): Track[] => [
   { id: MUSIC, kind: 'audio', name: 'Music', hidden: false, muted: false, locked: false },
 ];
 
+/**
+ * A track with its switches changed: Hide applies to picture tracks, Mute to sound tracks, Lock to both. Returns the
+ * same array when nothing changes (unknown track, a switch the track doesn't have, or the value it already has).
+ */
+export function patchTrack(
+  tracks: Track[],
+  id: string,
+  patch: Partial<Pick<Track, 'hidden' | 'muted' | 'locked'>>,
+): Track[] {
+  const i = tracks.findIndex((t) => t.id === id);
+  if (i < 0) return tracks;
+  const t = tracks[i],
+    visual = t.kind !== 'audio';
+  const next: Track = {
+    ...t,
+    hidden: visual && patch.hidden !== undefined ? patch.hidden : t.hidden,
+    muted: !visual && patch.muted !== undefined ? patch.muted : t.muted,
+    locked: patch.locked ?? t.locked,
+  };
+  if (next.hidden === t.hidden && next.muted === t.muted && next.locked === t.locked) return tracks;
+  return tracks.map((x, j) => (j === i ? next : x));
+}
+
+/** Why a track's clips can't be changed, or null when they can (unknown tracks aren't locked). */
+export function lockedReason(tracks: Track[], id: string): string | null {
+  const t = tracks.find((x) => x.id === id);
+  return t?.locked ? `The ${t.name} track is locked. Unlock it to change its clips.` : null;
+}
+
 /** How many picture (video + overlay) and sound tracks a project may have (Q4; 201 uses 1 + 1). */
 export const TRACK_LIMITS = (desktop: boolean): { visual: number; audio: number } =>
   desktop ? { visual: 8, audio: 8 } : { visual: 4, audio: 4 };

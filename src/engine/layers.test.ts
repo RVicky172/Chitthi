@@ -3,7 +3,8 @@ import { TEXT_STYLES } from '../data/layers';
 import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, mergeLayers, newImageLayer, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer, type ShapeLayer, type TextLayer } from './layers';
 import { newPart } from './masks';
 import { DEFAULT_EDIT } from './instagram';
-import { V_FADE, clipAt, clipLength, fadeAmount, frameRange, motionEdit, timeline, totalLength } from './video';
+import { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength, videoAt } from './timeline';
+import { V_FADE, clipLength, fadeAmount, frameRange, motionEdit } from './video';
 
 describe('layers', () => {
   it('scale about their centre, with their text sizes, within limits', () => {
@@ -91,36 +92,35 @@ describe('image layers, blend modes and layer masks', () => {
 });
 
 describe('video timeline', () => {
-  const clips = [
-    { kind: 'photo' as const, dur: 3, in: 0, out: 0 },
-    { kind: 'video' as const, dur: 0, in: 2, out: 6.5 },
-    { kind: 'photo' as const, dur: 1.5, in: 0, out: 0 },
-  ];
+  const clips = pack([
+    { id: 'a', track: MAIN_VIDEO, start: 0, kind: 'photo' as const, dur: 3, in: 0, out: 0 },
+    { id: 'b', track: MAIN_VIDEO, start: 0, kind: 'video' as const, dur: 0, in: 2, out: 6.5 },
+    { id: 'c', track: MAIN_VIDEO, start: 0, kind: 'photo' as const, dur: 1.5, in: 0, out: 0 },
+  ]);
+  const p = { tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false };
   it('places clips end to end', () => {
-    const tl = timeline(clips);
-    expect(tl.map((p) => [p.start, p.end])).toEqual([
+    expect(clips.map((c) => [c.start, c.start + clipLength(c)])).toEqual([
       [0, 3],
       [3, 7.5],
       [7.5, 9],
     ]);
-    expect(totalLength(clips)).toBe(9);
+    expect(projectLength(p)).toBe(9);
     expect(clipLength(clips[1])).toBe(4.5);
   });
   it('finds the clip at a time, clamping past the ends', () => {
-    const tl = timeline(clips);
-    expect(clipAt(tl, 0)?.index).toBe(0);
-    expect(clipAt(tl, 3)?.index).toBe(1);
-    expect(clipAt(tl, 8.99)?.index).toBe(2);
-    expect(clipAt(tl, 50)?.index).toBe(2);
-    expect(clipAt(tl, -1)?.index).toBe(0);
-    expect(clipAt([], 1)).toBeNull();
+    expect(videoAt(p, 0)?.clip.id).toBe('a');
+    expect(videoAt(p, 3)?.clip.id).toBe('b');
+    expect(videoAt(p, 8.99)?.clip.id).toBe('c');
+    expect(videoAt(p, 50)?.clip.id).toBe('c');
+    expect(videoAt(p, -1)?.clip.id).toBe('a');
+    expect(videoAt({ ...p, clips: [] }, 1)).toBeNull();
   });
   it('gives every frame to exactly one clip', () => {
-    const tl = timeline(clips);
-    const ranges = tl.map((p) => frameRange(p.start, p.end));
+    const ranges = framePlan(p, 30).map((f) => [f.f0, f.f1]);
     expect(ranges[0][0]).toBe(0);
     for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBe(ranges[i - 1][1]);
     expect(ranges.at(-1)?.[1]).toBe(270); // 9 s × 30 fps
+    expect(frameRange(3, 7.5, 30)).toEqual([90, 225]);
   });
   it('moves photos smoothly from start to end', () => {
     expect(motionEdit(DEFAULT_EDIT, 'zoom-in', 0).zoom).toBeCloseTo(1);

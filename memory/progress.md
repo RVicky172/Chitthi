@@ -11,6 +11,69 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-07 — 201 verified ✔️ (T040–T041, T090–T092)
+
+**Done:** T040 self-test (200 frames pixel-identical to the 2.x placement at 4 ratios; hidden / muted in the preview
+and in decoded exports; break-test caught a one-frame shift in 4 checks). T041 timing within 5% in 5 sessions
+(fastest 10.5–11.0 ms / 2.64–2.76 s). T090 docs (MEDIA-STUDIO "Tracks", lld §4.9, CHANGELOG, in-app docs). AC-4
+reworded (no Alt+arrow / Ctrl+D in the editor; maintainer's call). Gates: check 883, build 327 KB, licences 168, e2e
+74 passed / 10 skipped (phone runs of desktop-only tests) / 0 failed / 0 flaky, self-test 6,124 / 0, MCP passed.
+Spec Implemented, roadmap 201 ✔️, P2.1 Done.
+**Next:** `/spec-new 202`. 201 is uncommitted on `feat/201-track-model`.
+**Blockers:** none
+
+## 2026-10-07 — 201 (T032)
+
+**Done:** track behaviour: hidden video → black preview with layers (clip sound kept, D2), muted music silent in
+playback, locked clips refused with a toast (drag, trim, split, duplicate, delete) and a read-only inspector. Height
+menu moved to a portal (was painted under the clips). All T030 tests green; video e2e 11 passed; self-test 6,117 / 0.
+**Next:** T040 self-test video section, T041 timing.
+**Blockers:** none
+
+## 2026-10-07 — 201 (T031)
+
+**Done:** track headers: "Video track" / "Music track" groups with Hide / Mute, Lock and a height menu (Small /
+Medium / Large, keyboard), row heights from `trackView`, dimmed hidden / muted rows, 4 new lucide icons. Header and
+axe / 360 px tests pass (desktop + phone); existing video e2e 6 passed; check 883. Gotcha: rAF focus in menus loses
+fast keys (learnings).
+**Next:** T032 behaviour; then T030's Hide / Mute and Lock tests pass.
+**Blockers:** none
+
+## 2026-10-07 — 201 (T030)
+
+**Done:** track headers e2e written first (`describe('video track headers')`, 4 tests, 6 runs incl. phone): all
+fail on the missing headers. Maintainer's call: Medium = 64 px for every track (D-008; spec Q5 Changelog, plan §4).
+Found: AC-4 / T030 name Ctrl+D and Alt+arrow, which the video editor doesn't have; flagged for verify.
+**Next:** T031 headers UI, then T032 behaviour (preview black when hidden, music mute, lock refusals with toast).
+**Blockers:** none
+
+## 2026-10-07 — 201 (T023)
+
+**Done:** 2.x `timeline()` / `clipAt()` / `totalLength()` removed from `engine/video.ts`; components read
+`projectOf` / `videoLength` / `videoAt` / `clip.start`. New e2e "clips sit end to end on the timeline" (no test
+caught blocks drawn at 0 before). Check 883, video e2e 6, self-test 6,117 / 0, preview 10.5 ms, export 2.76 s.
+**Next:** T030 (track headers e2e, test first).
+**Blockers:** none
+
+## 2026-10-07 — 201 (T022)
+
+**Done:** export over the track model: `ExportJob` is a `Project` (tracks, clips with start, sound clips with files),
+frames from `framePlan` (hidden `V1` → `NO_PICTURE`: black + layers), sound from `audioPlan` (muted `A1` left out);
+store passes `musicClips()`. Check 883, video e2e 5, self-test 6,117 / 0 failed, export fastest 2.78 s (≤ 2.90 s).
+Break-test: music missing from the lookup → Reel e2e fails (no `mp4a`).
+**Next:** T023 (components off `timeline()` / `clipAt()` / `totalLength()`).
+**Blockers:** none
+
+## 2026-10-07 — 201 (T020–T021)
+
+**Done:** T020: the video store on tracks (`tracks`, clips with `track` / `start`, music on `A1`, `pack` in
+`change()`, lengths from `projectLength`, undo snapshots with `tracks`). T021: `patchTrack` / `lockedReason` in
+`timeline.ts` (3 unit tests, test-first), store `setTrack` (one undo step per switch; plan updated), `trackView` /
+`setTrackHeight` (view only), lock guards on every clip and music action (`clipLocked`, `musicLocked` for messages).
+`npm run check` 883 tests; video e2e 5 passed unchanged.
+**Next:** T022 export over `framePlan` / `audioPlan` (`npm test`, video e2e), then T023.
+**Blockers:** none
+
 ## 2026-10-06 — 201 (spec, plan, tasks; T001–T003)
 
 **Done:** 201 spec (Q1–Q7 accepted), plan (D1–D3 accepted; AC-3 reworded to identical inputs), tasks. T001: the

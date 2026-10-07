@@ -85,3 +85,13 @@ runs once, at the end of each spec, as a Definition of Done gate in `/spec-verif
 and `/spec-implement`).
 **Consequences:** Tasks finish faster. A regression in another area may only show up at verification, and is fixed
 before the spec is marked Implemented. `workflow.md`, `constitution.md` and `.claude/commands/spec-implement.md` say so.
+
+## D-008 — Track height Medium is 64 px for every track (2026-10-07, 201 T030)
+
+**Context:** Spec Q5 gives three track heights (Small 40, Medium 64, Large 96 px); the plan said the default would
+keep 2.x's row heights, but 2.x's music row is 44 px, not 64.
+**Decision:** One set of sizes for every track; Medium (the default) is 64 px, so the music row grows from 44 px.
+Only the editor changes; videos are unchanged.
+**Alternatives:** sizes per track kind (music 28 / 44 / 72); music starting at Small (40 px).
+**Consequences:** room in the header for the track name above its three 24 px buttons, and for the waveform. Spec
+Changelog and plan §4 updated.

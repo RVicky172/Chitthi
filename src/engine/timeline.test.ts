@@ -7,8 +7,10 @@ import {
   defaultTracks,
   framePlan,
   fromSequence,
+  lockedReason,
   mergeProject,
   pack,
+  patchTrack,
   projectLength,
   toDocument,
   videoAt,
@@ -144,6 +146,36 @@ describe('tracks', () => {
   it('track limits: 8 + 8 in the desktop app, 4 + 4 in the browser', () => {
     expect(TRACK_LIMITS(true)).toEqual({ visual: 8, audio: 8 });
     expect(TRACK_LIMITS(false)).toEqual({ visual: 4, audio: 4 });
+  });
+});
+
+/* ---------- T021: track switches and the lock guard ---------- */
+
+describe('track switches (patchTrack) and the lock guard (lockedReason)', () => {
+  const tracks = defaultTracks();
+
+  it('hides a picture track, mutes a sound track and locks either', () => {
+    expect(patchTrack(tracks, MAIN_VIDEO, { hidden: true })[0]).toMatchObject({ hidden: true, muted: false });
+    expect(patchTrack(tracks, MUSIC, { muted: true })[1]).toMatchObject({ muted: true, hidden: false });
+    expect(patchTrack(tracks, MUSIC, { locked: true })[1].locked).toBe(true);
+    expect(patchTrack(tracks, MAIN_VIDEO, { locked: true })[0].locked).toBe(true);
+    expect(tracks.every((t) => !t.hidden && !t.muted && !t.locked)).toBe(true); // the input is left alone
+  });
+
+  it('a sound track has no Hide and a picture track no Mute; unknown tracks and no-ops give the same array', () => {
+    expect(patchTrack(tracks, MUSIC, { hidden: true })).toBe(tracks);
+    expect(patchTrack(tracks, MAIN_VIDEO, { muted: true })).toBe(tracks);
+    expect(patchTrack(tracks, 'X9', { locked: true })).toBe(tracks);
+    expect(patchTrack(tracks, MAIN_VIDEO, { locked: false })).toBe(tracks);
+  });
+
+  it('a locked track says why; an unlocked or unknown track lets the edit through', () => {
+    expect(lockedReason(tracks, MAIN_VIDEO)).toBeNull();
+    expect(lockedReason(tracks, 'X9')).toBeNull();
+    const locked = patchTrack(tracks, MAIN_VIDEO, { locked: true });
+    expect(lockedReason(locked, MAIN_VIDEO)).toBe('The Video track is locked. Unlock it to change its clips.');
+    expect(lockedReason(locked, MUSIC)).toBeNull();
+    expect(lockedReason(patchTrack(tracks, MUSIC, { locked: true }), MUSIC)).toMatch(/^The Music track is locked/);
   });
 });
 

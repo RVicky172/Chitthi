@@ -15,41 +15,45 @@ import {
   canEncodeVideo,
   type StreamTargetChunk,
 } from 'mediabunny';
-import type { Layer } from './layers';
 import { loadImage } from './photo';
-import { frameRange, renderFrame, timeline, totalLength, type FrameClip } from './video';
+import { audioPlan, framePlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
+import { NO_PICTURE, renderFrame, type FrameClip } from './video';
 
 /*
- * Encodes the video editor's timeline into an MP4: H.264 video and AAC sound at 48 kHz, with the index (`moov`) at the
+ * Encodes the video editor's project (tracks, engine/timeline.ts) into an MP4: H.264 video and AAC sound at 48 kHz, with the index (`moov`) at the
  * front of the file ("fast start"), which Instagram requires and YouTube processes fastest. Encoding uses the
  * browser's WebCodecs through Mediabunny (MPL-2.0, THIRD_PARTY_NOTICES.md); this module loads only on export.
  *
  * Memory stays flat however long the video is:
- *   - frames are drawn one at a time and handed to the encoder; video clips are decoded frame by frame at exactly the
- *     times needed;
- *   - sound is decoded and mixed in 10-second windows (clips' own sound plus music), interleaved with the frames;
+ *   - frames are drawn one at a time (`framePlan`) and handed to the encoder; video clips are decoded frame by frame at
+ *     exactly the times needed; a hidden video track gives black frames with the layers on top;
+ *   - sound (`audioPlan`: clips' own sound plus music, unless its track is muted) is decoded and mixed in 10-second
+ *     windows, interleaved with the frames;
  *   - long videos stream to a file (desktop: through the main process; Chrome and Edge: the File System Access API),
  *     with space reserved at the front for the index; short ones are built in memory so they can be shared.
  */
 
-export interface ExportClip extends FrameClip {
+export interface ExportClip extends FrameClip, TimedClip {
   file: Blob;
   /** Video: 0–1. */
   volume: number;
 }
 
+/** A sound clip (the music) with its file. */
+export interface ExportAudio extends AudioClip {
+  file: Blob;
+}
+
 /** Where the MP4 goes: built in memory (returned as a Blob), or streamed to a writable file. */
 export type ExportSink = { kind: 'memory' } | { kind: 'stream'; writable: WritableStream<StreamTargetChunk> };
 
-export interface ExportJob {
-  clips: ExportClip[];
-  layers: Layer[];
+/** The project to encode: its tracks, clips (with their files), sound clips and layers, and the output settings. */
+export interface ExportJob extends Project<ExportClip> {
+  audio: ExportAudio[];
   width: number;
   height: number;
   fps: number;
   bitrate: number;
-  fadeOut: boolean;
-  music: { file: Blob; volume: number; offset: number } | null;
   sink: ExportSink;
   onProgress?: (fraction: number, phase: string) => void;
   signal?: AbortSignal;
@@ -68,22 +72,14 @@ const aborted = (signal?: AbortSignal) => {
 };
 const nameOf = (b: Blob) => (b instanceof File ? b.name : 'A clip');
 
-interface AudioSource {
-  /** Timeline seconds where it starts and ends. */
-  start: number;
-  end: number;
-  /** Source seconds at `start`. */
-  from: number;
-  volume: number;
+/** A sound the mix plays (timeline times, source time, volume and its ramps), opened for decoding. */
+interface AudioSource extends SoundSource {
   sink: AudioBufferSink;
   input: Input;
-  /** Ramp the volume at its ends (clips: short ramps at cuts; music: a fade out). */
-  fadeIn: number;
-  fadeOut: number;
 }
 
-/** Opens the sound of every clip and the music, for windowed decoding. Sources without sound are left out. */
-async function openAudio(job: ExportJob, total: number): Promise<AudioSource[]> {
+/** Opens the sounds of `audioPlan` for windowed decoding. Clips without sound are left out; unreadable music fails. */
+async function openAudio(job: ExportJob): Promise<AudioSource[]> {
   const out: AudioSource[] = [];
   const open = async (file: Blob) => {
     const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
@@ -94,16 +90,15 @@ async function openAudio(job: ExportJob, total: number): Promise<AudioSource[]> 
     }
     return { input, sink: new AudioBufferSink(track) };
   };
-  for (const p of timeline(job.clips)) {
-    const c = p.clip;
-    if (c.kind !== 'video' || c.volume <= 0) continue;
-    const a = await open(c.file);
-    if (a) out.push({ ...a, start: p.start, end: p.end, from: c.in, volume: c.volume, fadeIn: 0.03, fadeOut: 0.03 });
-  }
-  if (job.music && job.music.volume > 0) {
-    const a = await open(job.music.file);
-    if (!a) throw new ExportError('The music file couldn’t be read. Try an MP3, M4A or WAV file.');
-    out.push({ ...a, start: 0, end: total, from: Math.max(0, job.music.offset), volume: job.music.volume, fadeIn: 0, fadeOut: Math.min(1.5, total / 3) });
+  const clipFiles = new Map(job.clips.map((c) => [c.id, c.file]));
+  const audioFiles = new Map(job.audio.map((a) => [a.id, a.file]));
+  for (const s of audioPlan(job)) {
+    const music = audioFiles.get(s.ref);
+    const file = music ?? clipFiles.get(s.ref);
+    if (!file) continue;
+    const a = await open(file);
+    if (!a && music) throw new ExportError('The music file couldn’t be read. Try an MP3, M4A or WAV file.');
+    if (a) out.push({ ...s, ...a });
   }
   return out;
 }
@@ -148,14 +143,14 @@ async function mixWindow(sources: AudioSource[], t0: number, len: number): Promi
 /** Renders and encodes the whole timeline. Resolves with the MP4 when built in memory, or null once streamed. */
 export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   const { width: W, height: H, fps } = job;
-  const total = totalLength(job.clips);
+  const total = projectLength(job);
   if (!job.clips.length || total <= 0) throw new ExportError('Add photos or videos first.');
   if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate: job.bitrate })))
     throw new ExportError(`This ${typeof window !== 'undefined' && 'chitthiDesktop' in window ? 'computer' : 'browser'} can’t make H.264 video at ${W}×${H}. Choose a smaller size, or use Chrome, Edge or the Chitthi Studio desktop app.`);
   const withSound = await canEncodeAudio('aac', { numberOfChannels: 2, sampleRate: SAMPLE_RATE, bitrate: 128000 });
 
   job.onProgress?.(0, 'Opening the sound…');
-  const sources = withSound ? await openAudio(job, total) : [];
+  const sources = withSound ? await openAudio(job) : [];
   aborted(job.signal);
 
   const canvas = document.createElement('canvas');
@@ -193,18 +188,21 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
       if (done % 10 === 0) job.onProgress?.(done / frames, `Encoding frame ${done.toLocaleString()} of ${frames.toLocaleString()}…`);
       aborted(job.signal);
     };
-    for (const p of timeline(job.clips)) {
-      const c = p.clip;
-      const [f0, f1] = frameRange(p.start, p.end, fps);
-      const last = Math.min(f1, frames);
-      if (f0 >= last) continue;
-      if (c.kind === 'photo') {
+    for (const { clip: c, f0, f1: last, start } of framePlan(job, fps)) {
+      if (!c) {
+        // The video track is hidden: black frames, the layers still on top.
+        for (let i = f0; i < last; i++) {
+          const t = i / fps;
+          renderFrame(ctx, W, H, NO_PICTURE, null, 0, 0, t - start, job.layers, t, total, job.fadeOut);
+          await step(t);
+        }
+      } else if (c.kind === 'photo') {
         const url = URL.createObjectURL(c.file);
         try {
           const img = await loadImage(url);
           for (let i = f0; i < last; i++) {
             const t = i / fps;
-            renderFrame(ctx, W, H, c, img, img.naturalWidth, img.naturalHeight, t - p.start, job.layers, t, total, job.fadeOut);
+            renderFrame(ctx, W, H, c, img, img.naturalWidth, img.naturalHeight, t - start, job.layers, t, total, job.fadeOut);
             await step(t);
           }
         } finally {
@@ -218,7 +216,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
           if (!(await track.canDecode())) throw new ExportError(`${nameOf(c.file)} uses a video format this ${'chitthiDesktop' in window ? 'computer' : 'browser'} can’t decode (often HEVC from an iPhone).`);
           // Decode no wider than needed for this frame size at up to 1.8× zoom.
           const sink = new CanvasSink(track, { width: Math.min(track.displayWidth, Math.round(Math.max(W, H) * 1.8)), poolSize: 2 });
-          const times = Array.from({ length: last - f0 }, (_, k) => c.in + (f0 + k) / fps - p.start);
+          const times = Array.from({ length: last - f0 }, (_, k) => c.in + (f0 + k) / fps - start);
           let i = f0;
           let prev: CanvasImageSource | null = null,
             pw = 0,
@@ -230,14 +228,14 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
               ph = wc.canvas.height;
             }
             const t = i / fps;
-            renderFrame(ctx, W, H, c, prev, pw, ph, t - p.start, job.layers, t, total, job.fadeOut);
+            renderFrame(ctx, W, H, c, prev, pw, ph, t - start, job.layers, t, total, job.fadeOut);
             await step(t);
             if (++i >= last) break;
           }
           // A source shorter than its trim: hold the last frame.
           for (; i < last; i++) {
             const t = i / fps;
-            renderFrame(ctx, W, H, c, prev, pw, ph, t - p.start, job.layers, t, total, job.fadeOut);
+            renderFrame(ctx, W, H, c, prev, pw, ph, t - start, job.layers, t, total, job.fadeOut);
             await step(t);
           }
         } finally {

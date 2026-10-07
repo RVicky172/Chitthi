@@ -3,18 +3,21 @@ import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, type IgEdit } from '../engine/instagram';
 import type { Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
-import { V_PHOTO_SECONDS, bitrateFor, clipLength, formatsFor, limitsFor, totalLength, vFormat, type Motion, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/video';
+import { MAIN_VIDEO, MUSIC, defaultTracks, lockedReason, pack, patchTrack, projectLength, type AudioClip, type Project, type Track } from '../engine/timeline';
+import { V_PHOTO_SECONDS, bitrateFor, clipLength, formatsFor, limitsFor, vFormat, type Motion, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/video';
 import { logError } from '../lib/errors';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
 import { isDesktop } from '../platform/desktop';
 import type { LayerTools } from './instagram';
 
 /*
- * The video editor's state: clips (photos and video files) in order, layers over the whole timeline, music, the
- * playhead and the export. One project at a time, made as a Reel / Short (vertical) or a YouTube video (16:9);
- * switching between them keeps the clips and changes the frame. Memory: video clips stay as their files (played
- * through <video> elements while editing, decoded frame by frame on export); photos keep their file and a preview copy
- * of at most 1080 px. Undo covers the clips and layers. The project lasts for this session.
+ * The video editor's state: tracks (engine/timeline.ts), clips (photos and video files) in order on the main video
+ * track, layers over the whole timeline, music on the music track, the playhead and the export. Every change to the
+ * clips packs them end to end (`pack`), so each clip's `start` is where 2.x placed it. One project at a time, made as
+ * a Reel / Short (vertical) or a YouTube video (16:9); switching between them keeps the clips and changes the frame.
+ * Memory: video clips stay as their files (played through <video> elements while editing, decoded frame by frame on
+ * export); photos keep their file and a preview copy of at most 1080 px. Undo covers the tracks, clips and layers.
+ * The project lasts for this session.
  */
 
 const PREVIEW_MAX = 1080;
@@ -23,6 +26,10 @@ const STRIP_FRAMES = 8;
 export interface VClip {
   id: string;
   kind: 'photo' | 'video';
+  /** The track it is on (201: always the main video track). */
+  track: string;
+  /** Seconds from the start of the video; set by `pack` on every change. */
+  start: number;
   name: string;
   file: Blob;
   /** Object URL of the file, for <video> playback and thumbnails. */
@@ -52,6 +59,8 @@ export interface VClip {
 }
 
 export interface VMusic {
+  /** The music track. */
+  track: string;
   file: Blob;
   name: string;
   url: string;
@@ -63,8 +72,14 @@ export interface VMusic {
   peaks: number[];
 }
 
+/** A track's height on the timeline (Q5): small 40 px, medium 64 px (2.x's rows), large 96 px. */
+export type TrackHeight = 'small' | 'medium' | 'large';
+
 export interface VState {
   kind: VKind;
+  tracks: Track[];
+  /** Track heights by track id (a view setting: not undone, lasts for the session); missing = medium. */
+  trackView: Record<string, TrackHeight>;
   clips: VClip[];
   selected: string | null;
   format: VFormatId;
@@ -94,6 +109,8 @@ export interface VState {
 
 let state: VState = {
   kind: 'reel',
+  tracks: defaultTracks(),
+  trackView: {},
   clips: [],
   selected: null,
   format: 'reel',
@@ -116,7 +133,7 @@ let state: VState = {
 };
 
 const listeners = new Set<() => void>();
-const PURE = ['selected', 'layerSel', 'tools', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo'];
+const PURE = ['selected', 'layerSel', 'tools', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo'];
 function set(patch: Partial<VState>): void {
   // Anything that changes the video makes the last export stale.
   const stale = Object.keys(patch).some((k) => !PURE.includes(k));
@@ -139,7 +156,14 @@ export function useVideo<T>(sel: (s: VState) => T): T {
 
 /** This project's limits in this app (browser or desktop). */
 export const limits = (kind: VKind = state.kind): VLimits => limitsFor(kind, isDesktop);
-export const total = () => totalLength(state.clips);
+/** The video's length with these clips (packed first, as every change does). */
+const lengthOf = (clips: VClip[], tracks: Track[] = state.tracks) =>
+  projectLength({ tracks, clips: pack(clips), audio: [], layers: [], fadeOut: false });
+/** The state as the track model sees it (engine/timeline.ts): for the preview, the timeline and the export. */
+export const projectOf = (s: VState = state): Project<VClip> => ({ tracks: s.tracks, clips: s.clips, audio: musicClips(s.music), layers: s.layers, fadeOut: s.fadeOut });
+/** The video's length (a selector: `useVideo(videoLength)`). */
+export const videoLength = (s: VState) => projectLength(projectOf(s));
+export const total = () => videoLength(state);
 export const setPlayhead = (t: number) => set({ t: Math.max(0, Math.min(t, total())) });
 export const selectClip = (id: string | null) => set({ selected: id });
 export const selectVLayer = (id: string | null) => set({ layerSel: id });
@@ -156,8 +180,9 @@ export function setKind(kind: VKind): void {
   set({ kind, format: f.id, fps });
 }
 
-/* ---------- undo / redo (clips and layers) ---------- */
+/* ---------- undo / redo (tracks, clips and layers) ---------- */
 interface Snap {
+  tracks: Track[];
   clips: VClip[];
   layers: Layer[];
 }
@@ -165,7 +190,7 @@ const past: Snap[] = [];
 const future: Snap[] = [];
 let lastKey = '',
   lastAt = 0;
-const snap = (): Snap => ({ clips: state.clips, layers: state.layers });
+const snap = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers });
 function record(key: string): void {
   const now = Date.now();
   if (key && key === lastKey && now - lastAt < 800) {
@@ -185,11 +210,12 @@ export const endVStep = () => {
 function restore(s: Snap): void {
   lastKey = '';
   set({
+    tracks: s.tracks,
     clips: s.clips,
     layers: s.layers,
     selected: s.clips.some((c) => c.id === state.selected) ? state.selected : (s.clips[0]?.id ?? null),
     layerSel: s.layers.some((l) => l.id === state.layerSel) ? state.layerSel : null,
-    t: Math.min(state.t, totalLength(s.clips)),
+    t: Math.min(state.t, lengthOf(s.clips, s.tracks)),
     ...flags(),
   });
 }
@@ -205,11 +231,28 @@ export function redoV(): void {
   past.push(snap());
   restore(s);
 }
+/** Every undoable change goes through here; changed clips are packed end to end (the one place `pack` runs). */
 function change(key: string, patch: Partial<Snap>, extra: Partial<VState> = {}): void {
   record(key);
+  if (patch.clips) patch = { ...patch, clips: pack(patch.clips) };
   const clips = patch.clips ?? state.clips;
-  set({ ...patch, ...flags(), ...extra, t: Math.min(extra.t ?? state.t, totalLength(clips)) });
+  set({ ...patch, ...flags(), ...extra, t: Math.min(extra.t ?? state.t, lengthOf(clips, patch.tracks)) });
 }
+
+/* ---------- tracks ---------- */
+/** Hides / mutes / locks a track (one undo step each; Hide is for picture tracks, Mute for sound tracks). */
+export function setTrack(id: string, patch: Partial<Pick<Track, 'hidden' | 'muted' | 'locked'>>): void {
+  const tracks = patchTrack(state.tracks, id, patch);
+  if (tracks !== state.tracks) change('', { tracks });
+}
+export const setTrackHeight = (id: string, height: TrackHeight) => set({ trackView: { ...state.trackView, [id]: height } });
+/** Why a clip can't be changed (its track is locked), or null. */
+export const clipLocked = (id: string): string | null => {
+  const c = state.clips.find((x) => x.id === id);
+  return c ? lockedReason(state.tracks, c.track) : null;
+};
+/** Why the music can't be changed (its track is locked), or null. */
+export const musicLocked = (): string | null => lockedReason(state.tracks, MUSIC);
 
 /* ---------- clips ---------- */
 let seq = 0;
@@ -238,7 +281,7 @@ async function photoClip(name: string, file: Blob): Promise<VClip> {
   still.height = Math.max(1, Math.round(h * k));
   still.getContext('2d')?.drawImage(img, 0, 0, still.width, still.height);
   const thumb = thumbOf(still, still.width, still.height);
-  return { id: newId(), kind: 'photo', name, file, url, w, h, srcDur: 0, dur: V_PHOTO_SECONDS, in: 0, out: 0, edit: { ...DEFAULT_EDIT }, motion: 'zoom-in', fade: false, volume: 0, thumb, strip: [thumb], still };
+  return { id: newId(), kind: 'photo', track: MAIN_VIDEO, start: 0, name, file, url, w, h, srcDur: 0, dur: V_PHOTO_SECONDS, in: 0, out: 0, edit: { ...DEFAULT_EDIT }, motion: 'zoom-in', fade: false, volume: 0, thumb, strip: [thumb], still };
 }
 
 /** Seeks a <video> and resolves once the frame is there. */
@@ -282,6 +325,8 @@ function videoClip(name: string, file: Blob): Promise<VClip> {
         resolve({
           id: newId(),
           kind: 'video',
+          track: MAIN_VIDEO,
+          start: 0,
           name,
           file,
           url,
@@ -344,9 +389,11 @@ const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i;
 export async function addMedia(files: { name: string; blob: Blob; type?: string }[]): Promise<string[]> {
   const L = limits();
   const msgs: string[] = [];
+  const locked = lockedReason(state.tracks, MAIN_VIDEO);
+  if (locked) return [locked];
   set({ busy: 'Adding to the timeline…' });
   const added: VClip[] = [];
-  let length = totalLength(state.clips);
+  let length = total();
   const where = isDesktop ? '' : ' in the browser (the desktop app allows more)';
   for (const f of files) {
     if (state.clips.length + added.length >= L.clips) {
@@ -406,10 +453,11 @@ const fmtLimit = (s: number) =>
   s >= 3600 ? `${(s / 3600).toFixed(s % 3600 ? 1 : 0)} hours` : s >= 60 && s % 60 === 0 ? (s === 60 ? '1 minute' : `${s / 60} minutes`) : `${Math.round(s)} seconds`;
 export const limitText = fmtLimit;
 
-/** Changes a clip; refused (false) if it would make the video longer than this project allows. */
+/** Changes a clip; refused (false) if its track is locked or it would make the video longer than this project allows. */
 export function updateClip(id: string, patch: Partial<VClip>, key = `clip:${id}:${Object.keys(patch).sort().join(',')}`): boolean {
+  if (clipLocked(id)) return false;
   const clips = state.clips.map((c) => (c.id === id ? { ...c, ...patch } : c));
-  if (totalLength(clips) - limits().seconds > 0.01) return false;
+  if (lengthOf(clips) - limits().seconds > 0.01) return false;
   change(key, { clips });
   return true;
 }
@@ -422,44 +470,49 @@ export const adjustClip = (id: string, patch: Partial<Adjustments>) => {
   if (c) updateClip(id, { edit: { ...c.edit, adjust: { ...c.edit.adjust, ...patch } } }, `clipadjust:${id}:${Object.keys(patch).sort().join(',')}`);
 };
 
-export function removeClip(id: string): void {
+/* Clip actions are refused (false) on a locked track; `clipLocked` says why. */
+export function removeClip(id: string): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
-  if (i < 0) return;
+  if (i < 0 || clipLocked(id)) return false;
   // The object URL is kept while the clip can still come back through undo; it goes when the page closes.
   const clips = state.clips.filter((c) => c.id !== id);
   change('', { clips }, { selected: state.selected === id ? (clips[Math.min(i, clips.length - 1)]?.id ?? null) : state.selected });
+  return true;
 }
 
-export function moveClip(id: string, by: -1 | 1): void {
+export function moveClip(id: string, by: -1 | 1): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
-  moveClipTo(id, i + by);
+  return moveClipTo(id, i + by);
 }
 /** Moves a clip to a new place in the order (dragging on the timeline). */
-export function moveClipTo(id: string, index: number): void {
+export function moveClipTo(id: string, index: number): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
   const j = Math.max(0, Math.min(state.clips.length - 1, index));
-  if (i < 0 || i === j) return;
+  if (i < 0 || i === j || clipLocked(id)) return false;
   const clips = state.clips.slice();
   const [c] = clips.splice(i, 1);
   clips.splice(j, 0, c);
   change('', { clips });
+  return true;
 }
 
-export function duplicateClip(id: string): void {
+export function duplicateClip(id: string): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
   const c = state.clips[i];
-  if (!c || totalLength(state.clips) + clipLength(c) > limits().seconds || state.clips.length >= limits().clips) return;
+  if (!c || clipLocked(id) || total() + clipLength(c) > limits().seconds || state.clips.length >= limits().clips) return false;
   const clips = state.clips.slice();
   clips.splice(i + 1, 0, { ...c, id: newId(), fade: false });
   change('', { clips }, { selected: clips[i + 1].id });
+  return true;
 }
 
-/** Splits the clip under the playhead into two clips. */
+/** Splits the clip under the playhead into two clips (not on a locked track). */
 export function splitAtPlayhead(): boolean {
   let t0 = 0;
   for (const [i, c] of state.clips.entries()) {
     const len = clipLength(c);
     if (state.t > t0 + 0.2 && state.t < t0 + len - 0.2) {
+      if (clipLocked(c.id)) return false;
       const local = state.t - t0;
       const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local } : { ...c, dur: local };
       const b: VClip = c.kind === 'video' ? { ...c, id: newId(), in: c.in + local, fade: false } : { ...c, id: newId(), dur: len - local, fade: false };
@@ -516,6 +569,8 @@ async function measurePeaks(file: Blob, n = 800): Promise<number[]> {
 }
 
 export async function setMusicFile(file: File): Promise<string | null> {
+  const locked = musicLocked();
+  if (locked) return locked;
   if (!/^audio\//.test(file.type) && !AUDIO_EXT.test(file.name)) return `${file.name} isn’t a sound file. Use MP3, M4A, WAV, OGG or FLAC.`;
   if (file.size > 100 * 1048576) return `${file.name} is too large. Music files up to 100 MB can be added.`;
   const url = URL.createObjectURL(file);
@@ -528,7 +583,7 @@ export async function setMusicFile(file: File): Promise<string | null> {
       a.src = url;
     });
     if (state.music) URL.revokeObjectURL(state.music.url);
-    set({ music: { file, name: file.name, url, dur, volume: 0.8, offset: 0, peaks: [] } });
+    set({ music: { track: MUSIC, file, name: file.name, url, dur, volume: 0.8, offset: 0, peaks: [] } });
     void measurePeaks(file)
       .then((peaks) => state.music?.url === url && set({ music: { ...state.music, peaks } }))
       .catch(() => undefined);
@@ -539,10 +594,20 @@ export async function setMusicFile(file: File): Promise<string | null> {
     return `${file.name} couldn’t be played here.`;
   }
 }
-export const updateMusic = (patch: Partial<Pick<VMusic, 'volume' | 'offset'>>) => state.music && set({ music: { ...state.music, ...patch } });
-export function removeMusic(): void {
+/** The music as a sound clip on its track (as `fromSequence` makes it): from its offset to the end of the video. */
+export const musicClips = (m: VMusic | null = state.music): (AudioClip & { file: Blob })[] =>
+  m ? [{ id: 'music', track: m.track, start: 0, in: m.offset, volume: m.volume, toEnd: true, srcDur: m.dur, file: m.file }] : [];
+/* Music changes are refused (false) while the music track is locked; `musicLocked` says why. */
+export function updateMusic(patch: Partial<Pick<VMusic, 'volume' | 'offset'>>): boolean {
+  if (!state.music || musicLocked()) return false;
+  set({ music: { ...state.music, ...patch } });
+  return true;
+}
+export function removeMusic(): boolean {
+  if (musicLocked()) return false;
   if (state.music) URL.revokeObjectURL(state.music.url);
   set({ music: null });
+  return true;
 }
 
 /* ---------- export ---------- */
@@ -568,14 +633,15 @@ export async function exportVideo(): Promise<ExportOutcome> {
   try {
     const { encodeVideo } = await import('../engine/videoExport');
     const blob = await encodeVideo({
-      clips: state.clips.map((c) => ({ kind: c.kind, dur: c.dur, in: c.in, out: c.out, edit: c.edit, motion: c.motion, fade: c.fade, file: c.file, volume: c.volume })),
+      tracks: state.tracks,
+      clips: state.clips.map((c) => ({ id: c.id, track: c.track, start: c.start, kind: c.kind, dur: c.dur, in: c.in, out: c.out, edit: c.edit, motion: c.motion, fade: c.fade, file: c.file, volume: c.volume })),
+      audio: musicClips(),
       layers: state.layers,
       width: f.w,
       height: f.h,
       fps: state.fps,
       bitrate: bitrateFor(f, state.fps, state.quality),
       fadeOut: state.fadeOut,
-      music: state.music ? { file: state.music.file, volume: state.music.volume, offset: state.music.offset } : null,
       sink: sink ? { kind: 'stream', writable: sink.writable } : { kind: 'memory' },
       signal: ctl.signal,
       onProgress: (frac, phase) => set({ progress: { frac, phase } }),

@@ -126,56 +126,165 @@ anything surprising or deferred.
 
 ## Core: store and export
 
-- [ ] **T020** — Store (§3): `tracks`, clips with `track` / `start`, music on `A1`, `pack` in `change()`, `total()`
+- [x] **T020** — Store (§3): `tracks`, clips with `track` / `start`, music on `A1`, `pack` in `change()`, `total()`
       from `projectLength`, undo snapshots with `tracks`; no UI change yet (positions equal by construction). · files:
       `src/state/video.ts` · test: `npm run check`; the three video e2e tests pass unchanged
-- [ ] **T021** — Track actions and lock guards (§3): `setTrack` (hidden / muted / locked, undoable),
+  - **Result (2026-10-07):** `VState.tracks` (`defaultTracks()`), `VClip.track` / `start` (new clips on `V1`, start
+    0 until packed), `VMusic.track` = `A1`; `change()` packs any changed clips (the one place `pack` runs); `total()`
+    and every length check in the store (`restore`, `change`, `addMedia`, `updateClip`, `duplicateClip`) read
+    `projectLength` through a local `lengthOf(clips, tracks)`; undo snapshots hold `tracks`. No `totalLength` left in
+    the store; components and export still use the 2.x functions until T022 / T023 (same numbers: `pack` sums as 2.x
+    did). `npm run check` 880 tests; the 5 video e2e tests (Reel, timeline edits, YouTube, a11y, Reel with a look)
+    pass unchanged. No break-test here: nothing reads `start` yet; T022's export (`framePlan`) and T040 will.
+- [x] **T021** — Track actions and lock guards (§3): `setTrack` (hidden / muted / locked, undoable),
       `setTrackHeight` (`trackView`, not undoable, PURE), every clip action and `addMedia` / music changes refuse on a
       locked track with a reason. Unit-test the pure guard helper. · files: `src/state/video.ts`,
       `src/engine/timeline.ts` (+ test) · test: unit + `npm run check`
-- [ ] **T022** — Export (§4): `videoExport.ts` frame loop over `framePlan`, hidden frames with `src = null`, sound via
+  - **Result (2026-10-07):** 3 tests written first (failed: not a function), then in `timeline.ts`
+    `patchTrack(tracks, id, patch)` (Hide only on picture tracks, Mute only on sound tracks, Lock on both; the same
+    array back when nothing changes) and `lockedReason(tracks, id)` ("The Video track is locked. Unlock it to change
+    its clips."). Store: `setTrack` (one undo step per switch: key `''` rather than the plan's
+    `track:<id>:<field>`, so two quick toggles don't merge into a step that undoes nothing; plan updated),
+    `trackView` + `setTrackHeight` (`TrackHeight` small / medium / large, PURE, not undone), `clipLocked(id)` /
+    `musicLocked()` for the UI's messages. Refused on a locked track (now return `false`): `updateClip` (so
+    `editClip`, `adjustClip`), `removeClip`, `moveClip` / `moveClipTo`, `duplicateClip`, `splitAtPlayhead`,
+    `updateMusic`, `removeMusic`; `addMedia` / `setMusicFile` return the reason as their message. Layers aren't on
+    tracks (Q2), so not guarded. Break-test: Hide allowed on a sound track → 1 test failed, restored. `npm run check`
+    883 tests; video e2e 5 passed.
+- [x] **T022** — Export (§4): `videoExport.ts` frame loop over `framePlan`, hidden frames with `src = null`, sound via
       `audioPlan`; `exportVideo` builds the job from the project. · files: `src/engine/videoExport.ts`,
       `src/state/video.ts` · test: T010's plan tests; `npm run test:e2e` (Reel and YouTube exports)
-- [ ] **T023** — Remove the old placement callers: `timeline()` / `clipAt()` / `totalLength()` uses in the
+  - **Result (2026-10-07):** test first: the self-test's export job (`videoTiming`) moved to the new shape (tracks,
+    clips with `id` / `track` / `start`, `audio`), which failed to typecheck against the 2.x `ExportJob`. Then
+    `ExportJob extends Project<ExportClip>` with `audio: ExportAudio[]` (sound clips with their files; `music` field
+    gone); the frame loop walks `framePlan(job, fps)`, a `null` clip (hidden `V1`) drawn as `NO_PICTURE` (new in
+    `video.ts`: black, layers, the video's fade-out; `renderFrame` unchanged); `openAudio` walks `audioPlan(job)` and
+    finds each source's file by id (`AudioSource` is now `SoundSource` + the decoder); length from `projectLength`.
+    Store: `exportVideo` passes `tracks`, the clips with `id` / `track` / `start`, and `musicClips()` (the music as a
+    sound clip, as `fromSequence` makes it). `npm run check` 883; video e2e 5 passed; `npm test` 6,117 passed, 0
+    failed, export fastest 2.78 s (T041 bar ≤ 2.90 s). Break-test: music left out of the file lookup → the Reel e2e
+    failed (no `mp4a` track), restored → passed.
+- [x] **T023** — Remove the old placement callers: `timeline()` / `clipAt()` / `totalLength()` uses in the
       components and `videoExport.ts` move to `timeline.ts`; `engine/video.ts` keeps formats, motion, `renderFrame`;
       update `layers.test.ts`'s "video timeline" tests to the new functions (the reference keeps the old ones). ·
       files: `src/engine/video.ts`, `src/components/studio/*.tsx`, `src/engine/layers.test.ts` · test: `npm run check`,
       e2e
+  - **Result (2026-10-07):** `timeline()`, `clipAt()`, `totalLength()` and `Placed` removed from `engine/video.ts`;
+    no caller left outside the frozen reference. Store: `projectOf(s)` (the state as a `Project`, music via
+    `musicClips`) and `videoLength(s)` (a selector); `total()` reads it. `Timeline.tsx` places blocks from
+    `clip.start` (main track) and reads `useVideo(videoLength)`; `VideoWorkspace.tsx`: the preview and the `<video>`
+    sync pick the clip with `videoAt(projectOf(s), t)` and use its `local` time (= t − start, as before), lengths
+    via `videoLength`. Self-test's timing preview now runs the editor's new path (`videoAt`). Tests:
+    `layers.test.ts` "video timeline" on `pack` / `projectLength` / `videoAt` / `framePlan`;
+    `timeline.testkit.test.ts` keeps fixtures, clip lengths and frame ranges (its `timeline` / `clipAt` comparisons
+    went with the functions, as its header said; `timeline.test.ts` proves the equivalence). **Gap found:** blocks
+    all drawn at 0 still passed every video e2e test, so a new e2e test "clips sit end to end on the timeline"
+    checks block positions (180 px apart for 3 s photos); break-test: positions at 0 → it failed, restored → passed.
+    `npm run check` 883; video e2e 6 passed; `npm test` 6,117 / 0 failed, preview fastest 10.5 ms (bar ≤ 12.0),
+    export fastest 2.76 s (bar ≤ 2.90); entry 327 KB.
 
 ## UI
 
-- [ ] **T030** — Tests first: new e2e test in `e2e/editors.e2e.ts`: the Video and Music headers are groups with
+- [x] **T030** — Tests first: new e2e test in `e2e/editors.e2e.ts`: the Video and Music headers are groups with
       Hide / Mute, Lock and Height buttons (by role and name); keyboard only; Hide → preview black with layers; Mute →
       music muted; Lock → drag, trim, Delete, S, Ctrl+D refused with the message; undo / redo of hide, mute, lock;
       height Small / Medium / Large changes the row and survives undo; axe; Pixel 7 project. · files:
       `e2e/editors.e2e.ts` · test: fails
-- [ ] **T031** — Track headers in `Timeline.tsx` (buttons, height menu with arrow keys / Home / End / Escape, icons
+  - **Result (2026-10-07):** new `describe('video track headers')` in `e2e/editors.e2e.ts`, 4 tests (2 also on the
+    phone project; the drag / playback ones desktop only). Names fixed here for T031: groups "Video track" / "Music
+    track"; toggle buttons "Hide Video", "Lock Video", "Mute Music", "Lock Music" (`aria-pressed`); menu buttons
+    "Video track height" / "Music track height" opening a `menu` of the same name with `menuitemradio` Small /
+    Medium / Large (focus on the checked one; arrows, Home, Enter, Escape back to the button). Checks: Hide → preview
+    black at 3 points, undo / redo; Mute → the music `<audio>` starts muted (`play()` recorded by an init script),
+    undo; Lock → drag, trim, S, Delete key, Duplicate and Delete buttons refused with the toast "The Video track is
+    locked. Unlock it to change its clips.", still plays, undo unlocks while the height (Large, 96 px) stays; rows 64
+    px by default (Music too: Q5 as changed, maintainer's call), 40 / 96 px; axe on `.tl`; at 360 px all six buttons
+    visible and no sideways scroll. All 6 runs fail on the missing header (setup steps pass). **Not in the code:**
+    there is no Ctrl+D or Alt+arrow in the video editor (AC-4 and this task name them), so the lock test uses the
+    Duplicate button; adding the shortcuts is out of 201's scope (flagged for the verify step).
+- [x] **T031** — Track headers in `Timeline.tsx` (buttons, height menu with arrow keys / Home / End / Escape, icons
       from lucide-react, labels for screen readers, icons-only ≤ 600 px) and styles (three heights, lock badge, header
       controls) in `styles/36-media-studio.css`. · files: `src/components/studio/Timeline.tsx`,
       `src/styles/36-media-studio.css` · test: T030 header parts
-- [ ] **T032** — Behaviour: preview via `videoAt` (hidden → black + layers), music `<audio>` muted with `A1`, clip
+  - **Result (2026-10-07):** `TrackHead` and `HeightMenu` in `Timeline.tsx`: the header column's Video and Music
+    cells (were `aria-hidden` labels) are `role="group"` "Video track" / "Music track" with the name (hidden at
+    Small) above three 24 px icon buttons: Hide / Mute and Lock (`aria-pressed`, `setTrack`), and the height menu
+    button (`aria-haspopup="menu"`), whose `menu` of `menuitemradio` Small / Medium / Large is fixed-positioned (the
+    timeline scrolls and would clip it; opens upwards near the window's bottom) and handles arrows, Home / End,
+    Enter, Escape / Tab (focus back to the button) and a click outside. Row heights inline from `trackView`
+    (`TRACK_PX` 40 / 64 / 96; Music 64 by default, D-008); the waveform redraws at the row's height; hidden or muted
+    rows dimmed (`.tl-off`). Timeline keys (Space, S, Delete, arrows, Home / End) ignore the header column, so its
+    buttons and menu keep their own keys. New icons `HideIcon`, `MuteIcon`, `LockIcon` (state-showing), `HeightIcon`
+    from lucide-react (already a dependency). Icons only at every width (plan updated: no room for words in the
+    84 px column). **Gotcha:** focusing the checked item one frame later (`requestAnimationFrame`, as `MoreMenu`
+    does) lost fast key presses to the button; a `useLayoutEffect` focus fixed it (3 × 4 runs green). T030: the
+    header test and the axe / 360 px test pass on desktop and phone; Hide / Mute / Lock behaviour tests still fail
+    (T032). Existing video e2e 6 passed; `npm run check` 883. Break-test: Escape ignored in the menu → the header
+    test failed, restored → passed.
+- [x] **T032** — Behaviour: preview via `videoAt` (hidden → black + layers), music `<audio>` muted with `A1`, clip
       sound kept when `V1` hidden (D2), locked clips not selectable / draggable, keyboard shortcuts refused with a
       toast, read-only inspector. · files: `src/components/studio/VideoWorkspace.tsx`, `Timeline.tsx` · test: T030
       passes; all e2e (AC-4, AC-8, AC-10, AC-11)
+  - **Result (2026-10-07):** preview (`VideoStage`): with no clip from `videoAt` (video track hidden) it draws
+    `NO_PICTURE` at `t`, black with the layers and the fade-out, as the export does; redraws when tracks change.
+    The `<video>` sync finds the clip as if the track were shown, so a hidden track's clips keep their sound (D2).
+    The music `<audio>` gets `muted` from the music track before `play()` and live while playing. Timeline: clips on
+    a locked track get a lock badge and `not-allowed` cursor; body and edge drags, S / Split, Delete / Backspace and
+    the Duplicate / Delete buttons are refused with the toast "The Video track is locked. Unlock it to change its
+    clips." (`refused()`, `split()`); dragging the music when its track is locked too. Inspector: the clip panel
+    (and the music panel) sit in a disabled `<fieldset>` with the reason above. **Found here:** the height menu,
+    inside the sticky header column, was painted under the clip blocks (they took its clicks); it now renders in a
+    portal on `document.body`, stopping key propagation (React events bubble out of portals to the timeline's
+    keys). T030 all green: video e2e 11 passed (7 phone skips); `npm run check` 883; `npm test` 6,117 / 0 failed,
+    preview fastest 10.9 ms, export fastest 2.66 s. Break-tests: music not muted at `play()` → the Hide / Mute test
+    failed; locked clips draggable → the lock test failed; both restored → passed. Screenshot checked (headers,
+    lock badges, dimmed muted row, menu above the clips).
 
 ## Self-test
 
-- [ ] **T040** — Self-test video section (§5): for the fixtures at 9:16, 4:5, 1:1, 16:9 (with layers, fade-out,
+- [x] **T040** — Self-test video section (§5): for the fixtures at 9:16, 4:5, 1:1, 16:9 (with layers, fade-out,
       music), 10 sample times each, the frame through the reference path and through `videoAt` on Canvas 2D:
       pixel-identical; hidden `V1` → black + layers. Break-test: shift one clip's start by a frame, see it fail,
       restore. · files: `src/dev/selftest.ts` · test: `npm test` (AC-3, AC-9)
-- [ ] **T041** — Timing after the change (AC-5): T002's check on the new code, 3 runs; within 5% of T002's numbers
+  - **Result (2026-10-07):** `trackChecks()` in `src/dev/videoChecks.ts` (7 checks). Pixel identity: 5 2.x shapes
+    (photo-only with a fade, mixed photos and videos, music with an offset, timed layers, no fade-out) at 9:16, 4:5,
+    1:1 and 16:9, 10 times each (the cuts, just before them, and evenly through): the frame drawn through the frozen
+    2.x placement (`legacyTimeline` / `legacyClipAt`) and through `videoAt` are the same bytes, **200 frames**.
+    Hidden `V1`: `videoAt` null and `NO_PICTURE` draws black with a red layer on top (corner 0/0/0, layer 255/0/0).
+    Exports (320 × 320, decoded): hidden `V1` → corner black, middle the layer's red; shown → the photo; music
+    muted → no AAC track and no sound sources, unmuted → AAC. `decodedColours` takes a point now. Break-test: one
+    clip's start shifted by a frame in the model path → **4 checks failed** (every ratio, up to 388,800 bytes
+    differing), restored. `npm test` 6,124 passed, 0 failed.
+- [x] **T041** — Timing after the change (AC-5): T002's check on the new code, 3 runs; within 5% of T002's numbers
       (median). · test: `npm test` timing line vs T002
+  - **Result (2026-10-07):** T002's check on the new code, fastest of 3 runs, in five self-test sessions after
+    the change (bar: preview ≤ 12.0 ms, export ≤ 2.90 s, the slowest 2.x session's fastest + 5%): T023 10.5 ms /
+    2.76 s; T032 10.9 / 2.66; T040 11.0 / 2.73; verification 10.6 / 2.64. All within the bar (2.x: 10.1–11.4 ms,
+    2.64–2.76 s). AC-5 met.
 
 ## Verify
 
-- [ ] **T090** — Docs (AC-12): `docs/MEDIA-STUDIO.md` (tracks and headers, Hide vs Mute, lock, heights),
+- [x] **T090** — Docs (AC-12): `docs/MEDIA-STUDIO.md` (tracks and headers, Hide vs Mute, lock, heights),
       `specs/lld.md` (module map: `timeline.ts`, `mergeLayers`; the video state), `specs/architecture.md` if a block
       changes, `CHANGELOG.md` Unreleased; `src/data/docs.ts` (in-app docs) for the headers. · test: link check
-- [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
+  - **Result (2026-10-07):** `docs/MEDIA-STUDIO.md`: new "Tracks" section (Hide vs Mute, Lock, heights, undo,
+    keyboard; the track model and `mergeProject` behind it), the "How it works" rows (`timeline.ts`, state) and the
+    tests paragraph (unit, e2e, self-test). `specs/lld.md`: module map (`timeline.ts`; `video.ts`, `videoExport.ts`,
+    `state/video.ts` lines) and new §4.9 "Video project as tracks". `CHANGELOG.md` Unreleased: Added (track
+    headers), Changed (tracks under the hood, Music row 64 px). `src/data/docs.ts` (in-app docs): the timeline
+    section lists the headers. `specs/architecture.md` has no video block: unchanged. No links added.
+- [x] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
       `check:licenses`); entry chunk unchanged (timeline code is in the studio chunk); record the numbers.
-- [ ] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 201 → ✔️, `editor-implementation.md` P2.1 →
+  - **Result (2026-10-07):** every gate green in one run: `npm run check` (883 tests, 0 lint errors, the 5 known
+    warnings), `npm run build` (entry **327 KB**, unchanged; timeline code in the studio chunk), `npm run
+    check:licenses` (168 packages, nothing new), `npm run test:e2e` (**74 passed, 10 skipped, 0 failed, 0 flaky**;
+    the skips are phone runs of desktop-only tests: 7 from before plus the two header tests that drag and play and
+    the new end-to-end test in the existing video `describe`), `npm test` (**6,124 passed, 0 failed**; timing 10.6
+    ms / 2.64 s), `npm run test:mcp` (passed). Agent tool gate: none, by spec Q7 (timeline tools in `212`).
+- [x] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 201 → ✔️, `editor-implementation.md` P2.1 →
       Done, `memory/progress.md`, `memory/MEMORY.md` (next: `202`).
+  - **Result (2026-10-07):** all 12 ACs ticked in `spec.md` (Status `Implemented`); roadmap 201 ✔️;
+    `editor-implementation.md` P2.1 → Done; `memory/progress.md`, `memory/MEMORY.md` (next: `202`).
 
 ## AC coverage
 

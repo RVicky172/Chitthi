@@ -226,8 +226,9 @@ step.
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
-| Video formats, limits, timeline maths and frame drawing; MP4 export | `src/engine/video.ts`; `src/engine/videoExport.ts` |
-| Video state: kind, clips, layers, music, playhead, undo, export | `src/state/video.ts` |
+| Video formats, limits and frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/video.ts`; `src/engine/videoExport.ts` |
+| Video project as tracks: clips at a start time, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`; `src/engine/layers.ts` |
+| Video state: kind, tracks (hide / mute / lock, heights), clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
 | Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx`, `VideoWorkspace.tsx`, `Timeline.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
 | Styles | `src/styles/36-media-studio.css` (workspace, timeline), `src/styles/35-instagram.css` (panels and controls) |
@@ -264,11 +265,18 @@ around 100 MB. Full-size pixels exist only while one photo is being exported. Th
 format, batch size and file settings are remembered.
 
 **Tests.** Unit: `src/engine/instagram.test.ts` (formats, limits, placement, colour maths) and
-`src/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades).
+`src/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
+`mergeLayers`), `src/engine/timeline.test.ts` (the track model against the frozen 2.x code in `timeline.testkit.ts`:
+clip placement, frames and sound sources for every 2.x shape; hide, mute and lock; the project document, its round
+trips and 34 malformed documents).
 Browser: `e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
 and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
 `moov` before `mdat`, H.264, AAC and 1080 × 1920; timeline trim and reorder by dragging, split and delete; a YouTube
-video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; accessibility). Agents:
+video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; clips placed end to
+end; the track headers: Hide, Mute, Lock and its refusals, heights by keyboard, undo, axe and 360 px; accessibility).
+Self-test: 200 preview frames (4 formats × 5 projects × 10 times) drawn through the 2.x placement and the track model
+are compared byte for byte; exports with the video track hidden (decoded: black with the layers) and the music muted
+(no sound track). Agents:
 the self-test draws an AI mask from a stand-in map, runs the real subject model in its worker and checks the sky model
 is never downloaded without consent; `e2e/instagram.e2e.ts` finds a subject with the real model under the production
 CSP (desktop project). RAW and 16-bit: Vitest checks the TIFF writer, the embedded-preview reader and a synthetic DNG
@@ -315,6 +323,27 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 Moves snap to clip edges, layer edges and the playhead. Video clips show a filmstrip of eight frames taken from the
 part in use; photos show their thumbnail. Each clip also has **Starts at** / **Ends at** sliders in the inspector, the
 full-size equivalent of the trim handles.
+
+### Tracks
+
+The timeline has a **Video** track (the clips) and a **Music** track; text, shapes, stickers and drawings keep a row
+each, timed by **Appears at** and **Disappears at**. Each track's header, at the left of the timeline, has:
+
+| Control | What it does |
+| --- | --- |
+| **Hide** (Video) | The clips aren't drawn in the preview or the export: black frames with the layers on top. Their own sound still plays (lower a clip's volume to silence it). |
+| **Mute** (Music) | The music is silent in the preview and the export; the clips' own sound stays. |
+| **Lock** | The track's clips can't be selected, dragged, trimmed, split, duplicated or deleted, and the inspector shows them read-only; the editor says why. A locked track still plays and exports. |
+| **Height** | Small (40 px), Medium (64 px) or Large (96 px), from a menu (arrow keys, Home / End, Enter, Escape). |
+
+Hide, Mute and Lock are undo steps; the height is a view setting that lasts for the session. Each control is a button
+with a name for screen readers, usable from the keyboard; hidden and muted rows are dimmed, locked clips show a lock.
+
+Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`). The main video track
+places its clips end to end exactly as before, so every video looks and sounds the same as in 2.x. A project also has
+a document form (JSON, version 1) and one validator, `mergeProject()`, which reads any document (a 2.x project without
+a version is converted) and is the single way in for project data, ready for saving projects later. Adding tracks,
+overlay clips and gaps come with the next Phase 2 features.
 
 Per clip, in the inspector: duration (photos) or trim and sound volume (videos), movement for photos (still, zoom in
 or out, pan four ways), fade in from black, framing (fill or whole picture with a blurred background, zoom, position)

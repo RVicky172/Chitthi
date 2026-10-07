@@ -52,8 +52,9 @@ src/
                              webgl2.ts, graph.ts (nodes, runNodes), colour.ts, detail.ts, lut.ts, mask.ts (programs
                              mirroring the CPU code), apply.ts (the GPU step of renderIg)
     layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
-    video.ts                 Video timeline and frame drawing (renderFrame), formats, per-platform limits
-    videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny, loaded on export
+    video.ts                 Video formats, per-platform limits, clip lengths, frame drawing (renderFrame, NO_PICTURE)
+    timeline.ts              Video project as tracks (201): pack, videoAt, framePlan, audioPlan, document, mergeProject
+    videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny over framePlan / audioPlan, on export
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
     envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
     color.ts, sample.ts      Colour maths and drawing helpers; painted stand-in photos
@@ -65,7 +66,7 @@ src/
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
     instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
     presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
-    video.ts                 Video editor: clips, layers, music, playhead, undo, export
+    video.ts                 Video editor: tracks, clips, layers, music, playhead, undo, lock guards, export
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
@@ -383,6 +384,31 @@ rows and fill-in lines); `buildPack` adds the request to every print pack and `p
 removes (`1 − min(r, 1/r)`, where r is the photo aspect divided by the slot aspect); a photo *fits* when that is at
 most 20%. `slotDpi` is the resolution a photo reaches covering the slot. Pixel sizes of stored photos are learned
 from their thumbnails (`rememberDims`) and cached for the session, so filtering needs no extra decoding.
+
+### 4.9 Video project as tracks (`timeline.ts`, `state/video.ts`)
+
+A project is `{ tracks, clips, audio, layers, fadeOut }`. A `Track` has an id, a kind (`video`, `overlay`, `audio`), a
+name and `hidden` / `muted` / `locked`; every project has `V1` (main video) and `A1` (music); limits 8 + 8 tracks on
+desktop, 4 + 4 on the web (`TRACK_LIMITS`). A clip is today's `ClipTiming` plus `track` and `start` (seconds, full
+precision); the music is an `AudioClip` on `A1` with `in` = its offset and `toEnd` (plays to the end of the video).
+
+- `pack(clips)` places the main track's clips end to end, summing lengths as 2.x did (bit-identical starts). It runs
+  in one place, the store's `change()`, so every edit keeps the track gapless (201's rule; `202` brings gaps).
+- `projectLength`, `videoAt(p, t)` (the clip and local time on the topmost visible picture track; clamps like 2.x),
+  `framePlan(p, fps)` (the export's frame ranges; one black span when `V1` is hidden) and `audioPlan(p)` (clips' sound
+  with 0.03 s ramps, the music unless `A1` is muted, fading out over min(1.5 s, a third)). Preview and export both
+  read them; `renderFrame` is unchanged and draws `NO_PICTURE` (black, layers, fade-out) where no clip shows.
+- `patchTrack` (Hide only on picture tracks, Mute only on sound tracks) and `lockedReason`, used by the store's
+  `setTrack` (an undo step), `clipLocked` / `musicLocked` and the refusals of every clip and music action.
+- `toDocument` / `mergeProject(raw, desktop)` → `{ doc, dropped }`: the JSON form (version 1; media described, never
+  embedded) and its single validator. No version = a 2.x project, converted by `fromSequence` (also how the store's
+  shape maps to tracks). Numbers are checked and clamped, enums checked, edits through `mergeEdit`, layers through
+  `mergeLayers` (image layers only with a picture the project has), clips without a known track or media dropped with
+  a reason, limits enforced; it never throws.
+- `timeline.testkit.ts` keeps the 2.x placement, frame loop and sound list, frozen, with 12 fixtures; unit tests and
+  the self-test compare the model against it.
+
+Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: not undone, not saved.
 
 ## 5. Integrations
 

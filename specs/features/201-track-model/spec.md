@@ -1,6 +1,6 @@
 # 201 — Track model and migration (P2.1)
 
-**Status:** In Progress <!-- Draft | Approved | In Progress | Implemented | Superseded -->
+**Status:** Implemented <!-- Draft | Approved | In Progress | Implemented | Superseded -->
 **Roadmap phase:** 2 — Multi-track timeline · **Created:** 2026-10-06 · **Owner:** RVicky172
 
 ## Summary
@@ -29,59 +29,59 @@ track headers on the timeline (show/hide or mute, lock, height); everything else
 
 ### Model
 
-- [ ] **AC-1:** A project is a set of tracks; each track has an id, a kind (**video**, **overlay** or **audio**), a
+- [x] **AC-1:** A project is a set of tracks; each track has an id, a kind (**video**, **overlay** or **audio**), a
       name, muted / hidden, locked and a height; each clip belongs to exactly one track and has an absolute start
       (seconds from the start of the video, ≥ 0) and its length as today (photo seconds, or the used part of the source
       video). The model can hold the limits of Q4 (tracks) and today's per-platform clip limits (`limitsFor()`: up to
       20 / 50 / 60 / 500 clips). _(unit)_
-- [ ] **AC-2:** Today's sequence converts exactly: the clips become one **video** track, back to back from 0 in their
+- [x] **AC-2:** Today's sequence converts exactly: the clips become one **video** track, back to back from 0 in their
       order (each start = the sum of the lengths before it, to 1 ms); the music becomes one **audio** track holding
       the song with its offset, volume and fade-out unchanged; timed layers keep their start / end (Q2). With no music,
       the audio track exists and is empty. _(unit)_
 
 ### Nothing changes for users
 
-- [ ] **AC-3:** For a set of fixture projects (photo-only Reel, video-only, mixed, with music and an offset, with
+- [x] **AC-3:** For a set of fixture projects (photo-only Reel, video-only, mixed, with music and an offset, with
       timed layers, with the fade-out, at 9:16, 4:5, 1:1 and 16:9), the preview frame at 10 sample times per project is
       pixel-identical before and after, and the export is made from identical inputs: every frame's clip and time and
       every sound source (start, end, source time, volume, ramps) equal 2.x's exactly. _(unit + self-test)_
-- [ ] **AC-4:** Every editing action of today works as before on the video track: add (files and drop), remove,
-      reorder (drag and Alt+arrow), duplicate, split at the playhead, trim, photo duration, motion, fade, clip volume,
+- [x] **AC-4:** Every editing action of today works as before on the video track: add (files and drop), remove,
+      reorder (drag), duplicate, split at the playhead, trim, photo duration, motion, fade, clip volume,
       music add / remove / offset / volume, timed layers, switching Reel ↔ YouTube, undo / redo with the same steps.
       All existing video e2e tests pass unchanged. _(e2e)_
-- [ ] **AC-5:** Speed: preview frame time and export time of a 60-clip 1080p YouTube fixture are within 5% of 2.x on the
+- [x] **AC-5:** Speed: preview frame time and export time of a 60-clip 1080p YouTube fixture are within 5% of 2.x on the
       same machine: the fastest of 3 runs, compared with the slowest of the 2.x baseline sessions' fastest runs.
       _(self-test timing)_
 
 ### Project document and validator
 
-- [ ] **AC-6:** The project has a document form (JSON) with a version number: **1** for this model; a document
+- [x] **AC-6:** The project has a document form (JSON) with a version number: **1** for this model; a document
       without a version is read as today's sequence shape and converted (AC-2). One validator reads any document:
       out-of-range or wrong-type values are clamped or replaced by defaults, unknown fields and clips that point at a
       missing track or file are dropped with a reason, nothing it is given can throw or produce an invalid project, and
       limits are enforced (tracks per Q4, clips per platform, finite times, 0 ≤ in < out ≤ source length). _(unit: at
       least 30 malformed documents)_
-- [ ] **AC-7:** Round trips: for every 2.x shape (empty; photo-only; video-only; mixed; with music and offset; with
+- [x] **AC-7:** Round trips: for every 2.x shape (empty; photo-only; video-only; mixed; with music and offset; with
       timed layers; at 20, 60 and 500 clips), sequence → v1 → document → validator gives back an equal project, and
       v1 → the clip times the 2.x editor used gives back the original placement. _(unit)_
 
 ### Track headers
 
-- [ ] **AC-8:** The timeline shows a header per track with its name and three controls, each a labelled button
+- [x] **AC-8:** The timeline shows a header per track with its name and three controls, each a labelled button
       usable by keyboard and screen reader: **Hide** (video / overlay: not drawn in the preview or the export) or
       **Mute** (audio: silent in the preview and the export), **Lock**, and the track's height (Q5). axe reports no
       serious or critical issue; 360 px wide still works with no sideways scroll. _(e2e + axe)_
-- [ ] **AC-9:** Hidden and muted tracks are left out of the export as they are left out of the preview: a fixture
+- [x] **AC-9:** Hidden and muted tracks are left out of the export as they are left out of the preview: a fixture
       with the music muted exports silent music (clip sound kept); with the video track hidden it exports black frames
       with the layers on top. _(self-test)_
-- [ ] **AC-10:** A locked track's clips can't be selected for editing, dragged, trimmed, split, duplicated or deleted
+- [x] **AC-10:** A locked track's clips can't be selected for editing, dragged, trimmed, split, duplicated or deleted
       (the controls say why); it still plays and exports. _(e2e)_
-- [ ] **AC-11:** Hide / mute and lock are undo steps; a track's height is a view setting, not an undo step, and lasts
+- [x] **AC-11:** Hide / mute and lock are undo steps; a track's height is a view setting, not an undo step, and lasts
       for the session. _(e2e)_
 
 ### Docs
 
-- [ ] **AC-12:** `docs/MEDIA-STUDIO.md` (tracks, headers), `specs/lld.md` (the model and its validator) and
+- [x] **AC-12:** `docs/MEDIA-STUDIO.md` (tracks, headers), `specs/lld.md` (the model and its validator) and
       `CHANGELOG.md` describe the change. _(manual check)_
 
 ## Non-Functional Requirements
@@ -136,3 +136,9 @@ track headers on the timeline (show/hide or mute, lock, height); everything else
 - 2026-10-06 — AC-5: compared on the fastest of 3 runs (T002: medians of 3 swing ~45% between sessions on unchanged
   code). Q6: no 1 ms rounding: it would move clip boundaries (a ⅔ s boundary at 0.667 s lands on frame 21 instead of
   20 at 30 fps) and break AC-3 and AC-7. Both approved by the maintainer (found in T002 and T010).
+- 2026-10-07 — Q5: Medium (the default) is 64 px for every track, so the music row grows from 2.x's 44 px (the
+  editor only; videos are unchanged). Maintainer's call, found in T030.
+- 2026-10-07 — AC-4: "reorder (drag and Alt+arrow)" → "reorder (drag)": the video editor has no Alt+arrow or Ctrl+D
+  shortcut, in 2.x or now (found in T030); AC-4 is about keeping 2.x's actions. Maintainer's call at verification.
+- 2026-10-07 — Verified: every AC proven (unit, e2e, self-test pixel identity of 200 frames, timing within 5%), all
+  Definition of Done gates green; Implemented.

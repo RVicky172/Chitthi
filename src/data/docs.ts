@@ -330,6 +330,7 @@ export const DOC_PAGES: DocPage[] = [
               'Drag clips to reorder, drag their edges to trim, split and delete; moves snap to edges and the playhead.',
               'Per clip: duration or trim, volume, movement on photos (zoom and pan), fade from black, looks and adjustments.',
               'Text, shapes, stickers and drawings with **Appears at** and **Disappears at**; music with its waveform.',
+              'Track headers: **Hide** the video (black with the layers), **Mute** the music, **Lock** a track against edits, and set its height. Hide, Mute and Lock can be undone.',
               'Export: H.264 and AAC in an MP4 with its index at the front (fast start), using the graphics card where it can.',
             ],
           },
