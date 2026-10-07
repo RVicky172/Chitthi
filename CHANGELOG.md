@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Settings › AI: **AI models on this device** shows whether the sky model for AI masks is downloaded (176 MB) and
+  deletes it, without touching designs, photos or presets. It is downloaded again, after asking, when next needed.
 - Video editor: **track headers** on the timeline. **Hide** the video track (black frames with the layers, in the
   preview and the export), **Mute** the music, **Lock** a track so its clips can't be moved, trimmed, split,
   duplicated or deleted, and choose each track's height (Small, Medium, Large). Hide, Mute and Lock can be undone.

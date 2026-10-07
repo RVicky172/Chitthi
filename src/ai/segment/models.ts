@@ -49,3 +49,17 @@ export const SEG_MODELS: Record<AiTarget, SegModel> = {
 
 /** "176 MB", for asking before a download. */
 export const sizeText = (bytes: number): string => `${Math.round(bytes / 1e6)} MB`;
+
+/** Where a model is: part of the app, in the device's private storage, only in memory for this session, or absent. */
+export type ModelState = 'bundled' | 'stored' | 'session' | 'none';
+
+/** A model's row in Settings › AI models on this device (401). */
+export function modelRow(state: ModelState): { status: string; canDelete: boolean } {
+  const status = {
+    bundled: 'Part of the app',
+    stored: 'On this device',
+    session: 'Kept for this session only',
+    none: 'Not downloaded',
+  }[state];
+  return { status, canDelete: state === 'stored' || state === 'session' };
+}

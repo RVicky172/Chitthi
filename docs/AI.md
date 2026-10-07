@@ -40,6 +40,13 @@ model ships with the app; the sky model is downloaded once from Hugging Face aft
 its SHA-256 and kept on the device. Details: [MEDIA-STUDIO.md](MEDIA-STUDIO.md) (Masks); licences in
 [licensing.md](../specs/licensing.md#register).
 
+The downloaded model is kept in the site's private file system (the browser's Origin Private File System, as
+`models/skyseg.onnx`; in the desktop app the same storage sits in its data folder, `%APPDATA%\Chitthi` on Windows).
+Browsers store these files under internal names, so there is no folder to open. **Settings › AI › AI models on this
+device** lists each model (part of the app, on this device, kept for this session only, or not downloaded) and
+deletes a downloaded one, which frees its space and changes nothing else; the model is downloaded again, after asking,
+the next time a sky mask needs it. Deleting is refused while a search with a model is running.
+
 ## Keys and privacy
 
 | | Web app | Desktop app |

@@ -134,7 +134,7 @@ Models (P1.8, October 2026):
 | Model | File (SHA-256) | Licence | Source | Loaded from | Notes |
 | --- | --- | --- | --- | --- | --- |
 | U²-Net-p (subject) | `u2netp.onnx`, 4,574,861 bytes, `309c8469…4ddd8` | Apache-2.0 (the U-2-Net repository; the weights have no separate statement) | [xuebinqin/U-2-Net](https://github.com/xuebinqin/U-2-Net); ONNX export from [rembg](https://github.com/danielgatis/rembg) v0.0.0 release (MIT) | Bundled (`src/ai/segment/models/`) | Weights' licence implied by the repository; trained on DUTS-TR, whose terms aren't stated. Accepted on 4 October 2026 |
-| skyseg (sky) | `skyseg.onnx`, 175,997,079 bytes, `ab9c34c6…a1d39` | MIT (model card) | [JianyuanWang/skyseg](https://huggingface.co/JianyuanWang/skyseg) at revision `3ba8c6df`; derived from [xiongzhu666/Sky-Segmentation-and-Post-processing](https://github.com/xiongzhu666/Sky-Segmentation-and-Post-processing) (MIT) | Downloaded on first use after the user agrees, checked by SHA-256, kept in OPFS | Training data not stated. Accepted on 4 October 2026 |
+| skyseg (sky) | `skyseg.onnx`, 175,997,079 bytes, `ab9c34c6…a1d39` | MIT (model card) | [JianyuanWang/skyseg](https://huggingface.co/JianyuanWang/skyseg) at revision `3ba8c6df`; derived from [xiongzhu666/Sky-Segmentation-and-Post-processing](https://github.com/xiongzhu666/Sky-Segmentation-and-Post-processing) (MIT) | Downloaded on first use after the user agrees, checked by SHA-256, kept in OPFS; deletable in Settings (401) | Training data not stated. Accepted on 4 October 2026 |
 
 Runtime: `onnxruntime-web` 1.30 (MIT) and its dependencies, all permissive, in `BUNDLED` in `scripts/check-licenses.mjs`.
 The full hashes are in `src/ai/segment/models.ts`.

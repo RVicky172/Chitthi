@@ -253,7 +253,7 @@ export const DOC_PAGES: DocPage[] = [
             },
           },
           {
-            p: 'Parts combine by adding, subtracting or intersecting (a sky gradient narrowed to its blue colours, say). The subject model ships with the app; the sky model (176 MB) is downloaded once, only after you agree, and kept on the device.',
+            p: 'Parts combine by adding, subtracting or intersecting (a sky gradient narrowed to its blue colours, say). The subject model ships with the app; the sky model (176 MB) is downloaded once, only after you agree, and kept on the device until you delete it in Settings › AI › AI models on this device.',
           },
         ],
       },

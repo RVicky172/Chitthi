@@ -124,7 +124,9 @@ Paint adds a brush part that adds to the mask, Erase one that takes away. **Subj
 parts of any mask (a sky narrowed by a brightness range, say). The subject model (U²-Net-p, 4.6 MB) ships with the
 app and takes about a second per photo. The sky model (skyseg, 176 MB) is too big to ship: the first sky mask asks
 before downloading it from Hugging Face, the file is checked against its SHA-256, and it is kept on the device (the
-browser's private file storage; in the desktop app, inside its data folder), so it downloads once. Each map is made
+browser's private file storage; in the desktop app, inside its data folder), so it downloads once. **Settings › AI ›
+AI models on this device** shows whether it is there and deletes it to free the space; it is downloaded again, after
+asking, when a sky mask next needs it. Each map is made
 once per photo and kept for the session; the export uses it at full size. The models find one main subject well; in
 a busy scene with many small things (a field of flowers) the subject mask may cover only some of them, and a photo
 without sky can still get a faint sky mask, so check the red overlay (`src/ai/segment/`, `src/engine/segments.ts`).

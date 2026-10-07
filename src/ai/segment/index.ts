@@ -1,5 +1,5 @@
 import { segmentOf, setSegment, type AiTarget } from '../../engine/segments';
-import { SEG_INPUT, SEG_MEAN, SEG_MODELS, SEG_STD, sizeText, type SegModel } from './models';
+import { SEG_INPUT, SEG_MEAN, SEG_MODELS, SEG_STD, sizeText, type ModelState, type SegModel } from './models';
 
 /*
  * The segmenter (P1.8), loaded with import() the first time an AI mask is used: finds a photo's subject or sky with an
@@ -24,7 +24,8 @@ export interface SegmentOptions {
   onProgress?: (share: number) => void;
 }
 
-export { SEG_MODELS, sizeText };
+export { SEG_MODELS, modelRow, type ModelState } from './models';
+export { sizeText };
 
 /* ---------- models on the device ---------- */
 
@@ -125,11 +126,31 @@ async function modelBytes(m: SegModel, opts: SegmentOptions): Promise<ArrayBuffe
   return download(m, opts.onProgress);
 }
 
-/** Deletes a downloaded model from the device (it is downloaded again when next needed). */
-export async function forgetModel(target: AiTarget): Promise<void> {
+/** Where the model for a target is (Settings › AI models on this device, 401). */
+export async function modelState(target: AiTarget): Promise<ModelState> {
   const m = SEG_MODELS[target];
+  if (m.bundled) return 'bundled';
+  if (await storedFile(m)) return 'stored';
+  return inMemory.has(m.id) ? 'session' : 'none';
+}
+
+/**
+ * Deletes a downloaded model from the device and from memory, ending the worker if it loaded it (it is downloaded
+ * again, after asking, when next needed). Returns null, or why it didn't: a model that is part of the app, or a search
+ * running (the worker is in use).
+ */
+export async function deleteModel(target: AiTarget): Promise<string | null> {
+  const m = SEG_MODELS[target];
+  if (m.bundled) return `The ${m.title} model is part of the app and can’t be deleted.`;
+  if (busy > 0) return 'A search with an AI model is running. Try again when it has finished.';
   inMemory.delete(m.id);
   await (await modelDir())?.removeEntry(`${m.id}.onnx`).catch(() => undefined);
+  if (worker && sent.has(m.id)) {
+    worker.terminate();
+    worker = null;
+    sent.clear();
+  }
+  return null;
 }
 
 /* ---------- the worker ---------- */
@@ -138,6 +159,8 @@ let worker: Worker | null = null;
 const sent = new Set<string>();
 const pending = new Map<number, { ok: (m: Float32Array) => void; fail: (e: Error) => void }>();
 let seq = 0;
+/** Searches running, downloads included: a model isn't deleted under them. */
+let busy = 0;
 /** Longest wait for one map, model loading included (the 176 MB sky model loads in seconds). */
 const RUN_TIMEOUT = 120_000;
 
@@ -163,6 +186,15 @@ function getWorker(): Worker {
 }
 
 async function run(m: SegModel, input: Float32Array, opts: SegmentOptions): Promise<Float32Array> {
+  busy++;
+  try {
+    return await runModel(m, input, opts);
+  } finally {
+    busy--;
+  }
+}
+
+async function runModel(m: SegModel, input: Float32Array, opts: SegmentOptions): Promise<Float32Array> {
   const bytes = sent.has(m.id) ? undefined : await modelBytes(m, opts);
   const w = getWorker(),
     id = ++seq;

@@ -548,6 +548,64 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
   expect(errors).toEqual([]);
 });
 
+// 401: the downloaded sky model is listed in Settings and can be deleted; nothing else is touched.
+test('AI models on this device: a downloaded model is shown, deleted, and asked for again', async ({ page }, info) => {
+  if (info.project.name === 'phone') await page.setViewportSize({ width: 360, height: 780 });
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  const SKY_BYTES = 175997079;
+  // A file of the model's size in the private file system: what a finished download leaves (sparse, nothing written).
+  await page.evaluate(async (bytes) => {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('models', { create: true });
+    const w = await (await dir.getFileHandle('skyseg.onnx', { create: true })).createWritable();
+    await w.truncate(bytes);
+    await w.close();
+    localStorage.setItem('chitthi-e2e-kept', 'yes');
+  }, SKY_BYTES);
+  const skyOnDisk = () =>
+    page.evaluate(async () => {
+      const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('models', { create: true });
+      return dir.getFileHandle('skyseg.onnx').then(
+        () => true,
+        () => false,
+      );
+    });
+  const openModels = async () => {
+    await page.keyboard.press('Control+K');
+    await page.keyboard.type('Settings');
+    await page.keyboard.press('Enter');
+    await page.getByText('AI models on this device').click();
+    return page.locator('.aimodels');
+  };
+
+  let list = await openModels();
+  await expect(list.getByRole('listitem').filter({ hasText: 'U²-Net-p (subject)' })).toContainText('Part of the app');
+  await expect(list.getByRole('listitem').filter({ hasText: 'skyseg (sky)' })).toContainText('On this device');
+  await expect(page.getByRole('button', { name: 'Delete the subject model' })).toHaveCount(0);
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  await page.getByRole('button', { name: 'Delete the sky model' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'The sky model was deleted: 176 MB freed.' })).toBeVisible();
+  await expect(list.getByRole('listitem').filter({ hasText: 'skyseg (sky)' })).toContainText('Not downloaded');
+  await expect(page.getByRole('button', { name: 'Delete the sky model' })).toHaveCount(0);
+  expect(await skyOnDisk()).toBe(false);
+  expect(await page.evaluate(() => localStorage.getItem('chitthi-e2e-kept'))).toBe('yes');
+
+  // Still gone after a reload; and the next sky mask asks before downloading again.
+  await page.reload();
+  list = await openModels();
+  await expect(list.getByRole('listitem').filter({ hasText: 'skyseg (sky)' })).toContainText('Not downloaded');
+  await page.keyboard.press('Escape');
+  await upload(page, [path.join('public', 'samples', 'marigold.jpg')]);
+  await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
+  await tool(page, 'Masks').click();
+  await page.getByRole('button', { name: 'New sky mask, found by AI' }).click();
+  await expect(page.getByRole('button', { name: 'Download the sky model' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('RAW files on the web open their built-in preview; TIFF exports 16 bits where the graphics card allows', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
