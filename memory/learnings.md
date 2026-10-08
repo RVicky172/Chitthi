@@ -109,3 +109,7 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   the command file into its own 👤 task. Seen on 402 T061 and T071.
 - `.gitattributes` already existed (`*.onnx binary`) and was overwritten as if new (402 T034). Before writing a
   config file at the repo root, check `git ls-files <name>`.
+- Tests that read committed files (`git show HEAD:…`, e.g. `release-prepare.test.mjs`) see the old HEAD during a
+  merge: `npm run check` passed before the commit of the `main` merge (2.10.0, empty Unreleased) and failed after
+  it, which both 402 T063 lines found. Run the check again after committing a merge. Such tests must also not depend
+  on the live state of the file (seed what they need, such as an Unreleased entry).

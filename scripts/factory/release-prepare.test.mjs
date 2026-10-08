@@ -20,6 +20,16 @@ function fakeGit({ branch = 'main', status = '' } = {}) {
   };
 }
 
+/**
+ * A committed file as the tests' copy of it. Right after a release the real CHANGELOG's Unreleased is empty (the
+ * wrapper then refuses, correctly), so the copy always gets one entry: the tests don't depend on pending changes.
+ */
+function committed(path) {
+  const text = execFileSync('git', ['show', `HEAD:${path}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });
+  if (path !== 'CHANGELOG.md') return text;
+  return text.replace(/^## \[Unreleased\](\r?\n)/m, (head, nl) => `${head}${nl}- A change for the release tests.${nl}`);
+}
+
 const quiet = { log: () => {} };
 const never = (what) => () => {
   throw new Error(`${what} must not be called`);
@@ -97,7 +107,7 @@ describe('scratch-branch run on the committed release files (AC-17)', () => {
     for (const [k, v] of [['user.name', 'test'], ['user.email', 'test@example.com'], ['commit.gpgsign', 'false'], ['tag.gpgsign', 'false'], ['core.hooksPath', join(repo, '.no-hooks')], ['core.autocrlf', 'false']]) git('config', k, v);
     before = {};
     for (const path of tracked) {
-      const text = execFileSync('git', ['show', `HEAD:${path}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });
+      const text = committed(path);
       before[path] = text;
       mkdirSync(dirname(join(repo, path)), { recursive: true });
       writeFileSync(join(repo, path), text);
@@ -170,7 +180,7 @@ describe('the dry run on main', () => {
     try {
       for (const path of RELEASE_FILES) {
         mkdirSync(dirname(join(dir, path)), { recursive: true });
-        writeFileSync(join(dir, path), execFileSync('git', ['show', `HEAD:${path}`], { cwd: ROOT, encoding: 'utf8' }));
+        writeFileSync(join(dir, path), committed(path));
       }
       const pkg = () => writeFileSync(join(dir, 'package.json'), readFileSync(join(dir, 'package.json'), 'utf8').replace(/"version": "[^"]*"/, '"version": "9.9.9"'));
       const runs = [];
