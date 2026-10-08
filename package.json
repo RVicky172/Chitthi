@@ -44,6 +44,7 @@
     "factory:dashboard": "node scripts/factory/dashboard.mjs",
     "factory:next": "node scripts/factory/next.mjs",
     "factory:gates": "node scripts/factory/gates.mjs",
+    "release:prepare": "node scripts/factory/release.mjs",
     "build:favicons": "node scripts/build-favicons.mjs",
     "desktop:dev": "node electron/dev.mjs",
     "desktop:start": "npm run build && node electron/dev.mjs --prod",

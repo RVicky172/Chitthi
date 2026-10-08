@@ -432,10 +432,46 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
     `!scripts/factory/fixtures/release/` right after `release/` (an exception rather than anchoring, so no other
     `release/` folder starts showing up). `git status --porcelain -uall` now lists all six fixtures. Gate re-run:
     `npm run factory:gates -- --task T070` → ✓ check 14 s, 1257 tests passed, lint 0 errors / 5 warnings.
-- [ ] **T071** — **(loop)** The wrapper (`main` and clean checks, `npm version --no-git-tag-version`, the checklist,
+- [x] **T071** — **(loop)** The wrapper (`main` and clean checks, `npm version --no-git-tag-version`, the checklist,
       asks before the dry run, no tag / push) and `/release`; `npm run release:prepare`. · files:
       `scripts/factory/release.mjs`, `.claude/commands/release.md`, `package.json` · test: a scratch-branch run with
       the `main` check overridden by a test flag, every file diffed, then reverted (AC-17)
+  - **Status (2026-10-08):** unattended run, stopped `question`: everything but `.claude/commands/release.md` is done
+    and green; a headless run can't write `.claude/` (learnings, as T061). The command's text is ready in
+    `scripts/factory/release-command.draft.md`: move it to `.claude/commands/release.md`, then tick. Done:
+    `release.mjs` gains `parseReleaseArgs` (one X.Y.Z, `--date`, `--test-branch <scratch>`, never `main`),
+    `remainingChecklist(md)` (specs/release.md "Before tagging" minus the CHANGELOG / `npm version` / bump steps)
+    and `prepareRelease` (X.Y.Z check → branch is `main` or the test branch → `git status --porcelain` empty →
+    `bumpRelease` on the five files, which throws before anything is written → `npm version X.Y.Z
+    --no-git-tag-version` → writes the other four → prints changed files, the checklist, and the tag commands as
+    the maintainer's; on `main` only asks once before `gh workflow run desktop-release.yml --ref main`, default no,
+    and never asks without a terminal; off `main` the dry run is never offered). No commit, tag or push in it.
+    `package.json`: `release:prepare` script (no dependency). Test (outside the named files):
+    `scripts/factory/release-prepare.test.mjs`, 12 tests, all failed first (exports missing): argument handling,
+    the checklist from the real specs/release.md, refusals off `main` / main with a test branch / dirty / bad
+    version (fake git, nothing written), and the AC-17 scratch run: a temp git repo from the committed release
+    files + package-lock.json + specs/release.md, branch `scratch/release`, real `npm version` to 9.9.9 → `git diff`
+    lists exactly the six files, each checked (package.json and the lock change only `"version"` lines, plugin,
+    image tag, `APP_CACHE` +1, CHANGELOG section and compare link), no commit or tag, dry run `skipped` and never
+    asked; repo deleted after. On main (fake git/npm): asked once, `declined` / `ran` only after yes. CLI in this
+    checkout: `npm run release:prepare -- 9.9.9` → "a release is prepared on main, not on feat/402-…" exit 1; with
+    `--test-branch feat/402-software-factory` → refuses the dirty tree. Break check: branch check off → 2 tests
+    fail; restored. Gate: `npm run factory:gates -- --task T071` → ✓ check 16 s, 1269 tests passed, lint 0
+    errors / 5 warnings; ✓ licenses 168 packages.
+  - **Result (2026-10-08):** The loop stopped on the `.claude/` write: a headless run can't create
+    `.claude/commands/release.md`, the same as T061. The task was finished in an interactive session. The reviewed
+    work from the loop was kept as it was: the wrapper matches plan §7 and the task text (main and clean checks,
+    `npm version --no-git-tag-version`, the checklist, one question before the dry run, no tag, push or commit).
+    `.claude/commands/release.md` was written from the draft unchanged (byte-compared), and the draft was deleted.
+    The command checks first and never fixes anything itself. It runs `npm run release:prepare`, reports the diff
+    and the checklist, and asks about the dry run only once the release is pushed. It never passes `--test-branch`.
+    The wrapper never wrote to the real checkout (its two CLI runs here refused as designed: wrong branch, then
+    dirty tree): `release-prepare.test.mjs` uses only temp repos and fake
+    git. It passes 12/12, and `git status` afterwards showed no release file touched. The break check was not
+    repeated interactively: the permission classifier refused a test run with the clean-tree check turned off. The
+    edit was restored at once, and the loop's break check above (branch check off → 2 fail) stands. Gate:
+    `npm run factory:gates -- --feature 402 --task T071` → ✓ check 15 s, 1269 tests passed; ✓ licenses 168
+    packages, all allowed.
 
 ## Constitution and docs (§8)
 

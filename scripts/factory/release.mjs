@@ -1,5 +1,15 @@
 // Release station (402 §7, AC-17). T070: the pure bump. T071 adds the wrapper (main and clean checks, writing the
 // files, `npm version --no-git-tag-version`, the checklist, the dry run). Nothing here tags or pushes.
+//
+//   npm run release:prepare -- X.Y.Z [--date YYYY-MM-DD]
+//
+// `--test-branch <name>` lets the checks accept that branch instead of `main`, only to prove the script on a scratch
+// branch (T071); off `main` the dry run is never offered.
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createInterface } from 'node:readline/promises';
+import { pathToFileURL } from 'node:url';
 
 /** The files a release changes, as specs/release.md lists them (package-lock.json comes from `npm version`). */
 export const RELEASE_FILES = ['package.json', 'public/sw.js', 'docker-compose.yml', 'plugins/chitthi/.claude-plugin/plugin.json', 'CHANGELOG.md'];
@@ -94,3 +104,132 @@ export function bumpRelease(files, version, date) {
   for (const path of RELEASE_FILES) out[path] = out[path].replace(/\n/g, eols[path]);
   return out;
 }
+
+const USAGE = 'usage: npm run release:prepare -- X.Y.Z [--date YYYY-MM-DD] [--test-branch <scratch branch>]';
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** The command line: one version, `--date` (default today, UTC), `--test-branch` (never `main`). */
+export function parseReleaseArgs(argv) {
+  const out = { version: null, date: today(), testBranch: null };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--date' || a === '--test-branch') {
+      const v = argv[++i];
+      if (!v || v.startsWith('--')) throw new Error(USAGE);
+      if (a === '--date') out.date = v;
+      else out.testBranch = v;
+    } else if (!a.startsWith('-') && !out.version) out.version = a;
+    else throw new Error(USAGE);
+  }
+  if (!out.version) throw new Error(USAGE);
+  if (out.testBranch === 'main') throw new Error('--test-branch names a scratch branch, not main');
+  return out;
+}
+
+/** specs/release.md's "Before tagging" steps, minus the three the script does (CHANGELOG, npm version, bumps). */
+export function remainingChecklist(md) {
+  const text = md.replace(/\r\n/g, '\n');
+  const start = text.indexOf('\n## Before tagging');
+  if (start < 0) throw new Error('specs/release.md: "## Before tagging" not found');
+  const end = text.indexOf('\n## ', start + 1);
+  const section = text.slice(start, end < 0 ? undefined : end);
+  const items = [];
+  for (const line of section.split('\n')) {
+    if (/^- \[ \] /.test(line)) items.push(line.slice(6).trim());
+    else if (/^\s+\S/.test(line) && items.length) items[items.length - 1] += ` ${line.trim()}`;
+  }
+  return items.filter((i) => !/CHANGELOG\.md|npm version|APP_CACHE/.test(i));
+}
+
+async function askOnTerminal(question) {
+  if (!process.stdin.isTTY) return false;
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return /^y(es)?$/i.test((await rl.question(question)).trim());
+  } finally {
+    rl.close();
+  }
+}
+
+const DRY_RUN = ['workflow', 'run', 'desktop-release.yml', '--ref', 'main'];
+
+/**
+ * Prepares release `version` in `root`: refuses unless on `main` (or `testBranch`) with a clean tree, runs
+ * `npm version X.Y.Z --no-git-tag-version` (package.json and its lock file), writes the other release files from
+ * `bumpRelease`, prints what is left of specs/release.md and, on `main` only, asks before the dry run. It never
+ * commits, tags or pushes. `git`, `npmVersion`, `ask`, `dryRun` and `log` are seams for the tests.
+ * Returns `{ from, changed, dryRun: 'ran' | 'declined' | 'skipped' }`.
+ */
+export async function prepareRelease({
+  root = process.cwd(),
+  version,
+  date = today(),
+  testBranch = null,
+  git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }),
+  npmVersion = (v) => execFileSync(`npm version ${v} --no-git-tag-version`, { cwd: root, stdio: 'inherit', shell: true }),
+  ask = askOnTerminal,
+  dryRun = () => execFileSync('gh', DRY_RUN, { cwd: root, stdio: 'inherit' }),
+  log = console.log,
+}) {
+  if (!SEMVER.test(version ?? '')) throw new Error(`version must be X.Y.Z (got ${version})`);
+  const allowed = testBranch ?? 'main';
+  const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  if (branch !== allowed) throw new Error(`a release is prepared on ${allowed}, not on ${branch}`);
+  const dirty = git(['status', '--porcelain']).trimEnd();
+  if (dirty.trim()) throw new Error(`the working tree must be clean first:\n${dirty}`);
+
+  const files = {};
+  for (const path of RELEASE_FILES) files[path] = readFileSync(join(root, path), 'utf8');
+  const from = JSON.parse(files['package.json']).version;
+  const out = bumpRelease(files, version, date); // throws, nothing written, on any problem
+
+  npmVersion(version);
+  if (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version !== version) {
+    throw new Error(`npm version did not set package.json to ${version}`);
+  }
+  const changed = ['package.json'];
+  if (existsSync(join(root, 'package-lock.json'))) changed.push('package-lock.json');
+  for (const path of RELEASE_FILES) {
+    if (path === 'package.json') continue; // npm version wrote it
+    writeFileSync(join(root, path), out[path]);
+    changed.push(path);
+  }
+
+  log(`Release ${version} prepared on ${branch} (was ${from}). Changed, not committed:`);
+  for (const path of changed) log(`  ${path}`);
+  log('');
+  log('Still to do before tagging (specs/release.md):');
+  const checklist = existsSync(join(root, 'specs/release.md')) ? remainingChecklist(readFileSync(join(root, 'specs/release.md'), 'utf8')) : [];
+  for (const item of checklist) log(`  [ ] ${item}`);
+  log('');
+
+  let ran = 'skipped';
+  if (branch !== 'main') {
+    log(`Dry run not offered: not on main (--test-branch ${branch}).`);
+  } else {
+    const yes = await ask(`Start the dry run now (gh ${DRY_RUN.join(' ')})? It builds what is pushed to origin/main, so commit and push the release first. [y/N] `);
+    if (yes) {
+      dryRun();
+      ran = 'ran';
+    } else {
+      ran = 'declined';
+      log(`Dry run not started. When main is pushed: gh ${DRY_RUN.join(' ')}`);
+    }
+  }
+  log(`Tag and publish are yours, after a green dry run: git tag v${version} && git push origin v${version}. This script never tags or pushes.`);
+  return { from, changed, dryRun: ran };
+}
+
+async function main(argv) {
+  try {
+    const args = parseReleaseArgs(argv);
+    await prepareRelease(args);
+    return 0;
+  } catch (e) {
+    console.error(`release:prepare: ${e.message}`);
+    return 1;
+  }
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) process.exit(await main(process.argv.slice(2)));

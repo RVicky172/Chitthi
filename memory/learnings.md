@@ -99,5 +99,8 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   ("requested permissions … you haven't granted it"), while `scripts/` and `memory/` are fine: `.claude/` is
   protected config. A (loop) task whose files include `.claude/` can't be finished by the implementer; make those
   edits 👤 or in an interactive session (402 T061).
+- Any task that adds a slash command under `.claude/commands/` blocks the unattended loop (the write is refused,
+  so the run stops `question`). When writing tasks.md, mark such tasks 👤 or keep them out of **(loop)**, or split
+  the command file into its own 👤 task. Seen on 402 T061 and T071.
 - `.gitattributes` already existed (`*.onnx binary`) and was overwritten as if new (402 T034). Before writing a
   config file at the repo root, check `git ls-files <name>`.
