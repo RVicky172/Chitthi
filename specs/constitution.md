@@ -3,7 +3,7 @@
 > The non-negotiable principles of this project. Every spec, plan, task, and line of code must comply.
 > If a change needs to break a principle, amend this document first (see "Governance & Amendments").
 
-**Version:** 1.0.0 · **Ratified:** 2026-10-06
+**Version:** 1.1.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-08 (1.1.0: XII added, D-016)
 
 ---
 
@@ -96,6 +96,18 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 - Every user-facing feature is reachable through a tool in `src/agent/tools.ts` (the MCP server calls the page),
   covered by the self-test and documented in [docs/MCP.md](../docs/MCP.md).
+
+### XII. Agents Work Within the Line
+
+- Agents may implement, test, review and commit on a feature branch on their own, within a budget (by default 40
+  turns per task and US$10 per run, D-012): one commit per task, never pushed (`npm run factory`,
+  [software-factory.md](software-factory.md)).
+- They stop and say why at a 👤 task, a needed spec or plan change, a new dependency, the third failure of one task,
+  a spent budget and Verify; work not yet committed is stashed, never left half-edited.
+- People approve specs and plans, sign off at Verify, merge, tag and release.
+- Hooks enforce what can be enforced (`.claude/hooks/`, rules in `scripts/factory/rules.mjs`): code under `src/` and
+  `electron/` waits for an approved spec; force pushes, `git tag`, `git reset --hard`, `sed -i` on tracked files and
+  Prettier writing under `src/` are refused; a turn doesn't end while `npm run check` fails on code it changed.
 
 ## Quality Gates (Definition of Done)
 

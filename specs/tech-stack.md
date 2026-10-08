@@ -56,6 +56,7 @@ There is no Chitthi backend, account system or analytics. AI requests go from th
 | **Vite** | 8.3 | Dev server with hot reload, production bundle, dev/preview proxy for Pexels |
 | **@vitejs/plugin-react** | 6.1 | JSX / React Fast Refresh |
 | **tsc (project references)** | 7.0 | `npm run typecheck` and the build; `tsconfig.lib.json` emits `.d.ts` for the design-system sync. TypeScript 7 is the native compiler (package alias `typescript-native`). TypeScript 6.0 stays installed as `typescript` only because typescript-eslint needs its JavaScript API (it supports TypeScript below 6.1); remove it once typescript-eslint supports 7 |
+| **Claude Code CLI** | 2.1 | Development only: installed separately, not a package dependency, never shipped or bundled. Runs the software factory's headless agents (`npm run factory`, `claude -p`) and the hooks, agents and commands in `.claude/` ([software-factory.md](software-factory.md), 402) |
 
 ## Desktop
 

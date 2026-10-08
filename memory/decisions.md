@@ -198,3 +198,17 @@ loop state alone.
 missing verdict.
 **Consequences:** the dashboard (T053) reads phases from `state.json`; switching to stream-json later only changes
 `callClaude` / `parseClaudeJson`.
+
+## D-016 — Constitution 1.1.0: principle XII, agents work within the line (2026-10-08, 402 spec Q7, T080)
+
+**Context:** With 402 agents implement, review and commit on their own (`npm run factory`); the constitution said
+nothing about what they may do without a person. Q7 (D-012) accepted a new principle.
+**Decision:** MINOR bump to 1.1.0 (a principle added, per Governance). XII: agents may implement, test, review and
+commit on a feature branch within a budget (40 turns per task, US$10 per run by default), never pushing; they stop
+at 👤 tasks, spec or plan changes, new dependencies, a task's third failure, a spent budget and Verify; people
+approve specs and plans, sign off, merge, tag and release; the hooks enforce what can be enforced. P5: the Claude
+Code CLI is listed in `specs/tech-stack.md` "Build and tooling" as a development tool, not shipped.
+**Alternatives:** no principle, the rules only in `software-factory.md` and the hooks (an agent reading the
+constitution wouldn't see its limits).
+**Consequences:** a change to what agents may do alone (e.g. pushing, merging) is a constitution amendment; every
+factory agent reads the constitution first, so each sees XII.

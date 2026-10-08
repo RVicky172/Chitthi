@@ -495,9 +495,18 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
 
 ## Constitution and docs (§8)
 
-- [ ] **T080** — Constitution 1.1.0, principle XII (Q7) and its decision entry; `tech-stack.md` "Build and tooling"
+- [x] **T080** — Constitution 1.1.0, principle XII (Q7) and its decision entry; `tech-stack.md` "Build and tooling"
       row for the Claude Code CLI (P5). · files: `specs/constitution.md`, `specs/tech-stack.md`,
       `memory/decisions.md` · test: review
+  - **Result (2026-10-08):** Constitution 1.0.0 → 1.1.0 (MINOR: a principle added, per its Governance). The header
+    now reads "Amended: 2026-10-08 (1.1.0: XII added, D-016)"; the constitution has no changelog of its own, so the
+    reason is in D-016. "XII. Agents Work Within the Line" follows plan §8 and Q7, in four bullets: what agents do
+    alone (implement, test, review, commit on a feature branch, 40 turns / US$10 by default, never pushed); the
+    stops (👤, spec or plan change, dependency, third failure, budget, Verify; work stashed); what people do (approve
+    specs and plans, sign off, merge, tag, release); what the hooks enforce, limited to what `rules.mjs` and
+    `stop.mjs` do today. `tech-stack.md` "Build and tooling" has a Claude Code CLI row (2.1, the installed 2.1.294):
+    development only, not a package dependency, never shipped. D-016 in `memory/decisions.md`. Test: review (no
+    code). Gate: `npm run check` → 37 files, 1269 tests passed, lint 0 errors / 5 known warnings.
 - [ ] **T081** [P] — Docs (AC-18): `specs/workflow.md` "Running the line"; `specs/software-factory.md` phase
       status and commands; `specs/build.md`, `specs/testing-strategy.md` (scripts' tests in `test:unit`, the factory
       commands), `specs/memory-management.md` (the scribe), `CLAUDE.md`. · files: those · test: review; links
