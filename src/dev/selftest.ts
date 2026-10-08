@@ -15,6 +15,7 @@ import { renderCard } from '../engine/render';
 import { samplePhoto } from '../engine/sample';
 import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '../lib/credits';
 import type { Design, ProductId } from '../types';
+import { videoChecks } from './videoChecks';
 
 interface Result {
   passed: number;
@@ -162,6 +163,7 @@ async function run(): Promise<Result> {
   await aiMaskChecks(check, r);
   await perfChecks(check);
   await gpuChecks(check, r);
+  r.notes.push(...(await videoChecks(check)));
   return r;
 }
 

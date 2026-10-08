@@ -22,6 +22,8 @@ ds-bundle/
 electron/resources/fonts/
 electron/resources/libraw/
 release/
+# ...but not the release fixtures of the software factory (402, T070)
+!scripts/factory/fixtures/release/
 
 # print samples for the print shop (npm run fetch:print-samples / build:print-samples)
 print-samples-src/
@@ -32,5 +34,12 @@ Print Samples/
 .claude/*
 !.claude/commands/
 !.claude/skills/
+# The software factory's agents, hooks and their registration are shared too (402, Q5); settings.local.json isn't.
+!.claude/agents/
+!.claude/hooks/
+!.claude/settings.json
 .claude/skills/scroll-world/
 .hallmark/
+
+# software factory dashboard and gate runs (npm run factory:dashboard, specs/software-factory.md)
+.factory/

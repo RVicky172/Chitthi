@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { TEXT_STYLES } from '../data/layers';
-import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, newImageLayer, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer } from './layers';
+import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, mergeLayers, newImageLayer, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer, type ShapeLayer, type TextLayer } from './layers';
 import { newPart } from './masks';
 import { DEFAULT_EDIT } from './instagram';
-import { V_FADE, clipAt, clipLength, fadeAmount, frameRange, motionEdit, timeline, totalLength } from './video';
+import { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength, videoAt } from './timeline';
+import { V_FADE, clipLength, fadeAmount, frameRange, motionEdit } from './video';
 
 describe('layers', () => {
   it('scale about their centre, with their text sizes, within limits', () => {
@@ -91,36 +92,35 @@ describe('image layers, blend modes and layer masks', () => {
 });
 
 describe('video timeline', () => {
-  const clips = [
-    { kind: 'photo' as const, dur: 3, in: 0, out: 0 },
-    { kind: 'video' as const, dur: 0, in: 2, out: 6.5 },
-    { kind: 'photo' as const, dur: 1.5, in: 0, out: 0 },
-  ];
+  const clips = pack([
+    { id: 'a', track: MAIN_VIDEO, start: 0, kind: 'photo' as const, dur: 3, in: 0, out: 0 },
+    { id: 'b', track: MAIN_VIDEO, start: 0, kind: 'video' as const, dur: 0, in: 2, out: 6.5 },
+    { id: 'c', track: MAIN_VIDEO, start: 0, kind: 'photo' as const, dur: 1.5, in: 0, out: 0 },
+  ]);
+  const p = { tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false };
   it('places clips end to end', () => {
-    const tl = timeline(clips);
-    expect(tl.map((p) => [p.start, p.end])).toEqual([
+    expect(clips.map((c) => [c.start, c.start + clipLength(c)])).toEqual([
       [0, 3],
       [3, 7.5],
       [7.5, 9],
     ]);
-    expect(totalLength(clips)).toBe(9);
+    expect(projectLength(p)).toBe(9);
     expect(clipLength(clips[1])).toBe(4.5);
   });
   it('finds the clip at a time, clamping past the ends', () => {
-    const tl = timeline(clips);
-    expect(clipAt(tl, 0)?.index).toBe(0);
-    expect(clipAt(tl, 3)?.index).toBe(1);
-    expect(clipAt(tl, 8.99)?.index).toBe(2);
-    expect(clipAt(tl, 50)?.index).toBe(2);
-    expect(clipAt(tl, -1)?.index).toBe(0);
-    expect(clipAt([], 1)).toBeNull();
+    expect(videoAt(p, 0)?.clip.id).toBe('a');
+    expect(videoAt(p, 3)?.clip.id).toBe('b');
+    expect(videoAt(p, 8.99)?.clip.id).toBe('c');
+    expect(videoAt(p, 50)?.clip.id).toBe('c');
+    expect(videoAt(p, -1)?.clip.id).toBe('a');
+    expect(videoAt({ ...p, clips: [] }, 1)).toBeNull();
   });
   it('gives every frame to exactly one clip', () => {
-    const tl = timeline(clips);
-    const ranges = tl.map((p) => frameRange(p.start, p.end));
+    const ranges = framePlan(p, 30).map((f) => [f.f0, f.f1]);
     expect(ranges[0][0]).toBe(0);
     for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBe(ranges[i - 1][1]);
     expect(ranges.at(-1)?.[1]).toBe(270); // 9 s × 30 fps
+    expect(frameRange(3, 7.5, 30)).toEqual([90, 225]);
   });
   it('moves photos smoothly from start to end', () => {
     expect(motionEdit(DEFAULT_EDIT, 'zoom-in', 0).zoom).toBeCloseTo(1);
@@ -163,5 +163,95 @@ describe('video formats and limits', () => {
     expect(desk.fileMB).toBeGreaterThan(web.fileMB);
     expect([web.fps, desk.fps]).toEqual([[30], [30, 60]]);
     expect(limitsFor('reel', false)).toMatchObject({ seconds: 90, minSeconds: 3, clips: 20 });
+  });
+});
+
+describe('mergeLayers: the gate for layers from project files', () => {
+  const draw: DrawLayer = {
+    id: 'ld1',
+    kind: 'draw',
+    x: 0.4,
+    y: 0.6,
+    w: 0.5,
+    h: 0.3,
+    rot: 12,
+    opacity: 0.8,
+    strokes: [{ brush: 'neon', color: '#ff6b35', width: 0.05, pts: [-0.4, -0.2, 0, 0.1, 0.3, 0.25] }],
+  };
+  const every = () => [
+    { ...newText(TEXT_STYLES[1], 'Diwali'), blend: 'screen' as const, start: 1, end: 4.5 },
+    { ...newShape('bubble'), mask: { invert: true, parts: [{ ...newPart('linear'), x: 0.5, y: 0.5 }] } },
+    newSticker('🪔'),
+    draw,
+    newImageLayer('img1', 400, 200, 'logo.png'),
+  ];
+  const roundTrip = (v: unknown) => mergeLayers(JSON.parse(JSON.stringify(v)), new Set(['img1']));
+
+  it('keeps every kind of valid layer exactly', () => {
+    const layers = every();
+    expect(roundTrip(layers)).toEqual(layers);
+  });
+
+  it('reads anything without throwing, and only arrays of objects', () => {
+    for (const v of [null, undefined, 1, 'x', {}, [null, 3, 'a', [], { kind: 'nope' }]]) expect(mergeLayers(v)).toEqual([]);
+  });
+
+  it('clamps numbers and replaces bad values with defaults', () => {
+    const [t] = roundTrip([{ ...newText(TEXT_STYLES[0]), x: 99, y: -99, w: 0, rot: 9999, opacity: 7, size: 'big', color: 'red', align: 'up', bold: 'yes', start: -3, end: Infinity }]) as TextLayer[];
+    expect(t.x).toBeLessThanOrEqual(1.5);
+    expect(t.y).toBeGreaterThanOrEqual(-0.5);
+    expect(t.w).toBeGreaterThan(0);
+    expect(Math.abs(t.rot)).toBeLessThanOrEqual(360);
+    expect(t.opacity).toBe(1);
+    expect(t.size).toBe(0.08);
+    expect(t.color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(t.align).toBe('center');
+    expect(t.bold).toBe(false);
+    expect(t.start).toBeUndefined();
+    expect(t.end).toBeUndefined();
+  });
+
+  it('keeps times only when they make sense', () => {
+    const at = (start: unknown, end: unknown) => roundTrip([{ ...newSticker('⭐'), start, end }])[0];
+    expect(at(2, 5)).toMatchObject({ start: 2, end: 5 });
+    expect(at(5, 2).end).toBeUndefined();
+    expect([at(NaN, 'x').start, at(NaN, 'x').end]).toEqual([undefined, undefined]);
+  });
+
+  it('drops unknown kinds, unknown shapes and brushes become defaults, and limits text and drawings', () => {
+    const out = roundTrip([
+      { kind: 'video', id: 'a' },
+      { ...newShape('star'), shape: 'hexagon', fill: 'blue', stroke: '#zzzzzz', strokeW: -1 },
+      { ...newText(TEXT_STYLES[0]), text: 'x'.repeat(5000) },
+      { ...draw, strokes: [...Array(500)].map(() => ({ brush: 'crayon', color: '#000000', width: 0.01, pts: [0, 0, 0.1, 0.1] })) },
+      { ...draw, id: 'ld2', strokes: [{ brush: 'pen', color: '#000000', width: 0.01, pts: [0, 0, NaN, 1] }, { brush: 'pen', color: '#000', width: 0.01, pts: [0, 0, 1] }] },
+    ]);
+    expect(out.map((l) => l.kind)).toEqual(['shape', 'text', 'draw', 'draw']);
+    const s = out[0] as ShapeLayer;
+    expect([s.shape, s.fill, s.stroke, s.strokeW]).toEqual(['rect', '', '', 0]);
+    expect((out[1] as TextLayer).text).toHaveLength(2000);
+    expect((out[2] as DrawLayer).strokes).toHaveLength(400);
+    expect((out[2] as DrawLayer).strokes[0].brush).toBe('pen');
+    expect((out[3] as DrawLayer).strokes).toEqual([]);
+  });
+
+  it('image layers need a picture the project has', () => {
+    const img = newImageLayer('img1', 100, 100, 'a.png');
+    expect(mergeLayers([img], new Set())).toEqual([]);
+    expect(mergeLayers([{ ...img, image: '../../etc' }], new Set(['../../etc']))).toEqual([]);
+    expect(mergeLayers([img], new Set(['img1']))).toEqual([img]);
+  });
+
+  it('masks keep only gradient parts, and ids stay unique', () => {
+    const shape = { ...newShape('rect'), id: 'same', mask: { invert: false, parts: [newPart('brush'), { ...newPart('radial'), rx: 9 }, newPart('colour')] } };
+    const out = roundTrip([shape, { ...newSticker('🎉'), id: 'same' }, { ...newSticker('🎉'), id: '<script>' }]);
+    expect((out[0] as ShapeLayer).mask?.parts.map((p) => p.kind)).toEqual(['radial']);
+    expect(new Set(out.map((l) => l.id)).size).toBe(3);
+    expect(out[0].id).toBe('same');
+    expect(out.every((l) => /^[A-Za-z0-9_-]{1,40}$/.test(l.id))).toBe(true);
+  });
+
+  it('holds at most 100 layers', () => {
+    expect(mergeLayers([...Array(150)].map(() => newSticker('✨')))).toHaveLength(100);
   });
 });

@@ -10,7 +10,7 @@ no CI on feature branches or pull requests.
 | --- | --- | --- | --- |
 | `npm run check` | Fast gate: `typecheck` + `lint` + `test:unit`. Run after every task | Node | ~15 s |
 | `npm run lint` | ESLint (`eslint.config.js`) | Node | ~10 s |
-| `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
+| `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` and `scripts/factory/*.test.mjs` | Node | ~9 s |
 | `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
 | `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~10 s |
 | `npm run test:e2e` | Browser tests with axe, `e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
@@ -28,6 +28,13 @@ preview reader and a synthetic DNG, segmentation map stretching and the pinned m
 
 Add a test next to the module as `name.test.ts`. Keep it free of DOM and canvas: anything that needs them belongs in
 the self-test. Test files are type-checked with the app but left out of the library build.
+
+The software factory's scripts (`scripts/factory/`, [software-factory.md](software-factory.md)) are tested the same
+way and run in the same `npm run test:unit` (Vitest's default include finds `*.test.mjs`; ESLint covers them): the
+readers on frozen copies of real roadmap, spec and tasks files (`scripts/factory/fixtures/`), the gate choice, the
+guardrail rules and hooks, the agents' tool lists, the loop's decisions and its runner with `claude` and the gates
+replaced by fakes, the gate lock, worktrees, notifications, the dashboard and the release bump. Tests that need git
+make a temporary repository with its own local config (no signing, hooks or autocrlf from the machine's git).
 
 ## Self-test (Electron)
 
@@ -99,4 +106,6 @@ npm run test:e2e       # Playwright + axe on the production build, desktop and p
 npm run build          # typecheck + vite build + bundle budget (entry chunk ≤ 350 KB, no AI code)
 npm run check:licenses # every shipped package has an allowed licence
 npm run format         # Prettier
+npm run factory:gates -- --task Tnnn  # the gates the changed files need, run and recorded in .factory/runs/
+npm run factory:gates -- --verify     # every Definition-of-Done gate, recorded the same way
 ```

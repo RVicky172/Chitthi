@@ -1,2 +1,29 @@
+# Line endings (402 Q9, D-012): the repository stores every text file with LF, whatever each machine's
+# core.autocrlf says; working copies get their platform's endings. Nothing needed renormalising when this was added
+# (git ls-files --eol showed no i/crlf).
+* text=auto
+
 # Model files are binary: never convert line endings.
 *.onnx binary
+
+# Other binary files git must never touch.
+*.webp binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.ico binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+*.dng binary
+*.cr3 binary
+*.nef binary
+*.arw binary
+*.tif binary
+*.tiff binary
+*.zip binary
+*.mp4 binary
+*.mp3 binary
+*.wav binary

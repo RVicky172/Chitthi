@@ -3,7 +3,7 @@
 > The non-negotiable principles of this project. Every spec, plan, task, and line of code must comply.
 > If a change needs to break a principle, amend this document first (see "Governance & Amendments").
 
-**Version:** 1.0.0 · **Ratified:** 2026-10-06
+**Version:** 1.1.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-08 (1.1.0: XII added, D-016)
 
 ---
 
@@ -26,8 +26,9 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 ### II. Test-Gated Delivery
 
-- No task is "done" until its tests pass: `npm run check` (and `npm run test:e2e` if the change affects UI or
-  integration; `npm test` if it renders, exports or adds an agent tool).
+- No task is "done" until its tests pass: `npm run check` (and that area's e2e tests,
+  `npx playwright test e2e/<file>.e2e.ts`, if the change affects UI or integration; never the full suite, D-017;
+  `npm test` if it renders, exports or adds an agent tool).
 - Pure logic is unit-tested, test-first: write the failing test, then the code.
 - Tests wait on real signals, never fixed sleeps; anything time-dependent takes time as an input so tests are
   deterministic.
@@ -95,6 +96,24 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 - Every user-facing feature is reachable through a tool in `src/agent/tools.ts` (the MCP server calls the page),
   covered by the self-test and documented in [docs/MCP.md](../docs/MCP.md).
+
+### XII. Agents Work Within the Line
+
+- Agents may, on their own and within a budget (by default 40 turns per agent call, US$10 per run, at most US$4 per
+  call; D-012, D-015), implement, test, review and commit a feature's tasks on its feature branch: one commit per
+  task, never pushed (`npm run factory`, [software-factory.md](software-factory.md)). They may also draft specs in
+  a batch (`--intake`), each with Status Draft, for people to approve.
+- The task loop stops and says why at a 👤 task, a stopped task (waiting on you), a needed spec or plan change, a
+  new dependency, the agent's own question (`FACTORY-STOP: question`), the third failure of one task, a spent budget
+  and Verify; work not yet committed is stashed, never left half-edited. Intake leaves its drafts in the tree for
+  review.
+- People approve specs and plans, sign off at Verify, merge, tag and release.
+- Hooks enforce what can be enforced (`.claude/hooks/`, rules in `scripts/factory/rules.mjs`). On a `feat/NNN-*`
+  branch, code under `src/` and `electron/` waits for that feature's approved spec. Force pushes, `git tag`,
+  `git reset --hard`, `sed -i` on tracked files and Prettier writing under `src/` are refused. The Stop hook blocks
+  a turn once when `npm run check` fails on code it changed; if the check is still red at the next try, it lets the
+  turn end and records the failure (`.factory/stop-hook.json`). Both hooks fail open on their own errors, and
+  `CHITTHI_FACTORY_HOOKS=off` turns them off for a session.
 
 ## Quality Gates (Definition of Done)
 

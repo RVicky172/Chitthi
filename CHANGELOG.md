@@ -9,6 +9,11 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Settings › AI: **AI models on this device** shows whether the sky model for AI masks is downloaded (176 MB) and
+  deletes it, without touching designs, photos or presets. It is downloaded again, after asking, when next needed.
+- Video editor: **track headers** on the timeline. **Hide** the video track (black frames with the layers, in the
+  preview and the export), **Mute** the music, **Lock** a track so its clips can't be moved, trimmed, split,
+  duplicated or deleted, and choose each track's height (Small, Medium, Large). Hide, Mute and Lock can be undone.
 - Photo editor: **Light** (exposure, contrast, highlights, shadows, whites, blacks) and **Colour** (temperature, tint,
   saturation) controls, with an eyedropper that sets the white balance from something grey or white in the photo.
   Exposure, white balance and the tone sliders work in linear light, like a camera, and run on the graphics card.
@@ -54,6 +59,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Video editor: a project is now made of tracks with clips at a start time, the groundwork for the multi-track
+  timeline; videos look and sound exactly as before (checked frame by frame against 2.x). The Music row is as tall as
+  the Video row (64 px).
 - CI runs once per release instead of on every pull request and push to `main`: the Desktop release workflow runs
   every check (lint, licences, build, unit, self-test, MCP, browser tests, Docker image) first, and builds and
   publishes the installers only if they pass; a manual run is the release's dry run. Day-to-day checks are local.

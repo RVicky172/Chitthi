@@ -21,7 +21,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run typecheck` | TypeScript 7 (`tsc -b`, the native compiler from the `typescript-native` package): strict type check of app and tooling, about 10× faster than 5.9 |
 | `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
 | `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |
-| `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [testing-strategy.md](testing-strategy.md) |
+| `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`, and the software factory's `scripts/factory/*.test.mjs`). See [testing-strategy.md](testing-strategy.md) |
 | `npm run test:e2e` | Playwright browser tests with an axe accessibility check against the production build (`e2e/`). First run: `npx playwright install chromium` |
 | `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview, the order sheet, the AI service against a fake provider and every agent tool (`src/dev/selftest.ts`). Exits 1 on any failure |
 | `npm run mcp` | The MCP server from source (headless): its own Vite server on port 5197 and cache (`.vite-mcp`), then `electron . --mcp`. stdout carries only the protocol. See [MCP.md](../docs/MCP.md) |
@@ -35,6 +35,11 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run screenshots` | Remakes the README screenshots in `docs/screenshots/` from the running app (its own Vite server and Chromium; sample designs and photos, no Pexels search) (`scripts/screenshots.mjs`); `node scripts/screenshots.mjs docs media-masks` remakes some |
 | `npm run fetch:libraw` | Downloads LibRaw's RAW developer into `electron/resources/libraw/<platform>-<arch>/` (official Windows and Apple silicon builds; on macOS also builds the Intel copy from source), each checked by SHA-256. Needed for RAW photos in the desktop app and by `npm run test:mcp` |
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |
+| `npm run factory:dashboard` | Writes `.factory/dashboard.html` (git-ignored) from the roadmap, features, memory and git; `-- --serve` serves it live on `127.0.0.1:4310` ([software-factory.md](software-factory.md)) |
+| `npm run factory -- <NNN>` | The software factory's loop (`scripts/factory/run.mjs`): agents implement, gate, review and commit the feature's tasks on `feat/NNN-*` until a stop; never pushes or tags. Flags `--plan`, `--once`, `--budget`, `--max-turns`, `--worktree`; `-- --intake 203,204` drafts specs instead. Needs the Claude Code CLI ([workflow.md](workflow.md#running-the-line-the-software-factory)) |
+| `npm run factory:next [NNN]` | Prints, as JSON, the next task an agent may take and the 👤, stopped and blocked tasks (`scripts/factory/next.mjs`) |
+| `npm run factory:gates` | Picks the gates the changed files need (`--verify`: the whole Definition of Done), runs them and writes `.factory/runs/*.json`; `-- --task Tnnn` names the task, `--dry` only lists them. Exits 1 if a gate is red (`scripts/factory/gates.mjs`) |
+| `npm run release:prepare -- X.Y.Z` | On a clean `main`: bumps the version (and lock file), `APP_CACHE`, the image tag, the plugin version and CHANGELOG, prints the rest of the checklist and, in a terminal, asks before the dry run; never tags or pushes (`scripts/factory/release.mjs`, [release.md](release.md)) |
 | `npm run fetch:showcase` | Downloads the landing page example photos from Pexels into `showcase-src/` (needs the key) |
 | `npm run build:showcase` | With `npm run dev` running: renders the landing examples (`src/data/showcase.ts`) into `public/showcase/*.webp` and `src/data/showcase.json`, using Electron |
 | `npm run fetch:print-samples` | Downloads the festival photos for the print samples (no people, print resolution) from Pexels into `print-samples-src/` (gitignored; needs the key) |
@@ -129,7 +134,8 @@ flowchart LR
 Follow the checklist in [release.md](release.md); in short:
 
 1. `npm version X.Y.Z --no-git-tag-version` (updates `package.json` and the lock file), bump `APP_CACHE`, and update
-   the image tag in `docker-compose.yml`.
+   the image tag in `docker-compose.yml`. `npm run release:prepare -- X.Y.Z` (or `/release X.Y.Z` in Claude Code)
+   does all of this, the plugin version and the CHANGELOG section in one step, and stops before the tag.
 2. Run `npm run typecheck && npm run build` (and `npm run docs:specs` if specifications changed).
 3. Commit and push, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 4. The **Desktop release** workflow runs CI first (`ci.yml`; D-006: the only CI run, never on branches or pull
@@ -149,3 +155,5 @@ for notarization `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, as 
 | `PEXELS_API_KEY` | `.env.local` (gitignored) | `fetch:samples`, and the dev/preview server proxy for photo search. Never shipped |
 | `CHITTHI_DEV_URL` | set by `electron/dev.mjs` | Tells Electron to load the Vite dev server |
 | `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_*` | CI secrets | Code signing and notarization |
+| `CHITTHI_FACTORY_HOOKS=off` | your shell, before starting Claude Code | Turns the software factory's guardrail hooks (`.claude/hooks/`) off for that session |
+| `CHITTHI_FACTORY_NOTIFY=off` | your shell | `scripts/factory/notify.mjs` prints its line only, no desktop notification or bell |
