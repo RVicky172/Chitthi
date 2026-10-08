@@ -21,7 +21,7 @@
   T070 by the loop, toast seen; stops drilled on a throwaway `feat/998-stop-drill` (local). Next: T062, T063, then
   `/spec-verify 402` (T091, T092).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
-  CodeQL still scans PRs. `gh` is installed and signed in (`C:Program FilesGitHub CLIgh.exe`).
+  CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
 
 ## Files

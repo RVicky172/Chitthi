@@ -417,8 +417,16 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
     optional point). Gate: `npm run factory:gates -- --feature 402 --task T061` → ✓ check 16 s, 1243 tests
     passed, lint 0 errors / 5 warnings; no worktree, lock or temp repo left. Known limit: the dashboard shows
     one checkout's loop; T063 will show whether that matters.
-- [ ] **T062** 👤 — `/spec-batch 203 204` on a scratch branch: two Draft specs with open questions, roadmap 📝, no
+- [x] **T062** 👤 — `/spec-batch 203 204` on a scratch branch: two Draft specs with open questions, roadmap 📝, no
       plan or code; branch deleted after. · test: recorded (AC-15)
+  - **Result (2026-10-08):** `/spec-batch 203 204` on `scratch/402-t062-intake`: one spec-writer per item, one
+    after the other. Each draft checked on return: `git status` showed only the new `spec.md` and its roadmap row
+    (📝 with a link), `**Status:** Draft`, numbered ACs with test types. 203 `compositing-pip`: 15 ACs, 14 questions
+    marked `[NEEDS CLARIFICATION]` with proposals; 204 `decoder-pool`: 16 ACs, 10 questions (it read 203's draft and
+    names how its Q2 / Q7 meet 203's Q6). No plan, tasks or code. The maintainer chose to keep the drafts: they were
+    moved to `spec/203-204` from `main` (roadmap rows in `main`'s format, which has no Needs column yet; commit
+    `b8b6ee9`, pushed), and the scratch branch was deleted. The spec-writers left the roadmap's "Last updated" line
+    alone, as told.
 - [ ] **T063** 👤 — Two scratch features in two worktrees, each with one tiny tooling task, run at once: both green,
       gate runs never overlap (run-file timestamps), worktrees removed after. · test: recorded (AC-16)
 
