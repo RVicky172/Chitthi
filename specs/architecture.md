@@ -232,3 +232,12 @@ Every change follows these; [CLAUDE.md](../CLAUDE.md) → *Things that bite* has
   uses the root class `.mst`, never `.ig`.
 - **Agents.** Every user-facing feature is reachable through a tool in `src/agent/tools.ts`, documented in
   [docs/MCP.md](../docs/MCP.md).
+
+## 11. Development tooling
+
+The software factory (402, [software-factory.md](software-factory.md)) builds the app; it is not part of it. It lives
+in `scripts/factory/` (Node scripts and their Vitest tests), `.claude/` (agents, slash commands, hooks) and the
+git-ignored `.factory/` (gate runs, loop state, dashboard), and drives the Claude Code CLI, a development tool
+installed separately and never shipped ([tech-stack.md](tech-stack.md)). Nothing under `src/`, `electron/` or
+`public/` imports it, it adds no dependency to `package.json`, and neither `dist/` nor the desktop installers contain
+it. How the line runs: [workflow.md](workflow.md) "Running the line"; its rules: Constitution XII.

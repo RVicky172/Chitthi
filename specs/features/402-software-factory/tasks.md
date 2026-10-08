@@ -558,7 +558,15 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
 
 ## Verify
 
-- [ ] **T090** — `specs/architecture.md`: a short "Development tooling" note (the factory sits outside the app).
+- [x] **T090** — `specs/architecture.md`: a short "Development tooling" note (the factory sits outside the app).
+  - **Result (2026-10-08):** New §11 "Development tooling" in `specs/architecture.md`: where the factory lives
+    (`scripts/factory/`, `.claude/`, the git-ignored `.factory/`), that it drives the separately installed Claude
+    Code CLI, and that the app never contains it; links to software-factory.md, tech-stack.md and workflow.md
+    "Running the line", and names Constitution XII. Each claim checked: no file under `src/`, `electron/` or `public/`
+    mentions `scripts/factory` or `.factory/`; `git diff main -- package.json` adds only the five `factory*` /
+    `release:prepare` scripts (no dependency); `electron-builder.yml` `files:` names none of these folders, and
+    `.dockerignore` excludes `.claude` (the Docker image copies only `dist/` into nginx). Line endings kept (243 of
+    243 lines CRLF). Test: review; the three links resolve. `npm run check` → 1269 tests, lint 0 errors.
 - [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
       `check:licenses`), unchanged from before 402 since the app didn't change; record the numbers.
 - [ ] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 402 → ✔️, `specs/software-factory.md`
