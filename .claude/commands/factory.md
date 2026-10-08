@@ -14,8 +14,9 @@ failure, the budget, Verify). It never pushes, merges, tags or resets; a stop be
    loop refuses a dirty tree, and only the user decides what happens to their work. With `--worktree` (402 §6) the
    check is on the feature's own worktree instead: the loop makes or reuses `../Chitthi-wt/<NNN>` on `feat/<NNN>-*`
    (created from `main` if missing; `node_modules` and the git-ignored resources linked from this checkout), so this
-   checkout may stay on any branch. Its gate runs take the gate lock, so two lines never run gates at once. Afterwards
-   `npm run factory -- <NNN> --remove-worktree` removes it (links first; the branch stays).
+   checkout may stay on any branch except `feat/<NNN>-*` itself: the loop refuses when that branch is checked out
+   here (git allows a branch in one worktree only; switch this checkout away first). Its gate runs take the gate
+   lock, so two lines never run gates at once. Afterwards `npm run factory -- <NNN> --remove-worktree` removes it (links first; the branch stays).
 2. **Preview:** run `npm run factory -- <NNN> --plan` and show the user the next task(s), the gates and the commit
    subject in two or three lines. If the arguments include `--plan`, stop here.
 3. **Dashboard:** if nothing answers on `http://127.0.0.1:4310`, start `npm run factory:dashboard -- --serve` in

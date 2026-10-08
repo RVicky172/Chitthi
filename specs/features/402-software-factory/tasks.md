@@ -515,10 +515,46 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
     tooling" has a Claude Code CLI row (2.1, the installed 2.1.294): development only, not a package dependency,
     never shipped. D-016 in `memory/decisions.md`. Test: review (no
     code). Gate: `npm run check` → 37 files, 1269 tests passed, lint 0 errors / 5 known warnings.
-- [ ] **T081** [P] — Docs (AC-18): `specs/workflow.md` "Running the line"; `specs/software-factory.md` phase
+- [x] **T081** [P] — Docs (AC-18): `specs/workflow.md` "Running the line"; `specs/software-factory.md` phase
       status and commands; `specs/build.md`, `specs/testing-strategy.md` (scripts' tests in `test:unit`, the factory
       commands), `specs/memory-management.md` (the scribe), `CLAUDE.md`. · files: those · test: review; links
       checked
+  - **Result (2026-10-08):** Docs only, each claim checked against `scripts/factory/*.mjs`, `.claude/commands/`,
+    `.claude/agents/`, `.claude/hooks/` and `package.json`, and against Constitution XII. `workflow.md`: Stage 4
+    names `factory:gates`; the slash-command table gains `/spec-batch`, `/factory`, `/release` and says the
+    `/spec-*` commands hand work to the agents; new "Running the line" section: how `/factory` and
+    `npm run factory` run (branch and clean-tree checks, implement → gates → review → commit, 3 attempts,
+    test-first pairs, never push / tag), a flags table (`--plan`, `--once`, `--budget`, `--max-turns`,
+    `--worktree`, `--intake`; `--remove-worktree`, the refusal when `feat/NNN-*` is checked out in the main
+    checkout, gate lock), a table of every stop kind `decide` and the runner return (incl. `once`; the start
+    checks run before each task's first call), where the evidence is, the guardrails and allow-list, and the two
+    learnings for writing tasks (headless runs can't write `.claude/`, so such tasks are 👤; real agents stop with `question` rather than fail three
+    times). `software-factory.md`: status banner; §1.3 constitution I–XII plus rows for `.claude/`,
+    `scripts/factory/`, `.factory/`; §1.4 the three new commands; notes that §1.6 and §2.1 are the state before
+    402; new §3.6 with each phase's status (F0 done; F1–F5 built and used; F6 built, T062 / T063 open; F7 built,
+    not yet used for a real release; F8 built), where the build differs from the phase text (hook details, agent
+    tools, budgets, notifications, release), and the command block; §4.1 a **Loop** row and the gate-runs source.
+    Phases are marked "Built", not ✔️, so T092 still ticks them. `build.md`: `test:unit` includes
+    `scripts/factory/*.test.mjs`; rows for `factory`, `factory:next`, `factory:gates`, `release:prepare`; release
+    step 1 names `release:prepare` / `/release`; `CHITTHI_FACTORY_HOOKS` and `CHITTHI_FACTORY_NOTIFY` in the
+    environment table. `testing-strategy.md`: the `test:unit` row (both globs, ~9 s: Vitest measured 8.7 s) and a
+    paragraph on the factory's tests (fixtures, fakes for `claude` and gates, temp repos with local git config);
+    two `factory:gates` lines in Commands. `memory-management.md`: "The scribe agent" (what it writes, its tools,
+    `/spec-verify` step 4; the loop doesn't call it, so progress and MEMORY are updated after a run).
+    `CLAUDE.md`: four commands in the Commands block; the slash-command bullet names the agents, `/factory`,
+    `/spec-batch`, `/release`, points to "Running the line" and says `.claude/` tasks are 👤. Outside the named
+    files: `.claude/commands/factory.md` step 1 (see the review below). The review rejected the first version once:
+    the `--worktree` row (and `factory.md` step 1) said this checkout may stay on any branch, but `prepareWorktree`
+    refuses when `feat/NNN-*` is checked out here; the stops table had no `once` row; and it said the
+    `not-ready` / `paused` / `done` / `nothing-to-do` stops come "before any call", though `decide` checks them
+    before each task. Fixed: the row and `factory.md` name the exception and the refusal, a `once` row, and that
+    row now says "before each task's first call", with "only blocked tasks left". Checked by hand:
+    `npm run factory:next 999` passes the argument without `--`; `factory:gates -- --dry --task T081` → "none"
+    for docs. Links: a small script resolved every relative link and `#anchor` in the six files (24 links, 0
+    broken; it reported a missing file and a missing anchor in a probe file, so it does check). Line endings kept
+    (CRLF counted before and after: `CLAUDE.md`, `build.md`, `testing-strategy.md`, `memory-management.md` CRLF;
+    `workflow.md`, `software-factory.md` LF). Gate: `npm run check` → 37 files, 1269 tests passed, lint 0 errors /
+    5 known warnings, 14.9 s.
 
 ## Verify
 

@@ -1,8 +1,10 @@
 # Chitthi's software factory
 
-> **Status:** Part 1 describes how we work today. Part 3 is the plan: phase F8 (the dashboard) is built
-> (`npm run factory:dashboard`, D-011); phases F1–F7 go through feature `402-software-factory` when it starts.
-> Written 2026-10-08 against 2.8.0 + unreleased editor Phases 0–1, 201 and 202 in progress.
+> **Status:** Part 1 describes how we work today. Part 3 is the plan and, in §3.6, what is built and the commands:
+> phases F1–F5, F7 and F8 are built and F1–F5 have been used on real tasks; F6 is built, its two manual proofs
+> are open (feature `402-software-factory`, In Progress). How to run the line:
+> [workflow.md](workflow.md#running-the-line-the-software-factory). Written 2026-10-08 against 2.8.0 + unreleased editor Phases 0–1, 201 and 202 in progress; status updated
+> 2026-10-08 (402 T081).
 
 This document puts three things in one place: the spec-driven setup we use today (Part 1), what a software factory
 is (Part 2), and how we turn the first into the second (Part 3). Part 4 is the dashboard; Part 5 lists other ways to
@@ -45,7 +47,7 @@ Full rules: [workflow.md](workflow.md). The non-negotiables and the 10-point Def
 | Where | What | Who writes |
 | --- | --- | --- |
 | `CLAUDE.md` | How an agent starts a session, commands, architecture, things that bite | People (agents propose) |
-| `specs/constitution.md` | Principles I–XI and the Definition of Done | People, versioned |
+| `specs/constitution.md` | Principles I–XII and the Definition of Done | People, versioned |
 | `specs/workflow.md`, `specs/templates/` | The process and the three templates | People |
 | `specs/vision/` | Multi-release initiatives (editor roadmap, work items P2.x, P3.x) | Agents draft, people approve |
 | `specs/roadmap.md` | Every feature with its status (⬜ 📝 ✅ 🚧 ✔️ ⏸️) | Agents, at Verify |
@@ -54,6 +56,9 @@ Full rules: [workflow.md](workflow.md). The non-negotiables and the 10-point Def
 | `memory/decisions.md` | Append-only decision log, `D-001…` | Agents and people, when decided |
 | `memory/progress.md` | Session log, newest first: Done / Next / Blockers | Agents, end of session |
 | `memory/learnings.md` | Gotchas that cost > 10 minutes | Agents, when found |
+| `.claude/commands/`, `.claude/agents/`, `.claude/hooks/`, `.claude/settings.json` | Slash commands, the seven specialist agents, the guardrail hooks and their registration (committed, D-005, 402 Q5) | People (a headless agent can't write `.claude/`) |
+| `scripts/factory/` | The factory's scripts, their tests, prompts and fixtures | Agents and people, through tasks |
+| `.factory/` (git-ignored) | Gate runs, the loop's state, the dashboard, hook logs | The scripts |
 
 Numbering (D-003): `000–099` baseline, `2xx` / `3xx` the editor's work items (P2.1 → `201`), `401+` everything else.
 
@@ -66,8 +71,12 @@ Numbering (D-003): `000–099` baseline, `2xx` / `3xx` the editor's work items (
 | `/spec-tasks <NNN>` | `tasks.md` from the plan |
 | `/spec-implement <NNN> [task]` | The next unchecked task(s), test first, gates, Result note |
 | `/spec-verify <NNN>` | Every Definition-of-Done gate, AC ticks, docs and memory |
+| `/spec-batch <NNN> …` | Draft specs for several roadmap items (F6) |
+| `/factory <NNN> [flags]` | The loop, unattended, until a stop (F5) |
+| `/release <X.Y.Z>` | Prepare a release, stop before the tag (F7) |
 
-They live in `.claude/commands/` and are committed (D-005).
+They live in `.claude/commands/` and are committed (D-005). Since 402 the `/spec-*` commands hand their work to the
+agents of F4. The npm scripts behind the factory are in §3.6.
 
 ### 1.5 The gates
 
@@ -96,6 +105,9 @@ Doesn't yet:
 4. **The state is spread over many files.** To know "what's waiting on me" you read the roadmap, five `tasks.md`
    files, `MEMORY.md` and the progress log.
 5. **No numbers over time.** Gate results live in prose notes; you can't see trends, rework or waiting time.
+
+This list was written before feature 402. Its phases answer 1–4 and the first part of 5 (every gate run is a file
+the dashboard shows); trends over time are still to come (F8). §3.6 has the status.
 
 ---
 
@@ -136,7 +148,8 @@ repeatable and visible, and spends people's time only on decisions.
 | Telemetry | Result notes, progress log | Not collected — **the dashboard (F8) starts this** |
 | Kaizen | `learnings.md` | Learnings aren't turned into guards |
 
-Most of the factory exists. What's missing is the automation between the stations.
+Most of the factory exists. What's missing is the automation between the stations. (The table is the state before
+402; what has been built since is in §3.6.)
 
 ---
 
@@ -171,7 +184,8 @@ Most of the factory exists. What's missing is the automation between the station
 
 ### 3.3 Phases
 
-Each phase is useful on its own. F1–F7 become the tasks of `402-software-factory` (spec first, as always).
+Each phase is useful on its own. F1–F7 become the tasks of `402-software-factory` (spec first, as always). The
+phases below are the plan as first written; §3.6 says what was built and where it differs.
 
 **F0 — Decide and specify.** `/spec-new software-factory` → `402`. Decide: how far the factory may go alone (after
 each task, each feature, or up to Verify), whether it may commit on a feature branch, the budget per run (turns,
@@ -253,6 +267,55 @@ lead time per stage, rework (retries), time waiting on a person.
 | Keys leaking into committed settings | `ANTHROPIC_API_KEY` from the environment only; never in `.claude/settings.json` |
 | Spec drift | The orchestrator stops; the spec changes first (workflow.md, "Changing a spec mid-flight") |
 
+### 3.6 What is built, and the commands
+
+Status on 2026-10-08 (402 In Progress; its Verify ticks the phases). How to run the line, its stops and where the
+evidence is: [workflow.md, "Running the line"](workflow.md#running-the-line-the-software-factory). The rules for
+agents: Constitution XII.
+
+| Phase | Status | Built as |
+| --- | --- | --- |
+| F0 Decide | Done | Spec 402 with the answers to Q1–Q10 (D-012); constitution 1.1.0, principle XII (D-016) |
+| F1 Backlog | Built, used | `scripts/factory/state.mjs` (the readers, shared with the dashboard) and `next.mjs`; `area:` / `deps:` tags in `templates/tasks-template.md`; the roadmap's **Needs** column (D-013) |
+| F2 Gates | Built, used | `gates.mjs`: the gates for the changed files, run in order under the gate lock, one file per run in `.factory/runs/` |
+| F3 Guardrails | Built, live in every session | `.claude/hooks/pre-tool.mjs` and `stop.mjs`, rules in `scripts/factory/rules.mjs`, registered in `.claude/settings.json`; `.gitattributes` with `* text=auto` |
+| F4 Agents | Built, used | Seven agents in `.claude/agents/`; the `/spec-*` commands hand work to them; the reviewer rejected 3 seeded bad changes and accepted a good one (402 T042) |
+| F5 Orchestrator | Built, used | `run.mjs`, `/factory`, `notify.mjs`, the dashboard's **Loop** panel. First real runs (402 T054): 2 tasks done unattended, US$4.83 in all; each stop kind triggered once (the third failure by a scripted test) |
+| F6 Intake, parallel lines | Built; manual proofs open | `--intake` and `/spec-batch`; `--worktree`; the gate lock `lock.mjs`. 402 T062 (a real batch) and T063 (two worktrees at once) are 👤 and open |
+| F7 Release station | Built | `release.mjs` (`npm run release:prepare`) and `/release`; proven in a temporary repo, not yet used for a real release |
+| F8 Dashboard | Built | `dashboard.mjs` with the **Gate runs** and **Loop** panels; trends, lead time and rework not yet |
+
+Where the build differs from the phases above:
+
+- **Hooks (F3).** The spec rule holds only on a `feat/NNN-*` branch; other branches (fixes, chores) may edit code,
+  as Constitution I allows. `sed -i` is refused on any file, and so are `git clean -f`, `git restore .`,
+  `git checkout -- .` and `npm run format`. The Stop hook blocks a turn once when `npm run check` fails on code it
+  changed; if the check is still red at the next try it lets the turn end and records the failure in
+  `.factory/stop-hook.json`. Both hooks fail open on their own errors (logged to `.factory/hook-errors.log`), and
+  `CHITTHI_FACTORY_HOOKS=off` turns them off for a session.
+- **Agents (F4).** Each agent's tools are its `tools:` line: the reviewer and the licence auditor have a shell but no
+  Edit or Write; the scribe has no shell. In headless runs only the commands in `scripts/factory/permissions.mjs`
+  run (D-014). No command or loop calls the licence auditor yet: ask for it by name.
+- **Orchestrator (F5).** Budgets: 40 turns per agent call, US$10 per run, at most US$4 per call (D-015). Every stop
+  before a commit stashes the work. Notifications are on the desktop (a Windows balloon, macOS Notification
+  Center), plus Claude Code's own when `/factory` started the run; there is no phone notification and no scheduled
+  overnight run. A headless run can't write `.claude/`, so tasks that add a slash command, agent or hook are 👤
+  work (402 T061, T071). Real agents stop and ask (`question`) rather than fail three times (402 T054).
+- **Release (F7).** `npm run release:prepare` works only on a clean `main` and asks about the dry run only in a
+  terminal; `/release` reports the diff and asks you itself.
+
+```bash
+npm run factory -- <NNN> [--once] [--budget 10] [--max-turns 40] [--plan] [--worktree]  # the loop (F5)
+npm run factory -- <NNN> --remove-worktree           # removes the feature's worktree (links first, branch kept)
+npm run factory -- --intake 203,204 [--budget 10] [--max-turns 40]  # Draft specs, never committed (F6)
+npm run factory:next [NNN]                           # JSON: next agent task, 👤, stopped and blocked tasks (F1)
+npm run factory:gates -- [--task Tnnn] [--feature NNN] [--area ui:editors] [--verify] [--dry]  # (F2)
+npm run factory:dashboard [-- --serve [port]]        # Part 4 (F8)
+npm run release:prepare -- X.Y.Z [--date YYYY-MM-DD] # on a clean main; stops before the tag (F7)
+```
+
+In Claude Code: `/factory <NNN> [flags]`, `/spec-batch <NNN> …`, `/release <X.Y.Z>` (§1.4).
+
 ---
 
 ## Part 4 — The dashboard
@@ -270,11 +333,12 @@ npm run factory:dashboard -- --serve 5000 # another port
 
 | Panel | Source |
 | --- | --- |
+| **Loop**: the running loop's feature, task, station, phase and attempt, its cost and turns, and the stop with its reason | `.factory/state.json` (`run.mjs`) |
 | **The line**: one column per station (Backlog, Specify, Plan, Tasks, Implement, Verify, Done) with a card per feature, its tasks and ACs done | `roadmap.md`, `specs/features/*/{spec,plan,tasks}.md` |
 | **Now**: active feature, the next task an agent can take, MEMORY's Next step and blockers, branch and uncommitted files | `tasks.md`, `memory/MEMORY.md`, git |
 | **Waiting on you**: draft specs to approve, `[NEEDS CLARIFICATION]`, open 👤 tasks, unticked tasks with a **Status** note (stopped mid-way) | specs, tasks |
 | **Features**: table with spec status, roadmap status, tasks, ACs | as above |
-| **Gate runs**: the latest runs and whether each gate passed | `.factory/runs/*.json` (empty until F2) |
+| **Gate runs**: the latest runs and whether each gate passed | `.factory/runs/*.json` (`gates.mjs`) |
 | **Recent sessions** and **decisions**; learnings count; recent commits | `memory/`, git |
 
 ### 4.2 How a feature's station is worked out

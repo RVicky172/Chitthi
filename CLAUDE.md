@@ -27,7 +27,10 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 - If code must diverge from the spec, update the spec (and its Changelog) first.
 - Bug fixes and behaviour-neutral refactors may skip the spec; log them in `memory/progress.md`.
 - Numbering: `000–099` baseline, `2xx` / `3xx` = editor work items P2.x / P3.x (P2.1 → `201`), `401+` other.
-- Slash commands: `/spec-new`, `/spec-plan`, `/spec-tasks`, `/spec-implement`, `/spec-verify`.
+- Slash commands: `/spec-new`, `/spec-plan`, `/spec-tasks`, `/spec-implement`, `/spec-verify`; they hand the work
+  to the agents in `.claude/agents/`. `/factory`, `/spec-batch` and `/release` run the software factory:
+  `specs/workflow.md` "Running the line". Tasks that add or change files under `.claude/` are 👤 (headless runs
+  can't write there).
 
 ## Key Docs
 
@@ -61,6 +64,10 @@ npm run test:mcp       # MCP server end to end (scripts/mcp-smoke.mjs); CHITTHI_
 npm run fetch:libraw   # once: LibRaw's RAW developer into electron/resources/libraw (test:mcp develops a DNG with it)
 npm run test:e2e       # Playwright on the production build (e2e/*.e2e.ts), desktop + phone projects, axe checks
 npm run factory:dashboard [-- --serve]  # .factory/dashboard.html: features per stage, waiting on you, gate runs
+npm run factory -- <NNN> [--plan]       # the factory loop: agents implement, gate, review, commit a feature's tasks
+npm run factory:next [NNN]              # JSON: the next task an agent may take, 👤 / stopped / blocked tasks
+npm run factory:gates -- --task Tnnn    # the gates the changed files need, run and recorded (--verify: all of them)
+npm run release:prepare -- X.Y.Z        # bump versions, APP_CACHE, CHANGELOG on a clean main; stops before the tag
 ```
 
 Single tests:
