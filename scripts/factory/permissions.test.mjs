@@ -5,12 +5,18 @@ import { IMPLEMENTER_COMMANDS, REVIEWER_COMMANDS, allowedTools, allowedToolsArgs
 
 describe('allow-list', () => {
   it('gives the implementer exactly the D-014 commands, for Bash and PowerShell', () => {
-    expect(IMPLEMENTER_COMMANDS).toEqual(['npm run:*', 'npm test:*', 'npx vitest:*', 'npx playwright test:*', 'git status:*', 'git diff:*', 'git log:*', 'git show:*', 'node scripts/:*']);
+    expect(IMPLEMENTER_COMMANDS).toEqual(['npm run:*', 'npm test:*', 'npx vitest:*', 'npx playwright test:*', 'git status:*', 'git diff:*', 'git log:*', 'git show:*', 'node scripts/*']);
     const tools = allowedTools('implementer');
     expect(tools).toHaveLength(18);
     expect(tools).toContain('Bash(npm run:*)');
     expect(tools).toContain('PowerShell(npm run:*)');
-    expect(tools).toContain('PowerShell(node scripts/:*)');
+    expect(tools).toContain('Bash(node scripts/*)');
+    expect(tools).toContain('PowerShell(node scripts/*)');
+  });
+
+  it('never puts `:*` straight after a path separator (it needs a word boundary, so it matches no subpath)', () => {
+    // 403 T004: `node scripts/:*` refused `node scripts/factory/fixtures/stream/generate.mjs` headless
+    for (const c of [...IMPLEMENTER_COMMANDS, ...REVIEWER_COMMANDS]) expect(c, c).not.toMatch(/[/\\]:\*$/);
   });
 
   it('gives the reviewer a read-only subset: git reads, vitest, npm run check', () => {

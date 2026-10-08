@@ -182,6 +182,10 @@ committed `.claude/settings.json` (would also stop prompting people in interacti
 **Consequences:** an agent can't install packages, delete files from the shell or reach the network from Bash;
 anything else it needs shows up as a `permission_denials` entry, which the loop reports. Interactive sessions keep
 asking as before.
+**Amended 2026-10-08 (bug fix, 403 T004):** `node scripts/:*` became `node scripts/*`: `:*` needs a word boundary,
+so the old rule matched no script in a subfolder. Also found (403 T001, T004): read-only commands (`ls`) and, under
+`acceptEdits`, file-system commands (`mkdir`, `rm <file>`) run without being listed, so "can't delete files from
+the shell" above doesn't hold; only the hooks refuse such commands reliably.
 
 ## D-015 — The loop's runner: json output, stash on every stop, refusals and tool failures are stops (2026-10-08, 402 T052)
 

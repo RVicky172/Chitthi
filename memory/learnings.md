@@ -72,6 +72,19 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   doesn't include `StructuredOutput`; add it (or give the agent no `tools:` list) (402 T001).
 - `--max-turns N` works in 2.1.294 though `--help` doesn't list it: the result is `subtype: error_max_turns`, exit 1.
   `claude -p` waits 3 s for stdin and writes a warning into the output: spawn it with stdin closed (402 T001).
+- `--output-format stream-json` needs `--verbose` in `-p` mode, or it exits 1 at once. One `message.id` can appear
+  on several `assistant` events (one per content block), and a streamed `usage.output_tokens` is an early snapshot
+  (far below the final count): de-duplicate by id and treat a cost estimate from it as a floor (403 T001).
+- The headless allow-list (`--allowedTools`) doesn't stop everything: read-only commands (`ls`) and, under
+  `--permission-mode acceptEdits`, file-system commands (`mkdir`) run without being listed. Only the hooks refuse
+  those reliably (403 T001).
+- In an allow-list rule, `x:*` matches `x` followed by a word boundary, so `node scripts/:*` never matched
+  `node scripts/factory/…` (403 T004's implementer was refused running its generator, "This command requires
+  approval", and lost turns on a throwaway Vitest file instead). A path prefix needs a bare `*`:
+  `node scripts/*` runs it (checked headless with both rules, 2026-10-08; fixed in `permissions.mjs`, with a test
+  that no rule ends in `/:*`). In that run `rm <file>` also ran without being listed (`acceptEdits`).
+- In this Bash tool, a quoted heredoc (`<<'EOF'`) still lost backslashes on the way to a file (a JS regex and
+  `'\\'` broke): write scripts that need backslashes with the Write tool (403 T001).
 - A first `-p` call with the full default prompt costs ~US$0.09–0.19 (cache writes); `--max-budget-usd 0.10` can
   end it (`error_max_budget_usd`) before it answers (402 T001).
 - `--json-schema` refuses a schema with `"$schema": "https://json-schema.org/draft/2020-12/schema"` ("no schema with

@@ -11,6 +11,21 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-08 — 402 into `main`; 202 T030 stop; 403 spec → T004; allow-list fix
+
+**Done:** AC-11 amended to ≥ 2 (D-018); drill branches and worktrees removed; 402 merged into `main` (`5298b66`,
+pushed, with 201, 401 and 202 T010–T021: don't release `main` before 202 is done); 202 fast-forwarded to `main`.
+`/factory 202 --once`: T030 + T031 stopped on `turns` (41, US$2.60, 5 refused piped / `python -c` / loop commands),
+work in a stash on 202. 403 live dashboard: spec (D-019, amends D-015: stream-json), extend-in-place NFR, plan
+(D-020), 57 tasks, branch `feat/403-live-dashboard` (pushed). T001 👤 spike (US$0.40 + 0.31 for the fix below):
+stream-json needs `--verbose`; `parseClaudeJson` reads the stream unchanged; fixtures in `fixtures/stream/`.
+T004 by the loop stopped on `turns` (US$2.24) after finishing; finished, reviewed (one note-wording rejection
+fixed) and committed in the session (`734d1d1`). **Bug fix:** the allow-list's `node scripts/:*` matched no script
+in a subfolder (`:*` needs a word boundary); now `node scripts/*`, proven with one headless call per rule, test
+added (D-014 amended).
+**Next:** 👤 T002 (SSE on Windows) and T003 (parity) in a session; then `/factory 403 --once` from T010.
+**Blockers:** none.
+
 ## 2026-10-08 — 402 T054–T091, `/spec-verify 402` (verified except AC-11, AC-16)
 
 **Catch-up (this log had nothing after T054's plan):** T054 👤 first real `/factory 402` runs, US$4.83 of US$10:

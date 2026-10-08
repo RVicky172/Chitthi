@@ -6,8 +6,12 @@
 
 export const SHELLS = ['Bash', 'PowerShell'];
 
-/** The implementer: tests, gates, read-only git and the repo's own scripts. */
-export const IMPLEMENTER_COMMANDS = ['npm run:*', 'npm test:*', 'npx vitest:*', 'npx playwright test:*', 'git status:*', 'git diff:*', 'git log:*', 'git show:*', 'node scripts/:*'];
+/**
+ * The implementer: tests, gates, read-only git and the repo's own scripts. `x:*` matches `x` then a word boundary
+ * (`npm run check`), so a path prefix needs a bare `*`: `node scripts/:*` refused `node scripts/factory/next.mjs`
+ * in 403 T004; `node scripts/*` runs it (checked headless, 2026-10-08).
+ */
+export const IMPLEMENTER_COMMANDS = ['npm run:*', 'npm test:*', 'npx vitest:*', 'npx playwright test:*', 'git status:*', 'git diff:*', 'git log:*', 'git show:*', 'node scripts/*'];
 
 /** The reviewer reads and may re-run the fast checks; it changes nothing. */
 export const REVIEWER_COMMANDS = ['git status:*', 'git diff:*', 'git log:*', 'git show:*', 'npx vitest:*', 'npm run check:*'];
