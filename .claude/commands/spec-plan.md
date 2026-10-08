@@ -5,6 +5,11 @@ argument-hint: <NNN>
 
 Write the implementation plan for feature $ARGUMENTS.
 
+**Who does it:** check step 1 yourself, then hand steps 2–4 to the `planner` agent (Agent tool,
+`subagent_type: "planner"`; `.claude/agents/planner.md`) with these steps as its brief. When it returns, read the
+plan, then do step 5 yourself: the points to decide and any dependency question go to the user, never decided by
+the agent. Without the agent, do all the steps yourself.
+
 1. Open `specs/features/$ARGUMENTS-*/spec.md`. If Status is not `Approved` or any `[NEEDS CLARIFICATION]` remains,
    stop and ask the user.
 2. Read `specs/constitution.md`, `specs/architecture.md`, `specs/tech-stack.md`, `specs/testing-strategy.md`, and

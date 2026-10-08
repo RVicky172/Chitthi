@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-07)
+## Current State (2026-10-08)
 
 - **Phase:** Editor Phase 2 (multi-track timeline) started: 1 of 12 items done (201). App at 2.8.0 + unreleased
   editor Phases 0–1 and 201. Spec-driven development set up on 2026-10-06 (D-001); engineering docs in `specs/`,
@@ -17,10 +17,16 @@
   (gaps in the model; `engine/edits.ts`: every operation + snapping, D-010; `magnetic` in the document; the store's
   Magnetic, tool, Snap and edit actions); T001 spike
   waits on 2 manual checks by the maintainer (see its note: Alt + ← in Chrome; Alt held through a drag in the
-  Windows desktop app). Branch `feat/202-edit-operations`, nothing committed for 202 yet.
+  Windows desktop app). Branch `feat/202-edit-operations`; T010–T021 committed (`10d946f`).
 - **Next step:** `/spec-implement 202` from T030 (e2e for the tools, then the UI). T001's answers are needed before
   T032 / T033. Optional: Ctrl+D in the video editor.
-- **Also done:** `401-ai-models-on-device` ✔️ 2026-10-07 (Settings › AI › AI models on this device; uncommitted).
+- **Factory (D-011):** `specs/software-factory.md` written; dashboard built (`npm run factory:dashboard`).
+  `402-software-factory` 🚧 In Progress 2026-10-08: spec (D-012), plan (P1–P5), tasks; T001–T053 done
+  (F1 `factory:next`, Needs D-013; F2 `factory:gates`; F3 hooks in `.claude/`, live in sessions: guardrails + Stop
+  hook, `CHITTHI_FACTORY_HOOKS=off` disables; F4 seven agents, `/spec-*` delegate to them; headless allow-list
+  D-014; F5 runner `npm run factory`, `notify.mjs`, Loop panel, `/factory`). Branch `feat/402-software-factory`
+  (committed and pushed). Next T054 👤: `/factory 402` runs the (loop) tasks; confirm the toast (AC-13).
+- **Also done:** `401-ai-models-on-device` ✔️ 2026-10-07 (Settings › AI › AI models on this device; committed `21478bd`).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed.
   CodeQL still scans PRs.
 - **Blockers:** none (001 waits on the maintainer's hardware, by choice)

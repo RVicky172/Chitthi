@@ -41,6 +41,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 | `specs/testing-strategy.md`                         | Before writing tests                                           |
 | `specs/roadmap.md`, `specs/vision/`                 | Choosing what's next; editor roadmap and work items            |
 | `specs/build.md`, `specs/release.md`                | Scripts, packaging, releasing                                  |
+| `specs/software-factory.md`                         | The SDD setup end to end, the factory plan (402), dashboard    |
 | `docs/MEDIA-STUDIO.md`, `docs/MCP.md`, `docs/AI.md` | Behaviour of the media studio, agent tools, AI                 |
 | `docs/SPECIFICATIONS.md`, `docs/DESKTOP.md`         | Print specifications as data; the desktop app and signing      |
 
@@ -59,6 +60,7 @@ npm test               # Electron self-test (src/dev/selftest.ts, ~6,100 checks:
 npm run test:mcp       # MCP server end to end (scripts/mcp-smoke.mjs); CHITTHI_MCP_APP=<exe> tests a packaged app
 npm run fetch:libraw   # once: LibRaw's RAW developer into electron/resources/libraw (test:mcp develops a DNG with it)
 npm run test:e2e       # Playwright on the production build (e2e/*.e2e.ts), desktop + phone projects, axe checks
+npm run factory:dashboard [-- --serve]  # .factory/dashboard.html: features per stage, waiting on you, gate runs
 ```
 
 Single tests:

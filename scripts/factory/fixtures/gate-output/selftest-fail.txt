@@ -1,0 +1,4 @@
+Self-test against http://localhost:5198/
+  6122 checks passed, 2 failed (104 s)
+  ✗ video: frame 12 differs from the 2.x placement
+  ✗ console error: Refused to load blob: worker

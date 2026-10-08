@@ -120,3 +120,81 @@ the length. The first clip slides right away from 0 only with Magnetic off (it o
 `magnetic` and then opens no gap. A clip already under 0.3 s can't be shortened; it can be lengthened.
 **Alternatives:** let the last clip slide (the video's end moves); keep 2.x's jump to 0.3 s.
 **Consequences:** AC-1's comparison with 2.x skips trims of clips under 0.3 s (only the `tinyClips` fixture has any).
+
+## D-011 — Software factory: documented; the dashboard ships first as dev tooling (2026-10-08)
+
+**Context:** The maintainer asked for the spec-driven setup and a "software factory" on top of it to be written up in
+one place, with an HTML dashboard to watch the work move. Constitution I asks for an approved spec before feature
+code; the dashboard is a read-only developer script (`scripts/factory/`), not part of the app or its builds.
+**Decision:** `specs/software-factory.md` holds the setup (Part 1), the factory (Part 2), the plan F0–F8 (Part 3),
+the dashboard (Part 4) and other ways to manage the work (Part 5). The dashboard (F8: `npm run factory:dashboard`,
+output in the git-ignored `.factory/`) is built now, without a feature spec, because it changes no app behaviour
+and only reads files. F1–F7 (backlog parser, gates as code, hooks, specialist agents, orchestrator, release
+station) change how agents work and go through `402-software-factory` with an approved spec.
+**Alternatives:** spec 402 first and the dashboard as its first task; a GitHub Projects board instead of a local
+page (two sources of truth).
+**Consequences:** `specs/`, `memory/` and git stay the only source of truth; the dashboard is a view. It parses the
+current file formats (roadmap table rows, `- [x] **Tnnn**`, `**Status:**`, `**AC-n**`, progress headings), so a
+template change must keep them or update the parser.
+
+## D-012 — 402 software factory: open questions answered (2026-10-08, 402 spec Q1–Q10)
+
+**Context:** The 402 spec had ten open questions, each with a proposed answer; the maintainer said "choose best".
+**Decision:** All ten as proposed. The loop runs a feature's agent tasks up to Verify, then stops for sign-off (a flag
+limits it to one task) (Q1); it commits once per task on the feature branch and never pushes (Q2); at most 40 agent
+turns per task and a US$10 cost cap per run by default, both overridable (Q3); parallel features are built but used
+only after the loop has run cleanly on two features (Q4); `.claude/agents/`, `.claude/hooks/` and
+`.claude/settings.json` are committed, `settings.local.json` stays personal (Q5); a Windows desktop notification plus
+Claude Code's push notification, nothing external (Q6); constitution 1.1.0 adds "XII. Agents work within the line"
+(Q7); Vitest also runs `scripts/**/*.test.mjs` (Q8); `.gitattributes` with `* -text`, no renormalising (Q9); the
+release station stays in 402, last (Q10).
+**Alternatives:** stopping after every task; no commits by the loop; a separate feature for the release station.
+**Consequences:** 402 is Approved; the plan follows these answers.
+**Amended (2026-10-08, 402 plan):** Q9 revised. The index already stores every text file as LF (`git ls-files --eol`:
+584 `i/lf w/crlf`, 76 `i/lf w/lf`); the mixed endings exist only in this machine's working tree
+(`core.autocrlf=true`). `* -text` would mark 584 files changed and commit CRLF, so `.gitattributes` gets
+`* text=auto` instead (the same normalising for every machine, nothing to renormalise). AC-8 reworded.
+
+## D-013 — Roadmap Needs: dependencies between work items, inferred from the vision doc (2026-10-08, 402 T013)
+
+**Context:** The factory offers a feature only when the features it needs are Done (402 AC-2). The roadmap had no
+dependencies, and `vision/editor-implementation.md` names none explicitly.
+**Decision:** A **Needs** column in the Phase 2, Phase 3 and 400+ tables, inferred from the vision text: every
+Phase 2 item needs 201; 203 and 206 need 204 (decoder pool "needed for overlapping clips and transitions"); 208
+needs 205 (volume keyframes); 209 needs 208; 212 needs 202, 203, 205, 206; 302 and 304 need 301; 309 needs 301, 303,
+305. Phase order itself (Phase 3 after Phase 2) is not encoded as needs.
+**Alternatives:** no dependencies (order only); every item needs the one before it (too strict: 204 and 205 are
+independent).
+**Consequences:** `npm run factory:next` and the dashboard refuse a feature whose needs aren't Done (203 waits on
+204). The maintainer may edit any cell; the readers take the column as written.
+
+## D-014 — Headless agent runs get an allow-list of test and read-only git commands (2026-10-08, 402 T041)
+
+**Context:** In `claude -p` there is no one to answer a permission prompt, so with `--permission-mode acceptEdits`
+every shell command was refused: the implementer couldn't run its own tests (402 T041, five refusals in one run).
+**Decision:** The factory's headless runs pass `--allowedTools` for Bash and PowerShell: `npm run:*`, `npm test:*`,
+`npx vitest:*`, `npx playwright test:*`, `git status:*`, `git diff:*`, `git log:*`, `git show:*`,
+`node scripts/:*`. Edits stay under `acceptEdits`. The guardrail hooks still check every call (`npm run format`,
+`git tag` … are refused even though `npm run:*` is allowed).
+**Alternatives:** `--permission-mode bypassPermissions` (any command, hooks the only guard); the same list in the
+committed `.claude/settings.json` (would also stop prompting people in interactive sessions).
+**Consequences:** an agent can't install packages, delete files from the shell or reach the network from Bash;
+anything else it needs shows up as a `permission_denials` entry, which the loop reports. Interactive sessions keep
+asking as before.
+
+## D-015 — The loop's runner: json output, stash on every stop, refusals and tool failures are stops (2026-10-08, 402 T052)
+
+**Context:** T052 builds the runner around `decide`; plan §5 named `--output-format stream-json --verbose` and left
+the per-call cap, a reviewer without a verdict and a failing `claude` open.
+**Decision:** `claude -p … --output-format json` (one result object: `result`, `subtype`, `num_turns`,
+`total_cost_usd`, `structured_output`, `permission_denials`); progress per phase comes from the loop's own lines and
+`.factory/state.json`, not the stream. Per-call `--max-budget-usd` = max(US$0.50, min(budget left, US$4)). Two stop
+kinds beside `decide`'s: `refused` (wrong branch, dirty tree, bad NNN: nothing is touched, never stashed) and
+`error` (claude crashed, timed out after 90 min, gave no JSON, the reviewer gave no verdict, git add/commit failed),
+both stashed like every stop before a commit; a reviewer without a verdict is a tooling fault, so it stops instead
+of spending an implementer retry. `.factory/` must be git-ignored (it is), so the stash and `git add -A` leave the
+loop state alone.
+**Alternatives:** stream-json for live turn counts (more parsing, nothing the dashboard needs yet); retrying on a
+missing verdict.
+**Consequences:** the dashboard (T053) reads phases from `state.json`; switching to stream-json later only changes
+`callClaude` / `parseClaudeJson`.

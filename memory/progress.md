@@ -11,6 +11,50 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-08 — 402 spec, plan, tasks; T001–T002 (spikes)
+
+**Done:** 402 spec approved (Q1–Q10, D-012; Q9 revised to `* text=auto` after `git ls-files --eol` showed the
+index is LF everywhere), plan approved (P1–P5), 33 tasks. Branch `feat/402-software-factory` (made from 202's
+HEAD with today's uncommitted work; nothing committed). T001: hooks fire in `claude -p`; hidden `--max-turns`
+works; `--json-schema` needs `StructuredOutput` in the agent's tools; ~US$0.50 spent. T002: a worktree with a
+`node_modules` junction runs check (990), e2e and self-test (6,124 / 0); remove the junction before the worktree.
+Plan §5 / Techniques updated; 4 learnings.
+**Also (same day):** T010–T013 (F1): fixtures, `state.mjs` (+21 tests; fixed 👤 detection the dashboard
+already had), dashboard rewired (output identical but for that fix), `next.mjs`, roadmap Needs column (D-013,
+inferred), task tags in the template. Check 1,011.
+**Also:** T020–T022 (F2): `npm run factory:gates` (rules table, real-output parsers, run files, dashboard
+panel with local time and red summaries inline); first real run green (check 1,039, licences 168).
+**Also:** T030–T034 (F3): `rules.mjs` (51 tests), hooks `.claude/hooks/pre-tool.mjs` (38 ms) and `stop.mjs`
+(diff-hash cache), registered in the committed `.claude/settings.json` and live in this session at once; live checks
+with `claude -p` in a throwaway worktree (AC-5, AC-7); `.gitattributes` `* text=auto` (it existed: `*.onnx` kept;
+AC-8 proven in a throwaway index). Check 1,097.
+**Also:** T040–T042 (F4): seven agents in `.claude/agents/` (+9 tests; real tool lists checked per agent); the
+`/spec-*` commands hand work to them, each run once headless on a throwaway feature 999 (~US$5.40; found the
+headless allow-list need, D-014, test-first pairs vs the Stop hook, ignored resources in worktrees); reviewer
+proof: 3 seeded bad changes rejected with the right rules, 1 good accepted (~US$0.50). Check 1,106.
+**Also:** T050–T051 (F5, first run of the new `/spec-implement` flow): implementer agent did the pair
+(`run.mjs`: `decide`, `parseAgentOutput`, `commitMessage`, `taskBatch`; 54 tests); reviewer **rejected** it once
+(turn cap retried instead of stopping, AC-12; an untested guard; Result-note counts off), implementer fixed all
+three, reviewer accepted. Check 1,160.
+**Also:** T052 (the runner `run.mjs`, `npm run factory`; scripted runs as tests, no `--dry` flag, D-015) and T053
+(`notify.mjs`, dashboard Loop panel, `/factory` command). The reviewer rejected T053 once because nobody had seen
+the toast. Seeing the toast moved to T054's test, and an empty-text bug was fixed. Check 1,211. Feature committed
+and pushed on `feat/402-software-factory`.
+**Next:** T054 👤: `/factory 402` (budget US$10) runs the (loop) tasks T060, T061, T070, T071; watch the dashboard
+and the toast.
+**Blockers:** none for 402. 202 still waits on T001's manual checks.
+
+## 2026-10-08 — chore: software factory doc and dashboard (D-011)
+
+**Done:** `specs/software-factory.md`: the SDD setup end to end, what a software factory is, the plan F0–F8 for
+Chitthi, the dashboard, other ways to manage the work. Built F8: `scripts/factory/dashboard.mjs`
+(`npm run factory:dashboard`, `-- --serve` on 127.0.0.1:4310 with a 10 s refresh): stations board, Now, Waiting on
+you, features, gate runs, sessions, decisions, commits. Checked at 1400 px light and 390 px dark (no console errors,
+no sideways scroll). Linked from `specs/README.md`, `CLAUDE.md`, `specs/build.md`; `.factory/` git-ignored. D-011.
+`npm run check` 990 passed, lint 0 errors (5 known warnings).
+**Next:** 202 T030 as before; for the rest of the factory, `/spec-new software-factory` (402).
+**Blockers:** T001's manual checks (needed before T032 / T033).
+
 ## 2026-10-07 — 401 ✔️; 202 T020–T021 (the store)
 
 **Done:** 401 approved by the maintainer (Q1–Q4 as proposed), planned and implemented: Settings › AI › **AI models on

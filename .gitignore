@@ -32,5 +32,12 @@ Print Samples/
 .claude/*
 !.claude/commands/
 !.claude/skills/
+# The software factory's agents, hooks and their registration are shared too (402, Q5); settings.local.json isn't.
+!.claude/agents/
+!.claude/hooks/
+!.claude/settings.json
 .claude/skills/scroll-world/
 .hallmark/
+
+# software factory dashboard and gate runs (npm run factory:dashboard, specs/software-factory.md)
+.factory/

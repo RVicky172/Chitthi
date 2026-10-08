@@ -1,0 +1,24 @@
+{
+  "title": "Reviewer verdict (402 §4, §5)",
+  "type": "object",
+  "properties": {
+    "ok": { "type": "boolean", "description": "true when the change may be ticked and committed" },
+    "reasons": {
+      "type": "array",
+      "description": "Every problem found; empty when ok is true",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule": { "type": "string", "description": "The rule broken, e.g. 'Constitution VIII', 'task files', 'test first', 'AC-5'" },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "why": { "type": "string", "description": "What is wrong and what would fix it, in one or two sentences" }
+        },
+        "required": ["rule", "why"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["ok", "reasons"],
+  "additionalProperties": false
+}

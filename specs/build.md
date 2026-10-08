@@ -35,6 +35,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run screenshots` | Remakes the README screenshots in `docs/screenshots/` from the running app (its own Vite server and Chromium; sample designs and photos, no Pexels search) (`scripts/screenshots.mjs`); `node scripts/screenshots.mjs docs media-masks` remakes some |
 | `npm run fetch:libraw` | Downloads LibRaw's RAW developer into `electron/resources/libraw/<platform>-<arch>/` (official Windows and Apple silicon builds; on macOS also builds the Intel copy from source), each checked by SHA-256. Needed for RAW photos in the desktop app and by `npm run test:mcp` |
 | `npm run docs:specs` | Regenerates the size and layout tables in `docs/SPECIFICATIONS.md` from the data files |
+| `npm run factory:dashboard` | Writes `.factory/dashboard.html` (git-ignored) from the roadmap, features, memory and git; `-- --serve` serves it live on `127.0.0.1:4310` ([software-factory.md](software-factory.md)) |
 | `npm run fetch:showcase` | Downloads the landing page example photos from Pexels into `showcase-src/` (needs the key) |
 | `npm run build:showcase` | With `npm run dev` running: renders the landing examples (`src/data/showcase.ts`) into `public/showcase/*.webp` and `src/data/showcase.json`, using Electron |
 | `npm run fetch:print-samples` | Downloads the festival photos for the print samples (no people, print resolution) from Pexels into `print-samples-src/` (gitignored; needs the key) |
