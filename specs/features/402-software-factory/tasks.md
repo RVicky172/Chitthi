@@ -335,6 +335,12 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
       with a Result note quoting its gate run and a commit `feat(402): …` on `feat/402-*`, nothing pushed (AC-11,
       AC-14); every stop kind not yet seen is triggered once by hand and recorded (AC-12); the maintainer sees the
       desktop toast when the run stops (Focus Assist off), or records why not (AC-13, moved from T053 on 2026-10-08)
+  - **Run 1 (2026-10-08, in progress):** `/factory 402` from `3ed5754`: T060 done unattended (commit `721d4f5`);
+    stopped `question` on T061 after US$2.31 / 47 turns, because a headless run can't write `.claude/` (the loop
+    correctly refused it, plus an out-of-allow-list temp-repo script and a temp-folder write); work stashed. **The
+    maintainer saw the desktop toast on that stop (AC-13 proven).** T061 was finished interactively (see its note).
+    Stop kinds seen so far: `question`. Still needed: ≥ 2 more unattended tasks (T070, T071) and the stop kinds not
+    yet seen.
 
 ## F6 — Batch intake and parallel lines (§6)
 
@@ -359,9 +365,38 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
     lines taking over the same stale lock at the same instant could both unlink; not handled (needs a dead line
     plus two waiters within one poll). New files not Prettier-formatted (`npx prettier` isn't on the headless
     allow-list); lint clean.
-- [ ] **T061** — **(loop)** `run.mjs --worktree` (create from `main` if the branch is missing; `node_modules` as
+- [x] **T061** — **(loop)** `run.mjs --worktree` (create from `main` if the branch is missing; `node_modules` as
       T002 found) and `--intake 203,204`; `/spec-batch` command. · files: `scripts/factory/run.mjs`,
       `.claude/commands/spec-batch.md` · test: unit for the argument handling and the worktree path; T062, T063
+  - **Result (2026-10-08):** The unattended loop wrote the code and tests, then stopped with `question`: a headless
+    run can't write `.claude/commands/spec-batch.md` (`.claude/` is protected config; learnings). Its work was
+    applied to the tree and the task finished in an interactive session. `run.mjs`: `parseArgs` (feature run,
+    `--worktree`, `--remove-worktree`, `--intake 203,204`, everything else refused with the usage);
+    `worktreeDir` (`../<name>-wt/NNN`), `featureBranch` (the one `feat/NNN-*`, else `feat/<spec folder>` created
+    from `main`); `prepareWorktree` (reuses an existing one, refuses a branch checked out in the main checkout,
+    links `node_modules`, `electron/resources/libraw` and `fonts` as junctions) and `removeWorktree` (junctions
+    first, then `git worktree remove --force`, branch kept); `runIntake` + `intakeCheck` + prompt
+    `scripts/factory/prompts/intake.md` (one spec-writer per item, skips items off the roadmap or with a folder,
+    stops the batch on a draft that changed more than its spec and the roadmap, on budget or turns; never commits).
+    Review found one gap, fixed here test first: the loop's own gate runs didn't take the gate lock (only
+    `gates.mjs`' command line did), so two worktree lines could overlap (AC-16). New `lockedGates` wraps
+    `runGates` in `withGateLock`; `runFeature` uses it by default and shows "waiting for gates: 204" as its phase
+    (seam for tests: deps `runGatesBase`, `gatePollMs`). `prepareWorktree` runs `git worktree prune` first, so a
+    worktree folder deleted by hand is made again instead of being reported at a missing path.
+    `.claude/commands/spec-batch.md` written (sequential spec-writer agents, checks per draft, report questions;
+    the `--intake` line as the unattended alternative). Outside the named files: `.claude/commands/factory.md`
+    (`--worktree` in the hint; the branch check moves to the worktree; `notify.mjs --state` given the worktree's
+    state path, since the dashboard's Loop panel reads only the main checkout's). Tests: `worktree.test.mjs`
+    20 (argument handling, paths/branches, real temp repo + worktree + junctions, removal order, a folder deleted
+    by hand, lock wait, intake), plus 1 in `runner.test.mjs` (`runFeature` with another line holding the real
+    lock: phases `gates` → `waiting for gates: 204` → `gates`, gates run holding it, lock file gone after); each
+    new test failed first. Break-tests: junction removal skipped → the worktree test fails; the default lock
+    wiring removed → the runner test fails. The review rejected the task once: no test covered `runFeature`'s
+    default locked gates, and `lockedGates` sat between `runFeature`'s doc comment and the function. Fixed:
+    the seam and the runner test above, `lockedGates` moved above the doc comment, and the prune (the reviewer's
+    optional point). Gate: `npm run factory:gates -- --feature 402 --task T061` → ✓ check 16 s, 1243 tests
+    passed, lint 0 errors / 5 warnings; no worktree, lock or temp repo left. Known limit: the dashboard shows
+    one checkout's loop; T063 will show whether that matters.
 - [ ] **T062** 👤 — `/spec-batch 203 204` on a scratch branch: two Draft specs with open questions, roadmap 📝, no
       plan or code; branch deleted after. · test: recorded (AC-15)
 - [ ] **T063** 👤 — Two scratch features in two worktrees, each with one tiny tooling task, run at once: both green,

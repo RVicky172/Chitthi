@@ -1,6 +1,6 @@
 ---
 description: Run a feature's agent tasks unattended (the software factory's loop) and notify when it stops
-argument-hint: <NNN> [--once] [--budget 10] [--max-turns 40] [--plan]
+argument-hint: <NNN> [--once] [--budget 10] [--max-turns 40] [--plan] [--worktree]
 ---
 
 Run the factory loop on feature $ARGUMENTS (`scripts/factory/run.mjs`, 402 plan §5; `specs/software-factory.md`).
@@ -11,7 +11,11 @@ failure, the budget, Verify). It never pushes, merges, tags or resets; a stop be
 
 1. **Check first (don't fix anything yourself):** the branch is `feat/<NNN>-*` and `git status --porcelain` is
    empty. If not, tell the user what to do (check out the branch; commit or stash their own changes) and stop: the
-   loop refuses a dirty tree, and only the user decides what happens to their work.
+   loop refuses a dirty tree, and only the user decides what happens to their work. With `--worktree` (402 §6) the
+   check is on the feature's own worktree instead: the loop makes or reuses `../Chitthi-wt/<NNN>` on `feat/<NNN>-*`
+   (created from `main` if missing; `node_modules` and the git-ignored resources linked from this checkout), so this
+   checkout may stay on any branch. Its gate runs take the gate lock, so two lines never run gates at once. Afterwards
+   `npm run factory -- <NNN> --remove-worktree` removes it (links first; the branch stays).
 2. **Preview:** run `npm run factory -- <NNN> --plan` and show the user the next task(s), the gates and the commit
    subject in two or three lines. If the arguments include `--plan`, stop here.
 3. **Dashboard:** if nothing answers on `http://127.0.0.1:4310`, start `npm run factory:dashboard -- --serve` in
@@ -24,6 +28,8 @@ failure, the budget, Verify). It never pushes, merges, tags or resets; a stop be
    node scripts/factory/run.mjs $ARGUMENTS; code=$?; node scripts/factory/notify.mjs --state; exit $code
    ```
 
+   With `--worktree` the state is the worktree's: chain `node scripts/factory/notify.mjs --state
+   ../Chitthi-wt/<NNN>/.factory/state.json` instead (the dashboard's Loop panel shows this checkout's state only).
    `notify.mjs --state` reads `.factory/state.json` and shows the stop as a Windows balloon (a toast on Windows
    10 / 11; macOS: Notification Center), rings the terminal bell and prints one line (`CHITTHI_FACTORY_NOTIFY=off`:
    that line only). Tell the user the loop is running, where to watch it, and that you'll report when it stops.

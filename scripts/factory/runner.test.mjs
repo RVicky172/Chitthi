@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { gateLockPath, releaseLock, takeLock } from './lock.mjs';
 import { depsChanged, fillPrompt, parseClaudeJson, prompts, runFeature, taskChecks } from './run.mjs';
 
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -261,6 +262,34 @@ describe('runFeature: the loop', () => {
     const st = loopState(root);
     expect(st).toMatchObject({ feature: '999', task: 'T010', station: 'Implement', attempt: 1, costUsd: 0.42, turns: 10, stop: { kind: 'once' } });
     expect(st.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('its gate runs take the gate lock: waits for another line, shows it, runs holding it, releases it (AC-16)', async () => {
+    const root = makeRepo();
+    const lockFile = gateLockPath(root);
+    const other = takeLock(lockFile, { feature: '204' }); // our own pid: alive, so held until released
+    expect(other.taken).toBe(true);
+    const claude = fakeClaude(root, [implement(), review(true)]);
+    const ran = [];
+    const runGatesBase = async (gates, info) =>
+      info.withLock(async () => {
+        ran.push({ gates, holder: JSON.parse(readFileSync(lockFile, 'utf8')).feature });
+        return { at: '2026-10-08T00:00:00.000Z', feature: info.feature, task: info.task, ok: true, gates: [{ name: 'check', ok: true, ms: 5, summary: '5 tests passed' }] };
+      });
+    const states = [];
+    const onState = (s) => {
+      states.push(structuredClone(s));
+      if (s.phase === 'waiting for gates: 204') {
+        expect(loopState(root).phase).toBe('waiting for gates: 204'); // what the Loop panel reads
+        setTimeout(() => releaseLock(lockFile, other.lock), 30);
+      }
+    };
+    const result = await runFeature('999', { root, once: true, log: () => {} }, { callClaude: claude, runGatesBase, gatePollMs: 10, onState });
+    expect(result.stop).toMatchObject({ kind: 'once' });
+    expect(ran).toEqual([{ gates: ['check'], holder: '999' }]);
+    expect(states.map((s) => s.phase)).toEqual(['start', 'implement', 'gates', 'waiting for gates: 204', 'gates', 'review', 'commit', 'stopped']);
+    expect(existsSync(lockFile)).toBe(false);
+    expect(commits(root)).toBe('1');
   });
 
   it('runs task after task up to Verify, one commit each', async () => {

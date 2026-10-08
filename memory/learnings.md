@@ -92,5 +92,9 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   Assist can hide it), so a person has to look.
 - Paths from git and from Node differ in case on Windows (`C:\WINDOWS\TEMP` vs `C:\Windows\Temp`), even after
   `realpathSync`; compare with `realpathSync.native(p).toLowerCase()` (402 T060).
+- In a headless `claude -p --permission-mode acceptEdits` run, Write to `.claude/commands/*.md` is refused
+  ("requested permissions … you haven't granted it"), while `scripts/` and `memory/` are fine: `.claude/` is
+  protected config. A (loop) task whose files include `.claude/` can't be finished by the implementer; make those
+  edits 👤 or in an interactive session (402 T061).
 - `.gitattributes` already existed (`*.onnx binary`) and was overwritten as if new (402 T034). Before writing a
   config file at the repo root, check `git ls-files <name>`.

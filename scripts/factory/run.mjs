@@ -2,18 +2,22 @@
 /*
  * The orchestrator (402 plan §5): runs a feature's agent tasks in order, implement → gates → review → commit → next,
  * and stops, saying why, on everything a person must decide (AC-11, AC-12).
- *   node scripts/factory/run.mjs <NNN> [--once] [--budget 10] [--max-turns 40] [--plan]
+ *   node scripts/factory/run.mjs <NNN> [--once] [--budget 10] [--max-turns 40] [--plan] [--worktree]
+ *   node scripts/factory/run.mjs <NNN> --remove-worktree
+ *   node scripts/factory/run.mjs --intake 203,204 [--budget 10] [--max-turns 40]
  * The pure parts come first: the loop's state machine (`decide`), the implementer's end marker
  * (`parseAgentOutput`), the commit message (AC-14), the test-first pairs (`taskBatch`), the prompts and the checks.
  * The runner (`runFeature`) carries the decisions out with git, `gates.mjs` and `claude -p`, each injectable so the
- * tests replace them. Importing this file has no side effects.
+ * tests replace them. §6: a feature's worktree (`prepareWorktree`, `removeWorktree`) and batch intake
+ * (`runIntake`). Importing this file has no side effects.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chooseGates, runGates as runGatesForReal } from './gates.mjs';
+import { withGateLock } from './lock.mjs';
 import { allowedToolsArgs } from './permissions.mjs';
 import { nextFor, parseRoadmap, parseTasks, readFeatures, readText } from './state.mjs';
 
@@ -190,6 +194,7 @@ export const prompts = {
   implement: (feature, tasks, { dir } = {}) => tidy(fillPrompt(template('implement', dir), promptVars(feature, tasks))),
   retry: (feature, tasks, { feedback, attempt, maxAttempts, dir }) => tidy(fillPrompt(template('retry', dir), { ...promptVars(feature, tasks), feedback, attempt, maxAttempts })),
   review: (feature, tasks, { dir } = {}) => tidy(fillPrompt(template('review', dir), promptVars(feature, tasks))),
+  intake: ({ nnn, title, date }, { dir } = {}) => tidy(fillPrompt(template('intake', dir), { nnn, title, date })),
 };
 
 // ── Deterministic checks: the loop trusts files and git, not what the agent says (plan "Determinism over trust") ──
@@ -315,15 +320,50 @@ const quote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"'
 const lines = (s) => s.split(/\r?\n/).filter(Boolean);
 
 /**
+ * The loop's gate runner: `runGates` holding the gate lock (402 §6, AC-16), so lines in two worktrees never run the
+ * Electron suites or e2e (fixed ports) at once. onWait(holder) when another line holds it, onTaken() once it is ours.
+ */
+export function lockedGates({ onWait = () => {}, onTaken = () => {}, pollMs, run = runGatesForReal } = {}) {
+  return (gates, info) =>
+    run(gates, {
+      ...info,
+      withLock: (fn) =>
+        withGateLock(
+          async () => {
+            onTaken();
+            return fn();
+          },
+          { root: info.root, feature: info.feature, pollMs, onWait },
+        ),
+    });
+}
+
+/**
  * Runs feature `nnn`'s agent tasks until a stop (402 §5). opts: { root, once, budgetUsd = 10, maxTurns = 40,
- * callCapUsd = 4, maxAttempts = 3, plan, log, promptsDir }. deps: { callClaude, runGates, onState, now }.
+ * callCapUsd = 4, maxAttempts = 3, plan, log, promptsDir }. deps: { callClaude, runGates, onState, now }; without
+ * `runGates` the gates run under the gate lock (`lockedGates`; tests swap the gates in with runGatesBase, gatePollMs).
  * Resolves { stop: { kind, reason, stash?, denials? }, commits, costUsd, turns } (or { plan } with --plan).
  * Never pushes, merges, tags, resets or cleans; a stop before a commit stashes the work (`git stash push -u`).
  */
 export async function runFeature(nnn, opts = {}, deps = {}) {
   const { root = process.cwd(), once = false, budgetUsd = 10, maxTurns = 40, callCapUsd = 4, maxAttempts = 3, plan = false, log = console.log, promptsDir } = opts;
   const call = deps.callClaude ?? ((c) => callClaude(c, { root }));
-  const gatesRun = deps.runGates ?? ((gates, info) => runGatesForReal(gates, info));
+  let waited = false;
+  const gatesRun =
+    deps.runGates ??
+    lockedGates({
+      run: deps.runGatesBase, // tests: scripted gates under the real lock
+      pollMs: deps.gatePollMs,
+      onWait: (h) => {
+        waited = true;
+        log(`  waiting for gates: ${h.feature} (pid ${h.pid ?? '?'}, since ${h.since ?? '?'})`);
+        save({ phase: `waiting for gates: ${h.feature}` }); // the Loop panel shows it (plan §6)
+      },
+      onTaken: () => {
+        if (waited) save({ phase: 'gates' });
+        waited = false;
+      },
+    });
   const now = deps.now ?? (() => new Date());
   const git = (...args) => gitRun(root, args);
   const dirty = () => git('status', '--porcelain').out !== '';
@@ -489,23 +529,306 @@ export async function runFeature(nnn, opts = {}, deps = {}) {
   }
 }
 
-async function main(argv) {
-  const valued = ['--budget', '--max-turns'];
-  const positional = argv.filter((a, i) => !a.startsWith('--') && !valued.includes(argv[i - 1]));
-  const num = (name, def) => {
-    if (!argv.includes(name)) return def;
-    const v = Number(argv[argv.indexOf(name) + 1]);
-    if (!Number.isFinite(v) || v <= 0) throw new Error(`${name} needs a positive number`);
-    return v;
+// ── §6 A feature's worktree (T002: `node_modules` as a junction; removal: the junctions first) ──────────────────
+
+/** Git-ignored folders of the main checkout the gates need in a worktree (T002, T041): linked, never copied. */
+export const LINKED = ['node_modules', 'electron/resources/libraw', 'electron/resources/fonts'];
+
+/** `../<name>-wt/NNN` next to the main checkout (plan §6: `../Chitthi-wt/NNN`). */
+export const worktreeDir = (mainRoot, nnn) => join(dirname(mainRoot), `${basename(mainRoot)}-wt`, String(nnn));
+
+/**
+ * The branch for feature `nnn`: its one `feat/NNN-*` branch, else `feat/<folder>` to create from `main`, named after
+ * its `specs/features/NNN-*` folder. Throws on two candidates, or on no branch and no folder.
+ */
+export function featureBranch(nnn, branches, folders) {
+  const own = branches.filter((b) => b.startsWith(`feat/${nnn}-`));
+  if (own.length > 1) throw new Error(`more than one branch for ${nnn}: ${own.join(', ')}; delete or rename all but one`);
+  if (own.length === 1) return { branch: own[0], create: false };
+  const folder = folders.find((f) => f.startsWith(`${nnn}-`));
+  if (!folder) throw new Error(`no feat/${nnn}-* branch and no specs/features/${nnn}-* folder: write the spec first (/spec-new or --intake)`);
+  return { branch: `feat/${folder}`, create: true };
+}
+
+const samePath = (a, b) => {
+  const norm = (p) => {
+    try {
+      return realpathSync.native(p).toLowerCase(); // git and Node differ in case on Windows (learnings, T060)
+    } catch {
+      return resolve(p).toLowerCase();
+    }
   };
-  if (positional.length !== 1 || !/^\d{3}$/.test(positional[0])) {
-    console.error('usage: node scripts/factory/run.mjs <NNN> [--once] [--budget 10] [--max-turns 40] [--plan]');
+  return norm(a) === norm(b);
+};
+
+/** `git worktree list --porcelain` → [{ path, branch }]; the first is the main checkout. */
+function worktrees(root) {
+  const out = gitRun(root, ['worktree', 'list', '--porcelain']).out;
+  return out
+    .split(/\r?\n\r?\n/)
+    .map((block) => ({
+      path: /^worktree (.+)$/m.exec(block)?.[1],
+      branch: /^branch refs\/heads\/(.+)$/m.exec(block)?.[1] ?? null,
+    }))
+    .filter((w) => w.path);
+}
+
+/** The main checkout's folder, as given in `root` when `root` is it (keeps the caller's spelling of the path). */
+function mainCheckout(root) {
+  const top = gitRun(root, ['rev-parse', '--show-toplevel']);
+  if (top.code) throw new Error(`not a git checkout: ${root}`);
+  const main = worktrees(root)[0]?.path ?? top.out;
+  return samePath(main, root) ? resolve(root) : resolve(main);
+}
+
+const isLink = (p) => {
+  try {
+    return lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+const exists = (p) => isLink(p) || existsSync(p);
+
+/**
+ * Makes (or finds) feature `nnn`'s worktree in `../<name>-wt/NNN` on its `feat/NNN-*` branch (created from `main`
+ * when missing) and links the main checkout's `LINKED` folders into it as directory junctions.
+ * Returns { path, branch, created, links } (links: the ones made now). Throws, saying why, when it can't.
+ */
+export function prepareWorktree(nnn, { root = process.cwd(), log = console.log } = {}) {
+  const mainRoot = mainCheckout(root);
+  const git = (...args) => gitRun(mainRoot, args);
+  git('worktree', 'prune'); // a worktree folder deleted by hand would otherwise still count, at a missing path
+  const branches = lines(git('for-each-ref', '--format=%(refname:short)', 'refs/heads/').out);
+  const featuresDir = join(mainRoot, 'specs/features');
+  const folders = existsSync(featuresDir) ? readdirSync(featuresDir) : [];
+  const { branch, create } = featureBranch(String(nnn), branches, folders);
+  const want = worktreeDir(mainRoot, nnn);
+  const all = worktrees(mainRoot);
+  const holder = all.find((w) => w.branch === branch);
+  let path = want;
+  let created = false;
+  if (holder) {
+    if (holder === all[0]) throw new Error(`${branch} is checked out in the main checkout (${holder.path}): run there without --worktree, or switch that checkout to another branch`);
+    path = samePath(holder.path, want) ? want : resolve(holder.path);
+    log(`worktree for ${branch} exists: ${path}`);
+  } else {
+    if (exists(want)) throw new Error(`${want} exists but is not a worktree of ${branch}: move it away first`);
+    mkdirSync(dirname(want), { recursive: true });
+    if (create && git('rev-parse', '--verify', '-q', 'main').code) throw new Error(`no branch main to create ${branch} from`);
+    const r = create ? git('worktree', 'add', '-b', branch, want, 'main') : git('worktree', 'add', want, branch);
+    if (r.code) throw new Error(`git worktree add failed: ${r.err || r.out}`);
+    created = create;
+    log(`worktree ${want} on ${branch}${create ? ' (new branch, from main)' : ''}`);
+  }
+  const links = [];
+  for (const p of LINKED) {
+    const from = join(mainRoot, p);
+    const to = join(path, p);
+    if (!existsSync(from) || exists(to)) continue;
+    mkdirSync(dirname(to), { recursive: true });
+    symlinkSync(from, to, 'junction'); // a junction needs no admin rights on Windows (T002); a symlink elsewhere
+    links.push(p);
+  }
+  if (links.length) log(`linked from the main checkout: ${links.join(', ')}`);
+  return { path, branch, created, links };
+}
+
+/**
+ * Removes feature `nnn`'s worktree: first the junctions (only the links, so nothing is deleted through them into the
+ * main checkout, T002), then `git worktree remove --force`. The branch and its commits stay.
+ */
+export function removeWorktree(nnn, { root = process.cwd(), log = console.log } = {}) {
+  const mainRoot = mainCheckout(root);
+  const all = worktrees(mainRoot);
+  const want = worktreeDir(mainRoot, nnn);
+  const wt = all.slice(1).find((w) => samePath(w.path, want)) ?? all.slice(1).find((w) => w.branch?.startsWith(`feat/${nnn}-`));
+  if (!wt) throw new Error(`no worktree for ${nnn} (looked for ${want} and a feat/${nnn}-* worktree)`);
+  const path = samePath(wt.path, want) ? want : resolve(wt.path);
+  const unlinked = [];
+  for (const p of LINKED) {
+    const at = join(path, p);
+    if (!isLink(at)) continue;
+    try {
+      unlinkSync(at);
+    } catch {
+      rmdirSync(at); // a junction is removed as an (empty-looking) directory: the link only
+    }
+    unlinked.push(p);
+  }
+  const r = gitRun(mainRoot, ['worktree', 'remove', '--force', path]);
+  if (r.code) throw new Error(`git worktree remove failed (junctions already removed: ${unlinked.join(', ') || 'none'}): ${r.err || r.out}`);
+  log(`removed worktree ${path}${unlinked.length ? ` (links first: ${unlinked.join(', ')})` : ''}; branch ${wt.branch ?? '?'} kept`);
+  return { path, branch: wt.branch, unlinked };
+}
+
+// ── §6 Batch intake: one spec-writer run per roadmap item; drafts only (AC-15) ──────────────────────────────────
+
+/** What one spec-writer run changed, judged: only `specs/features/NNN-*\/spec.md` (Status Draft) and the roadmap. */
+export function intakeCheck({ nnn, changed, specs = {} }) {
+  const own = new RegExp(`^specs/features/${nnn}-[^/]+/spec\\.md$`);
+  const spec = changed.find((p) => own.test(p)) ?? null;
+  const others = changed.filter((p) => !own.test(p) && p !== 'specs/roadmap.md');
+  const problems = [];
+  if (!spec) problems.push(`no specs/features/${nnn}-*/spec.md was written`);
+  else if (!/^\*\*Status:\*\*\s*Draft\b/m.test(specs[spec] ?? '')) problems.push(`${spec} is not \`**Status:** Draft\``);
+  if (others.length) problems.push(`changed files outside the draft and the roadmap: ${others.join(', ')}`);
+  const questions = spec ? ((specs[spec] ?? '').match(/\[NEEDS CLARIFICATION\]/g) ?? []).length : 0;
+  return { ok: problems.length === 0, problems, spec, questions };
+}
+
+/** Changed and untracked paths with a size+mtime signature, so a file changed again is seen as changed. */
+function treeSnapshot(root) {
+  const parts = gitRun(root, ['status', '--porcelain', '-z', '--untracked-files=all']).out.split('\0');
+  const snap = new Map();
+  for (let i = 0; i < parts.length; i++) {
+    const e = parts[i];
+    if (e.length < 4) continue;
+    const p = e.slice(3);
+    if (/^[RC]/.test(e)) i++; // the origin path of a rename or copy follows
+    let sig = 'gone';
+    try {
+      const s = statSync(join(root, p));
+      sig = `${s.size}:${s.mtimeMs}`;
+    } catch {
+      // deleted
+    }
+    snap.set(p, sig);
+  }
+  return snap;
+}
+
+/**
+ * Drafts the specs of roadmap items `items` (plan §6): skips items not on the roadmap or with a feature folder;
+ * stops the batch on a run that changed more than its draft and the roadmap (left in the tree for a person), on an
+ * error, or on the budget. Never commits or stashes: the drafts are the output, for review.
+ * opts: { root, budgetUsd = 10, maxTurns = 40, callCapUsd = 4, minBudget = 0.5, date, log, promptsDir }.
+ * Resolves { items: [{ nnn, outcome: drafted | skipped | problem, … }], stop, costUsd, turns }.
+ */
+export async function runIntake(items, opts = {}, deps = {}) {
+  const { root = process.cwd(), budgetUsd = 10, maxTurns = 40, callCapUsd = 4, minBudget = 0.5, log = console.log, promptsDir } = opts;
+  const date = opts.date ?? new Date().toISOString().slice(0, 10);
+  const call = deps.callClaude ?? ((c) => callClaude(c, { root }));
+  const out = { items: [], stop: null, costUsd: 0, turns: 0 };
+  const halt = (kind, reason) => {
+    out.stop = { kind, reason };
+    log(`■ intake stopped (${kind}): ${reason}`);
+    return out;
+  };
+  for (const nnn of items) {
+    const row = parseRoadmap(readText(root, 'specs/roadmap.md')).find((r) => r.id === nnn);
+    const featuresDir = join(root, 'specs/features');
+    const folder = (existsSync(featuresDir) ? readdirSync(featuresDir) : []).find((f) => f.startsWith(`${nnn}-`));
+    if (!row || folder) {
+      const why = row ? `specs/features/${folder}/ exists already` : `${nnn} is not on specs/roadmap.md`;
+      out.items.push({ nnn, outcome: 'skipped', why });
+      log(`- ${nnn} skipped: ${why}`);
+      continue;
+    }
+    const left = budgetUsd - out.costUsd;
+    if (left < minBudget) return halt('budget', `budget left US$${left.toFixed(2)} is under US$${minBudget.toFixed(2)}; not drafted: ${items.slice(items.indexOf(nnn)).join(', ')}`);
+    log(`▶ ${nnn} ${row.title}: spec-writer (US$${out.costUsd.toFixed(2)} of ${budgetUsd.toFixed(2)} spent)`);
+    const before = treeSnapshot(root);
+    const args = ['--max-turns', String(maxTurns), '--max-budget-usd', Math.max(0.5, Math.min(left, callCapUsd)).toFixed(2), '--permission-mode', 'acceptEdits'];
+    const res = await call({ agent: 'spec-writer', prompt: prompts.intake({ nnn, title: row.title, date }, { dir: promptsDir }), args });
+    out.costUsd = round(out.costUsd + (res.costUsd ?? 0));
+    out.turns += res.turns ?? 0;
+    if (res.subtype === 'error_max_budget_usd') return halt('budget', `the spec-writer spent its per-call budget on ${nnn}; its files are left in the tree`);
+    if (res.subtype === 'error_max_turns') return halt('turns', `the spec-writer hit the turn cap on ${nnn}; its files are left in the tree`);
+    if (res.subtype !== 'success') return halt('error', `claude failed on ${nnn} (${res.subtype}): ${String(res.result).slice(0, 400)}`);
+    const after = treeSnapshot(root);
+    const changed = [...after].filter(([p, sig]) => before.get(p) !== sig).map(([p]) => p);
+    const specs = Object.fromEntries(changed.filter((p) => p.endsWith('/spec.md')).map((p) => [p, readText(root, p)]));
+    const check = intakeCheck({ nnn, changed, specs });
+    if (!check.ok) {
+      out.items.push({ nnn, outcome: 'problem', problems: check.problems });
+      return halt('question', `${nnn}: ${check.problems.join('; ')} — left in the tree for you to look at`);
+    }
+    out.items.push({ nnn, outcome: 'drafted', spec: check.spec, questions: check.questions });
+    log(`✓ ${nnn} drafted: ${check.spec} (${check.questions} open question${check.questions === 1 ? '' : 's'})`);
+  }
+  return out;
+}
+
+// ── The command line ────────────────────────────────────────────────────────────────────────────────────────────
+
+const USAGE = [
+  'usage: node scripts/factory/run.mjs <NNN> [--once] [--budget 10] [--max-turns 40] [--plan] [--worktree]',
+  '       node scripts/factory/run.mjs <NNN> --remove-worktree',
+  '       node scripts/factory/run.mjs --intake 203,204 [--budget 10] [--max-turns 40]',
+].join('\n');
+
+/** The command line → { nnn, once, plan, budgetUsd, maxTurns, worktree, removeWorktree, intake }; throws with the usage. */
+export function parseArgs(argv) {
+  const fail = (why) => {
+    throw new Error(`${why}\n${USAGE}`);
+  };
+  const o = { nnn: null, once: false, plan: false, budgetUsd: 10, maxTurns: 40, worktree: false, removeWorktree: false, intake: null };
+  const flags = { '--once': 'once', '--plan': 'plan', '--worktree': 'worktree', '--remove-worktree': 'removeWorktree' };
+  const positional = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a in flags) o[flags[a]] = true;
+    else if (a === '--budget' || a === '--max-turns') {
+      const v = Number(argv[++i]);
+      if (i >= argv.length || !Number.isFinite(v) || v <= 0) fail(`${a} needs a positive number`);
+      o[a === '--budget' ? 'budgetUsd' : 'maxTurns'] = v;
+    } else if (a === '--intake') {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith('--')) fail('--intake needs a list of items, e.g. 203,204');
+      const ids = v.split(',').map((s) => s.trim()).filter(Boolean);
+      if (!ids.length || ids.some((id) => !/^\d{3}$/.test(id))) fail(`--intake takes three-digit item numbers, comma-separated: ${v}`);
+      o.intake = [...new Set(ids)];
+    } else if (a.startsWith('--')) fail(`unknown option ${a}`);
+    else positional.push(a);
+  }
+  if (o.intake) {
+    if (positional.length) fail('--intake takes no feature number (list the items after it, comma-separated)');
+    if (o.once || o.plan || o.worktree || o.removeWorktree) fail('--intake runs on its own: no --once, --plan or worktree');
+    return o;
+  }
+  if (positional.length !== 1 || !/^\d{3}$/.test(positional[0])) fail('give one feature number (NNN)');
+  if (o.worktree && o.removeWorktree) fail('--worktree and --remove-worktree together');
+  o.nnn = positional[0];
+  return o;
+}
+
+async function main(argv) {
+  let a;
+  try {
+    a = parseArgs(argv);
+  } catch (e) {
+    console.error(e.message);
     return 2;
   }
-  const nnn = positional[0];
-  const r = await runFeature(nnn, { once: argv.includes('--once'), plan: argv.includes('--plan'), budgetUsd: num('--budget', 10), maxTurns: num('--max-turns', 40) });
+  if (a.intake) {
+    const r = await runIntake(a.intake, { budgetUsd: a.budgetUsd, maxTurns: a.maxTurns });
+    const drafted = r.items.filter((i) => i.outcome === 'drafted');
+    console.log(`\nIntake ${a.intake.join(', ')}: ${drafted.length} drafted${drafted.length ? ` (${drafted.map((i) => `${i.spec}, ${i.questions} open questions`).join('; ')})` : ''}, US$${r.costUsd.toFixed(2)}, ${r.turns} turns.${r.stop ? ` Stop: ${r.stop.kind} — ${r.stop.reason}` : ''}`);
+    return r.stop?.kind === 'error' ? 1 : 0;
+  }
+  if (a.removeWorktree) {
+    try {
+      removeWorktree(a.nnn);
+      return 0;
+    } catch (e) {
+      console.error(String(e.message ?? e));
+      return 1;
+    }
+  }
+  let root = process.cwd();
+  if (a.worktree && !a.plan) {
+    try {
+      root = prepareWorktree(a.nnn).path;
+    } catch (e) {
+      console.error(`■ ${a.nnn} refused: ${e.message ?? e}`);
+      return 1;
+    }
+  }
+  const r = await runFeature(a.nnn, { root, once: a.once, plan: a.plan, budgetUsd: a.budgetUsd, maxTurns: a.maxTurns });
   if (r.plan !== undefined) return 0;
-  console.log(`\nFactory ${nnn}: ${r.commits.length} commit${r.commits.length === 1 ? '' : 's'}${r.commits.length ? ` (${r.commits.join(', ')})` : ''}, US$${r.costUsd.toFixed(2)}, ${r.turns} turns. Stop: ${r.stop.kind} — ${r.stop.reason}`);
+  console.log(`\nFactory ${a.nnn}: ${r.commits.length} commit${r.commits.length === 1 ? '' : 's'}${r.commits.length ? ` (${r.commits.join(', ')})` : ''}, US$${r.costUsd.toFixed(2)}, ${r.turns} turns. Stop: ${r.stop.kind} — ${r.stop.reason}`);
+  if (a.worktree) console.log(`Worktree kept: ${root} (remove it with: npm run factory -- ${a.nnn} --remove-worktree)`);
   return ['refused', 'error'].includes(r.stop.kind) ? 1 : 0;
 }
 
