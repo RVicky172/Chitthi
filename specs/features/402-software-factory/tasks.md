@@ -330,17 +330,37 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
   - **Review (2026-10-08):** rejected once: the toast was not seen, so AC-13's notification half is moved to T054
     (see the test line). Also fixed from the review: empty text now falls back to the title (`ShowBalloonTip`
     throws on empty text while `-Command` can still exit 0, so `channel` said `desktop` wrongly); +1 test, red first.
-- [ ] **T054** 👤 — First real run (P4): `/factory 402` on the tasks marked **(loop)** below, budget US$10; watch
+- [x] **T054** 👤 — First real run (P4): `/factory 402` on the tasks marked **(loop)** below, budget US$10; watch
       the dashboard. · files: whatever the loop's tasks touch · test: ≥ 3 agent tasks done without a person, each
       with a Result note quoting its gate run and a commit `feat(402): …` on `feat/402-*`, nothing pushed (AC-11,
       AC-14); every stop kind not yet seen is triggered once by hand and recorded (AC-12); the maintainer sees the
       desktop toast when the run stops (Focus Assist off), or records why not (AC-13, moved from T053 on 2026-10-08)
-  - **Run 1 (2026-10-08, in progress):** `/factory 402` from `3ed5754`: T060 done unattended (commit `721d4f5`);
-    stopped `question` on T061 after US$2.31 / 47 turns, because a headless run can't write `.claude/` (the loop
-    correctly refused it, plus an out-of-allow-list temp-repo script and a temp-folder write); work stashed. **The
-    maintainer saw the desktop toast on that stop (AC-13 proven).** T061 was finished interactively (see its note).
-    Stop kinds seen so far: `question`. Still needed: ≥ 2 more unattended tasks (T070, T071) and the stop kinds not
-    yet seen.
+  - **Run 1 (2026-10-08):** `/factory 402` from `3ed5754`: T060 done unattended (commit `721d4f5`); stopped
+    `question` on T061 after US$2.31 / 47 turns, because a headless run can't write `.claude/` (the loop correctly
+    refused it, plus an out-of-allow-list temp-repo script and a temp-folder write); work stashed. **The maintainer
+    saw the desktop toast on that stop (AC-13 proven).** T061 was finished interactively (`695d347`).
+  - **Run 2 (2026-10-08):** from `695d347`, budget US$7.69: T070 done unattended (`10fe9ee`, review accepted);
+    stopped `question` on T071 after US$2.52 / 97 turns (`.claude/commands/release.md` again; the draft was left in
+    `scripts/factory/`); finished interactively (`7016890`). Total for both runs US$4.83 of US$10.
+  - **Result (2026-10-08):** **2 agent tasks done without a person** (T060, T070), each with a Result note quoting
+    its gate run and a `feat(402): …` commit on `feat/402-software-factory`. The loop itself pushed nothing; the
+    maintainer pushed by hand. **The maintainer accepted 2 instead of the ≥ 3 in the test**, because T061 and T071
+    only stopped on the `.claude/` write (learning recorded; such tasks are now 👤 work). **Stop drill (AC-12)** on a
+    throwaway local branch `feat/998-stop-drill` (feature 998, never merged), US$0.71 in all:
+    - 👤 task → `waiting-on-you`, no call;
+    - all ticked → `verify`, no call;
+    - `--budget 0.4` → `budget`, no call;
+    - `--max-turns 2` → `turns` after 3 turns (US$0.08), work stashed;
+    - a task adding `left-pad` → the implementer stopped with `dependency` before editing `package.json` (US$0.08);
+    - a task editing spec.md and plan.md → `spec-change` (US$0.08);
+    - a task told not to tick itself → a retry with the feedback, then ticked on attempt 2 and committed (US$0.33);
+    - a task with a deliberately red test it may not touch → the implementer stopped with `question` rather than
+      report done (US$0.14).
+
+    So a **retry** was seen live but the **third failure** was not: real agents stop and ask instead of failing
+    three times. The third-failure stop is proven by the scripted run in `runner.test.mjs` (case c: 3× red → no
+    commit, stash, clean tree). Every stop left the tree clean. The drill branch and its two stashes are left for
+    the maintainer to delete (`git branch -D feat/998-stop-drill`; `git stash list`).
 
 ## F6 — Batch intake and parallel lines (§6)
 
