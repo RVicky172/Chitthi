@@ -404,11 +404,34 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
 
 ## F7 — Release station (§7)
 
-- [ ] **T070** — **(loop)** Failing tests then `bumpRelease` in `scripts/factory/release.mjs`: on copies of
+- [x] **T070** — **(loop)** Failing tests then `bumpRelease` in `scripts/factory/release.mjs`: on copies of
       `package.json`, `public/sw.js`, `docker-compose.yml`, `plugins/chitthi/.claude-plugin/plugin.json`,
       `CHANGELOG.md` (fixtures); version must increase; the CHANGELOG gets the dated section and a new empty
       Unreleased. · files: `scripts/factory/release.mjs`, `scripts/factory/release.test.mjs`,
       `scripts/factory/fixtures/release/*` · test: `release.test.mjs` (AC-17)
+  - **Result (2026-10-08):** Unattended (loop) run. Fixtures are copies of the five files at 2.8.0 / `APP_CACHE` v15
+    (`fixtures/release/`, with a README). `release.mjs` exports `RELEASE_FILES`, `compareVersions` and the pure
+    `bumpRelease(files, version, date)`: it takes a map of path → text and returns the new texts. package.json and
+    plugin.json change only their top-level `"version"` line, sw.js changes `APP_CACHE` vN → vN+1 (the font cache
+    stays), docker-compose.yml changes the image tag. In CHANGELOG.md, Unreleased becomes `## [X.Y.Z] - date` with a
+    new empty `## [Unreleased]` above it. The `[Unreleased]` compare link moves to `vX.Y.Z...HEAD` and a
+    `[X.Y.Z]: …/compare/v<current>...vX.Y.Z` link goes in below it. Each file keeps its own line endings (CRLF
+    tested). It throws, without changing anything, when: the version isn't X.Y.Z (no `v`, no pre-release) or isn't
+    greater than package.json's (numeric order, 2.10.0 > 2.9.0); the date isn't YYYY-MM-DD; a file is missing or
+    a marker isn't found; plugin.json or docker-compose.yml disagree with package.json; Unreleased is empty; or
+    the version already has a section. Differs from the plan: plan §7 writes the heading as
+    `## [X.Y.Z] — YYYY-MM-DD`, but the real CHANGELOG uses `- ` (Keep a Changelog). So the separator is copied
+    from the file's latest version heading, with `- ` as the fallback.
+    `release.test.mjs` has 14 tests and fails 13 of them before the code exists. Break check: with no new
+    Unreleased written, 3 tests fail; restored. The real CHANGELOG's `[Unreleased]` link is stale (`v2.7.0...HEAD`)
+    and has no `[2.8.0]` line. The bump fixes the Unreleased link at the next release but doesn't add the missing
+    2.8.0 link. Gate: `npm run factory:gates -- --task T070` → ✓ check 15 s, 1257 tests passed, lint 0 errors /
+    5 warnings.
+    Attempt 2 (2026-10-08): review found the fixtures were git-ignored by the unanchored `release/` rule (meant for
+    the packaging output), so a clean checkout would lose them. Outside the task's files: `.gitignore` gets
+    `!scripts/factory/fixtures/release/` right after `release/` (an exception rather than anchoring, so no other
+    `release/` folder starts showing up). `git status --porcelain -uall` now lists all six fixtures. Gate re-run:
+    `npm run factory:gates -- --task T070` → ✓ check 14 s, 1257 tests passed, lint 0 errors / 5 warnings.
 - [ ] **T071** — **(loop)** The wrapper (`main` and clean checks, `npm version --no-git-tag-version`, the checklist,
       asks before the dry run, no tag / push) and `/release`; `npm run release:prepare`. · files:
       `scripts/factory/release.mjs`, `.claude/commands/release.md`, `package.json` · test: a scratch-branch run with

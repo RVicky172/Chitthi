@@ -22,6 +22,8 @@ ds-bundle/
 electron/resources/fonts/
 electron/resources/libraw/
 release/
+# ...but not the release fixtures of the software factory (402, T070)
+!scripts/factory/fixtures/release/
 
 # print samples for the print shop (npm run fetch:print-samples / build:print-samples)
 print-samples-src/

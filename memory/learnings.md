@@ -5,6 +5,9 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 
 ## Docs
 
+- `.gitignore`'s unanchored `release/` (packaging output) ignores every folder named `release`, e.g. test fixtures;
+  check new files with `git status --porcelain -uall`. `scripts/factory/fixtures/release/` has an exception (402 T070).
+
 - Line endings in the working tree differ per file (e.g. `specs/lld.md`, `CHANGELOG.md` CRLF; most others LF);
   git stores LF (`core.autocrlf`; since 402 T034 also `* text=auto` in `.gitattributes`, so a script that writes LF
   into a CRLF file changes nothing in a commit, only the working copy). Keep each file's own endings when editing by
