@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { withGateLock } from './lock.mjs';
 
 export const DOD = ['check', 'build', 'e2e', 'selftest', 'mcp', 'licenses'];
 const ORDER = ['check', 'build', 'selftest', 'e2e', 'mcp', 'licenses'];
@@ -132,7 +133,8 @@ export function execCommand(cmd, root, { echo = true } = {}) {
 
 /**
  * Runs the gates in order and records the run. A red `check` (the fast gate) stops the run: later gates would only
- * repeat its failure. `withLock` serialises gate runs between lines (402 §6); until then it just runs.
+ * repeat its failure. `withLock` serialises gate runs between lines (402 §6): the command line passes the gate lock
+ * (lock.mjs); the default just runs, for tests.
  */
 export async function runGates(gates, { feature = '—', task = '—', root = process.cwd(), exec = execCommand, now = () => new Date(), withLock = (fn) => fn() } = {}) {
   const at = now();
@@ -170,7 +172,13 @@ async function main(argv) {
   const gates = chooseGates(files, { area: opt('--area') }, { verify });
   console.log(`Gates for ${feature} ${task} (${verify ? 'Definition of Done' : `${files.length} changed files`}): ${gates.join(', ') || 'none'}`);
   if (argv.includes('--dry')) return 0;
-  const run = await runGates(gates, { feature, task, root });
+  const withLock = (fn) =>
+    withGateLock(fn, {
+      root,
+      feature,
+      onWait: (h) => console.log(`waiting for gates: ${h.feature} (pid ${h.pid ?? '?'}, since ${h.since ?? '?'})`),
+    });
+  const run = await runGates(gates, { feature, task, root, withLock });
   console.log('\nGate run:');
   for (const g of run.gates) console.log(`  ${g.ok ? '✓' : '✗'} ${g.name.padEnd(14)} ${String(Math.round(g.ms / 1000)).padStart(4)} s  ${g.summary}`);
   console.log(run.ok ? 'All gates green.' : 'A gate is red.');

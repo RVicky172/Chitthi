@@ -338,10 +338,27 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
 
 ## F6 — Batch intake and parallel lines (§6)
 
-- [ ] **T060** — **(loop)** Failing tests then `scripts/factory/lock.mjs`: take, wait, release, a stale pid taken
+- [x] **T060** — **(loop)** Failing tests then `scripts/factory/lock.mjs`: take, wait, release, a stale pid taken
       over, the path from `git rev-parse --git-common-dir`; `gates.mjs` uses it. · files:
       `scripts/factory/lock.mjs`, `scripts/factory/lock.test.mjs`, `scripts/factory/gates.mjs` · test:
       `lock.test.mjs` (AC-16)
+  - **Result (2026-10-08):** `lock.mjs`: `gateLockPath(root)` (`<git common dir>/factory-gates.lock`),
+    `isAlive(pid)` (`process.kill(pid, 0)`, EPERM = alive), `takeLock` (`open(…, 'wx')` writing
+    `{ pid, feature, since }`; a holder whose pid has ended is removed and taken over, returned as `stale`; an
+    unreadable lock counts as held for 10 s, the window between `open` and `write`, then as stale),
+    `releaseLock` (removes only our own: same pid and `since`), `withGateLock(fn, { feature, pollMs = 2000,
+    onWait })` (polls, reports each new holder once, releases in `finally`). `gates.mjs` `main` passes it as
+    `withLock` and prints "waiting for gates: 204 (pid …, since …)"; `runGates`' default stays a pass-through for
+    its tests; `--dry` takes no lock. 11 tests, failed first (module missing): take, held → holder, release only
+    our own, stale pid (a real ended child's pid) taken over, isAlive, unreadable fresh/old, value + release,
+    release on throw, wait (≥ 60 ms, one `onWait`), two runs at once never overlap, and the same path from a main
+    checkout and its worktree (temp repo). Break-test: `isAlive` always true → 2 fail (stale takeover, isAlive).
+    Gate: `npm run factory:gates -- --task T060` → ✓ check 15 s, 1222 tests passed, lint 0 errors / 5 warnings;
+    no lock file left in `.git` after. Surprising: on Windows `realpathSync` and git disagree on case
+    (`C:\Windows\Temp` vs `C:\WINDOWS\TEMP`); the test compares `realpathSync.native` lowercased. Known limit: two
+    lines taking over the same stale lock at the same instant could both unlink; not handled (needs a dead line
+    plus two waiters within one poll). New files not Prettier-formatted (`npx prettier` isn't on the headless
+    allow-list); lint clean.
 - [ ] **T061** — **(loop)** `run.mjs --worktree` (create from `main` if the branch is missing; `node_modules` as
       T002 found) and `--intake 203,204`; `/spec-batch` command. · files: `scripts/factory/run.mjs`,
       `.claude/commands/spec-batch.md` · test: unit for the argument handling and the worktree path; T062, T063

@@ -90,5 +90,7 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 - Don't check a desktop notification with a full-screen capture: it takes in everything else on the user's
   screen (402 T053). Exit code 0 from the PowerShell NotifyIcon call doesn't prove a toast was shown (Focus
   Assist can hide it), so a person has to look.
+- Paths from git and from Node differ in case on Windows (`C:\WINDOWS\TEMP` vs `C:\Windows\Temp`), even after
+  `realpathSync`; compare with `realpathSync.native(p).toLowerCase()` (402 T060).
 - `.gitattributes` already existed (`*.onnx binary`) and was overwritten as if new (402 T034). Before writing a
   config file at the repo root, check `git ls-files <name>`.
