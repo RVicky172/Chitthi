@@ -32,8 +32,8 @@ _Goal:_ a real timeline with tracks, edit tools, keyframes, transitions, speed a
 | --- | ------------------- | ---- | ------ |
 | 201 | Track model and migration (P2.1) | — | ⬜ |
 | 202 | Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2) | — | ⬜ |
-| 203 | Compositing many tracks, picture-in-picture (P2.3) | — | ⬜ |
-| 204 | Decoder pool with look-ahead (P2.4) | — | ⬜ |
+| 203 | Compositing many tracks, picture-in-picture (P2.3) | [spec](features/203-compositing-pip/spec.md) | 📝 |
+| 204 | Decoder pool with look-ahead (P2.4) | [spec](features/204-decoder-pool/spec.md) | 📝 |
 | 205 | Keyframes: `Animated<T>`, keyframe lane (P2.5) | — | ⬜ |
 | 206 | Transitions as shaders (P2.6) | — | ⬜ |
 | 207 | Speed: constant, reverse, freeze, ramps (P2.7) | — | ⬜ |
