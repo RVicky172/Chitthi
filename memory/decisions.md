@@ -234,3 +234,11 @@ runs once, at the end of each spec, as a Definition of Done gate in `/spec-verif
 and `/spec-implement`).
 **Consequences:** Tasks finish faster. A regression in another area may only show up at verification, and is fixed
 before the spec is marked Implemented. `workflow.md`, `constitution.md` and `.claude/commands/spec-implement.md` say so.
+
+## D-018 — 402 AC-11: two unattended agent tasks are enough proof (2026-10-08, 402 Verify)
+
+**Context:** AC-11 asked for at least 3 agent tasks run without a person. T054's first real `/factory 402` run did 2
+(T060, T070); T061 and T071 stopped because a headless run can't write `.claude/` and were finished by hand.
+**Decision:** The maintainer amended AC-11 to at least 2 unattended tasks and accepted T054 as its proof.
+**Alternatives:** let the loop finish a third agent task before ticking AC-11.
+**Consequences:** AC-11 ticked (17 of 18 ACs); F5 ✔️ in software-factory.md. 402 still waits on AC-16 (T063, backlog).

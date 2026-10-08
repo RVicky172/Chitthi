@@ -37,71 +37,71 @@ It is developer tooling only: nothing changes in the app, its builds or what use
 
 ### Backlog (F1)
 
-- [ ] **AC-1:** For every feature folder in the repository today (000, 001, 201, 202, 401, 402), a command prints as
+- [x] **AC-1:** For every feature folder in the repository today (000, 001, 201, 202, 401, 402), a command prints as
       JSON the next task an agent may take, the open 👤 tasks, tasks stopped with a **Status** note, and tasks whose
       listed dependencies are still open. The result for 202 today is T030 (agent), T001 (stopped), no 👤 task.
       _(unit, on fixtures copied from the real files)_
-- [ ] **AC-2:** The tasks template documents optional tags for area and dependencies; tasks written without them
+- [x] **AC-2:** The tasks template documents optional tags for area and dependencies; tasks written without them
       (every existing `tasks.md`) still parse with the same result as AC-1. The roadmap records which features each
       Phase 2 and Phase 3 item needs, and the command refuses to offer a feature whose needs aren't Done.
       _(unit)_
 
 ### Gates as code (F2)
 
-- [ ] **AC-3:** Given a list of changed files, the gate command chooses exactly the gates `workflow.md` asks for: a
+- [x] **AC-3:** Given a list of changed files, the gate command chooses exactly the gates `workflow.md` asks for: a
       table of at least 12 cases (engine only, a component with its e2e file, `electron/`, `src/agent/`,
       `package.json`, docs only, mixed) gives the expected set. `--verify` runs every Definition-of-Done gate.
       _(unit)_
-- [ ] **AC-4:** Each gate run writes one JSON file in the format of software-factory.md §4.3 (time, feature, task,
+- [x] **AC-4:** Each gate run writes one JSON file in the format of software-factory.md §4.3 (time, feature, task,
       each gate's name, pass/fail, duration, a one-line summary with the counts), and the dashboard shows it within
       one refresh. A failing gate makes the command exit non-zero. _(unit for the file; manual check on the
       dashboard)_
 
 ### Guardrails (F3)
 
-- [ ] **AC-5:** An agent's attempt to edit a file under `src/` or `electron/` is refused, with the reason, while the
+- [x] **AC-5:** An agent's attempt to edit a file under `src/` or `electron/` is refused, with the reason, while the
       feature named on the branch (`feat/NNN-*`) has no spec at `Approved` or `In Progress`; editing `specs/`,
       `memory/` and docs is always allowed. _(unit for the decision; a manual check in a Claude Code session)_
-- [ ] **AC-6:** These shell commands from an agent are refused with the reason: `sed -i` on a tracked file,
+- [x] **AC-6:** These shell commands from an agent are refused with the reason: `sed -i` on a tracked file,
       Prettier writing under `src/`, `git push --force` (any form), `git tag`, `git reset --hard`. A table of at
       least 15 commands (refused and allowed lookalikes such as `git push`, `sed -n`) gives the expected answer.
       _(unit)_
-- [ ] **AC-7:** An agent can't end its turn while `npm run check` fails on code it changed: it is told the failure
+- [x] **AC-7:** An agent can't end its turn while `npm run check` fails on code it changed: it is told the failure
       and continues. A turn that changed only docs doesn't run the check. _(manual check, recorded)_
-- [ ] **AC-8:** The repository keeps storing every text file with LF on any machine, whatever its git settings: a
+- [x] **AC-8:** The repository keeps storing every text file with LF on any machine, whatever its git settings: a
       file edited to LF in a CRLF working copy, and one edited to CRLF in an LF one, both commit with no line-ending
       change (`git diff --cached` empty for endings), and `git ls-files --eol` shows no `i/crlf`.
       _(manual check, recorded)_
 
 ### Specialist agents (F4)
 
-- [ ] **AC-9:** There are agents for the stations of software-factory.md §3.3 F4 (spec writer, planner,
+- [x] **AC-9:** There are agents for the stations of software-factory.md §3.3 F4 (spec writer, planner,
       implementer, reviewer, verifier, scribe, licence auditor), each limited to its tools; the reviewer and the
       licence auditor can't edit files. The `/spec-*` commands use them and keep their names and arguments.
       _(manual check: each agent's tool list; one run per command)_
-- [ ] **AC-10:** The reviewer rejects a change that breaks a rule: proven with at least 3 seeded bad changes in a
+- [x] **AC-10:** The reviewer rejects a change that breaks a rule: proven with at least 3 seeded bad changes in a
       scratch branch (code with no test, a change outside the task's files that breaks a spec AC, React imported into
       `src/engine/`), each rejected with a reason naming the rule; and it accepts one correct change.
       _(manual measurement, recorded)_
 
 ### The orchestrator (F5)
 
-- [ ] **AC-11:** One command runs a feature's agent tasks in order: for each, implement → gates → review → tick with
-      a dated **Result** note quoting the gate run → next. Proven on a real feature with at least 3 agent tasks run
+- [x] **AC-11:** One command runs a feature's agent tasks in order: for each, implement → gates → review → tick with
+      a dated **Result** note quoting the gate run → next. Proven on a real feature with at least 2 agent tasks run
       without a person, each Result note written and each gate run recorded. _(manual measurement, recorded)_
-- [ ] **AC-12:** The loop stops, says why and leaves the tree clean or committed (never half-edited) on each of:
+- [x] **AC-12:** The loop stops, says why and leaves the tree clean or committed (never half-edited) on each of:
       a 👤 task, a stopped task, a needed spec change, a new dependency, the third failure of one task (2 retries),
       the turn or cost budget spent, and the Verify stage (which waits for sign-off). Each stop is proven once.
       _(manual check per stop, recorded)_
-- [ ] **AC-13:** While the loop runs, the dashboard shows the feature, task, station and attempt, updated within
+- [x] **AC-13:** While the loop runs, the dashboard shows the feature, task, station and attempt, updated within
       10 s of each change; on a stop it shows the reason, and a desktop notification is sent.
       _(manual check)_
-- [ ] **AC-14:** Commits made by the loop follow the project's format (`feat(NNN): … (P2.x)`), stay on the
+- [x] **AC-14:** Commits made by the loop follow the project's format (`feat(NNN): … (P2.x)`), stay on the
       feature's branch, never on `main`, and are never pushed. _(manual check of the log after AC-11)_
 
 ### Batch intake and parallel lines (F6)
 
-- [ ] **AC-15:** One command drafts the specs of a list of roadmap items (e.g. 203–205) from the vision documents,
+- [x] **AC-15:** One command drafts the specs of a list of roadmap items (e.g. 203–205) from the vision documents,
       each `Status: Draft` with its open questions marked; nothing is approved, planned or coded.
       _(manual check)_
 - [ ] **AC-16:** Two features with no dependency between them run at the same time in separate worktrees; their gate
@@ -110,14 +110,14 @@ It is developer tooling only: nothing changes in the app, its builds or what use
 
 ### Release station (F7)
 
-- [ ] **AC-17:** One command prepares release X.Y.Z: the version in `package.json` (and its lock file), `APP_CACHE` in
+- [x] **AC-17:** One command prepares release X.Y.Z: the version in `package.json` (and its lock file), `APP_CACHE` in
       `public/sw.js`, the image tag in `docker-compose.yml`, the plugin version and a CHANGELOG section, as
       `specs/release.md` lists; it then offers the dry run and stops before `git tag`. Proven with a version bump on a
       scratch branch, reverted. _(manual check)_
 
 ### Docs
 
-- [ ] **AC-18:** `specs/software-factory.md` (status of each phase, commands), `specs/workflow.md`,
+- [x] **AC-18:** `specs/software-factory.md` (status of each phase, commands), `specs/workflow.md`,
       `CLAUDE.md` and `specs/build.md` describe the factory as built; `memory/decisions.md` records the answers to
       the open questions. _(review)_
 
@@ -170,6 +170,12 @@ It is developer tooling only: nothing changes in the app, its builds or what use
 
 ## Changelog
 
+- 2026-10-08 — AC-11 amended by the maintainer: at least 2 agent tasks run without a person (was 3), matching
+  T054's first real run (T060, T070), which the maintainer accepted (D-018). AC-11 ticked; 17 of 18 ACs. AC-16 stays
+  open (T063 in the roadmap backlog), so Status stays In Progress.
+- 2026-10-08 — Verify (T091, T092): every Definition-of-Done gate green; 16 of 18 ACs ticked with proof. Open:
+  AC-11 (2 agent tasks ran unattended, the AC asks for at least 3; the maintainer accepted 2 in T054 but the AC text
+  was not amended) and AC-16 (T063 deferred to the roadmap backlog). Status stays In Progress until both close.
 - 2026-10-08 — Plan approved (P1–P5); tasks written; Status In Progress.
 - 2026-10-08 — Plan: Q9 revised (`* text=auto`, not `* -text`) and AC-8 reworded to match (D-012 amended). Q8
   needs no config change: Vitest's default include already finds `scripts/**/*.test.mjs`.

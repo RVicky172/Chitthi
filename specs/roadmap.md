@@ -72,7 +72,7 @@ Print studio, site and anything outside the editor phases take the next free num
 | #   | Feature | Spec | Status | Needs |
 | --- | ------- | ---- | ------ | --- |
 | 401 | AI models on this device: see and delete downloaded models | [spec](features/401-ai-models-on-device/spec.md) | ✔️ | — |
-| 402 | Software factory: agents run the spec-driven line, people decide (F1–F7 of [software-factory.md](software-factory.md)) | [spec](features/402-software-factory/spec.md) | 🚧 | — |
+| 402 | Software factory: agents run the spec-driven line, people decide (F1–F7 of [software-factory.md](software-factory.md)) | [spec](features/402-software-factory/spec.md) | 🚧 verified 2026-10-08 except AC-16 (T063 in backlog) | — |
 
 ## Backlog (unscheduled ideas)
 
@@ -82,6 +82,10 @@ Print studio, site and anything outside the editor phases take the next free num
   macOS apps (T030, T033). Then the release itself: T040 version and CHANGELOG, T041 merge into `main`, T042 dry run,
   T043 tag `v2.10.0`, T044–T047 clean installs, update from 2.8.0, web redeploy. How: the 👤 tasks in
   [001 tasks](features/001-phase1-gate-release/tasks.md).
+
+- **Deferred 402 T063: parallel features in two worktrees** (2026-10-08): two scratch features, each with one tiny
+  tooling task, run by the factory at the same time; both green, gate runs never overlap (run-file timestamps),
+  worktrees removed after. Proves 402 AC-16. How: T063 in [402 tasks](features/402-software-factory/tasks.md).
 
 - Firefox and Safari (WebKit) projects in Playwright ([testing-strategy.md](testing-strategy.md#not-automated-yet)).
 - The media studio's own "Still to do" list in [docs/MEDIA-STUDIO.md](../docs/MEDIA-STUDIO.md).

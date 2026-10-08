@@ -11,6 +11,30 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-08 — 402 T054–T091, `/spec-verify 402` (verified except AC-11, AC-16)
+
+**Catch-up (this log had nothing after T054's plan):** T054 👤 first real `/factory 402` runs, US$4.83 of US$10:
+T060 (`lock.mjs`, gate lock; `721d4f5`) and T070 (`bumpRelease`; `10fe9ee`) done unattended; T061 and T071 stopped
+`question` because a headless run can't write `.claude/`, finished interactively (`695d347` worktree lines and
+`--intake`, `/spec-batch`; `7016890` `release:prepare` and `/release`). The maintainer saw the toast (AC-13) and
+accepted 2 unattended tasks instead of ≥ 3. Stop drill on throwaway `feat/998-stop-drill` (US$0.71); third failure
+proven only by the scripted test. Docs `4412d1c`. T080: constitution 1.1.0, XII, D-016, Claude Code CLI in
+tech-stack (`46938e5`, `bdfab09`). T081: workflow "Running the line" and the other docs (`7550f39`). T090:
+architecture §11 "Development tooling" (`9d8e8f2`). Merged `main` (2.10.0 release) in `f3fd742`. T062 👤:
+`/spec-batch 203 204` gave Draft specs (203: 15 ACs / 14 questions; 204: 16 ACs / 10 questions), kept on
+`spec/203-204` (`b8b6ee9`, pushed); recorded in `362d80c`. `c50007a`: release tests seed their own Unreleased entry.
+**Done:** T063 👤 deferred by the maintainer to the roadmap backlog (⏸️ in tasks.md, backlog entry in roadmap).
+T091: `npm run factory:gates -- --verify --task T091` (run file `.factory/runs/2026-10-08T15-03-52Z-402-T091.json`),
+all green: check 1269 tests (990 app + 279 factory), lint 0 errors / 5 known warnings; build entry 327 KB of 350;
+e2e 76 passed, 10 skipped (phone runs of desktop-only tests, by design), 0 flaky, axe passes; self-test 6,124 / 0;
+test:mcp 56 tools; licences 168. T091 ticked; 16 of 18 ACs ticked. Open: AC-11 (≥ 3 unattended tasks; T054 ran 2)
+and AC-16 (T063 deferred), so spec stays In Progress, T092 not ticked, roadmap "🚧 verified 2026-10-08 except AC-11
+… and AC-16 …"; software-factory.md §3.6 F1–F4, F7 ✔️, F5 and F6 not (F6 cell now says T062 done, T063 deferred).
+**Also:** the maintainer amended AC-11 to ≥ 2 unattended tasks (D-018); ticked, 17 of 18 ACs, F5 ✔️.
+**Next:** the maintainer decides whether CHANGELOG.md needs a 402 line (developer tooling only), and deletes the local branches
+`feat/996-drill-a`, `feat/997-drill-b`, `feat/998-stop-drill` and their stashes. Then T092.
+**Blockers:** AC-16 waits on T063 (backlog).
+
 ## 2026-10-08 — 402 spec, plan, tasks; T001–T002 (spikes)
 
 **Done:** 402 spec approved (Q1–Q10, D-012; Q9 revised to `* text=auto` after `git ls-files --eol` showed the

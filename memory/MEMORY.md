@@ -16,10 +16,12 @@
   `401-ai-models-on-device` ✔️ 2026-10-07 (`21478bd`).
 - **202:** `202-edit-operations` 🚧: T010–T021 done (`10d946f`, branch `feat/202-edit-operations`); next T030. T001
   waits on 2 manual checks by the maintainer (Alt + ← in Chrome; Alt held through a drag in the desktop app).
-- **Factory (D-011):** `402-software-factory` 🚧 on `feat/402-software-factory` (pushed): T001–T090 done except
-  T062 / T063 (👤: `/spec-batch` and two worktree lines); constitution 1.1.0, XII (D-016). First real runs: T060 and
-  T070 by the loop, toast seen; stops drilled on a throwaway `feat/998-stop-drill` (local). Next: T062, T063, then
-  `/spec-verify 402` (T091, T092).
+- **Factory (D-011):** `402-software-factory` 🚧 on `feat/402-software-factory`: verified 2026-10-08 except AC-16
+  (T063 ⏸️ in the roadmap backlog); AC-11 amended to ≥ 2 unattended tasks (D-018). T091 all gates green (run
+  `2026-10-08T15-03-52Z-402-T091.json`); 17 / 18 ACs; spec In Progress, T092 open; §3.6 F1–F5, F7 ✔️. Maintainer:
+  a CHANGELOG 402 line or not, delete local `feat/996-drill-a`,
+  `feat/997-drill-b`, `feat/998-stop-drill` + stashes; then T092. 203 / 204 Draft specs on `spec/203-204` (T062).
+- **After 402 (roadmap):** 202 T030; answer 203 / 204's questions; 204, 205, 207, 210, 211 need only 201.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

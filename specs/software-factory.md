@@ -276,13 +276,13 @@ agents: Constitution XII.
 | Phase | Status | Built as |
 | --- | --- | --- |
 | F0 Decide | Done | Spec 402 with the answers to Q1–Q10 (D-012); constitution 1.1.0, principle XII (D-016) |
-| F1 Backlog | Built, used | `scripts/factory/state.mjs` (the readers, shared with the dashboard) and `next.mjs`; `area:` / `deps:` tags in `templates/tasks-template.md`; the roadmap's **Needs** column (D-013) |
-| F2 Gates | Built, used | `gates.mjs`: the gates for the changed files, run in order under the gate lock, one file per run in `.factory/runs/` |
-| F3 Guardrails | Built, live in every session | `.claude/hooks/pre-tool.mjs` and `stop.mjs`, rules in `scripts/factory/rules.mjs`, registered in `.claude/settings.json`; `.gitattributes` with `* text=auto` |
-| F4 Agents | Built, used | Seven agents in `.claude/agents/`; the `/spec-*` commands hand work to them; the reviewer rejected 3 seeded bad changes and accepted a good one (402 T042) |
-| F5 Orchestrator | Built, used | `run.mjs`, `/factory`, `notify.mjs`, the dashboard's **Loop** panel. First real runs (402 T054): 2 tasks done unattended, US$4.83 in all; each stop kind triggered once (the third failure by a scripted test) |
-| F6 Intake, parallel lines | Built; manual proofs open | `--intake` and `/spec-batch`; `--worktree`; the gate lock `lock.mjs`. 402 T062 (a real batch) and T063 (two worktrees at once) are 👤 and open |
-| F7 Release station | Built | `release.mjs` (`npm run release:prepare`) and `/release`; proven in a temporary repo, not yet used for a real release |
+| F1 Backlog | ✔️ Built, used (402 AC-1, AC-2) | `scripts/factory/state.mjs` (the readers, shared with the dashboard) and `next.mjs`; `area:` / `deps:` tags in `templates/tasks-template.md`; the roadmap's **Needs** column (D-013) |
+| F2 Gates | ✔️ Built, used (402 AC-3, AC-4) | `gates.mjs`: the gates for the changed files, run in order under the gate lock, one file per run in `.factory/runs/` |
+| F3 Guardrails | ✔️ Built, live in every session (402 AC-5 to AC-8) | `.claude/hooks/pre-tool.mjs` and `stop.mjs`, rules in `scripts/factory/rules.mjs`, registered in `.claude/settings.json`; `.gitattributes` with `* text=auto` |
+| F4 Agents | ✔️ Built, used (402 AC-9, AC-10) | Seven agents in `.claude/agents/`; the `/spec-*` commands hand work to them; the reviewer rejected 3 seeded bad changes and accepted a good one (402 T042) |
+| F5 Orchestrator | ✔️ Built, used (402 AC-11, AC-12) | `run.mjs`, `/factory`, `notify.mjs`, the dashboard's **Loop** panel. First real runs (402 T054): 2 tasks done unattended, US$4.83 in all; each stop kind triggered once (the third failure by a scripted test) |
+| F6 Intake, parallel lines | Built; intake proven (AC-15), AC-16 open (T063 in backlog) | `--intake` and `/spec-batch`; `--worktree`; the gate lock `lock.mjs`. 402 T062 (a real batch, 👤) done 2026-10-08; T063 (two worktrees at once, 👤) deferred to the roadmap backlog |
+| F7 Release station | ✔️ Built (402 AC-17) | `release.mjs` (`npm run release:prepare`) and `/release`; proven in a temporary repo, not yet used for a real release |
 | F8 Dashboard | Built | `dashboard.mjs` with the **Gate runs** and **Loop** panels; trends, lead time and rework not yet |
 
 Where the build differs from the phases above:

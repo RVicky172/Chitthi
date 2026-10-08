@@ -427,8 +427,10 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
     moved to `spec/203-204` from `main` (roadmap rows in `main`'s format, which has no Needs column yet; commit
     `b8b6ee9`, pushed), and the scratch branch was deleted. The spec-writers left the roadmap's "Last updated" line
     alone, as told.
-- [ ] **T063** 👤 — Two scratch features in two worktrees, each with one tiny tooling task, run at once: both green,
+- [ ] **T063** 👤 ⏸️ (backlog) — Two scratch features in two worktrees, each with one tiny tooling task, run at once: both green,
       gate runs never overlap (run-file timestamps), worktrees removed after. · test: recorded (AC-16)
+  - **Deferred (2026-10-08):** the maintainer moved T063 to the roadmap backlog; 402 is verified without it
+    and AC-16 stays open until it runs.
 
 ## F7 — Release station (§7)
 
@@ -575,10 +577,32 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
     `release:prepare` scripts (no dependency); `electron-builder.yml` `files:` names none of these folders, and
     `.dockerignore` excludes `.claude` (the Docker image copies only `dist/` into nginx). Line endings kept (243 of
     243 lines CRLF). Test: review; the three links resolve. `npm run check` → 1269 tests, lint 0 errors.
-- [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
+- [x] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
       `check:licenses`), unchanged from before 402 since the app didn't change; record the numbers.
+  - **Result (2026-10-08):** `npm run factory:gates -- --verify --task T091` (run file
+    `.factory/runs/2026-10-08T15-03-52Z-402-T091.json`), all green, exit 0: ✓ check 15 s, 37 files, 1269 tests passed,
+    lint 0 errors / 5 known warnings; ✓ build, entry 327 KB (budget 350 KB), 9 AI provider chunks on demand; ✓ e2e 42 s,
+    76 passed, 10 skipped, 0 failed, 0 flaky (no retries in the log); ✓ self-test 110 s, 6,124 checks passed, 0 failed,
+    56 agent tools, 5 prompts, 5 resources; ✓ MCP smoke test passed (56 tools listed); ✓ licences 168 shipped packages,
+    all allowed (1 approved exception). axe checks are in the e2e run (home, sizes, studio, docs, photo studio, video
+    studio, track headers at 360 px: all pass). The 10 skips are by design: 9 `[phone]` runs of desktop-only video
+    tests (`test.skip(isMobile, …)` in editors.e2e.ts) and the phone run of "AI masks" (real model on the desktop
+    project only). Compared with before 402: no 402 commit touches `src/`, `electron/` or `public/`; the branch
+    also carries 201 / 202 / 401 commits not yet on `main`, so the app numbers match the latest app state, not
+    `main`: self-test 6,124 / 0 and entry 327 KB as at 201 Verify and T002; e2e 76 passed / 10 skipped (74 / 10 at 201
+    Verify; the 2 more come from the branch's 202 commits, not from 402); unit tests 1269 = 990 app tests at T002 + 279 from `scripts/factory/*.test.mjs`.
+    `package.json` adds only the five `factory*` / `release:prepare` scripts; no dependency.
 - [ ] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 402 → ✔️, `specs/software-factory.md`
       F1–F7 ✔️, `memory/progress.md`, `memory/MEMORY.md`.
+  - **Update (2026-10-08):** AC-11 amended to at least 2 unattended tasks (D-018) and ticked; 17 of 18 ACs. Only
+    AC-16 (T063, backlog) now blocks T092; software-factory.md F5 ✔️.
+  - **Status (2026-10-08):** verified except AC-11 and AC-16, so not ticked. 16 of 18 ACs ticked in spec.md, each
+    with its proof (AC coverage below; Result notes of the named tasks). Open: **AC-11** asks for at least 3 agent
+    tasks run without a person; T054 ran 2 (T060, T070) and the maintainer accepted 2, but the AC was not amended:
+    either amend AC-11 (spec Changelog) or let the loop finish one more agent task. **AC-16** waits for T063
+    (backlog). DoD 1 asks for every AC checked and Stage 5 for Status Implemented only then, with no rule for a
+    deferred AC, so Status stays In Progress and the roadmap row says "🚧 verified except AC-11, AC-16".
+    software-factory.md: F1–F4 and F7 ✔️; F5 waits on AC-11, F6 on AC-16. Memory is the scribe's.
 
 ## AC coverage
 
