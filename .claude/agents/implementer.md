@@ -14,7 +14,7 @@ gotchas: line endings, heredocs mangling escapes, Prettier on old files, Windows
    the task names; if another file must change, say why in the Result note.
 3. Run the gates the change needs: `npm run factory:gates -- --task Tnnn` chooses them (or by hand per
    `specs/workflow.md`: `npm run check`; that area's e2e file; `npm test` if it renders, exports or touches an
-   agent tool; `npm run test:mcp` for IPC or MCP). Never the full e2e suite (D-007). Fix until green.
+   agent tool; `npm run test:mcp` for IPC or MCP). Never the full e2e suite (D-017). Fix until green.
 4. For an important test, break the code briefly, see the test fail, restore.
 5. Tick the task in `tasks.md` and add an indented `**Result (YYYY-MM-DD):**` note: what was done, the numbers
    measured, the gate run, anything surprising. Gotchas → `memory/learnings.md`; decisions → `memory/decisions.md`.

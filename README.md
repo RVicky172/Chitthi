@@ -43,8 +43,7 @@ paid tier.
   <img src="docs/screenshots/home-studios.webp" alt="The home page's two studios side by side: the print studio with a Jaipur postcard, and the photo & video studio with the photo editor's tone curve and colour mixer" width="900" />
 </p>
 
-It runs as a web app (installable, works offline) and as a desktop app for Windows and macOS. Version 2.8.0, with the
-advanced photo editor (2.10.0) in the [CHANGELOG](CHANGELOG.md)'s Unreleased section. The app has its own
+It runs as a web app (installable, works offline) and as a desktop app for Windows and macOS. Version 2.10.0, with the advanced photo editor; every change is in the [CHANGELOG](CHANGELOG.md). The app has its own
 documentation too: **Docs** in the site menu (`#/docs`), for using it and for developers.
 
 ## Highlights

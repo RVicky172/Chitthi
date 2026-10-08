@@ -79,7 +79,7 @@ downloaded sky model; the maintainer asked where browser models live: OPFS `mode
 
 ## 2026-10-07 — 202 (spec, plan, tasks; T001 partly, T010–T011)
 
-**Done:** 201 committed and pushed (`452fec2` D-007, `a3adea2` 201). 202 spec (Q1–Q8 accepted), plan (D1–D4 →
+**Done:** 201 committed and pushed (`452fec2` D-007, now D-017; `a3adea2` 201). 202 spec (Q1–Q8 accepted), plan (D1–D4 →
 D-009), tasks; branch `feat/202-edit-operations`. T001 spike: the desktop menu has no Alt + arrow accelerator;
 Playwright can't reach browser shortcuts and OS key injection was unreliable (learnings), so 2 manual checks are
 left to the maintainer. T010–T011: gaps in the model (886 unit tests, self-test 6,124 / 0, 201 equivalence intact).
@@ -157,6 +157,20 @@ timing baseline on 2.x code: preview fastest run 10.1–11.4 ms, export 2.64–2
 medians are noisy (later runs slower). T003: frozen 2.x reference + 12 fixtures (`timeline.testkit.ts`).
 **Next:** T010/T011 the model, test-first.
 **Blockers:** AC-5 measuring rule (fastest run vs median) needs the maintainer's OK.
+## 2026-10-06 — 2.10.0 release: dry run 1 failed, test fix
+
+**Done:** released 2.10.0 from `feat/editor-phase-1-continued` per D-007 (merged into `main` `5c029ff`). Dry run 1
+(run 37507302121): CI `docker` passed (first image check of the baseline, G5), CI `check` failed in e2e: "AI masks"
+(`instagram.e2e.ts:498`) timed out twice. Cause (trace): the test read the whole canvas back as a JS array, 8.4–8.8 s
+on the software-rendered runner, longer than the 5 s poll. The feature worked (screenshot). Bug fix: compare in the
+page, return one number, poll up to 30 s; break-tested (exposure 0 → fails). Local e2e 67 / 7 skipped.
+Dry run 2 green (Intel LibRaw built for the first time); tag `v2.10.0` → release run green →
+**2.10.0 published** 18:50 UTC with all 12 files.
+**Next:** post-release checks (maintainer: clean installs, update from 2.8.0, laptop gate, Mac RAW); then 201 T020
+after merging `main` into `feat/201-track-model`.
+**Blockers:** none
+
+---
 
 ## 2026-10-06 — 001 (T010–T011, T020–T021, T031–T032)
 

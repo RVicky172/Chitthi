@@ -505,28 +505,34 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
   await upload(page, [path.join('public', 'samples', 'marigold.jpg')]);
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
-  const pixels = () => canvas.evaluate((c: HTMLCanvasElement) => Array.from(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data));
+  // The comparison runs in the page and returns one number: sending every pixel back (about 1.5 million values) took
+  // over 8 s on CI's software-rendered runner, longer than the poll's whole timeout.
+  const keepBefore = () =>
+    canvas.evaluate((c: HTMLCanvasElement) => {
+      (window as unknown as { __before: Uint8ClampedArray }).__before = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    });
+  /** Share of pixels whose green channel moved by more than 20 since keepBefore(). */
+  const changedShare = () =>
+    canvas.evaluate((c: HTMLCanvasElement) => {
+      const before = (window as unknown as { __before: Uint8ClampedArray }).__before;
+      const after = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      if (after.length !== before.length) return 1;
+      let changed = 0;
+      for (let i = 0; i < after.length; i += 4) if (Math.abs(after[i + 1] - before[i + 1]) > 20) changed++;
+      return changed / (after.length / 4);
+    });
 
   await tool(page, 'Masks').click();
   await page.getByRole('button', { name: 'New subject mask, found by AI' }).click();
   await expect(page.getByRole('list', { name: 'Masks of this photo' }).getByRole('button', { name: 'Subject 1', pressed: true })).toBeVisible();
   await expect(page.getByText(/Found on this device by an AI model/)).toBeVisible({ timeout: 30_000 });
   await page.getByText('Show the mask in red').click();
-  const before = await pixels();
+  await keepBefore();
   await page.locator('#mk-exposure').fill('-2');
-  // Darkened where the subject is, and only there: some of the photo changes, not all of it.
-  await expect
-    .poll(async () => {
-      const after = await pixels();
-      let changed = 0;
-      for (let i = 0; i < after.length; i += 4) if (Math.abs(after[i + 1] - before[i + 1]) > 20) changed++;
-      return changed / (after.length / 4);
-    })
-    .toBeGreaterThan(0.03);
-  const after = await pixels();
-  let changed = 0;
-  for (let i = 0; i < after.length; i += 4) if (Math.abs(after[i + 1] - before[i + 1]) > 20) changed++;
-  expect(changed / (after.length / 4)).toBeLessThan(0.9);
+  // Darkened where the subject is, and only there: some of the photo changes, not all of it. Software rendering (CI)
+  // takes a few seconds per masked frame, hence the longer wait.
+  await expect.poll(changedShare, { timeout: 30_000 }).toBeGreaterThan(0.03);
+  expect(await changedShare()).toBeLessThan(0.9);
 
   // Painting over the AI part refines it with a new brush part.
   await canvas.scrollIntoViewIfNeeded();

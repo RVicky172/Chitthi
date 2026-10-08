@@ -91,6 +91,9 @@ measurement, the Windows RAW check, docs). The rest needs the maintainer's hardw
 roadmap backlog until then: AC-1–AC-3 (laptop), AC-5, AC-6 (Mac), and the release, AC-10–AC-15. 2.10.0 is not
 tagged until they pass.
 
+**Changed (2026-10-06, D-007):** the maintainer chose to release 2.10.0 now and run the laptop and Mac checks
+(AC-1–AC-3, AC-5, AC-6) after the release; a failure ships as 2.10.1. The release itself (AC-10–AC-15) goes ahead.
+
 ## Out of Scope
 
 - New editor features; Phase 2 (`201` onwards).
@@ -146,3 +149,4 @@ tagged until they pass.
   (found in T020: at 120 Hz most frames carry no new input, so the frame median stayed at 8 ms even with the CPU
   slowed 4× while the preview updated only ~25 times a second). Limits unchanged. Approved by the maintainer.
 - 2026-10-06 — Hardware checks and the release deferred to the roadmap backlog by the maintainer (see Deferred).
+- 2026-10-06 — Release 2.10.0 before the hardware checks (D-007); they become post-release checks.

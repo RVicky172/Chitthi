@@ -75,16 +75,17 @@ Desktop release workflow runs first (`build` needs it); `specs/release.md`, `tes
 run by hand (`workflow_dispatch`) on `main`, which runs CI and builds installers without publishing. CodeQL
 (`codeql.yml`: pull requests, pushes to `main`, weekly) is a security scan, not the CI gates, and keeps its triggers.
 
-## D-007 — Full e2e runs once per spec, at verification, not after every task (2026-10-07)
+## D-007 — 2.10.0 is released before the Phase 1 hardware checks (2026-10-06)
 
-**Context:** Running the whole Playwright suite (`npm run test:e2e`) after every UI task made features slow to finish.
-**Decision:** During implementation, don't run the full e2e suite. If a task changes UI or integration, run only the
-e2e tests for that spec's area (`npx playwright test e2e/<file>.e2e.ts [-g "<name>"]`). The full `npm run test:e2e`
-runs once, at the end of each spec, as a Definition of Done gate in `/spec-verify`.
-**Alternatives:** the full suite after every UI or integration task (the old rule in `workflow.md`, `constitution.md`
-and `/spec-implement`).
-**Consequences:** Tasks finish faster. A regression in another area may only show up at verification, and is fixed
-before the spec is marked Implemented. `workflow.md`, `constitution.md` and `.claude/commands/spec-implement.md` say so.
+**Context:** 001's spec held the 2.10.0 tag until the Phase 1 gate (masked edits at 30 fps in Chrome on a mid-range
+laptop) and RAW on macOS were checked on the maintainer's hardware; those checks were deferred to the roadmap backlog.
+**Decision:** release 2.10.0 now from `feat/editor-phase-1-continued` (merged into `main`), after a dry run of the
+release workflow; the hardware checks (001 T022, T023, T030, T033) become post-release checks. 201's work stays on its
+own branch.
+**Alternatives:** wait for the checks; release with the macOS builds marked untested.
+**Consequences:** if a check fails, the fix ships as 2.10.1. Everything checkable on Windows passed (all gates, RAW on
+the packaged app, the gate measurement on the development machine). The Intel Mac LibRaw is first built by the
+release workflow itself.
 
 ## D-008 — Track height Medium is 64 px for every track (2026-10-07, 201 T030)
 
@@ -219,3 +220,17 @@ Code CLI is listed in `specs/tech-stack.md` "Build and tooling" as a development
 constitution wouldn't see its limits).
 **Consequences:** a change to what agents may do alone (e.g. pushing, merging) is a constitution amendment; every
 factory agent reads the constitution first, so each sees XII.
+
+## D-017 — Full e2e runs once per spec, at verification, not after every task (2026-10-07)
+
+_Numbered D-007 on the feature branches until `main` was merged into `feat/402-software-factory` on 2026-10-08;
+`main`'s D-007 (the 2.10.0 release) kept the number._
+
+**Context:** Running the whole Playwright suite (`npm run test:e2e`) after every UI task made features slow to finish.
+**Decision:** During implementation, don't run the full e2e suite. If a task changes UI or integration, run only the
+e2e tests for that spec's area (`npx playwright test e2e/<file>.e2e.ts [-g "<name>"]`). The full `npm run test:e2e`
+runs once, at the end of each spec, as a Definition of Done gate in `/spec-verify`.
+**Alternatives:** the full suite after every UI or integration task (the old rule in `workflow.md`, `constitution.md`
+and `/spec-implement`).
+**Consequences:** Tasks finish faster. A regression in another area may only show up at verification, and is fixed
+before the spec is marked Implemented. `workflow.md`, `constitution.md` and `.claude/commands/spec-implement.md` say so.

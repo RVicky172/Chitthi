@@ -86,7 +86,7 @@ agents of F4. The npm scripts behind the factory are in §3.6.
 | Area e2e | `npx playwright test e2e/<file>.e2e.ts` | Task changes UI or integration |
 | Self-test | `npm test` (~6,100 checks, Electron) ~100 s | Task renders, exports or touches an agent tool |
 | MCP | `npm run test:mcp` | Task touches IPC or the MCP server |
-| Full e2e | `npm run test:e2e` (Playwright + axe, desktop + phone) | Once per spec, at Verify (D-007) |
+| Full e2e | `npm run test:e2e` (Playwright + axe, desktop + phone) | Once per spec, at Verify (D-017) |
 | Build | `npm run build` (entry ≤ 350 KB, no AI code) | At Verify |
 | Licences | `npm run check:licenses` | At Verify; whenever a dependency changes |
 | CI | `.github/workflows/ci.yml` (all of the above + Docker) | Only for a release tag or its dry run (D-006) |

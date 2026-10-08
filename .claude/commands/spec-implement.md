@@ -15,7 +15,7 @@ Without the agents, do the steps yourself.
 1. Read `memory/MEMORY.md`, `memory/learnings.md`, and the feature's `spec.md`, `plan.md`, `tasks.md`.
 2. Take the next unchecked task (or the one named). Write/adjust its test first and see it fail, then the code.
 3. Run `npm run check` (and that area's e2e tests, `npx playwright test e2e/<file>.e2e.ts`, if the change affects
-   UI or integration; never the full suite, which runs once in `/spec-verify`, D-007; `npm test` if it renders,
+   UI or integration; never the full suite, which runs once in `/spec-verify`, D-017; `npm test` if it renders,
    exports or touches an agent tool; `npm run test:mcp` if it touches IPC or the MCP server). Fix until green. For an important test, briefly break the code to confirm the test catches
    it, then restore.
 4. Tick the task in `tasks.md` with a short dated **Result** note (what was done, numbers measured). Record any

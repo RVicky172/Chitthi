@@ -33,6 +33,9 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   display (at 120 Hz most frames carry no move): measure the time between handled input events instead (001 T020).
 - On Windows, Node's `setTimeout(16)` often waits ~31 ms (timer tick 15.6 ms): pace with `performance.now()` and
   `setImmediate` when timing matters. And `chrome.exe --version` doesn't print a version there: it opens a window.
+- Don't return whole canvases from `page.evaluate` in e2e tests: `Array.from(getImageData(...).data)` took 8+ s on
+  the CI runner (no GPU, software WebGL) and blew a 5 s `expect.poll`. Compare inside the page and return a number.
+  CI logs and artifacts need `gh` (signed in): `gh run view <id> --log-failed`, `gh run download <id> -n playwright-report`.
 
 ## UI
 

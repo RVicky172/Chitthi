@@ -42,7 +42,7 @@ can run in parallel with `[P]`. Every AC is covered by at least one task (AC cov
 Work one task at a time. After each task:
 
 1. Run `npm run check` (and that area's e2e tests, `npx playwright test e2e/<file>.e2e.ts`, if the change affects
-   UI or integration; never the full suite, which runs once in Stage 5, D-007; `npm test` if it renders,
+   UI or integration; never the full suite, which runs once in Stage 5, D-017; `npm test` if it renders,
    exports or touches an agent tool; `npm run test:mcp` if it touches IPC or the MCP server). Fix until green.
    `npm run factory:gates -- --task Tnnn` picks these gates from the changed files, runs them and records the run
    in `.factory/runs/` for the Result note.
