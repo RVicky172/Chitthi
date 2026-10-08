@@ -501,11 +501,19 @@ P4: the orchestrator is built by T053; from then on the tasks marked **(loop)** 
   - **Result (2026-10-08):** Constitution 1.0.0 → 1.1.0 (MINOR: a principle added, per its Governance). The header
     now reads "Amended: 2026-10-08 (1.1.0: XII added, D-016)"; the constitution has no changelog of its own, so the
     reason is in D-016. "XII. Agents Work Within the Line" follows plan §8 and Q7, in four bullets: what agents do
-    alone (implement, test, review, commit on a feature branch, 40 turns / US$10 by default, never pushed); the
-    stops (👤, spec or plan change, dependency, third failure, budget, Verify; work stashed); what people do (approve
-    specs and plans, sign off, merge, tag, release); what the hooks enforce, limited to what `rules.mjs` and
-    `stop.mjs` do today. `tech-stack.md` "Build and tooling" has a Claude Code CLI row (2.1, the installed 2.1.294):
-    development only, not a package dependency, never shipped. D-016 in `memory/decisions.md`. Test: review (no
+    alone (implement, test, review and commit a feature's tasks on its branch, never pushed; draft specs in a batch
+    as Status Draft); the budget (by default 40 turns per agent call, US$10 per run, at most US$4 per call); the task
+    loop's stops (👤, stopped task, spec or plan change, dependency, the agent's own question, third failure,
+    budget, Verify; uncommitted work stashed; intake leaves its drafts in the tree); what people do (approve specs
+    and plans, sign off, merge, tag, release); what the hooks do. The review rejected the first version once: it
+    overstated the guards (the Stop hook blocks a red check once, then lets the turn end and records it in
+    `.factory/stop-hook.json`; the spec rule holds only on `feat/NNN-*` branches; both hooks fail open and
+    `CHITTHI_FACTORY_HOOKS=off` turns them off), missed two stops (stopped task, question) and intake, and said
+    "40 turns per task" instead of per call. XII and D-016 were corrected to say exactly that, and the
+    constitution's working copy was put back to CRLF (the edit had made it LF); a learning about that was added to
+    `memory/learnings.md` (the Edit tool can turn a CRLF working copy into LF). `tech-stack.md` "Build and
+    tooling" has a Claude Code CLI row (2.1, the installed 2.1.294): development only, not a package dependency,
+    never shipped. D-016 in `memory/decisions.md`. Test: review (no
     code). Gate: `npm run check` → 37 files, 1269 tests passed, lint 0 errors / 5 known warnings.
 - [ ] **T081** [P] — Docs (AC-18): `specs/workflow.md` "Running the line"; `specs/software-factory.md` phase
       status and commands; `specs/build.md`, `specs/testing-strategy.md` (scripts' tests in `test:unit`, the factory

@@ -204,9 +204,16 @@ missing verdict.
 **Context:** With 402 agents implement, review and commit on their own (`npm run factory`); the constitution said
 nothing about what they may do without a person. Q7 (D-012) accepted a new principle.
 **Decision:** MINOR bump to 1.1.0 (a principle added, per Governance). XII: agents may implement, test, review and
-commit on a feature branch within a budget (40 turns per task, US$10 per run by default), never pushing; they stop
-at 👤 tasks, spec or plan changes, new dependencies, a task's third failure, a spent budget and Verify; people
-approve specs and plans, sign off, merge, tag and release; the hooks enforce what can be enforced. P5: the Claude
+commit a feature's tasks on its feature branch within a budget (by default 40 turns per agent call, US$10 per run,
+at most US$4 per call; D-015), never pushing, and may draft specs in a batch (intake), each with Status Draft for
+people to approve. The task loop stops at 👤 tasks, stopped tasks (waiting on you), spec or plan changes, new
+dependencies, the agent's own question (`FACTORY-STOP: question`), a task's third failure, a spent budget and
+Verify, stashing work not yet committed; intake leaves its drafts in the tree for review. People approve specs and
+plans, sign off, merge, tag and release. The hooks enforce what can be enforced: on `feat/NNN-*` branches code
+under `src/` and `electron/` waits for an approved spec; force pushes, `git tag`, `git reset --hard`, `sed -i` and
+Prettier under `src/` are refused; the Stop hook blocks a turn once while `npm run check` is red on changed code and,
+if it is still red at the next try, lets the turn end and records the failure in `.factory/stop-hook.json`. Both
+hooks fail open on their own errors; `CHITTHI_FACTORY_HOOKS=off` turns them off. P5: the Claude
 Code CLI is listed in `specs/tech-stack.md` "Build and tooling" as a development tool, not shipped.
 **Alternatives:** no principle, the rules only in `software-factory.md` and the hooks (an agent reading the
 constitution wouldn't see its limits).

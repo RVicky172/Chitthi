@@ -99,15 +99,21 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 ### XII. Agents Work Within the Line
 
-- Agents may implement, test, review and commit on a feature branch on their own, within a budget (by default 40
-  turns per task and US$10 per run, D-012): one commit per task, never pushed (`npm run factory`,
-  [software-factory.md](software-factory.md)).
-- They stop and say why at a 👤 task, a needed spec or plan change, a new dependency, the third failure of one task,
-  a spent budget and Verify; work not yet committed is stashed, never left half-edited.
+- Agents may, on their own and within a budget (by default 40 turns per agent call, US$10 per run, at most US$4 per
+  call; D-012, D-015), implement, test, review and commit a feature's tasks on its feature branch: one commit per
+  task, never pushed (`npm run factory`, [software-factory.md](software-factory.md)). They may also draft specs in
+  a batch (`--intake`), each with Status Draft, for people to approve.
+- The task loop stops and says why at a 👤 task, a stopped task (waiting on you), a needed spec or plan change, a
+  new dependency, the agent's own question (`FACTORY-STOP: question`), the third failure of one task, a spent budget
+  and Verify; work not yet committed is stashed, never left half-edited. Intake leaves its drafts in the tree for
+  review.
 - People approve specs and plans, sign off at Verify, merge, tag and release.
-- Hooks enforce what can be enforced (`.claude/hooks/`, rules in `scripts/factory/rules.mjs`): code under `src/` and
-  `electron/` waits for an approved spec; force pushes, `git tag`, `git reset --hard`, `sed -i` on tracked files and
-  Prettier writing under `src/` are refused; a turn doesn't end while `npm run check` fails on code it changed.
+- Hooks enforce what can be enforced (`.claude/hooks/`, rules in `scripts/factory/rules.mjs`). On a `feat/NNN-*`
+  branch, code under `src/` and `electron/` waits for that feature's approved spec. Force pushes, `git tag`,
+  `git reset --hard`, `sed -i` on tracked files and Prettier writing under `src/` are refused. The Stop hook blocks
+  a turn once when `npm run check` fails on code it changed; if the check is still red at the next try, it lets the
+  turn end and records the failure (`.factory/stop-hook.json`). Both hooks fail open on their own errors, and
+  `CHITTHI_FACTORY_HOOKS=off` turns them off for a session.
 
 ## Quality Gates (Definition of Done)
 

@@ -13,6 +13,8 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   into a CRLF file changes nothing in a commit, only the working copy). Keep each file's own endings when editing by
   script. Git Bash's `grep -c $'\r$'` does not see the CRs, so it can't tell them apart: count bytes instead, e.g.
   `python -c "b=open('f','rb').read(); print(b.count(b'\r\n'), b.count(b'\n'))"`.
+- The Edit tool can also turn a CRLF working copy into LF (`specs/constitution.md`, 402 T080). Count the endings
+  before and after editing a CRLF file, and put them back if they changed.
 - Scripted edits through a Bash heredoc on this machine can mangle `…`, `’` and backslash escapes (`\b` became a
   backspace). Write the edit script to a file with the Write tool, or use the Edit tool.
 - Git Bash's `sed -i` rewrites a whole CRLF file as LF, even for a one-line change (201 T013, `layers.ts`). Use the
