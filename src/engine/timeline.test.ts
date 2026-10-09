@@ -241,6 +241,15 @@ describe('gaps on the main video track (202)', () => {
     expect(gap.f1 - gap.f0).toBe(45); // 1.5 s at 30 fps (spec AC-4)
     expect(framePlan(lateStart, 30)[0]).toEqual({ clip: null, f0: 0, f1: 30, start: 0 });
   });
+
+  it('is silent from the video track in a gap, while the music plays on through it (AC-4)', () => {
+    const music = { id: 'music', track: MUSIC, start: 0, in: 0, volume: 0.8, toEnd: true, srcDur: 20 };
+    const plan = audioPlan({ ...withGaps, clips: withGaps.clips.map((c) => ({ ...c, volume: 1 })), audio: [music] });
+    const own = plan.filter((s) => s.ref !== 'music');
+    expect(own.map((s) => s.ref)).toEqual(['c']);
+    for (const g of gaps(withGaps, MAIN_VIDEO)) for (const s of own) expect(s.end <= g.start || s.start >= g.end).toBe(true);
+    expect(plan.find((s) => s.ref === 'music')).toMatchObject({ start: 0, end: 8, from: 0 });
+  });
 });
 
 /* ---------- T014: the document, the 2.x migration and the gate ---------- */

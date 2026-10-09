@@ -431,6 +431,17 @@ pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store 
 undo step (`apply`); `magnetic` is in its undo snapshots (D1), `tool` and `snapping` are view settings (D4), and
 `loadVideoProject` starts a project from ready clips (tests).
 
+**The timeline UI (`components/studio/Timeline.tsx`, 202).** The transport has the tool picker (a `radiogroup` of
+native radios: V / R / Y / U) and the Magnetic / Snap switches (`aria-pressed`). A clip's body and edges call one store
+action per tool (plan §4): Select reorders (Magnetic on) or follows the pointer and calls `moveClipToTime` on release
+(off, with a drop marker), its edges `trimClip` (ripple with Magnetic on or Shift at the press); Roll's edges
+`rollClip` on the clip before the cut; Slip and Slide (body, the edges pass the press on) `slipClip` / `slideClip`.
+Drags edit from the store's current clip step by step under one undo key and say a refusal once. `snap()` leaves out
+the dragged clip or layer, is skipped with Snap off or Alt held, and otherwise rounds to the frame. Gaps are focusable
+`.tl-gap` buttons (Delete → `deleteGap`). Keys: Alt + ← / → `nudgeClip` (Shift: a second; with Slip and nothing
+selected, `slipMusic`), Q / W `rippleTrimToPlayhead`, Shift + Delete `rippleDeleteClip`. `describeChange` puts the
+changed clip's times in the polite `.tl-live` region 250 ms after a change settles.
+
 Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: not undone, not saved.
 
 ## 5. Integrations

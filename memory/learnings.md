@@ -49,6 +49,14 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   menus in a portal on `document.body`, and `stopPropagation` their keys: React events bubble out of a portal to
   the React parents (here the timeline's Space / S / Delete / arrow keys) (201 T032).
 
+- A visually hidden input (`.vh`, `position: absolute`) inside a scrolling toolbar (`overflow-x: auto`, not
+  positioned) is placed against the page, not the toolbar: off to the right it widened the page at 360 px though the
+  toolbar itself scrolled. Give its label `position: relative` (202 T031, the tool picker's radios).
+
+- Don't blank a React-rendered element from an e2e test (`el.textContent = ''` on `#toast`): React keeps its own
+  node, so the same message set again isn't drawn, and a keyed child removed under it makes React lose the element.
+  Blank the inner text node only, and give a repeatable message a changing `key` (202 T033, the toast).
+
 ## Formatting
 
 - Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier

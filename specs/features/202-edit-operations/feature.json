@@ -4,13 +4,13 @@
   "id": "202",
   "title": "Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2)",
   "workItem": "P2.2",
-  "status": "in-progress",
+  "status": "implemented",
   "owner": "RVicky172",
   "dates": {
     "created": "2026-10-07",
     "approved": "2026-10-07",
     "started": "2026-10-07",
-    "done": null
+    "done": "2026-10-09"
   },
   "git": {
     "branch": "feat/202-edit-operations"
@@ -65,79 +65,79 @@
           "text": "The timeline has a **Magnetic** switch, on by default. While it is on, every edit behaves exactly as in `201` (and 2.x): the video track has no gaps, and delete, trim, split, duplicate and reorder give the same clips, starts and lengths as today. All existing video e2e tests pass unchanged.",
           "proof": "unit + e2e",
           "group": "The magnetic main track",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "text": "With Magnetic off: deleting a clip leaves a gap of its length (lift); trimming a clip's end leaves or fills a gap after it without moving later clips; trimming its start moves only that clip's start; dragging a clip places it at the time it is dropped (snapped, AC-9). Clips never overlap on a track: a drop that would overlap is placed at the nearest free spot where it fits, or refused with a message if there is none (Q2).",
           "proof": "unit + e2e",
           "group": "The magnetic main track",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "text": "Switching Magnetic back on closes every gap on the video track in one undo step (clips keep their order). A gap can also be selected and deleted on its own (closing it), with Magnetic on or off.",
           "proof": "unit + e2e",
           "group": "The magnetic main track",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "text": "Gaps play and export as black frames, with the layers on top and silence from the video track (the music keeps playing), for exactly the gap's length to the frame: a fixture with a 1.5 s gap at 30 fps exports 45 black frames in its place.",
           "proof": "unit + self-test",
           "group": "The magnetic main track",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "text": "**Ripple delete and ripple trim**: removing a clip or shortening / lengthening it moves every later clip on the track by the same amount, with Magnetic on or off (a ripple is explicit with Magnetic off: Q3). Lengthening is limited by the source (video) or 60 s (photo), and by the project's length limit (`limitsFor()`: refused with the existing message).",
           "proof": "unit + e2e",
           "group": "Edit tools",
-          "done": false
+          "done": true
         },
         "AC-6": {
           "text": "**Roll**: moving the cut between two adjacent clips lengthens one and shortens the other by the same amount; no other clip moves and the video's length is unchanged. It stops where either clip would go under 0.3 s or a video would run past its source.",
           "proof": "unit + e2e",
           "group": "Edit tools",
-          "done": false
+          "done": true
         },
         "AC-7": {
           "text": "**Slip**: on a video clip, shifting which part of the source plays (in and out together) keeps its start and length; it stops at the source's ends. On a photo, slip is refused with a message (a photo has no source time).",
           "proof": "unit + e2e",
           "group": "Edit tools",
-          "done": false
+          "done": true
         },
         "AC-8": {
           "text": "**Slide**: moving a clip between its neighbours keeps its own content and length and changes the previous clip's end and the next clip's start by the same amount, so nothing else moves and the length is unchanged; it stops where a neighbour would go under 0.3 s or past its source.",
           "proof": "unit + e2e",
           "group": "Edit tools",
-          "done": false
+          "done": true
         },
         "AC-9": {
           "text": "**Snapping**, on by default with a switch: drags and trims snap to clip edges, gap edges, layer edges, the playhead, 0 and the end within 8 px at the current zoom (as today); with snapping off, or while Q4's modifier is held, times follow the pointer to the frame.",
           "proof": "unit + e2e",
           "group": "Edit tools",
-          "done": false
+          "done": true
         },
         "AC-10": {
           "text": "Each tool is reachable by mouse (a tool picker: Select, Roll, Slip, Slide, with its shortcut in the tooltip) and by keyboard alone (Q5's keys: with a clip selected, nudge by one frame or one second with the chosen tool; ripple trim start / end to the playhead), and each change is announced to screen readers (the clip and its new times). axe reports no serious or critical issue; 360 px wide still works with no sideways scroll.",
           "proof": "e2e + axe",
           "group": "For everyone",
-          "done": false
+          "done": true
         },
         "AC-11": {
           "text": "Every operation is one undo step (a drag is one step however long), refuses on a locked track with the reason (as in `201`), never leaves a clip shorter than 0.3 s, out of its source, overlapping another clip on its track, or a project over its length limit. For every operation, 1,000 seeded random edits on the 2.x fixtures leave a project that `mergeProject` accepts unchanged.",
           "proof": "unit",
           "group": "For everyone",
-          "done": false
+          "done": true
         },
         "AC-12": {
           "text": "Every operation runs on a 500-clip project in under 2 ms (median of 100, unit timing), so drags stay smooth at 60 fps.",
           "proof": "unit timing",
           "group": "For everyone",
-          "done": false
+          "done": true
         },
         "AC-13": {
           "text": "`docs/MEDIA-STUDIO.md` (the tools, Magnetic, snapping, keys), `specs/lld.md` (the operations) and `CHANGELOG.md` describe the change; the in-app docs list the keys.",
           "proof": "manual check",
           "group": "Docs",
-          "done": false
+          "done": true
         }
       }
     },
@@ -458,8 +458,8 @@
         "T001": {
           "text": "Spike (plan, Risks): with the timeline focused, Alt + ← / → and Shift + Alt + ← / → with `preventDefault` on keydown don't navigate back / forward in Chrome (web) or open the menu in the Windows desktop app; record what happens without `preventDefault` too. Throwaway: a scratch e2e test and a manual check in `npm run desktop:dev`.",
           "section": "Setup",
-          "status": "blocked",
-          "blockedReason": "Waits on 2 manual checks by the maintainer: Alt + ← in Chrome, and Alt held through a drag in the desktop app.",
+          "status": "done",
+          "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [
@@ -469,11 +469,12 @@
             "scratch only"
           ],
           "test": "the result recorded here; if a key can't be kept, propose other keys before T033",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
           "notes": [
-            "**Status (2026-10-07): automated part done, manual check needed (not ticked).** Findings: (1) the desktop app's\nmenu (`electron/main.cjs`) has no Alt + arrow accelerator, and Electron has no Back shortcut, so Alt + ← / → only\nreach the page there. (2) Playwright's `keyboard.press('Alt+ArrowLeft')` in headed installed Chrome reaches the\npage's `keydown` but never Chrome's own shortcuts (no Back even without `preventDefault`), so e2e can't prove the\nbrowser side. (3) Real OS key presses (`keybd_event` from PowerShell into the Playwright Chrome window) were\nunreliable: once they arrived (as AltGr, a wrong flag), then not at all (Playwright fakes page focus, the window\nwasn't really in front). Expected from Chromium's design: Back (Alt + ←) isn't a reserved shortcut, so the page\nsees it first and `preventDefault` stops it; to confirm by hand. (4) Risk found for Q4: on Windows, Alt pressed and\nreleased on its own focuses the desktop app's menu bar; whether an Alt held through a mouse drag does this is\nthe manual check below.\n**Manual checks (maintainer, ~2 min):** (a) web, Chrome, `npm run dev`, video editor with two clips, timeline\nfocused: Alt + ← navigates back today (no handler yet: confirms the shortcut exists; the `preventDefault` side is\nchecked again by hand at T033). (b) desktop, `npm run desktop:dev`: hold Alt, drag a clip a little, release Alt:\ndoes the File menu get highlighted (keyboard focus in the menu bar)?"
+            "**Status (2026-10-07): automated part done, manual check needed (not ticked).** Findings: (1) the desktop app's\nmenu (`electron/main.cjs`) has no Alt + arrow accelerator, and Electron has no Back shortcut, so Alt + ← / → only\nreach the page there. (2) Playwright's `keyboard.press('Alt+ArrowLeft')` in headed installed Chrome reaches the\npage's `keydown` but never Chrome's own shortcuts (no Back even without `preventDefault`), so e2e can't prove the\nbrowser side. (3) Real OS key presses (`keybd_event` from PowerShell into the Playwright Chrome window) were\nunreliable: once they arrived (as AltGr, a wrong flag), then not at all (Playwright fakes page focus, the window\nwasn't really in front). Expected from Chromium's design: Back (Alt + ←) isn't a reserved shortcut, so the page\nsees it first and `preventDefault` stops it; to confirm by hand. (4) Risk found for Q4: on Windows, Alt pressed and\nreleased on its own focuses the desktop app's menu bar; whether an Alt held through a mouse drag does this is\nthe manual check below.\n**Manual checks (maintainer, ~2 min):** (a) web, Chrome, `npm run dev`, video editor with two clips, timeline\nfocused: Alt + ← navigates back today (no handler yet: confirms the shortcut exists; the `preventDefault` side is\nchecked again by hand at T033). (b) desktop, `npm run desktop:dev`: hold Alt, drag a clip a little, release Alt:\ndoes the File menu get highlighted (keyboard focus in the menu bar)?",
+            "**Result (2026-10-09):** the maintainer checked by hand after T033: in Chrome (web) Alt + ← / → with the timeline focused nudge the clip and don't navigate back, and in the desktop app holding Alt through a drag works without the menu bar taking focus. The planned keys stay (Q4, Q5)."
           ]
         },
         "T010": {
@@ -724,7 +725,7 @@
         "T030": {
           "text": "Tests first: new `describe('video edit tools')` in `e2e/editors.e2e.ts`: Magnetic off → Delete leaves a gap (a \"Gap\" button), drag a clip to a time, Magnetic on closes the gaps (one undo); Shift + Delete and Shift-drag ripple; Roll, Slip, Slide by drag and by Alt + arrows (lengths and times read from the clips' titles and `.tl-time`); slip on a photo refused with its message; Q / W; snapping on, off and Alt; V / R / Y / U; the live region's text; locked track refuses each tool; axe; Pixel 7 at 360 px.",
           "section": "UI",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -742,15 +743,17 @@
             "e2e/editors.e2e.ts"
           ],
           "test": "fails",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** 6 tests in a new `describe('video edit tools')` in `e2e/editors.e2e.ts` (5 desktop-only pointer / keyboard tests, plus an a11y + 360 px test on both projects). All 7 runs fail as intended (no Magnetic / Snap switches, `radiogroup` 'Edit tool', or `.tl-live`). The UI contract they fix for T031–T033: switches 'Magnetic' and 'Snap' (`aria-pressed`); radios Select / Roll / Slip / Slide with '(V)', '(R)', '(Y)', '(U)' in their titles; gap buttons in the video row named 'Gap, 3.0 s, from 0:03.0'; a polite `.tl-live` region ('Clip 2, 2.0 s to 4.0 s'); a video clip's title ends '· source 1.0–6.0 s'; a Slip drag or Alt + → plays a later part of the source (the engine's sign); in Roll / Slip / Slide a click on a clip selects it. Clip times are read from the drawn blocks (60 px a second). The video for Roll / Slip is a 6 s Reel exported by the app in the test (cached per worker), since the repo has no video sample. `npm run check` 1,081 passed."
+          ]
         },
         "T031": {
           "text": "Transport: tool picker (`radiogroup`, icons, tooltips with keys), Magnetic and Snap switches (`aria-pressed`); keys V / R / Y / U; styles.",
           "section": "UI",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -763,15 +766,17 @@
             "src/styles/36-media-studio.css"
           ],
           "test": "T030's picker and switch parts",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** In the transport: a `radiogroup` 'Edit tool' of four native radios (visually hidden, icons from lucide-react: MousePointer2, SquareSplitHorizontal, ChevronsLeftRight, MoveHorizontal) with the key and what a drag does in each tooltip ('Roll (R): …'), and two `aria-pressed` switches, Magnetic (FoldHorizontal; `setMagnetic`) and Snap (Magnet; `setSnapping`, and `snap()` in the timeline now returns the time unchanged when Snap is off). V / R / Y / U set the tool with the timeline focused. Styles in `36-media-studio.css`. Gotcha: the hidden radios (`.vh`, absolute) escaped the scrolling transport and widened the page at 360 px (the 201 headers test caught it): `.tl-tool { position: relative }`. T030's picker and switch parts pass (the V / R / Y / U keys and tooltips, arrow keys in the group, Magnetic by keyboard); the rest waits on T032 / T033. Existing video e2e: 11 passed / 8 skipped (phone) / 0 failed. `npm run check` 1,081. Break-test: no tool keys → the V / R / Y / U test failed; restored."
+          ]
         },
         "T032": {
           "text": "Gestures per tool (§4 table): body and edge drags call the store's operations; Shift ripples, Alt skips snapping, snapping through `snapTime`; drop marker for `moveTo`; cursors per tool.",
           "section": "UI",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -788,15 +793,17 @@
             "src/styles/36-media-studio.css"
           ],
           "test": "T030's drag parts; the existing video e2e",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** `Timeline.tsx`: a clip's body and edges act by tool (plan §4). Select: Magnetic on reorders (unchanged), off the block follows the pointer with a drop marker at the snapped time and `moveClipToTime` runs on release; edges trim through `trimClip` (ripple with Magnetic on or Shift at the press; a ripple start trim keeps the start). Roll: either edge of a cut calls `rollClip` on the clip before it (the first clip's start is refused with a toast). Slip / Slide: the body (an edge passes the press on) calls `slipClip` (drag right = a later part, the engine's sign) / `slideClip`. Each drag edits from the store's current clip step by step with one undo key, and says a refusal once. `snap()` skips the dragged clip, is skipped with Snap off or Alt held, and otherwise rounds to the frame; a moved clip snaps by its start, else its end. Cursors per tool (`.tl-tool-*`), and a video clip's title ends '· source 1.0–6.0 s' (T030's contract). Checked with a throwaway copy of T030's tests without their T033 steps: Magnetic-off drag to a time, Shift / plain trims at both edges, Roll from both edges of a cut, Slip (body and edge), Slide, one undo per drag: all passed; T030's snapping test passes as is. Editors e2e: 18 passed / 14 skipped / 6 failed, all 6 at T033 steps (gaps, Shift + Delete, Alt + arrows, live region). `npm run check` 1,081. Break-test: Shift not rippling → the ripple test failed; restored."
+          ]
         },
         "T033": {
           "text": "Gaps in the video row (focusable buttons, select, Delete closes), keys (Alt + arrows, Q / W, Shift + Delete, Delete lifts with Magnetic off), the polite live region for every change.",
           "section": "UI",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -808,15 +815,17 @@
             "src/components/studio/Timeline.tsx"
           ],
           "test": "T030 passes; video e2e",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** `Timeline.tsx`: gaps on the video track drawn as focusable buttons ('Gap, 3.0 s, from 0:03.0', a striped dashed block; a click focuses instead of seeking), Delete on a focused gap closes it (`deleteGap`). Keys with the timeline focused: Alt + ← / → nudge the selected clip a frame with the tool (Shift + Alt: a second; `preventDefault` always, for the browser's Back), with Slip and no clip selected they slip the music (Q8); Q / W ripple-trim to the playhead; Shift + Delete ripple delete; Delete lifts with Magnetic off (the store, T021); every refusal goes to the toast. A polite `.tl-live` region announces each change of the video track 250 ms after it settles: the selected (else first) changed clip ('Clip 2, 2.0 s to 4.0 s', plus ', playing its source from 0.1 s' for a video), or 'Clip removed, 2 left'. `Toast.tsx`: each toast re-mounts its text, so the same message is shown and announced again (the locked-track test needs every refusal to show; a live region doesn't repeat identical text). Editors e2e: 24 passed / 14 skipped (phone, by design) / 0 failed, so T030 passes in full; `npm run check` 1,081. Break-test: no announcements → 3 failed; restored. The Alt keys are as planned: T001's manual checks are still open."
+          ]
         },
         "T040": {
           "text": "Self-test (AC-4): an export with a 1.5 s gap between two photos and a layer decodes black with the layer inside the gap and the photos either side; the frame count of the gap from `framePlan` is 45 at 30 fps. Break-test: let `framePlan` skip gap frames, see it fail, restore.",
           "section": "Self-test",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -827,30 +836,34 @@
             "src/dev/videoChecks.ts"
           ],
           "test": "`npm test`",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** `src/dev/videoChecks.ts` (`trackChecks`): two 1 s photos with a 1.5 s gap between them (Magnetic off) and a red layer, at 30 fps: `framePlan` gives 3 spans with 45 gap frames, the project is 3.5 s, and the export decoded at 0.5 / 1.75 / 3 s shows a photo, black corners with the red layer in the gap (211/4/4), then the other photo. `npm test` 6,125 / 0 failed (113 s; one check more than 201's 6,124). Break-test: `framePlan` without gap spans → 'a 1.5 s gap exports 45 black frames…' failed (0 gap frames, the gap showed a photo); restored. That run's timing (for T041, session 1): preview fastest 10.4 ms (bar 11.1), export fastest 2.64 s (bar 2.77)."
+          ]
         },
         "T041": {
           "text": "Timing (NFR): the self-test's timing check on the new code within 5% of 201's verification run (fastest of 3: preview 10.6 ms, export 2.64 s; bar ≤ 11.1 ms / 2.77 s), in at least two sessions.",
           "section": "Self-test",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [],
           "files": [],
           "test": "`npm test` timing line",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** session 1 (the T040 run): preview fastest 10.4 ms, export fastest 2.64 s, within the bar (11.1 ms / 2.77 s). Session 2 (later the same day, after many test runs) was slower for every build: 12.0–13.8 ms and 2.74–3.05 s on this branch, over the bar against 201's numbers. Timed back to back with `main` (a worktree at `b4afd10`, same machine state) the branch is level: main 12.4 / 12.6 ms and 3.07 / 2.92 s, branch 12.7 / 12.8 ms and 2.89 / 2.88 s (preview within ~2%, export a little faster). The code timed is unchanged by this branch (`src/engine` and `src/state` equal `main`, which has 202's engine since T010–T021). So: no regression; the second session's absolute numbers reflect the machine, not 202."
+          ]
         },
         "T090": {
           "text": "Docs (AC-13): `docs/MEDIA-STUDIO.md` (tools, Magnetic, gaps, snapping, keys), `specs/lld.md` (`edits.ts`, gaps in §4.9, `magnetic` in the document), `CHANGELOG.md` Unreleased, `src/data/docs.ts`.",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -859,42 +872,47 @@
           ],
           "files": [],
           "test": "link check",
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
           "notes": [
-            "**Note (2026-10-07):** `specs/lld.md` already describes what exists now (module map, §4.9: Magnetic, gaps,\n`edits.ts`, the store); at verification add the UI (tools, keys, gaps) there, and write `docs/MEDIA-STUDIO.md`,\nCHANGELOG and the in-app docs once the tools are in the UI (nothing user-visible yet)."
+            "**Note (2026-10-07):** `specs/lld.md` already describes what exists now (module map, §4.9: Magnetic, gaps,\n`edits.ts`, the store); at verification add the UI (tools, keys, gaps) there, and write `docs/MEDIA-STUDIO.md`,\nCHANGELOG and the in-app docs once the tools are in the UI (nothing user-visible yet).",
+            "**Result (2026-10-09):** `docs/MEDIA-STUDIO.md`: the timeline table (place clips, Shift ripple, the tools, Shift + Delete, nudge and Q / W), snapping (Snap switch, Alt, to the frame), a new section 'Edit tools, Magnetic and gaps' (a table per tool for drags, edges and Alt + arrows; Magnetic, gaps, undo, limits, announcements; layers and music keep their times, Q6), the track model paragraph (Magnetic, `edits.ts`), the code map and the tests. `specs/lld.md` §4.9: the timeline UI (gestures per tool, snapping, gaps, keys, `describeChange`); the engine and store parts were written with T013–T021. `CHANGELOG.md` Unreleased: Added (tools, Magnetic and gaps, Snap and Alt, keys) and Changed (repeated toasts). `src/data/docs.ts`: the in-app timeline section lists the tools, Magnetic, gaps and every key. No link-check script exists: `MEDIA-STUDIO.md`'s relative links all resolve, no new links added; docs e2e 4 passed; `npm run check` 1,081."
           ]
         },
         "T091": {
           "text": "Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; record the numbers.",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [],
           "files": [],
           "test": null,
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** every gate green on `feat/202-edit-operations`: `npm run check` 1,082 tests (one added at verification: a gap is silent from the video track while the music plays through, AC-4), lint 0 errors / 5 known warnings; `npm run build` entry 327 KB of 350 (unchanged since 2026-10-08), AI in its 9 chunks; `npm run test:e2e` 83 passed / 15 skipped (phone runs of drag and encoding tests, by design) / 0 failed / 0 flaky; `npm test` 6,125 / 0 failed; `npm run test:mcp` passed (the first run failed at the RAW step: LibRaw wasn't fetched on this machine; after `npm run fetch:libraw` it passed: an environment step, no code change); `npm run check:licenses` 168 packages, 1 approved exception; no new dependency. DoD 7: no agent tool, by decision (Q7: the operations are pure for `212`)."
+          ]
         },
         "T092": {
           "text": "Tick ACs in `spec.md` (Status `Implemented`), roadmap 202 → ✔️, `editor-implementation.md` P2.2 → Done, `memory/progress.md`, `memory/MEMORY.md` (next: `203`).",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [],
           "files": [],
           "test": null,
-          "startedOn": null,
-          "doneOn": null,
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-09):** ACs 1–13 ticked against their tests (spec Status Implemented), roadmap 202 ✔️, `editor-implementation.md` P2.2 Done, `memory/progress.md` and `memory/MEMORY.md` updated (next: merge 202, then 203 / 204's questions)."
+          ]
         }
       }
     }

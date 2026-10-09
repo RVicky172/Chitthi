@@ -2,7 +2,7 @@
 
 # 202 — Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2)
 
-**Status:** In Progress
+**Status:** Implemented
 **Roadmap phase:** 2 — Multi-track timeline · **Created:** 2026-10-07 · **Owner:** RVicky172
 
 ## Summary
@@ -28,28 +28,28 @@ respects locked tracks, and plays and exports exactly as the timeline shows, gap
 
 ### The magnetic main track
 
-- [ ] **AC-1:** The timeline has a **Magnetic** switch, on by default. While it is on, every edit behaves exactly as in `201` (and 2.x): the video track has no gaps, and delete, trim, split, duplicate and reorder give the same clips, starts and lengths as today. All existing video e2e tests pass unchanged. _(unit + e2e)_
-- [ ] **AC-2:** With Magnetic off: deleting a clip leaves a gap of its length (lift); trimming a clip's end leaves or fills a gap after it without moving later clips; trimming its start moves only that clip's start; dragging a clip places it at the time it is dropped (snapped, AC-9). Clips never overlap on a track: a drop that would overlap is placed at the nearest free spot where it fits, or refused with a message if there is none (Q2). _(unit + e2e)_
-- [ ] **AC-3:** Switching Magnetic back on closes every gap on the video track in one undo step (clips keep their order). A gap can also be selected and deleted on its own (closing it), with Magnetic on or off. _(unit + e2e)_
-- [ ] **AC-4:** Gaps play and export as black frames, with the layers on top and silence from the video track (the music keeps playing), for exactly the gap's length to the frame: a fixture with a 1.5 s gap at 30 fps exports 45 black frames in its place. _(unit + self-test)_
+- [x] **AC-1:** The timeline has a **Magnetic** switch, on by default. While it is on, every edit behaves exactly as in `201` (and 2.x): the video track has no gaps, and delete, trim, split, duplicate and reorder give the same clips, starts and lengths as today. All existing video e2e tests pass unchanged. _(unit + e2e)_
+- [x] **AC-2:** With Magnetic off: deleting a clip leaves a gap of its length (lift); trimming a clip's end leaves or fills a gap after it without moving later clips; trimming its start moves only that clip's start; dragging a clip places it at the time it is dropped (snapped, AC-9). Clips never overlap on a track: a drop that would overlap is placed at the nearest free spot where it fits, or refused with a message if there is none (Q2). _(unit + e2e)_
+- [x] **AC-3:** Switching Magnetic back on closes every gap on the video track in one undo step (clips keep their order). A gap can also be selected and deleted on its own (closing it), with Magnetic on or off. _(unit + e2e)_
+- [x] **AC-4:** Gaps play and export as black frames, with the layers on top and silence from the video track (the music keeps playing), for exactly the gap's length to the frame: a fixture with a 1.5 s gap at 30 fps exports 45 black frames in its place. _(unit + self-test)_
 
 ### Edit tools
 
-- [ ] **AC-5:** **Ripple delete and ripple trim**: removing a clip or shortening / lengthening it moves every later clip on the track by the same amount, with Magnetic on or off (a ripple is explicit with Magnetic off: Q3). Lengthening is limited by the source (video) or 60 s (photo), and by the project's length limit (`limitsFor()`: refused with the existing message). _(unit + e2e)_
-- [ ] **AC-6:** **Roll**: moving the cut between two adjacent clips lengthens one and shortens the other by the same amount; no other clip moves and the video's length is unchanged. It stops where either clip would go under 0.3 s or a video would run past its source. _(unit + e2e)_
-- [ ] **AC-7:** **Slip**: on a video clip, shifting which part of the source plays (in and out together) keeps its start and length; it stops at the source's ends. On a photo, slip is refused with a message (a photo has no source time). _(unit + e2e)_
-- [ ] **AC-8:** **Slide**: moving a clip between its neighbours keeps its own content and length and changes the previous clip's end and the next clip's start by the same amount, so nothing else moves and the length is unchanged; it stops where a neighbour would go under 0.3 s or past its source. _(unit + e2e)_
-- [ ] **AC-9:** **Snapping**, on by default with a switch: drags and trims snap to clip edges, gap edges, layer edges, the playhead, 0 and the end within 8 px at the current zoom (as today); with snapping off, or while Q4's modifier is held, times follow the pointer to the frame. _(unit + e2e)_
+- [x] **AC-5:** **Ripple delete and ripple trim**: removing a clip or shortening / lengthening it moves every later clip on the track by the same amount, with Magnetic on or off (a ripple is explicit with Magnetic off: Q3). Lengthening is limited by the source (video) or 60 s (photo), and by the project's length limit (`limitsFor()`: refused with the existing message). _(unit + e2e)_
+- [x] **AC-6:** **Roll**: moving the cut between two adjacent clips lengthens one and shortens the other by the same amount; no other clip moves and the video's length is unchanged. It stops where either clip would go under 0.3 s or a video would run past its source. _(unit + e2e)_
+- [x] **AC-7:** **Slip**: on a video clip, shifting which part of the source plays (in and out together) keeps its start and length; it stops at the source's ends. On a photo, slip is refused with a message (a photo has no source time). _(unit + e2e)_
+- [x] **AC-8:** **Slide**: moving a clip between its neighbours keeps its own content and length and changes the previous clip's end and the next clip's start by the same amount, so nothing else moves and the length is unchanged; it stops where a neighbour would go under 0.3 s or past its source. _(unit + e2e)_
+- [x] **AC-9:** **Snapping**, on by default with a switch: drags and trims snap to clip edges, gap edges, layer edges, the playhead, 0 and the end within 8 px at the current zoom (as today); with snapping off, or while Q4's modifier is held, times follow the pointer to the frame. _(unit + e2e)_
 
 ### For everyone
 
-- [ ] **AC-10:** Each tool is reachable by mouse (a tool picker: Select, Roll, Slip, Slide, with its shortcut in the tooltip) and by keyboard alone (Q5's keys: with a clip selected, nudge by one frame or one second with the chosen tool; ripple trim start / end to the playhead), and each change is announced to screen readers (the clip and its new times). axe reports no serious or critical issue; 360 px wide still works with no sideways scroll. _(e2e + axe)_
-- [ ] **AC-11:** Every operation is one undo step (a drag is one step however long), refuses on a locked track with the reason (as in `201`), never leaves a clip shorter than 0.3 s, out of its source, overlapping another clip on its track, or a project over its length limit. For every operation, 1,000 seeded random edits on the 2.x fixtures leave a project that `mergeProject` accepts unchanged. _(unit)_
-- [ ] **AC-12:** Every operation runs on a 500-clip project in under 2 ms (median of 100, unit timing), so drags stay smooth at 60 fps. _(unit timing)_
+- [x] **AC-10:** Each tool is reachable by mouse (a tool picker: Select, Roll, Slip, Slide, with its shortcut in the tooltip) and by keyboard alone (Q5's keys: with a clip selected, nudge by one frame or one second with the chosen tool; ripple trim start / end to the playhead), and each change is announced to screen readers (the clip and its new times). axe reports no serious or critical issue; 360 px wide still works with no sideways scroll. _(e2e + axe)_
+- [x] **AC-11:** Every operation is one undo step (a drag is one step however long), refuses on a locked track with the reason (as in `201`), never leaves a clip shorter than 0.3 s, out of its source, overlapping another clip on its track, or a project over its length limit. For every operation, 1,000 seeded random edits on the 2.x fixtures leave a project that `mergeProject` accepts unchanged. _(unit)_
+- [x] **AC-12:** Every operation runs on a 500-clip project in under 2 ms (median of 100, unit timing), so drags stay smooth at 60 fps. _(unit timing)_
 
 ### Docs
 
-- [ ] **AC-13:** `docs/MEDIA-STUDIO.md` (the tools, Magnetic, snapping, keys), `specs/lld.md` (the operations) and `CHANGELOG.md` describe the change; the in-app docs list the keys. _(manual check)_
+- [x] **AC-13:** `docs/MEDIA-STUDIO.md` (the tools, Magnetic, snapping, keys), `specs/lld.md` (the operations) and `CHANGELOG.md` describe the change; the in-app docs list the keys. _(manual check)_
 
 ## Non-Functional Requirements
 

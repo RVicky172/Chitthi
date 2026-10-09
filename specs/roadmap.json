@@ -130,7 +130,7 @@
       "202": {
         "title": "Edit operations: ripple, roll, slip, slide, magnetic main track, snapping",
         "workItem": "P2.2",
-        "status": "in-progress",
+        "status": "done",
         "note": "",
         "folder": "features/202-edit-operations",
         "needs": [

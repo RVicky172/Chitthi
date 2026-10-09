@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -475,3 +475,316 @@ test.describe('video track headers', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });
+
+// 202: the edit tools on the video timeline: Magnetic, gaps, ripple, Roll, Slip, Slide, snapping and their keys.
+test.describe('video edit tools', () => {
+  const clips = (page: Page) => page.locator('.tl-clip');
+  const magnetic = (page: Page) => page.getByRole('button', { name: 'Magnetic', exact: true });
+  const snapping = (page: Page) => page.getByRole('button', { name: 'Snap', exact: true });
+  const picker = (page: Page) => page.getByRole('radiogroup', { name: 'Edit tool' });
+  const gaps = (page: Page) => page.locator('.tl-row.tl-video').getByRole('button', { name: /^Gap, / });
+  const live = (page: Page) => page.locator('.tl-live');
+  const toastText = (page: Page) => page.locator('#toast');
+  const focusTimeline = (page: Page) => page.locator('.tl-scroll').focus();
+  /** Each clip's [start, end] in seconds, from where its block is placed (60 px a second, blocks drawn 2 px narrower). */
+  const spans = (page: Page) =>
+    clips(page).evaluateAll((els) =>
+      els.map((e) => {
+        const left = parseFloat((e as HTMLElement).style.left);
+        return [left / 60, (left + parseFloat((e as HTMLElement).style.width) + 2) / 60];
+      }),
+    );
+  const spansAre = (page: Page, want: number[][], tol = 0.04) =>
+    expect
+      .poll(async () => {
+        const got = await spans(page);
+        const ok = got.length === want.length && got.every((s, i) => Math.abs(s[0] - want[i][0]) < tol && Math.abs(s[1] - want[i][1]) < tol);
+        return ok ? 'ok' : JSON.stringify(got.map((s) => s.map((v) => +v.toFixed(3))));
+      })
+      .toBe('ok');
+  /** Where a video clip's source starts playing, from its title ("… · source 1.0–6.0 s"). */
+  const sourceIn = async (page: Page, i: number) => +((await clips(page).nth(i).getAttribute('title'))?.match(/source (\d+\.\d)–/)?.[1] ?? NaN);
+  /** Drags from the middle of an element by `dx` px, holding a modifier if asked. */
+  const dragBy = async (page: Page, el: Locator, dx: number, hold?: 'Shift' | 'Alt') => {
+    await el.hover();
+    const b = (await el.boundingBox())!;
+    const x = b.x + b.width / 2,
+      y = b.y + b.height / 2;
+    await page.mouse.move(x, y);
+    if (hold) await page.keyboard.down(hold);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y, { steps: 8 });
+    await page.mouse.up();
+    if (hold) await page.keyboard.up(hold);
+  };
+  const edge = (page: Page, side: 'start' | 'end', n: number) => clips(page).nth(n - 1).getByRole('button', { name: `Trim the ${side} of clip ${n}` });
+  const total = (page: Page, text: string) => expect(page.locator('.tl-time')).toContainText(`/ ${text}`);
+
+  const photo = (p: string) => ({ name: path.basename(p), mimeType: 'image/jpeg', buffer: readFileSync(p) });
+  let reel: Buffer | null = null;
+  /** A 6 s MP4 made by the app itself (two photos as a Reel): the video clip that Roll and Slip need. */
+  async function videoFile(page: Page) {
+    if (!reel) {
+      await page.goto('./#/instagram/video');
+      await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES.slice(0, 2));
+      await expect(clips(page)).toHaveCount(2);
+      await page.getByRole('button', { name: 'Export', exact: true }).click();
+      await page.getByRole('button', { name: /Export MP4/ }).click();
+      const save = page.getByRole('button', { name: /Download MP4/ });
+      await save.waitFor({ timeout: 90_000 });
+      const dl = page.waitForEvent('download');
+      await save.click();
+      reel = readFileSync(await (await dl).path());
+      await page.reload();
+    }
+    return { name: 'reel.mp4', mimeType: 'video/mp4', buffer: reel };
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('./#/instagram/video');
+  });
+  const threePhotos = async (page: Page) => {
+    await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES);
+    await expect(clips(page)).toHaveCount(3);
+    await spansAre(page, [[0, 3], [3, 6], [6, 9]]);
+  };
+
+  test('Magnetic off: Delete leaves a gap, a drag puts a clip at a time; Magnetic on closes the gaps in one undo', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Pointer drags: at desktop size');
+    await threePhotos(page);
+    await expect(magnetic(page)).toHaveAttribute('aria-pressed', 'true');
+    await magnetic(page).click();
+    await expect(magnetic(page)).toHaveAttribute('aria-pressed', 'false');
+    // Delete lifts the clip: a gap of its length, nothing moves, the video keeps its length.
+    await clips(page).nth(1).click();
+    await focusTimeline(page);
+    await page.keyboard.press('Delete');
+    await spansAre(page, [[0, 3], [6, 9]]);
+    await expect(gaps(page)).toHaveCount(1);
+    await expect(gaps(page).first()).toHaveAccessibleName(/^Gap, 3\.0 s, from 0:03\.0/);
+    await total(page, '0:09.0');
+    // Drag the last clip 1 s to the left: it lands at 5 s.
+    await dragBy(page, clips(page).nth(1), -60);
+    await spansAre(page, [[0, 3], [5, 8]]);
+    await expect(gaps(page).first()).toHaveAccessibleName(/^Gap, 2\.0 s, from 0:03\.0/);
+    await total(page, '0:08.0');
+    // Magnetic on closes the gap; one undo brings back the gap and Magnetic off (D1); redo closes it again.
+    await magnetic(page).click();
+    await expect(magnetic(page)).toHaveAttribute('aria-pressed', 'true');
+    await spansAre(page, [[0, 3], [3, 6]]);
+    await expect(gaps(page)).toHaveCount(0);
+    await total(page, '0:06.0');
+    await page.keyboard.press('Control+z');
+    await spansAre(page, [[0, 3], [5, 8]]);
+    await expect(magnetic(page)).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('Control+y');
+    await spansAre(page, [[0, 3], [3, 6]]);
+    await expect(magnetic(page)).toHaveAttribute('aria-pressed', 'true');
+    // A gap can be selected and deleted on its own: it closes.
+    await magnetic(page).click();
+    await clips(page).first().click();
+    await focusTimeline(page);
+    await page.keyboard.press('Delete');
+    await spansAre(page, [[3, 6]]);
+    await expect(gaps(page).first()).toHaveAccessibleName(/^Gap, 3\.0 s, from 0:00\.0/);
+    await gaps(page).first().click();
+    await page.keyboard.press('Delete');
+    await spansAre(page, [[0, 3]]);
+    await expect(gaps(page)).toHaveCount(0);
+  });
+
+  test('Shift + Delete and Shift-drag ripple with Magnetic off; plain trims leave the other clips where they are', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Pointer drags: at desktop size');
+    await threePhotos(page);
+    await magnetic(page).click();
+    await clips(page).first().click();
+    await focusTimeline(page);
+    await page.keyboard.press('Shift+Delete');
+    await spansAre(page, [[0, 3], [3, 6]]);
+    await expect(gaps(page)).toHaveCount(0);
+    await total(page, '0:06.0');
+    // Shift-drag the end of clip 1 a second right: the next clip moves with it.
+    await dragBy(page, edge(page, 'end', 1), 60, 'Shift');
+    await spansAre(page, [[0, 4], [4, 7]]);
+    // A plain end trim back: clip 2 stays, a 1 s gap opens.
+    await dragBy(page, edge(page, 'end', 1), -60);
+    await spansAre(page, [[0, 3], [4, 7]]);
+    await expect(gaps(page).first()).toHaveAccessibleName(/^Gap, 1\.0 s, from 0:03\.0/);
+    // Start trims: Shift keeps the start and pulls the end in; plain moves only the start.
+    await dragBy(page, edge(page, 'start', 2), 30, 'Shift');
+    await spansAre(page, [[0, 3], [4, 6.5]]);
+    await dragBy(page, edge(page, 'start', 2), 30);
+    await spansAre(page, [[0, 3], [4.5, 6.5]]);
+    await total(page, '0:06.5');
+  });
+
+  test('Roll, Slip and Slide by drag and by Alt + arrows; Q / W ripple-trim to the playhead; each change is announced', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Pointer drags and encoding: at desktop size');
+    test.setTimeout(150_000);
+    const video = await videoFile(page);
+    await page.locator('.mst-file input[type=file]').first().setInputFiles([photo(SAMPLES[0]), video, photo(SAMPLES[1])]);
+    await expect(clips(page)).toHaveCount(3);
+    await expect.poll(() => clips(page).evaluateAll((els) => els.map((e) => e.classList.contains('tl-video')))).toEqual([false, true, false]);
+    const D = (await spans(page))[1][1] - 3; // the video's length (about 6 s)
+    await spansAre(page, [[0, 3], [3, 3 + D], [3 + D, 6 + D]]);
+    await expect(live(page)).toHaveAttribute('aria-live', 'polite');
+    const radio = (name: string) => picker(page).getByRole('radio', { name });
+
+    // Select (Magnetic on): trim the video's start by 1 s; it now plays its source from 1 s.
+    await dragBy(page, edge(page, 'start', 2), 60);
+    await spansAre(page, [[0, 3], [3, 2 + D], [2 + D, 5 + D]]);
+    expect(await sourceIn(page, 1)).toBe(1);
+
+    // Roll (R): drag the cut between clips 1 and 2 half a second right; the video's length stays.
+    await focusTimeline(page);
+    await page.keyboard.press('r');
+    await expect(radio('Roll')).toBeChecked();
+    await dragBy(page, edge(page, 'end', 1), 30);
+    await spansAre(page, [[0, 3.5], [3.5, 2 + D], [2 + D, 5 + D]]);
+    expect(await sourceIn(page, 1)).toBe(1.5);
+    // … and a second back by keys: clip 1 selected, Shift + Alt + ←.
+    await clips(page).first().click();
+    await focusTimeline(page);
+    await page.keyboard.press('Shift+Alt+ArrowLeft');
+    await spansAre(page, [[0, 2.5], [2.5, 2 + D], [2 + D, 5 + D]]);
+    expect(await sourceIn(page, 1)).toBe(0.5);
+    await expect(live(page)).toHaveText(/Clip 1, 0\.0 s to 2\.5 s/);
+
+    // Slip (Y): drag the video half a second left (an earlier part plays), then three frames later by Alt + →.
+    await page.keyboard.press('y');
+    await expect(radio('Slip')).toBeChecked();
+    await dragBy(page, clips(page).nth(1), -30);
+    await spansAre(page, [[0, 2.5], [2.5, 2 + D], [2 + D, 5 + D]]);
+    expect(await sourceIn(page, 1)).toBe(0);
+    await focusTimeline(page);
+    for (let i = 0; i < 3; i++) await page.keyboard.press('Alt+ArrowRight');
+    expect(await sourceIn(page, 1)).toBe(0.1);
+    await spansAre(page, [[0, 2.5], [2.5, 2 + D], [2 + D, 5 + D]]);
+    // A photo has no source time: refused with the reason.
+    await clips(page).first().click();
+    await focusTimeline(page);
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect(toastText(page)).toHaveText('A photo has no source time to slip: use Slip on a video clip.');
+
+    // Slide (U): drag the video half a second right between its neighbours, then a second back by keys.
+    await page.keyboard.press('u');
+    await expect(radio('Slide')).toBeChecked();
+    await dragBy(page, clips(page).nth(1), 30);
+    await spansAre(page, [[0, 3], [3, 2.5 + D], [2.5 + D, 5 + D]]);
+    await focusTimeline(page);
+    await page.keyboard.press('Shift+Alt+ArrowLeft');
+    await spansAre(page, [[0, 2], [2, 1.5 + D], [1.5 + D, 5 + D]]);
+    expect(await sourceIn(page, 1)).toBe(0.1);
+
+    // Select (V), Q / W: ripple-trim the video's start to the playhead at 3 s, then its end to 4 s.
+    await page.keyboard.press('v');
+    await expect(radio('Select')).toBeChecked();
+    await page.locator('.tl-ruler').click({ position: { x: 180, y: 10 } });
+    await focusTimeline(page);
+    await page.keyboard.press('q');
+    await spansAre(page, [[0, 2], [2, 0.5 + D], [0.5 + D, 4 + D]]);
+    await page.locator('.tl-ruler').click({ position: { x: 240, y: 10 } });
+    await focusTimeline(page);
+    await page.keyboard.press('w');
+    await spansAre(page, [[0, 2], [2, 4], [4, 7.5]]);
+    await total(page, '0:07.5');
+    await expect(live(page)).toHaveText(/Clip 2, 2\.0 s to 4\.0 s/);
+    // Each was one step.
+    await page.keyboard.press('Control+z');
+    await spansAre(page, [[0, 2], [2, 0.5 + D], [0.5 + D, 4 + D]]);
+  });
+
+  test('snapping: on it catches a nearby edge; off, or with Alt held, the clip goes where it is dropped', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Pointer drags: at desktop size');
+    await threePhotos(page);
+    await expect(snapping(page)).toHaveAttribute('aria-pressed', 'true');
+    await magnetic(page).click();
+    await clips(page).nth(1).click();
+    await focusTimeline(page);
+    await page.keyboard.press('Delete');
+    await spansAre(page, [[0, 3], [6, 9]]);
+    // Drop the last clip 5 px short of clip 1's end: it snaps to 3 s.
+    await dragBy(page, clips(page).nth(1), -175);
+    await spansAre(page, [[0, 3], [3, 6]]);
+    await page.keyboard.press('Control+z');
+    await spansAre(page, [[0, 3], [6, 9]]);
+    // Snap off (a view setting: not undone): it stays 5 px away, to the frame.
+    await snapping(page).click();
+    await expect(snapping(page)).toHaveAttribute('aria-pressed', 'false');
+    await dragBy(page, clips(page).nth(1), -175);
+    await spansAre(page, [[0, 3], [3.083, 6.083]], 0.05);
+    await page.keyboard.press('Control+z');
+    await expect(snapping(page)).toHaveAttribute('aria-pressed', 'false');
+    // Snap on, Alt held through the drag: no snapping either.
+    await snapping(page).click();
+    await dragBy(page, clips(page).nth(1), -175, 'Alt');
+    await spansAre(page, [[0, 3], [3.083, 6.083]], 0.05);
+  });
+
+  test('V / R / Y / U pick the tool (shown in the tooltips); a locked track refuses every tool and key', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Keyboard: at desktop size');
+    await threePhotos(page);
+    const radio = (name: string) => picker(page).getByRole('radio', { name });
+    await expect(radio('Select')).toBeChecked();
+    for (const [key, name] of [
+      ['r', 'Roll'],
+      ['y', 'Slip'],
+      ['u', 'Slide'],
+      ['v', 'Select'],
+    ]) {
+      await expect(radio(name)).toHaveAttribute('title', new RegExp(`\\(${key.toUpperCase()}\\)`));
+      await focusTimeline(page);
+      await page.keyboard.press(key);
+      await expect(radio(name)).toBeChecked();
+    }
+    await clips(page).first().click();
+    const lock = page.getByRole('group', { name: 'Video track' }).getByRole('button', { name: 'Lock Video', exact: true });
+    await lock.click();
+    const locked = 'The Video track is locked. Unlock it to change its clips.';
+    // Blanks the shown text (not React's node), so each refusal must show it again.
+    const clear = () => page.locator('#toast').evaluate((e) => e.firstElementChild && (e.firstElementChild.textContent = ''));
+    await page.locator('.tl-ruler').click({ position: { x: 90, y: 10 } });
+    for (const key of ['v', 'r', 'y', 'u']) {
+      await focusTimeline(page);
+      await page.keyboard.press(key);
+      await clear();
+      await page.keyboard.press('Alt+ArrowRight');
+      await expect(toastText(page)).toHaveText(locked);
+    }
+    for (const key of ['q', 'w', 'Shift+Delete', 'Delete']) {
+      await clear();
+      await page.keyboard.press(key);
+      await expect(toastText(page)).toHaveText(locked);
+    }
+    await spansAre(page, [[0, 3], [3, 6], [6, 9]]);
+  });
+
+  test('the tools and switches work by keyboard, have no serious accessibility problems and fit a 360 px screen', async ({ page }) => {
+    await threePhotos(page);
+    // The picker is a radio group: arrow keys move the tool.
+    const radio = (name: string) => picker(page).getByRole('radio', { name });
+    await radio('Select').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(radio('Roll')).toBeChecked();
+    await page.keyboard.press('ArrowLeft');
+    await expect(radio('Select')).toBeChecked();
+    // Magnetic by keyboard, and a gap to scan: lift clip 2 from its button.
+    await magnetic(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(magnetic(page)).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: /^Clip 2: / }).focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Delete');
+    await expect(gaps(page)).toHaveCount(1);
+    await expect(live(page)).not.toBeEmpty();
+    const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).include('.tl').include('.tl-transport').exclude('.tl-edge').analyze();
+    const serious = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) e.g. ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+    await page.setViewportSize({ width: 360, height: 780 });
+    for (const name of ['Select', 'Roll', 'Slip', 'Slide']) await expect(radio(name)).toBeVisible();
+    await expect(magnetic(page)).toBeVisible();
+    await expect(snapping(page)).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
