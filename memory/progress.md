@@ -11,6 +11,19 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-09 — 202 UI: T030–T033, T040
+
+**Done:** on `feat/202-edit-operations` (the work started on `main` by mistake and was moved before any commit).
+T030: `describe('video edit tools')` in `e2e/editors.e2e.ts` (6 tests; the video for Roll / Slip is a Reel the app
+exports in the test). T031: tool picker (radiogroup), Magnetic and Snap switches, V / R / Y / U. T032: drags per tool
+(move to a time, Shift ripple, Roll, Slip, Slide, Alt skips snapping, frame rounding). T033: gap buttons, Alt + arrows,
+Q / W, Shift + Delete, polite live region; `Toast.tsx` re-shows a repeated message. T040: self-test gap export (45
+black frames with the layer). Editors e2e 24 passed / 0 failed; `npm test` 6,125 / 0; `npm run check` 1,081.
+**Next:** T041 (second timing session), T090 docs, T091 gates, T092 close.
+**Blockers:** T001's two manual Alt-key checks (maintainer).
+
+---
+
 ## 2026-10-09 — fix(404): criteria intro before the first group; branches updated
 
 **Done:** `main` fast-forwarded to 404 (`962d348`), then `feat/202-edit-operations` and `feat/201-track-model`.

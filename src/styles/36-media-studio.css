@@ -520,6 +520,59 @@
 .tl-grow {
   flex: 1;
 }
+/* Edit tools (a radio group of icons) and the Magnetic / Snap switches (202) */
+.tl-tools {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--field);
+}
+.tl-tool {
+  /* Holds its visually hidden radio: absolute, it would escape the scrolling transport and widen the page. */
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.tl-tool svg,
+.tl-switch svg {
+  width: 15px;
+  height: 15px;
+}
+.tl-tool:hover {
+  color: var(--text);
+}
+.tl-tool:has(input:checked) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tl-tool:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tl-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.tl-switch[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .tl-zoom {
   flex: 0 0 110px;
   width: 110px;
@@ -780,6 +833,21 @@
   cursor: ew-resize;
   z-index: 1;
 }
+/* The edit tools' pointers (202): Roll works on the cuts, Slip and Slide on the whole clip. */
+.tl-tool-roll .tl-clip {
+  cursor: pointer;
+}
+.tl-tool-roll .tl-edge {
+  cursor: col-resize;
+}
+.tl-tool-slip .tl-clip,
+.tl-tool-slip .tl-edge {
+  cursor: ew-resize;
+}
+.tl-tool-slide .tl-clip,
+.tl-tool-slide .tl-edge {
+  cursor: move;
+}
 .tl-edge-start {
   left: 0;
 }
@@ -801,6 +869,24 @@
 }
 .tl-edge:focus-visible {
   background: var(--accent);
+}
+/* A gap on the video track (Magnetic off): plays black; focus selects it, Delete closes it. */
+.tl-gap {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  padding: 0;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--muted) 14%, transparent) 6px 12px);
+  cursor: pointer;
+}
+.tl-gap:hover {
+  border-color: var(--muted);
+}
+.tl-gap:focus {
+  border: 2px solid var(--accent);
+  outline: none;
 }
 .tl-drop {
   position: absolute;

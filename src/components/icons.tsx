@@ -30,6 +30,11 @@ import {
   LayoutTemplate,
   Lightbulb,
   Magnet,
+  ChevronsLeftRight,
+  FoldHorizontal,
+  MousePointer2,
+  MoveHorizontal,
+  SquareSplitHorizontal,
   Mail,
   Menu,
   MonitorPlay,
@@ -149,6 +154,14 @@ export const LockIcon = ({ on }: { on: boolean }) => (on ? <Lock {...base} /> : 
 export const HeightIcon = () => <ChevronsUpDown {...base} />;
 export const LayersIcon = () => <Layers {...base} />;
 export const ScissorsIcon = () => <Scissors {...base} />;
+/** The timeline's edit tools (202) and its switches. */
+const TOOL_ICONS = { select: MousePointer2, roll: SquareSplitHorizontal, slip: ChevronsLeftRight, slide: MoveHorizontal };
+export const EditToolIcon = ({ tool }: { tool: keyof typeof TOOL_ICONS }) => {
+  const I = TOOL_ICONS[tool];
+  return <I {...base} />;
+};
+export const MagneticIcon = () => <FoldHorizontal {...base} />;
+export const SnapIcon = () => <Magnet {...base} />;
 export const PlayIcon = () => <Play {...base} />;
 export const PauseIcon = () => <Pause {...base} />;
 export const SkipBackIcon = () => <SkipBack {...base} />;

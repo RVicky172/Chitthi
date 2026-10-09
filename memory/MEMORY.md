@@ -14,16 +14,16 @@
   the Phase 1 gate (T022, T023: `npm run measure:gate` on a mid-range laptop) and Mac RAW (T030, T033) per D-007.
 - **Done:** `201-track-model` ✔️ Implemented 2026-10-07 (`a3adea2`, branch `feat/201-track-model`; D-017 `452fec2`).
   `401-ai-models-on-device` ✔️ 2026-10-07 (`21478bd`).
-- **202:** `202-edit-operations` 🚧: T010–T021 done (`10d946f`); branch `feat/202-edit-operations` reset to `main`
-  on 2026-10-09 (its UI commits `77fb960`–`0bb6014` discarded at the maintainer's request); the UI tasks after T021
-  are open again. T001 waits on 2 manual checks by the maintainer (Alt + ← in Chrome; Alt held through a drag in the
-  desktop app).
-- **404 roadmap data + dashboard:** ✔️ 2026-10-09 on `feat/404-roadmap-dashboard` (not committed yet). Features are
+- **202:** `202-edit-operations` 🚧 on `feat/202-edit-operations`: T010–T021 (`10d946f`), and T030–T033 (UI: tools,
+  Magnetic, Snap, gaps, keys, live region) and T040 (gap export self-test) on 2026-10-09. Open: T041 (a second timing
+  session), T090–T092; T001 waits on 2 manual checks by the maintainer (Alt + ← in Chrome; Alt held through a drag in
+  the desktop app).
+- **404 roadmap data + dashboard:** ✔️ 2026-10-09 (`962d348`, on `main`). Features are
   JSON first (D-026): `specs/features/NNN-*/feature.json` holds spec, plan and tasks; the `.md` files are generated
   (hook refuses hand edits). `npm run specs -- start|block|done …`; `npm run roadmap` = dashboard with kanban boards.
 - **Process:** test-first spec-driven workflow (constitution as before 402; D-023 build-first reverted by D-024).
   203 / 204 Draft specs on branch `spec/203-204`.
-- **Next (roadmap):** 202 T030; answer 203 / 204's questions.
+- **Next (roadmap):** 202 T041 / T090; answer 203 / 204's questions.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

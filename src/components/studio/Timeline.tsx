@@ -1,27 +1,39 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { MIN_LEN, snapTargets, snapTime } from '../../engine/edits';
+import { snapTargets, snapTime, type Tool } from '../../engine/edits';
 import { layerName, type Layer } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, lockedReason, type Track } from '../../engine/timeline';
 import { clipLength, fmtTime } from '../../engine/video';
 import { toast } from '../../lib/toast';
 import {
   clipLocked,
+  deleteGap,
   duplicateClip,
   endVStep,
   getVideo,
   moveClipTo,
+  moveClipToTime,
+  nudgeClip,
   removeClip,
   removeVLayer,
+  rippleDeleteClip,
+  rippleTrimToPlayhead,
+  rollClip,
   selectClip,
   selectVLayer,
   setPlayhead,
+  setMagnetic,
   setPlaying,
+  setSnapping,
+  setTool,
   setTrack,
   setTrackHeight,
   setZoom,
+  slideClip,
+  slipClip,
+  slipMusic,
   splitAtPlayhead,
-  updateClip,
+  trimClip,
   updateMusic,
   updateVLayer,
   useVideo,
@@ -30,15 +42,20 @@ import {
   videoLength,
 } from '../../state/video';
 import { typingIn } from '../ig/LayerPanel';
-import { CopyIcon, HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
+import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 
 /*
  * The video editor's timeline: a time ruler, the clips (with filmstrips) on the video track, one row per layer, and
- * the music with its waveform. Everything is direct: drag a clip to reorder it, drag its edges to trim, drag a layer's
+ * the music with its waveform. Everything is direct: what a drag on a clip does depends on the edit tool (202): Select
+ * reorders it (Magnetic on) or puts it at a time (off) and trims at its edges (ripple with Magnetic on or Shift), Roll
+ * moves the cut at an edge, Slip changes what a video plays, Slide moves a clip between its neighbours. Drag a layer's
  * bar to move it in time or its ends to change when it shows, drag the music to slide the song, drag the playhead or
- * click anywhere to seek. Moves snap to clip edges, layer edges and the playhead. Ctrl + wheel zooms; the playhead is
- * followed while playing. Keyboard (with the timeline focused): Space play / pause, S split, Delete remove,
- * ← → a frame (Shift: a second), Home / End, + / − zoom.
+ * click anywhere to seek. Moves snap to clip edges, layer edges and the playhead (Snap off, or Alt held: to the frame,
+ * as is everything that doesn't snap). Ctrl + wheel zooms; the playhead is
+ * followed while playing. Keyboard (with the timeline focused): Space play / pause, S split, Delete remove (Magnetic
+ * off: leaves a gap; Shift + Delete ripples; on a focused gap: closes it), Alt + ← → nudge the selected clip a frame
+ * with the tool (Shift: a second), Q / W ripple-trim its start / end to the playhead,
+ * ← → a frame (Shift: a second), Home / End, + / − zoom; V / R / Y / U pick the edit tool (Select, Roll, Slip, Slide).
  */
 
 const SNAP_PX = 8;
@@ -87,17 +104,37 @@ export function Timeline() {
     music = useVideo((s) => s.music),
     playing = useVideo((s) => s.playing),
     tracks = useVideo((s) => s.tracks),
-    trackView = useVideo((s) => s.trackView);
+    trackView = useVideo((s) => s.trackView),
+    tool = useVideo((s) => s.tool);
   const px = (id: string) => TRACK_PX[trackView[id] ?? 'medium'];
   const videoTrack = tracks.find((tr) => tr.id === MAIN_VIDEO)!,
     musicTrack = tracks.find((tr) => tr.id === MUSIC)!;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState(600);
-  const [reorder, setReorder] = useState<{ id: string; dx: number; to: number } | null>(null);
+  // A clip being dragged by its body: `to` is its place in the order (Magnetic on), `at` the time it goes to (off).
+  const [reorder, setReorder] = useState<{ id: string; dx: number; to: number; at?: number } | null>(null);
   const total = useVideo(videoLength);
   const placed = clips.filter((c) => c.track === MAIN_VIDEO).map((clip, index) => ({ clip, index, start: clip.start, end: clip.start + clipLength(clip) }));
   const width = Math.max(view - 2, total * zoom + 160);
+  // The gaps on the video track (Magnetic off): before the first clip and between clips.
+  const holes = placed.flatMap((p, i) => {
+    const from = i ? placed[i - 1].end : 0;
+    return p.start - from > 1e-6 ? [{ start: from, end: p.start }] : [];
+  });
+
+  // Each change to the video track is announced (politely, once a drag settles): the clip and its new times.
+  const [said, setSaid] = useState('');
+  const before = useRef(clips);
+  useEffect(() => {
+    const was = before.current;
+    before.current = clips;
+    if (was === clips) return;
+    const msg = describeChange(was, clips, getVideo().selected);
+    if (!msg) return;
+    const timer = setTimeout(() => setSaid(msg), 250);
+    return () => clearTimeout(timer);
+  }, [clips]);
 
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -138,9 +175,20 @@ export function Timeline() {
     const r = canvas.current!.getBoundingClientRect();
     return Math.max(0, Math.min(total, (clientX - r.left) / zoom));
   };
-  /** Snaps a time to the nearest clip edge, layer edge or the playhead within a few pixels. */
-  const snap = (v: number, skipLayer?: string) =>
-    snapTime(v, snapTargets(placed.map((p) => p.clip), layers, getVideo().t, total, { layer: skipLayer }), SNAP_PX / zoom);
+  /**
+   * Snaps a time to the nearest clip edge, layer edge or the playhead within a few pixels, leaving out the dragged clip
+   * or layer; with Snap off, Alt held, or nothing near, to the nearest frame.
+   */
+  const snap = (v: number, skip: { clip?: string; layer?: string } = {}, ev?: { altKey: boolean }) => {
+    const s = getVideo();
+    const to = s.snapping && !ev?.altKey ? snapTime(v, snapTargets(placed.map((p) => p.clip), layers, s.t, total, skip), SNAP_PX / zoom) : v;
+    return to === v ? toFrame(v) : to;
+  };
+  /** Snaps a clip moved to start at `s`: by its start, else by its end. */
+  const snapSpan = (s: number, len: number, id: string, ev: PointerEvent) => {
+    const a = snap(s, { clip: id }, ev);
+    return a !== toFrame(s) ? a : snap(s + len, { clip: id }, ev) - len;
+  };
 
   const seekFrom = (e: ReactPointerEvent) => {
     setPlaying(false);
@@ -149,15 +197,35 @@ export function Timeline() {
   };
 
   const onKey = (e: ReactKeyboardEvent) => {
-    const del = (s: ReturnType<typeof getVideo>) => (s.layerSel ? removeVLayer(s.layerSel) : s.selected && !refused(s.selected) && removeClip(s.selected));
     // The track headers' buttons and menus handle their own keys.
     if (typingIn(e.target) || (e.target as HTMLElement).closest?.('.tl-heads')) return;
     const s = getVideo();
+    // Alt + ← / → (Q5): nudge the selected clip with the tool, a frame (Shift: a second); kept from the browser's Back.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      const frames = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? s.fps : 1);
+      if (s.selected) tell(nudgeClip(s.selected, frames));
+      else if (s.tool === 'slip' && s.music) tell(slipMusic(frames / s.fps));
+      else toast('Select a clip first.');
+      return;
+    }
+    // Delete: a focused gap closes; a layer goes; a clip goes (Magnetic off: leaves a gap; Shift: ripples).
+    const gap = (e.target as HTMLElement).closest?.<HTMLElement>('.tl-gap');
+    const del = () => {
+      if (gap) tell(deleteGap(Number(gap.dataset.at)));
+      else if (s.layerSel) removeVLayer(s.layerSel);
+      else if (s.selected && !refused(s.selected)) {
+        if (e.shiftKey) tell(rippleDeleteClip(s.selected));
+        else removeClip(s.selected);
+      }
+    };
     const map: Record<string, () => void> = {
       ' ': () => setPlaying(!s.playing),
       s: split,
-      Delete: () => del(s),
-      Backspace: () => del(s),
+      q: () => tell(rippleTrimToPlayhead('start')),
+      w: () => tell(rippleTrimToPlayhead('end')),
+      Delete: del,
+      Backspace: del,
       ArrowLeft: () => setPlayhead(s.t - (e.shiftKey ? 1 : 1 / 30)),
       ArrowRight: () => setPlayhead(s.t + (e.shiftKey ? 1 : 1 / 30)),
       Home: () => setPlayhead(0),
@@ -165,6 +233,7 @@ export function Timeline() {
       '+': () => setZoom(s.zoom * 1.25),
       '=': () => setZoom(s.zoom * 1.25),
       '-': () => setZoom(s.zoom / 1.25),
+      ...Object.fromEntries(TOOLS.map(([tool, , key]) => [key.toLowerCase(), () => setTool(tool)])),
     };
     const f = map[e.key] ?? map[e.key.toLowerCase()];
     if (f && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -190,7 +259,7 @@ export function Timeline() {
   };
 
   return (
-    <div className="tl" onKeyDown={onKey}>
+    <div className={`tl tl-tool-${tool}`} onKeyDown={onKey}>
       <div className="tl-heads">
         <div className="tl-h tl-h-ruler" aria-hidden="true" />
         <TrackHead track={videoTrack} height={trackView[MAIN_VIDEO] ?? 'medium'} />
@@ -201,7 +270,10 @@ export function Timeline() {
         ))}
         <TrackHead track={musicTrack} height={trackView[MUSIC] ?? 'medium'} />
       </div>
-      <div className="tl-scroll" ref={scroller} tabIndex={0} role="group" aria-label={`Timeline, ${fmtTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead.`}>
+      <div className="tl-live vh" aria-live="polite">
+        {said}
+      </div>
+      <div className="tl-scroll" ref={scroller} tabIndex={0} role="group" aria-label={`Timeline, ${fmtTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead, V R Y U pick the edit tool, Alt + arrow keys nudge the selected clip, Q and W trim it to the playhead.`}>
         <div className="tl-canvas" ref={canvas} style={{ width }}>
           <div className="tl-ruler" onPointerDown={seekFrom}>
             {ticks.map((s) => (
@@ -226,41 +298,109 @@ export function Timeline() {
                   if (refused(p.clip.id)) return;
                   selectClip(p.clip.id);
                   selectVLayer(null);
-                  drag(
-                    e,
-                    (dx) => setReorder({ id: p.clip.id, dx, to: reorderTarget(p.clip.id, p.start * zoom + dx + ((p.end - p.start) * zoom) / 2) }),
-                    (moved) => {
-                      setReorder((r) => {
-                        if (moved && r) moveClipTo(r.id, r.to);
-                        return null;
-                      });
-                      // A click (no drag) puts the playhead in the clip, if it isn't there already.
-                      const now = getVideo().t;
-                      if (!moved && (now < p.start || now >= p.end)) setPlayhead(p.start);
-                    },
-                  );
+                  const id = p.clip.id,
+                    len = p.end - p.start,
+                    key = `drag:${id}:${++dragSeq}`,
+                    say = refusals();
+                  // A click (no drag) puts the playhead in the clip, if it isn't there already.
+                  const clicked = (moved: boolean) => {
+                    const now = getVideo().t;
+                    if (!moved && (now < p.start || now >= p.end)) setPlayhead(p.start);
+                  };
+                  if (tool === 'slip' || tool === 'slide') {
+                    const in0 = p.clip.in;
+                    drag(
+                      e,
+                      (dx, ev) => {
+                        const c = current(id);
+                        if (!c) return;
+                        // Slip: a drag right plays a later part of the video; Slide: the clip goes where it's dropped.
+                        if (tool === 'slip') say(slipClip(id, toFrame(dx / zoom) - (c.in - in0), key));
+                        else say(slideClip(id, snapSpan(p.start + dx / zoom, len, id, ev) - c.start, key));
+                      },
+                      clicked,
+                    );
+                  } else if (tool === 'roll') drag(e, () => undefined, clicked);
+                  else if (getVideo().magnetic)
+                    drag(
+                      e,
+                      (dx) => setReorder({ id, dx, to: reorderTarget(id, p.start * zoom + dx + (len * zoom) / 2) }),
+                      (moved) => {
+                        setReorder((r) => {
+                          if (moved && r) moveClipTo(r.id, r.to);
+                          return null;
+                        });
+                        clicked(moved);
+                      },
+                    );
+                  else
+                    // Magnetic off: the block follows the pointer, a marker shows where it lands, and it moves on release.
+                    drag(
+                      e,
+                      (dx, ev) => setReorder({ id, dx, to: 0, at: Math.max(0, snapSpan(p.start + dx / zoom, len, id, ev)) }),
+                      (moved) => {
+                        setReorder((r) => {
+                          if (moved && r?.at !== undefined) say(moveClipToTime(r.id, r.at, key));
+                          return null;
+                        });
+                        clicked(moved);
+                      },
+                    );
                 }}
                 onEdge={(e, side) => {
+                  // Slip and Slide act on the whole clip: the edge passes the press on to the body.
+                  if (tool === 'slip' || tool === 'slide') return;
                   if (refused(p.clip.id)) return;
                   selectClip(p.clip.id);
-                  const c0 = p.clip,
-                    key = `trim:${c0.id}:${++dragSeq}`;
-                  drag(e, (dx) => {
-                    const dt = dx / zoom;
-                    if (c0.kind === 'video') {
-                      if (side === 'end') {
-                        const end = snap(p.start + (c0.out - c0.in) + dt) - p.start;
-                        updateClip(c0.id, { out: Math.max(c0.in + MIN_LEN, Math.min(c0.srcDur, c0.in + end)) }, key);
-                      } else updateClip(c0.id, { in: Math.max(0, Math.min(c0.out - MIN_LEN, c0.in + dt)) }, key);
-                    } else {
-                      const dur = side === 'end' ? snap(p.start + c0.dur + dt) - p.start : c0.dur - dt;
-                      updateClip(c0.id, { dur: Math.max(MIN_LEN, Math.min(60, dur)) }, key);
+                  const id = p.clip.id,
+                    key = `trim:${id}:${++dragSeq}`,
+                    say = refusals(),
+                    at = side === 'end' ? p.end : p.start;
+                  if (tool === 'roll') {
+                    // The cut at this edge: this clip's end, or the end of the clip before it.
+                    const left = side === 'end' ? p.clip : placed[p.index - 1]?.clip;
+                    if (!left) {
+                      e.stopPropagation();
+                      toast('There’s no clip before this one to roll into.');
+                      return;
                     }
+                    drag(e, (dx, ev) => {
+                      const c = current(left.id);
+                      if (c) say(rollClip(left.id, snap(at + dx / zoom, { clip: id }, ev) - (c.start + clipLength(c)), key));
+                    });
+                    return;
+                  }
+                  // Select: trim; ripple with Magnetic on or Shift held (Q3). A ripple start trim keeps the clip's start.
+                  const ripple = e.shiftKey || getVideo().magnetic,
+                    len0 = p.end - p.start;
+                  drag(e, (dx, ev) => {
+                    const c = current(id);
+                    if (!c) return;
+                    const step =
+                      side === 'end'
+                        ? snap(at + dx / zoom, { clip: id }, ev) - (c.start + clipLength(c))
+                        : ripple
+                          ? toFrame(dx / zoom) - (len0 - clipLength(c))
+                          : snap(at + dx / zoom, { clip: id }, ev) - c.start;
+                    say(trimClip(id, side, step, { ripple }, key));
                   });
                 }}
               />
             ))}
-            {reorder && <span className="tl-drop" style={{ left: markerAt(reorder.id, reorder.to) }} />}
+            {holes.map((g) => (
+              <button
+                key={g.start}
+                type="button"
+                className="tl-gap"
+                data-at={g.start}
+                style={{ left: g.start * zoom, width: Math.max(8, (g.end - g.start) * zoom - 2) }}
+                aria-label={`Gap, ${(g.end - g.start).toFixed(1)} s, from ${fmtTime(g.start)}`}
+                title="A gap: black, with the layers on top. Select it and press Delete to close it."
+                // Not a seek: a click selects (focuses) the gap.
+                onPointerDown={(e) => e.stopPropagation()}
+              />
+            ))}
+            {reorder && <span className="tl-drop" style={{ left: reorder.at !== undefined ? reorder.at * zoom : markerAt(reorder.id, reorder.to) }} />}
           </div>
 
           {layers.length === 0 && (
@@ -283,9 +423,9 @@ export function Timeline() {
                     key = `ltime:${l.id}:${++dragSeq}`;
                   drag(
                     e,
-                    (dx) => {
-                      let s = snap(s0 + dx / zoom, l.id);
-                      if (Math.abs(s - (s0 + dx / zoom)) < 1e-9) s = snap(s0 + dx / zoom + len, l.id) - len;
+                    (dx, ev) => {
+                      let s = snap(s0 + dx / zoom, { layer: l.id }, ev);
+                      if (Math.abs(s - toFrame(s0 + dx / zoom)) < 1e-9) s = snap(s0 + dx / zoom + len, { layer: l.id }, ev) - len;
                       s = Math.max(0, Math.min(total - len, s));
                       updateVLayer(l.id, { start: s, end: s + len >= total - 0.01 ? undefined : s + len }, key);
                     },
@@ -300,8 +440,8 @@ export function Timeline() {
                   const s0 = l.start ?? 0,
                     e0 = Math.min(l.end ?? total, total),
                     key = `ltime:${l.id}:${++dragSeq}`;
-                  drag(e, (dx) => {
-                    const v = snap((side === 'start' ? s0 : e0) + dx / zoom, l.id);
+                  drag(e, (dx, ev) => {
+                    const v = snap((side === 'start' ? s0 : e0) + dx / zoom, { layer: l.id }, ev);
                     if (side === 'start') updateVLayer(l.id, { start: Math.max(0, Math.min(e0 - 0.2, v)) }, key);
                     else {
                       const end = Math.max(s0 + 0.2, Math.min(total, v));
@@ -337,7 +477,7 @@ export function Timeline() {
               aria-label={`Playhead at ${fmtTime(t)}`}
               onPointerDown={(e) => {
                 setPlaying(false);
-                drag(e, (_dx, ev) => setPlayhead(snap(timeAt(ev.clientX))));
+                drag(e, (_dx, ev) => setPlayhead(snap(timeAt(ev.clientX), {}, ev)));
               }}
             />
           </div>
@@ -372,7 +512,7 @@ function ClipBlock(p: {
       className={`tl-clip tl-${c.kind}${p.selected ? ' on' : ''}${p.dragging !== null ? ' dragging' : ''}${p.locked ? ' locked' : ''}`}
       style={{ left: p.left, width: Math.max(8, p.width - 2), transform: p.dragging !== null ? `translateX(${p.dragging}px)` : undefined }}
       onPointerDown={p.onBody}
-      title={`${c.name} · ${clipLength(c).toFixed(1)} s`}
+      title={`${c.name} · ${clipLength(c).toFixed(1)} s${c.kind === 'video' ? ` · source ${c.in.toFixed(1)}–${c.out.toFixed(1)} s` : ''}`}
     >
       <div className="tl-film" aria-hidden="true">
         {frames.map((src, k) => (
@@ -440,6 +580,39 @@ function MusicBar({ total, zoom, height, onDrag }: { total: number; zoom: number
       </span>
     </div>
   );
+}
+
+/** Shows a refusal's reason, if any. */
+const tell = (why: string | null) => why && toast(why);
+
+/** What changed on the video track, for screen readers: the selected (else first) changed clip and its times. */
+function describeChange(was: VClip[], now: VClip[], selected: string | null): string {
+  const main = now.filter((c) => c.track === MAIN_VIDEO);
+  const old = new Map(was.map((c) => [c.id, c]));
+  const changed = main.filter((c) => {
+    const o = old.get(c.id);
+    return !o || o.start !== c.start || clipLength(o) !== clipLength(c) || o.in !== c.in;
+  });
+  const c = changed.find((x) => x.id === selected) ?? changed[0];
+  if (c) {
+    const span = `Clip ${main.indexOf(c) + 1}, ${c.start.toFixed(1)} s to ${(c.start + clipLength(c)).toFixed(1)} s`;
+    return c.kind === 'video' ? `${span}, playing its source from ${c.in.toFixed(1)} s` : span;
+  }
+  const gone = was.filter((x) => x.track === MAIN_VIDEO).length - main.length;
+  return gone > 0 ? `${gone === 1 ? 'Clip' : `${gone} clips`} removed, ${main.length} left` : '';
+}
+
+/** A clip as it is now (a drag edits from the store's current state, step by step). */
+const current = (id: string) => getVideo().clips.find((c) => c.id === id);
+/** A time rounded to the project's frames. */
+const toFrame = (t: number) => Math.round(t * getVideo().fps) / getVideo().fps;
+/** Says a drag's refusal once (the same reason would repeat on every pointer move). */
+function refusals(): (why: string | null) => void {
+  let said = '';
+  return (why) => {
+    if (why && why !== said) toast(why);
+    said = why ?? said;
+  };
 }
 
 /** True (and says why in a toast) when the clip is on a locked track. */
@@ -588,14 +761,26 @@ function HeightMenu({ track, height }: { track: Track; height: TrackHeight }) {
   );
 }
 
-/** Play controls, editing buttons and zoom, above the timeline. */
+/** The edit tools (202, Q5): what dragging a clip or its edge does, and its key. */
+const TOOLS: [Tool, string, string, string][] = [
+  ['select', 'Select', 'V', 'drag a clip to move it, its edges to trim (Shift: ripple)'],
+  ['roll', 'Roll', 'R', 'drag a cut to move it between two clips; the length stays'],
+  ['slip', 'Slip', 'Y', 'drag a video clip to play another part of it, in the same place'],
+  ['slide', 'Slide', 'U', 'drag a clip between its neighbours; they give and take the time'],
+];
+
+/** Play controls, editing buttons, the edit tools, Magnetic and Snap, and zoom, above the timeline. */
 export function Transport() {
   const playing = useVideo((s) => s.playing),
     t = useVideo((s) => s.t),
     clips = useVideo((s) => s.clips),
     selected = useVideo((s) => s.selected),
-    zoom = useVideo((s) => s.zoom);
+    zoom = useVideo((s) => s.zoom),
+    tool = useVideo((s) => s.tool),
+    magnetic = useVideo((s) => s.magnetic),
+    snapping = useVideo((s) => s.snapping);
   const total = useVideo(videoLength);
+  const group = useId();
   return (
     <div className="tl-transport" role="toolbar" aria-label="Playback and editing">
       <button type="button" className="pbtn" aria-label="Go to the start" onClick={() => (setPlaying(false), setPlayhead(0))}>
@@ -622,6 +807,37 @@ export function Transport() {
       <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && !refused(selected) && removeClip(selected)} title="Remove the clip (Delete)" aria-label="Delete">
         <TrashIcon />
         <span className="mst-l">Delete</span>
+      </button>
+      <span className="tl-sep" />
+      <div className="tl-tools" role="radiogroup" aria-label="Edit tool">
+        {TOOLS.map(([id, name, key, what]) => (
+          <label key={id} className="tl-tool" title={`${name} (${key}): ${what}`}>
+            <input type="radio" className="vh" name={group} checked={tool === id} onChange={() => setTool(id)} aria-label={name} title={`${name} (${key}): ${what}`} />
+            <EditToolIcon tool={id} />
+          </label>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="tl-switch"
+        aria-pressed={magnetic}
+        aria-label="Magnetic"
+        title={magnetic ? 'Magnetic: clips stay end to end, edits ripple (switch off to leave gaps)' : 'Magnetic off: edits leave gaps; Shift ripples (switch on to close every gap)'}
+        onClick={() => setMagnetic(!magnetic)}
+      >
+        <MagneticIcon />
+        <span className="mst-l">Magnetic</span>
+      </button>
+      <button
+        type="button"
+        className="tl-switch"
+        aria-pressed={snapping}
+        aria-label="Snap"
+        title={snapping ? 'Snapping: drags catch clip edges, layer edges and the playhead (hold Alt to skip)' : 'Snapping off: drags follow the pointer to the frame'}
+        onClick={() => setSnapping(!snapping)}
+      >
+        <SnapIcon />
+        <span className="mst-l">Snap</span>
       </button>
       <span className="tl-grow" />
       <button type="button" className="pbtn" aria-label="Zoom out" onClick={() => setZoom(zoom / 1.25)}>

@@ -150,7 +150,7 @@ const hasSound = async (mp4: Blob) => new TextDecoder('latin1').decode(await mp4
 async function trackChecks(check: Check): Promise<string[]> {
   const { renderFrame, NO_PICTURE } = await import('../engine/video');
   const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../engine/timeline.testkit');
-  const { MAIN_VIDEO, MUSIC, audioPlan, defaultTracks, pack, projectLength, videoAt } =
+  const { MAIN_VIDEO, MUSIC, audioPlan, defaultTracks, framePlan, pack, projectLength, videoAt } =
     await import('../engine/timeline');
   const { newShape } = await import('../engine/layers');
   const { encodeVideo } = await import('../engine/videoExport');
@@ -316,6 +316,29 @@ async function trackChecks(check: Check): Promise<string[]> {
   check(
     (await hasSound(heard!)) && !(await hasSound(muted!)) && mutedPlan.length === 0,
     'video: an export with the music track muted has no music (no sound track here: the photos have none); unmuted it has',
+  );
+
+  // AC-4 (202): a 1.5 s gap between two 1 s photos (Magnetic off) plays black with the layers, for 45 frames at 30 fps,
+  // and the photos either side are still there.
+  const base = job(defaultTracks(), false);
+  const gapJob = { ...base, clips: base.clips.map((c, i) => ({ ...c, dur: 1, start: i ? 2.5 : 0 })) };
+  const plan = framePlan(gapJob, 30);
+  const black = plan.filter((s) => !s.clip).reduce((n, s) => n + s.f1 - s.f0, 0);
+  const gapMp4 = (await encodeVideo(gapJob))!;
+  const times = [0.5, 1.75, 3];
+  const [corners, middles] = [await decodedColours(gapMp4, times, [0.08, 0.08]), await decodedColours(gapMp4, times)];
+  const lit = (c?: number[]) => !!c?.some((v) => v > 30);
+  const dark = (c?: number[]) => !!c?.every((v) => v < 12);
+  const redish = (c?: number[]) => !!c && c[0] > 200 && c[1] < 50 && c[2] < 50;
+  check(
+    black === 45 &&
+      plan.length === 3 &&
+      lit(corners[0]) &&
+      dark(corners[1]) &&
+      redish(middles[1]) &&
+      lit(corners[2]) &&
+      projectLength(gapJob) === 3.5,
+    `video: a 1.5 s gap exports 45 black frames with the layers, between the photos (${black} gap frames; corners ${corners.map((c) => c.map(Math.round).join('/')).join(' ')}; layer in the gap ${middles[1]?.map(Math.round).join('/')})`,
   );
   return notes;
 }
