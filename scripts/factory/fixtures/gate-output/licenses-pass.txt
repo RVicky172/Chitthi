@@ -1,5 +1,0 @@
-
-> chitthi-studio@2.8.0 check:licenses
-> node scripts/check-licenses.mjs
-
-check-licenses: 168 shipped packages, all on the allowed list (1 approved exception).

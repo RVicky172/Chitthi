@@ -16,7 +16,6 @@ docs (how the app behaves, setup, operations) are in [docs/](../docs). Read in t
 | [build.md](build.md)                         | Scripts, web and Docker build, desktop packaging                 |
 | [release.md](release.md)                     | Release checklist, signing, rollback                             |
 | [memory-management.md](memory-management.md) | How agents keep durable project memory                           |
-| [software-factory.md](software-factory.md)   | The SDD setup as a whole, the software factory plan, the dashboard |
 | [vision/](vision/README.md)                  | Multi-release initiatives (editor roadmap and its work items)    |
 | [templates/](templates/)                     | Templates for `spec.md`, `plan.md`, `tasks.md`                   |
 | [features/](features/)                       | One folder per feature: `NNN-name/{spec,plan,tasks}.md`          |

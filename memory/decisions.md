@@ -267,3 +267,16 @@ instead of per task. Features already planned test-first (202, 403) keep their t
 new rule for new work. Changed: `constitution.md`, `workflow.md`, `testing-strategy.md`, `software-factory.md`, the
 tasks template, `/spec-tasks`, `/spec-implement`, the implementer and reviewer agents, `gates.mjs` (+ tests).
 
+## D-024 — Software factory removed; back to the plain spec-driven workflow (2026-10-09)
+
+**Context:** The maintainer wants the spec-driven workflow only, without the software factory (402, 403).
+**Decision:** Remove the factory from the repo: `scripts/factory/`, `.claude/agents/`, `.claude/hooks/`,
+`.claude/settings.json`, `/factory`, `/release`, `/spec-batch`, the `factory:*` and `release:prepare` scripts,
+`specs/software-factory.md` and `specs/features/402-software-factory/`. `CLAUDE.md`, the `/spec-*` commands and the
+engineering docs in `specs/` go back to their state before 402 (`689f3d2`), keeping D-007 (`452fec2`); the roadmap
+keeps 201, 202 and 401 but drops the Needs column. The branches `feat/402-software-factory` and
+`feat/403-live-dashboard` and the factory stashes are deleted.
+**Supersedes:** D-011–D-016, D-018 and D-023 (the constitution is test-first again, without principle XII).
+**Consequences:** `/spec-*` commands run inline in the session; no unattended loop, dashboard or gate records. 202
+continues with `/spec-implement`. Entries above about the factory are history only.
+

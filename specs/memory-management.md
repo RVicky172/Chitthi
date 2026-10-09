@@ -44,20 +44,6 @@ not in personal memory.
 2. Update the "Current State" block in `MEMORY.md`.
 3. Make sure `tasks.md` checkboxes reflect reality.
 
-## The scribe agent
-
-`.claude/agents/scribe.md` is the specialist agent for these rules (feature 402,
-[software-factory.md](software-factory.md)). It writes `memory/progress.md`, the "Current State" in `MEMORY.md`,
-new `decisions.md` entries, `learnings.md`, the roadmap's statuses and the CHANGELOG's Unreleased section, only from
-what the session's files and **Result** notes show, with absolute dates. Its tools are Read, Grep, Glob, Edit and
-Write: no shell, never code. `/spec-verify` hands it the progress entry and "Current State" at the end of Verify;
-in any session you can ask for it by name.
-
-The factory's loop (`npm run factory`, `/factory`) doesn't call the scribe. What it leaves is the evidence: each
-task's **Result** note in `tasks.md`, the gate runs in `.factory/runs/`, the loop's state in `.factory/state.json`,
-its commits, and any learnings or decisions the implementer recorded. After a run, update `progress.md` and
-`MEMORY.md` yourself or with the scribe.
-
 ## Hygiene
 
 - **Don't duplicate.** Don't copy code or git history into memory; link to files/specs instead.

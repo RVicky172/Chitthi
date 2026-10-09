@@ -11,6 +11,18 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-09 — chore: software factory removed (D-024)
+
+**Done:** At the maintainer's request, the software factory (402, 403) was removed from `main`: factory scripts,
+agents, hooks, settings, `/factory`, `/release`, `/spec-batch`, the 402 spec and `specs/software-factory.md`.
+Constitution, workflow, `CLAUDE.md`, `/spec-*` commands and engineering docs went back to their state before 402
+(test-first; D-023 reverted). Branches `feat/402-software-factory` and `feat/403-live-dashboard` deleted (local and
+`origin`), factory stashes dropped; `main` merged into `feat/202-edit-operations`.
+**Next:** 202 T030 with `/spec-implement 202`.
+**Blockers:** none.
+
+---
+
 ## 2026-10-09 — 403 T011–T020, spikes T002 / T003; 403 paused; build first, test at the end (D-023)
 
 **Done:** On `feat/403-live-dashboard`: the loop committed T011–T014, T016, T032, T045 and T020 (`65f6755`);
