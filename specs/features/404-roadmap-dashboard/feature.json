@@ -1,0 +1,967 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "404",
+  "title": "Roadmap data (JSON) and a roadmap dashboard on localhost",
+  "workItem": null,
+  "status": "implemented",
+  "owner": "RVicky172",
+  "dates": {
+    "created": "2026-10-09",
+    "approved": "2026-10-09",
+    "started": "2026-10-09",
+    "done": "2026-10-09"
+  },
+  "git": {
+    "branch": "feat/404-roadmap-dashboard"
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "Each feature's spec, plan and tasks are written as one JSON object, `feature.json`, from the moment the feature is\ncreated: `/spec-new` writes its spec part, `/spec-plan` its plan part, `/spec-tasks` its tasks part. `spec.md`,\n`plan.md`, `tasks.md` and `roadmap.md` are generated from the JSON and never edited, so there is one source and no\nimport or sync step for anyone to remember; a hook and the dashboard regenerate the Markdown the moment the JSON\nchanges. Tasks have a real lifecycle (to do, in progress, blocked, done). On top of this, `npm run roadmap` serves a\ndashboard in the Chitthi look, built in React and TypeScript: the current phase first, the others below, and for each\nfeature a kanban board of its tasks that can be changed by dragging a card.\n\n(Numbering: 402 and 403 were the software factory, removed on 2026-10-09 by D-024.)",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As the maintainer, I want everything about a spec (spec, plan, tasks) in one JSON object that the commands write as they go, so that tracking needs no extra steps."
+        },
+        "US-2": {
+          "text": "As the maintainer, I want the Markdown documents to follow the JSON by themselves, so that they can never disagree."
+        },
+        "US-3": {
+          "text": "As the maintainer, I want to see where the project stands at a glance, the current phase first, in a page that looks like Chitthi."
+        },
+        "US-4": {
+          "text": "As the maintainer, I want each feature's tasks on a kanban board (to do, in progress, blocked, done) that I can change by dragging, so that I can track and steer the work."
+        },
+        "US-5": {
+          "text": "As a keyboard or screen reader user, I want to do all of that without a mouse."
+        },
+        "US-6": {
+          "text": "As the maintainer, I want the dashboard as a React and TypeScript project with clear folders, so that it stays easy to change."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15",
+        "AC-16"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "`feature.json` (schema 2, `specs/schema/feature.schema.json`) holds the whole feature: header (id, title, work item, status, owner, dates, branch); `spec` (summary, user stories, criteria with their group, questions, the other sections as Markdown, changelog); `plan` (status, sections, and as data: files, risks, constitution check); `tasks` (intro, section order, tasks with `status` = `todo | in-progress | blocked | done`, blocked reason, started / done dates, commits, result, the criteria each covers, files, test, `[P]` / 👤). Collections are `{ order, byId }`.",
+          "proof": "unit: schema on the repo and fixtures",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-2": {
+          "text": "`spec.md`, `plan.md`, `tasks.md` (with its AC coverage table) and `roadmap.md` are generated from the JSON, each with a \"generated\" note at the top. The same JSON always gives the same bytes.",
+          "proof": "unit",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-3": {
+          "text": "The 6 existing features (000, 001, 201, 202, 401, 404) are migrated: every word of their old Markdown is in the new JSON (checked by a script), every done state, date and Result note is kept, and 202's T001 becomes `blocked` with its reason (the manual check).",
+          "proof": "scripted check, recorded in tasks.md",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-4": {
+          "text": "Nobody runs a sync step: the CLI regenerates the Markdown after each change; a Claude Code hook regenerates it as soon as `feature.json` or `roadmap.json` is written or edited, and refuses edits to the generated Markdown with a message naming the JSON to edit; `npm run roadmap` regenerates it within 3 s of a hand edit to the JSON.",
+          "proof": "unit: hook script; integration: dashboard",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-5": {
+          "text": "CLI (`npm run specs -- …`): `new <NNN> <name> \"<title>\" [--phase]` (folder, `feature.json` with a spec skeleton, roadmap 📝, generated `spec.md`), `status`, `start`, `block <feature> <T…> --reason \"<why>\"`, `done` (`--commit`, `--result`, `--date`), `undone`, `sync`, `check`. Unknown ids or states → message and exit 1; atomic writes.",
+          "proof": "unit + integration",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-6": {
+          "text": "`npm run specs:check` (in `npm run check`) fails, naming file and entry, on a schema error, a folder / id mismatch, a broken `needs` or `covers` link, a roadmap status that doesn't fit the feature status, or a generated file that differs from what the JSON gives.",
+          "proof": "unit: one case per rule",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-7": {
+          "text": "The workflow uses it: `specs/workflow.md`, `/spec-new` (writes `spec`), `/spec-plan` (writes `plan`), `/spec-tasks` (writes `tasks`), `/spec-implement` (`start` → `done`, `block` when it needs the user), `/spec-verify`, `CLAUDE.md`, and the templates.",
+          "proof": "manual check",
+          "group": "Data: one JSON per feature",
+          "done": true
+        },
+        "AC-8": {
+          "text": "The dashboard is a React 19 + TypeScript app in `tools/roadmap-dashboard/` (Vite, the repo's existing packages, no new one), checked by `npm run typecheck` and `npm run lint`. `npm run roadmap` builds it and serves it on `http://localhost:5180` (`--port`, `--no-open` as before, `--dev` for hot reload while working on it), bound to `127.0.0.1`; a busy port gives a message and exit 1.",
+          "proof": "integration; typecheck",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-9": {
+          "text": "It looks like Chitthi: the app's graphite colours, the marigold highlight and the airmail stripe, Schibsted Grotesk headings, Geist text and Instrument Serif display type, light and dark from the system. The only host besides localhost is Google Fonts.",
+          "proof": "manual: screenshots; CSP",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-10": {
+          "text": "The roadmap page shows the **current phase** first (`currentPhase` in roadmap.json, else the first phase with an item in progress, else the first not finished): its goal, its progress and its items as cards (status, task progress, next task, what each waits on). The other phases follow below, folded, each with its progress. Also: totals, search and status filter (kept in the URL), the backlog, the \"Now\" panel from `memory/`, and any check problems.",
+          "proof": "manual + e2e script",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-11": {
+          "text": "A feature page shows a **kanban board** with the columns To do, In progress, Blocked and Done; each card shows id, text, flags, the criteria it covers, its files, and its blocked reason or done date. Dragging a card to another column, or choosing a column in the card's \"Move to\" menu (keyboard), changes the task's status through the same library as the CLI (blocking asks for a reason); the board shows the change within 1 s and the JSON and Markdown agree. Tabs **Spec** (criteria with the tasks that cover them, questions), **Plan** and **Documents** (the generated Markdown) complete the page; the URL names feature and tab.",
+          "proof": "e2e script",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-12": {
+          "text": "Changes from outside (CLI, hook, an editor) appear within 3 s without a reload, keeping the page, tab and scroll.",
+          "proof": "integration",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-13": {
+          "text": "The only write is `POST /api/features/<id>/tasks/<task>` with a JSON body `{ status, reason? }`; it is refused unless the request comes from the dashboard's own origin on localhost; the server writes nothing else and nothing outside `specs/`. Every other path is 404, every other method 405.",
+          "proof": "integration",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-14": {
+          "text": "Accessibility: every action works with the keyboard (moving cards included), focus is visible, status is text and not only colour, axe reports no serious or critical issue at 1280 and 360 px in light and dark, and there is no sideways scroll at 360 px.",
+          "proof": "scripted axe run, recorded in tasks.md",
+          "group": "Dashboard",
+          "done": true
+        },
+        "AC-15": {
+          "text": "Not shipped: nothing of `tools/` ends up in `dist/`, the desktop app or the Docker image; no npm package is added.",
+          "proof": "build; `package.json` diff",
+          "group": "Packaging and upkeep",
+          "done": true
+        },
+        "AC-16": {
+          "text": "Upgradeable: `tools/specs-index/` (data library, generators, CLI, hook) and `tools/roadmap-dashboard/` (server, React app) each have a README (layout, data model, API, how to add a field, a column or a tab); pure logic is unit-tested with small hand-written fixtures; a schema change bumps `schema`.",
+          "proof": "manual; unit",
+          "group": "Packaging and upkeep",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13",
+        "Q14"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Port and browser? _Answer (accepted 2026-10-09):_ port 5180; open the browser, `--no-open` skips.",
+          "open": false
+        },
+        "Q2": {
+          "text": "How does the page notice changes? _Answer (accepted 2026-10-09):_ it asks for a cheap version every 2 s.",
+          "open": false
+        },
+        "Q3": {
+          "text": "Read-only dashboard? _Answer (2026-10-09, revised):_ tasks can be moved between columns from the board; everything else stays read-only.",
+          "open": false
+        },
+        "Q4": {
+          "text": "\"Now\" panel from `memory/`? _Answer (accepted 2026-10-09):_ yes.",
+          "open": false
+        },
+        "Q5": {
+          "text": "Vision text for items with no spec? _Answer (accepted 2026-10-09):_ no.",
+          "open": false
+        },
+        "Q6": {
+          "text": "Git information? _Answer (2026-10-09):_ the JSON records each feature's branch and each task's commits; nothing runs `git` live.",
+          "open": false
+        },
+        "Q7": {
+          "text": "Command names? _Answer (accepted 2026-10-09):_ `npm run roadmap`; data: `npm run specs`, `specs:sync`, `specs:check`.",
+          "open": false
+        },
+        "Q8": {
+          "text": "Source of truth? _Answer (2026-10-09, revised):_ the JSON, for everything: spec, plan and tasks are written as JSON and the Markdown is generated (no import step).",
+          "open": false
+        },
+        "Q9": {
+          "text": "Layout? _Answer (2026-10-09):_ `specs/roadmap.json` plus `feature.json` per folder, `order` + `byId` collections.",
+          "open": false
+        },
+        "Q10": {
+          "text": "What else to link and track? _Answer (2026-10-09):_ task ↔ criterion links, dependencies between items, dates, branch and commits.",
+          "open": false
+        },
+        "Q11": {
+          "text": "Existing features? _Answer (2026-10-09):_ migrated; tests use small fixtures.",
+          "open": false
+        },
+        "Q12": {
+          "text": "Task states for the board? _Answer (2026-10-09):_ To do, In progress, Blocked (with a reason), Done.",
+          "open": false
+        },
+        "Q13": {
+          "text": "Fonts? _Answer (2026-10-09):_ as the app: Geist and Instrument Serif from Google Fonts, Schibsted Grotesk from the app's own file.",
+          "open": false
+        },
+        "Q14": {
+          "text": "Technology? _Answer (2026-10-09):_ React + TypeScript (maintainer's request).",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-09",
+        "text": "Created (maintainer's request: a localhost dashboard to track the roadmap and tasks, started by a script)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Q1–Q7 accepted; approved: Spec / Plan / Tasks tabs, own folder."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Reworked before any code: tracking data in JSON, no copied fixtures (Q8–Q11)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "`import` added at T015; implemented and verified (first version: Markdown as source, JSON for tracking, plain HTML page)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Reopened before commit at the maintainer's request (\"look very boring\", \"loop … is very long\"): JSON first for spec, plan and tasks with generated Markdown (Q8 revised), task lifecycle and a kanban board (Q12), dragging cards (Q3 revised), Chitthi theme (Q13), React + TypeScript (Q14). ACs rewritten (AC-1–AC-16)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "AC-10: the current phase can be named in roadmap.json (`currentPhase`): Baseline still has 001 in progress (deferred hardware checks), so the first phase in progress would be the wrong one."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: `npm run specs:check` under 1 s; `npm run roadmap` ready in under 5 s (it builds first); a card move\n  shows within 1 s.\n- Formatting: JSON written with two spaces and stable key order, so diffs stay small.\n- Security: server on `127.0.0.1`; Host and Origin checked on the write route; strict CSP (self, Google Fonts).\n- Compatibility: Node ≥ 22.18 for the tools (as `docs:specs`), current Chrome, Edge, Firefox; Windows and macOS.\n- Licences: no new library (Constitution VII)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Editing spec or plan prose from the dashboard: that is what the `/spec-*` commands do.\n- Live git data in the dashboard (branch and commits are what the JSON records).\n- Running tests or agents from the dashboard.\n- A roadmap-level board of features (the roadmap page shows statuses; the board is per feature)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-09, reworked spec: the maintainer asked to proceed after\nanswering Q12–Q14)",
+    "files": [
+      {
+        "file": "`specs/schema/feature.schema.json`, `specs/templates/feature-template.json`",
+        "change": "modify",
+        "purpose": "schema 2 (§1)"
+      },
+      {
+        "file": "`specs/features/*/feature.json`, `*.md`",
+        "change": "migrate, regenerate",
+        "purpose": "§5"
+      },
+      {
+        "file": "`tools/specs-index/lib/render/{spec,plan,tasks,roadmap}.mjs`",
+        "change": "new",
+        "purpose": "§2"
+      },
+      {
+        "file": "`tools/specs-index/lib/{sync,check,ops,store}.mjs`, `cli.mjs`",
+        "change": "modify",
+        "purpose": "§2, §3"
+      },
+      {
+        "file": "`tools/specs-index/lib/{markdown,parse-md}.mjs`, `roadmap-md.mjs`",
+        "change": "delete / move",
+        "purpose": "Markdown is output only"
+      },
+      {
+        "file": "`tools/specs-index/hook.mjs`, `.claude/settings.json`",
+        "change": "new",
+        "purpose": "§4b"
+      },
+      {
+        "file": "`tools/specs-index/test/**`",
+        "change": "modify",
+        "purpose": "v2 fixture, generators, ops, CLI, hook"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/{server.mjs,lib/*.mjs}`",
+        "change": "modify",
+        "purpose": "§6 server"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/**`",
+        "change": "new",
+        "purpose": "§6 React app"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/public/**`",
+        "change": "delete",
+        "purpose": "replaced by `app/`"
+      },
+      {
+        "file": "`tsconfig.json`, `eslint.config.js`, `.gitignore`, `package.json`",
+        "change": "modify",
+        "purpose": "§7, `.build/`, scripts"
+      },
+      {
+        "file": "`specs/workflow.md`, `.claude/commands/spec-*.md`, `CLAUDE.md`, READMEs, `specs/build.md`",
+        "change": "modify",
+        "purpose": "AC-7, AC-16"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Migration loses text:** the word check fails the migration until every word of the old documents is in the new JSON; the regenerated documents are read by hand for 202."
+      },
+      {
+        "text": "**Generated Markdown is less pleasant to read raw** (long lines): it is for GitHub and the dashboard; the JSON and the dashboard are where people work."
+      },
+      {
+        "text": "**Hook and server write the same files at once:** both write the same bytes, atomically (temp + rename)."
+      },
+      {
+        "text": "**A drag in the browser fails silently:** the menu does the same move and is tested with the keyboard."
+      },
+      {
+        "text": "**Vite build time on start:** measured; under 5 s or the server serves the previous build while building."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "spec reworked 2026-10-09 with Q12–Q14 answered"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "library and app logic tested first; `npm run check` per task"
+      },
+      {
+        "principle": "III. Simplicity and small dependencies",
+        "status": "✅",
+        "notes": "no new package; React, Vite, TypeScript are already the app's"
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "D-026 (JSON first, generated Markdown), progress, MEMORY"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "dev tooling"
+      },
+      {
+        "principle": "VI. On the device, no backend",
+        "status": "✅",
+        "notes": "local tooling only, not part of the app"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "nothing new; fonts are the app's (OFL)"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "one library for CLI, hook, check, sync and the dashboard's writes"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "n/a; local server with Host / Origin checks and CSP"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "app bundle untouched; AC-14"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "✅",
+        "notes": "`/spec-*` commands and the hook use the same CLI and library"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "**§1 One JSON per feature (schema 2).** `feature.json` gains `spec`, `plan` and `tasks` objects (shapes in Data\nStructures). Free prose stays Markdown inside string fields; everything a tool needs to read is data. Each document\nkeeps its layout as an ordered `sections` list: a section is either free Markdown or one of the structured kinds\n(`stories`, `criteria`, `questions`, `changelog`; `files`, `risks`, `constitution`), so any heading an author adds\nsurvives and the structured parts render from data. Task `done: boolean` becomes `status` with four values.\n\n**§2 Generators** (`tools/specs-index/lib/render/`): `spec.mjs`, `plan.mjs`, `tasks.mjs` (with the AC coverage table\nfrom `covers`) and the existing `roadmap.mjs`. Pure functions JSON → Markdown, deterministic, a generated note on line\none. `sync.mjs` writes every generated file whose content differs; `check.mjs` compares instead of writing.\n`lib/markdown.mjs` (tick editing) and `lib/parse-md.mjs` / `import` go: nothing reads Markdown any more.\n\n**§3 Operations and CLI.** `ops.mjs`: `setTaskStatus(feature, task, status, { reason, commits, result, date, today })`\n(start sets `startedOn`, done sets `doneOn`, blocked needs a reason, leaving blocked clears it), `setCriterion`,\n`setStatus` (feature + roadmap item + dates), `newFeature` (from `specs/templates/feature-template.json`, now with a\nspec skeleton). CLI commands: `new`, `status`, `start`, `block`, `done`, `undone`, `sync`, `check`; each writes the\nJSON and regenerates that feature's Markdown.\n\n**§4 No sync step.** (a) The CLI regenerates after each change. (b) `tools/specs-index/hook.mjs`, registered in\n`.claude/settings.json`: `PreToolUse` on Write / Edit / MultiEdit refuses a generated `.md` (exit 2, message names the\n`feature.json` to edit); `PostToolUse` on a `feature.json` or `roadmap.json` runs the sync and reports what it wrote.\n(c) The dashboard server checks the JSON files' stats every second and syncs when one changed (hand edits in an\neditor). The check in `npm run check` catches anything else.\n\n**§5 Migration (one-off, scratch).** Reads today's `spec.md` / `plan.md` / `tasks.md` and v1 `feature.json` (dates,\nresults, commits), writes schema 2. Then a word check: every word of each old document must occur in the new JSON\n(the reverse is not required: generated notes and tables add words). 202 T001 → `blocked`, reason from its Status\nnote.\n\n**§6 Dashboard.** `tools/roadmap-dashboard/`:\n\n- `server.mjs` + `lib/` (Node): `npm run roadmap` runs `vite build` of `app/` into `.build/` (git-ignored), then\n  serves `index.html` and `assets/*` from it with a strict CSP (`'self'` plus Google Fonts) and the API. `--dev` runs\n  Vite in middleware mode instead (hot reload, CSP relaxed for its inline preamble). The JSON watcher of §4c.\n- API: `GET /api/version`, `GET /api/project`, `GET /api/features/:id` (feature.json + coverage + the generated\n  documents), `POST /api/features/:id/tasks/:task` `{ status, reason? }`. The POST requires Host localhost, `Origin`\n  equal to the server's own origin, `Content-Type: application/json`, a body under 4 KB; it runs `setTaskStatus` and the\n  sync, then answers with the new feature.\n- `app/` (React 19 + TypeScript, Vite, no router library: hash routes). `src/lib/` holds the pure logic, unit-tested:\n  `roadmap.ts` (current phase, progress, waiting on), `board.ts` (columns, moves), `filter.ts`, `markdown.ts` (the\n  safe renderer, ported). `src/components/` holds the views: `RoadmapPage` (hero for the current phase, folded phases,\n  stats, filter, backlog, Now, problems), `FeaturePage` (header, tabs), `Board` (columns, cards, native drag and drop,\n  \"Move to\" menu, reason dialog), `SpecTab`, `PlanTab`, `DocsTab`. `src/api.ts`: typed fetch, polling hook.\n- Theme (`app/src/styles/`): the app's tokens copied (graphite oklch colours, `--r-*`, `--ease`, fonts), marigold\n  (`--stage-accent`) for the current phase and focus, the airmail stripe under the top bar; Schibsted Grotesk from\n  `src/assets/fonts/`, Geist / Instrument Serif / Geist Mono from Google Fonts as in the app.\n\n**§7 Typecheck and lint.** `tools/roadmap-dashboard/tsconfig.json` added to the root `tsconfig.json` references\n(strict, `react-jsx`, bundler resolution, no emit); ESLint's TypeScript + react-hooks block also covers\n`tools/**/*.{ts,tsx}`."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```jsonc\n{\n  \"schema\": 2, \"id\": \"202\", \"title\": \"…\", \"workItem\": \"P2.2\", \"status\": \"in-progress\", \"owner\": \"…\",\n  \"dates\": { \"created\": \"…\", \"approved\": \"…\", \"started\": \"…\", \"done\": null }, \"git\": { \"branch\": \"…\" },\n  \"spec\": {\n    \"phase\": \"2 — Multi-track timeline\", \"summary\": \"Markdown\",\n    \"stories\":   { \"order\": [\"US-1\"], \"byId\": { \"US-1\": { \"text\": \"…\" } } },\n    \"criteria\":  { \"order\": [\"AC-1\"], \"byId\": { \"AC-1\": { \"text\": \"…\", \"proof\": \"unit\", \"group\": \"Edit tools\", \"done\": false } } },\n    \"questions\": { \"order\": [\"Q1\"],   \"byId\": { \"Q1\": { \"text\": \"…\", \"open\": false } } },\n    \"changelog\": [{ \"date\": \"2026-10-07\", \"text\": \"Created.\" }],\n    \"sections\": [{ \"kind\": \"summary\", \"title\": \"Summary\" }, { \"kind\": \"markdown\", \"title\": \"Out of Scope\", \"markdown\": \"…\" }]\n  },\n  \"plan\": {\n    \"header\": \"**Spec:** `./spec.md` · **Status:** Approved (…)\",\n    \"files\": [{ \"path\": \"src/…\", \"change\": \"modify\", \"purpose\": \"…\" }],\n    \"risks\": [{ \"text\": \"…\" }],\n    \"constitution\": [{ \"principle\": \"I. Spec before code\", \"status\": \"✅\", \"notes\": \"…\" }],\n    \"sections\": [{ \"kind\": \"markdown\", \"title\": \"Approach\", \"markdown\": \"…\" }, { \"kind\": \"files\", \"title\": \"Files\" }]\n  },\n  \"tasks\": {\n    \"intro\": \"Markdown\",\n    \"sections\": [{ \"title\": \"Setup\", \"intro\": null }],\n    \"items\": { \"order\": [\"T001\"], \"byId\": { \"T001\": {\n      \"text\": \"…\", \"section\": \"Setup\", \"status\": \"blocked\", \"blockedReason\": \"…\", \"parallel\": false, \"manual\": true,\n      \"covers\": [\"AC-1\"], \"files\": [\"…\"], \"test\": \"…\", \"startedOn\": null, \"doneOn\": null, \"commits\": [], \"notes\": [\"Markdown\"] } } }\n  }\n}\n```\n\n```ts\n// app/src/lib/board.ts\ntype Column = 'todo' | 'in-progress' | 'blocked' | 'done';\ncolumns(feature): Record<Column, TaskCard[]>;  canMove(task, to): boolean;\n// app/src/lib/roadmap.ts\ncurrentPhase(roadmap, features): PhaseId | null;  phaseProgress(...): { done, total };  waitingOn(item): string[];\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- Generated Markdown is deterministic (no dates or times added); the check compares with LF line endings.\n- Hook input is Claude Code's JSON on stdin; exit 2 blocks a PreToolUse call and shows stderr to the agent.\n- Native HTML5 drag and drop (no library); the same move is offered by a menu button on each card for keyboard and\n  touch.\n- Optimistic move on the board, then the server's answer replaces the feature; a failed move rolls back and says why."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test file | Type |\n| --- | --- | --- |\n| AC-1 | `specs-index/test/schema.test.mjs` (v2 schema on the mini fixture; broken cases) | unit |\n| AC-2 | `specs-index/test/render.test.mjs` (each generator on the fixture, byte for byte; idempotent sync) | unit |\n| AC-3 | migration word check (scratch), recorded in tasks.md; `specs:check` on the repo | scripted |\n| AC-4 | `specs-index/test/hook.test.mjs` (Pre refuses a generated .md, Post syncs); `roadmap-dashboard/test/server.test.mjs` (hand edit → md regenerated) | unit + integration |\n| AC-5 | `specs-index/test/ops.test.mjs`, `cli.test.mjs` | unit + integration |\n| AC-6 | `specs-index/test/check.test.mjs` (one case per rule) | unit |\n| AC-7 | read the docs and commands | manual |\n| AC-8 | `npm run typecheck`, `npm run lint`; `server.test.mjs` (build, serve, busy port) | integration |\n| AC-9 | screenshots; CSP header test | manual + integration |\n| AC-10 | `app/src/lib/roadmap.test.ts`; browser script | unit + scripted |\n| AC-11 | `app/src/lib/board.test.ts`; `server.test.mjs` (POST moves a task, JSON and md agree); browser script (drag, menu) | unit + integration + scripted |\n| AC-12 | `server.test.mjs` (version changes after a CLI change) | integration |\n| AC-13 | `server.test.mjs` (wrong Origin, wrong type, other paths and methods) | integration |\n| AC-14 | browser script with axe at 1280 / 360, light / dark; keyboard moves | scripted |\n| AC-15 | `npm run build`; `package.json` diff | build |\n| AC-16 | READMEs; fixtures are hand-written | manual |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task. Each task lists files and the proving test.\nTest-first: each \"tests\" task must fail before its paired implementation makes it pass.\nWhen a task is done, tick it and add an indented **Result (YYYY-MM-DD):** note: what was done, numbers measured,\nanything surprising or deferred.",
+    "sections": [
+      {
+        "title": "First version (Markdown as source)",
+        "intro": null
+      },
+      {
+        "title": "Data: one JSON per feature",
+        "intro": null
+      },
+      {
+        "title": "Dashboard: React + TypeScript",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T012",
+        "T014",
+        "T020",
+        "T030",
+        "T100",
+        "T101",
+        "T102",
+        "T103",
+        "T104",
+        "T105",
+        "T110",
+        "T111",
+        "T112",
+        "T113",
+        "T114",
+        "T120",
+        "T121",
+        "T122"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Folders, wiring and the mini fixture.",
+          "section": "First version (Markdown as source)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "tools/**",
+            "package.json",
+            "eslint.config.js",
+            ".dockerignore"
+          ],
+          "test": "`npm run check` green",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** `tools/specs-index/` and `tools/roadmap-dashboard/`; npm scripts; lint blocks; `tools` in `.dockerignore`; hand-written mini fixture."
+          ]
+        },
+        "T010": {
+          "text": "Schema validator and schemas (tests first).",
+          "section": "First version (Markdown as source)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "tools/specs-index/lib/schema.mjs",
+            "specs/schema/*"
+          ],
+          "test": "`test/schema.test.mjs`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** validator for the JSON Schema subset the schemas use; green."
+          ]
+        },
+        "T012": {
+          "text": "Ticks, roadmap.md, sync and check (tests first).",
+          "section": "First version (Markdown as source)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "tools/specs-index/lib/*"
+          ],
+          "test": "`test/sync.test.mjs`, `test/check.test.mjs`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** 29 tests first, then the code; green."
+          ]
+        },
+        "T014": {
+          "text": "Ops and CLI, `import` (tests first).",
+          "section": "First version (Markdown as source)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "tools/specs-index/lib/ops.mjs",
+            "cli.mjs"
+          ],
+          "test": "`test/ops.test.mjs`, `test/cli.test.mjs`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** `new`, `import`, `status`, `done`; 54 tests."
+          ]
+        },
+        "T020": {
+          "text": "Backfill roadmap.json and 6 feature.json files.",
+          "section": "First version (Markdown as source)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "specs/**"
+          ],
+          "test": "`npm run specs:check`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** 25 items, 6 features; roadmap.md generated; nothing lost."
+          ]
+        },
+        "T030": {
+          "text": "Plain HTML dashboard with tests, checked with axe.",
+          "section": "First version (Markdown as source)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "tools/roadmap-dashboard/**"
+          ],
+          "test": "`test/*.test.mjs`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** 79 tool tests; axe 0 serious at 1280 / 360. Replaced by the rework below at the maintainer's request."
+          ]
+        },
+        "T100": {
+          "text": "Failing tests: schema 2 on a v2 mini fixture (AC-1), the three generators byte for byte and sync idempotence (AC-2), every check rule on v2 (AC-6).",
+          "section": "Data: one JSON per feature",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-6"
+          ],
+          "files": [
+            "tools/specs-index/test/fixtures/mini/**",
+            "test/schema.test.mjs",
+            "test/render.test.mjs",
+            "test/check.test.mjs"
+          ],
+          "test": "fails",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** v2 mini fixture written by hand (JSON only); tests for schema 2 (oneOf, groupIntros), the three generators byte for byte, sync (idempotent, CRLF kept, stale generated files removed, hand-written ones left) and 18 check rules; failed first (modules missing)."
+          ]
+        },
+        "T101": {
+          "text": "Schema 2, template, `lib/render/*`, `sync.mjs`, `check.mjs`, `store.mjs`; delete `markdown.mjs`, `parse-md.mjs`.",
+          "section": "Data: one JSON per feature",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-6"
+          ],
+          "files": [
+            "those"
+          ],
+          "test": "T100",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** schema 2, `lib/render/feature.mjs` + `render/roadmap.mjs`, sync and check rewritten; `markdown.mjs`, `parse-md.mjs` and `import` deleted (nothing reads Markdown any more). 35 tests green on the first run."
+          ]
+        },
+        "T102": {
+          "text": "Failing tests: `setTaskStatus`, `setCriterion`, `setStatus`, `newFeature` (AC-5); CLI `start`, `block`, `done`, `undone`, `new`, `status` (AC-5); hook Pre / Post (AC-4).",
+          "section": "Data: one JSON per feature",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-5"
+          ],
+          "files": [
+            "test/ops.test.mjs",
+            "test/cli.test.mjs",
+            "test/hook.test.mjs"
+          ],
+          "test": "fails",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** tests for setTaskStatus / setCriterion / setStatus / newFeature, the CLI (start, block, done, undone, status, new) and the hook (Pre refuses generated files, Post regenerates or reports problems, bad input passes); failed first."
+          ]
+        },
+        "T103": {
+          "text": "`ops.mjs`, `cli.mjs`, `hook.mjs`, `.claude/settings.json`.",
+          "section": "Data: one JSON per feature",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-5"
+          ],
+          "files": [
+            "those"
+          ],
+          "test": "T102",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** `ops.mjs`, `cli.mjs`, `hook.mjs`; 56 tests green."
+          ]
+        },
+        "T104": {
+          "text": "Migration (§5): scratch script, word check, 202 T001 blocked; regenerate all Markdown; `npm run check`.",
+          "section": "Data: one JSON per feature",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "specs/features/*/feature.json",
+            "*.md"
+          ],
+          "test": "word check passes, `npm run specs:check`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** scratch migration of the 6 features: word check (every word of the old spec, plan and tasks, HTML comments aside, is in the regenerated Markdown): 0 lost after adding `spec.groupIntros` (000 and 001 have a paragraph under some criteria groups). Counts unchanged (202: 13 criteria, 21 tasks / 11 done; 201: 12 / 12, 21 / 21; 401: 7 / 7, 6 / 6). 202 AC-11's range T012–T015 expanded. 202 T001 is blocked (manual checks). All Markdown regenerated."
+          ]
+        },
+        "T105": {
+          "text": "Workflow (AC-7): `specs/workflow.md`, `/spec-new`, `/spec-plan`, `/spec-tasks`, `/spec-implement`, `/spec-verify`, `CLAUDE.md`, templates.",
+          "section": "Data: one JSON per feature",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7"
+          ],
+          "files": [
+            "those"
+          ],
+          "test": "manual read",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** `/spec-new` (writes `spec` in feature.json), `/spec-plan` (`plan`), `/spec-tasks` (`tasks`), `/spec-implement` (start → done / block), `/spec-verify`; `specs/workflow.md` \"One JSON per feature\" and stages 1–4; `CLAUDE.md`. The hook was checked live: an Edit of `specs/roadmap.md` in this session was refused with the message naming `specs/roadmap.json`."
+          ]
+        },
+        "T110": {
+          "text": "App skeleton: `app/` (Vite, React 19, TypeScript), tsconfig reference, lint block, `.gitignore`; server builds and serves it, `--dev`.",
+          "section": "Dashboard: React + TypeScript",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/**",
+            "tsconfig.json",
+            "eslint.config.js",
+            ".gitignore"
+          ],
+          "test": "`npm run typecheck`, `npm run lint`",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** `app/` (Vite, React 19, TypeScript; the repo's own packages), `tsconfig.json` in the root references (`types: []` as the root does), lint block, `.build/` git-ignored, `vite-env.d.ts`; the server builds the app on start (0.12–0.2 s) or runs Vite middleware with `--dev`."
+          ]
+        },
+        "T111": {
+          "text": "Failing tests: `lib/roadmap.ts`, `lib/board.ts`, `lib/filter.ts`, `lib/markdown.ts` (AC-10, AC-11); server: build and serve, API v2, POST move with Origin rules, JSON watcher (AC-4, AC-8, AC-12, AC-13).",
+          "section": "Dashboard: React + TypeScript",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-8",
+            "AC-10",
+            "AC-11",
+            "AC-12",
+            "AC-13"
+          ],
+          "files": [
+            "app/src/lib/*.test.ts",
+            "test/server.test.mjs"
+          ],
+          "test": "fails",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** 15 app-lib tests (roadmap, board, filter, Markdown) and server / project tests (built page and CSP, API v2, POST move with Origin / type / size rules, JSON watcher, busy port) written first; failed."
+          ]
+        },
+        "T112": {
+          "text": "Implement the libs and the server until T111 passes.",
+          "section": "Dashboard: React + TypeScript",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-8",
+            "AC-10",
+            "AC-11",
+            "AC-12",
+            "AC-13"
+          ],
+          "files": [
+            "those"
+          ],
+          "test": "T111",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** libs and server green (90 tool tests). Two test expectations corrected: `/assets/../index.html` is normalised by fetch, not a traversal."
+          ]
+        },
+        "T113": {
+          "text": "Theme (AC-9) and the roadmap page (AC-10).",
+          "section": "Dashboard: React + TypeScript",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-10"
+          ],
+          "files": [
+            "app/src/styles/*",
+            "app/src/components/Roadmap*"
+          ],
+          "test": "browser check",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** theme from the app's tokens and design.md (Graphite, marigold only on the stage, airmail stripe, Schibsted / Geist / Instrument Serif); roadmap page: current phase on the dark stage (`currentPhase` added to roadmap.json: Baseline still has 001 in progress), stats strip, status chips, folded phases, Now, backlog."
+          ]
+        },
+        "T114": {
+          "text": "Feature page: board with drag and drop, \"Move to\" menu, reason dialog; Spec, Plan, Documents tabs (AC-11).",
+          "section": "Dashboard: React + TypeScript",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "app/src/components/*"
+          ],
+          "test": "browser check",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** feature page: header with ring and counts, tabs Board / Spec / Plan / Documents; board with native drag and drop, Move menu (Escape returns focus), reason dialog (Enter saves). Found in the browser: dragover arrived before React state, so the dragged card is held in a ref; Enter in the reason textarea added a line instead of saving."
+          ]
+        },
+        "T120": {
+          "text": "Browser script: axe at 1280 / 360 light / dark on the roadmap and 202's tabs, drag and keyboard moves, no console errors (AC-11, AC-14).",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11",
+            "AC-14"
+          ],
+          "files": [
+            "scratch"
+          ],
+          "test": "0 serious / critical",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** scratch Playwright + axe run on the real repo and on a temp copy for moves: 7 views at 1280 light and 360 dark: axe 0 serious / critical, 0 px sideways. Drag T030 → In progress and keyboard Move T031 → Blocked with a reason: board, feature.json and tasks.md agree. Console: two real errors fixed (Google Fonts needed in connect-src; a 404 asking for a feature with no folder); the remaining inline-style CSP report comes from axe's own injected script (confirmed: none without axe). Playwright's one-call dragAndDrop doesn't start a native drag here; real mouse steps do."
+          ]
+        },
+        "T121": {
+          "text": "Docs (AC-16): both READMEs, `specs/build.md`, `specs/architecture.md`.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-16"
+          ],
+          "files": [
+            "those"
+          ],
+          "test": "manual read",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** both READMEs rewritten (data, no-sync design, commands, layout, routes, security, upgrading), `specs/build.md`, `specs/architecture.md`."
+          ]
+        },
+        "T122": {
+          "text": "Gates: `npm run check`, `npm run build`, `npm run check:licenses`; ACs, status, memory.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "feature.json",
+            "memory/*"
+          ],
+          "test": "the gates",
+          "startedOn": "2026-10-09",
+          "doneOn": "2026-10-09",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-09):** `npm run check` green (0 lint errors, specs:check valid, 1080 tests), `npm run build` (entry 327 KB of 350, nothing of tools/ in dist/), `npm run check:licenses` green; package.json: scripts only. Not run: test:e2e, npm test, test:mcp (no app code changed)."
+          ]
+        }
+      }
+    }
+  }
+}

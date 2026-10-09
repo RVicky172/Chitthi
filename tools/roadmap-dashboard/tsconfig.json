@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.roadmap.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["app/src", "app/vite.config.ts"]
+}

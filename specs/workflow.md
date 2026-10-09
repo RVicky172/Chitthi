@@ -18,22 +18,49 @@ Commit messages and the CHANGELOG may name both: `feat(201): track model (P2.1)`
 
 Folder name: `NNN-kebab-name` (e.g. `012-user-login`).
 
+## One JSON per feature
+
+A feature is written as data from the start (feature 404, D-026). `specs/features/NNN-name/feature.json` holds the
+**spec** (summary, user stories, criteria, questions, other sections, changelog), the **plan** (sections, files,
+risks, constitution check) and the **tasks** (each with a status: `todo`, `in-progress`, `blocked`, `done`; its
+files, test, the criteria it `covers`, dates, commits and notes). `specs/roadmap.json` holds the phases, items,
+statuses, dependencies (`needs`) and backlog. Shapes: `specs/schema/*.schema.json` (editors complete and check them);
+collections are `{ "order": [ids], "byId": { … } }`.
+
+`spec.md`, `plan.md`, `tasks.md` and `roadmap.md` are **generated** from the JSON and never edited. Nobody runs a
+sync step: the CLI regenerates after each change, a Claude Code hook regenerates after any edit to a JSON file (and
+refuses edits to the generated Markdown), and `npm run roadmap` does the same for hand edits while it runs.
+`npm run check` fails if a generated file is out of date or the JSON is invalid.
+
+| Command | Does |
+| --- | --- |
+| `npm run specs -- new NNN <name> "<title>"` | folder, `feature.json` with a spec skeleton, roadmap item 📝 |
+| `npm run specs -- status NNN <status>` | `draft`, `approved`, `in-progress`, `implemented`, `superseded`: roadmap status and dates follow |
+| `npm run specs -- start NNN Txxx` | task in progress |
+| `npm run specs -- block NNN Txxx --reason "…"` | task waits for someone |
+| `npm run specs -- done NNN Txxx --result "…" [--commit <hash>]` | task done (or `AC-n` proven) |
+| `npm run specs -- undone NNN Txxx` | task back to do (or `AC-n` unticked) |
+| `npm run specs:check` | part of `npm run check` |
+| `npm run roadmap` | the dashboard on http://localhost:5180: roadmap, and a kanban board per feature |
+
 ## Stage 1 — Specify (`spec.md`)
 
-Copy `templates/spec-template.md`. Describe **what** and **why**, never **how**:
+`npm run specs -- new`, then write the `spec` part of `feature.json` (headings as in `templates/spec-template.md`).
+Describe **what** and **why**, never **how**:
 user stories, acceptance criteria (testable, numbered `AC-1…`, each naming the test type that proves it),
-out-of-scope, open questions. Set `Status: Draft`. A human reviews and changes it to `Status: Approved`.
+out-of-scope, open questions. Set `Status: Draft`. A human reviews and approves it:
+`npm run specs -- status NNN approved`.
 **Gate:** no `[NEEDS CLARIFICATION]` markers remain; every AC is testable.
 
 ## Stage 2 — Plan (`plan.md`)
 
-Copy `templates/plan-template.md`. Describe **how**: files touched, interfaces, techniques, risks, a test for every
+Write the `plan` part of `feature.json` (headings as in `templates/plan-template.md`). Describe **how**: files touched, interfaces, techniques, risks, a test for every
 AC, and a **Constitution check** (each principle: ✅ / ⚠️ with justification). A human approves it.
 **Gate:** constitution check passes; no new dependency without a `tech-stack.md` update.
 
 ## Stage 3 — Tasks (`tasks.md`)
 
-Copy `templates/tasks-template.md`. Break the plan into small ordered tasks (≤ ~1 hour each), each naming the files
+Write the `tasks` part of `feature.json` (wording as in `templates/tasks-template.md`). Break the plan into small ordered tasks (≤ ~1 hour each), each naming the files
 it touches and the test that proves it. Tests are written **before or with** the code they cover. Mark tasks that
 can run in parallel with `[P]`. Every AC is covered by at least one task (AC coverage table).
 
@@ -44,8 +71,9 @@ Work one task at a time. After each task:
 1. Run `npm run check` (and that area's e2e tests, `npx playwright test e2e/<file>.e2e.ts`, if the change affects
    UI or integration; never the full suite, which runs once in Stage 5, D-007; `npm test` if it renders,
    exports or touches an agent tool; `npm run test:mcp` if it touches IPC or the MCP server). Fix until green.
-2. Tick the task in `tasks.md` and add a short dated **Result** note under it: what was done, what was measured,
-   anything surprising. These notes are the evidence Stage 5 checks.
+2. Finish the task with `npm run specs -- done NNN Txxx --result "**Result (date):** …"` (what was done, what was
+   measured, anything surprising); `start` it when you begin, `block` it with a reason when it needs someone. These
+   notes are the evidence Stage 5 checks.
 3. Record decisions in `memory/decisions.md` and gotchas in `memory/learnings.md` as they happen.
 
 For an important test, prove it can fail: break the code briefly, see the test fail, restore.
@@ -55,8 +83,9 @@ For an important test, prove it can fail: break the code briefly, see the test f
 Run every gate in the Definition of Done (`constitution.md`): `npm run check`, `npm run test:e2e`, `npm run build`,
 `npm test`, `npm run test:mcp`, `npm run check:licenses`. Then:
 
-- Check each AC against its test or measurement; tick only the proven ones. Set `Status: Implemented`.
-- Update `roadmap.md`, add a `memory/progress.md` entry, refresh "Current State" in `memory/MEMORY.md`.
+- Check each AC against its test or measurement; tick only the proven ones (`npm run specs -- done NNN AC-n`).
+  Then `npm run specs -- status NNN implemented` (spec, roadmap and dates follow).
+- Add a `memory/progress.md` entry, refresh "Current State" in `memory/MEMORY.md`.
 - Report honestly anything that failed, was flaky, or was skipped.
 
 ## Vision documents and plans spanning releases

@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 001 — Phase 1 gate and 2.10.0 release · Implementation Plan
 
 **Spec:** `./spec.md` · **Status:** Approved (2026-10-06, D1–D3 as recommended) <!-- Draft | Approved -->
@@ -133,14 +135,11 @@ jobs: { ci: { uses: ./.github/workflows/ci.yml }, build: { needs: ci, … }, rel
 
 ## Risks & Mitigations
 
-- **The Intel LibRaw build fails on current Xcode** (never run for real). → Spike at the start of §4; if it fails,
-  fix the configure flags in `fetch-libraw.mjs` (allowed: same LibRaw source, same licence terms).
+- **The Intel LibRaw build fails on current Xcode** (never run for real). → Spike at the start of §4; if it fails, fix the configure flags in `fetch-libraw.mjs` (allowed: same LibRaw source, same licence terms).
 - **The gate fails on the laptop.** → Stop and report (Q8); the script makes before/after comparisons cheap.
-- **Synthetic input isn't like a hand.** → Moves every 16 ms are as dense as a 60 Hz mouse; a hand check with the
-  performance monitor during one run confirms the order of magnitude.
+- **Synthetic input isn't like a hand.** → Moves every 16 ms are as dense as a 60 Hz mouse; a hand check with the performance monitor during one run confirms the order of magnitude.
 - **`npm audit fix` changes the build output.** → Full gates plus `desktop:pack` and a smoke run after it.
-- **CI first runs at the tag** (D-006), so a CI-only problem (Docker, Windows runner) appears at release time. →
-  `workflow_dispatch` of the release workflow before tagging gives a dry run with no release (**decision D2**).
+- **CI first runs at the tag** (D-006), so a CI-only problem (Docker, Windows runner) appears at release time. → `workflow_dispatch` of the release workflow before tagging gives a dry run with no release (**decision D2**).
 - **No Mac available** → the macOS ACs can't pass; release needs the maintainer's explicit OK for Windows-only (Q3).
 - **A published release is broken.** → `specs/release.md` "When a release goes wrong" (draft the release, ship X.Y.Z+1).
 

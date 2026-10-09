@@ -11,14 +11,42 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-09 — 404 reworked: JSON-first features, kanban board, React dashboard (D-026)
+
+**Done:** At the maintainer's request (before committing 404): `feature.json` schema 2 holds spec, plan and tasks;
+spec / plan / tasks / roadmap Markdown generated from it; task lifecycle (to do, in progress, blocked, done); CLI
+`start` / `block` / `done` / `undone`; Claude Code hook (refuses edits to generated Markdown, regenerates after JSON
+edits); 6 features migrated with a word check (0 words lost; 202 T001 blocked). Dashboard rebuilt as React +
+TypeScript in the Chitthi look: current phase on the dark stage, other phases folded, kanban board per feature with
+drag and drop and a keyboard "Move" menu. Gates green (1080 tests); axe 0 serious at 1280 / 360, light / dark.
+**Next:** commit 404 (and the factory removal) when the maintainer says so; then 202 (T001 is blocked on the manual
+checks; next to do: T030).
+**Blockers:** none.
+
+---
+
+## 2026-10-09 — 404 roadmap data (JSON) and dashboard
+
+**Done:** 404 spec reworked at the maintainer's request (JSON as the tracking source, D-025), plan and tasks, built:
+`tools/specs-index/` (schemas, validator, check, sync, CLI with `new` / `import` / `status` / `done`) and
+`tools/roadmap-dashboard/` (`npm run roadmap`). Backfill: `roadmap.json` (25 items, dependencies) and 6
+`feature.json` files from the Markdown; `roadmap.md` now generated (+ Needs column). `specs:check` runs in
+`npm run check`. 79 tool tests; dashboard checked with axe at 1280 / 360 px, light and dark: 0 serious or critical.
+**Next:** commit 404 on its branch and merge it; then 202 T001 / T030 with `/spec-implement 202`.
+**Blockers:** none.
+
+---
+
 ## 2026-10-09 — chore: software factory removed (D-024)
 
 **Done:** At the maintainer's request, the software factory (402, 403) was removed from `main`: factory scripts,
 agents, hooks, settings, `/factory`, `/release`, `/spec-batch`, the 402 spec and `specs/software-factory.md`.
 Constitution, workflow, `CLAUDE.md`, `/spec-*` commands and engineering docs went back to their state before 402
 (test-first; D-023 reverted). Branches `feat/402-software-factory` and `feat/403-live-dashboard` deleted (local and
-`origin`), factory stashes dropped; `main` merged into `feat/202-edit-operations`.
-**Next:** 202 T030 with `/spec-implement 202`.
+`origin`), factory stashes dropped. Then `feat/202-edit-operations` was reset to `main` and force-pushed (its UI
+commits `f271e1b`–`0bb6014` discarded at the maintainer's request; T030–T033 open again). Drafted
+`404-roadmap-dashboard` spec (localhost roadmap dashboard, `npm run roadmap`) on `feat/404-roadmap-dashboard`.
+**Next:** answer 404's Q1–Q7 and approve its spec; 202 T030 with `/spec-implement 202`.
 **Blockers:** none.
 
 ---

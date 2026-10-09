@@ -1,0 +1,452 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "401",
+  "title": "AI models on this device: see and delete downloaded models",
+  "workItem": null,
+  "status": "implemented",
+  "owner": "RVicky172",
+  "dates": {
+    "created": "2026-10-07",
+    "approved": "2026-10-07",
+    "started": "2026-10-07",
+    "done": "2026-10-07"
+  },
+  "git": {
+    "branch": null
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "Finding the sky in a photo (AI masks, P1.8) downloads the skyseg model once, 176 MB, into the origin's private file\nsystem (OPFS; in the desktop app, inside its data folder). Today nothing in the app shows that it is there or lets the\nuser remove it: the only way is clearing the whole site's data, which also erases designs, the photo library and\npresets. `src/ai/segment/index.ts` already has `forgetModel()`, but nothing calls it. This feature adds a small **AI\nmodels on this device** section to Settings that lists each downloadable model, shows whether it is on the device and\nhow big it is, and deletes it with one button. A deleted model is simply downloaded again, after asking, the next time\nit is needed.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a browser user, I want to see which AI models this app has downloaded and how much space they take, so that I know where my storage went."
+        },
+        "US-2": {
+          "text": "As a user short on space, I want to delete a downloaded model without losing my designs or photos, so that I can free 176 MB and get it back later if I need it."
+        },
+        "US-3": {
+          "text": "As a keyboard or screen reader user, I want the same section reachable and understandable without a mouse."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "Settings › AI has a section **AI models on this device** listing every model that is downloaded rather than bundled (today: the sky model), each with its name, its size (\"176 MB\") and its state: \"On this device\" or \"Not downloaded\". Bundled models (the subject model, 4.6 MB) are listed as \"Part of the app\" with no button.",
+          "proof": "e2e",
+          "group": null,
+          "done": true
+        },
+        "AC-2": {
+          "text": "A downloaded model has a **Delete** button. Pressing it removes the file from the device (`modelOnDevice('sky')` is false afterwards, also after a reload) and the row changes to \"Not downloaded\" with a polite status message (\"The sky model was deleted: 176 MB freed.\"). No other stored data changes: designs, the library and presets are all still there.",
+          "proof": "e2e on web; self-test in the desktop app",
+          "group": null,
+          "done": true
+        },
+        "AC-3": {
+          "text": "After a delete, the next sky mask asks to download again (the existing prompt and button in the mask panel) and works after the download.",
+          "proof": "e2e with the download mocked, or self-test",
+          "group": null,
+          "done": true
+        },
+        "AC-4": {
+          "text": "A delete while a model is in use (a sky search running) waits for it to finish or is refused with a message; it never breaks the running search.",
+          "proof": "unit or e2e",
+          "group": null,
+          "done": true
+        },
+        "AC-5": {
+          "text": "Where the browser has no private file system (the model only lives in memory for the session), the row says so (\"Kept for this session only\") and Delete forgets it from memory.",
+          "proof": "unit",
+          "group": null,
+          "done": true
+        },
+        "AC-6": {
+          "text": "Keyboard and screen reader: the buttons have names that include the model (\"Delete the sky model\"), the state is text (not colour only), axe reports no serious or critical issue, and 360 px wide has no sideways scroll.",
+          "proof": "e2e + axe",
+          "group": null,
+          "done": true
+        },
+        "AC-7": {
+          "text": "Docs: `docs/AI.md` (where models are kept and how to delete them) and the in-app docs say where the model lives (browser private storage / the desktop app's data folder) and that it can be deleted here; `CHANGELOG.md` Unreleased.",
+          "proof": "manual check",
+          "group": null,
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Ask \"Delete the sky model (176 MB)? It is downloaded again when you next find a sky.\" before deleting, or delete at once? _Proposed:_ delete at once with the status message; it is easy to get back and costs nothing but a download. _Answer (accepted 2026-10-07):_ delete at once with the status message.",
+          "open": false
+        },
+        "Q2": {
+          "text": "Should Delete also unload the model from the running worker, so it is truly gone from memory until the next download? _Proposed:_ yes: terminate the segmentation worker if it holds the model (`sent` set), so \"deleted\" means deleted in this session too. _Answer (accepted 2026-10-07):_ yes, the segmentation worker is ended when it holds the model.",
+          "open": false
+        },
+        "Q3": {
+          "text": "Constitution XI (agents use the same code): add a `delete_ai_model` agent tool now? _Proposed:_ no; listing and deleting local files isn't a creative task, and the gap is recorded here. _Answer (accepted 2026-10-07):_ no agent tool; the gap is recorded here.",
+          "open": false
+        },
+        "Q4": {
+          "text": "Also show the total storage the site uses (`navigator.storage.estimate()`), with the model's share? _Proposed:_ no, only the models; the estimate includes things this section can't delete. _Answer (accepted 2026-10-07):_ no, only the models.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-07",
+        "text": "Created (maintainer's request while working on 202)."
+      },
+      {
+        "date": "2026-10-07",
+        "text": "Q1–Q4 accepted as proposed and the feature approved by the maintainer (\"yes add this option\"); plan and tasks written with no open decisions; In Progress."
+      },
+      {
+        "date": "2026-10-07",
+        "text": "Implemented (all ACs; AC-3 checked to the download prompt, the download itself is P1.8's)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: opening Settings doesn't load the AI code into the entry chunk (`check-bundle.mjs` still passes): the\n  section reads the state through a dynamic `import()` of `ai/segment` or a small storage helper outside it.\n- Privacy: nothing is sent anywhere; the section only reads and deletes local files.\n- Compatibility: web (Chrome, Edge, Firefox, Safari) and the desktop app alike."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Deleting other stored data (designs, library, fonts cache): that stays with the browser's own controls.\n- An agent (MCP) tool to delete models (see Q3).\n- Showing the file's path on disk: browsers keep OPFS under internal names, so there is no path a user could open."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-07, with the spec: no open decisions) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/ai/segment/models.ts`",
+        "change": "modify",
+        "purpose": "`ModelState`, `modelRow()`"
+      },
+      {
+        "file": "`src/ai/segment/index.ts`",
+        "change": "modify",
+        "purpose": "`modelState()`, `deleteModel()` (replaces `forgetModel`), `busy` count"
+      },
+      {
+        "file": "`src/ai/segment/segment.test.ts`",
+        "change": "modify",
+        "purpose": "unit tests §3"
+      },
+      {
+        "file": "`src/components/ai/AiSettings.tsx`",
+        "change": "modify",
+        "purpose": "the section (§2)"
+      },
+      {
+        "file": "`e2e/instagram.e2e.ts`",
+        "change": "modify",
+        "purpose": "AC-1–AC-3, AC-6"
+      },
+      {
+        "file": "`docs/AI.md`, `src/data/docs.ts`, `CHANGELOG.md`",
+        "change": "modify",
+        "purpose": "AC-7"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**A 176 MB fixture in e2e.** → `createWritable()` + `truncate(bytes)` makes a sparse file without writing data; `storedFile` checks only the size."
+      },
+      {
+        "text": "**Ending the worker mid-search.** → Delete is refused while any search runs (AC-4), so the worker is idle."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Approved 2026-10-07"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "Unit first, then e2e"
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "None"
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "progress / MEMORY at the end"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Same on web and desktop"
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "Only local files"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "Nothing new"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "Not about rendering"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No IPC; OPFS works the same in Electron"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "Lazy `import()`; named buttons, status region, axe, 360 px"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "⚠️",
+        "notes": "No agent tool (Q3), recorded"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "**§1 The model's state and its deletion (`src/ai/segment/`).** `models.ts` gets a pure `modelRow(state)` that\ngives a row's status text and whether it can be deleted (unit-tested, AC-1, AC-5). `index.ts` gets\n`modelState(target)` (`'bundled' | 'stored' | 'session' | 'none'`: bundled, a full-size file in OPFS `models/`, only\nin memory, or absent) and `deleteModel(target)`, which replaces the unused `forgetModel`. It returns null, or why it\nrefused: a bundled model, or a search running (a `busy` count around `run()`, which covers the download too: AC-4).\nOtherwise it drops the in-memory copy, removes `models/<id>.onnx` from OPFS and, if the worker holds the model\n(`sent`), ends the worker (Q2); the next search starts a new one.\n\n**§2 The Settings section (`components/ai/AiSettings.tsx`).** A `<details>` **AI models on this device**, like\n\"Keys and services\": one row per model in `SEG_MODELS` with its title, size (`sizeText`), status from `modelRow`, and\nfor a deletable model a **Delete** button named \"Delete the sky model\". `ai/segment` is loaded with `import()` when the\nsection opens, so neither the entry chunk nor Settings' first paint carries it. A polite `role=\"status\"` line reports\n\"The sky model was deleted: 176 MB freed.\" or the refusal.\n\n**§3 Proof.** Unit (`segment.test.ts`): `modelRow` for every state; `modelState` / `deleteModel` with stubbed OPFS,\n`fetch`, `Worker` and canvas (vitest runs in Node): stored → deleted → none; refused while a search runs; the worker\nended when it held the model. e2e (`instagram.e2e.ts`, desktop project): a 176 MB file of the right size is put into\nOPFS (a sparse file through `truncate`, no download), Settings shows \"On this device\", Delete frees it, the row says\n\"Not downloaded\" after a reload too, a `localStorage` value and the photo studio's state are untouched, and the next\nsky mask shows the download prompt again; axe and 360 px."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// models.ts\nexport type ModelState = 'bundled' | 'stored' | 'session' | 'none';\nexport function modelRow(state: ModelState): { status: string; canDelete: boolean };\n// index.ts\nexport async function modelState(target: AiTarget): Promise<ModelState>;\nexport async function deleteModel(target: AiTarget): Promise<string | null>; // null = deleted\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `modelRow` table; e2e rows and states | unit + e2e |\n| AC-2 | unit stored → none; e2e Delete, message, reload, other data kept | unit + e2e |\n| AC-3 | e2e: the sky mask asks to download again after a delete (the download itself is P1.8's, unchanged) | e2e |\n| AC-4 | unit: refused while a search runs | unit |\n| AC-5 | `modelRow('session')`; unit: no OPFS + memory → deletable | unit |\n| AC-6 | e2e button names, axe, 360 px | e2e |\n| AC-7 | docs reviewed | manual |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task. Each task lists files and the proving test.\nTest-first: each \"tests\" task must fail before its paired implementation makes it pass.\nWhen a task is done, tick it and add an indented **Result (YYYY-MM-DD):** note: what was done, numbers measured,\nanything surprising or deferred.",
+    "sections": [
+      {
+        "title": "Tests first",
+        "intro": null
+      },
+      {
+        "title": "Core",
+        "intro": null
+      },
+      {
+        "title": "UI",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T020",
+        "T030",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing unit tests: `modelRow` for each state; `modelState` / `deleteModel` with stubbed OPFS, `fetch`, `Worker` and canvas (stored → deleted → none; bundled refused; refused while a search runs; the worker ended when it held the model).",
+          "section": "Tests first",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-4",
+            "AC-5"
+          ],
+          "files": [
+            "src/ai/segment/segment.test.ts"
+          ],
+          "test": "fails",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": []
+        },
+        "T020": {
+          "text": "`modelRow`, `modelState`, `deleteModel` (replacing `forgetModel`), the `busy` count.",
+          "section": "Core",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-4",
+            "AC-5"
+          ],
+          "files": [
+            "src/ai/segment/models.ts",
+            "src/ai/segment/index.ts"
+          ],
+          "test": "T010",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result T010 + T020 (2026-10-07):** 6 tests first (all failed: functions missing), then `modelRow(state)` in\n`models.ts` (the plan's `m` argument dropped: the text depends on the state only) and `modelState` /\n`deleteModel` in `index.ts` (`forgetModel`, never called, removed); `run()` counts searches in `busy`, downloads\nincluded. The tests stub OPFS, canvas, `Worker` and `fetch` (Vitest runs in Node). `npm run check` 971.\nBreak-tests: no busy guard → 1 failed; no worker shutdown → 1 failed; restored."
+          ]
+        },
+        "T030": {
+          "text": "The Settings section with rows, Delete buttons and the status line; e2e in `instagram.e2e.ts` (sparse 176 MB OPFS file, Delete, reload, other data kept, sky mask asks again, axe, 360 px).",
+          "section": "UI",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-6"
+          ],
+          "files": [
+            "src/components/ai/AiSettings.tsx",
+            "e2e/instagram.e2e.ts"
+          ],
+          "test": "the new e2e test",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** `ModelsOnDevice` in `AiSettings.tsx` (a `<details>` like \"Keys and services\"; the\nsegmenter loaded with `import()` when it opens), rows with title, size, status and \"Delete the sky model\", a\npolite status line; `.aimodels` styles. e2e (desktop, and phone at 360 px): a sparse 176 MB `skyseg.onnx` put into\nOPFS shows \"On this device\"; Delete → \"The sky model was deleted: 176 MB freed.\", \"Not downloaded\", the file gone,\na `localStorage` value kept; still gone after a reload; the next sky mask shows \"Download the sky model\"; axe\nclean; no sideways scroll. 2 passed; `instagram.e2e.ts` 31 passed / 1 skipped. Entry chunk 327 KB (unchanged).\nAC-3's \"works after the download\" is P1.8's unchanged download path (not repeated: it needs the real 176 MB file)."
+          ]
+        },
+        "T090": {
+          "text": "Docs (AC-7): `docs/AI.md`, `src/data/docs.ts`, `CHANGELOG.md` Unreleased.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7"
+          ],
+          "files": [],
+          "test": null,
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** `docs/AI.md` (where the model lives: OPFS `models/skyseg.onnx`, the desktop app's data\nfolder; no folder to open; the Settings section), the in-app docs' AI-masks paragraph, CHANGELOG Added. Docs e2e\n4 passed."
+          ]
+        },
+        "T091": {
+          "text": "Definition-of-Done gates (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`).",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** `check` 971 (0 lint errors, the 5 known warnings); `build` entry 327 KB of 350;\n`check:licenses` 168 packages; `test:e2e` 76 passed / 10 skipped (phone runs of desktop-only tests) / 0 failed /\n0 flaky; `npm test` 6,124 / 0 (timing 11.0 ms / 2.69 s fastest); `test:mcp` passed. The working tree also held\n202's engine work (T010–T018), so these runs cover it too."
+          ]
+        },
+        "T092": {
+          "text": "Tick ACs in `spec.md` (Status `Implemented`), roadmap 401 → ✔️, `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": []
+        }
+      }
+    }
+  }
+}

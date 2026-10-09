@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 202 — Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2) · Implementation Plan
 
 **Spec:** `./spec.md` · **Status:** Approved (2026-10-07, D1–D4 as recommended) <!-- Draft | Approved -->
@@ -165,19 +167,11 @@ export function deleteGap(at: number): string | null;
 
 ## Risks & Mitigations
 
-- **Changing `videoAt` / `framePlan` breaks "nothing changes" (201 AC-3).** → The 201 equivalence tests and the
-  self-test's 200-frame pixel check run unchanged; they cover packed tracks, which Magnetic on guarantees.
-- **The drag code in `Timeline.tsx` grows four ways.** → Gestures call one pure operation each; the component only
-  maps pointer deltas to seconds (snap, Alt) and picks the operation by tool. The existing drag e2e tests run after
-  each UI task.
-- **Undo consistency with Magnetic** (undoing a gap-close while Magnetic is on would show gaps on a magnetic track).
-  → `magnetic` lives in the snapshots (D1).
-- **Keyboard conflicts** (letters typed into fields; Alt + arrows in browsers / Electron menus). → Keys only with
-  the timeline focused (today's `typingIn` guard); spike: check Alt + ← doesn't navigate back in Chrome or trigger
-  the Electron menu on Windows when the timeline has focus (`preventDefault` on keydown) before building on it.
-- **Live-preview of `moveTo` while dragging with Magnetic off** (the clip jumps to a free spot mid-drag). → During
-  the drag the block follows the pointer (as reorder does with `dx`); the operation runs on release, with the drop
-  spot shown (a marker).
+- **Changing `videoAt` / `framePlan` breaks "nothing changes" (201 AC-3).** → The 201 equivalence tests and the self-test's 200-frame pixel check run unchanged; they cover packed tracks, which Magnetic on guarantees.
+- **The drag code in `Timeline.tsx` grows four ways.** → Gestures call one pure operation each; the component only maps pointer deltas to seconds (snap, Alt) and picks the operation by tool. The existing drag e2e tests run after each UI task.
+- **Undo consistency with Magnetic** (undoing a gap-close while Magnetic is on would show gaps on a magnetic track). → `magnetic` lives in the snapshots (D1).
+- **Keyboard conflicts** (letters typed into fields; Alt + arrows in browsers / Electron menus). → Keys only with the timeline focused (today's `typingIn` guard); spike: check Alt + ← doesn't navigate back in Chrome or trigger the Electron menu on Windows when the timeline has focus (`preventDefault` on keydown) before building on it.
+- **Live-preview of `moveTo` while dragging with Magnetic off** (the clip jumps to a free spot mid-drag). → During the drag the block follows the pointer (as reorder does with `dx`); the operation runs on release, with the drop spot shown (a marker).
 
 ## Constitution Check
 

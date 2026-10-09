@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 201 — Track model and migration (P2.1) · Tasks
 
 **Plan:** `./plan.md`
@@ -8,26 +10,19 @@ anything surprising or deferred.
 
 ## Setup: baseline and reference, against the unchanged code
 
-- [x] **T001** — Spike: in the self-test, make a 2 s 320 × 240 video clip from a canvas with Mediabunny
-      (`CanvasSource`, in memory) and load it as a `VClip`-like fixture; decide whether the pixel checks can use video
-      clips (plan, Risks). · files: `src/dev/selftest.ts` (scratch section, kept if it works) · test: the clip decodes
-      to frames in Electron, or the fallback (photo-only pixel fixtures) is recorded
+- [x] **T001** — Spike: in the self-test, make a 2 s 320 × 240 video clip from a canvas with Mediabunny (`CanvasSource`, in memory) and load it as a `VClip`-like fixture; decide whether the pixel checks can use video clips (plan, Risks). · files: `src/dev/selftest.ts` (scratch section, kept if it works) · test: the clip decodes to frames in Electron, or the fallback (photo-only pixel fixtures) is recorded
   - **Result (2026-10-06):** works. New dev-only module `src/dev/videoChecks.ts` (called at the end of the self-test's
     `run()`): `makeTestClip()` encodes a 2 s 320 × 240 H.264 MP4 at 30 fps in memory with Mediabunny (each frame one
     flat colour whose red rises and blue falls with time, so a decoded frame tells its time); `decodedColours()`
     decodes frames the way the export does (`CanvasSink.canvasesAtTimestamps`). In Electron: 18 KB made in 817 ms,
     colours at 0, 0.5, 1, 1.5, 1.95 s within ±8 levels. 2 new checks (6,117 passed, 0 failed). **Video clips can be
     used in the pixel fixtures**; no fallback needed.
-- [x] **T002** — Self-test "video" section, timing only (AC-5 baseline): a 60-clip 1080p fixture (photos, 0.5 s each,
-      plus video clips if T001 allows); preview frame time at 60 times (median) and export to memory (seconds), median
-      of 3. Run on the **unchanged** code; record the numbers here. · files: `src/dev/selftest.ts` · test: `npm test`
-      prints the timing line
+- [x] **T002** — Self-test "video" section, timing only (AC-5 baseline): a 60-clip 1080p fixture (photos, 0.5 s each, plus video clips if T001 allows); preview frame time at 60 times (median) and export to memory (seconds), median of 3. Run on the **unchanged** code; record the numbers here. · files: `src/dev/selftest.ts` · test: `npm test` prints the timing line
   - **Result (2026-10-06):** `videoTiming()` in `src/dev/videoChecks.ts`: 60 clips (0.4 s generated 1600 × 1067 JPEG
     photos with zoom-in, every tenth a 0.4 s cut of T001's test clip, some fades), 24 s at 1920 × 1080, GPU opened as
     the app does (WebGPU here). Preview = the editor's path (`clipAt(timeline())` then `renderFrame`, read back) at
     300 times per run (60 at first: too few); export = `encodeVideo` to memory. 3 runs each. **Baseline on the
     unchanged 2.x code, 5 self-test sessions** (Core Ultra 9 285K, NVIDIA Blackwell):
-
     | Session | Preview runs (ms) | Export runs (s) |
     | --- | --- | --- |
     | 1 (60 samples) | 10.9, 10.3, 10.3 | 2.76, 2.84, 2.79 |
@@ -35,19 +30,13 @@ anything surprising or deferred.
     | 3 | 10.4, 11.8, 15.1 | 2.77, 2.75, 2.80 |
     | 4 | 10.1, 12.4, 14.9 | 2.76, 2.69, 2.79 |
     | 5 | 10.9, 14.9, 14.9 | 2.80, 2.64, 2.64 |
-
     **Surprise:** later runs in one session are often slower (10 → 15 ms), so a median of 3 swings ~45% between
     sessions; the fastest run is steady (10.1–11.4 ms; export 2.64–2.76 s). The check now prints median and fastest.
     **T041's bar:** fastest run ≤ the slowest baseline session's fastest + 5%: preview ≤ 12.0 ms, export ≤ 2.90 s
     (spec AC-5 says "median of 3": needs the maintainer's OK, see report). The video clips' preview source here is a
     blank 320 × 240 canvas (the app draws from a `<video>` element): the timing is dominated by `renderFrame`, which
     201 doesn't change. Self-test 6,117 passed, 0 failed (~100 s, +15 s for the export runs).
-- [x] **T003** [P] — Frozen reference: copy the 2.x `timeline`, `clipAt`, `totalLength`, the export loop's frame list
-      (per clip `[f0, f1)`, local times) and `openAudio`'s source list into `src/engine/timeline.reference.ts` (test-only,
-      a header saying never edit). Fixture builders for every 2.x shape (empty; photo-only; video-only; mixed; music +
-      offset; timed layers; fade-out; 20 / 60 / 500 clips; edge lengths 0.1 s and limit-long). · files:
-      `src/engine/timeline.reference.ts`, `src/engine/timeline.fixtures.ts` · test: a sanity test that the reference
-      equals today's `engine/video.ts` functions on every fixture (passes now)
+- [x] **T003** [P] — Frozen reference: copy the 2.x `timeline`, `clipAt`, `totalLength`, the export loop's frame list (per clip `[f0, f1)`, local times) and `openAudio`'s source list into `src/engine/timeline.reference.ts` (test-only, a header saying never edit). Fixture builders for every 2.x shape (empty; photo-only; video-only; mixed; music + offset; timed layers; fade-out; 20 / 60 / 500 clips; edge lengths 0.1 s and limit-long). · files: `src/engine/timeline.reference.ts`, `src/engine/timeline.fixtures.ts` · test: a sanity test that the reference equals today's `engine/video.ts` functions on every fixture (passes now)
   - **Result (2026-10-06):** one file instead of two, `src/engine/timeline.testkit.ts` (reference + fixtures; new
     suffix `*.testkit.ts` excluded from the library build in `tsconfig.lib.json`, like `*.test.ts`). Reference:
     `legacyClipLength`, `legacyTimeline`, `legacyTotal`, `legacyClipAt`, `legacyFrameRange`, `legacyFramePlan` (the
@@ -63,14 +52,8 @@ anything surprising or deferred.
 
 ## Tests first: the model
 
-- [x] **T010** — Failing tests for §1 (`src/engine/timeline.test.ts`): `pack` gives the reference starts to 1 ms;
-      `projectLength`; `videoAt` equals `legacyClipAt` (clip and local time) at every boundary ± 1 µs and 1,000 seeded
-      random times incl. < 0 and past the end; `framePlan` equals the reference frame list at 30 and 60 fps; `audioPlan`
-      equals the reference sources; hidden `V1` → `videoAt` null and frames with no clip; muted `A1` → no music source;
-      `TRACK_LIMITS`. · files: `src/engine/timeline.test.ts` · test: fails (module missing)
-- [x] **T011** — Implement §1 in `src/engine/timeline.ts` until T010 passes. Break-test: change `pack`'s rounding, see
-      the equivalence fail, restore. · files: `src/engine/timeline.ts` · test: T010 (AC-1, AC-2 partly, AC-3 unit, AC-9
-      unit)
+- [x] **T010** — Failing tests for §1 (`src/engine/timeline.test.ts`): `pack` gives the reference starts to 1 ms; `projectLength`; `videoAt` equals `legacyClipAt` (clip and local time) at every boundary ± 1 µs and 1,000 seeded random times incl. < 0 and past the end; `framePlan` equals the reference frame list at 30 and 60 fps; `audioPlan` equals the reference sources; hidden `V1` → `videoAt` null and frames with no clip; muted `A1` → no music source; `TRACK_LIMITS`. · files: `src/engine/timeline.test.ts` · test: fails (module missing)
+- [x] **T011** — Implement §1 in `src/engine/timeline.ts` until T010 passes. Break-test: change `pack`'s rounding, see the equivalence fail, restore. · files: `src/engine/timeline.ts` · test: T010 (AC-1, AC-2 partly, AC-3 unit, AC-9 unit)
   - **Result T010 + T011 (2026-10-06):** `timeline.test.ts` written first (failed: module missing), then
     `src/engine/timeline.ts`: `Track`, `TrackKind`, `MAIN_VIDEO` / `MUSIC`, `defaultTracks()`, `TRACK_LIMITS`,
     `TimedClip`, `AudioClip` (music: `in` = offset, `toEnd`, `srcDur`), `Project`, `pack`, `projectLength`,
@@ -83,11 +66,8 @@ anything surprising or deferred.
 
 ## Tests first: document and validators
 
-- [x] **T012** [P] — Failing tests for `mergeLayers` (`src/engine/layers.test.ts`): every kind round-trips; wrong
-      types, NaN, huge sizes, unknown kinds, bad colours, too many strokes / points, non-`data:image/` image sources,
-      masks through `mergeMasks`; `start` / `end` clamped and ordered. · files: `src/engine/layers.test.ts` · test: fails
-- [x] **T013** — Implement `mergeLayers()` in `src/engine/layers.ts` (D3) until T012 passes. · files:
-      `src/engine/layers.ts` · test: T012
+- [x] **T012** [P] — Failing tests for `mergeLayers` (`src/engine/layers.test.ts`): every kind round-trips; wrong types, NaN, huge sizes, unknown kinds, bad colours, too many strokes / points, non-`data:image/` image sources, masks through `mergeMasks`; `start` / `end` clamped and ordered. · files: `src/engine/layers.test.ts` · test: fails
+- [x] **T013** — Implement `mergeLayers()` in `src/engine/layers.ts` (D3) until T012 passes. · files: `src/engine/layers.ts` · test: T012
   - **Result T012 + T013 (2026-10-06):** 8 tests written first (failed: not a function). `mergeLayers(raw, images)` +
     `LAYER_LIMITS` (100 layers, 2,000 characters, 400 strokes, 8,000 points, as mask strokes) in
     `src/engine/layers.ts`; `mergePart` exported from `masks.ts` and reused for layer masks, which keep only linear and
@@ -99,14 +79,8 @@ anything surprising or deferred.
     project's media ids) has it, not "only `data:image/` sources" as the plan said. Break-test: removing the
     `images.has` check failed "image layers need a picture the project has", restored. One test bug fixed
     (`toMatchObject({ start: undefined })` needs the key present). `layers.test.ts` 25 tests; `npm run check` 819.
-- [x] **T014** — Failing tests for §2: `fromSequence` (AC-2: back-to-back starts, the music clip with offset, volume,
-      `toEnd`, an empty `A1` without music, layers unchanged); `toDocument` → JSON → `mergeProject` round trips for
-      every fixture (AC-7); v1 → clip times equal the reference placement; ≥ 30 malformed documents (AC-6: `null`,
-      strings, arrays, NaN / Infinity, negative and huge times, `in ≥ out`, `out > srcDur`, unknown track, missing
-      media, duplicate ids, 600 clips, 20 tracks, bad `edit`, bad layers, unknown version) → valid project, reasons in
-      `dropped`, never throws. · files: `src/engine/timeline.test.ts` · test: fails
-- [x] **T015** — Implement §2 (`toDocument`, `fromSequence`, `mergeProject`) until T014 passes. · files:
-      `src/engine/timeline.ts` · test: T014 (AC-6, AC-7)
+- [x] **T014** — Failing tests for §2: `fromSequence` (AC-2: back-to-back starts, the music clip with offset, volume, `toEnd`, an empty `A1` without music, layers unchanged); `toDocument` → JSON → `mergeProject` round trips for every fixture (AC-7); v1 → clip times equal the reference placement; ≥ 30 malformed documents (AC-6: `null`, strings, arrays, NaN / Infinity, negative and huge times, `in ≥ out`, `out > srcDur`, unknown track, missing media, duplicate ids, 600 clips, 20 tracks, bad `edit`, bad layers, unknown version) → valid project, reasons in `dropped`, never throws. · files: `src/engine/timeline.test.ts` · test: fails
+- [x] **T015** — Implement §2 (`toDocument`, `fromSequence`, `mergeProject`) until T014 passes. · files: `src/engine/timeline.ts` · test: T014 (AC-6, AC-7)
   - **Result T014 + T015 (2026-10-06):** 61 tests written first (60 failed: functions missing). In
     `src/engine/timeline.ts`: `DocMedia` (id, kind photo / video / audio / image, name, type, size, pixel size,
     source length: described, never embedded), `DocClip`, `DocAudio`, `ProjectDoc` (a `Project` plus version 1,
@@ -126,9 +100,7 @@ anything surprising or deferred.
 
 ## Core: store and export
 
-- [x] **T020** — Store (§3): `tracks`, clips with `track` / `start`, music on `A1`, `pack` in `change()`, `total()`
-      from `projectLength`, undo snapshots with `tracks`; no UI change yet (positions equal by construction). · files:
-      `src/state/video.ts` · test: `npm run check`; the three video e2e tests pass unchanged
+- [x] **T020** — Store (§3): `tracks`, clips with `track` / `start`, music on `A1`, `pack` in `change()`, `total()` from `projectLength`, undo snapshots with `tracks`; no UI change yet (positions equal by construction). · files: `src/state/video.ts` · test: `npm run check`; the three video e2e tests pass unchanged
   - **Result (2026-10-07):** `VState.tracks` (`defaultTracks()`), `VClip.track` / `start` (new clips on `V1`, start
     0 until packed), `VMusic.track` = `A1`; `change()` packs any changed clips (the one place `pack` runs); `total()`
     and every length check in the store (`restore`, `change`, `addMedia`, `updateClip`, `duplicateClip`) read
@@ -136,10 +108,7 @@ anything surprising or deferred.
     the store; components and export still use the 2.x functions until T022 / T023 (same numbers: `pack` sums as 2.x
     did). `npm run check` 880 tests; the 5 video e2e tests (Reel, timeline edits, YouTube, a11y, Reel with a look)
     pass unchanged. No break-test here: nothing reads `start` yet; T022's export (`framePlan`) and T040 will.
-- [x] **T021** — Track actions and lock guards (§3): `setTrack` (hidden / muted / locked, undoable),
-      `setTrackHeight` (`trackView`, not undoable, PURE), every clip action and `addMedia` / music changes refuse on a
-      locked track with a reason. Unit-test the pure guard helper. · files: `src/state/video.ts`,
-      `src/engine/timeline.ts` (+ test) · test: unit + `npm run check`
+- [x] **T021** — Track actions and lock guards (§3): `setTrack` (hidden / muted / locked, undoable), `setTrackHeight` (`trackView`, not undoable, PURE), every clip action and `addMedia` / music changes refuse on a locked track with a reason. Unit-test the pure guard helper. · files: `src/state/video.ts`, `src/engine/timeline.ts` (+ test) · test: unit + `npm run check`
   - **Result (2026-10-07):** 3 tests written first (failed: not a function), then in `timeline.ts`
     `patchTrack(tracks, id, patch)` (Hide only on picture tracks, Mute only on sound tracks, Lock on both; the same
     array back when nothing changes) and `lockedReason(tracks, id)` ("The Video track is locked. Unlock it to change
@@ -151,9 +120,7 @@ anything surprising or deferred.
     `updateMusic`, `removeMusic`; `addMedia` / `setMusicFile` return the reason as their message. Layers aren't on
     tracks (Q2), so not guarded. Break-test: Hide allowed on a sound track → 1 test failed, restored. `npm run check`
     883 tests; video e2e 5 passed.
-- [x] **T022** — Export (§4): `videoExport.ts` frame loop over `framePlan`, hidden frames with `src = null`, sound via
-      `audioPlan`; `exportVideo` builds the job from the project. · files: `src/engine/videoExport.ts`,
-      `src/state/video.ts` · test: T010's plan tests; `npm run test:e2e` (Reel and YouTube exports)
+- [x] **T022** — Export (§4): `videoExport.ts` frame loop over `framePlan`, hidden frames with `src = null`, sound via `audioPlan`; `exportVideo` builds the job from the project. · files: `src/engine/videoExport.ts`, `src/state/video.ts` · test: T010's plan tests; `npm run test:e2e` (Reel and YouTube exports)
   - **Result (2026-10-07):** test first: the self-test's export job (`videoTiming`) moved to the new shape (tracks,
     clips with `id` / `track` / `start`, `audio`), which failed to typecheck against the 2.x `ExportJob`. Then
     `ExportJob extends Project<ExportClip>` with `audio: ExportAudio[]` (sound clips with their files; `music` field
@@ -164,11 +131,7 @@ anything surprising or deferred.
     sound clip, as `fromSequence` makes it). `npm run check` 883; video e2e 5 passed; `npm test` 6,117 passed, 0
     failed, export fastest 2.78 s (T041 bar ≤ 2.90 s). Break-test: music left out of the file lookup → the Reel e2e
     failed (no `mp4a` track), restored → passed.
-- [x] **T023** — Remove the old placement callers: `timeline()` / `clipAt()` / `totalLength()` uses in the
-      components and `videoExport.ts` move to `timeline.ts`; `engine/video.ts` keeps formats, motion, `renderFrame`;
-      update `layers.test.ts`'s "video timeline" tests to the new functions (the reference keeps the old ones). ·
-      files: `src/engine/video.ts`, `src/components/studio/*.tsx`, `src/engine/layers.test.ts` · test: `npm run check`,
-      e2e
+- [x] **T023** — Remove the old placement callers: `timeline()` / `clipAt()` / `totalLength()` uses in the components and `videoExport.ts` move to `timeline.ts`; `engine/video.ts` keeps formats, motion, `renderFrame`; update `layers.test.ts`'s "video timeline" tests to the new functions (the reference keeps the old ones). · files: `src/engine/video.ts`, `src/components/studio/*.tsx`, `src/engine/layers.test.ts` · test: `npm run check`, e2e
   - **Result (2026-10-07):** `timeline()`, `clipAt()`, `totalLength()` and `Placed` removed from `engine/video.ts`;
     no caller left outside the frozen reference. Store: `projectOf(s)` (the state as a `Project`, music via
     `musicClips`) and `videoLength(s)` (a selector); `total()` reads it. `Timeline.tsx` places blocks from
@@ -185,11 +148,7 @@ anything surprising or deferred.
 
 ## UI
 
-- [x] **T030** — Tests first: new e2e test in `e2e/editors.e2e.ts`: the Video and Music headers are groups with
-      Hide / Mute, Lock and Height buttons (by role and name); keyboard only; Hide → preview black with layers; Mute →
-      music muted; Lock → drag, trim, Delete, S, Ctrl+D refused with the message; undo / redo of hide, mute, lock;
-      height Small / Medium / Large changes the row and survives undo; axe; Pixel 7 project. · files:
-      `e2e/editors.e2e.ts` · test: fails
+- [x] **T030** — Tests first: new e2e test in `e2e/editors.e2e.ts`: the Video and Music headers are groups with Hide / Mute, Lock and Height buttons (by role and name); keyboard only; Hide → preview black with layers; Mute → music muted; Lock → drag, trim, Delete, S, Ctrl+D refused with the message; undo / redo of hide, mute, lock; height Small / Medium / Large changes the row and survives undo; axe; Pixel 7 project. · files: `e2e/editors.e2e.ts` · test: fails
   - **Result (2026-10-07):** new `describe('video track headers')` in `e2e/editors.e2e.ts`, 4 tests (2 also on the
     phone project; the drag / playback ones desktop only). Names fixed here for T031: groups "Video track" / "Music
     track"; toggle buttons "Hide Video", "Lock Video", "Mute Music", "Lock Music" (`aria-pressed`); menu buttons
@@ -202,10 +161,7 @@ anything surprising or deferred.
     visible and no sideways scroll. All 6 runs fail on the missing header (setup steps pass). **Not in the code:**
     there is no Ctrl+D or Alt+arrow in the video editor (AC-4 and this task name them), so the lock test uses the
     Duplicate button; adding the shortcuts is out of 201's scope (flagged for the verify step).
-- [x] **T031** — Track headers in `Timeline.tsx` (buttons, height menu with arrow keys / Home / End / Escape, icons
-      from lucide-react, labels for screen readers, icons-only ≤ 600 px) and styles (three heights, lock badge, header
-      controls) in `styles/36-media-studio.css`. · files: `src/components/studio/Timeline.tsx`,
-      `src/styles/36-media-studio.css` · test: T030 header parts
+- [x] **T031** — Track headers in `Timeline.tsx` (buttons, height menu with arrow keys / Home / End / Escape, icons from lucide-react, labels for screen readers, icons-only ≤ 600 px) and styles (three heights, lock badge, header controls) in `styles/36-media-studio.css`. · files: `src/components/studio/Timeline.tsx`, `src/styles/36-media-studio.css` · test: T030 header parts
   - **Result (2026-10-07):** `TrackHead` and `HeightMenu` in `Timeline.tsx`: the header column's Video and Music
     cells (were `aria-hidden` labels) are `role="group"` "Video track" / "Music track" with the name (hidden at
     Small) above three 24 px icon buttons: Hide / Mute and Lock (`aria-pressed`, `setTrack`), and the height menu
@@ -221,10 +177,7 @@ anything surprising or deferred.
     header test and the axe / 360 px test pass on desktop and phone; Hide / Mute / Lock behaviour tests still fail
     (T032). Existing video e2e 6 passed; `npm run check` 883. Break-test: Escape ignored in the menu → the header
     test failed, restored → passed.
-- [x] **T032** — Behaviour: preview via `videoAt` (hidden → black + layers), music `<audio>` muted with `A1`, clip
-      sound kept when `V1` hidden (D2), locked clips not selectable / draggable, keyboard shortcuts refused with a
-      toast, read-only inspector. · files: `src/components/studio/VideoWorkspace.tsx`, `Timeline.tsx` · test: T030
-      passes; all e2e (AC-4, AC-8, AC-10, AC-11)
+- [x] **T032** — Behaviour: preview via `videoAt` (hidden → black + layers), music `<audio>` muted with `A1`, clip sound kept when `V1` hidden (D2), locked clips not selectable / draggable, keyboard shortcuts refused with a toast, read-only inspector. · files: `src/components/studio/VideoWorkspace.tsx`, `Timeline.tsx` · test: T030 passes; all e2e (AC-4, AC-8, AC-10, AC-11)
   - **Result (2026-10-07):** preview (`VideoStage`): with no clip from `videoAt` (video track hidden) it draws
     `NO_PICTURE` at `t`, black with the layers and the fade-out, as the export does; redraws when tracks change.
     The `<video>` sync finds the clip as if the track were shown, so a hidden track's clips keep their sound (D2).
@@ -242,10 +195,7 @@ anything surprising or deferred.
 
 ## Self-test
 
-- [x] **T040** — Self-test video section (§5): for the fixtures at 9:16, 4:5, 1:1, 16:9 (with layers, fade-out,
-      music), 10 sample times each, the frame through the reference path and through `videoAt` on Canvas 2D:
-      pixel-identical; hidden `V1` → black + layers. Break-test: shift one clip's start by a frame, see it fail,
-      restore. · files: `src/dev/selftest.ts` · test: `npm test` (AC-3, AC-9)
+- [x] **T040** — Self-test video section (§5): for the fixtures at 9:16, 4:5, 1:1, 16:9 (with layers, fade-out, music), 10 sample times each, the frame through the reference path and through `videoAt` on Canvas 2D: pixel-identical; hidden `V1` → black + layers. Break-test: shift one clip's start by a frame, see it fail, restore. · files: `src/dev/selftest.ts` · test: `npm test` (AC-3, AC-9)
   - **Result (2026-10-07):** `trackChecks()` in `src/dev/videoChecks.ts` (7 checks). Pixel identity: 5 2.x shapes
     (photo-only with a fade, mixed photos and videos, music with an offset, timed layers, no fade-out) at 9:16, 4:5,
     1:1 and 16:9, 10 times each (the cuts, just before them, and evenly through): the frame drawn through the frozen
@@ -255,8 +205,7 @@ anything surprising or deferred.
     muted → no AAC track and no sound sources, unmuted → AAC. `decodedColours` takes a point now. Break-test: one
     clip's start shifted by a frame in the model path → **4 checks failed** (every ratio, up to 388,800 bytes
     differing), restored. `npm test` 6,124 passed, 0 failed.
-- [x] **T041** — Timing after the change (AC-5): T002's check on the new code, 3 runs; within 5% of T002's numbers
-      (median). · test: `npm test` timing line vs T002
+- [x] **T041** — Timing after the change (AC-5): T002's check on the new code, 3 runs; within 5% of T002's numbers (median). · test: `npm test` timing line vs T002
   - **Result (2026-10-07):** T002's check on the new code, fastest of 3 runs, in five self-test sessions after
     the change (bar: preview ≤ 12.0 ms, export ≤ 2.90 s, the slowest 2.x session's fastest + 5%): T023 10.5 ms /
     2.76 s; T032 10.9 / 2.66; T040 11.0 / 2.73; verification 10.6 / 2.64. All within the bar (2.x: 10.1–11.4 ms,
@@ -264,41 +213,37 @@ anything surprising or deferred.
 
 ## Verify
 
-- [x] **T090** — Docs (AC-12): `docs/MEDIA-STUDIO.md` (tracks and headers, Hide vs Mute, lock, heights),
-      `specs/lld.md` (module map: `timeline.ts`, `mergeLayers`; the video state), `specs/architecture.md` if a block
-      changes, `CHANGELOG.md` Unreleased; `src/data/docs.ts` (in-app docs) for the headers. · test: link check
+- [x] **T090** — Docs (AC-12): `docs/MEDIA-STUDIO.md` (tracks and headers, Hide vs Mute, lock, heights), `specs/lld.md` (module map: `timeline.ts`, `mergeLayers`; the video state), `specs/architecture.md` if a block changes, `CHANGELOG.md` Unreleased; `src/data/docs.ts` (in-app docs) for the headers. · test: link check
   - **Result (2026-10-07):** `docs/MEDIA-STUDIO.md`: new "Tracks" section (Hide vs Mute, Lock, heights, undo,
     keyboard; the track model and `mergeProject` behind it), the "How it works" rows (`timeline.ts`, state) and the
     tests paragraph (unit, e2e, self-test). `specs/lld.md`: module map (`timeline.ts`; `video.ts`, `videoExport.ts`,
     `state/video.ts` lines) and new §4.9 "Video project as tracks". `CHANGELOG.md` Unreleased: Added (track
     headers), Changed (tracks under the hood, Music row 64 px). `src/data/docs.ts` (in-app docs): the timeline
     section lists the headers. `specs/architecture.md` has no video block: unchanged. No links added.
-- [x] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`,
-      `check:licenses`); entry chunk unchanged (timeline code is in the studio chunk); record the numbers.
+- [x] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged (timeline code is in the studio chunk); record the numbers.
   - **Result (2026-10-07):** every gate green in one run: `npm run check` (883 tests, 0 lint errors, the 5 known
     warnings), `npm run build` (entry **327 KB**, unchanged; timeline code in the studio chunk), `npm run
     check:licenses` (168 packages, nothing new), `npm run test:e2e` (**74 passed, 10 skipped, 0 failed, 0 flaky**;
     the skips are phone runs of desktop-only tests: 7 from before plus the two header tests that drag and play and
     the new end-to-end test in the existing video `describe`), `npm test` (**6,124 passed, 0 failed**; timing 10.6
     ms / 2.64 s), `npm run test:mcp` (passed). Agent tool gate: none, by spec Q7 (timeline tools in `212`).
-- [x] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 201 → ✔️, `editor-implementation.md` P2.1 →
-      Done, `memory/progress.md`, `memory/MEMORY.md` (next: `202`).
+- [x] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 201 → ✔️, `editor-implementation.md` P2.1 → Done, `memory/progress.md`, `memory/MEMORY.md` (next: `202`).
   - **Result (2026-10-07):** all 12 ACs ticked in `spec.md` (Status `Implemented`); roadmap 201 ✔️;
     `editor-implementation.md` P2.1 → Done; `memory/progress.md`, `memory/MEMORY.md` (next: `202`).
 
 ## AC coverage
 
-| AC    | Tasks                    |
-| ----- | ------------------------ |
-| AC-1  | T010, T011               |
-| AC-2  | T014, T015, T010, T011   |
-| AC-3  | T003, T010, T011, T040   |
-| AC-4  | T020, T022, T023, T032   |
-| AC-5  | T002, T041               |
-| AC-6  | T012, T013, T014, T015   |
-| AC-7  | T014, T015               |
-| AC-8  | T030, T031, T032         |
-| AC-9  | T010, T011, T022, T040   |
-| AC-10 | T021, T030, T032         |
-| AC-11 | T021, T030, T032         |
-| AC-12 | T090                     |
+| AC | Tasks |
+| --- | --- |
+| AC-1 | T010, T011 |
+| AC-2 | T010, T011, T014, T015 |
+| AC-3 | T003, T010, T011, T040 |
+| AC-4 | T020, T022, T023, T032 |
+| AC-5 | T002, T041 |
+| AC-6 | T012, T013, T014, T015 |
+| AC-7 | T014, T015 |
+| AC-8 | T030, T031, T032 |
+| AC-9 | T010, T011, T022, T040 |
+| AC-10 | T021, T030, T032 |
+| AC-11 | T021, T030, T032 |
+| AC-12 | T090 |

@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 401 — AI models on this device: see and delete downloaded models · Implementation Plan
 
 **Spec:** `./spec.md` · **Status:** Approved (2026-10-07, with the spec: no open decisions) <!-- Draft | Approved -->
@@ -61,8 +63,7 @@ export async function deleteModel(target: AiTarget): Promise<string | null>; // 
 
 ## Risks & Mitigations
 
-- **A 176 MB fixture in e2e.** → `createWritable()` + `truncate(bytes)` makes a sparse file without writing data;
-  `storedFile` checks only the size.
+- **A 176 MB fixture in e2e.** → `createWritable()` + `truncate(bytes)` makes a sparse file without writing data; `storedFile` checks only the size.
 - **Ending the worker mid-search.** → Delete is refused while any search runs (AC-4), so the worker is idle.
 
 ## Constitution Check

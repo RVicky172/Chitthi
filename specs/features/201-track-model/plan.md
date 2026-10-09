@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 201 — Track model and migration (P2.1) · Implementation Plan
 
 **Spec:** `./spec.md` · **Status:** Approved (2026-10-06, D1–D3 as recommended) <!-- Draft | Approved -->
@@ -163,18 +165,11 @@ export function mergeLayers(raw: unknown): Layer[];
 
 ## Risks & Mitigations
 
-- **Hidden behaviour in the 2.x code** (e.g. `clipAt` clamping, the 0.1 s minimum length, `t` clamped to the end,
-  the music's fade length). → The frozen reference and the equivalence tests at every boundary catch it; write them
-  first, against the unchanged code (they must pass before the refactor starts).
-- **The self-test needs a video clip without a file in the repo.** → Spike first: make a 2-second 320 × 240 clip in
-  the self-test with Mediabunny's `CanvasSource` (already a dependency); if encoding isn't available in the test's
-  Electron, fall back to photo-only fixtures for the pixel check and keep video clips in the unit equivalence only.
-- **`mergeLayers` is bigger than it looks** (5 kinds, masks, drawings with point lists, image data URLs). → Its own
-  tasks and tests; cap point counts and data-URL sizes as the editors already do.
-- **UI regressions in drag code** when positions come from `start` instead of `timeline()`. → Positions stay equal by
-  construction (`pack`); the existing e2e drag tests run after each UI task.
-- **Scope creep into `202`/`203`** (gaps, add track). → Not in the UI; the model allows them, tests cover the model
-  only.
+- **Hidden behaviour in the 2.x code** (e.g. `clipAt` clamping, the 0.1 s minimum length, `t` clamped to the end, the music's fade length). → The frozen reference and the equivalence tests at every boundary catch it; write them first, against the unchanged code (they must pass before the refactor starts).
+- **The self-test needs a video clip without a file in the repo.** → Spike first: make a 2-second 320 × 240 clip in the self-test with Mediabunny's `CanvasSource` (already a dependency); if encoding isn't available in the test's Electron, fall back to photo-only fixtures for the pixel check and keep video clips in the unit equivalence only.
+- **`mergeLayers` is bigger than it looks** (5 kinds, masks, drawings with point lists, image data URLs). → Its own tasks and tests; cap point counts and data-URL sizes as the editors already do.
+- **UI regressions in drag code** when positions come from `start` instead of `timeline()`. → Positions stay equal by construction (`pack`); the existing e2e drag tests run after each UI task.
+- **Scope creep into `202`/`203`** (gaps, add track). → Not in the UI; the model allows them, tests cover the model only.
 
 ## Constitution Check
 

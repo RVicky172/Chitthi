@@ -1,13 +1,13 @@
-// ESLint for the app (src/), the Electron main process (electron/) and the Node scripts (scripts/). Run with `npm run lint`.
+// ESLint for the app (src/), the Electron main process (electron/), the Node scripts (scripts/) and dev tools (tools/). Run with `npm run lint`.
 import js from '@eslint/js';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dist-lib', 'release', 'node_modules', 'ds-bundle', '.design-sync', '.ds-sync', 'print-samples-src', 'Print Samples', 'electron/resources', 'test-results', 'playwright-report'] },
+  { ignores: ['dist', 'dist-lib', 'tools/roadmap-dashboard/.build', 'release', 'node_modules', 'ds-bundle', '.design-sync', '.ds-sync', 'print-samples-src', 'Print Samples', 'electron/resources', 'test-results', 'playwright-report'] },
   {
-    files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', '*.ts'],
+    files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', '*.ts', 'tools/**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
@@ -27,6 +27,13 @@ export default tseslint.config(
   },
   {
     files: ['electron/**/*.mjs', 'scripts/**/*.mjs', '*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: { sourceType: 'module', globals: { ...globals.node } },
+    rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }] },
+  },
+  // Dev tooling in tools/ (specs/features/404): Node modules and their tests; its React app is linted with src/ above.
+  {
+    files: ['tools/**/*.mjs'],
     extends: [js.configs.recommended],
     languageOptions: { sourceType: 'module', globals: { ...globals.node } },
     rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }] },

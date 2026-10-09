@@ -1,0 +1,382 @@
+{
+  "$schema": "./schema/roadmap.schema.json",
+  "schema": 1,
+  "title": "Chitthi Studio — Roadmap",
+  "updated": "2026-10-09",
+  "lead": "Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.",
+  "intro": "The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work\nitems (files, tests, notes and measurements for Phases 0–1) are in\n[vision/editor-implementation.md](vision/editor-implementation.md). From Phase 2 on, each work item is a feature\nfolder here and this file holds its status. Numbers follow the work-item IDs: **P2.1 → 201**, **P3.4 → 304**.",
+  "currentPhase": "phase-2",
+  "statuses": {
+    "order": [
+      "not-started",
+      "spec-drafted",
+      "spec-approved",
+      "in-progress",
+      "done"
+    ],
+    "byId": {
+      "not-started": {
+        "icon": "⬜",
+        "label": "Not started",
+        "featureStatus": []
+      },
+      "spec-drafted": {
+        "icon": "📝",
+        "label": "Spec drafted",
+        "featureStatus": [
+          "draft"
+        ]
+      },
+      "spec-approved": {
+        "icon": "✅",
+        "label": "Spec approved",
+        "featureStatus": [
+          "approved"
+        ]
+      },
+      "in-progress": {
+        "icon": "🚧",
+        "label": "In progress",
+        "featureStatus": [
+          "in-progress"
+        ]
+      },
+      "done": {
+        "icon": "✔️",
+        "label": "Done",
+        "featureStatus": [
+          "implemented"
+        ]
+      }
+    }
+  },
+  "phases": {
+    "order": [
+      "baseline",
+      "phase-2",
+      "phase-3",
+      "other"
+    ],
+    "byId": {
+      "baseline": {
+        "title": "Baseline — what exists before SDD",
+        "goal": "record the app as it stands (2.8.0 plus the unreleased editor Phases 0–1) and close the Phase 1 gate.",
+        "exit": "every Definition-of-Done gate passes on a clean clone; the Phase 1 gate in\n[editor-implementation.md](vision/editor-implementation.md#progress) is met and 2.10.0 is released.",
+        "intro": null,
+        "items": [
+          "000",
+          "001"
+        ]
+      },
+      "phase-2": {
+        "title": "Phase 2 — Multi-track timeline (release 3.0.0)",
+        "goal": "a real timeline with tracks, edit tools, keyframes, transitions, speed and audio.",
+        "exit": "a 4K multi-track timeline (3 video and 2 audio tracks, transitions) plays smoothly on desktop;\nevery 2.x project opens unchanged.",
+        "intro": null,
+        "items": [
+          "201",
+          "202",
+          "203",
+          "204",
+          "205",
+          "206",
+          "207",
+          "208",
+          "209",
+          "210",
+          "211",
+          "212"
+        ]
+      },
+      "phase-3": {
+        "title": "Phase 3 — Colour and finishing (release 3.1.0)",
+        "goal": "a colour page with scopes, captions, retouching, and professional outputs on desktop.",
+        "exit": "none set yet (the editor roadmap marks it the last phase); the first Phase 3 spec proposes a\nmeasurable one.",
+        "intro": null,
+        "items": [
+          "301",
+          "302",
+          "303",
+          "304",
+          "305",
+          "306",
+          "307",
+          "308",
+          "309"
+        ]
+      },
+      "other": {
+        "title": "Other features (400+)",
+        "goal": null,
+        "exit": null,
+        "intro": "Print studio, site and anything outside the editor phases take the next free number from 401.",
+        "items": [
+          "401",
+          "404"
+        ]
+      }
+    }
+  },
+  "items": {
+    "byId": {
+      "201": {
+        "title": "Track model and migration",
+        "workItem": "P2.1",
+        "status": "done",
+        "note": "",
+        "folder": "features/201-track-model",
+        "needs": []
+      },
+      "202": {
+        "title": "Edit operations: ripple, roll, slip, slide, magnetic main track, snapping",
+        "workItem": "P2.2",
+        "status": "in-progress",
+        "note": "",
+        "folder": "features/202-edit-operations",
+        "needs": [
+          "201"
+        ]
+      },
+      "203": {
+        "title": "Compositing many tracks, picture-in-picture",
+        "workItem": "P2.3",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201",
+          "204"
+        ]
+      },
+      "204": {
+        "title": "Decoder pool with look-ahead",
+        "workItem": "P2.4",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201"
+        ]
+      },
+      "205": {
+        "title": "Keyframes: `Animated<T>`, keyframe lane",
+        "workItem": "P2.5",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201"
+        ]
+      },
+      "206": {
+        "title": "Transitions as shaders",
+        "workItem": "P2.6",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201",
+          "204"
+        ]
+      },
+      "207": {
+        "title": "Speed: constant, reverse, freeze, ramps",
+        "workItem": "P2.7",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201"
+        ]
+      },
+      "208": {
+        "title": "Audio tracks, waveforms, ducking, loudness",
+        "workItem": "P2.8",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201",
+          "205"
+        ]
+      },
+      "209": {
+        "title": "Voice-over",
+        "workItem": "P2.9",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "208"
+        ]
+      },
+      "210": {
+        "title": "Markers, in/out, range export, text animations, compound clips",
+        "workItem": "P2.10",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201"
+        ]
+      },
+      "211": {
+        "title": "Proxies and frame cache, desktop first",
+        "workItem": "P2.11",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "201"
+        ]
+      },
+      "212": {
+        "title": "Agent tools and docs for the timeline",
+        "workItem": "P2.12",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "202",
+          "203",
+          "205",
+          "206"
+        ]
+      },
+      "301": {
+        "title": "Primary grade: wheels, contrast, pivot",
+        "workItem": "P3.1",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": []
+      },
+      "302": {
+        "title": "Grading curves and secondaries, HSL qualifier",
+        "workItem": "P3.2",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "301"
+        ]
+      },
+      "303": {
+        "title": "Scopes: histogram, waveform, parade, vectorscope",
+        "workItem": "P3.3",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": []
+      },
+      "304": {
+        "title": "Grade tools: copy/paste, timeline LUT, match clips",
+        "workItem": "P3.4",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "301"
+        ]
+      },
+      "305": {
+        "title": "Auto captions, on-device speech model — licence check first",
+        "workItem": "P3.5",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": []
+      },
+      "306": {
+        "title": "Spot heal and clone",
+        "workItem": "P3.6",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": []
+      },
+      "307": {
+        "title": "Professional outputs on desktop: FFmpeg helper, 10-bit, HDR — licence exception first",
+        "workItem": "P3.7",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": []
+      },
+      "308": {
+        "title": "AI object removal, desktop — model licence first",
+        "workItem": "P3.8",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": []
+      },
+      "309": {
+        "title": "Agent tools and docs for grading, scopes, captions",
+        "workItem": "P3.9",
+        "status": "not-started",
+        "note": "",
+        "folder": null,
+        "needs": [
+          "301",
+          "303",
+          "305"
+        ]
+      },
+      "401": {
+        "title": "AI models on this device: see and delete downloaded models",
+        "workItem": null,
+        "status": "done",
+        "note": "",
+        "folder": "features/401-ai-models-on-device",
+        "needs": []
+      },
+      "404": {
+        "title": "Roadmap data (JSON) and a roadmap dashboard on localhost",
+        "workItem": null,
+        "status": "done",
+        "note": "",
+        "folder": "features/404-roadmap-dashboard",
+        "needs": []
+      },
+      "000": {
+        "title": "Baseline: print studio, photo & video studio, desktop app, MCP, AI, GPU render graph (editor P0.1–P0.9), advanced photo editor (P1.1–P1.12)",
+        "workItem": null,
+        "status": "done",
+        "note": "",
+        "folder": "features/000-baseline",
+        "needs": []
+      },
+      "001": {
+        "title": "Phase 1 gate and 2.10.0 release: masked edits measured on a mid-range laptop in Chrome; first macOS build with Intel LibRaw; tag 2.10.0",
+        "workItem": null,
+        "status": "in-progress",
+        "note": "2.10.0 released 2026-10-06; post-release checks open (backlog)",
+        "folder": "features/001-phase1-gate-release",
+        "needs": []
+      }
+    }
+  },
+  "backlog": {
+    "title": "Backlog (unscheduled ideas)",
+    "order": [
+      "001-hardware-checks",
+      "webkit-firefox-e2e",
+      "media-studio-todo"
+    ],
+    "byId": {
+      "001-hardware-checks": {
+        "text": "**Deferred 001 checks on the maintainer's hardware** (2026-10-06; 001 and the 2.10.0 release wait for them):\nthe Phase 1 gate on a mid-range laptop in Chrome (`npm run measure:gate`, plus `npm test`'s timing and the\nperformance monitor in the packaged app: 001 T022, T023); the Intel LibRaw build and RAW files in the arm64 and x64\nmacOS apps (T030, T033). Then the release itself: T040 version and CHANGELOG, T041 merge into `main`, T042 dry run,\nT043 tag `v2.10.0`, T044–T047 clean installs, update from 2.8.0, web redeploy. How: the 👤 tasks in\n[001 tasks](features/001-phase1-gate-release/tasks.md).",
+        "added": null
+      },
+      "webkit-firefox-e2e": {
+        "text": "Firefox and Safari (WebKit) projects in Playwright ([testing-strategy.md](testing-strategy.md#not-automated-yet)).",
+        "added": null
+      },
+      "media-studio-todo": {
+        "text": "The media studio's own \"Still to do\" list in [docs/MEDIA-STUDIO.md](../docs/MEDIA-STUDIO.md).",
+        "added": null
+      }
+    }
+  }
+}

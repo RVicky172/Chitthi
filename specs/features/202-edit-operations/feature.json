@@ -1,0 +1,902 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "202",
+  "title": "Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2)",
+  "workItem": "P2.2",
+  "status": "in-progress",
+  "owner": "RVicky172",
+  "dates": {
+    "created": "2026-10-07",
+    "approved": "2026-10-07",
+    "started": "2026-10-07",
+    "done": null
+  },
+  "git": {
+    "branch": "feat/202-edit-operations"
+  },
+  "spec": {
+    "phase": "2 — Multi-track timeline",
+    "summary": "Since `201` the video editor's project is made of tracks with clips at a start time, but every edit still behaves as\nin 2.x: the video track is always packed end to end, so deleting or trimming a clip pulls everything after it along\n(a \"ripple\"), and there is no way to change a cut without changing the video's length. This feature adds the edit\ntools of desktop editors (Premiere, Final Cut, Resolve, CapCut): a **magnetic** main track that can be switched off\nto leave gaps, **ripple** and non-ripple delete and trim, **roll** (move a cut between two clips), **slip** (change\nwhich part of a video clip plays without moving it) and **slide** (move a clip between its neighbours), with\n**snapping** that can be turned off. Each tool works the same with the mouse and the keyboard, is one undo step,\nrespects locked tracks, and plays and exports exactly as the timeline shows, gaps included.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a video creator, I want to tighten a cut without changing the length of my video (roll), so that the edit stays in time with my music."
+        },
+        "US-2": {
+          "text": "As a video creator, I want to choose which part of a video clip plays without moving it (slip), so that I keep my timing while picking the best moment."
+        },
+        "US-3": {
+          "text": "As a video creator, I want to switch off the magnetic track and leave a gap or place a clip at a time, so that I can line a clip up with a beat or a title."
+        },
+        "US-4": {
+          "text": "As a keyboard or screen reader user, I want every edit tool reachable without a mouse, so that I can edit as well as anyone."
+        },
+        "US-5": {
+          "text": "As a contributor building `203`–`212`, I want each edit as one tested operation on the project, so that new tracks, keyframes and agent tools (`212`) reuse them rather than reimplement them."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "The timeline has a **Magnetic** switch, on by default. While it is on, every edit behaves exactly as in `201` (and 2.x): the video track has no gaps, and delete, trim, split, duplicate and reorder give the same clips, starts and lengths as today. All existing video e2e tests pass unchanged.",
+          "proof": "unit + e2e",
+          "group": "The magnetic main track",
+          "done": false
+        },
+        "AC-2": {
+          "text": "With Magnetic off: deleting a clip leaves a gap of its length (lift); trimming a clip's end leaves or fills a gap after it without moving later clips; trimming its start moves only that clip's start; dragging a clip places it at the time it is dropped (snapped, AC-9). Clips never overlap on a track: a drop that would overlap is placed at the nearest free spot where it fits, or refused with a message if there is none (Q2).",
+          "proof": "unit + e2e",
+          "group": "The magnetic main track",
+          "done": false
+        },
+        "AC-3": {
+          "text": "Switching Magnetic back on closes every gap on the video track in one undo step (clips keep their order). A gap can also be selected and deleted on its own (closing it), with Magnetic on or off.",
+          "proof": "unit + e2e",
+          "group": "The magnetic main track",
+          "done": false
+        },
+        "AC-4": {
+          "text": "Gaps play and export as black frames, with the layers on top and silence from the video track (the music keeps playing), for exactly the gap's length to the frame: a fixture with a 1.5 s gap at 30 fps exports 45 black frames in its place.",
+          "proof": "unit + self-test",
+          "group": "The magnetic main track",
+          "done": false
+        },
+        "AC-5": {
+          "text": "**Ripple delete and ripple trim**: removing a clip or shortening / lengthening it moves every later clip on the track by the same amount, with Magnetic on or off (a ripple is explicit with Magnetic off: Q3). Lengthening is limited by the source (video) or 60 s (photo), and by the project's length limit (`limitsFor()`: refused with the existing message).",
+          "proof": "unit + e2e",
+          "group": "Edit tools",
+          "done": false
+        },
+        "AC-6": {
+          "text": "**Roll**: moving the cut between two adjacent clips lengthens one and shortens the other by the same amount; no other clip moves and the video's length is unchanged. It stops where either clip would go under 0.3 s or a video would run past its source.",
+          "proof": "unit + e2e",
+          "group": "Edit tools",
+          "done": false
+        },
+        "AC-7": {
+          "text": "**Slip**: on a video clip, shifting which part of the source plays (in and out together) keeps its start and length; it stops at the source's ends. On a photo, slip is refused with a message (a photo has no source time).",
+          "proof": "unit + e2e",
+          "group": "Edit tools",
+          "done": false
+        },
+        "AC-8": {
+          "text": "**Slide**: moving a clip between its neighbours keeps its own content and length and changes the previous clip's end and the next clip's start by the same amount, so nothing else moves and the length is unchanged; it stops where a neighbour would go under 0.3 s or past its source.",
+          "proof": "unit + e2e",
+          "group": "Edit tools",
+          "done": false
+        },
+        "AC-9": {
+          "text": "**Snapping**, on by default with a switch: drags and trims snap to clip edges, gap edges, layer edges, the playhead, 0 and the end within 8 px at the current zoom (as today); with snapping off, or while Q4's modifier is held, times follow the pointer to the frame.",
+          "proof": "unit + e2e",
+          "group": "Edit tools",
+          "done": false
+        },
+        "AC-10": {
+          "text": "Each tool is reachable by mouse (a tool picker: Select, Roll, Slip, Slide, with its shortcut in the tooltip) and by keyboard alone (Q5's keys: with a clip selected, nudge by one frame or one second with the chosen tool; ripple trim start / end to the playhead), and each change is announced to screen readers (the clip and its new times). axe reports no serious or critical issue; 360 px wide still works with no sideways scroll.",
+          "proof": "e2e + axe",
+          "group": "For everyone",
+          "done": false
+        },
+        "AC-11": {
+          "text": "Every operation is one undo step (a drag is one step however long), refuses on a locked track with the reason (as in `201`), never leaves a clip shorter than 0.3 s, out of its source, overlapping another clip on its track, or a project over its length limit. For every operation, 1,000 seeded random edits on the 2.x fixtures leave a project that `mergeProject` accepts unchanged.",
+          "proof": "unit",
+          "group": "For everyone",
+          "done": false
+        },
+        "AC-12": {
+          "text": "Every operation runs on a 500-clip project in under 2 ms (median of 100, unit timing), so drags stay smooth at 60 fps.",
+          "proof": "unit timing",
+          "group": "For everyone",
+          "done": false
+        },
+        "AC-13": {
+          "text": "`docs/MEDIA-STUDIO.md` (the tools, Magnetic, snapping, keys), `specs/lld.md` (the operations) and `CHANGELOG.md` describe the change; the in-app docs list the keys.",
+          "proof": "manual check",
+          "group": "Docs",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Is Magnetic per project (kept when switching Reel ↔ YouTube, undoable) or an editor setting remembered between sessions? _Answer (accepted 2026-10-07):_ per project, part of the project document (version stays 1, a new optional field defaulting to on) and not an undo step; switching it on is (AC-3 closes gaps).",
+          "open": false
+        },
+        "Q2": {
+          "text": "With Magnetic off, what happens when a clip is dropped onto another clip? _Answer (accepted 2026-10-07):_ no overwrite in 202: it goes to the nearest free spot where it fits (before or after), else it is refused with \"No room here: make a gap first or switch Magnetic on\". Overwrite and insert edits (Premiere's) can come later.",
+          "open": false
+        },
+        "Q3": {
+          "text": "With Magnetic off, how does the user ask for a ripple? _Answer (accepted 2026-10-07):_ the Select tool never ripples with Magnetic off; **Shift + Delete** is ripple delete and **Shift-drag** of an edge is ripple trim (as Final Cut / Premiere), shown in the tooltips and the docs. With Magnetic on, every delete and trim ripples, as today.",
+          "open": false
+        },
+        "Q4": {
+          "text": "A modifier to drag without snapping? _Answer (accepted 2026-10-07):_ hold **Alt** while dragging (Premiere / Resolve style: Alt bypasses snapping); plus the Snap switch. (Shift is taken by Q3.)",
+          "open": false
+        },
+        "Q5": {
+          "text": "Keyboard keys. _Answer (accepted 2026-10-07):_ tools **V** Select, **R** Roll, **Y** Slip, **U** Slide (Premiere's letters, R for roll as N is less known); with a clip selected, **Alt + ← / →** nudges by one frame with the current tool (Select: moves the clip with Magnetic off, or reorders it with Magnetic on: the keyboard reorder 2.x never had), **Shift + Alt + ← / →** by one second; **Q / W** ripple-trim the clip's start / end to the playhead; **Shift + Delete** ripple delete. The keys work when the timeline has focus; S, Space, Delete and arrows keep today's meaning.",
+          "open": false
+        },
+        "Q6": {
+          "text": "Should a ripple on the video track also move the timed layers (titles, stickers) and the music after the edit point? _Answer (accepted 2026-10-07):_ no, as today: layers and music keep their own times (they aren't on tracks yet, `201` Q2). Revisit in `203` when layers move onto tracks; the docs say so.",
+          "open": false
+        },
+        "Q7": {
+          "text": "Constitution XI (agent tools). _Answer (accepted 2026-10-07):_ as in `201` Q7, no tools here; the operations are pure functions on the project so `212` exposes them directly. The gap stays recorded.",
+          "open": false
+        },
+        "Q8": {
+          "text": "Does slip apply to the music too? _Answer (accepted 2026-10-07):_ the music's start offset already works like a slip (drag the music bar, `201`); 202 brings it under the Slip tool's keys for consistency, no new behaviour.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-07",
+        "text": "Created."
+      },
+      {
+        "date": "2026-10-07",
+        "text": "Q1–Q8 resolved (all proposals accepted); Approved."
+      },
+      {
+        "date": "2026-10-07",
+        "text": "Plan approved (D1–D4 as recommended, D-009), tasks written; In Progress."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: AC-12; preview and export speed of a project without gaps stays within 5% of `201` (the self-test's\n  timing check).\n- Accessibility: AC-10 (WCAG 2.2 AA, keyboard, screen reader, 360 px).\n- Compatibility: web and desktop alike; per-platform limits unchanged.\n- Security: operations only produce projects the `201` validator accepts (Constitution VIII)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- New tracks, overlay clips and picture-in-picture (`203`); edits across several tracks at once (ripple affects the\n  track edited, plus Q6).\n- Moving timed layers onto tracks (`201` Q2, decided in `203`).\n- Keyframes, transitions, speed (`205`–`207`); markers and in / out ranges (`210`).\n- Agent tools for these operations (`212`; Q7).\n- Saving projects (`201` Q1)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-07, D1–D4 as recommended) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/edits.ts`",
+        "change": "new",
+        "purpose": "§2 operations, snapping, `checkTrack`"
+      },
+      {
+        "file": "`src/engine/edits.test.ts`",
+        "change": "new",
+        "purpose": "AC-1, AC-2, AC-3, AC-5–AC-9, AC-11, AC-12"
+      },
+      {
+        "file": "`src/engine/timeline.ts` (+ test)",
+        "change": "modify",
+        "purpose": "§1 gaps in `videoAt` / `framePlan`, `gaps()`; `magnetic` in the document and `mergeProject` (§3)"
+      },
+      {
+        "file": "`src/state/video.ts`",
+        "change": "modify",
+        "purpose": "`magnetic`, `tool`, `snapping`; actions through §2; `setMagnetic`, `nudgeClip`, `rippleTrimToPlayhead`, gap actions"
+      },
+      {
+        "file": "`src/components/studio/Timeline.tsx`",
+        "change": "modify",
+        "purpose": "tool picker, Magnetic / Snap, gestures per tool, gaps, keys, live region"
+      },
+      {
+        "file": "`src/components/icons.tsx`",
+        "change": "modify",
+        "purpose": "tool and switch icons (lucide-react)"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "tool picker, gaps, roll / slip / slide cursors"
+      },
+      {
+        "file": "`src/dev/videoChecks.ts`",
+        "change": "modify",
+        "purpose": "AC-4 gap export check"
+      },
+      {
+        "file": "`e2e/editors.e2e.ts`",
+        "change": "modify",
+        "purpose": "new `describe('video edit tools')`"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`",
+        "change": "modify",
+        "purpose": "AC-13"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Changing `videoAt` / `framePlan` breaks \"nothing changes\" (201 AC-3).** → The 201 equivalence tests and the self-test's 200-frame pixel check run unchanged; they cover packed tracks, which Magnetic on guarantees."
+      },
+      {
+        "text": "**The drag code in `Timeline.tsx` grows four ways.** → Gestures call one pure operation each; the component only maps pointer deltas to seconds (snap, Alt) and picks the operation by tool. The existing drag e2e tests run after each UI task."
+      },
+      {
+        "text": "**Undo consistency with Magnetic** (undoing a gap-close while Magnetic is on would show gaps on a magnetic track). → `magnetic` lives in the snapshots (D1)."
+      },
+      {
+        "text": "**Keyboard conflicts** (letters typed into fields; Alt + arrows in browsers / Electron menus). → Keys only with the timeline focused (today's `typingIn` guard); spike: check Alt + ← doesn't navigate back in Chrome or trigger the Electron menu on Windows when the timeline has focus (`preventDefault` on keydown) before building on it."
+      },
+      {
+        "text": "**Live-preview of `moveTo` while dragging with Magnetic off** (the clip jumps to a free spot mid-drag). → During the drag the block follows the pointer (as reorder does with `dx`); the operation runs on release, with the drop spot shown (a marker)."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Spec approved (Q1–Q8)"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "Operations test-first (tables, property tests), e2e per UI task, gap export self-test"
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "None new (icons from lucide-react)"
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "D1–D4 to `decisions.md` once accepted"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Same tools on web and desktop"
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "No network"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "Nothing new"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "Preview and export both read `videoAt` / `framePlan` (gaps included); `mergeProject` stays the gate (overlaps resolved)"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No IPC or Electron change (the Alt-key spike only reads behaviour)"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "AC-12 timing; keyboard for every tool, radiogroup, live region, axe, 360 px; studio chunk only"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "⚠️",
+        "notes": "No tools yet (Q7, `212`); the pure operations are what the tools will call"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "What the code is today (read for this plan, at `a3adea2`): `src/engine/timeline.ts` holds the track model; `pack()`\nplaces the main track's clips end to end and runs in one place, the store's `change()` (`src/state/video.ts`), so the\nvideo track can't have gaps. Every edit in the store (`removeClip`, `updateClip` for trims, `moveClipTo`,\n`duplicateClip`, `splitAtPlayhead`) edits the clip list in order and relies on `pack` for the starts.\n`components/studio/Timeline.tsx` does the dragging: the clip body reorders (a drop marker, `moveClipTo` on release),\nthe edges trim through `updateClip` with a per-drag undo key, and `snap()` (inside the component) snaps to clip edges,\nlayer edges and the playhead within `SNAP_PX = 8`. Two model functions assume no gaps: `videoAt` returns the last clip\nfor any time not inside a clip (a gap would show the wrong picture), and `framePlan` makes frames only inside clips (a\ngap would shorten the export). `mergeProject` always packs.\n\n**§1 Gaps in the model (`timeline.ts`).** The main track's clips stay sorted by `start` (an invariant every operation\nkeeps). `videoAt` clamps only before the first clip's start when it starts at 0 (2.x: before 0 → first clip) and at or\npast the end (→ last clip); a time inside a gap, or before a first clip that starts later, gives null (black, as a\nhidden track). `framePlan` emits a `{ clip: null }` span for each gap's frames, so the frames always run 0 → total\nwithout holes. `gaps(p, track)` lists a track's gaps. For a packed track nothing changes: the 201 equivalence tests\n(frozen 2.x reference) keep passing and prove it.\n\n**§2 The operations, pure (`src/engine/edits.ts`, new).** Each takes the project (or a track's clips), the clip, an\namount and options, and returns `{ clips } | { error }`: never throws, never returns an invalid track. One module so\nthe UI, the keyboard and the agent tools of `212` call the same code (Q7).\n\n- `rippleDelete(p, id)`, `lift(p, id)` (leaves a gap), `closeGap(p, at)`, `closeGaps(p)` (= pack by start order).\n- `trim(p, id, side, delta, { ripple })`: end: ripple moves later clips by delta; no ripple: lengthening stops at the\n  next clip (fills the gap only). Start: ripple keeps the start and moves later clips (2.x's start trim); no ripple\n  keeps the end, moves the start. Limits: 0.3 s minimum (`MIN_LEN`, moved here from the UI), source bounds for video,\n  60 s for photos, the project length limit (passed in).\n- `roll(p, leftId, delta)`: the cut between `left` and the clip right after it, adjacent only (a cut with a gap\n  between isn't a roll: refused with a message).\n- `slip(p, id, delta)`: video only (`in` and `out` together, inside `[0, srcDur]`); photos refused (spec AC-7).\n- `slide(p, id, delta)`: the previous clip's end and the next clip's start move by delta (through `in` / `out` or\n  `dur`); a missing neighbour or a gap next to it bounds the move (sliding into a gap only moves the clip).\n- `moveTo(p, id, start)` (Magnetic off): to the nearest free spot that fits around the wanted start, else\n  `{ error: 'No room here: make a gap first or switch Magnetic on' }` (Q2). `reorder(p, id, index)` (Magnetic on) is\n  today's `moveClipTo`.\n- `nudge(p, id, tool, frames, fps, magnetic)`: the keyboard's Alt + arrows (Q5): Select moves (off) or reorders (on,\n  one place per press), Roll moves the clip's end cut, Slip slips, Slide slides; one frame = 1 / fps.\n- `snapTime(t, targets, tolerance)` and `snapTargets(p, layers, playhead)` (clip and gap edges, layer edges, the\n  playhead, 0, the end): moved out of the component, pure, unit-tested.\n- Every result goes through `checkTrack()` in development builds and tests (sorted, no overlap, lengths ≥ 0.3 s\n  except 2.x clips already shorter, inside sources, within the length limit).\n\n**§3 Magnetic in the store and the document.** `VState.magnetic` (default true) is a project setting (Q1): carried\nacross Reel ↔ YouTube, in the document as an optional `magnetic` field (version stays 1; missing = true). `change()`\npacks only when magnetic. Undo snapshots carry `magnetic` (D1). `setMagnetic(true)` is one undo step that also closes\nthe gaps; `setMagnetic(false)` changes no clip and isn't recorded. The store's existing actions call the §2\noperations: with Magnetic on they give exactly today's results (AC-1, proven against the 201 store behaviour in unit\ntests on the fixtures); with it off: `removeClip` lifts, trims don't ripple unless asked (Shift, Q3), `duplicateClip`\nputs the copy in the first gap after the original that fits, else after the last clip (D2), `addMedia` appends after\nthe last clip as today. `mergeProject` reads `magnetic`; with it off it sorts the main track by start and resolves\noverlaps by moving a clip to the end of the one it overlaps, with a reason (D3); with it on it packs as today.\n\n**§4 Tools, switches and keys (UI).** View settings in the store, not undone, not saved (D4): `tool` (`select` /\n`roll` / `slip` / `slide`) and `snapping` (default on). Transport: a tool picker (four radio buttons in a\n`radiogroup`, icons from lucide-react with names and the key in the tooltip: V, R, Y, U), and two toggle buttons\n(`aria-pressed`) **Magnetic** and **Snap**. Pointer, in `Timeline.tsx`:\n\n| Gesture | Select | Roll | Slip | Slide |\n| --- | --- | --- | --- | --- |\n| Drag a clip | Magnetic on: reorder (today); off: move to a time (`moveTo`, live) | — | slip | slide |\n| Drag an edge | trim; ripple with Magnetic on, or Shift (Q3) | roll the cut (the edge between two adjacent clips) | — | — |\n\nAlt held while dragging skips snapping (Q4). Gaps are drawn in the video row as focusable buttons (\"Gap, 1.5 s, from\n3.0 s\"): click selects, Delete closes. Keys with the timeline focused (Q5): V / R / Y / U tools; Alt + ← / → nudge one\nframe, Shift + Alt one second; Q / W ripple trim start / end to the playhead; Shift + Delete ripple delete; Delete is\nlift with Magnetic off. Refusals (locked track, no room, a photo can't slip) go to the toast as in 201. Each change\nis announced in a polite live region (\"Clip 2, 3.0 s to 5.5 s\"). The preview already draws `NO_PICTURE` where\n`videoAt` gives null, so gaps show black with the layers; the export follows `framePlan`.\n\n**§5 Proving it.** Unit (`edits.test.ts`): a table per operation (normal, at each limit, zero room, locked, photo /\nvideo, first / last clip, next to a gap); AC-1: with Magnetic on, every store-level edit on the 12 fixtures equals\nthe 201 result (pack-based expectation); AC-11 property tests: 1,000 seeded random edits per operation on the\nfixtures, each result passing `checkTrack` and `mergeProject(toDocument(...))` unchanged; AC-12 timing on 500 clips.\n`timeline.test.ts`: gaps in `videoAt` / `framePlan` (45 black frames for a 1.5 s gap at 30 fps), and the 201\nequivalence still green. Self-test: an export with a 1.5 s gap decodes black with the layer in the gap and the\npicture either side (AC-4). e2e: the tools by mouse and keyboard, Magnetic and Snap, gaps, Shift-ripple, refusals,\nannouncements, axe and 360 px; the existing video e2e unchanged."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// src/engine/edits.ts\nexport const MIN_LEN = 0.3;            // seconds; a clip is never trimmed below it\nexport const PHOTO_MAX = 60;           // seconds a photo may show\nexport type Tool = 'select' | 'roll' | 'slip' | 'slide';\nexport type Edit<C> = { clips: C[] } | { error: string };\nexport interface EditCtx { maxLength: number; locked: (track: string) => string | null }\n\nexport function rippleDelete<C extends TimedClip>(clips: C[], id: string, ctx: EditCtx): Edit<C>;\nexport function lift<C extends TimedClip>(clips: C[], id: string, ctx: EditCtx): Edit<C>;\nexport function closeGap<C extends TimedClip>(clips: C[], at: number, ctx: EditCtx): Edit<C>;\nexport function closeGaps<C extends TimedClip>(clips: C[]): C[];\nexport function trim<C extends TimedClip>(clips: C[], id: string, side: 'start' | 'end', delta: number, o: { ripple: boolean }, ctx: EditCtx): Edit<C>;\nexport function roll<C extends TimedClip>(clips: C[], leftId: string, delta: number, ctx: EditCtx): Edit<C>;\nexport function slip<C extends TimedClip>(clips: C[], id: string, delta: number, ctx: EditCtx): Edit<C>;\nexport function slide<C extends TimedClip>(clips: C[], id: string, delta: number, ctx: EditCtx): Edit<C>;\nexport function moveTo<C extends TimedClip>(clips: C[], id: string, start: number, ctx: EditCtx): Edit<C>;\nexport function reorder<C extends TimedClip>(clips: C[], id: string, index: number, ctx: EditCtx): Edit<C>;\nexport function nudge<C extends TimedClip>(clips: C[], id: string, tool: Tool, frames: number, fps: number, magnetic: boolean, ctx: EditCtx): Edit<C>;\nexport function snapTargets(clips: TimedClip[], layers: Layer[], playhead: number, total: number): number[];\nexport function snapTime(t: number, targets: number[], tolerance: number, skip?: number[]): number;\nexport function checkTrack(clips: TimedClip[], maxLength: number): string | null;\n\n// src/engine/timeline.ts\nexport function gaps(p: Project, track: string): { start: number; end: number }[];\nexport interface ProjectDoc { /* … */ magnetic?: boolean }\n\n// src/state/video.ts\ninterface VState { /* … */ magnetic: boolean; tool: Tool; snapping: boolean }\nexport function setMagnetic(on: boolean): void;\nexport function nudgeClip(id: string, frames: number): string | null;   // the refusal, if any\nexport function rippleTrimToPlayhead(side: 'start' | 'end'): string | null;\nexport function deleteGap(at: number): string | null;\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Operations as pure functions on sorted clip lists**, O(n) per call, no allocation beyond the new list; the store\n  wraps each in one `change()` with the per-drag undo key (201's coalescing).\n- **Magnetic as a rule, not a mode in every function:** with it on, results are packed afterwards (today's\n  behaviour by construction, AC-1); with it off, the operations themselves guarantee no overlap.\n- **Seeded property tests** (the 201 tests' `mulberry32`) for AC-11; `checkTrack` is the invariant.\n- **Timing in unit tests** (AC-12): median of 100 runs with `performance.now()`; generous bar (2 ms) so CI noise\n  doesn't flake.\n- Accessibility: tools as a `radiogroup` (arrow keys), switches as `aria-pressed` buttons, gaps as buttons, one\n  polite live region; 24 px targets."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `edits.test.ts`: Magnetic on, every store edit on 12 fixtures equals the pack-based 201 result; existing video e2e unchanged | unit + e2e |\n| AC-2 | `edits.test.ts` lift / no-ripple trims / `moveTo` (fits, nearest spot, refused); e2e drag to a time with Magnetic off | unit + e2e |\n| AC-3 | `edits.test.ts` `closeGaps`, `closeGap`; e2e Magnetic on closes gaps (one undo), gap select + Delete | unit + e2e |\n| AC-4 | `timeline.test.ts` `framePlan` 45 null frames for 1.5 s at 30 fps, `videoAt` null in gaps; self-test decoded gap black with the layer | unit + self-test |\n| AC-5 | `edits.test.ts` ripple delete / trim table incl. limits; e2e Shift-drag and Shift+Delete | unit + e2e |\n| AC-6 | `edits.test.ts` roll table (length unchanged, limits, non-adjacent refused); e2e roll by drag and Alt+arrow | unit + e2e |\n| AC-7 | `edits.test.ts` slip (bounds, photo refused); e2e slip drag and keys, message on a photo | unit + e2e |\n| AC-8 | `edits.test.ts` slide (neighbours, bounds, next to a gap); e2e slide | unit + e2e |\n| AC-9 | `edits.test.ts` `snapTime` / `snapTargets`; e2e snapping on, off and Alt | unit + e2e |\n| AC-10 | e2e: tools by mouse and keys (V/R/Y/U, Alt + arrows, Q/W, Shift+Delete), live region text, axe, Pixel 7 at 360 px | e2e |\n| AC-11 | `edits.test.ts`: undo-step keys in the store test; locked refusals; 1,000 seeded edits per operation pass `checkTrack` and `mergeProject` unchanged | unit |\n| AC-12 | `edits.test.ts` timing: every operation on 500 clips, median of 100 < 2 ms | unit timing |\n| AC-13 | docs reviewed at verification | manual |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-07: D1–D4 as recommended)",
+        "markdown": "- **D1** — Undo and Magnetic: snapshots carry `magnetic`; switching it on (which closes gaps) is one undo step,\n  switching it off isn't recorded (no clip changes). Undoing the close restores the gaps *and* Magnetic off, so a\n  magnetic track never shows gaps. Recommended.\n- **D2** — Duplicate with Magnetic off: the copy goes into the first gap after the original that fits, else after the\n  last clip (nothing moves). Alternative: insert right after and ripple. Recommended: no ripple (Magnetic off means\n  nothing moves unless asked).\n- **D3** — The validator with Magnetic off resolves overlapping clips by moving the later one to the end of the clip\n  it overlaps (keeping every clip, with a reason in `dropped`) rather than dropping it. Recommended.\n- **D4** — The tool and the Snap switch are view settings for the session (not undone, not saved); Magnetic is part\n  of the project (Q1). Recommended."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task. Each task lists files and the proving test.\nTest-first: each \"tests\" task must fail before its paired implementation makes it pass.\nWhen a task is done, tick it and add an indented **Result (YYYY-MM-DD):** note: what was done, numbers measured,\nanything surprising or deferred.",
+    "sections": [
+      {
+        "title": "Setup",
+        "intro": null
+      },
+      {
+        "title": "Tests first: the model",
+        "intro": null
+      },
+      {
+        "title": "Core: the store",
+        "intro": null
+      },
+      {
+        "title": "UI",
+        "intro": null
+      },
+      {
+        "title": "Self-test",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T018",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T040",
+        "T041",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (plan, Risks): with the timeline focused, Alt + ← / → and Shift + Alt + ← / → with `preventDefault` on keydown don't navigate back / forward in Chrome (web) or open the menu in the Windows desktop app; record what happens without `preventDefault` too. Throwaway: a scratch e2e test and a manual check in `npm run desktop:dev`.",
+          "section": "Setup",
+          "status": "blocked",
+          "blockedReason": "Waits on 2 manual checks by the maintainer: Alt + ← in Chrome, and Alt held through a drag in the desktop app.",
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "scratch only"
+          ],
+          "test": "the result recorded here; if a key can't be kept, propose other keys before T033",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": [
+            "**Status (2026-10-07): automated part done, manual check needed (not ticked).** Findings: (1) the desktop app's\nmenu (`electron/main.cjs`) has no Alt + arrow accelerator, and Electron has no Back shortcut, so Alt + ← / → only\nreach the page there. (2) Playwright's `keyboard.press('Alt+ArrowLeft')` in headed installed Chrome reaches the\npage's `keydown` but never Chrome's own shortcuts (no Back even without `preventDefault`), so e2e can't prove the\nbrowser side. (3) Real OS key presses (`keybd_event` from PowerShell into the Playwright Chrome window) were\nunreliable: once they arrived (as AltGr, a wrong flag), then not at all (Playwright fakes page focus, the window\nwasn't really in front). Expected from Chromium's design: Back (Alt + ←) isn't a reserved shortcut, so the page\nsees it first and `preventDefault` stops it; to confirm by hand. (4) Risk found for Q4: on Windows, Alt pressed and\nreleased on its own focuses the desktop app's menu bar; whether an Alt held through a mouse drag does this is\nthe manual check below.\n**Manual checks (maintainer, ~2 min):** (a) web, Chrome, `npm run dev`, video editor with two clips, timeline\nfocused: Alt + ← navigates back today (no handler yet: confirms the shortcut exists; the `preventDefault` side is\nchecked again by hand at T033). (b) desktop, `npm run desktop:dev`: hold Alt, drag a clip a little, release Alt:\ndoes the File menu get highlighted (keyboard focus in the menu bar)?"
+          ]
+        },
+        "T010": {
+          "text": "Failing tests for gaps (§1) in `src/engine/timeline.test.ts`: `gaps()`; `videoAt` null inside a gap and before a first clip that starts later, the last clip at or past the end, the first before 0 when it starts at 0; `framePlan` covers 0 → total with `{ clip: null }` spans (a 1.5 s gap at 30 fps = 45 frames, AC-4); the 201 equivalence tests unchanged.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts"
+          ],
+          "test": "fails (no `gaps`, gap shows a clip)",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": []
+        },
+        "T011": {
+          "text": "Implement §1 in `src/engine/timeline.ts` until T010 passes and the 201 tests stay green.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/timeline.ts"
+          ],
+          "test": "T010",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result T010 + T011 (2026-10-07):** 3 tests written first (failed: `gaps` missing, a gap showed a clip). In\n`timeline.ts`: `gaps(p, track)` (before and between clips, 1e-9 tolerance for summed starts); `videoAt` returns\nnull inside a gap, and clamps like 2.x only before 0 when the first clip starts at 0 and at or past the end;\n`framePlan` adds a `{ clip: null }` span (start = the previous clip's end) where a clip's first frame is after\nthe previous clip's last, so frames run 0 → total (no tail span after the last clip, as 2.x). A 1.5 s gap at 30\nfps = frames 60–105 (45). All 201 equivalence tests unchanged and green: `npm run check` 886; `npm test` 6,124\n/ 0 failed (200 frames still pixel-identical; timing 11.0 ms / 2.74 s). Break-test: no gap spans → the frames\ntest failed, restored."
+          ]
+        },
+        "T012": {
+          "text": "Failing tests (`src/engine/edits.test.ts`, new) for `checkTrack`, `rippleDelete`, `lift`, `closeGap`, `closeGaps`, `trim` (both sides, ripple or not: limits 0.3 s, source, 60 s photos, project length, next clip), `moveTo` (fits, nearest free spot before / after, refused), `reorder`; locked tracks refused with the reason; AC-1: with Magnetic on (results packed) every operation equals today's store result on the 12 fixtures.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-5",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/edits.test.ts"
+          ],
+          "test": "fails (module missing)",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": []
+        },
+        "T013": {
+          "text": "Implement those in `src/engine/edits.ts` (`MIN_LEN`, `PHOTO_MAX`, `EditCtx`, `Edit<C>`).",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-5",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/edits.ts"
+          ],
+          "test": "T012",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result T012 + T013 (2026-10-07):** 31 tests written first (failed: module missing), then `edits.ts`; all pass.\nAC-1 compares, on the 11 non-empty fixtures (the first 60 clips of `clips500`), every clip's ripple delete, lift\nand ripple trim (both edges, 7 deltas from −100 to +100 s), packed, with a copy of today's store + edge-drag code.\nInterface details beyond the plan: clips carry `srcDur` (`EditClip = TimedClip & { srcDur }`, photos 0) for the\nsource bounds; `checkTrack(clips, max, before?)` checks the 0.3 s floor against the clips before the edit (2.x\nclips already shorter may stay); `closeGap` takes an optional track (default the main one). Edits return the same\narray when nothing changes (the store can skip the undo step). One intended difference from 2.x: a clip already\nunder 0.3 s (2.x data only) can't be shortened; 2.x's edge drag jumped it up to 0.3 s even when shortening (AC-1\nskips those clips' trims). A lengthening past the project limit is refused with `TOO_LONG` (2.x refused silently).\n`npm run check` 917 tests. Break-tests: no 0.3 s floor → 11 failed; ripple delete without the pull-back → 2\nfailed; restored."
+          ]
+        },
+        "T014": {
+          "text": "Failing tests for `roll` (length unchanged, limits, non-adjacent refused), `slip` (bounds, photo refused), `slide` (neighbours, bounds, next to a gap, first / last clip) and `nudge` (each tool, one frame at 30 and 60 fps, one second, Select with Magnetic on = one place).",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/edits.test.ts"
+          ],
+          "test": "fails",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": []
+        },
+        "T015": {
+          "text": "Implement `roll`, `slip`, `slide`, `nudge`.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/edits.ts"
+          ],
+          "test": "T014",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result T014 + T015 (2026-10-07):** 14 tests written first (all failed: functions missing), then the four\noperations; 45 tests in `edits.test.ts`, `npm run check` 931. Shared edge limits (`endRange` / `startRange`: 0.3 s,\nsource, 60 s photos) serve roll and slide. Rules beyond the plan (D-010): the last clip on a track can't slide\n(no clip after it: refused with a message; sliding it would change the video's length, AC-8); the first clip may\nslide right away from 0 (opens a gap) only with Magnetic off; `slide` takes `magnetic` and then opens no gap,\nthough it may close one (so the store's pack after it never changes the length). `nudge` with Select + Magnetic\noff uses `moveTo` (a nudge into a neighbour finds no other spot and changes nothing). Break-tests: slip without\nsource bounds → 1 failed; roll leaving the right clip's start → 2 failed; restored."
+          ]
+        },
+        "T016": {
+          "text": "Failing tests then implementation of `snapTargets` / `snapTime` (edges of clips, gaps and layers, playhead, 0, end; 8 px at a zoom; skip list for the dragged clip; nothing in range → unchanged), moved out of `Timeline.tsx`.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/engine/edits.ts",
+            "edits.test.ts"
+          ],
+          "test": "fails first, then passes",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** 3 tests first (failed: functions missing), then `snapTargets(clips, layers, playhead,\ntotal, skip)` and `snapTime(t, targets, tolerance)` in `edits.ts`. The skip is by id (`{ clip, layer }`) rather\nthan the plan's list of times, so another edge at the same time still snaps. `Timeline.tsx` now calls them (and\nimports `MIN_LEN` from `edits.ts`): no behaviour change, video e2e 11 passed / 7 skipped (phone) / 0 failed.\n`npm run check` 934. Break-test: no playhead target → 1 failed; restored."
+          ]
+        },
+        "T017": {
+          "text": "AC-11 and AC-12: property tests (1,000 seeded random edits per operation on the fixtures, each result passing `checkTrack` and `mergeProject(toDocument(…))` unchanged) and timing (every operation on 500 clips, median of 100 < 2 ms; record the numbers). Break-test: let `trim` skip the 0.3 s floor, see the property test fail, restore.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11",
+            "AC-12"
+          ],
+          "files": [
+            "src/engine/edits.test.ts"
+          ],
+          "test": "passes; break-test recorded",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** property tests: per operation (10), 1,000 seeded steps (`mulberry32`) through every\nfixture in turn, a quarter of them a lift or move first so there are gaps, with a random length limit near the\ncurrent length; every result passes `checkTrack` against the clips before it, and every 10th, packed, goes through\n`toDocument` → JSON → `mergeProject` unchanged with nothing dropped. (The unpacked check needs `magnetic` in the\ndocument: T018.) They found a real bug: roll / slide / nudge could leave a video's `in` at −2.8e-17 (the range\nbound `length − out` isn't exactly `−in` in floating point); video edges are now clamped to the source where they\nmove. AC-12 on 500 clips, median of 100: 0.001–0.017 ms per operation (bar 2 ms). `npm run check` 954.\nBreak-test: no 0.3 s floor in `trim` → the trim property test failed; restored."
+          ]
+        },
+        "T018": {
+          "text": "The document (§3, D3): failing tests then implementation of `magnetic` in `toDocument` / `mergeProject` (missing = on → packed; off → sorted, gaps kept, overlaps moved after the clip they overlap with a reason; ≥ 6 malformed cases).",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/timeline.ts",
+            "timeline.test.ts"
+          ],
+          "test": "fails first, then passes",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** 5 tests and 6 malformed documents (now 36) first (the 5 failed), then in `timeline.ts`:\n`magnetic` in `ProjectDoc` (optional; `toDocument` always writes it; only `false` means off), and `mergeProject`\npacks when on, else `unpacked()`: the main track sorted by start (equal starts keep the document's order), a clip\noverlapping the one before moved to its end with a reason (D3). The AC-11 property test now also sends every 10th\nresult through the gate with Magnetic off (gaps kept): unchanged. It found a second rounding bug: a ripple left a\nstart at −1.1e-16, which the gate reads as 0; shifted starts are now clamped at 0 and `checkTrack` rejects any\nnegative start. `npm run check` 965. Break-test: no overlap move → 1 failed; restored."
+          ]
+        },
+        "T020": {
+          "text": "Store (§3): `magnetic` (in undo snapshots, D1), `tool`, `snapping` (PURE, D4); `change()` packs only when magnetic; `setMagnetic(true)` closes gaps as one undo step, `false` not recorded; existing actions call §2 operations. With Magnetic on, nothing changes.",
+          "section": "Core: the store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "src/state/video.ts"
+          ],
+          "test": "`npm run check`; the video e2e tests pass unchanged (AC-1)",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** `src/state/video.test.ts` (new, 7 tests, failed first): the store in Node, with clips made\nby hand through a new `loadVideoProject()` (no history; packed when magnetic; also the future \"open a project\"\nentry). `VState.magnetic` (in undo snapshots, D1), `tool` and `snapping` (in `PURE`, D4), `setTool` /\n`setSnapping`; `change()` and the length clamp pack only when magnetic; `setMagnetic(true)` closes gaps as one\nstep (undo brings back gaps + Magnetic off), `false` isn't recorded; `removeClip` / `moveClipTo` call\n`rippleDelete` / `reorder`. `npm run check` 978; editors e2e 17 passed / 9 skipped (phone) / 0 failed, unchanged.\nBreak-test: always pack → 1 failed; restored."
+          ]
+        },
+        "T021": {
+          "text": "Store actions for Magnetic off and the new tools: lift / ripple delete, trims with `ripple`, duplicate (D2), `moveClipToTime`, roll / slip / slide, `nudgeClip`, `rippleTrimToPlayhead`, `deleteGap`; the music under the Slip keys (Q8, its offset); every refusal returns its reason.",
+          "section": "Core: the store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-5",
+            "AC-11"
+          ],
+          "files": [
+            "src/state/video.ts"
+          ],
+          "test": "`npm run check`; video e2e unchanged",
+          "startedOn": "2026-10-07",
+          "doneOn": "2026-10-07",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-07):** 12 store tests first (failed), then in `video.ts`: `removeClip` lifts with Magnetic off;\nnew actions return null or the refusal's reason: `rippleDeleteClip` (Shift + Delete), `trimClip(id, side, delta,\n{ ripple }, key)` (ripples with Magnetic on or Shift), `moveClipToTime`, `rollClip`, `slipClip`, `slideClip`,\n`nudgeClip` (the current tool, the project's fps), `rippleTrimToPlayhead` (Q / W), `deleteGap`, `slipMusic` (Q8,\nthe offset within today's bounds); one `apply()` records an edit as one undo step and nothing when nothing\nchanged. `duplicateClip` with Magnetic off follows D2; `splitAtPlayhead` now reads clip starts (it summed lengths\nfrom 0, wrong after a gap). `loadVideoProject` takes the music. Deltas are from the current state (a drag passes\nthe step since its last call). `npm run check` 990 (19 store tests); editors e2e 17 / 9 skipped / 0 failed;\n`npm test` 6,124 / 0. Break-test: Delete always rippling → 1 failed; restored."
+          ]
+        },
+        "T030": {
+          "text": "Tests first: new `describe('video edit tools')` in `e2e/editors.e2e.ts`: Magnetic off → Delete leaves a gap (a \"Gap\" button), drag a clip to a time, Magnetic on closes the gaps (one undo); Shift + Delete and Shift-drag ripple; Roll, Slip, Slide by drag and by Alt + arrows (lengths and times read from the clips' titles and `.tl-time`); slip on a photo refused with its message; Q / W; snapping on, off and Alt; V / R / Y / U; the live region's text; locked track refuses each tool; axe; Pixel 7 at 360 px.",
+          "section": "UI",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-3",
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9",
+            "AC-10"
+          ],
+          "files": [
+            "e2e/editors.e2e.ts"
+          ],
+          "test": "fails",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T031": {
+          "text": "Transport: tool picker (`radiogroup`, icons, tooltips with keys), Magnetic and Snap switches (`aria-pressed`); keys V / R / Y / U; styles.",
+          "section": "UI",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/Timeline.tsx",
+            "src/components/icons.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "T030's picker and switch parts",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T032": {
+          "text": "Gestures per tool (§4 table): body and edge drags call the store's operations; Shift ripples, Alt skips snapping, snapping through `snapTime`; drop marker for `moveTo`; cursors per tool.",
+          "section": "UI",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/Timeline.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "T030's drag parts; the existing video e2e",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T033": {
+          "text": "Gaps in the video row (focusable buttons, select, Delete closes), keys (Alt + arrows, Q / W, Shift + Delete, Delete lifts with Magnetic off), the polite live region for every change.",
+          "section": "UI",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/Timeline.tsx"
+          ],
+          "test": "T030 passes; video e2e",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T040": {
+          "text": "Self-test (AC-4): an export with a 1.5 s gap between two photos and a layer decodes black with the layer inside the gap and the photos either side; the frame count of the gap from `framePlan` is 45 at 30 fps. Break-test: let `framePlan` skip gap frames, see it fail, restore.",
+          "section": "Self-test",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/dev/videoChecks.ts"
+          ],
+          "test": "`npm test`",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T041": {
+          "text": "Timing (NFR): the self-test's timing check on the new code within 5% of 201's verification run (fastest of 3: preview 10.6 ms, export 2.64 s; bar ≤ 11.1 ms / 2.77 s), in at least two sessions.",
+          "section": "Self-test",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "`npm test` timing line",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T090": {
+          "text": "Docs (AC-13): `docs/MEDIA-STUDIO.md` (tools, Magnetic, gaps, snapping, keys), `specs/lld.md` (`edits.ts`, gaps in §4.9, `magnetic` in the document), `CHANGELOG.md` Unreleased, `src/data/docs.ts`.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [],
+          "test": "link check",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": [
+            "**Note (2026-10-07):** `specs/lld.md` already describes what exists now (module map, §4.9: Magnetic, gaps,\n`edits.ts`, the store); at verification add the UI (tools, keys, gaps) there, and write `docs/MEDIA-STUDIO.md`,\nCHANGELOG and the in-app docs once the tools are in the UI (nothing user-visible yet)."
+          ]
+        },
+        "T091": {
+          "text": "Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; record the numbers.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T092": {
+          "text": "Tick ACs in `spec.md` (Status `Implemented`), roadmap 202 → ✔️, `editor-implementation.md` P2.2 → Done, `memory/progress.md`, `memory/MEMORY.md` (next: `203`).",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        }
+      }
+    }
+  }
+}

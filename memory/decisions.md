@@ -280,3 +280,35 @@ keeps 201, 202 and 401 but drops the Needs column. The branches `feat/402-softwa
 **Consequences:** `/spec-*` commands run inline in the session; no unattended loop, dashboard or gate records. 202
 continues with `/spec-implement`. Entries above about the factory are history only.
 
+## D-025 — Tracking data is JSON; the Markdown keeps the prose (2026-10-09, 404)
+
+**Context:** Statuses, ticks and task ↔ criterion links lived only in Markdown (roadmap tables, checkboxes, AC coverage
+tables), so nothing could read or update them reliably; the maintainer asked for a JSON structure at the top of
+`specs/` and per spec, to link and track with, and for a dashboard on it.
+**Decision:** `specs/roadmap.json` and `specs/features/NNN-*/feature.json` (schemas in `specs/schema/`, collections as
+`{ order, byId }`, links stored once) are the source of truth for tracking. `roadmap.md` is generated; checkboxes and
+Status lines in `spec.md` / `tasks.md` are written from the JSON (`npm run specs:sync`); `npm run specs:check` in
+`npm run check` fails on any disagreement. Changes go through `npm run specs -- new | import | status | done`. Tools in
+`tools/specs-index/` and `tools/roadmap-dashboard/`, no dependencies (own small JSON Schema validator).
+**Alternatives:** JSON generated from Markdown (a cache nobody can edit); JSON only, no checkboxes in Markdown (too big
+a change to every document and command); one `specs/index.json` (merge conflicts, one big file).
+**Consequences:** never tick a box or edit `roadmap.md` by hand. The `/spec-*` commands and `workflow.md` say which
+command to run. Old tasks have no commits recorded (none could be linked reliably).
+
+## D-026 — Features are written as JSON; their Markdown is generated (2026-10-09, 404)
+
+**Context:** With D-025 the Markdown was the source of the prose and the JSON of the tracking, joined by `import` and
+`sync`; the maintainer found that loop too long and asked for one JSON object per spec holding spec, plan and tasks,
+written as the spec is created, planned and broken into tasks, plus a kanban board of tasks and a React + TypeScript
+dashboard in the Chitthi look.
+**Decision:** `feature.json` schema 2 holds the whole feature (`spec`, `plan`, `tasks`; prose as Markdown strings,
+everything tools read as data; layout as a `sections` list). `spec.md`, `plan.md`, `tasks.md` and `roadmap.md` are
+generated and never edited: the CLI regenerates after each change, a Claude Code hook (`.claude/settings.json`) refuses
+edits to them and regenerates after JSON edits, and `npm run roadmap` regenerates after hand edits. Tasks get a
+`status` (`todo`, `in-progress`, `blocked` with a reason, `done`). The dashboard is a React + TypeScript app in
+`tools/roadmap-dashboard/app/` (the repo's React, Vite, TypeScript; no new package) whose board moves tasks through the
+same library as the CLI. `import` is removed. Supersedes D-025's split of sources.
+**Alternatives:** Markdown first with an automatic import (two sources kept in step by automation); one big
+`specs/index.json`.
+**Consequences:** the six existing features were migrated (word check: nothing lost); raw generated Markdown has long
+lines; the `/spec-*` commands write JSON. The roadmap's current phase is named in `roadmap.json` (`currentPhase`).

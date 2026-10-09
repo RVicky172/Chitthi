@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 401 — AI models on this device: see and delete downloaded models · Tasks
 
 **Plan:** `./plan.md`
@@ -8,14 +10,11 @@ anything surprising or deferred.
 
 ## Tests first
 
-- [x] **T010** — Failing unit tests: `modelRow` for each state; `modelState` / `deleteModel` with stubbed OPFS,
-      `fetch`, `Worker` and canvas (stored → deleted → none; bundled refused; refused while a search runs; the worker
-      ended when it held the model). · files: `src/ai/segment/segment.test.ts` · test: fails
+- [x] **T010** — Failing unit tests: `modelRow` for each state; `modelState` / `deleteModel` with stubbed OPFS, `fetch`, `Worker` and canvas (stored → deleted → none; bundled refused; refused while a search runs; the worker ended when it held the model). · files: `src/ai/segment/segment.test.ts` · test: fails
 
 ## Core
 
-- [x] **T020** — `modelRow`, `modelState`, `deleteModel` (replacing `forgetModel`), the `busy` count. · files:
-      `src/ai/segment/models.ts`, `src/ai/segment/index.ts` · test: T010
+- [x] **T020** — `modelRow`, `modelState`, `deleteModel` (replacing `forgetModel`), the `busy` count. · files: `src/ai/segment/models.ts`, `src/ai/segment/index.ts` · test: T010
   - **Result T010 + T020 (2026-10-07):** 6 tests first (all failed: functions missing), then `modelRow(state)` in
     `models.ts` (the plan's `m` argument dropped: the text depends on the state only) and `modelState` /
     `deleteModel` in `index.ts` (`forgetModel`, never called, removed); `run()` counts searches in `busy`, downloads
@@ -24,9 +23,7 @@ anything surprising or deferred.
 
 ## UI
 
-- [x] **T030** — The Settings section with rows, Delete buttons and the status line; e2e in `instagram.e2e.ts`
-      (sparse 176 MB OPFS file, Delete, reload, other data kept, sky mask asks again, axe, 360 px). · files:
-      `src/components/ai/AiSettings.tsx`, `e2e/instagram.e2e.ts` · test: the new e2e test
+- [x] **T030** — The Settings section with rows, Delete buttons and the status line; e2e in `instagram.e2e.ts` (sparse 176 MB OPFS file, Delete, reload, other data kept, sky mask asks again, axe, 360 px). · files: `src/components/ai/AiSettings.tsx`, `e2e/instagram.e2e.ts` · test: the new e2e test
   - **Result (2026-10-07):** `ModelsOnDevice` in `AiSettings.tsx` (a `<details>` like "Keys and services"; the
     segmenter loaded with `import()` when it opens), rows with title, size, status and "Delete the sky model", a
     polite status line; `.aimodels` styles. e2e (desktop, and phone at 360 px): a sparse 176 MB `skyseg.onnx` put into
@@ -46,17 +43,16 @@ anything surprising or deferred.
     `check:licenses` 168 packages; `test:e2e` 76 passed / 10 skipped (phone runs of desktop-only tests) / 0 failed /
     0 flaky; `npm test` 6,124 / 0 (timing 11.0 ms / 2.69 s fastest); `test:mcp` passed. The working tree also held
     202's engine work (T010–T018), so these runs cover it too.
-- [x] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 401 → ✔️, `memory/progress.md`,
-      `memory/MEMORY.md`.
+- [x] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 401 → ✔️, `memory/progress.md`, `memory/MEMORY.md`.
 
 ## AC coverage
 
-| AC   | Tasks            |
-| ---- | ---------------- |
+| AC | Tasks |
+| --- | --- |
 | AC-1 | T010, T020, T030 |
 | AC-2 | T010, T020, T030 |
-| AC-3 | T030             |
-| AC-4 | T010, T020       |
-| AC-5 | T010, T020       |
-| AC-6 | T030             |
-| AC-7 | T090             |
+| AC-3 | T030 |
+| AC-4 | T010, T020 |
+| AC-5 | T010, T020 |
+| AC-6 | T030 |
+| AC-7 | T090 |

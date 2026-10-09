@@ -97,6 +97,7 @@ flowchart TB
 | **AI** (`src/ai/`) | Facade over provider adapters: words and captions sized to the layout, slot-shaped pictures, prompt templates, keys, daily limits. On-device segmentation for AI masks (`segment/`: ONNX Runtime Web in a worker). Loaded only when used |
 | **Agent tools** (`src/agent/`) | One registry of 56 tools (34 for print, 22 for the photo studio), plus MCP prompts and resources, that call the stores and engine; the page side of the MCP server |
 | **Desktop shell** (`electron/`) | Window, `app://` protocol with CSP, file-based library, save/open dialogs, menus, file association, auto-update; the RAW developer (`raw.cjs` runs LibRaw's `dcraw_emu`, a separate program); bundled fonts and LibRaw fetched into `resources/` |
+| **Development tooling** (`tools/`) | Not shipped. `specs-index/`: the spec workflow's data (`feature.json` per feature, `roadmap.json`, schemas), the generators of the spec Markdown, the CLI, the check and a Claude Code hook. `roadmap-dashboard/`: a local dashboard over that data (`npm run roadmap`): a Node server and a React + TypeScript app built with the repo's Vite |
 
 ## 5. Key flows
 

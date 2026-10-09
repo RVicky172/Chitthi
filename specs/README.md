@@ -7,7 +7,8 @@ docs (how the app behaves, setup, operations) are in [docs/](../docs). Read in t
 | -------------------------------------------- | ---------------------------------------------------------------- |
 | [constitution.md](constitution.md)           | Non-negotiable principles and Definition of Done                 |
 | [workflow.md](workflow.md)                   | Spec-driven process: Specify → Plan → Tasks → Implement → Verify |
-| [roadmap.md](roadmap.md)                     | Phases, features, and their status                               |
+| [roadmap.json](roadmap.json) → [roadmap.md](roadmap.md) | Phases, features, and their status (the Markdown is generated) |
+| [schema/](schema/)                           | JSON Schemas of `roadmap.json` and each `feature.json`           |
 | [tech-stack.md](tech-stack.md)               | Approved technologies and rejected alternatives                  |
 | [architecture.md](architecture.md)           | High-level design: context, deployment, flows, storage, security, decisions, conventions |
 | [lld.md](lld.md)                             | Low-level design: modules, data model, store, rendering, export, IPC |

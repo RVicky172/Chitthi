@@ -1,3 +1,5 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
 # 000 — Baseline · Implementation Plan
 
 **Spec:** `./spec.md` · **Status:** Approved <!-- Draft | Approved -->
