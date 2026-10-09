@@ -11,6 +11,16 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-09 — fix(404): criteria intro before the first group; branches updated
+
+**Done:** `main` fast-forwarded to 404 (`962d348`), then `feat/202-edit-operations` and `feat/201-track-model`.
+Converting `spec/203-204`'s drafts found a generator bug: a criteria section's own intro (above its first group, as in
+204) was stored but never written. Fixed in `render/feature.mjs` with a test; existing documents unchanged.
+**Next:** merge `main` into `spec/203-204` and convert 203 / 204 to `feature.json`.
+**Blockers:** none.
+
+---
+
 ## 2026-10-09 — 404 reworked: JSON-first features, kanban board, React dashboard (D-026)
 
 **Done:** At the maintainer's request (before committing 404): `feature.json` schema 2 holds spec, plan and tasks;

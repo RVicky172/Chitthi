@@ -64,6 +64,15 @@ describe('renderSpec', () => {
     expect(renderSpec(f)).toContain('### Slipping\n\nOn a clean clone:\n\n- [ ] **AC-1:** Beta slips. _(unit)_\n');
   });
 
+  it('writes the section intro before the first group, once', () => {
+    const f = feature('102-beta');
+    f.spec.groupIntros = { '': 'Fixtures are made in memory.', Docs: 'By hand.' };
+    expect(renderSpec(f)).toContain(
+      '## Acceptance Criteria\n\nFixtures are made in memory.\n\n### Slipping\n\n- [ ] **AC-1:** Beta slips. _(unit)_\n\n### Docs\n\nBy hand.\n\n- [ ] **AC-2:**',
+    );
+    expect(renderSpec(f).match(/Fixtures are made/g)).toHaveLength(1);
+  });
+
   it('says so when a structured section is empty', () => {
     const f = feature('101-alpha');
     f.spec.stories = { order: [], byId: {} };

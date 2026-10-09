@@ -34,8 +34,12 @@ function criteriaBlocks(criteria, intros = {}) {
     }
     run.lines.push(line);
   }
-  if (!out.length) return [NONE];
-  return out.flatMap((r) => [r.group ? `### ${r.group}` : null, intros[r.group ?? ''] ?? null, r.lines.join('\n')]);
+  // The section's own intro (key "") comes first, whether or not the first criteria have a group; each group's
+  // intro follows its heading.
+  const blocks = [intros[''] ?? null];
+  if (!out.length) return [...blocks, NONE];
+  for (const r of out) blocks.push(r.group ? `### ${r.group}` : null, r.group ? (intros[r.group] ?? null) : null, r.lines.join('\n'));
+  return blocks;
 }
 
 function specSection(spec, section) {
