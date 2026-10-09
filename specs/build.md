@@ -18,6 +18,10 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Vite dev server on http://localhost:5173 with hot reload; proxies `/api/pexels` when a key is set |
+| `npm run roadmap` | Roadmap dashboard on http://localhost:5180 (`127.0.0.1` only): the current phase, every phase and item, and per feature a kanban board of its tasks (drag or "Move" to change a task's status) with its spec, plan and tasks. Builds its React app first (`tools/roadmap-dashboard/app`, ≈0.2 s); `-- --port <n>`, `-- --no-open`, `-- --dev` (hot reload). Dev tooling, not shipped |
+| `npm run specs -- <command>` | Features and roadmap as JSON (`specs/features/*/feature.json`, `specs/roadmap.json`): `new`, `status`, `start`, `block`, `done`, `undone`, `sync`, `check`; each change regenerates the Markdown (`tools/specs-index/README.md`) |
+| `npm run specs:check` | The JSON is valid against `specs/schema/`, its links resolve, and every generated `spec.md` / `plan.md` / `tasks.md` / `roadmap.md` is up to date; part of `npm run check` |
+| `npm run specs:sync` | Regenerates every generated Markdown file from the JSON (rarely needed: the CLI, the Claude Code hook and the dashboard do it) |
 | `npm run typecheck` | TypeScript 7 (`tsc -b`, the native compiler from the `typescript-native` package): strict type check of app and tooling, about 10× faster than 5.9 |
 | `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
 | `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |

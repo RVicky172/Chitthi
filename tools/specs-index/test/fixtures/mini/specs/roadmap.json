@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../../specs/schema/roadmap.schema.json",
+  "schema": 1,
+  "title": "Mini — Roadmap",
+  "updated": "2026-01-02",
+  "lead": "A small roadmap for tests.",
+  "intro": "Numbers: `1xx`.",
+  "statuses": {
+    "order": ["not-started", "spec-drafted", "spec-approved", "in-progress", "done"],
+    "byId": {
+      "not-started": { "icon": "⬜", "label": "Not started", "featureStatus": [] },
+      "spec-drafted": { "icon": "📝", "label": "Spec drafted", "featureStatus": ["draft"] },
+      "spec-approved": { "icon": "✅", "label": "Spec approved", "featureStatus": ["approved"] },
+      "in-progress": { "icon": "🚧", "label": "In progress", "featureStatus": ["in-progress"] },
+      "done": { "icon": "✔️", "label": "Done", "featureStatus": ["implemented"] }
+    }
+  },
+  "phases": {
+    "order": ["phase-1", "other"],
+    "byId": {
+      "phase-1": {
+        "title": "Phase 1 — Basics",
+        "goal": "the basics.",
+        "exit": "all basics done.",
+        "intro": null,
+        "items": ["101", "102", "103"]
+      },
+      "other": { "title": "Other features", "goal": null, "exit": null, "intro": "Anything else.", "items": [] }
+    }
+  },
+  "items": {
+    "byId": {
+      "101": { "title": "Alpha", "workItem": "P1.1", "status": "done", "note": "", "folder": "features/101-alpha", "needs": [] },
+      "102": { "title": "Beta | the slip one", "workItem": "P1.2", "status": "in-progress", "note": "half way", "folder": "features/102-beta", "needs": ["101"] },
+      "103": { "title": "Gamma", "workItem": null, "status": "not-started", "note": "", "folder": null, "needs": ["102"] }
+    }
+  },
+  "backlog": {
+    "order": ["idea"],
+    "byId": { "idea": { "text": "An **idea** for later.", "added": "2026-01-01" } }
+  }
+}

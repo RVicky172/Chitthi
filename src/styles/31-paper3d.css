@@ -436,6 +436,25 @@
 .aiprow > summary small {
   color: var(--muted);
 }
+.aimodels {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.aimodels li {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+}
+.aimodels li > span:first-child {
+  flex: 1 1 12rem;
+}
+.aimodels small {
+  color: var(--muted);
+}
 .aicmd {
   display: block;
   padding: 8px 10px;

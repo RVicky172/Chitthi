@@ -32,5 +32,9 @@ Print Samples/
 .claude/*
 !.claude/commands/
 !.claude/skills/
+!.claude/settings.json
 .claude/skills/scroll-world/
 .hallmark/
+
+# roadmap dashboard build (npm run roadmap builds it on start)
+tools/roadmap-dashboard/.build/

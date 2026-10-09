@@ -4,6 +4,8 @@ import { runsHere } from '../../ai/registry';
 import { deleteKey, keyStatus, setKey, type KeyInfo } from '../../ai/secrets';
 import { listModels, testProvider } from '../../ai/service';
 import { aiSettings, baseFor, onAiSettings, setAiSettings, usageToday, type AiSettings } from '../../ai/settings';
+import type { ModelState } from '../../ai/segment/models';
+import type { AiTarget } from '../../engine/segments';
 import { toast } from '../../lib/toast';
 import { desktop, isDesktop } from '../../platform/desktop';
 import { Check } from '../common';
@@ -11,7 +13,8 @@ import { logError } from '../../lib/errors';
 
 /*
  * Settings → AI: which service writes words and which makes pictures, each provider's key (the user's own), base
- * URLs for local and custom services, daily limits, and (desktop) connecting an AI agent through MCP.
+ * URLs for local and custom services, daily limits, the AI models kept on this device (401), and (desktop) connecting
+ * an AI agent through MCP.
  */
 
 type Status = Partial<Record<AiProviderId, KeyInfo>>;
@@ -73,8 +76,92 @@ export default function AiSettings() {
         </Check>
       </details>
 
+      <ModelsOnDevice />
+
       {desktop?.agent && <AgentConnect />}
     </section>
+  );
+}
+
+interface ModelRowInfo {
+  target: AiTarget;
+  title: string;
+  size: string;
+  state: ModelState;
+  status: string;
+  canDelete: boolean;
+}
+
+/**
+ * The on-device models of AI masks (401): where each one is, and Delete for a downloaded one. The segmenter is loaded
+ * with import() when the section opens, so Settings doesn't carry it.
+ */
+function ModelsOnDevice() {
+  const [rows, setRows] = useState<ModelRowInfo[] | null>(null);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    try {
+      const seg = await import('../../ai/segment');
+      const targets = Object.keys(seg.SEG_MODELS) as AiTarget[];
+      setRows(
+        await Promise.all(
+          targets.map(async (target) => {
+            const m = seg.SEG_MODELS[target],
+              state = await seg.modelState(target);
+            return { target, title: m.title, size: seg.sizeText(m.bytes), state, ...seg.modelRow(state) };
+          }),
+        ),
+      );
+    } catch (e) {
+      logError('handled', e);
+      setMsg('The models on this device couldn’t be read.');
+    }
+  };
+  const remove = async (r: ModelRowInfo) => {
+    setBusy(true);
+    try {
+      const why = await (await import('../../ai/segment')).deleteModel(r.target);
+      setMsg(why ?? `The ${r.target} model was deleted: ${r.size} freed.`);
+      await load();
+    } catch (e) {
+      logError('handled', e);
+      setMsg(`The ${r.target} model couldn’t be deleted.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <details className="aiprov" onToggle={(e) => e.currentTarget.open && !rows && void load()}>
+      <summary>AI models on this device</summary>
+      <p className="hint">
+        Finding a subject or the sky in a photo uses AI models that run here, not on a server. A downloaded model is kept
+        {isDesktop ? ' in the app’s data folder' : ' in this browser’s private storage for this site'} until you delete it;
+        it is downloaded again, after asking, when it is next needed. Deleting one changes nothing else.
+      </p>
+      {rows ? (
+        <ul className="aimodels">
+          {rows.map((r) => (
+            <li key={r.target}>
+              <span>
+                <b>{r.title}</b> <small>{r.size}</small>
+              </span>
+              <span className="hint">{r.status}</span>
+              {r.canDelete && (
+                <button type="button" className="sbtn" disabled={busy} aria-label={`Delete the ${r.target} model`} onClick={() => void remove(r)}>
+                  Delete
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        !msg && <p className="hint">Looking…</p>
+      )}
+      <p className="hint" role="status">
+        {msg}
+      </p>
+    </details>
   );
 }
 

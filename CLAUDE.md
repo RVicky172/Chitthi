@@ -23,7 +23,11 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 
 - Never write feature code without an **Approved** `spec.md`. If none exists, draft one and stop for review.
 - Never plan from a spec that still has `[NEEDS CLARIFICATION]` markers — ask the user.
-- Work one task from `tasks.md` at a time; tick it only after its tests pass, with a dated **Result** note.
+- Work one task at a time: `npm run specs -- start NNN Txxx`, then `done` (with a dated `--result` note) once its
+  tests pass, or `block` it with a reason when it needs the user.
+- A feature is one `specs/features/NNN-*/feature.json` (spec, plan, tasks); `specs/roadmap.json` is the roadmap.
+  `spec.md`, `plan.md`, `tasks.md` and `roadmap.md` are generated from them: never edit those (a hook refuses it and
+  regenerates them after JSON edits). See `specs/workflow.md` "One JSON per feature".
 - If code must diverge from the spec, update the spec (and its Changelog) first.
 - Bug fixes and behaviour-neutral refactors may skip the spec; log them in `memory/progress.md`.
 - Numbering: `000–099` baseline, `2xx` / `3xx` = editor work items P2.x / P3.x (P2.1 → `201`), `401+` other.
@@ -39,7 +43,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 | `specs/architecture.md`, `specs/lld.md`             | Before touching shared code or adding a module                 |
 | `specs/tech-stack.md`, `specs/licensing.md`         | Before adding or upgrading any library, model, binary or asset |
 | `specs/testing-strategy.md`                         | Before writing tests                                           |
-| `specs/roadmap.md`, `specs/vision/`                 | Choosing what's next; editor roadmap and work items            |
+| `specs/roadmap.json`, `specs/vision/`               | Choosing what's next (or `npm run roadmap`); editor work items |
 | `specs/build.md`, `specs/release.md`                | Scripts, packaging, releasing                                  |
 | `docs/MEDIA-STUDIO.md`, `docs/MCP.md`, `docs/AI.md` | Behaviour of the media studio, agent tools, AI                 |
 | `docs/SPECIFICATIONS.md`, `docs/DESKTOP.md`         | Print specifications as data; the desktop app and signing      |
@@ -49,7 +53,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 ```bash
 npm run dev            # Vite dev server, http://localhost:5173
 npm run desktop:dev    # Vite + Electron with hot reload
-npm run check          # fast gate: typecheck + lint + unit tests — run before ticking any task
+npm run check          # fast gate: typecheck + lint + specs:check + unit tests — run before ticking any task
 npm run lint           # ESLint (0 errors required; the 5 react-hooks warnings are known)
 npm run check:licenses # every shipped package has an allowed licence (specs/licensing.md)
 npm run typecheck      # TypeScript 7 (typescript-native) tsc -b; 6.0 stays as `typescript` only for typescript-eslint
@@ -59,6 +63,8 @@ npm test               # Electron self-test (src/dev/selftest.ts, ~6,100 checks:
 npm run test:mcp       # MCP server end to end (scripts/mcp-smoke.mjs); CHITTHI_MCP_APP=<exe> tests a packaged app
 npm run fetch:libraw   # once: LibRaw's RAW developer into electron/resources/libraw (test:mcp develops a DNG with it)
 npm run test:e2e       # Playwright on the production build (e2e/*.e2e.ts), desktop + phone projects, axe checks
+npm run roadmap        # roadmap dashboard on http://localhost:5180 (tools/roadmap-dashboard; --port, --no-open)
+npm run specs -- help  # feature / roadmap JSON: new, status, start, block, done, undone, check, sync (tools/specs-index)
 ```
 
 Single tests:

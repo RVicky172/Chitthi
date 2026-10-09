@@ -9,8 +9,16 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   git stores LF (`core.autocrlf`, no `.gitattributes` rule for `.md`). Keep each file's own endings when editing by
   script. Git Bash's `grep -c $'\r$'` does not see the CRs, so it can't tell them apart: count bytes instead, e.g.
   `python -c "b=open('f','rb').read(); print(b.count(b'\r\n'), b.count(b'\n'))"`.
+- The Edit tool can also turn a CRLF working copy into LF (`specs/constitution.md`, 402 T080). Count the endings
+  before and after editing a CRLF file, and put them back if they changed.
 - Scripted edits through a Bash heredoc on this machine can mangle `…`, `’` and backslash escapes (`\b` became a
   backspace). Write the edit script to a file with the Write tool, or use the Edit tool.
+- Git Bash's `sed -i` rewrites a whole CRLF file as LF, even for a one-line change (201 T013, `layers.ts`). Use the
+  Edit tool or a Python script with `newline=''` on CRLF files, or restore the endings afterwards.
+- A Python patch script with multi-line patterns finds nothing in a CRLF file read with `newline=''` (most of `src/`
+  is CRLF). Read, `.replace(chr(13) + chr(10), chr(10))`, patch, write back with `chr(10)` → `chr(13) + chr(10)`;
+  spell the endings with `chr()` since `\r\n` typed through a Bash heredoc or `python -c` becomes real line breaks
+  (201 T022).
 
 ## Tests
 
@@ -24,3 +32,32 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 - Don't return whole canvases from `page.evaluate` in e2e tests: `Array.from(getImageData(...).data)` took 8+ s on
   the CI runner (no GPU, software WebGL) and blew a 5 s `expect.poll`. Compare inside the page and return a number.
   CI logs and artifacts need `gh` (signed in): `gh run view <id> --log-failed`, `gh run download <id> -n playwright-report`.
+
+## UI
+
+- Playwright's `keyboard.press` reaches the page's `keydown` but never the browser's own shortcuts (Alt + ← doesn't
+  go Back even in headed installed Chrome), so e2e can't test "does `preventDefault` stop the browser shortcut".
+  Injecting real OS keys (`keybd_event`) into a Playwright window is unreliable: Playwright fakes page focus
+  (`document.hasFocus()` true while the window isn't in front), so the keys land elsewhere. Check browser
+  shortcuts by hand (202 T001).
+
+- A menu that focuses its first / checked item in `requestAnimationFrame` (as `MoreMenu` does) loses keys pressed
+  right after opening: Playwright's next `press` (or a fast user) lands on the button, and Enter closes the menu.
+  Focus in a `useLayoutEffect` on the open state instead (201 T031, the track height menu).
+- A `position: fixed` menu inside the timeline's sticky header column was painted under the clip blocks (z-index 2
+  in the scroll area), which took its clicks; the keyboard test passed, only a mouse click showed it. Render such
+  menus in a portal on `document.body`, and `stopPropagation` their keys: React events bubble out of a portal to
+  the React parents (here the timeline's Space / S / Delete / arrow keys) (201 T032).
+
+## Formatting
+
+- Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier
+  --write` on one rewrites the whole file (+222 / −41 for a 40-line change in 202 T020). Format only new files; edit
+  old ones by hand or by script. To undo, re-apply the change to `git show HEAD:<file>` (stored LF: restore CRLF).
+
+## Engine
+
+- Edit limits computed as sums don't land exactly on a source's ends: `(out − in) − out` is not `−in` in floating
+  point, so a roll to the limit left `in` at −2.8e-17 and `checkTrack` failed. Clamp the stored edge itself
+  (`Math.max(0, in + d)`, `Math.min(srcDur, out + d)`), not just the delta. Only seeded random edits found it
+  (202 T017).

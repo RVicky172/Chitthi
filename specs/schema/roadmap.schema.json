@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "roadmap.schema.json",
+  "title": "Chitthi Studio roadmap (specs/roadmap.json)",
+  "description": "Phases, roadmap items, statuses and backlog. specs/roadmap.md is generated from this file by `npm run specs:sync`. Checked by `npm run specs:check` (tools/specs-index).",
+  "type": "object",
+  "required": [
+    "schema",
+    "title",
+    "updated",
+    "statuses",
+    "phases",
+    "items",
+    "backlog"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema": {
+      "const": 1,
+      "description": "Data format version; bumped when the shape changes."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updated": {
+      "type": "string",
+      "format": "date"
+    },
+    "lead": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Markdown shown in the quote block under the title."
+    },
+    "intro": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Markdown paragraphs before the first phase."
+    },
+    "currentPhase": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The phase the dashboard shows first; when left out, the first phase with an item in progress."
+    },
+    "statuses": {
+      "description": "Roadmap statuses in legend order. featureStatus lists the feature.json statuses each one fits.",
+      "type": "object",
+      "required": [
+        "order",
+        "byId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "$ref": "#/$defs/order"
+        },
+        "byId": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/status"
+          }
+        }
+      }
+    },
+    "phases": {
+      "type": "object",
+      "required": [
+        "order",
+        "byId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "$ref": "#/$defs/order"
+        },
+        "byId": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/phase"
+          }
+        }
+      }
+    },
+    "items": {
+      "description": "Roadmap items keyed by their three-digit number; each phase's items list gives their order.",
+      "type": "object",
+      "required": [
+        "byId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "byId": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^\\d{3}$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/item"
+          }
+        }
+      }
+    },
+    "backlog": {
+      "type": "object",
+      "required": [
+        "order",
+        "byId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Heading; \"Backlog\" when left out."
+        },
+        "order": {
+          "$ref": "#/$defs/order"
+        },
+        "byId": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/backlogEntry"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "featureStatus": {
+      "enum": [
+        "draft",
+        "approved",
+        "in-progress",
+        "implemented",
+        "superseded"
+      ]
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "icon",
+        "label",
+        "featureStatus"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "icon": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "featureStatus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/featureStatus"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "required": [
+        "title",
+        "items"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Exit criteria (Markdown)."
+        },
+        "intro": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Markdown before the table."
+        },
+        "items": {
+          "$ref": "#/$defs/order"
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "title",
+        "status",
+        "folder",
+        "needs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workItem": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^P\\d+\\.\\d+$"
+        },
+        "status": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "note": {
+          "type": "string",
+          "description": "Extra status text shown after the icon."
+        },
+        "folder": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^features/\\d{3}-[a-z0-9-]+$"
+        },
+        "needs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{3}$"
+          },
+          "uniqueItems": true,
+          "description": "Items that must be done first."
+        }
+      }
+    },
+    "backlogEntry": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "added": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        }
+      }
+    }
+  }
+}

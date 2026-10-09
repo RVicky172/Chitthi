@@ -1,8 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { MIN_LEN, snapTargets, snapTime } from '../../engine/edits';
 import { layerName, type Layer } from '../../engine/layers';
-import { clipLength, fmtTime, timeline, totalLength } from '../../engine/video';
+import { MAIN_VIDEO, MUSIC, lockedReason, type Track } from '../../engine/timeline';
+import { clipLength, fmtTime } from '../../engine/video';
 import { toast } from '../../lib/toast';
 import {
+  clipLocked,
   duplicateClip,
   endVStep,
   getVideo,
@@ -13,16 +17,20 @@ import {
   selectVLayer,
   setPlayhead,
   setPlaying,
+  setTrack,
+  setTrackHeight,
   setZoom,
   splitAtPlayhead,
   updateClip,
   updateMusic,
   updateVLayer,
   useVideo,
+  type TrackHeight,
   type VClip,
+  videoLength,
 } from '../../state/video';
 import { typingIn } from '../ig/LayerPanel';
-import { CopyIcon, MusicIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
+import { CopyIcon, HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 
 /*
  * The video editor's timeline: a time ruler, the clips (with filmstrips) on the video track, one row per layer, and
@@ -34,7 +42,6 @@ import { CopyIcon, MusicIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, S
  */
 
 const SNAP_PX = 8;
-const MIN_LEN = 0.3;
 let dragSeq = 0;
 
 /** Starts a horizontal drag; `move` gets the pointer's distance in px from where it started. */
@@ -78,13 +85,18 @@ export function Timeline() {
     t = useVideo((s) => s.t),
     zoom = useVideo((s) => s.zoom),
     music = useVideo((s) => s.music),
-    playing = useVideo((s) => s.playing);
+    playing = useVideo((s) => s.playing),
+    tracks = useVideo((s) => s.tracks),
+    trackView = useVideo((s) => s.trackView);
+  const px = (id: string) => TRACK_PX[trackView[id] ?? 'medium'];
+  const videoTrack = tracks.find((tr) => tr.id === MAIN_VIDEO)!,
+    musicTrack = tracks.find((tr) => tr.id === MUSIC)!;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState(600);
   const [reorder, setReorder] = useState<{ id: string; dx: number; to: number } | null>(null);
-  const total = totalLength(clips);
-  const placed = timeline(clips);
+  const total = useVideo(videoLength);
+  const placed = clips.filter((c) => c.track === MAIN_VIDEO).map((clip, index) => ({ clip, index, start: clip.start, end: clip.start + clipLength(clip) }));
   const width = Math.max(view - 2, total * zoom + 160);
 
   useLayoutEffect(() => {
@@ -127,17 +139,8 @@ export function Timeline() {
     return Math.max(0, Math.min(total, (clientX - r.left) / zoom));
   };
   /** Snaps a time to the nearest clip edge, layer edge or the playhead within a few pixels. */
-  const snap = (v: number, skipLayer?: string) => {
-    const pts = [0, total, getVideo().t, ...placed.flatMap((p) => [p.start, p.end]), ...layers.filter((l) => l.id !== skipLayer).flatMap((l) => [l.start ?? 0, Math.min(l.end ?? total, total)])];
-    let best = v,
-      dist = SNAP_PX / zoom;
-    for (const p of pts)
-      if (Math.abs(p - v) < dist) {
-        dist = Math.abs(p - v);
-        best = p;
-      }
-    return best;
-  };
+  const snap = (v: number, skipLayer?: string) =>
+    snapTime(v, snapTargets(placed.map((p) => p.clip), layers, getVideo().t, total, { layer: skipLayer }), SNAP_PX / zoom);
 
   const seekFrom = (e: ReactPointerEvent) => {
     setPlaying(false);
@@ -146,13 +149,15 @@ export function Timeline() {
   };
 
   const onKey = (e: ReactKeyboardEvent) => {
-    if (typingIn(e.target)) return;
+    const del = (s: ReturnType<typeof getVideo>) => (s.layerSel ? removeVLayer(s.layerSel) : s.selected && !refused(s.selected) && removeClip(s.selected));
+    // The track headers' buttons and menus handle their own keys.
+    if (typingIn(e.target) || (e.target as HTMLElement).closest?.('.tl-heads')) return;
     const s = getVideo();
     const map: Record<string, () => void> = {
       ' ': () => setPlaying(!s.playing),
-      s: () => !splitAtPlayhead() && toast('Put the playhead inside a clip, away from its ends, to split it.'),
-      Delete: () => (s.layerSel ? removeVLayer(s.layerSel) : s.selected && removeClip(s.selected)),
-      Backspace: () => (s.layerSel ? removeVLayer(s.layerSel) : s.selected && removeClip(s.selected)),
+      s: split,
+      Delete: () => del(s),
+      Backspace: () => del(s),
       ArrowLeft: () => setPlayhead(s.t - (e.shiftKey ? 1 : 1 / 30)),
       ArrowRight: () => setPlayhead(s.t + (e.shiftKey ? 1 : 1 / 30)),
       Home: () => setPlayhead(0),
@@ -186,17 +191,15 @@ export function Timeline() {
 
   return (
     <div className="tl" onKeyDown={onKey}>
-      <div className="tl-heads" aria-hidden="true">
-        <div className="tl-h tl-h-ruler" />
-        <div className="tl-h tl-h-video">Video</div>
+      <div className="tl-heads">
+        <div className="tl-h tl-h-ruler" aria-hidden="true" />
+        <TrackHead track={videoTrack} height={trackView[MAIN_VIDEO] ?? 'medium'} />
         {(layers.length ? layers : [null]).map((l, i) => (
-          <div key={l?.id ?? 'none'} className="tl-h tl-h-layer">
+          <div key={l?.id ?? 'none'} className="tl-h tl-h-layer" aria-hidden="true">
             {i === 0 ? 'Layers' : ''}
           </div>
         ))}
-        <div className="tl-h tl-h-music">
-          <MusicIcon /> Music
-        </div>
+        <TrackHead track={musicTrack} height={trackView[MUSIC] ?? 'medium'} />
       </div>
       <div className="tl-scroll" ref={scroller} tabIndex={0} role="group" aria-label={`Timeline, ${fmtTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead.`}>
         <div className="tl-canvas" ref={canvas} style={{ width }}>
@@ -208,7 +211,7 @@ export function Timeline() {
             ))}
           </div>
 
-          <div className="tl-row tl-video" onPointerDown={seekFrom}>
+          <div className={`tl-row tl-video${videoTrack.hidden ? ' tl-off' : ''}`} style={{ height: px(MAIN_VIDEO) }} onPointerDown={seekFrom}>
             {placed.map((p) => (
               <ClipBlock
                 key={p.clip.id}
@@ -218,7 +221,9 @@ export function Timeline() {
                 width={(p.end - p.start) * zoom}
                 selected={p.clip.id === selected && !layerSel}
                 dragging={reorder?.id === p.clip.id ? reorder.dx : null}
+                locked={videoTrack.locked}
                 onBody={(e) => {
+                  if (refused(p.clip.id)) return;
                   selectClip(p.clip.id);
                   selectVLayer(null);
                   drag(
@@ -236,6 +241,7 @@ export function Timeline() {
                   );
                 }}
                 onEdge={(e, side) => {
+                  if (refused(p.clip.id)) return;
                   selectClip(p.clip.id);
                   const c0 = p.clip,
                     key = `trim:${c0.id}:${++dragSeq}`;
@@ -307,13 +313,15 @@ export function Timeline() {
             </div>
           ))}
 
-          <div className="tl-row tl-music" onPointerDown={seekFrom}>
+          <div className={`tl-row tl-music${musicTrack.muted ? ' tl-off' : ''}`} style={{ height: px(MUSIC) }} onPointerDown={seekFrom}>
             {music ? (
               <MusicBar
                 total={total}
                 zoom={zoom}
+                height={px(MUSIC)}
                 onDrag={(e) => {
                   const o0 = music.offset;
+                  if (refusedMusic()) return;
                   drag(e, (dx) => updateMusic({ offset: Math.max(0, Math.min(Math.max(0, music.dur - Math.min(total, music.dur)), o0 - dx / zoom)) }));
                 }}
               />
@@ -346,6 +354,8 @@ function ClipBlock(p: {
   width: number;
   selected: boolean;
   dragging: number | null;
+  /** On a locked track: a lock badge, and the pointer doesn't drag it. */
+  locked: boolean;
   onBody: (e: ReactPointerEvent) => void;
   onEdge: (e: ReactPointerEvent, side: 'start' | 'end') => void;
 }) {
@@ -359,7 +369,7 @@ function ClipBlock(p: {
   });
   return (
     <div
-      className={`tl-clip tl-${c.kind}${p.selected ? ' on' : ''}${p.dragging !== null ? ' dragging' : ''}`}
+      className={`tl-clip tl-${c.kind}${p.selected ? ' on' : ''}${p.dragging !== null ? ' dragging' : ''}${p.locked ? ' locked' : ''}`}
       style={{ left: p.left, width: Math.max(8, p.width - 2), transform: p.dragging !== null ? `translateX(${p.dragging}px)` : undefined }}
       onPointerDown={p.onBody}
       title={`${c.name} · ${clipLength(c).toFixed(1)} s`}
@@ -370,6 +380,7 @@ function ClipBlock(p: {
         ))}
       </div>
       <span className="tl-clip-label">
+        {p.locked && <LockIcon on />}
         {c.kind === 'video' ? '▶ ' : ''}
         {clipLength(c).toFixed(1)}s{c.fade ? ' · fade' : ''}
       </span>
@@ -398,7 +409,7 @@ function LayerBar(p: { layer: Layer; total: number; zoom: number; selected: bool
   );
 }
 
-function MusicBar({ total, zoom, onDrag }: { total: number; zoom: number; onDrag: (e: ReactPointerEvent) => void }) {
+function MusicBar({ total, zoom, height, onDrag }: { total: number; zoom: number; height: number; onDrag: (e: ReactPointerEvent) => void }) {
   const music = useVideo((s) => s.music)!;
   const ref = useRef<HTMLCanvasElement>(null);
   const width = Math.max(10, Math.min(total, music.dur - music.offset) * zoom);
@@ -408,7 +419,7 @@ function MusicBar({ total, zoom, onDrag }: { total: number; zoom: number; onDrag
     if (!cv || !x) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = Math.min(8000, Math.round(width * dpr));
-    cv.height = Math.round(36 * dpr);
+    cv.height = Math.round((height - 8) * dpr);
     x.clearRect(0, 0, cv.width, cv.height);
     const peaks = music.peaks;
     if (!peaks.length) return;
@@ -420,7 +431,7 @@ function MusicBar({ total, zoom, onDrag }: { total: number; zoom: number; onDrag
       const h = Math.max(1, v * cv.height * 0.9);
       x.fillRect(i, (cv.height - h) / 2, 1.5, h);
     }
-  }, [music, width, zoom]);
+  }, [music, width, zoom, height]);
   return (
     <div className="tl-bar tl-bar-music" style={{ left: 0, width }} onPointerDown={onDrag} title={`${music.name}: drag to choose where the song starts`}>
       <canvas ref={ref} aria-hidden="true" />
@@ -431,6 +442,152 @@ function MusicBar({ total, zoom, onDrag }: { total: number; zoom: number; onDrag
   );
 }
 
+/** True (and says why in a toast) when the clip is on a locked track. */
+function refused(id: string): boolean {
+  const why = clipLocked(id);
+  if (why) toast(why);
+  return !!why;
+}
+function refusedMusic(): boolean {
+  const why = lockedReason(getVideo().tracks, MUSIC);
+  if (why) toast(why);
+  return !!why;
+}
+/** Splits the clip under the playhead (S, the Split button), or says why not. */
+function split(): void {
+  const why = lockedReason(getVideo().tracks, MAIN_VIDEO);
+  if (why) toast(why);
+  else if (!splitAtPlayhead()) toast('Put the playhead inside a clip, away from its ends, to split it.');
+}
+
+/** Track heights in pixels (Q5; D-008: Medium for every track by default). */
+const TRACK_PX: Record<TrackHeight, number> = { small: 40, medium: 64, large: 96 };
+const HEIGHTS: [TrackHeight, string][] = [
+  ['small', 'Small'],
+  ['medium', 'Medium'],
+  ['large', 'Large'],
+];
+
+/** A track's header: its name, Hide (picture tracks) or Mute (sound tracks), Lock, and its height. */
+function TrackHead({ track, height }: { track: Track; height: TrackHeight }) {
+  const visual = track.kind !== 'audio';
+  const off = visual ? track.hidden : track.muted;
+  const verb = visual ? 'Hide' : 'Mute';
+  return (
+    <div className={`tl-h tl-h-track tl-h-${height}`} style={{ height: TRACK_PX[height] }} role="group" aria-label={`${track.name} track`}>
+      <span className="tl-h-name" aria-hidden="true">
+        {!visual && <MusicIcon />} {track.name}
+      </span>
+      <span className="tl-h-tools">
+        <button
+          type="button"
+          className="tl-tbtn"
+          aria-pressed={off}
+          aria-label={`${verb} ${track.name}`}
+          title={visual ? (off ? 'Hidden: not drawn in the preview or the export' : 'Hide this track in the preview and the export') : off ? 'Muted: silent in the preview and the export' : 'Mute this track in the preview and the export'}
+          onClick={() => setTrack(track.id, visual ? { hidden: !off } : { muted: !off })}
+        >
+          {visual ? <HideIcon on={off} /> : <MuteIcon on={off} />}
+        </button>
+        <button
+          type="button"
+          className="tl-tbtn"
+          aria-pressed={track.locked}
+          aria-label={`Lock ${track.name}`}
+          title={track.locked ? 'Locked: its clips can’t be changed' : 'Lock this track so its clips can’t be changed'}
+          onClick={() => setTrack(track.id, { locked: !track.locked })}
+        >
+          <LockIcon on={track.locked} />
+        </button>
+        <HeightMenu track={track} height={height} />
+      </span>
+    </div>
+  );
+}
+
+/** The track height button and its menu (Small / Medium / Large): arrows, Home / End, Enter, Escape. */
+function HeightMenu({ track, height }: { track: Track; height: TrackHeight }) {
+  const [at, setAt] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null),
+    list = useRef<HTMLUListElement>(null),
+    id = useId();
+  const label = `${track.name} track height`;
+  const close = (focus: boolean) => {
+    setAt(null);
+    if (focus) btn.current?.focus();
+  };
+  useEffect(() => {
+    if (!at) return;
+    const onDown = (e: PointerEvent) => {
+      if (!list.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setAt(null);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [at]);
+  // Land on the size in use as soon as the menu is there, so the very next key goes to it.
+  useLayoutEffect(() => {
+    if (at) list.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus();
+  }, [at]);
+  const open = () => {
+    const r = btn.current!.getBoundingClientRect();
+    // A fixed menu in a portal: inside the timeline it would be clipped by its scrolling and painted under the clips.
+    // Opens upwards near the bottom of the window.
+    setAt(r.bottom + 120 > window.innerHeight ? { left: r.left, bottom: window.innerHeight - r.top + 2 } : { left: r.left, top: r.bottom + 2 });
+  };
+  const onListKey = (e: ReactKeyboardEvent) => {
+    // React events bubble out of a portal to the timeline, whose keys (Space, S, Delete, arrows) mustn't act here.
+    e.stopPropagation();
+    const items = [...(list.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = { ArrowDown: Math.min(items.length - 1, i + 1), ArrowUp: Math.max(0, i - 1), Home: 0, End: items.length - 1 }[e.key];
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      e.preventDefault();
+      close(true);
+    } else if (next !== undefined) {
+      e.preventDefault();
+      items[next]?.focus();
+    }
+  };
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        className="tl-tbtn"
+        aria-label={label}
+        title={`Track height: ${HEIGHTS.find(([h]) => h === height)?.[1]}`}
+        aria-haspopup="menu"
+        aria-expanded={!!at}
+        aria-controls={at ? id : undefined}
+        onClick={() => (at ? close(false) : open())}
+      >
+        <HeightIcon />
+      </button>
+      {at &&
+        createPortal(
+        <ul ref={list} id={id} className="tl-hmenu" role="menu" aria-label={label} style={{ position: 'fixed', ...at }} onKeyDown={onListKey}>
+          {HEIGHTS.map(([h, name]) => (
+            <li key={h} role="none">
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={h === height}
+                onClick={() => {
+                  setTrackHeight(track.id, h);
+                  close(true);
+                }}
+              >
+                {name}
+              </button>
+            </li>
+          ))}
+        </ul>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 /** Play controls, editing buttons and zoom, above the timeline. */
 export function Transport() {
   const playing = useVideo((s) => s.playing),
@@ -438,7 +595,7 @@ export function Transport() {
     clips = useVideo((s) => s.clips),
     selected = useVideo((s) => s.selected),
     zoom = useVideo((s) => s.zoom);
-  const total = totalLength(clips);
+  const total = useVideo(videoLength);
   return (
     <div className="tl-transport" role="toolbar" aria-label="Playback and editing">
       <button type="button" className="pbtn" aria-label="Go to the start" onClick={() => (setPlaying(false), setPlayhead(0))}>
@@ -454,15 +611,15 @@ export function Transport() {
         <b>{fmtTime(t)}</b> / {fmtTime(total)}
       </span>
       <span className="tl-sep" />
-      <button type="button" className="sbtn" disabled={!clips.length} onClick={() => !splitAtPlayhead() && toast('Put the playhead inside a clip, away from its ends, to split it.')} title="Split at the playhead (S)" aria-label="Split">
+      <button type="button" className="sbtn" disabled={!clips.length} onClick={split} title="Split at the playhead (S)" aria-label="Split">
         <ScissorsIcon />
         <span className="mst-l">Split</span>
       </button>
-      <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && duplicateClip(selected)} title="Duplicate the clip" aria-label="Duplicate">
+      <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && !refused(selected) && duplicateClip(selected)} title="Duplicate the clip" aria-label="Duplicate">
         <CopyIcon />
         <span className="mst-l">Duplicate</span>
       </button>
-      <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && removeClip(selected)} title="Remove the clip (Delete)" aria-label="Delete">
+      <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && !refused(selected) && removeClip(selected)} title="Remove the clip (Delete)" aria-label="Delete">
         <TrashIcon />
         <span className="mst-l">Delete</span>
       </button>

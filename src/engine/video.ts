@@ -1,4 +1,4 @@
-import { renderIg, type IgEdit } from './instagram';
+import { DEFAULT_EDIT, renderIg, type IgEdit } from './instagram';
 import { drawLayers, type Layer } from './layers';
 
 /*
@@ -92,30 +92,6 @@ export interface ClipTiming {
 
 export const clipLength = (c: ClipTiming): number => Math.max(0.1, c.kind === 'photo' ? c.dur : c.out - c.in);
 
-export interface Placed<T> {
-  clip: T;
-  index: number;
-  start: number;
-  end: number;
-}
-
-/** Where each clip sits on the timeline, end to end. */
-export function timeline<T extends ClipTiming>(clips: T[]): Placed<T>[] {
-  let t = 0;
-  return clips.map((clip, index) => {
-    const start = t;
-    t += clipLength(clip);
-    return { clip, index, start, end: t };
-  });
-}
-export const totalLength = (clips: ClipTiming[]): number => clips.reduce((a, c) => a + clipLength(c), 0);
-
-/** The clip showing at time t (the last one at or past the end), or null for an empty timeline. */
-export function clipAt<T extends ClipTiming>(tl: Placed<T>[], t: number): Placed<T> | null {
-  if (!tl.length) return null;
-  return tl.find((p) => t >= p.start && t < p.end) ?? (t < 0 ? tl[0] : tl[tl.length - 1]);
-}
-
 /** Frame numbers (at V_FPS) whose time falls in [start, end). */
 export function frameRange(start: number, end: number, fps: number = V_FPS): [number, number] {
   // The tiny offset keeps a frame exactly on a boundary in the later clip; max(0, …) avoids a -0 first frame.
@@ -158,6 +134,9 @@ export interface FrameClip extends ClipTiming {
   motion: Motion;
   fade: boolean;
 }
+
+/** What renderFrame draws where no clip shows (the video track hidden): black, the layers, the video's fade-out. */
+export const NO_PICTURE: FrameClip = { kind: 'photo', dur: 0, in: 0, out: 0, edit: DEFAULT_EDIT, motion: 'none', fade: false };
 
 /**
  * Draws the frame at time t: src is the clip's picture at that moment (the photo, or the video frame), sw × sh its

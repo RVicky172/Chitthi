@@ -1,0 +1,106 @@
+/* Chitthi tokens, copied from the app (src/styles/01-base.css; rules in design.md): Graphite paper and ink, the dark
+   stage with marigold as its only hue, the airmail stripe as a brand detail. Every colour is a token; components never
+   write a raw colour. */
+
+/* Schibsted Grotesk: the app's own heading font (SIL OFL). */
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url('../../../../../src/assets/fonts/schibsted-grotesk-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url('../../../../../src/assets/fonts/schibsted-grotesk-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  --bg: oklch(98.5% 0.002 90);
+  --panel: oklch(100% 0 0);
+  --sunk: oklch(95.5% 0.003 90);
+  --field: oklch(100% 0 0);
+  --field-hover: oklch(97% 0.003 90);
+  --text: oklch(20% 0.005 90);
+  --muted: oklch(46% 0.006 90);
+  --line: oklch(90.5% 0.004 90);
+  --line-strong: oklch(72% 0.005 90);
+  --accent: oklch(22% 0.005 90);
+  --accent-strong: oklch(34% 0.005 90);
+  --on-accent: oklch(99% 0.002 90);
+  --accent-soft: oklch(94% 0.004 90);
+  --danger: oklch(50% 0.19 25);
+  --good: oklch(42% 0.11 155);
+  --warn: oklch(48% 0.12 70);
+
+  --stage: oklch(20% 0.004 90);
+  --stage-2: oklch(24% 0.004 90);
+  --stage-rule: oklch(32% 0.005 90);
+  --stage-ink: oklch(95% 0.003 90);
+  --stage-muted: oklch(76% 0.005 90);
+  --stage-accent: oklch(82% 0.13 80);
+  --stage-on-accent: oklch(20% 0.02 80);
+
+  --brand-red: oklch(53% 0.18 27);
+  --brand-ink: oklch(30% 0.08 262);
+
+  --elev-1: 0 1px 2px oklch(20% 0.004 90 / 0.06);
+  --elev-2: 0 1px 2px oklch(20% 0.004 90 / 0.05), 0 4px 16px -4px oklch(20% 0.004 90 / 0.08);
+  --elev-3: 0 12px 32px -8px oklch(20% 0.004 90 / 0.16);
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur: 220ms;
+
+  --font: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'Instrument Serif', Georgia, serif;
+  --font-head: 'Schibsted Grotesk', 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(16.5% 0.003 90);
+    --panel: oklch(20% 0.004 90);
+    --sunk: oklch(14% 0.003 90);
+    --field: oklch(22.5% 0.004 90);
+    --field-hover: oklch(25% 0.004 90);
+    --text: oklch(95% 0.003 90);
+    --muted: oklch(72% 0.005 90);
+    --line: oklch(28.5% 0.004 90);
+    --line-strong: oklch(42% 0.005 90);
+    --accent: oklch(95% 0.003 90);
+    --accent-strong: oklch(85% 0.004 90);
+    --on-accent: oklch(17% 0.003 90);
+    --accent-soft: oklch(95% 0.003 90 / 0.1);
+    --danger: oklch(70% 0.16 22);
+    --good: oklch(78% 0.12 150);
+    --warn: oklch(82% 0.11 80);
+    --stage: oklch(12% 0.003 90);
+    --stage-2: oklch(16% 0.003 90);
+    --stage-rule: oklch(26% 0.004 90);
+    --stage-ink: oklch(95% 0.003 90);
+    --stage-muted: oklch(74% 0.005 90);
+    --brand-red: oklch(64% 0.17 27);
+    --brand-ink: oklch(72% 0.08 255);
+    --elev-1: 0 1px 2px oklch(0% 0 0 / 0.4);
+    --elev-2: 0 1px 2px oklch(0% 0 0 / 0.35), 0 8px 24px -8px oklch(0% 0 0 / 0.55);
+    --elev-3: 0 16px 40px -8px oklch(0% 0 0 / 0.65);
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+  }
+}

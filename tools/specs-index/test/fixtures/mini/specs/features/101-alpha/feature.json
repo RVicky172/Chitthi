@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../../../../specs/schema/feature.schema.json",
+  "schema": 2,
+  "id": "101",
+  "title": "Alpha",
+  "workItem": "P1.1",
+  "status": "implemented",
+  "owner": "tester",
+  "dates": { "created": "2026-01-01", "approved": "2026-01-01", "started": "2026-01-02", "done": "2026-01-02" },
+  "git": { "branch": "feat/101-alpha" },
+  "spec": {
+    "phase": "1 — Basics",
+    "summary": "Alpha does the basics.",
+    "stories": { "order": ["US-1"], "byId": { "US-1": { "text": "As a tester, I want alpha, so that it works." } } },
+    "criteria": {
+      "order": ["AC-1", "AC-2"],
+      "byId": {
+        "AC-1": { "text": "Alpha works.", "proof": "unit", "group": null, "done": true },
+        "AC-2": { "text": "Alpha is fast.", "proof": "unit", "group": null, "done": true }
+      }
+    },
+    "questions": { "order": ["Q1"], "byId": { "Q1": { "text": "Fast? _Answer:_ yes.", "open": false } } },
+    "changelog": [{ "date": "2026-01-01", "text": "Created." }],
+    "sections": [
+      { "kind": "summary", "title": "Summary" },
+      { "kind": "stories", "title": "User Stories" },
+      { "kind": "criteria", "title": "Acceptance Criteria" },
+      { "kind": "questions", "title": "Open Questions" },
+      { "kind": "changelog", "title": "Changelog" }
+    ]
+  },
+  "plan": null,
+  "tasks": {
+    "intro": "**Plan:** none",
+    "sections": [{ "title": "Core", "intro": null }],
+    "items": {
+      "order": ["T001", "T002"],
+      "byId": {
+        "T001": {
+          "text": "Tests for alpha.",
+          "section": "Core",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": ["AC-1", "AC-2"],
+          "files": ["a.test.ts"],
+          "test": "fails",
+          "startedOn": "2026-01-02",
+          "doneOn": "2026-01-02",
+          "commits": ["abc1234"],
+          "notes": ["**Result (2026-01-02):** done."]
+        },
+        "T002": {
+          "text": "Alpha.",
+          "section": "Core",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": ["AC-1"],
+          "files": ["a.ts"],
+          "test": "T001",
+          "startedOn": "2026-01-02",
+          "doneOn": "2026-01-02",
+          "commits": [],
+          "notes": []
+        }
+      }
+    }
+  }
+}

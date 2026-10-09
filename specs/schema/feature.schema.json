@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feature.schema.json",
+  "title": "Chitthi Studio feature (specs/features/NNN-name/feature.json)",
+  "description": "Everything about one feature: its spec, plan and tasks. spec.md, plan.md and tasks.md are generated from it (`npm run specs:sync`, the Claude Code hook, the dashboard). Change it directly or with `npm run specs -- …` (tools/specs-index).",
+  "type": "object",
+  "required": ["schema", "id", "title", "status", "dates", "spec", "plan", "tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema": { "const": 2, "description": "Data format version; bumped when the shape changes." },
+    "id": { "type": "string", "pattern": "^\\d{3}$" },
+    "title": { "type": "string", "minLength": 1 },
+    "workItem": { "type": ["string", "null"], "pattern": "^P\\d+\\.\\d+$" },
+    "status": { "$ref": "#/$defs/featureStatus" },
+    "owner": { "type": ["string", "null"] },
+    "dates": {
+      "type": "object",
+      "required": ["created"],
+      "additionalProperties": false,
+      "properties": {
+        "created": { "type": "string", "format": "date" },
+        "approved": { "$ref": "#/$defs/date" },
+        "started": { "$ref": "#/$defs/date" },
+        "done": { "$ref": "#/$defs/date" }
+      }
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "branch": { "type": ["string", "null"] } }
+    },
+    "spec": { "$ref": "#/$defs/spec" },
+    "plan": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/plan" }] },
+    "tasks": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/tasks" }] }
+  },
+  "$defs": {
+    "order": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "date": { "type": ["string", "null"], "format": "date" },
+    "markdown": { "type": "string", "description": "Markdown text." },
+    "featureStatus": { "enum": ["draft", "approved", "in-progress", "implemented", "superseded"] },
+    "taskStatus": { "enum": ["todo", "in-progress", "blocked", "done"] },
+
+    "spec": {
+      "description": "What and why. sections gives the document's headings in order; structured kinds render from the fields below.",
+      "type": "object",
+      "required": ["summary", "stories", "criteria", "questions", "changelog", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "phase": { "type": ["string", "null"], "description": "The \"Roadmap phase\" shown under the title." },
+        "summary": { "$ref": "#/$defs/markdown" },
+        "stories": {
+          "type": "object",
+          "required": ["order", "byId"],
+          "additionalProperties": false,
+          "properties": {
+            "order": { "$ref": "#/$defs/order" },
+            "byId": {
+              "type": "object",
+              "propertyNames": { "pattern": "^US-\\d+[a-z]?$" },
+              "additionalProperties": {
+                "type": "object",
+                "required": ["text"],
+                "additionalProperties": false,
+                "properties": { "text": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        },
+        "criteria": {
+          "type": "object",
+          "required": ["order", "byId"],
+          "additionalProperties": false,
+          "properties": {
+            "order": { "$ref": "#/$defs/order" },
+            "byId": {
+              "type": "object",
+              "propertyNames": { "pattern": "^AC-\\d+[a-z]?$" },
+              "additionalProperties": { "$ref": "#/$defs/criterion" }
+            }
+          }
+        },
+        "groupIntros": {
+          "description": "Markdown shown under a criteria group's heading, by group title (\"\" for criteria without a group).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/markdown" }
+        },
+        "questions": {
+          "type": "object",
+          "required": ["order", "byId"],
+          "additionalProperties": false,
+          "properties": {
+            "order": { "$ref": "#/$defs/order" },
+            "byId": {
+              "type": "object",
+              "propertyNames": { "pattern": "^Q\\d+[a-z]?$" },
+              "additionalProperties": {
+                "type": "object",
+                "required": ["text", "open"],
+                "additionalProperties": false,
+                "properties": {
+                  "text": { "type": "string", "minLength": 1 },
+                  "open": { "type": "boolean", "description": "true while it needs clarification." }
+                }
+              }
+            }
+          }
+        },
+        "changelog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "text"],
+            "additionalProperties": false,
+            "properties": { "date": { "type": "string", "format": "date" }, "text": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "title"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "enum": ["summary", "stories", "criteria", "questions", "changelog", "markdown"] },
+              "title": { "type": "string", "minLength": 1 },
+              "markdown": { "$ref": "#/$defs/markdown" }
+            }
+          }
+        }
+      }
+    },
+    "criterion": {
+      "type": "object",
+      "required": ["text", "done"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "proof": { "type": ["string", "null"], "description": "The test type that proves it (unit, e2e, manual …)." },
+        "group": { "type": ["string", "null"], "description": "Sub-heading the criterion is listed under." },
+        "done": { "type": "boolean" }
+      }
+    },
+
+    "plan": {
+      "description": "How. sections gives the headings in order; files, risks and constitution render from data.",
+      "type": "object",
+      "required": ["header", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "header": { "$ref": "#/$defs/markdown" },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "change", "purpose"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string", "description": "Markdown: one or more paths." },
+              "change": { "type": "string" },
+              "purpose": { "type": "string" }
+            }
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "additionalProperties": false,
+            "properties": { "text": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "constitution": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["principle", "status", "notes"],
+            "additionalProperties": false,
+            "properties": {
+              "principle": { "type": "string" },
+              "status": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "title"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "enum": ["files", "risks", "constitution", "markdown"] },
+              "title": { "type": "string", "minLength": 1 },
+              "markdown": { "$ref": "#/$defs/markdown" }
+            }
+          }
+        }
+      }
+    },
+
+    "tasks": {
+      "type": "object",
+      "required": ["intro", "sections", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "intro": { "$ref": "#/$defs/markdown" },
+        "sections": {
+          "description": "Task sections in order; each task names its section by title.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title"],
+            "additionalProperties": false,
+            "properties": {
+              "title": { "type": "string", "minLength": 1 },
+              "intro": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "items": {
+          "type": "object",
+          "required": ["order", "byId"],
+          "additionalProperties": false,
+          "properties": {
+            "order": { "$ref": "#/$defs/order" },
+            "byId": {
+              "type": "object",
+              "propertyNames": { "pattern": "^T\\d+[a-z]?$" },
+              "additionalProperties": { "$ref": "#/$defs/task" }
+            }
+          }
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["text", "section", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "section": { "type": "string" },
+        "status": { "$ref": "#/$defs/taskStatus" },
+        "blockedReason": { "type": ["string", "null"], "description": "Why it waits (required while blocked)." },
+        "parallel": { "type": "boolean", "description": "[P]: can run in parallel with the previous task." },
+        "manual": { "type": "boolean", "description": "👤: needs a person." },
+        "covers": { "type": "array", "items": { "type": "string", "pattern": "^AC-\\d+[a-z]?$" }, "uniqueItems": true },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "test": { "type": ["string", "null"] },
+        "startedOn": { "$ref": "#/$defs/date" },
+        "doneOn": { "$ref": "#/$defs/date" },
+        "commits": { "type": "array", "items": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }, "uniqueItems": true },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/markdown" }, "description": "Result and status notes, newest last." }
+      }
+    }
+  }
+}

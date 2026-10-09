@@ -1,0 +1,279 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "203",
+  "title": "Compositing many tracks, picture-in-picture (P2.3)",
+  "workItem": "P2.3",
+  "status": "draft",
+  "owner": "RVicky172",
+  "dates": {
+    "created": "2026-10-08",
+    "approved": null,
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "spec/203-204"
+  },
+  "spec": {
+    "phase": "2 — Multi-track timeline",
+    "summary": "Since `201` a video project is made of tracks, but it still has exactly one video track: a single picture at any\nmoment, with text and stickers on top. Creators of Reels, Shorts and YouTube videos routinely need a second picture\nover the first: B-roll cut over someone talking (the sound of the main clip continues), a face-cam in a corner of a\nscreen recording, a product shot beside a review, a logo clip over the intro. This feature lets the user add\n**overlay tracks** above the main video track, put video and photo clips on them at any time, and place each overlay\nclip in the frame with a **position, size, rotation and opacity** (picture-in-picture), or leave it covering the\nwhole frame (B-roll). Every frame draws every visible clip at that time, bottom track first, and the preview and the\nexported MP4 match. Projects with no overlay clips look, sound and export exactly as they do after `201` and `202`.\nIt needs the decoder pool (`204`) to decode several videos at the same moment.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a vlogger, I want to cut B-roll over my talking clip while my voice keeps playing, so that the video isn't one long shot of my face."
+        },
+        "US-2": {
+          "text": "As a creator of tutorials and reactions, I want a small clip (my face, a product) in a corner of the main clip, so that viewers see both at once."
+        },
+        "US-3": {
+          "text": "As a video creator, I want to move, resize, rotate and fade an overlay clip directly on the preview and with exact numbers, so that I can place it where I want."
+        },
+        "US-4": {
+          "text": "As a keyboard or screen reader user, I want to add tracks and place overlay clips without a mouse, so that I can do everything anyone else can."
+        },
+        "US-5": {
+          "text": "As a creator with an older 2.x or `201` / `202` project, I want it to play and export exactly as before, so that the update costs me nothing."
+        },
+        "US-6": {
+          "text": "As a contributor building `205`–`212`, I want one tested model of tracks drawn in order with a transform per clip, so that keyframes (`205`), transitions (`206`) and agent tools (`212`) animate and reach the same properties."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "The user can add an **overlay** track (Q12), rename it, move it up or down among the overlay tracks and delete it (with its clips, after a confirmation if it holds any). The main video track is always the bottom picture track (Q10). Video and overlay tracks together are limited to 4 on the web and 8 on the desktop app (the limits of `201` Q4); at the limit **Add track** is disabled and says why. Each of these is one undo step.",
+          "proof": "unit + e2e",
+          "group": "Tracks",
+          "done": false
+        },
+        "AC-2": {
+          "text": "An overlay track's header has **Hide** (picture not drawn in the preview or the export), **Mute** (its clips' sound silent in the preview and the export, Q7), **Lock** (as in `201` AC-10, including on the preview: a locked overlay clip can't be moved, resized or selected for editing there) and the height menu.",
+          "proof": "e2e",
+          "group": "Tracks",
+          "done": false
+        },
+        "AC-3": {
+          "text": "Video and photo files can be added to an overlay track at the playhead (button, and by dropping files onto the track; dropping onto the empty area above the top track creates a new overlay track, Q12). Clips can be dragged in time on their track and between picture tracks (main ↔ overlay), with the clip keeping its start time unless snapping moves it. `202`'s operations (trim, ripple trim and delete, roll, slip, slide, split, duplicate, snapping) work on overlay tracks, which are never magnetic (Q8): clips there never overlap and gaps are allowed.",
+          "proof": "unit + e2e",
+          "group": "Overlay clips",
+          "done": false
+        },
+        "AC-4": {
+          "text": "Each clip on a picture track has a **transform**: position (the clip's centre as a share of the frame, from −0.5 to 1.5 on each axis so a clip can sit partly outside), size (its width as a share of the frame width, 0.05 to 4), rotation (−180° to 180°) and opacity (0–100 %), with Q2's corner radius. The clip keeps its own aspect ratio inside its box. A new overlay clip starts full frame (B-roll) (Q4); the inspector offers **Full frame** and the four **corner** presets (35 % of the frame width, 4 % margin). Main-track clips start and stay at the identity transform unless the user changes it.",
+          "proof": "unit",
+          "group": "Overlay clips",
+          "done": false
+        },
+        "AC-5": {
+          "text": "On the preview, a selected overlay clip shows a box with handles: drag to move, corner handles to resize keeping the aspect ratio, a rotate handle; moves snap to the frame's centre lines and edges within 8 px (off with the Snap switch or Alt, as `202` Q4). The inspector has number fields for X, Y, size, rotation, opacity and corner radius. With an overlay clip selected and the preview focused, arrow keys move it by 1 % of the frame (10 % with Shift). A drag is one undo step however long; each change is announced to screen readers (the clip and its new values).",
+          "proof": "e2e",
+          "group": "Overlay clips",
+          "done": false
+        },
+        "AC-6": {
+          "text": "At every frame time `t`, the frame is: the main video track's clip at `t` (black in a gap or past its end), then each visible overlay track's clip at `t` from the lowest track to the highest, each with its transform and opacity, then the timed layers on top of all tracks (Q1). Gaps on an overlay track draw nothing (the tracks below show through). Golden frames: a fixture with the main track and 2 overlay tracks (a full-frame B-roll video, a corner face-cam video with 50 % opacity, a rotated photo with rounded corners, a clip partly outside the frame), at 9:16 and 16:9, at 8 sample times including each clip's first and last frame, matches its reference within the self-test's tolerance on every GPU backend, and the export renders the same frames from the same inputs.",
+          "proof": "self-test",
+          "group": "Compositing",
+          "done": false
+        },
+        "AC-7": {
+          "text": "Timing is frame-exact: an overlay clip starting at 2.0 s at 30 fps appears first in frame 60 and is gone in the frame after its last; hidden tracks and clips at 0 % opacity draw nothing; a full-frame opaque overlay clip covers the frame completely (no pixel of the main clip shows).",
+          "proof": "unit + self-test",
+          "group": "Compositing",
+          "done": false
+        },
+        "AC-8": {
+          "text": "Sound: each overlay video clip's own sound plays at its clip volume, mixed with the main track's clips and the music, in the preview and the export; a muted overlay track adds nothing. The export's sound sources (start, end, source time, volume, ramps) for a fixture with overlays equal the expected list exactly.",
+          "proof": "unit + self-test",
+          "group": "Compositing",
+          "done": false
+        },
+        "AC-9": {
+          "text": "The video's length is the end of the last clip on any picture track (Q9); the per-platform length and clip limits (`limitsFor()`) apply to the whole project, counting clips on every track (Q6), and refusals use the existing messages. At most Q6's number of video clips are visible at the same moment; an edit that would exceed it is refused with a message that says the limit and why.",
+          "proof": "unit + e2e",
+          "group": "Compositing",
+          "done": false
+        },
+        "AC-10": {
+          "text": "Projects with no overlay clips (`201`'s fixtures: photo-only, video-only, mixed, music with offset, timed layers, fade-out, at 9:16, 4:5, 1:1 and 16:9; and `202`'s with gaps) give pixel-identical preview frames at 10 sample times each and identical export inputs (frames, clips, times and sound sources) to `202`. All existing video e2e tests pass unchanged.",
+          "proof": "unit + self-test + e2e",
+          "group": "Nothing changes for existing projects",
+          "done": false
+        },
+        "AC-11": {
+          "text": "The project document reads every existing document unchanged (Q11): the new fields are optional and their defaults are the identity transform and no overlay clips. The validator clamps out-of-range transform values, drops clips on a missing track with a reason, moves a clip that overlaps another on an overlay track to the end of the one it overlaps (as `202` D3, never dropping it), enforces the track and clip limits, and never throws: at least 30 new malformed documents. Round trips document → validator → document are equal for the AC-6 fixture.",
+          "proof": "unit",
+          "group": "Nothing changes for existing projects",
+          "done": false
+        },
+        "AC-12": {
+          "text": "Preview: with the main track and 2 overlay tracks each playing a 1080p 30 fps video at the same moment (a 1080 × 1920 Reel and a 1920 × 1080 YouTube project), the median preview frame time over 300 frames is ≤ 33 ms in the desktop app and, with main + 1 overlay, ≤ 33 ms in Chrome on the development machine (Q13). A project without overlays stays within 5 % of `202` (fastest of 3 runs, as `201` AC-5).",
+          "proof": "self-test timing",
+          "group": "Performance and memory",
+          "done": false
+        },
+        "AC-13": {
+          "text": "Exporting a 2-minute 1080p fixture with main + 2 overlay video tracks completes on desktop and web and leaves no open `VideoFrame` (the check `204` adds), and its export time is recorded in the plan's measurements.",
+          "proof": "self-test",
+          "group": "Performance and memory",
+          "done": false
+        },
+        "AC-14": {
+          "text": "Adding, renaming, reordering, hiding, muting, locking and deleting tracks, adding overlay clips and setting every transform value work from the keyboard alone with labelled controls; axe reports no serious or critical issue on the timeline and the inspector; at 360 px wide everything works with no sideways scroll; the preview handles respect `prefers-reduced-motion` (no animated outlines).",
+          "proof": "e2e + axe",
+          "group": "For everyone",
+          "done": false
+        },
+        "AC-15": {
+          "text": "`docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits), `specs/lld.md` (the drawing order, the transform, the document fields) and `CHANGELOG.md` describe the change; the in-app docs list the keys.",
+          "proof": "manual check",
+          "group": "Docs",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13",
+        "Q14"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "`201` Q2 and `202` Q6 left to 203 whether the timed layers (text, shapes, stickers, drawings, images) move onto overlay tracks. _Proposed:_ not in 203. Layers keep their own start / end and are drawn above every track, as today; ripples don't move them. Putting layers in the track stack (a title under a PiP clip) is reconsidered with compound clips and groups (`210`).",
+          "open": true
+        },
+        "Q2": {
+          "text": "Which properties does a clip's transform have? _Proposed:_ position, uniform size, rotation, opacity and a **corner radius** (0–50 % of the box's shorter side), the common picture-in-picture look. No crop, border, shadow or non-uniform stretch in 203; the clip keeps its aspect ratio. Today's per-clip framing (fill / whole picture with blurred background, zoom, position inside the frame) keeps working inside the box.",
+          "open": true
+        },
+        "Q3": {
+          "text": "Can main-track clips be transformed too (e.g. shrink the main clip over a coloured or black background)? _Proposed:_ yes, the same transform on every picture track (one model, and `205` animates it the same way); main-track clips default to full frame, and the area they leave uncovered is black.",
+          "open": true
+        },
+        "Q4": {
+          "text": "Where does a new overlay clip appear? _Proposed:_ full frame (B-roll, the most common use), with **Full frame** and four corner presets in the inspector (35 % of the frame width, 4 % margin from the edges, on the safe side of the platform's UI for Reels / Shorts).",
+          "open": true
+        },
+        "Q5": {
+          "text": "Blend modes on overlay clips (screen, multiply … as photo layers have)? _Proposed:_ not in 203: normal only. They are cheap to add later on the same drawing path and can come with a Phase 3 item.",
+          "open": true
+        },
+        "Q6": {
+          "text": "Limits. _Proposed:_ the per-platform clip limits (20 / 50 / 60 / 500) count clips on every track; at most **3** video clips visible at the same moment on the web and **6** on the desktop app (photos don't count), the final numbers set from `204`'s measurements before 203's plan is approved.",
+          "open": true
+        },
+        "Q7": {
+          "text": "Sound of overlay clips. _Proposed:_ an overlay video clip's own sound plays at its clip volume (B-roll often has ambient sound the user can lower); overlay tracks get both **Hide** and **Mute** in their header (`201`'s Hide on the main track hides pictures only, D2, and stays so).",
+          "open": true
+        },
+        "Q8": {
+          "text": "How do overlay tracks behave with Magnetic and ripples? _Proposed:_ overlay tracks are never magnetic (free placement, gaps allowed, no overlaps); a ripple on the main track moves only main-track clips, as in `202` Q6. Connected clips that follow the main track can come later.",
+          "open": true
+        },
+        "Q9": {
+          "text": "What sets the video's length when an overlay clip ends after the main track? _Proposed:_ the last clip end on any picture track; after the main track ends, its area is black under the overlays. The music and layers keep their own times.",
+          "open": true
+        },
+        "Q10": {
+          "text": "Track order. _Proposed:_ the main video track stays the bottom picture track and can't be moved or deleted; overlay tracks are listed above it in drawing order and moved with up / down buttons in their header (keyboard-friendly, like `201` Q5's height menu), each an undo step.",
+          "open": true
+        },
+        "Q11": {
+          "text": "Project document version. _Proposed:_ stays **1**: overlay tracks already exist in the v1 model (`201` AC-1) and the transform is a new optional field with identity defaults, as `202` added Magnetic (`202` Q1). Bump to 2 only if the plan finds a change an old reader would misread.",
+          "open": true
+        },
+        "Q12": {
+          "text": "How is a track added? _Proposed:_ an **Add track** button under the track headers (adds an empty overlay track at the top), and dropping files on the empty area above the top track creates one with the files placed at the drop time. New tracks are named \"Overlay 1\", \"Overlay 2\" …",
+          "open": true
+        },
+        "Q13": {
+          "text": "Performance target. The Phase 2 gate is a 4K timeline with 3 video and 2 audio tracks playing smoothly on desktop, which also depends on proxies (`211`). _Proposed:_ 203 proves 1080p (AC-12); the 4K gate is measured at the end of Phase 2, after `211`.",
+          "open": true
+        },
+        "Q14": {
+          "text": "Constitution XI (agent tools). _Proposed:_ as in `201` Q7 and `202` Q7, no tools in 203; tracks, overlay clips and transforms are plain operations on the project so `212` (which needs 203) exposes them. The gap stays recorded.",
+          "open": true
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-08",
+        "text": "Created (Draft)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: AC-12, AC-13; drawing a frame with no overlay clip costs no more than in `202`.\n- Memory: at most Q6's number of videos decoded at once; frames are released as soon as they are drawn (`204`).\n  Photos on overlay tracks follow today's per-photo memory budget (docs/PERFORMANCE.md).\n- Accessibility: AC-14 (WCAG 2.2 AA in light and dark themes, keyboard, screen reader, 360 px).\n- Compatibility: web and desktop alike, with fewer tracks on the web (AC-1, Q6) for memory reasons only\n  (Constitution V); Firefox and Safari get the same result through the existing Canvas 2D / WebGL2 paths.\n- What you see is what you get: one drawing path for preview and export (Constitution VIII); no export-only\n  compositing.\n- Security: project data only enters through the validator (AC-11).\n- Licences: no new library, model or asset."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Keyframed (animated) position, size, rotation and opacity (`205`); transitions between clips (`206`); speed\n  (`207`); audio-only tracks beyond the music (`208`).\n- Blend modes on clips (photo layers have them; Q5), crop of overlay clips, borders and shadows (Q2), chroma key and\n  background removal for overlays.\n- Clips connected to a main-track clip so they move with it in a ripple (Final Cut's connected clips; Q8).\n- Moving the timed layers (text, stickers, drawings) onto tracks (Q1).\n- Compound clips and groups (`210`); proxies (`211`).\n- Agent tools for tracks and overlay clips (`212`; Q14).\n- Saving and opening video projects as files (`201` Q1)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

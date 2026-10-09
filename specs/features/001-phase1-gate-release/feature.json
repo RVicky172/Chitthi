@@ -1,0 +1,1010 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "001",
+  "title": "Phase 1 gate and 2.10.0 release",
+  "workItem": null,
+  "status": "in-progress",
+  "owner": "RVicky172",
+  "dates": {
+    "created": "2026-10-06",
+    "approved": "2026-10-06",
+    "started": "2026-10-06",
+    "done": null
+  },
+  "git": {
+    "branch": null
+  },
+  "spec": {
+    "phase": "Baseline",
+    "summary": "Editor Phases 0 and 1 (the GPU render graph and the advanced photo editor) are built and verified on Windows\n(`000`), but not released: the app is still 2.8.0. Phase 1's gate in\n[editor-implementation.md](../../vision/editor-implementation.md#phase-1-advanced-photo-editor) is not yet met: masked\nedits must keep a 30 fps preview at 1080p **in Chrome on a mid-range laptop** (so far measured only in the desktop app\non the development machine), and RAW files must open on **Windows and macOS** (the Intel Mac LibRaw has never been\nbuilt or run). This feature closes that gate, fixes the baseline gaps that should not ship (`000` G6–G8), and releases\nPhases 0–1 to users as **2.10.0**: web app, Windows and macOS installers, and the update that installed apps receive.\nIt adds no new editor feature.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a photographer on an ordinary laptop, I want painting a mask or dragging a gradient to feel smooth in Chrome, so that the advanced editor is usable without a gaming PC or the desktop app."
+        },
+        "US-2": {
+          "text": "As a Mac user (Apple silicon or Intel), I want to open my camera's RAW files in the desktop app and export them as 16-bit TIFFs, as Windows users can."
+        },
+        "US-3": {
+          "text": "As a user of 2.8.0, I want the advanced photo editor delivered as an update (desktop) or a new deployment (web), with release notes that say what changed."
+        },
+        "US-4": {
+          "text": "As the maintainer, I want the release checked once by CI at the tag (D-006) and by hand on each platform, so that a broken installer or a red gate never reaches users."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "Painting with the mask brush continuously for 10 s, a pointer move every 16 ms: the time between preview updates has a median ≤ 33.3 ms (30 fps) and a 95th percentile ≤ 50 ms.",
+          "proof": "scripted measurement, `npm run measure:gate`, method per Q2, recorded with the GPU backend used",
+          "group": "Phase 1 gate: speed in Chrome",
+          "done": false
+        },
+        "AC-2": {
+          "text": "Dragging the gradient's handle continuously for 10 s: the same limits as AC-1.",
+          "proof": "scripted measurement",
+          "group": "Phase 1 gate: speed in Chrome",
+          "done": false
+        },
+        "AC-3": {
+          "text": "The same two measurements in the desktop app on the same laptop, recorded for comparison (no limit beyond AC-1's).",
+          "proof": "manual measurement",
+          "group": "Phase 1 gate: speed in Chrome",
+          "done": false
+        },
+        "AC-4": {
+          "text": "Windows x64: every file in the set opens in the photo studio, shows the developed picture (not the embedded JPEG preview), and exports as a 16-bit TIFF.",
+          "proof": "manual check",
+          "group": "Phase 1 gate: RAW on Windows and macOS",
+          "done": false
+        },
+        "AC-5": {
+          "text": "macOS Apple silicon: the same as AC-4.",
+          "proof": "manual check",
+          "group": "Phase 1 gate: RAW on Windows and macOS",
+          "done": false
+        },
+        "AC-6": {
+          "text": "macOS Intel: the same as AC-4, on an Intel Mac or the x64 app under Rosetta (Q3), and the shipped `dcraw_emu` is an x86_64 binary.",
+          "proof": "manual check",
+          "group": "Phase 1 gate: RAW on Windows and macOS",
+          "done": false
+        },
+        "AC-7": {
+          "text": "`npm audit` reports 0 high or critical advisories (`000` G6); any moderate ones left are listed with a reason in the Result note.",
+          "proof": "command output",
+          "group": "Baseline gaps fixed before release",
+          "done": false
+        },
+        "AC-8": {
+          "text": "`npm run test:mcp` leaves no files in the user's `Documents/Chitthi agent output` (`000` G7).",
+          "proof": "MCP smoke test",
+          "group": "Baseline gaps fixed before release",
+          "done": false
+        },
+        "AC-9": {
+          "text": "Every caught error the app shows to the user (a toast or a message in a dialog; `000` G8 found 15) also records it in the error report (`logError('handled', …)`), and a test fails if one is added without it.",
+          "proof": "unit test",
+          "group": "Baseline gaps fixed before release",
+          "done": false
+        },
+        "AC-10": {
+          "text": "The release checklist (`specs/release.md`) is followed: CHANGELOG's Unreleased becomes 2.10.0 with the date, version 2.10.0 in `package.json`, `APP_CACHE`, `docker-compose.yml`'s image tag and the plugin version; `editor-implementation.md` marks Phase 1 done and released.",
+          "proof": "manual check",
+          "group": "Release 2.10.0",
+          "done": false
+        },
+        "AC-11": {
+          "text": "CI runs once for the release (D-006) and is green: lint, licences, build, unit, self-test, MCP, e2e and the Docker image.",
+          "proof": "CI run linked in the Result note",
+          "group": "Release 2.10.0",
+          "done": false
+        },
+        "AC-12": {
+          "text": "The Desktop release workflow publishes one GitHub Release `v2.10.0` with the Windows x64 installer, the macOS x64 and arm64 builds, and the `latest*.yml` update manifests.",
+          "proof": "release page",
+          "group": "Release 2.10.0",
+          "done": false
+        },
+        "AC-13": {
+          "text": "Each installer installs on a clean machine (or VM), and the installed app passes the smoke check: make a card and export a print pack, open a photo with a mask and export it, and `CHITTHI_MCP_APP=<app> npm run test:mcp` passes. Windows and macOS.",
+          "proof": "manual check + MCP smoke test",
+          "group": "Release 2.10.0",
+          "done": false
+        },
+        "AC-14": {
+          "text": "An installed 2.8.0 on Windows finds and installs 2.10.0 (Help → Check for updates…). macOS per Q6.",
+          "proof": "manual check",
+          "group": "Release 2.10.0",
+          "done": false
+        },
+        "AC-15": {
+          "text": "The web app is deployed at 2.10.0 where it is hosted (Q7).",
+          "proof": "manual check",
+          "group": "Release 2.10.0",
+          "done": false
+        }
+      }
+    },
+    "groupIntros": {
+      "Phase 1 gate: speed in Chrome": "On the reference laptop (Q1), Chrome stable, the production web build, a 1080 × 1350 Instagram photo with two masks\n(one brush, one linear gradient) and a look applied, GPU effects on:",
+      "Phase 1 gate: RAW on Windows and macOS": "With the packaged release-candidate app (not `npm run desktop:dev`) and the RAW test set (Q4: a DNG, a CR3, a NEF and\nan ARW at least):"
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Which machine is the \"mid-range laptop\"? _Answer (accepted 2026-10-06):_ a laptop you have access to with a 4-core / 8-thread CPU from 2020 or later, integrated graphics (e.g. Intel Iris Xe or AMD Radeon Vega), 8–16 GB RAM, on battery-saver off and plugged in; its model, CPU, GPU, RAM and Chrome version are recorded with the result.",
+          "open": false
+        },
+        "Q2": {
+          "text": "How are frame times measured? _Answer (accepted 2026-10-06, method changed the same day, see Changelog):_ `npm run measure:gate` drives Chrome with a pointer move every 16 ms and records when the page has handled each move (each one redraws the preview); median and 95th percentile of the time between those updates, 3 runs each, the worst run counts. Display-frame intervals are recorded too, as a jank check. The performance monitor is a hand cross-check.",
+          "open": false
+        },
+        "Q3": {
+          "text": "Which Macs can you test on? _Answer (accepted 2026-10-06):_ an Apple silicon Mac runs AC-5 and AC-6 (the x64 app under Rosetta 2 is a real test of the Intel `dcraw_emu`); a real Intel Mac only if one is at hand. If no Mac is available at all, the macOS ACs can't be met and the release would ship Windows-verified only, which needs your explicit OK.",
+          "open": false
+        },
+        "Q4": {
+          "text": "Where do the RAW test files come from? _Answer (accepted 2026-10-06):_ raw.pixls.us samples (CC0) for a CR3, NEF and ARW, plus the synthetic DNG the MCP test already makes; kept outside the repo (not shipped, not committed), their URLs listed in the Result note.",
+          "open": false
+        },
+        "Q5": {
+          "text": "Is 2.10.0 signed? _Answer (accepted 2026-10-06):_ ship as today (unsigned unless the signing secrets are set): the release notes say SmartScreen and Gatekeeper will warn.",
+          "open": false
+        },
+        "Q6": {
+          "text": "macOS auto-update: unsigned macOS apps can't auto-update (Squirrel.Mac needs a signature). _Answer (accepted 2026-10-06):_ if unsigned, AC-14 is Windows only and the release notes tell Mac users to download 2.10.0 by hand.",
+          "open": false
+        },
+        "Q7": {
+          "text": "Is the web app hosted anywhere today (and where)? _Answer (accepted 2026-10-06):_ if yes, redeploy it at 2.10.0 per `docs/OPERATIONS.md`; if no, AC-15 is dropped and the Docker image is checked by CI only.",
+          "open": false
+        },
+        "Q8": {
+          "text": "If AC-1/AC-2 fail on the reference laptop, what happens? _Answer (accepted 2026-10-06):_ stop and report the numbers; small optimisations (a few hours) are done inside `001`; anything bigger becomes its own feature (`4xx`) and you decide whether 2.10.0 waits for it.",
+          "open": false
+        },
+        "Q9": {
+          "text": "How does the code reach `main` and the tag? D-006 means no CI on the PR. _Answer (accepted 2026-10-06):_ merge `feat/editor-phase-1-continued` into `main` (fast-forward or a PR without CI), tag `v2.10.0` on `main`, and change `ci.yml` to run on `v*` tags (D-006 follow-up) as part of this feature, so the tag's run is AC-11. The Desktop release workflow already runs on the same tag.",
+          "open": false
+        },
+        "Q10": {
+          "text": "Are the `000` G6–G8 fixes part of this feature (AC-7–AC-9) or separate bug fixes before it? _Answer (accepted 2026-10-06):_ separate bug fixes (logged in `memory/progress.md`, no spec), done first; `001` only checks they are in (AC-7–AC-9).",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-06",
+        "text": "Created."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Q1–Q10 resolved (all proposals accepted); Approved. Q1, Q3, Q7 are conditions checked when the task runs: the laptop's details are recorded with its measurement, the macOS ACs need an Apple silicon Mac (a Windows-only release needs the maintainer's explicit OK), AC-15 applies only if the web app is hosted."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Plan decisions D1–D3 accepted. AC-9 widened from the 6 export/gallery failures to every shown error (D1, Definition of Done item 9 as written)."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Plan approved, tasks written; In Progress."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "AC-1, AC-2, Q2: measured as the time between preview updates instead of display-frame intervals (found in T020: at 120 Hz most frames carry no new input, so the frame median stayed at 8 ms even with the CPU slowed 4× while the preview updated only ~25 times a second). Limits unchanged. Approved by the maintainer."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Hardware checks and the release deferred to the roadmap backlog by the maintainer (see Deferred)."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Release 2.10.0 before the hardware checks (D-007); they become post-release checks."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: AC-1/AC-2 are the gate. The existing budgets stay: entry chunk ≤ 350 KB; self-test parity limits.\n- Compatibility: Windows 10/11 x64; macOS on Apple silicon and Intel; Chrome stable for the gate. Firefox and Safari\n  are not gated (backlog, `000` G3).\n- Security: no new IPC, host or permission. Signing per Q5."
+      },
+      {
+        "kind": "markdown",
+        "title": "Deferred (2026-10-06)",
+        "markdown": "Everything that can run on the development machine is done (bug fixes G6–G8, CI at the release, the gate\nmeasurement, the Windows RAW check, docs). The rest needs the maintainer's hardware or go-ahead and is on the\nroadmap backlog until then: AC-1–AC-3 (laptop), AC-5, AC-6 (Mac), and the release, AC-10–AC-15. 2.10.0 is not\ntagged until they pass.\n\n**Changed (2026-10-06, D-007):** the maintainer chose to release 2.10.0 now and run the laptop and Mac checks\n(AC-1–AC-3, AC-5, AC-6) after the release; a failure ships as 2.10.1. The release itself (AC-10–AC-15) goes ahead."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- New editor features; Phase 2 (`201` onwards).\n- Firefox / Safari test projects (`000` G3) and video-clip agent tools (`000` G1 → `212`).\n- `src/assests/` (`000` G9, the maintainer's call).\n- Performance work beyond what AC-1/AC-2 need (if the gate fails, see Q8)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-06, D1–D3 as recommended) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`package-lock.json`",
+        "change": "modify",
+        "purpose": "§1 G6: `npm audit fix`"
+      },
+      {
+        "file": "`scripts/mcp-smoke.mjs`",
+        "change": "modify",
+        "purpose": "§1 G7: delete the files the test made, in `finally`"
+      },
+      {
+        "file": "`src/state/actions.ts` (+ others per D1)",
+        "change": "modify",
+        "purpose": "§1 G8: `logError('handled', e)`"
+      },
+      {
+        "file": "`src/lib/errors.test.ts`",
+        "change": "new",
+        "purpose": "§1 G8: guard against shown-but-unlogged errors"
+      },
+      {
+        "file": "`.github/workflows/ci.yml`",
+        "change": "modify",
+        "purpose": "§2: `workflow_call` only"
+      },
+      {
+        "file": "`.github/workflows/desktop-release.yml`",
+        "change": "modify",
+        "purpose": "§2: `ci` job first, `build` needs it"
+      },
+      {
+        "file": "`specs/testing-strategy.md`, `specs/release.md`, `specs/build.md`, `docs/OPERATIONS.md`, `CONTRIBUTING.md`",
+        "change": "modify",
+        "purpose": "§2: CI runs at the release"
+      },
+      {
+        "file": "`e2e/gate.measure.ts`, `playwright.measure.config.ts`",
+        "change": "new",
+        "purpose": "§3: the gate measurement"
+      },
+      {
+        "file": "`package.json`",
+        "change": "modify",
+        "purpose": "§3 `measure:gate` script; §5 version"
+      },
+      {
+        "file": "`docs/PERFORMANCE.md`",
+        "change": "modify",
+        "purpose": "§3: how to run the gate measurement"
+      },
+      {
+        "file": "`CHANGELOG.md`, `public/sw.js`, `docker-compose.yml`, `plugins/chitthi/.claude-plugin/plugin.json`, `README.md`",
+        "change": "modify",
+        "purpose": "§5 version bump"
+      },
+      {
+        "file": "`specs/vision/editor-implementation.md`",
+        "change": "modify",
+        "purpose": "§5 Phase 1 done and released, gate numbers"
+      },
+      {
+        "file": "`specs/features/001-*/spec.md`, `specs/roadmap.md`, `memory/*`",
+        "change": "modify",
+        "purpose": "results, status"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**The Intel LibRaw build fails on current Xcode** (never run for real). → Spike at the start of §4; if it fails, fix the configure flags in `fetch-libraw.mjs` (allowed: same LibRaw source, same licence terms)."
+      },
+      {
+        "text": "**The gate fails on the laptop.** → Stop and report (Q8); the script makes before/after comparisons cheap."
+      },
+      {
+        "text": "**Synthetic input isn't like a hand.** → Moves every 16 ms are as dense as a 60 Hz mouse; a hand check with the performance monitor during one run confirms the order of magnitude."
+      },
+      {
+        "text": "**`npm audit fix` changes the build output.** → Full gates plus `desktop:pack` and a smoke run after it."
+      },
+      {
+        "text": "**CI first runs at the tag** (D-006), so a CI-only problem (Docker, Windows runner) appears at release time. → `workflow_dispatch` of the release workflow before tagging gives a dry run with no release (**decision D2**)."
+      },
+      {
+        "text": "**No Mac available** → the macOS ACs can't pass; release needs the maintainer's explicit OK for Windows-only (Q3)."
+      },
+      {
+        "text": "**A published release is broken.** → `specs/release.md` \"When a release goes wrong\" (draft the release, ship X.Y.Z+1)."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Spec approved; G6–G8 are bug fixes (allowed without a spec), logged"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "Guard test for G8 seen failing first; smoke test for G7; gates after the lockfile change"
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "No new dependency: the measuring script uses the installed `@playwright/test`"
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "Gate numbers, release run, any decision (D1–D3) recorded"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Nothing gated"
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "No new network destination; RAW samples are downloaded by the maintainer, not the app"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "RAW samples CC0, not shipped or committed; LibRaw unchanged (approved exception)"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "No rendering change"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No IPC or fuse change; G7 changes the test, not `electron/mcp.cjs`"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "The gate is a budget; entry chunk and axe checked by the tag's CI"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "✅",
+        "notes": "No new user-facing feature"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "The work is mostly measurement and release engineering. The code changes are small: three bug fixes (Q10: done\nfirst, before the 001 tasks, logged in `memory/progress.md`), one measuring script for the gate, and the CI\ntriggers (D-006). Order: §1 bug fixes → §2 CI → §3 Chrome gate → §4 macOS and RAW → §5 release.\n\n**§1 Baseline gaps, as bug fixes first (AC-7–AC-9; Q10).**\n- **G6, npm audit (AC-7).** Both high advisories have fixed versions within their ranges (`source-map-js` 1.2.2 via\n  Vite → postcss; `http-cache-semantics` 4.3.0 via electron-builder → `@electron/get` → `got` → `cacheable-request`),\n  so `npm audit fix` without `--force` updates only `package-lock.json`. The 8 moderate ones sit in electron-builder's\n  own chain (`global-agent`, `roarr`, `sprintf-js`, …) and need `--force` (an electron-builder major change); they are\n  build-time only, never shipped, and are listed with that reason in the Result note. Then the full gates, since the\n  build tool chain changed: check, build, e2e, `desktop:pack`.\n- **G7, MCP test output (AC-8).** The smoke test already gets back the path of every file it makes (`export_pdf`,\n  the JPEG and the 16-bit TIFF from `export_photos`). It records them and deletes them in a `finally`, so a failing\n  run cleans up too. No app change: the tools keep writing to `Documents/Chitthi agent output`, as users expect.\n  The 64 files (85 MB) left by earlier runs are deleted once, by hand, after the fix.\n- **G8, `logError` (AC-9).** In `src/state/actions.ts` add `logError('handled', e)` to the five export catches\n  (`downloadPrintFile`, `downloadQuote`, `downloadEnvelope`, `downloadPNG`, `downloadPack`) and `saveDesign`. Proof:\n  a Vitest guard `src/lib/errors.test.ts` that reads the source of `src/` and fails on any `catch` block that shows a\n  message (`toast(`, `setError(`, `setMsg(`, `setStatus(`) without `logError(` — **decision D1** below on whether it\n  covers all 15 such blocks (fixing the 9 others too) or only these 6.\n\n**§2 CI only at the release (D-006; AC-11).** `ci.yml` becomes a reusable workflow (`on: workflow_call` only, no\npush or pull-request trigger). `desktop-release.yml` gets a first job `ci: uses: ./.github/workflows/ci.yml`, and its\n`build` job `needs: ci`, so on a `v*` tag CI runs once and a red CI stops the installers from being built or\npublished. Its `workflow_dispatch` (installers as artifacts, no release) keeps working and also runs CI first. The docs\nthat say CI runs on every pull request are corrected: `specs/testing-strategy.md`, `specs/release.md` (\"CI is green\nfor the tag\", now checked during the release instead of before it), `docs/OPERATIONS.md`, `CONTRIBUTING.md` (which also\nstill says \"22 is what CI uses\": it's 26), the header comments of both workflows. CodeQL's own workflow: **decision D3**.\n\n**§3 Chrome gate (AC-1–AC-3; Q1, Q2, Q8).** Painting by hand for 10 s can't be repeated, so a measuring script drives\nit: `e2e/gate.measure.ts`, run by its own `playwright.measure.config.ts` (`npm run measure:gate`), never part of\n`npm run test:e2e`. It uses the installed Chrome (`channel: 'chrome'`, headed, so the real GPU is used) against the\nproduction build (`vite build` + `vite preview`), opens the photo studio with a 4:5 photo from `public/samples/`,\napplies a look, adds a brush mask with exposure and a linear gradient mask (the same UI steps as\n`e2e/instagram.e2e.ts:282` and `:344`), then:\n1. paints: `page.mouse` moves across the photo every 16 ms for 10 s with the button down;\n2. drags the gradient's handle the same way for 10 s.\nDuring each, the page records every `requestAnimationFrame` interval (`performance.now()` deltas); the script prints\nmedian, 95th percentile, max, the frame count and the GPU backend in use (from the studio's GPU setting / device), 3\nruns each, the worst run counts (Q2). The performance monitor is opened once by hand during a run to cross-check its\nframes-per-second against the script. AC-3: the same script with `--desktop` against the packaged app is not possible\nin Playwright for Electron's `app://` without extra work, so the desktop numbers come from the self-test timing line\n(`npm test` on the laptop) plus a hand check with the monitor. The laptop's model, CPU, GPU, RAM, OS, Chrome version\nand power state are recorded (Q1). If the gate fails, stop and report (Q8).\n\n**§4 macOS and RAW (AC-4–AC-6; Q3, Q4).**\n- **Spike first:** on the Apple silicon Mac, `npm ci && npm run fetch:libraw`: proves the Intel `dcraw_emu` compiles\n  with today's Xcode command-line tools (it has only ever run in theory) and that `lipo -archs` says `x86_64`.\n- Release-candidate builds on the Mac itself: `npx electron-builder --mac --arm64 --dir` and `--x64 --dir` after\n  `npm run build` (unsigned, like the release). No tag or CI run needed (D-006).\n- RAW test set (Q4): CR3, NEF and ARW from raw.pixls.us (CC0), plus the synthetic DNG; downloaded to a folder outside\n  the repo, URLs and SHA-256 in the Result note. Each opens developed (not the embedded preview: the studio says\n  which), and exports a 16-bit TIFF. On Windows with `desktop:pack`'s `release/win-unpacked`; on macOS arm64 natively;\n  x64 under Rosetta 2 (`arch -x86_64` is implied by launching the x64 `.app`; `file …/dcraw_emu` confirms x86_64).\n\n**§5 Release 2.10.0 (AC-10–AC-15; Q5–Q7, Q9).** Follow `specs/release.md`: CHANGELOG Unreleased → `## [2.10.0] —\n<date>`; `npm version 2.10.0 --no-git-tag-version`; `APP_CACHE` `chitthi-app-v15` → `v16` in `public/sw.js`;\n`docker-compose.yml` image `chitthi-studio:2.10.0`; `plugins/chitthi/.claude-plugin/plugin.json` version 2.10.0;\n`editor-implementation.md` Progress: Phase 1 Done, released 2.10.0, status line updated; README's \"Version 2.8.0, with\n… Unreleased\" sentence. Then (Q9) merge `feat/editor-phase-1-continued` into `main` (fast-forward if possible), tag\n`v2.10.0` on `main`, push both: the tag runs `desktop-release.yml` → CI → installers → GitHub Release (unsigned, Q5;\nthe release body already warns). After publishing: install each build on a clean machine/VM and smoke-check it\n(AC-13); install 2.8.0 on Windows and let it update (AC-14; macOS by hand, Q6); redeploy the web app if hosted\n(AC-15, Q7)."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// e2e/gate.measure.ts — page side, injected with page.evaluate before each 10 s run\nwindow.__gate = { t: [] as number[] };\nconst tick = (now: number) => { window.__gate.t.push(now); window.__gate.raf = requestAnimationFrame(tick); };\n// node side: intervals = diff(t); report { frames, median, p95, max, backend }\n\n// .github/workflows/ci.yml\non: { workflow_call: {} }\n// .github/workflows/desktop-release.yml\njobs: { ci: { uses: ./.github/workflows/ci.yml }, build: { needs: ci, … }, release: { needs: build, … } }\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- rAF intervals measure what the user sees: a frame that takes 40 ms of work shows as a 40 ms interval. Pointer\n  moves come from Playwright's real input pipeline (CDP `Input.dispatchMouseEvent`), so the app's own pointer\n  handling and its once-per-frame drawing are what's measured.\n- Headed Chrome, not headless: headless may fall back to software GL and would measure the wrong thing; the script\n  prints the backend and fails if it isn't WebGPU or WebGL2.\n- The guard test (§1) parses with a brace counter, like the scan in `000` T091; it is a plain Node test (reads\n  files), so it fits Vitest's no-DOM rule.\n- A reusable workflow called from the release keeps CI's definition in one file and makes the dependency explicit\n  (`needs: ci`), instead of two workflows racing on the same tag."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1, AC-2 | `npm run measure:gate` on the reference laptop, 3 runs each, worst run ≤ limits | manual measurement (scripted) |\n| AC-3 | `npm test` timing line + monitor check in the packaged app on the laptop | manual measurement |\n| AC-4 | RAW set in `release/win-unpacked` | manual check |\n| AC-5, AC-6 | RAW set in the arm64 and x64 `.app` on the Mac; `file dcraw_emu` | manual check |\n| AC-7 | `npm audit` output; full gates after the lockfile change | command output |\n| AC-8 | `npm run test:mcp`, then the output folder listed before/after (also after a forced failure) | MCP smoke test |\n| AC-9 | `src/lib/errors.test.ts` (seen failing before the fix) | unit |\n| AC-10 | release checklist against the diff | manual check |\n| AC-11 | the tag's Desktop release run: `ci` job green (all its steps incl. Docker) | CI |\n| AC-12 | GitHub Release `v2.10.0` assets: `.exe`, 2 `.dmg`, 2 `.zip`, `latest.yml`, `latest-mac.yml` | manual check |\n| AC-13 | clean install + smoke check + `CHITTHI_MCP_APP=… npm run test:mcp`, Windows and macOS | manual + MCP smoke |\n| AC-14 | 2.8.0 installed on Windows → Help → Check for updates → 2.10.0 | manual check |\n| AC-15 | deployed site shows 2.10.0 (if hosted) | manual check |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-06: D1 (a), D2 yes, D3 keep)",
+        "markdown": "- **D1** — G8 guard scope: (a) **all 15** catch blocks that show an error log it, guard test over all of `src/`\n  (Definition of Done item 9 as written; recommended), or (b) only the 6 in `actions.ts`, guard limited to that file.\n  (a) needs AC-9 to say \"every\" instead of \"the 6\".\n- **D2** — A dry run before tagging: run the Desktop release workflow by hand (`workflow_dispatch`, which now runs CI\n  first and builds installers as artifacts, no release) on `main` after the merge. It's a CI run off a tag, so D-006\n  needs to allow it (\"CI runs only for a release, including its dry run\"). Recommended: yes.\n- **D3** — CodeQL also runs on every pull request (`docs/OPERATIONS.md`, `architecture.md` §7). Keep it (security\n  scanning, not the CI gates) or move it to the release too? Recommended: keep it, and say so in D-006."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task. 👤 = needs the maintainer's hardware or a decision at\nrun time (the laptop, the Mac, a clean machine, a push to `main` or a tag). Each task lists files and the proving\ntest. Test-first: each \"tests\" task must fail before its paired implementation makes it pass.\nWhen a task is done, tick it and add an indented **Result (YYYY-MM-DD):** note: what was done, numbers measured,\nanything surprising or deferred.\n\n> **Deferred (2026-10-06):** T022, T023, T030, T033 and T040–T047 (and T091's CI half, T092) wait for the\n> maintainer's hardware checks; they are on the roadmap backlog. Everything else is done.\n> **Changed (2026-10-06, D-007):** the release (T040–T047) goes ahead now; T022, T023, T030, T033 stay in the\n> backlog as post-release checks.",
+    "sections": [
+      {
+        "title": "Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)",
+        "intro": null
+      },
+      {
+        "title": "CI at the release (plan §2, D-006)",
+        "intro": null
+      },
+      {
+        "title": "Chrome gate (plan §3)",
+        "intro": null
+      },
+      {
+        "title": "macOS and RAW (plan §4)",
+        "intro": null
+      },
+      {
+        "title": "Release 2.10.0 (plan §5)",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T010",
+        "T011",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045",
+        "T046",
+        "T047",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "G6: `npm audit fix` (no `--force`); then `npm audit`, `npm run check`, `npm run build`, `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run desktop:pack` and a smoke run of `release/win-unpacked` (make a card, export a print pack). List each moderate advisory left with its reason.",
+          "section": "Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7"
+          ],
+          "files": [
+            "package-lock.json"
+          ],
+          "test": "0 high/critical in `npm audit`; every gate exits 0 (AC-7)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `npm audit fix` changed only `package-lock.json`, 13 entries, **all dev-only**:\n`source-map-js` 1.2.1 → 1.2.2 and `http-cache-semantics` 4.2.0 → 4.3.0 (the 2 highs), electron-builder and\nits parts 26.15.3 → 26.17.0 / 26.16.0 (within `^26.15.3`), `@peculiar/asn1-schema`, `node-abi`, `undici` (under\nnode-gyp), and an `@noble/hashes` re-hoist. **After: 0 high/critical; 8 moderate = one advisory**,\nGHSA-hp3w-g68c-fv3c in `sprintf-js` (every version affected, no fix exists), reached via electron-builder →\n`@electron/get` → `global-agent` → `roarr`; build-time only (used when electron-builder downloads Electron\nthrough a proxy), never shipped. `npm audit fix --force` would *downgrade* electron-builder to 26.5.0, so not\ntaken. Gates: check exit 0 (741 tests, 5 known warnings), build 326 KB, licences 168 OK, e2e 67 passed / 7\nskipped, self-test 6,115 / 0 failed (94 s), MCP passed; `desktop:pack` with electron-builder 26.17.0 OK (LibRaw\nin `resources/libraw`), and `CHITTHI_MCP_APP=release/win-unpacked/… npm run test:mcp` passed against the\npackaged app (design → PDF, DNG developed by LibRaw, 16-bit TIFF). The by-hand card + print pack in the\npackaged app is left to T044 (the self-test builds a print pack per product)."
+          ]
+        },
+        "T002": {
+          "text": "G7 test-first: list `Documents/Chitthi agent output` before and after `npm run test:mcp` and see the run add 3 files; then make `scripts/mcp-smoke.mjs` record every file path a tool returns and delete them in a `finally`. Check again after a normal run and after a forced failure (e.g. a wrong expected value, then restored). 👤 Ask before deleting the 64 files (85 MB) earlier runs left there.",
+          "section": "Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "scripts/mcp-smoke.mjs"
+          ],
+          "test": "folder unchanged by a passing and by a failing run (AC-8)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** before the fix a run took the folder from 70 to 73 files. `scripts/mcp-smoke.mjs` now\ncollects every path after \"Files written:\" in any tool reply (plus its temp DNG) and deletes them in the\n`finally`, printing \"removed the N files this run wrote\". After: a passing run 73 → 73 (4 removed: PDF, JPEG,\n16-bit TIFF, the DNG); a forced failure after the second export (a copy of the script with a `throw`, deleted\nafter) 73 → 73 (2 removed), \"1 failed\". No app change: the tools still write to `Documents/Chitthi agent\noutput`. With the maintainer's OK, the 73 old files there (106 MB, 2026-09-30 → today, all three of the test's\nfile names) were deleted; the folder is empty. `npm run check` exit 0; ESLint clean on the script."
+          ]
+        },
+        "T003": {
+          "text": "G8 tests first: `src/lib/errors.test.ts`, a guard that reads every `src/**/*.ts(x)` (not tests, not `src/dev/`), finds each `catch` block that shows a message (`toast(`, `setError(`, `setMsg(`, `setStatus(`) and fails listing those without `logError(`. See it fail with the 15 found in `000` T091.",
+          "section": "Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/lib/errors.test.ts"
+          ],
+          "test": "fails, naming 15 places",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** guard written with Vite's `import.meta.glob(…, { query: '?raw' })` (no Node API in app\ncode), excluding `*.test.ts` and `src/dev/`; it checks it read > 100 files, then lists catch blocks matching\n`\\b(toast|setError|setMsg|setStatus)\\(` without `logError(`. **Failed as expected, naming 14, not 15:** `000`'s\nscan had no word boundary, so `setError\\(` matched inside `throw new PresetError(` in `engine/presets.ts`, which\nthrows for its caller rather than showing anything."
+          ]
+        },
+        "T004": {
+          "text": "G8: add `logError('handled', e)` to all 15 (D1): 6 in `src/state/actions.ts`, plus `FontPicker`, `PerfMonitor`, `PexelsSearch` (2), `SettingsDialog`, `ai/AiSettings` (2), `engine/presets.ts` (check: it throws rather than shows; if so, refine the guard instead) and any other the guard names. Break-test: remove one call, see the guard name it, restore.",
+          "section": "Bug fixes first (plan §1; Q10: logged in `memory/progress.md`, no spec of their own)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "those components, `src/state/actions.ts`"
+          ],
+          "test": "T003 passes; `npm run check`, `npm run test:e2e` (AC-9)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `logError('handled', e)` added as the first line of all 14 blocks: `state/actions.ts`\n×7 (print file, quote, envelope, PNG, print pack, gallery save, restore backup), `FontPicker`, `PerfMonitor`\n(clipboard), `PexelsSearch` ×2, `SettingsDialog`, `ai/AiSettings` ×2; `catch {` → `catch (e) {` where needed;\nimport added in 5 components. One judgement: in `PexelsSearch` the search's `PexelsKeyError` branch (no key or\na refused key, which the panel explains) is left unlogged and only the real failure branch logs, with a comment.\n`presets.ts` unchanged (false positive, T003). Those 6 files weren't Prettier-clean before either; not\nreformatted. Guard 2/2; break-test: removing the call in `PerfMonitor` made it name `PerfMonitor.tsx:67`,\nrestored. `npm run check` exit 0 (19 files, 743 tests), build 327 KB (+1 KB). `test:e2e` × 5: runs 2–5 all 67\npassed / 7 skipped; **run 1 had 66 passed, so one test failed once, and its name wasn't captured** (only the\nlast two lines were printed). It didn't recur in 4 runs; recorded as a possible flake to watch at T091."
+          ]
+        },
+        "T010": {
+          "text": "`ci.yml`: `on: workflow_call` only; `desktop-release.yml`: a first job `ci` that calls it, `build` `needs: ci`; header comments say when each runs.",
+          "section": "CI at the release (plan §2, D-006)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/desktop-release.yml"
+          ],
+          "test": "both parse as YAML and a local check confirms `build.needs` is `ci` and `ci.yml` has no `push`/`pull_request`; the real proof is the dry run, T042 (AC-11)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `ci.yml`: `on: workflow_call` only; its `concurrency` block (cancel in progress per ref)\nremoved, since a release's CI must never be cancelled and the caller decides when it runs; jobs `check` and\n`docker` unchanged. `desktop-release.yml`: new first job `ci: uses: ./.github/workflows/ci.yml`, `build: needs:\nci` (so `release` → `build` → `ci`); headers say CI runs only here, on a tag or the manual dry run. Scratch check\n(`wf.cjs`, js-yaml from `node_modules`): 7 structural checks, **3 failed on the old files, 7/7 pass now**; CodeQL\nuntouched. Not provable locally: GitHub's own validation of the reusable call → T042."
+          ]
+        },
+        "T011": {
+          "text": "Docs: CI runs once for a release (and its dry run), CodeQL stays on PRs: `specs/testing-strategy.md`, `specs/release.md` (\"CI is green for the tag\", dry run step), `specs/build.md`, `docs/OPERATIONS.md`, `CONTRIBUTING.md` (also Node 22 → 26), `specs/architecture.md` §7 if it names CI.",
+          "section": "CI at the release (plan §2, D-006)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "those"
+          ],
+          "test": "grep finds no \"CI … every pull request\" left; link check 0 broken",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** rewritten: `testing-strategy.md` intro (local gates; CI once per release),\n`release.md` (gates pass locally on `main`; new **dry run** step; \"Tag and publish\" says CI runs first and a red\nCI stops it, with how to delete a failed tag), `build.md` (diagram gets a `ci` node; step 4), `OPERATIONS.md`\n(Docker image checked per release, so check a base-image update yourself: `docker compose build/up`, `/healthz`),\n`CONTRIBUTING.md` (Node 22 → 26; run the full checks and say so in the PR; CodeQL still scans PRs),\n`ACCESSIBILITY.md` (axe runs in `test:e2e` and at each release, not \"every pull request\"), `DESKTOP.md` (cross-\nplatform builds via the dry run), CHANGELOG Unreleased → Changed line, D-006 follow-ups marked done. Fixed in\npassing in `release.md`: the plugin version bump was missing (CLAUDE.md lists it) and the exe is\n`Chitthi Studio.exe`, not `Chitthi.exe`. Left as they are: CHANGELOG history, `architecture.md` §7 (CodeQL),\n`licensing.md` (\"runs in CI and before every release build\": still true), README's \"the checks CI runs\". Grep:\nno claim of CI on pull requests left; links 37 files / 161 / 0 broken; `npm run check` exit 0."
+          ]
+        },
+        "T020": {
+          "text": "Measuring script: `playwright.measure.config.ts` (installed Chrome, headed, production build on `vite preview`), `e2e/gate.measure.ts` (photo from `public/samples/`, a look, a brush mask with exposure and a linear gradient mask; 10 s painting and 10 s handle drag with moves every 16 ms; rAF intervals → frames, median, p95, max, backend; 3 runs each; fails if the backend isn't WebGPU or WebGL2), `npm run measure:gate`. Run it on this machine. Break-test: the same run with Chrome's CPU throttled 4× (CDP `Emulation.setCPUThrottlingRate`) must report clearly higher numbers. `npm run test:e2e` must not pick it up.",
+          "section": "Chrome gate (plan §3)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "e2e/gate.measure.ts",
+            "playwright.measure.config.ts",
+            "package.json"
+          ],
+          "test": "script output; test:e2e count unchanged (74)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `npm run measure:gate` (own config, `channel: 'chrome'`, headed, `vite build` +\n`vite preview` on port 4175, 1440 × 900). Photo `puri-temple.jpg` (3200 × 4800, 15 MP) in the 4:5 post, look\nWarm, Mask 1 linear gradient + clarity 30, Mask 2 brush + exposure 1; per run 10 s painting a figure-of-eight\nstroke and 10 s dragging the gradient's centre handle in a circle (undone after), 3 runs; asserts each run left\none more stroke and the drag moved the gradient; prints Chrome, GPU (WebGPU adapter or WebGL2 renderer; fails on\na software one), CPU, RAM, OS; writes `test-results/gate.json`; exits 1 over the limits. **Metric changed\n(spec AC-1/AC-2/Q2, approved):** the first version measured rAF intervals, and its 4× CPU-throttle break-test\n*passed* (median 8.4 ms at 120 Hz: frames without input dilute it, while only ~245 moves were handled in 10 s).\nNow the gate is the time between handled pointer moves (a window `pointermove` listener after the app's), moves\npaced every 16 ms; rAF frames are kept as a jank column. Second fix: pacing with `setTimeout(16)` gave a p95 of\n~33 ms on this machine (Windows timers tick every 15.6 ms), so it waits on `performance.now()` with\n`setImmediate`. **This machine** (Core Ultra 9 285K, 24 threads, 127 GB, NVIDIA Blackwell, WebGPU, Chrome\n154.0.8037.98): worst run paint median 16.6 / p95 19.0 / max 31 ms, drag 16.6 / 18.7 / 27 ms, ~610 updates and\n~1,197 frames per 10 s: PASS. **Break-test** `GATE_CPU_THROTTLE=4`: paint 41.0 / 51.3 ms, drag 41.5 / 55.0 ms,\n~245 updates: **FAIL**, as it must. `npm run test:e2e` still lists 74 tests; ESLint clean; `npm run check`\nexit 0. Not a mid-range machine: the gate itself is T022."
+          ]
+        },
+        "T021": {
+          "text": "`docs/PERFORMANCE.md`: \"Measuring the photo editor's frame rate\" (what `measure:gate` does, the limits, how to read it).",
+          "section": "Chrome gate (plan §3)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "docs/PERFORMANCE.md"
+          ],
+          "test": "link check",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** section added before \"Investigating a slowdown\": the budget, both commands (incl. the\nthrottled self-check), what the run does, a table of the columns with their limits, the software-renderer rule,\n`test-results/gate.json`, and why display-frame intervals can't be the measure. Links 0 broken."
+          ]
+        },
+        "T022": {
+          "text": "The gate on the reference laptop (Q1, Q2): record model, CPU, GPU, RAM, OS, Chrome version, plugged in; `npm ci`, `npx playwright install chromium` not needed (installed Chrome); `npm run measure:gate`, 3 runs each; worst run against median ≤ 33.3 ms, p95 ≤ 50 ms. One run with the performance monitor open as a cross-check. If it fails: stop and report (Q8).",
+          "section": "Chrome gate (plan §3)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "none"
+          ],
+          "test": "numbers in the Result (AC-1, AC-2)",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T023": {
+          "text": "Desktop numbers on the same laptop: `npm test`'s two-mask timing line, and the performance monitor in `release/win-unpacked` while painting and dragging.",
+          "section": "Chrome gate (plan §3)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": true,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [],
+          "test": "numbers in the Result (AC-3)",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T030": {
+          "text": "Spike on the Apple silicon Mac: `npm ci && npm run fetch:libraw`; the Intel `dcraw_emu` builds, `lipo -archs` says `x86_64`, and both `darwin-arm64/` and `darwin-x64/` hold the program, licences and `SOURCE.txt`. If the build fails, fix the configure flags in `scripts/fetch-libraw.mjs` (same source).",
+          "section": "macOS and RAW (plan §4)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-5",
+            "AC-6"
+          ],
+          "files": [
+            "`scripts/fetch-libraw.mjs` only if needed"
+          ],
+          "test": "`lipo -archs`, `file` output",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T031": {
+          "text": "RAW test set (Q4): a CR3, a NEF and an ARW from raw.pixls.us (CC0) plus the smoke test's synthetic DNG, in a folder outside the repo; record URLs, cameras and SHA-256.",
+          "section": "macOS and RAW (plan §4)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-5",
+            "AC-6"
+          ],
+          "files": [
+            "none"
+          ],
+          "test": "Result note",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** downloaded to the session scratchpad (`raw-set/`, not in the repo, not shipped); the site\nreleases every sample under CC0. Magic bytes checked (ARW, NEF: TIFF `II*\\0`; CR3: ISO-BMFF `ftypcrx`).\n| File | Camera | URL | Size | SHA-256 |\n| --- | --- | --- | --- | --- |\n| `IMG_6310.CR3` | Canon EOS R10 | `https://raw.pixls.us/data/Canon/Canon%20EOS%20R10/IMG_6310.CR3` | 34.7 MB | `2dc0bbdf04c93ca6…acd097` |\n| `DSC_0750.NEF` | Nikon Z 6 | `https://raw.pixls.us/data/Nikon/Z%206/DSC_0750.NEF` | 47.5 MB | `b4cdb8ecf8a971ec…a7ab5e15f` |\n| `_DSC0009.ARW` | Sony ILCE-7M3 (A7 III) | `https://raw.pixls.us/data/Sony/ILCE-7M3/_DSC0009.ARW` | 25.6 MB | `250784580ea52744…5bb50d0f` |\n| `synthetic.dng` | `syntheticDng()` (`src/engine/tiff.ts`) | — | 49.6 KB | — |\nFull hashes: CR3 `2dc0bbdf04c93ca62c914604f644c735286037912d6fba609d0cb78d00acd097`, NEF\n`b4cdb8ecf8a971ec023dd242251c6cbfb19966914e37c2311dc9813a7ab5e15f`, ARW\n`250784580ea527442c09004417bb0eead484f2bf3ee8f9121a776ac65bb50d0f`. For the Mac (T033): download the same\nthree URLs and compare the hashes."
+          ]
+        },
+        "T032": {
+          "text": "Windows x64 (AC-4): `npm run desktop:pack`; open each RAW file in `release/win-unpacked`: developed picture (not the embedded preview), then 16-bit TIFF export (`II*\\0`, > 1080 × 1080 × 6 bytes).",
+          "section": "macOS and RAW (plan §4)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [],
+          "test": "manual check, results per file",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `desktop:pack` rebuilt on the current code (after T004). Checked through the packaged\napp's own MCP tools (`Chitthi Studio.exe --mcp`: the same page code as the UI, in its hidden window) with a\nthrowaway client (`raw-check.mjs`, kept in the scratchpad, not committed): `add_batch_photo` → `raw: true`\n(set only when LibRaw developed the file; the embedded-preview path never sets it), `render_photo_preview` saved\nand looked at, then TIFF export, header and BitsPerSample (tag 258) read, the file deleted.\n| File | Opened in | Developed size | Export | TIFF |\n| --- | --- | --- | --- | --- |\n| CR3 (Canon EOS R10) | 0.9 s | 3000 × 2000 | 1.4 s | `II*`, 16-bit, 8.7 MB |\n| NEF (Nikon Z 6) | 0.7 s | 3032 × 2020 | 1.3 s | `II*`, 16-bit, 8.7 MB |\n| ARW (Sony A7 III) | 0.5 s | 3012 × 2012 | 1.3 s | `II*`, 16-bit, 8.7 MB |\n| synthetic DNG | 0.0 s | 96 × 64 | 0.2 s | `II*`, 16-bit, 8.7 MB |\nSizes are LibRaw's half-size development (`-h`) of 24 MP sensors. The previews (1080 × 1350 posts) show natural\ncolour, right way up, no casts. TIFF = 1080 × 1350 × 3 × 2 bytes. The output folder was empty afterwards. A\nby-hand look in the open window is part of T044."
+          ]
+        },
+        "T033": {
+          "text": "macOS (AC-5, AC-6): `npm run build`, `npx electron-builder --mac --arm64 --dir` and `--x64 --dir`; the RAW set in both apps (x64 under Rosetta 2), developed and exported as 16-bit TIFF; `file …/Resources/libraw/…/dcraw_emu` in the x64 app says x86_64.",
+          "section": "macOS and RAW (plan §4)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-5",
+            "AC-6"
+          ],
+          "files": [],
+          "test": "manual check, results per file and arch",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T040": {
+          "text": "Release changes (AC-10): CHANGELOG Unreleased → `## [2.10.0] — <date>`; `npm version 2.10.0 --no-git-tag-version`; `APP_CACHE` v15 → v16; `docker-compose.yml` `chitthi-studio:2.10.0`; plugin version; README's version sentence; `editor-implementation.md` Phase 1 Done (gate numbers from T022, T033), status line.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "those"
+          ],
+          "test": "`npm run check`, `npm run build`; grep finds no stale `2.8.0` outside history",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** CHANGELOG `## [2.10.0] - 2026-10-06` with an empty Unreleased above it; compare links\nfixed (`[Unreleased]` still compared from v2.7.0 and 2.8.0 had none: now v2.10.0...HEAD, v2.8.0...v2.10.0,\nv2.7.0...v2.8.0); `npm version 2.10.0 --no-git-tag-version` (package.json + lock); `APP_CACHE` v15 → v16;\n`docker-compose.yml` `chitthi-studio:2.10.0`; plugin 2.10.0; README \"Version 2.10.0, with the advanced photo\neditor\"; `editor-implementation.md` Phase 1 row: merged and released in 2.10.0, gate \"to confirm after the\nrelease (D-007)\" with the numbers so far. `2.8.0` left only where it is history (\"written against 2.8.0\",\n`licensing.md`'s dated count, the roadmap's baseline line). D-007 recorded. All gates on the release code:\ncheck 743, licences 168, build 327 KB, e2e 67 / 7 skipped, self-test 6,115 / 0, MCP passed. The local Docker\ncheck couldn't run (Docker Desktop not running): the dry run's CI covers it."
+          ]
+        },
+        "T041": {
+          "text": "Merge `feat/editor-phase-1-continued` into `main` (fast-forward if possible) and push `main`, with the maintainer's OK at the time.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [],
+          "files": [],
+          "test": "`git log main` shows the release commit",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `main` fast-forwarded from `cc192e1` to `5c029ff` (\"Release 2.10.0\"), later `1f3b2bc`\n(the test fix below), with the maintainer's OK; pushed. The push ran only CodeQL (CI no longer runs on `main`)."
+          ]
+        },
+        "T042": {
+          "text": "Dry run (D2): Desktop release workflow by hand on `main`: `ci` green (lint, licences, build, unit, self-test, MCP, e2e, Docker), then installers as artifacts and no release.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [],
+          "test": "run link and result (AC-11)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** run 1 (started by the maintainer,\n[37507302121](https://github.com/RVicky172/Chitthi/actions/runs/37507302121)): `docker` passed (first image\ncheck of the baseline, `000` G5), `check` **failed** in e2e: \"AI masks\" timed out twice (retry too). From the\ntrace (via `gh`): the test read the whole canvas back as a JS array, 8.4–8.8 s on the software-rendered runner,\nlonger than its 5 s poll; the screenshot showed the AI mask working. Bug fix `1f3b2bc`: compare in the page,\nreturn one number, poll up to 30 s; break-tested. Run 2 (started with `gh workflow run`,\n[37510673158](https://github.com/RVicky172/Chitthi/actions/runs/37510673158)): **all green**, `docker` 0.5 min,\n`check` 8.8 min (743 unit tests, self-test, MCP, e2e), Windows 2.9 min, macOS 5.3 min (the **Intel LibRaw built\nfor the first time**: `darwin-x64 ready`, its `lipo` check passed), `release` skipped; artifacts 154 MB / 663 MB."
+          ]
+        },
+        "T043": {
+          "text": "Tag `v2.10.0` on `main` and push it: the release run's `ci` job green, GitHub Release `v2.10.0` with the `.exe`, two `.dmg`, two `.zip`, `latest.yml`, `latest-mac.yml`.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-11",
+            "AC-12"
+          ],
+          "files": [],
+          "test": "run link, asset list (AC-11, AC-12)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** annotated tag `v2.10.0` on `1f3b2bc` (message: the CHANGELOG's 2.10.0 section);\nrelease run [37512716458](https://github.com/RVicky172/Chitthi/actions/runs/37512716458) all green: `docker`\n0.5 min, `check` 7.0 min, Windows 2.5 min, macOS 5.3 min, `release` 0.9 min. **Published**\n[Chitthi Studio v2.10.0](https://github.com/RVicky172/Chitthi/releases/tag/v2.10.0) at 18:50 UTC, Latest, not a\ndraft: `Chitthi-Studio-Setup-2.10.0-x64.exe` (154 MB), `Chitthi-Studio-2.10.0-x64.dmg` (171 MB),\n`-arm64.dmg` (165 MB), the two macOS update zips, block maps, `latest.yml`, `latest-mac.yml`. Unsigned, as Q5."
+          ]
+        },
+        "T044": {
+          "text": "Windows clean machine or VM: install, make a card and export a print pack, open a photo with a mask and export it, `CHITTHI_MCP_APP=<exe> npm run test:mcp`.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [],
+          "test": "manual + MCP smoke (AC-13)",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T045": {
+          "text": "macOS (arm64; x64 under Rosetta): the same as T044 from the published `.dmg`s, after `xattr -cr` as the release notes say.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": true,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [],
+          "test": "manual + MCP smoke (AC-13)",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T046": {
+          "text": "Windows: an installed 2.8.0 finds and installs 2.10.0 (Help → Check for updates…); macOS by hand (Q6).",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-14"
+          ],
+          "files": [],
+          "test": "manual check (AC-14)",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T047": {
+          "text": "Web: if the app is hosted (Q7), redeploy at 2.10.0 (`docs/OPERATIONS.md` → Upgrade) and check the footer/version; else note \"not hosted\" and drop AC-15.",
+          "section": "Release 2.10.0 (plan §5)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": true,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [],
+          "test": "manual check (AC-15)",
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        },
+        "T090": {
+          "text": "`specs/architecture.md` / `specs/build.md`: the release pipeline now runs CI first (plan §2); any structure this feature established.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "link check",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `architecture.md`: §7 Supply chain says a release builds installers only after CI\npasses on the tag; §8 new **Verification** row (local suites, CI once per release, `measure:gate`); §9 new\ndecision row \"CI only at a release (D-006)\" with its trade-off (no CI on PRs or `main`; CodeQL still scans; the\nDocker image first checked at the dry run). Fixed in passing: the §8 \"Responsive UI\" row lacked its closing pipe.\n`build.md` was done in T011 (diagram + step 4). Links 15, 0 broken."
+          ]
+        },
+        "T091": {
+          "text": "Every Definition-of-Done gate green: locally (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`) and in the tag's CI (T043); record the numbers.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": [
+            "**Local half (2026-10-06, at `a283e6a` + T090 docs):** `npm run check` exit 0 (19 files, 743 tests, 0 lint errors,\n5 known warnings, 6 s); `check:licenses` 168 OK; `build` entry 327 KB / 350; `npm audit` 0 high (8 moderate =\nthe sprintf-js advisory, T001); `npm test` 6,115 checks, 0 failed (85 s); `test:mcp` passed, removed its 4 files;\n`test:e2e` × 3: 67 passed / 7 skipped each, no failure lines. The one unexplained e2e failure (T004, run 1 of 5)\nhasn't recurred in 8 runs since. **Still to do:** the tag's CI run (T043) and a final local run after T040."
+          ]
+        },
+        "T092": {
+          "text": "Tick ACs in `spec.md` (Status `Implemented`), roadmap 001 → ✔️, `memory/progress.md`, `memory/MEMORY.md` (next: Phase 2 from `201`), `000`'s Known gaps G5–G8 marked handled.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "startedOn": null,
+          "doneOn": null,
+          "commits": [],
+          "notes": []
+        }
+      }
+    }
+  }
+}

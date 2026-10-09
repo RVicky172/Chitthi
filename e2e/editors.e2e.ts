@@ -176,6 +176,16 @@ test.describe('video editor', () => {
     await expect(clips).toHaveCount(2);
   });
 
+  test('clips sit end to end on the timeline, where the track model places them', async ({ page }) => {
+    await page.goto('./#/instagram/video');
+    await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES);
+    const clips = page.locator('.tl-clip');
+    await expect(clips).toHaveCount(3);
+    const lefts = await clips.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().left));
+    // Three 3 s photos at 60 px a second: each block starts 180 px after the one before (blocks are drawn 2 px narrower).
+    for (let i = 1; i < lefts.length; i++) expect(lefts[i] - lefts[i - 1]).toBeCloseTo(180, 0);
+  });
+
   test('exports a YouTube video, streamed straight into the chosen file', async ({ page }) => {
     test.setTimeout(120_000);
     const errors = watchErrors(page);
@@ -281,5 +291,187 @@ test.describe('graphics card effects', () => {
     await save.click();
     expect(boxes(readFileSync(await (await dl).path()))).toEqual(['ftyp', 'moov', 'mdat']);
     expect(errors).toEqual([]);
+  });
+});
+
+// 201: one header per track on the video timeline: Hide (video) or Mute (music), Lock, and the track's height.
+test.describe('video track headers', () => {
+  const head = (page: Page, track: 'Video' | 'Music') => page.getByRole('group', { name: `${track} track` });
+  const rowHeight = async (page: Page, row: string) => (await page.locator(`.tl-row.${row}`).boundingBox())!.height;
+  /** Is the preview black at a few points? */
+  const black = (page: Page) =>
+    page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => {
+      const x = c.getContext('2d')!;
+      return [0.25, 0.5, 0.75].every((k) => {
+        const d = x.getImageData(Math.floor(c.width * k), Math.floor(c.height * k), 1, 1).data;
+        return d[0] + d[1] + d[2] < 12;
+      });
+    });
+
+  test.beforeEach(async ({ page }) => {
+    // Records whether each sound started by playback is muted (the music plays through an <audio> outside the page).
+    await page.addInitScript(() => {
+      const w = window as unknown as { __plays: { audio: boolean; muted: boolean }[] };
+      w.__plays = [];
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+        w.__plays.push({ audio: this instanceof HTMLAudioElement, muted: this.muted });
+        return play.call(this);
+      };
+    });
+    await page.goto('./#/instagram/video');
+    await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES);
+    await expect(page.locator('.tl-clip')).toHaveCount(3);
+  });
+
+  test('each track has a named header with Hide or Mute, Lock and Height, usable by keyboard', async ({ page }) => {
+    const video = head(page, 'Video'),
+      music = head(page, 'Music');
+    for (const [g, name] of [
+      [video, 'Hide Video'],
+      [video, 'Lock Video'],
+      [music, 'Mute Music'],
+      [music, 'Lock Music'],
+    ] as const)
+      await expect(g.getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await expect(video.getByRole('button', { name: 'Mute Music' })).toHaveCount(0);
+    await expect(music.getByRole('button', { name: 'Hide Video' })).toHaveCount(0);
+
+    // Keyboard only: Space toggles, the height menu opens with Enter and moves with the arrow keys.
+    await video.getByRole('button', { name: 'Lock Video', exact: true }).focus();
+    await page.keyboard.press('Space');
+    await expect(video.getByRole('button', { name: 'Lock Video', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Space');
+    await expect(video.getByRole('button', { name: 'Lock Video', exact: true })).toHaveAttribute('aria-pressed', 'false');
+
+    expect(await rowHeight(page, 'tl-video')).toBeCloseTo(64, 0);
+    expect(await rowHeight(page, 'tl-music')).toBeCloseTo(64, 0);
+    const height = video.getByRole('button', { name: 'Video track height' });
+    await height.focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu', { name: 'Video track height' });
+    await expect(menu.getByRole('menuitemradio', { name: 'Medium' })).toHaveAttribute('aria-checked', 'true');
+    await expect(menu.getByRole('menuitemradio', { name: 'Medium' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitemradio', { name: 'Large' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeHidden();
+    await expect(height).toBeFocused();
+    expect(await rowHeight(page, 'tl-video')).toBeCloseTo(96, 0);
+    // Home picks Small; Escape closes without a change.
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Home');
+    await expect(menu.getByRole('menuitemradio', { name: 'Small' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    expect(await rowHeight(page, 'tl-video')).toBeCloseTo(96, 0);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Enter');
+    expect(await rowHeight(page, 'tl-video')).toBeCloseTo(40, 0);
+    expect(await rowHeight(page, 'tl-music')).toBeCloseTo(64, 0);
+  });
+
+  test('Hide shows black in the preview, Mute silences the music; both undo and redo', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Pointer drags and playback: at desktop size');
+    const errors = watchErrors(page);
+    await tool(page, 'Audio').click();
+    await page.locator('.mst-panel input[type=file]').setInputFiles({ name: 'tone.wav', mimeType: 'audio/wav', buffer: toneWav() });
+    await expect(page.locator('.tl-bar-music')).toContainText('tone.wav');
+    await page.locator('.tl-ruler').click({ position: { x: 90, y: 10 } });
+    expect(await black(page)).toBe(false);
+
+    const hide = head(page, 'Video').getByRole('button', { name: 'Hide Video', exact: true });
+    await hide.click();
+    await expect(hide).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => black(page)).toBe(true);
+    await page.keyboard.press('Control+z');
+    await expect(hide).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => black(page)).toBe(false);
+    await page.keyboard.press('Control+y');
+    await expect(hide).toHaveAttribute('aria-pressed', 'true');
+    await hide.click();
+
+    const mute = head(page, 'Music').getByRole('button', { name: 'Mute Music', exact: true });
+    await mute.click();
+    await expect(mute).toHaveAttribute('aria-pressed', 'true');
+    const lastMusic = () => page.evaluate(() => (window as unknown as { __plays: { audio: boolean; muted: boolean }[] }).__plays.filter((p) => p.audio).at(-1)?.muted);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect.poll(lastMusic).toBe(true);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await page.keyboard.press('Control+z');
+    await expect(mute).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect.poll(lastMusic).toBe(false);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    expect(errors).toEqual([]);
+  });
+
+  test('a locked track refuses drags, trims, splits, duplicates and deletes, and says why; the height survives undo', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Pointer drags and playback: at desktop size');
+    const clips = page.locator('.tl-clip');
+    const names = () => clips.evaluateAll((els) => els.map((e) => e.getAttribute('title')?.split(' ·')[0]));
+    const before = await names();
+    const lock = head(page, 'Video').getByRole('button', { name: 'Lock Video', exact: true });
+    await lock.click();
+    await expect(lock).toHaveAttribute('aria-pressed', 'true');
+    // The height is a view setting: undoing the lock leaves it.
+    await head(page, 'Video').getByRole('button', { name: 'Video track height' }).click();
+    await page.getByRole('menuitemradio', { name: 'Large' }).click();
+    expect(await rowHeight(page, 'tl-video')).toBeCloseTo(96, 0);
+    const locked = 'The Video track is locked. Unlock it to change its clips.';
+
+    // Drag clip 1 past clip 3: nothing moves.
+    const fb = (await clips.first().boundingBox())!,
+      lb = (await clips.last().boundingBox())!;
+    await page.mouse.move(fb.x + fb.width / 2, fb.y + fb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(lb.x + lb.width - 5, fb.y + fb.height / 2, { steps: 8 });
+    await page.mouse.up();
+    expect(await names()).toEqual(before);
+    await expect(page.locator('#toast')).toHaveText(locked);
+    // Trim the end of clip 1: the length stays.
+    await clips.first().hover();
+    const eb = (await clips.first().getByRole('button', { name: 'Trim the end of clip 1' }).boundingBox())!;
+    await page.mouse.move(eb.x + eb.width / 2, eb.y + eb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(eb.x + eb.width / 2 + 60, eb.y + eb.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect(page.locator('.tl-time')).toContainText('/ 0:09.0');
+    // Split (S), Delete key, Duplicate and Delete buttons: refused with the reason.
+    await page.locator('.tl-ruler').click({ position: { x: 90, y: 10 } });
+    await page.locator('.tl-scroll').focus();
+    await page.keyboard.press('s');
+    await expect(page.locator('#toast')).toHaveText(locked);
+    await page.keyboard.press('Delete');
+    await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.locator('#toast')).toHaveText(locked);
+    await expect(clips).toHaveCount(3);
+    expect(await names()).toEqual(before);
+
+    // It still plays.
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await expect(page.locator('.tl-time b')).not.toHaveText('0:01.5');
+
+    // Undo unlocks (a step); the height stays Large.
+    await page.keyboard.press('Control+z');
+    await expect(lock).toHaveAttribute('aria-pressed', 'false');
+    expect(await rowHeight(page, 'tl-video')).toBeCloseTo(96, 0);
+    await page.keyboard.press('Control+y');
+    await expect(lock).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('the headers have no serious accessibility problems and fit a 360 px screen', async ({ page }) => {
+    await head(page, 'Video').getByRole('button', { name: 'Lock Video', exact: true }).click();
+    const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).include('.tl').exclude('.tl-edge').analyze();
+    const serious = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) e.g. ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+    await page.setViewportSize({ width: 360, height: 780 });
+    for (const name of ['Hide Video', 'Lock Video', 'Video track height']) await expect(head(page, 'Video').getByRole('button', { name, exact: true })).toBeVisible();
+    for (const name of ['Mute Music', 'Lock Music', 'Music track height']) await expect(head(page, 'Music').getByRole('button', { name, exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });

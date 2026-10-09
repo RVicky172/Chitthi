@@ -1,0 +1,787 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "000",
+  "title": "Baseline",
+  "workItem": null,
+  "status": "implemented",
+  "owner": "RVicky172",
+  "dates": {
+    "created": "2026-10-06",
+    "approved": "2026-10-06",
+    "started": "2026-10-06",
+    "done": "2026-10-06"
+  },
+  "git": {
+    "branch": null
+  },
+  "spec": {
+    "phase": "Baseline",
+    "summary": "Chitthi Studio already exists: version 2.8.0 plus the unreleased editor Phases 0–1 (GPU render graph P0.1–P0.9 and\nthe advanced photo editor P1.1–P1.12) on branch `feat/editor-phase-1-continued`. Spec-driven development started on\n2026-10-06 (D-001), after all of that was built. This feature records what exists as the starting point every later\nspec builds on, and proves that the Definition of Done in `specs/constitution.md` holds for it today, so that a\nfailure seen while working on `001`, `201` … is known to be new rather than inherited. It adds no user-facing\nbehaviour.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a contributor (person or AI agent) starting a new feature, I want one page that says what the app does today and where each part is described, so that I don't re-specify or break existing behaviour."
+        },
+        "US-2": {
+          "text": "As a contributor, I want every Definition-of-Done gate known to pass on a clean clone of the baseline, so that a red gate during later work points at my change."
+        },
+        "US-3": {
+          "text": "As the maintainer, I want the engineering docs (`specs/architecture.md`, `specs/lld.md`, `specs/tech-stack.md`, `specs/testing-strategy.md`) and product docs (`docs/`) checked against the code, so that specs written from them start from the truth."
+        },
+        "US-4": {
+          "text": "As the maintainer, I want the baseline's known gaps written down (not fixed silently), so that each one becomes a bug fix or a later feature on purpose."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "The spec's **Baseline inventory** section lists every capability area below, each with one line on what it does and a link to the doc that describes it in detail: print studio (4 products, sizes, layouts, themes, print packs with bleed), photo studio (batch, layers, the Phase 1 editor: light, colour, curve, mixer, detail, presets, LUTs, masks incl. AI masks, RAW, WebP/AVIF/16-bit TIFF export), video studio (Reels / Shorts, YouTube, MP4 export), desktop app (Windows, macOS; storage, RAW, updates), MCP server and Claude Code plugin, AI with the user's key, Pexels search, in-app docs. No area of the app's top-level routes (`home`, `studio`, `sizes`, `paper`, `instagram`, `docs`) is missing.",
+          "proof": "manual review",
+          "group": "Inventory (what exists)",
+          "done": true
+        },
+        "AC-2": {
+          "text": "Every link in the inventory resolves to an existing file and heading.",
+          "proof": "manual check, or a link checker run recorded in the Result note",
+          "group": "Inventory (what exists)",
+          "done": true
+        },
+        "AC-3": {
+          "text": "The inventory records the baseline's measured numbers already in `specs/vision/editor-implementation.md` (GPU vs Canvas 2D parity: worst 2 levels for colour edits, 3 with detail effects; frame times per 1080 × 1350 frame) and the count of agent tools registered in `src/agent/` (`tools.ts` and `photoTools.ts`), matching the count stated in `docs/MCP.md` and the README.",
+          "proof": "manual check against the code",
+          "group": "Inventory (what exists)",
+          "done": true
+        },
+        "AC-4": {
+          "text": "`npm run check` exits 0: typecheck clean, ESLint 0 errors and no more than the 5 known react-hooks warnings, every Vitest test passing.",
+          "proof": "gate run, output summary in the Result note",
+          "group": "Gates (Definition of Done on a clean clone)",
+          "done": true
+        },
+        "AC-5": {
+          "text": "`npm run build` exits 0 with the entry chunk ≤ 350 KB and no AI or shader code in it; the entry chunk's size is recorded.",
+          "proof": "gate run",
+          "group": "Gates (Definition of Done on a clean clone)",
+          "done": true
+        },
+        "AC-6": {
+          "text": "`npm run test:e2e` passes on both the desktop and phone projects with 0 axe violations and 0 console errors (CSP included).",
+          "proof": "gate run",
+          "group": "Gates (Definition of Done on a clean clone)",
+          "done": true
+        },
+        "AC-7": {
+          "text": "`npm test` (Electron self-test) reports 0 failures; the total check count is recorded (expected about 6,000).",
+          "proof": "gate run",
+          "group": "Gates (Definition of Done on a clean clone)",
+          "done": true
+        },
+        "AC-8": {
+          "text": "`npm run test:mcp` passes, including developing the DNG with LibRaw.",
+          "proof": "gate run",
+          "group": "Gates (Definition of Done on a clean clone)",
+          "done": true
+        },
+        "AC-9": {
+          "text": "`npm run check:licenses` exits 0, and every shipped package (`dependencies` in `package.json` and the bundled devDependencies in `BUNDLED` in `scripts/check-licenses.mjs`) appears in `THIRD_PARTY_NOTICES.md` and in `specs/tech-stack.md`.",
+          "proof": "gate run + manual check",
+          "group": "Gates (Definition of Done on a clean clone)",
+          "done": true
+        },
+        "AC-10": {
+          "text": "`specs/architecture.md` and `specs/lld.md` name every directory under `src/` and `electron/`, and every module they name exists. Mismatches are fixed in the docs (not the code).",
+          "proof": "manual check",
+          "group": "Docs match the code",
+          "done": true
+        },
+        "AC-11": {
+          "text": "`CHANGELOG.md`'s **Unreleased** section covers every Phase 0–1 work item marked Done in `specs/vision/editor-implementation.md`.",
+          "proof": "manual check",
+          "group": "Docs match the code",
+          "done": true
+        },
+        "AC-12": {
+          "text": "A **Known gaps** section lists every gate failure, flaky test (a test that failed at least once in 3 runs of its suite), doc mismatch that wasn't fixed, and Definition-of-Done item the baseline doesn't meet (e.g. a user-facing feature without an agent tool — video clips get theirs in P2.12). Each gap names where it will be handled: a bug fix logged in `memory/progress.md`, feature `001`, a `2xx`/`3xx`/`4xx` feature, or the roadmap backlog.",
+          "proof": "manual review",
+          "group": "Known gaps",
+          "done": true
+        }
+      }
+    },
+    "groupIntros": {
+      "Gates (Definition of Done on a clean clone)": "On a fresh clone of the baseline commit, after `npm ci` (and `npx playwright install chromium`,\n`npm run fetch:libraw`), on Windows 11:"
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "If a gate fails on the clean clone, does `000` fix it, or only record it? _Answer:_ small fixes (a broken link, a stale doc, a flaky wait) are done inside `000` as bug fixes logged in `memory/progress.md`; anything larger is recorded under Known gaps and handed to `001` or a later feature.",
+          "open": false
+        },
+        "Q2": {
+          "text": "Which commit is \"the baseline\": the tip of `feat/editor-phase-1-continued`, or `main` after that branch is merged? _Answer:_ the branch tip at the time `000` is verified; its hash is recorded in the spec. The merge to `main` happens with `001`'s release.",
+          "open": false
+        },
+        "Q3": {
+          "text": "Which platforms must the gates pass on for `000`? _Answer:_ Windows 11 (the development machine) for all gates, plus the existing GitHub CI workflow for what it already runs. macOS is checked in `001` with the first macOS build.",
+          "open": false
+        },
+        "Q4": {
+          "text": "How detailed should the inventory be? _Answer:_ one line per capability area plus a link to the existing doc (`docs/MEDIA-STUDIO.md`, `docs/SPECIFICATIONS.md`, `docs/MCP.md`, …); the existing docs stay the detailed record, and this spec does not copy them.",
+          "open": false
+        },
+        "Q5": {
+          "text": "What version does the baseline carry? `package.json` says 2.8.0; the editor plan names a 2.9.0 (Phase 0) that was never tagged and 2.10.0 for Phase 1. _Answer:_ the baseline is \"2.8.0 + Unreleased\"; no 2.9.0 is tagged, and 2.10.0 (in `001`) ships Phases 0 and 1 together. The editor plan's Release column is corrected to say so.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-06",
+        "text": "Created."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Q1–Q5 resolved (all proposals accepted); Approved."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "AC-3: tools are registered in both `tools.ts` and `photoTools.ts`. AC-9: \"runtime dependency\" means every shipped package, incl. bundled devDependencies (only 3 are in `dependencies`). Found while planning."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Plan approved, tasks written; In Progress."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "Baseline inventory, numbers and Known gaps (G1–G9) written; every AC proven (tasks.md Result notes); Implemented."
+      },
+      {
+        "date": "2026-10-06",
+        "text": "G5's owner: CI runs only for a release tag (D-006), so the first CI run of the baseline is 2.10.0's."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: none new. The baseline's existing budgets (`docs/PERFORMANCE.md`, the 350 KB entry chunk) are\n  recorded, not changed.\n- Accessibility / security / compatibility: none new; AC-6 records that today's axe and CSP checks pass."
+      },
+      {
+        "kind": "markdown",
+        "title": "Baseline inventory",
+        "markdown": "**Baseline:** `e549542bed2e12b36fe7ff1e1a210179e4a5b5ac` on `feat/editor-phase-1-continued` (gates run at `fd2baaf`;\n`e549542` adds only doc fixes, re-checked in T090) · **Version:** 2.8.0 +\nUnreleased (editor Phases 0–1; ships as 2.10.0 in `001`, no 2.9.0 tagged).\n\nOne line per capability area; the linked doc is the detailed record. Routes are the hash routes in `App.tsx`\n(`screenOf()` in `src/state/store.ts`).\n\n| Area | Route | What it does | Detailed doc |\n| --- | --- | --- | --- |\n| Home | `home` | Landing page: the two studios side by side, a section per platform and per print product, live renders | [README: What it does](../../../README.md#what-it-does) |\n| Print studio | `studio` | 4 products (postcards, calendars, framed prints, fridge magnets) in 34 sizes and 47 layouts, 25 occasion themes, 46 fonts; six steps with a live preview that is what prints; matching envelopes | [README: Print studio](../../../README.md#print-studio), [SPECIFICATIONS.md](../../../docs/SPECIFICATIONS.md) |\n| Print files | `studio` | Print-shop PDFs with bleed and crop marks, sheet PDFs, 300 dpi PNGs, print pack ZIP with print spec, quote request and envelope; print-colours soft proof; 3D preview | [README: Print studio](../../../README.md#print-studio), [lld §4.4 Export](../../lld.md#44-export-exportts) |\n| Smart photos and library | `studio` | Photo analysis (shape, colour, light, sharpness), ranking per slot, auto-arrange, subject-centred crops; the photo library | [lld §4.6](../../lld.md#46-photo-analysis-and-arrangement-engineanalyzets-statetraitsts) |\n| Sizes guide | `sizes` | Size table, to-scale diagram, layouts at the chosen size | [SPECIFICATIONS.md: Current sizes](../../../docs/SPECIFICATIONS.md#current-sizes) |\n| Paper sizes in 3D | `paper` | Every size on a cutting mat at true relative scale, side by side, stacked or imposed, plus an actual-size view | [lld §8 Components](../../lld.md#8-components) |\n| Photo studio | `instagram` | Instagram batch of up to 20 photos (4:5, 1:1, 3:4, 1.91:1, 9:16 at 1080 px) with text, shape, sticker, drawing and image layers, blend modes and layer masks | [MEDIA-STUDIO.md: Instagram photos](../../../docs/MEDIA-STUDIO.md#instagram-photos-formats) |\n| Photo editor (Phase 1) | `instagram` | Light and white balance, tone curve, colour mixer, detail and effects, presets and `.cube` LUTs, saved presets, brush / gradient / range masks and AI masks (subject, sky, background), on the GPU with a Canvas 2D fallback | [MEDIA-STUDIO.md: Editing](../../../docs/MEDIA-STUDIO.md#editing), [editor-implementation.md](../../vision/editor-implementation.md) |\n| RAW and photo export | `instagram` | Camera RAW (LibRaw on desktop, embedded JPEG on web); JPEG, PNG, WebP, AVIF (where the browser writes it), 16-bit TIFF; ZIP or share | [MEDIA-STUDIO.md: RAW photos](../../../docs/MEDIA-STUDIO.md#raw-photos), [Export and posting](../../../docs/MEDIA-STUDIO.md#export-and-posting) |\n| Video studio | `instagram/video`, `instagram/youtube` | Reels / Shorts (9:16, 4:5, 1:1) and YouTube (16:9, up to 4K60 on desktop) on a timeline with music; H.264 + AAC MP4 with fast start, streamed to a file for YouTube | [MEDIA-STUDIO.md: Video editor](../../../docs/MEDIA-STUDIO.md#video-editor-reels-shorts-and-youtube) |\n| In-app docs | `docs` | Using the app and developer pages, rendered from `src/data/docs.ts` | [README: Documentation](../../../README.md#documentation) |\n| AI with the user's key | (dialogs) | Greetings, captions, messages and slot-shaped artwork from 16 services; keys only for allowed hosts; on-device AI masks | [AI.md](../../../docs/AI.md) |\n| Pexels search | (dialog) | Free photos with credits, key never in the app | [PEXELS.md](../../../docs/PEXELS.md) |\n| Desktop app | — | Windows and macOS (Electron): file-based storage, RAW developer, native save, menus, `.chitthi` files, auto-updates, performance monitor with per-process CPU and memory | [DESKTOP.md](../../../docs/DESKTOP.md), [PERFORMANCE.md](../../../docs/PERFORMANCE.md) |\n| MCP server and Claude Code plugin | — | `Chitthi --mcp` or live from Settings: 56 agent tools, prompts and resources; the plugin adds the server and six skills | [MCP.md](../../../docs/MCP.md), [plugin README](../../../plugins/chitthi/README.md) |\n| Web app hosting | — | Static `dist/` on nginx in Docker with the production CSP; installable, offline via the service worker | [OPERATIONS.md](../../../docs/OPERATIONS.md) |\n\n### Numbers\n\nRecorded from the editor plan ([Notes on finished items](../../vision/editor-implementation.md#notes-on-finished-items),\nrow named in brackets) and measured on the clean clone (tasks T012, T013). Frames are 1080 × 1350.\n\n| What | Value | Source |\n| --- | --- | --- |\n| GPU vs Canvas 2D parity, colour edits | worst 2 levels, mean 0.067 (112 frames per backend) | plan [P0.6] |\n| … with detail effects | worst 3 levels, mean 0.061 (252 frames) | plan [P1.3] |\n| … masks | worst 2 (3 with detail), mean 0.033 (P1.6), 0.025 over 27 frames (P1.7) | plan [P1.6], [P1.7] |\n| … measured at the baseline | colour worst 2, mean 0.034; photos worst 2 (detail 3), mean 0.059 over 308 frames; masks worst 2 (detail 3), mean 0.025 over 27 frames | T013 |\n| Frame time with a look | Canvas 2D 23–25 ms, WebGL2 11 ms, WebGPU 6 ms | plan [P0.9] |\n| … measured at the baseline | Canvas 2D 25.1 ms, WebGL2 6.7 ms, WebGPU 6.8 ms | T013 |\n| Detail effects (clarity, sharpening, noise reduction) | GPU about 1–2 ms; Canvas 2D about 0.8 s (baseline: 5.8–7.3 ms vs 633–668 ms) | plan [P1.3], T013 |\n| Two masks | WebGPU 6.2 ms, WebGL2 9.5 ms, painting 23–24 ms, dragging a gradient 26–29 ms; Canvas 2D about 0.4 s (baseline WebGPU: 5.3 ms, painting 20.8 ms, dragging 20.5 ms) | plan [P1.6], [P1.7], T013 |\n| Self-test checks | 6,115, 0 failed (3 runs) | T013 |\n| Entry chunk | 326 KB of the 350 KB budget | T012 |\n| Agent tools | 56 = 34 print (`src/agent/tools.ts`) + 22 photo studio (`photoTools.ts`); README, CHANGELOG, `lld.md`, `architecture.md` and the in-app docs say 56, and `docs/MCP.md`'s tool table names all 56 | code |"
+      },
+      {
+        "kind": "markdown",
+        "title": "Known gaps",
+        "markdown": "What the baseline doesn't meet, found by tasks T002–T032, each with where it will be handled. No gate failed and no\ntest was flaky (3 runs each of the self-test, MCP and e2e suites).\n\n| # | Gap | Found in | Handled in |\n| --- | --- | --- | --- |\n| G1 | Video clips have no agent tools (Constitution XI / DoD 7) | plan | `212` (P2.12) |\n| G2 | macOS gates not run; only Windows 11 here | plan | `001` (first macOS build, Intel LibRaw) |\n| G3 | Firefox and Safari have no test project (Playwright runs Chromium only) | plan | roadmap backlog |\n| G4 | The Phase 1 gate (masked edits on a mid-range laptop in Chrome) is still unmeasured | plan | `001` |\n| G5 | The branch has no CI run (`ci.yml` runs on pushes to `main` and on PRs), so the Docker image job hasn't run on the baseline; nearest green run is `main` @ `cc192e1` | T016 | `001`: CI runs once, for the 2.10.0 tag (D-006: never on feature branches) |\n| G6 | `npm audit`: 10 advisories (8 moderate, 2 high), all in build tools: electron-builder's chain (`@electron/get`, `got` → `http-cache-semantics`, high) and Vite → postcss → `source-map-js` (high); nothing in the shipped app | T002 | bug fix (`npm audit fix` or upgrades, logged in `memory/progress.md`) before `001`'s release |\n| G7 | `npm run test:mcp` writes its exports (a PDF, a JPEG and a 7 MB TIFF, ~7.6 MB a run) into the real `Documents/Chitthi agent output` and never removes them | T014 | bug fix: a test-only output folder (`electron/mcp.cjs` `outDir()`, `scripts/mcp-smoke.mjs`) |\n| G8 | DoD 9: 15 catch blocks show an error without `logError('handled', e)`; most are expected user errors (bad font or preset file, clipboard blocked), but 5 export failures in `src/state/actions.ts` (lines 128–176: PDF, document, envelope, image, print pack) and the gallery save (line 300) should be logged | T091 scan | bug fix |\n| G9 | `src/assests/` (misspelt): 14 Pexels photos (31 MB) that nothing references and no credits list names | T022 | the maintainer: wire into samples with credits, or remove |\n\n**Status (2026-10-06):** G6, G7 and G8 fixed as bug fixes before `001` (`df57d6d`, `001` tasks T001–T004): `npm audit`\n0 high (one moderate advisory without a fix remains, build-time only); the MCP smoke test deletes its files; all 14\nshown errors log (G8's 15th was a false positive in the scan), guarded by `src/lib/errors.test.ts`. G5: CI now runs\nonly at a release (D-006), first at `001`'s dry run. G1–G4 and G9 open as listed.\n\nFixed inside `000` (Q1 small fixes, not gaps): every doc mismatch found by T020, T021, T023, T031 and T032 (see\ntheir Result notes), the MCP test time in `specs/testing-strategy.md` (~30 s → ~10 s) and the entry-size comment in\n`scripts/check-bundle.mjs` (~333 → ~326 KB). Not ours: 15 broken links inside third-party skills vendored under\n`.claude/skills/`."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- New features or behaviour changes of any kind.\n- The Phase 1 gate measurement on a mid-range laptop in Chrome, the first macOS build with Intel LibRaw, and the\n  2.10.0 release — all feature `001`.\n- Retroactive spec / plan / tasks folders for Phases 0–1 (D-003: they stay recorded in `specs/vision/`).\n- Merging `feat/editor-phase-1-continued` into `main` (see Q2).\n- Firefox / Safari test projects (roadmap backlog)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved <!-- Draft | Approved -->",
+    "files": [],
+    "risks": [],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Approved spec; no feature code. Spec clarified (AC-3, AC-9) with a Changelog line"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "The feature *is* the gates; each result recorded; flakiness checked with 3 runs"
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "No dependency; scratch scripts are plain Node and not committed"
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "§11: progress, MEMORY.md, decisions for any removal"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Nothing changes"
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "Nothing changes; network only for setup downloads"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "AC-9 checks every shipped package is listed"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "No rendering change; parity numbers recorded"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No `electron/` change"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "Entry chunk size and axe results recorded"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "⚠️",
+        "notes": "Baseline misses it for video clips; recorded as a Known gap owned by `212` (P2.12), not fixed here"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "The feature writes no app code. It pins the baseline commit, runs every gate on a clean clone, checks the docs against\nthe code, and writes what it finds into `spec.md` (**Baseline inventory**, **Known gaps**) and the docs it corrects.\nFollowing Q1, small problems found along the way are fixed as logged bug fixes; anything larger becomes a Known gap\nwith an owner.\n\n**§1 Pin the baseline (Q2).** The baseline is the tip of `feat/editor-phase-1-continued` when the gates are run\n(today `963ab6b`, plus this feature's spec and plan commits). Record the full hash at the top of the inventory. If a\nQ1 fix lands later, the hash is updated and the gates that fix could touch are re-run.\n\n**§2 Clean clone.** `git clone --branch feat/editor-phase-1-continued D:\\CodeBase\\Chitthi D:\\CodeBase\\chitthi-000`\n(a sibling folder, so no gitignored files from the working tree leak in: `node_modules`, `dist`,\n`electron/resources/libraw`, `electron/resources/fonts`, fetched samples). Then `npm ci`,\n`npx playwright install chromium`, `npm run fetch:libraw`. Gates run with `ELECTRON_RUN_AS_NODE` unset. The clone is\ndeleted when 000 is verified.\n\n**§3 Gates (AC-4 … AC-9).** In CI's order: `npm run check`, `npm run check:licenses`, `npm run build`, `npm test`,\n`npm run test:mcp`, `npm run test:e2e`. For each: exit code, duration and the summary line (test counts, warning\ncount, entry chunk size, self-test check count) go in the task's Result note. **Flakiness (AC-12):** the three\nnon-deterministic suites — `npm test`, `npm run test:mcp`, `npm run test:e2e` — run 3 times each; a test failing in\nany run is listed as flaky. CI (`.github/workflows/ci.yml`, Windows runner) already runs the same gates; the latest\ngreen CI run on the branch is linked as a second platform data point (Q3), not required.\n\n**§4 Baseline inventory (AC-1 … AC-3, Q4).** A new `## Baseline inventory` section in `spec.md`, above Out of Scope:\nthe baseline hash and version (\"2.8.0 + Unreleased\", Q5), then one row per capability area (table: area · what it\ndoes · detailed doc), then **Numbers**: parity tolerances and frame times copied from\n`specs/vision/editor-implementation.md` with a link to the row they came from, the self-test check count and entry\nchunk size measured in §3, and the agent-tool count (today 34 in `tools.ts` + 22 in `photoTools.ts` = 56, matching\nREADME and CHANGELOG; `docs/MCP.md` is checked too). Areas come from the route list in `App.tsx` and the README\nfeature list, so none is missed.\n\n**§5 Link check (AC-2).** A throwaway Node script (no dependency; kept in the session scratchpad, not committed)\nreads Markdown files, extracts relative links, and checks the file exists and, for `#anchor`, that a heading with\nthat GitHub slug exists. Run on the inventory (AC-2) and, at no extra cost, on all of `specs/` and `docs/`: broken\nlinks there after the D-002 move are fixed as Q1 small fixes.\n\n**§6 Docs against code (AC-10).** List every directory (and top-level file) under `src/` and `electron/` and check\neach is named in `specs/lld.md` §1 Module map or `specs/architecture.md` §4 Building blocks; check every path those\ntwo docs name exists. Mismatches are fixed in the docs. Already seen while planning:\n- `lld.md` describes `App.tsx` as \"Screens (home / studio / sizes)\" — the routes are also `paper`, `instagram`, `docs`.\n- `src/assests/Images` exists beside `src/assets/fonts` and nothing under `src/` imports it — an unused,\n  misspelt folder. Removing it changes no behaviour (a Q1 small fix, after confirming nothing references it, incl.\n  `vite.config`, `scripts/` and `public/`); otherwise a Known gap.\n- `testing-strategy.md` says about 6,100 self-test checks, CLAUDE.md about 6,000: both set to the §3 count.\n\n**§7 CHANGELOG coverage (AC-11).** For each of P0.1–P0.9 and P1.1–P1.12 marked Done in `editor-implementation.md`,\nfind the Unreleased entry that covers it (P0.8 \"Not needed\" is skipped; Phase 0 items with no user-visible change\nneed at most one line, e.g. \"photo and video effects run on the graphics card\"). Missing entries are added.\n\n**§8 Shipped packages (AC-9).** List `dependencies` in `package.json` and `BUNDLED` in `scripts/check-licenses.mjs`;\ngrep each name in `THIRD_PARTY_NOTICES.md` and `specs/tech-stack.md`. Missing ones are added (doc-only fix).\n\n**§9 Version (Q5).** In `specs/vision/editor-implementation.md`'s Progress table, Phase 0's Release becomes \"2.10.0\n(with Phase 1; 2.9.0 was never tagged)\".\n\n**§10 Known gaps (AC-12).** A `## Known gaps` section in `spec.md`: each gap (gate failure, flaky test, unfixed doc\nmismatch, Definition-of-Done item the baseline misses) with where it will be handled. Known before running anything:\nvideo clips have no agent tools (Constitution XI) → `212` (P2.12); macOS gates not run → `001`; Firefox/Safari not\ntested → backlog.\n\n**§11 Close.** Roadmap 000 → ✔️, `memory/progress.md` entry, `MEMORY.md` Current State → next is `001`. Any decision\ntaken (e.g. removing `src/assests`) goes in `memory/decisions.md`; anything that cost > 10 minutes in\n`memory/learnings.md`."
+      },
+      {
+        "kind": "markdown",
+        "title": "Files",
+        "markdown": "| File | Change | Purpose |\n| --- | --- | --- |\n| `specs/features/000-baseline/spec.md` | modify | Baseline inventory (§4), Known gaps (§10), hash |\n| `specs/lld.md`, `specs/architecture.md` | modify | Module map and building blocks match the code (§6) |\n| `specs/testing-strategy.md`, `CLAUDE.md` | modify | Self-test check count (§6) |\n| `specs/vision/editor-implementation.md` | modify | Phase 0 release column (§9) |\n| `CHANGELOG.md` | modify, if needed | Unreleased covers every Phase 0–1 item (§7) |\n| `THIRD_PARTY_NOTICES.md`, `specs/tech-stack.md` | modify, if needed | Every shipped package listed (§8) |\n| `specs/**/*.md`, `docs/**/*.md` | modify, if needed | Broken links fixed (§5) |\n| `src/assests/` | delete, if unreferenced | Unused misspelt folder (§6; needs your OK, see below) |\n| `specs/roadmap.md`, `memory/*` | modify | Status and memory (§11) |\n\nNo file under `src/` or `electron/` changes, except the possible `src/assests/` removal and any Q1 small fix a gate\nturns up (each logged in `memory/progress.md`)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "None in the app. The scratch scripts print plain text:\n\n```\nlink-check:  <file>:<line>  <link>  missing file | missing anchor\ndocs-vs-code: undocumented <path>  |  documented but missing <path>\npackages:    <name>  notices: yes/no  tech-stack: yes/no\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- Clean clone from the local repo (no push needed), so the gates see exactly the committed tree.\n- Heading slugs as GitHub makes them: lower-case, drop punctuation except `-` and spaces, spaces → `-`, repeated\n  headings get `-1`, `-2`.\n- Gates run sequentially (they share ports 5173/8080 and Electron)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | Type |\n| --- | --- | --- |\n| AC-1 | Inventory reviewed against `App.tsx` routes and the README feature list | manual review |\n| AC-2 | Link-check script output: 0 broken links in the inventory | script run (recorded) |\n| AC-3 | Numbers compared with `editor-implementation.md`; tool count by grep of `src/agent/` vs README / MCP.md | manual check |\n| AC-4 | `npm run check` on the clean clone | gate run |\n| AC-5 | `npm run build`; entry chunk size from `check-bundle.mjs` | gate run |\n| AC-6 | `npm run test:e2e` × 3, desktop and phone | gate run |\n| AC-7 | `npm test` × 3; check count recorded | gate run |\n| AC-8 | `npm run test:mcp` × 3 | gate run |\n| AC-9 | `npm run check:licenses` + package listing (§8) | gate run + script |\n| AC-10 | Docs-vs-code listing shows nothing undocumented or missing | script run + manual |\n| AC-11 | Phase 0–1 item → CHANGELOG line mapping in the Result note | manual check |\n| AC-12 | Known gaps section reviewed: every failure, flaky test and unmet DoD item has an owner | manual review |"
+      },
+      {
+        "kind": "markdown",
+        "title": "Risks & Mitigations",
+        "markdown": "- **Clean clone needs files the working tree has but git doesn't** (fetched samples, fonts, LibRaw). That is what\n  this feature is meant to find: a gate that fails only for this reason is fixed by documenting (or scripting) the\n  setup step in `specs/build.md`, or listed as a Known gap.\n- **`ELECTRON_RUN_AS_NODE` set by VS Code** breaks `npm test` / `test:mcp`: unset it in the shell that runs them.\n- **Network** for `npm ci`, Playwright's Chromium, LibRaw and the AI subject model in e2e: a network failure is retried\n  once, then recorded, not counted as a flaky test.\n- **Time:** 3 × (self-test ~100 s + MCP ~30 s + e2e ~30 s) plus setup is about 15 minutes; acceptable.\n- **A large gate failure** would turn the baseline into a fix project: per Q1 it is recorded and handed to `001` or a\n  new feature instead of being fixed here.\n\nNo spike needed: every step uses existing commands."
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task. Each task lists files and the proving test.\nThis feature writes no app code, so there are no failing-test-first pairs: the \"tests\" are the gate runs and the\ncheck scripts, and each task's Result note is the evidence for its ACs.\nWhen a task is done, tick it and add an indented **Result (YYYY-MM-DD):** note: what was done, numbers measured,\nanything surprising or deferred.\n\nDecisions taken at plan approval (2026-10-06): clone at `D:\\CodeBase\\chitthi-000`, deleted after verify; 3 runs per\nnon-deterministic suite; link checker is a throwaway scratchpad script; `src/assests/` is deleted if nothing\nreferences it.",
+    "sections": [
+      {
+        "title": "Setup",
+        "intro": null
+      },
+      {
+        "title": "Gates (on the clean clone, in CI order, sequential)",
+        "intro": null
+      },
+      {
+        "title": "Docs against code (in the working repo; [P] with the gate tasks, which run in the clone)",
+        "intro": null
+      },
+      {
+        "title": "Inventory",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": "No `specs/architecture.md` task beyond T021: this feature establishes no new structure."
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T002",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T030",
+        "T031",
+        "T032",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Commit the approved spec and plan (`docs(000): baseline spec and plan`) so the clone contains them; record the full commit hash (§1).",
+          "section": "Setup",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "specs/features/000-baseline/*"
+          ],
+          "test": "`git log -1` shows the commit",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** committed spec, plan, tasks, roadmap and MEMORY.md as\n`fd2baaf9fb9132a979dac54c2b3ae1b67aef5c0f` (`docs(000): baseline spec, plan and tasks`) on\n`feat/editor-phase-1-continued`. `npm run check` before it: typecheck clean, ESLint 0 errors / 5 warnings,\nVitest 18 files, 741 tests passed (1.0 s). Git warned LF → CRLF on the new files (no `.gitattributes` rule for\n`.md`); harmless, noted for T091 if it shows up in diffs."
+          ]
+        },
+        "T002": {
+          "text": "Clean clone (§2): `git clone --branch feat/editor-phase-1-continued D:\\CodeBase\\Chitthi D:\\CodeBase\\chitthi-000`; `npm ci`; `npx playwright install chromium`; `npm run fetch:libraw`; unset `ELECTRON_RUN_AS_NODE`. Note any setup step that isn't in `specs/build.md`.",
+          "section": "Setup",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "none (outside the repo)"
+          ],
+          "test": "each command exits 0",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** clone at `fd2baaf`; Node 24.11.1, npm 11.18.0 (engines `>=20.19`). All four steps exit\n0; `ELECTRON_RUN_AS_NODE` was unset; LibRaw `win32-x64` fetched. `npm ci`: 571 packages; `npm audit` reports 10\nvulnerabilities (8 moderate, 2 high) → Known gaps (T091). npm 11's `allowScripts` skips 3 install scripts\n(`core-js`, `electron-winstaller`, `protobufjs`); none is needed for the gates. Electron 44 has no install\nscript: it downloads its binary on first launch (`node_modules/electron/index.js`), so `npm test` does that.\n`specs/build.md` lists every setup step, but says \"CI uses 22\" while `ci.yml` uses Node 26 → fixed in T021."
+          ]
+        },
+        "T010": {
+          "text": "`npm run check`: record typecheck result, ESLint errors and warnings (≤ 5 known react-hooks), Vitest file and test counts.",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [],
+          "test": "exit 0 (AC-4)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** exit 0 in 15.8 s. Typecheck clean; ESLint 0 errors, 5 warnings, all the known\n`react-hooks/exhaustive-deps` ones; Vitest 18 files, 741 tests passed."
+          ]
+        },
+        "T011": {
+          "text": "`npm run check:licenses`.",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [],
+          "test": "exit 0 (AC-9, first half)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** exit 0 in 1 s: \"168 shipped packages, all on the allowed list (1 approved exception)\"\n(LibRaw)."
+          ]
+        },
+        "T012": {
+          "text": "`npm run build`: record the entry chunk size and the `check-bundle.mjs` verdict (no AI or shader code).",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [],
+          "test": "exit 0, entry ≤ 350 KB (AC-5)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** exit 0 in 2.8 s. `check-bundle: entry 326 KB (budget 350 KB); 9 AI provider chunks\nload on demand`; it also refuses GPU code in the entry, and passed. Largest lazy chunks: `videoExport` 526 kB,\n`jspdf` 400 kB. (The script's comment still says \"current entry ~333 KB\"; harmless.)"
+          ]
+        },
+        "T013": {
+          "text": "`npm test` × 3: record pass/fail and check count per run, list any check that failed in any run.",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7"
+          ],
+          "files": [],
+          "test": "0 failures in all 3 runs (AC-7)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** exit 0 in all 3 runs (90 s, 87 s, 88 s): **6,115 checks passed, 0 failed** each time;\nno flaky check. Run 1 downloaded Electron 44's binary first (as T002 expected). Both GPU backends checked:\ncolour parity worst 2, mean 0.034; photos worst 2 (detail effects 3), mean 0.059 over 308 frames; masks worst 2\n(with detail 3), mean 0.025 over 27 frames. Timings per 1080 × 1350 frame (run 1): Canvas 2D 25.1 ms, WebGPU\n6.8 ms, WebGL2 6.7 ms; with clarity, sharpening and noise reduction Canvas 2D 633–668 ms vs 5.8–7.3 ms on the\nGPU; two masks WebGPU 5.3 ms (20.8 ms while painting, 20.5 ms dragging a gradient). No warnings in the log."
+          ]
+        },
+        "T014": {
+          "text": "`npm run test:mcp` × 3, incl. the DNG developed by LibRaw.",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [],
+          "test": "pass in all 3 runs (AC-8)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** \"MCP smoke test passed\" in all 3 runs (10 s, 6 s, 7 s; the doc's ~30 s is stale).\n56 tools listed, read-only tools annotated, DNG developed by LibRaw (96 × 64), 16-bit TIFF exported. **Gap\nfound:** the test writes its exports (a PDF, a JPEG and a 7 MB TIFF, about 7.6 MB a run) into the real\n`Documents/Chitthi agent output` folder (`electron/mcp.cjs` `outDir()`) and never removes them. On this machine\nthat folder is in OneDrive and held 64 files (~86 MB) from earlier runs. Not fixed here (it touches `electron/`\nand the smoke test, beyond a docs feature) → Known gaps (T091), proposed fix: a test-only output folder."
+          ]
+        },
+        "T015": {
+          "text": "`npm run test:e2e` × 3, desktop and phone projects: record test counts, axe and console-error failures. A network failure is retried once and recorded, not counted as flaky.",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [],
+          "test": "pass in all 3 runs (AC-6)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** exit 0 in all 3 runs (38 s, 39 s, 32 s): 74 tests in 4 files, **67 passed, 7 skipped,\n0 failed** each time, no retries (`retries` is 0 locally, 1 only under `CI`), so no flaky test. The 7 skips are\non purpose, all on the phone project: video encoding and one other editors test run at desktop size only\n(`editors.e2e.ts:104`, `:240`), and the real AI subject model runs on desktop only (`instagram.e2e.ts:500`).\nEvery test fails on any console error (CSP included) and the axe checks are in those 67, so 0 axe violations\nand 0 console errors."
+          ]
+        },
+        "T016": {
+          "text": "Link to the latest CI run on the branch (`gh run list --branch feat/editor-phase-1-continued`) and its result, as the second platform data point (Q3).",
+          "section": "Gates (on the clean clone, in CI order, sequential)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "none (information only)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `gh` isn't installed here, so read the public Actions API instead. **The branch has no CI\nrun:** `ci.yml` runs on pushes to `main` and on pull requests only, and the branch has no PR. Nearest data point:\n[CI on `main` @ `cc192e1`](https://github.com/RVicky172/Chitthi/actions/runs/37188379660), 2026-10-04, success\n(`check` on windows-latest, 6 min 51 s: lint, licences, build, unit, self-test, MCP, e2e; `docker` on\nubuntu-latest, 34 s). `cc192e1` is an ancestor of the baseline; the 4 branch commits after it are docs/specs plus\n`a586377` (site nav + home page: 10 files under `src/`, +425/−262), which only the local gates above cover.\n→ Known gaps (T091): the Docker job is not part of the local gates, so the baseline's image is unchecked until\na PR or merge runs CI."
+          ]
+        },
+        "T020": {
+          "text": "Shipped packages (§8): list `dependencies` and `BUNDLED` (`scripts/check-licenses.mjs`); grep each in `THIRD_PARTY_NOTICES.md` and `specs/tech-stack.md`; add any missing entry.",
+          "section": "Docs against code (in the working repo; [P] with the gate tasks, which run in the clone)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "THIRD_PARTY_NOTICES.md",
+            "specs/tech-stack.md"
+          ],
+          "test": "every package found in both (AC-9, second half)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** 10 shipped packages (3 `dependencies` + 7 `BUNDLED`). Before: all in the notices (React\nonly as \"React\"); in tech-stack **Mediabunny had no row** (named only in the \"not used: ffmpeg.wasm\" reason),\n`react-dom` and `onnxruntime-web` only under display names. Fixed: Mediabunny row added (1.61, MPL-2.0 exception,\n`import()` on export); React rows name `react`, `react-dom` in both docs; ONNX row names `onnxruntime-web`.\nAlso fixed in passing: lucide-react 1.48 → 1.51 (lockfile); \"TypeScript 5.9 stays installed\" → 6.0 in\ntech-stack and CLAUDE.md (Dependabot `0502bed` bumped it to 6.0.3; typescript-eslint 8.71 allows < 6.1, so the\nreason still holds); the intro claimed jsPDF is the only runtime library besides React; MCP SDK, zod and\n`safeStorage` rows had a 4th cell in a 3-column table. After: every package name found in both files;\n`check:licenses` and `npm run check` (741 tests) exit 0."
+          ]
+        },
+        "T021": {
+          "text": "Module map (§6): scratch script lists every directory and top-level file under `src/` and `electron/` against `specs/lld.md` §1 and `specs/architecture.md` §4, and every path those docs name against the disk. Fix the docs (incl. `App.tsx`: screens are home, studio, sizes, paper, instagram, docs).",
+          "section": "Docs against code (in the working repo; [P] with the gate tasks, which run in the clone)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "specs/lld.md",
+            "specs/architecture.md"
+          ],
+          "test": "script reports nothing undocumented or missing (AC-10)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** scratch script (`modmap.mjs`, scratchpad) parses the module-map tree plus every\nbackticked path in both docs. **Before:** 17 of 29 directories undocumented (`engine/gpu/`, `dev/` as a folder,\n`components/ai/`, `components/panes/`, `assets/`, `assests/`, `electron/resources/`, …), top-level\n`src/vite-env.d.ts` and `electron/raw.cjs` missing from the map, and 29 modules with no line: engine `adjust`,\n`light`, `curve`, `hsl`, `chain`, `detail`, `deep`, `raw`, `segments`, `tiff`, the 10 `gpu/` files; data\n`docs`, `instagram`, `layers`, `presets`, `printSamples`; lib `fileSink`, `gpuSetting`; dev `selftest`,\n`printSamples`. Every path the docs named exists. **Fixed in `lld.md`:** all of the above added to §1\n(`App.tsx` screens now home / studio / sizes / paper / instagram / docs; styles range `01-base … 40-site-nav`;\n`scripts/` line names the real scripts); §7 routing adds `#/instagram[/video|/youtube]` and\n`#/docs[/page[/section]]`; §8 tree gains `InstagramStudio`. **`architecture.md` §4:** UI row names the photo &\nvideo studio, `panes/`, `studio/`, `ig/`, `ai/` and the in-app docs; desktop row names `raw.cjs` and\n`resources/`. **After:** nothing undocumented or missing, except `electron/resources/libraw/win32-x64`, which\nthe map covers as `libraw/<platform>-<arch>/` (git-ignored, fetched). `npm run check` exit 0 (741 tests).\nAlso fixed (from T002):\n`specs/build.md` \"CI uses 22\" → \"CI, releases and the Docker build use 26\" (`ci.yml`, `desktop-release.yml`,\n`Dockerfile`)."
+          ]
+        },
+        "T022": {
+          "text": "`src/assests/`: grep `src/`, `scripts/`, `public/`, `electron/`, `vite.config.*`, `index.html` and `e2e/` for `assests`; if nothing, `git rm -r src/assests` and add a decision (D-006) in `memory/decisions.md`; if something, list it under Known gaps instead. Re-run `npm run check` and `npm run build` here.",
+          "section": "Docs against code (in the working repo; [P] with the gate tasks, which run in the clone)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/assests/",
+            "memory/decisions.md"
+          ],
+          "test": "grep empty; check and build exit 0",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** grep of every listed place (plus `package.json`, `electron-builder.yml`, `tsconfig*`,\n`.github/`) finds no reference. The folder holds 14 tracked Pexels photos (31 MB) in `Images/postcards/`, added\nin `62e7a97` (\"Updated some more image for samples\"); none is credited in `public/samples/samples.json` or\n`showcase-src/photos.json`. **User's call (2026-10-06): keep it**, so no removal, no D-006, nothing to re-run.\n→ Known gaps (T091): unused, misspelt `src/assests/`, owner: the user (to wire into samples, with credits, or\nremove)."
+          ]
+        },
+        "T023": {
+          "text": "CHANGELOG coverage (§7): map each Done item P0.1–P0.9 (P0.8 skipped, \"Not needed\") and P1.1–P1.12 to its Unreleased line; add missing lines. Put the mapping table in the Result note.",
+          "section": "Docs against code (in the working repo; [P] with the gate tasks, which run in the clone)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "CHANGELOG.md"
+          ],
+          "test": "every item mapped (AC-11)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** every Done item maps to an Unreleased line (v2.8.0 → HEAD, 54 commits); no line added.\n| Item | Unreleased line |\n| --- | --- |\n| P0.1 | Changed: \"Photo and clip edits keep their colour settings in their own object…\" |\n| P0.2–P0.7, P0.9 | Changed: \"Photo & video studio: looks and colour sliders run on the graphics card… same pixels… On by default; Settings → Photo & video effects\" (one line, as §7 allows) |\n| P0.8 | skipped (Not needed) |\n| P1.1 | Added: **Light** and **Colour**, eyedropper |\n| P1.2 | Added: **Tone curve** and **Colour mixer** |\n| P1.3 | Added: **Detail** and **Effects** |\n| P1.4 | Added: **Presets and LUTs** |\n| P1.5 | Added: **saved presets** |\n| P1.6 | Added: **masks** (brush) |\n| P1.7 | Added: **gradient and range masks** |\n| P1.8 | Added: **AI masks** |\n| P1.9 | Added: **camera RAW files**; export as **TIFF (16-bit)** |\n| P1.10 | Added: **image layers**, **blend mode**, **layer masks** |\n| P1.11 | Added: export as **WebP** and **AVIF** |\n| P1.12 | Added: \"MCP: 22 tools for the photo studio…\"; README / in-app docs lines |\nFixed in passing: the Dependencies line said TypeScript \"5.9 stays only for typescript-eslint\" → 6.0 (as T020).\nFor T031: the CHANGELOG says 22 photo-studio tools, `editor-implementation.md`'s P1.12 row says 21."
+          ]
+        },
+        "T024": {
+          "text": "Version (§9, Q5): Phase 0's Release in `specs/vision/editor-implementation.md` → \"2.10.0 (with Phase 1; 2.9.0 was never tagged)\".",
+          "section": "Docs against code (in the working repo; [P] with the gate tasks, which run in the clone)",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "specs/vision/editor-implementation.md"
+          ],
+          "test": "manual read",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** Progress table, Phase 0 Release → \"2.10.0 (with Phase 1; 2.9.0 was never tagged)\". Also\nfixed the \"How the work is organised\" line that still said \"Phase 0 → 2.9.0\": now \"Phases 0 and 1 → 2.10.0\ntogether\". No other `2.9.0` outside CHANGELOG and this feature's own files."
+          ]
+        },
+        "T030": {
+          "text": "Write `## Baseline inventory` in `spec.md` (§4): baseline hash and version, a table of capability areas (area · what it does · detailed doc), built from the `App.tsx` routes and the README feature list.",
+          "section": "Inventory",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "spec.md"
+          ],
+          "test": "every route and README feature area appears (AC-1)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `## Baseline inventory` added above Out of Scope: baseline hash `fd2baaf` (T090 updates\nit), version \"2.8.0 + Unreleased\", and 16 rows (area · route · what it does · doc). All six routes appear\n(`home`, `studio`, `sizes`, `paper`, `instagram` incl. `/video` and `/youtube`, `docs`), and every area AC-1\nnames plus the README's highlights (smart photos, 3D and paper, performance monitor, hosting). Links checked\nwith a scratch checker (`links.mjs`: relative paths, exact case, GitHub heading slugs): 22 links, 0 broken;\nbreak-tested with a bad anchor, a missing file and a wrong-case file name, all three reported."
+          ]
+        },
+        "T031": {
+          "text": "Numbers (§4): parity tolerances and frame times from `editor-implementation.md` (linked to their rows), self-test check count (T013), entry chunk size (T012), agent-tool count (grep `src/agent/tools.ts` and `photoTools.ts`) compared with README and `docs/MCP.md`. Set the self-test count in `specs/testing-strategy.md` and `CLAUDE.md` to the measured one.",
+          "section": "Inventory",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "spec.md",
+            "specs/testing-strategy.md",
+            "CLAUDE.md"
+          ],
+          "test": "counts agree everywhere (AC-3)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** `### Numbers` added under the inventory: parity and frame times from the plan's P0.6,\nP0.9, P1.3, P1.6, P1.7 rows (linked to \"Notes on finished items\"), each beside the baseline measurement from\nT013, plus 6,115 self-test checks and the 326 KB entry chunk. **Agent tools:** 34 `name:` entries in\n`tools.ts` + 22 in `photoTools.ts` (spread into `TOOLS`) = 56; README, CHANGELOG, `lld.md`, `architecture.md`\nand `src/data/docs.ts` say 56 (34 + 22); `docs/MCP.md` states no total but its tool table names all 56 (scripted\ncheck). **Fixed:** the plan's P1.12 row said 21 photo tools (written before P1.8 added `find_with_ai`) → \"(22\nsince P1.8 added `find_with_ai`)\"; self-test count \"~6,000\" → \"~6,100\" in `CLAUDE.md` and the in-app docs\n(`src/data/docs.ts`, a text string); `testing-strategy.md` already said about 6,100. Links 23, 0 broken;\n`npm run check` exit 0 (741 tests)."
+          ]
+        },
+        "T032": {
+          "text": "Link check (§5): throwaway scratch script checks relative links and `#anchors` (GitHub slugs) in `spec.md`, `specs/**/*.md` and `docs/**/*.md`; fix broken ones.",
+          "section": "Inventory",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "any Markdown with a broken link"
+          ],
+          "test": "0 broken links in the inventory (AC-2) and in `specs/` and `docs/`",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** scratch `links.mjs` (from T030): Markdown links and `src`/`href` attributes outside code,\nrelative paths with exact case (Windows hides case errors that break on GitHub), `#anchors` as GitHub slugs\nincl. duplicate suffixes. `spec.md`: 23 links, 0 broken. `specs/` + `docs/`: 32 files, 147 links, **0 broken**,\nso nothing to fix. Also run on README, CLAUDE.md, CHANGELOG, THIRD_PARTY_NOTICES, `memory/`, `plugins/`,\n`.claude/commands/`: 20 files, 105 links, 0 broken. The only broken links in the repo are 15 inside the vendored\nthird-party skills under `.claude/skills/` (`hallmark`, `scroll-world`, the `sdd-setup` template), pointing into\ntheir upstream repos; left as they are (not our docs)."
+          ]
+        },
+        "T090": {
+          "text": "If T022 or any fix changed the tree after T001, commit, update the hash in the inventory, and re-run on the clone (`git pull`) the gates the change could affect (at least `npm run check` and `npm run build`).",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-5"
+          ],
+          "files": [],
+          "test": "those gates exit 0",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** committed the T020–T032 doc fixes as `e549542` (`docs(000): baseline inventory, module\nmap and doc fixes`; 14 files, docs plus one text string in `src/data/docs.ts`), with the user's OK. Inventory hash\n→ `e549542`. On the clone after `git pull`: `npm run check` exit 0 (0 errors, 5 known warnings, 741 tests, 7 s);\n`npm run build` exit 0, entry 326 KB; and, because the in-app docs text changed, `npm run test:e2e` once: 67\npassed, 7 skipped, as in T015. Self-test and MCP not re-run: nothing they cover changed. Git warned about LF on\ncommit: the working tree mixes CRLF files (`lld.md`, CHANGELOG, THIRD_PARTY_NOTICES) and LF files, none mixed\nwithin a file, and git stores LF either way (`core.autocrlf`)."
+          ]
+        },
+        "T091": {
+          "text": "Write `## Known gaps` in `spec.md` (§10): every gate failure, flaky test, unfixed mismatch and unmet Definition-of-Done item from T002–T032, each with its owner. Starts with: video clips have no agent tools → `212`; macOS gates not run → `001`; Firefox/Safari not tested → backlog.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-12"
+          ],
+          "files": [
+            "spec.md"
+          ],
+          "test": "every entry names an owner (AC-12)",
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** 9 gaps (G1–G9), each with an owner: `212` (1), `001` (3: macOS, Phase 1 gate, CI on\nthe PR), backlog (1), bug fixes (3: npm audit, MCP test output folder, `logError`), the maintainer (1:\n`src/assests/`). No gate failure or flaky test to list. New while writing it: a scan of every `catch` that\nshows an error (scratch `logerr.py`) for DoD 9: 28 show one, 15 without `logError`, 6 of which should log (G8).\n`npm audit` traced: all 10 advisories are build-time (electron-builder, Vite → postcss), nothing shipped (G6).\nFixed as Q1 small fixes rather than listed: `testing-strategy.md` MCP time ~30 s → ~10 s, `check-bundle.mjs`\ncomment ~333 → ~326 KB. Links in `spec.md`: 25, 0 broken."
+          ]
+        },
+        "T092": {
+          "text": "Tick the proven ACs in `spec.md` (Status `Implemented`), roadmap 000 → ✔️, `memory/progress.md` entry, `memory/MEMORY.md` Current State → next is `001`; learnings for anything that cost > 10 minutes. Delete `D:\\CodeBase\\chitthi-000`.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "spec.md",
+            "specs/roadmap.md",
+            "memory/*"
+          ],
+          "test": null,
+          "startedOn": "2026-10-06",
+          "doneOn": "2026-10-06",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-06):** check and build re-run after the `check-bundle.mjs` comment fix: exit 0, 741 tests,\nentry 326 KB. AC-1 … AC-12 ticked (evidence: T030, T032, T031, T010/T090, T012/T090, T015, T013, T014,\nT011/T020, T021, T023, T091), Status `Implemented`, roadmap 000 ✔️, `memory/progress.md` entry, `MEMORY.md`\n→ next is `001`. Learning recorded: line endings differ per file, and Git Bash's `grep` can't see CRs. Clone was\nclean at `e549542`; deleted."
+          ]
+        }
+      }
+    }
+  }
+}

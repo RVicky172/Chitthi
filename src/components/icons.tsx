@@ -35,6 +35,13 @@ import {
   MonitorPlay,
   Moon,
   Music,
+  ChevronsUpDown,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
+  Volume2,
+  VolumeX,
   Package,
   Pause,
   Pencil,
@@ -135,6 +142,11 @@ export const ShapesIcon = () => <Shapes {...base} />;
 export const BrushIcon = () => <Brush {...base} />;
 export const MaskIcon = () => <Blend {...base} />;
 export const MusicIcon = () => <Music {...base} />;
+/** Track headers: the icon shows the state (pressed = hidden, muted, locked). */
+export const HideIcon = ({ on }: { on: boolean }) => (on ? <EyeOff {...base} /> : <Eye {...base} />);
+export const MuteIcon = ({ on }: { on: boolean }) => (on ? <VolumeX {...base} /> : <Volume2 {...base} />);
+export const LockIcon = ({ on }: { on: boolean }) => (on ? <Lock {...base} /> : <LockOpen {...base} />);
+export const HeightIcon = () => <ChevronsUpDown {...base} />;
 export const LayersIcon = () => <Layers {...base} />;
 export const ScissorsIcon = () => <Scissors {...base} />;
 export const PlayIcon = () => <Play {...base} />;

@@ -1,5 +1,5 @@
-import { brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
-import { frameMask, type FrameMask, type MaskPart } from './masks';
+import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
+import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
 
 /*
  * Layers over a photo or video frame: text, shapes (which can hold words), emoji stickers and freehand drawing.
@@ -745,4 +745,128 @@ export function addStroke(layer: DrawLayer | null, abs: number[], brush: BrushId
     end: layer?.end,
     strokes: strokes.map((s) => ({ brush: s.brush, color: s.color, width: s.width / w, pts: s.pts.map((v, i) => (i % 2 ? (v - cyW) / h : (v - cx) / w)) })),
   };
+}
+
+/* ---------- the gate for layers from outside the running app ---------- */
+
+/** The most a layer list may hold when read from a project file. */
+export const LAYER_LIMITS = { layers: 100, text: 2000, strokes: 400, points: 8000, name: 120, font: 80, emoji: 16 } as const;
+
+const LAYER_ID = /^[A-Za-z0-9_-]{1,40}$/;
+const HEX = /^#[0-9a-f]{6}$/i;
+const SHAPE_IDS: readonly string[] = SHAPES.map((s) => s.id);
+const BRUSH_IDS: readonly string[] = BRUSHES.map((b) => b.id);
+const BLEND_IDS: readonly string[] = BLEND_MODES.map(([b]) => b);
+
+const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+const str = (v: unknown, max: number, d = '') => (typeof v === 'string' ? v.slice(0, max) : d);
+/** A colour, '' for none where allowed, else the default. */
+const colour = (v: unknown, d: string, none = false) => (typeof v === 'string' && (HEX.test(v) || (none && v === '')) ? v : d);
+const time = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined);
+
+function mergeStrokes(raw: unknown): Stroke[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, LAYER_LIMITS.strokes).flatMap((s): Stroke[] => {
+    const o = s && typeof s === 'object' ? (s as Record<string, unknown>) : null;
+    const pts = Array.isArray(o?.pts) ? o.pts.slice(0, LAYER_LIMITS.points) : [];
+    if (!o || pts.length < 2 || pts.length % 2 || !pts.every((v) => typeof v === 'number' && Number.isFinite(v))) return [];
+    return [
+      {
+        brush: (BRUSH_IDS.includes(o.brush as string) ? o.brush : 'pen') as BrushId,
+        color: colour(o.color, '#ffffff'),
+        width: num(o.width, 0.0005, 1, 0.02),
+        pts: (pts as number[]).map((v) => Math.min(2, Math.max(-2, v))),
+      },
+    ];
+  });
+}
+
+/**
+ * The single gate for layers from outside the running app (project files): valid layers, or none. Unknown kinds are
+ * dropped, numbers clamped, bad values replaced by defaults, text and drawings capped, ids kept unique. Image layers
+ * are kept only when `images` holds their picture's id (the project's media). Never throws.
+ */
+export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set()): Layer[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: Layer[] = [];
+  for (const item of raw) {
+    if (out.length >= LAYER_LIMITS.layers) break;
+    const o = item && typeof item === 'object' && !Array.isArray(item) ? (item as Record<string, unknown>) : null;
+    if (!o) continue;
+    let id = typeof o.id === 'string' && LAYER_ID.test(o.id) ? o.id : layerId();
+    while (seen.has(id)) id = layerId();
+    const start = time(o.start);
+    const endT = time(o.end);
+    const base = {
+      id,
+      x: num(o.x, -0.5, 1.5, 0.5),
+      y: num(o.y, -0.5, 1.5, 0.5),
+      w: num(o.w, 0.01, 4, 0.3),
+      rot: num(o.rot, -360, 360, 0),
+      opacity: num(o.opacity, 0, 1, 1),
+      ...(BLEND_IDS.includes(o.blend as string) ? { blend: o.blend as BlendMode } : {}),
+      ...(o.hidden === true ? { hidden: true } : {}),
+      ...(start !== undefined ? { start } : {}),
+      ...(endT !== undefined && endT > (start ?? 0) ? { end: endT } : {}),
+    };
+    const m = o.mask && typeof o.mask === 'object' ? (o.mask as Record<string, unknown>) : null;
+    const parts = (Array.isArray(m?.parts) ? m.parts.slice(0, MASK_LIMITS.parts) : [])
+      .map(mergePart)
+      .filter((p): p is MaskPart => !!p && (p.kind === 'linear' || p.kind === 'radial'));
+    const mask = m ? { mask: { invert: m.invert === true, parts } } : {};
+    let layer: Layer | null = null;
+    switch (o.kind) {
+      case 'text':
+        layer = {
+          ...base,
+          ...mask,
+          kind: 'text',
+          text: str(o.text, LAYER_LIMITS.text),
+          font: str(o.font, LAYER_LIMITS.font, 'Poppins') || 'Poppins',
+          size: num(o.size, 0.005, 1, 0.08),
+          color: colour(o.color, '#ffffff'),
+          align: o.align === 'left' || o.align === 'right' ? o.align : 'center',
+          bold: o.bold === true,
+          italic: o.italic === true,
+          outline: colour(o.outline, '', true),
+          bg: colour(o.bg, '', true),
+          shadow: o.shadow === true,
+        };
+        break;
+      case 'shape':
+        layer = {
+          ...base,
+          ...mask,
+          kind: 'shape',
+          shape: (SHAPE_IDS.includes(o.shape as string) ? o.shape : 'rect') as ShapeId,
+          h: num(o.h, 0.005, 4, 0.2),
+          fill: colour(o.fill, '', true),
+          stroke: colour(o.stroke, '', true),
+          strokeW: num(o.strokeW, 0, 0.2, 0),
+          text: str(o.text, LAYER_LIMITS.text),
+          textColor: colour(o.textColor, '#111111'),
+          font: str(o.font, LAYER_LIMITS.font, 'Poppins') || 'Poppins',
+          textSize: num(o.textSize, 0.005, 1, 0.055),
+          bold: o.bold === true,
+        };
+        break;
+      case 'sticker': {
+        const emoji = str(o.emoji, LAYER_LIMITS.emoji);
+        if (emoji) layer = { ...base, ...mask, kind: 'sticker', emoji };
+        break;
+      }
+      case 'draw':
+        layer = { ...base, ...mask, kind: 'draw', h: num(o.h, 0.005, 4, 0.2), strokes: mergeStrokes(o.strokes) };
+        break;
+      case 'image':
+        if (typeof o.image === 'string' && LAYER_ID.test(o.image) && images.has(o.image))
+          layer = { ...base, ...mask, kind: 'image', image: o.image, h: num(o.h, 0.005, 4, 0.2), name: str(o.name, LAYER_LIMITS.name) };
+        break;
+    }
+    if (!layer) continue;
+    seen.add(id);
+    out.push(layer);
+  }
+  return out;
 }

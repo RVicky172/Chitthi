@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
-import { MOTIONS, bitrateFor, clipAt, clipLength, fmtTime, formatsFor, renderFrame, timeline, totalLength, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
+import { MAIN_VIDEO, MUSIC, lockedReason, videoAt } from '../../engine/timeline';
+import { MOTIONS, NO_PICTURE, bitrateFor, clipLength, fmtTime, formatsFor, renderFrame, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { canStreamToDisk } from '../../lib/fileSink';
@@ -36,6 +37,9 @@ import {
   updateVLayer,
   useVideo,
   type VClip,
+  projectOf,
+  total as videoTotal,
+  videoLength,
 } from '../../state/video';
 import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
@@ -81,7 +85,7 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
     tools = useVideo((s) => s.tools);
   const [tool, setTool] = useState<Tool | null>(() => (getVideo().clips.length ? 'text' : 'media'));
   const [exporting, setExporting] = useState(false);
-  const total = totalLength(clips);
+  const total = useVideo(videoLength);
   const f = vFormat(format);
 
   useEffect(() => {
@@ -314,6 +318,8 @@ function VideoStage() {
     format = useVideo((s) => s.format),
     fadeOut = useVideo((s) => s.fadeOut),
     music = useVideo((s) => s.music),
+    tracks = useVideo((s) => s.tracks),
+    musicMuted = useVideo((s) => s.tracks.some((tr) => tr.id === MUSIC && tr.muted)),
     playing = useVideo((s) => s.playing),
     t = useVideo((s) => s.t);
   const f = vFormat(format);
@@ -335,25 +341,25 @@ function VideoStage() {
       cv.height = H;
     }
     const s = getVideo(),
-      p = clipAt(timeline(s.clips), s.t);
-    if (!p) return;
-    const c = p.clip;
+      p = videoAt(projectOf(s), s.t);
+    if (!p && !s.clips.length) return;
     let src: CanvasImageSource | null = null,
       sw = 0,
       sh = 0;
-    if (c.kind === 'photo' && c.still) {
-      src = c.still;
-      sw = c.still.width;
-      sh = c.still.height;
-    } else if (c.kind === 'video') {
-      const v = videoFor(c);
+    if (p?.clip.kind === 'photo' && p.clip.still) {
+      src = p.clip.still;
+      sw = p.clip.still.width;
+      sh = p.clip.still.height;
+    } else if (p?.clip.kind === 'video') {
+      const v = videoFor(p.clip);
       if (v.readyState >= 2) {
         src = v;
         sw = v.videoWidth;
         sh = v.videoHeight;
       }
     }
-    renderFrame(x, W, H, c, src, sw, sh, s.t - p.start, s.layers, s.t, totalLength(s.clips), s.fadeOut);
+    // No clip shows when the video track is hidden: black with the layers, as the export draws it.
+    renderFrame(x, W, H, p?.clip ?? NO_PICTURE, src, sw, sh, p ? p.local : s.t, s.layers, s.t, videoLength(s), s.fadeOut);
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
   };
@@ -362,12 +368,13 @@ function VideoStage() {
   const sync = useCallback(
     (play: boolean) => {
       const s = getVideo(),
-        p = clipAt(timeline(s.clips), s.t);
+        // A hidden video track still plays its clips' sound (D2): find the clip as if it were shown.
+        p = videoAt({ ...projectOf(s), tracks: s.tracks.map((tr) => (tr.id === MAIN_VIDEO ? { ...tr, hidden: false } : tr)) }, s.t);
       for (const c of s.clips) {
         if (c.kind !== 'video') continue;
         const v = videoFor(c);
         if (p && c.id === p.clip.id) {
-          const want = c.in + (s.t - p.start);
+          const want = c.in + p.local;
           v.volume = Math.max(0, Math.min(1, c.volume));
           v.muted = c.volume <= 0;
           if (play) {
@@ -387,13 +394,13 @@ function VideoStage() {
     if (playing) return;
     sync(false);
     draw.current();
-  }, [clips, layers, layerSel, format, fadeOut, t, tick, playing, width, height, sync]);
+  }, [clips, tracks, layers, layerSel, format, fadeOut, t, tick, playing, width, height, sync]);
 
   // Playback: advance the playhead with the wall clock, keep the clip videos and the music in step.
   useEffect(() => {
     if (!playing) return;
     const s0 = getVideo();
-    const startT = s0.t >= totalLength(s0.clips) - 0.05 ? 0 : s0.t,
+    const startT = s0.t >= videoLength(s0) - 0.05 ? 0 : s0.t,
       startWall = performance.now();
     setPlayhead(startT);
     if (music) {
@@ -401,13 +408,14 @@ function VideoStage() {
       audio.current = a;
       if (a.src !== music.url) a.src = music.url;
       a.volume = music.volume;
+      a.muted = getVideo().tracks.some((tr) => tr.id === MUSIC && tr.muted);
       a.currentTime = music.offset + startT;
       void a.play().catch(() => undefined);
     }
     let raf = 0;
     const loop = () => {
       const now = startT + (performance.now() - startWall) / 1000,
-        end = totalLength(getVideo().clips);
+        end = videoTotal();
       if (now >= end) {
         setPlayhead(end);
         setPlaying(false);
@@ -425,6 +433,10 @@ function VideoStage() {
       sync(false);
     };
   }, [playing, music, sync]);
+  // Muting the music track while it plays.
+  useEffect(() => {
+    if (audio.current) audio.current.muted = musicMuted;
+  }, [musicMuted]);
   useEffect(() => () => audio.current?.pause(), []);
 
   const handlers = useLayerPointer({
@@ -470,10 +482,13 @@ function Range({ id, label, value, min, max, step = 0.1, show, onChange }: { id:
 function ClipPanel({ clip: c }: { clip: VClip }) {
   const clips = useVideo((s) => s.clips);
   const i = clips.findIndex((x) => x.id === c.id);
-  const room = limits().seconds - (totalLength(clips) - clipLength(c));
+  const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
+  const locked = useVideo((s) => lockedReason(s.tracks, c.track));
   const e = c.edit;
   return (
     <div className="lp">
+      {locked && <p className="hint lp-locked">{locked}</p>}
+      <fieldset className="lp-fs" disabled={!!locked}>
       <div className="ig-group">
         <h3>
           Clip {i + 1} · {c.kind === 'video' ? 'video' : 'photo'}
@@ -533,20 +548,22 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
         <Range id="v-sa" label="Saturation" value={e.adjust.saturation} min={-100} max={100} step={1} show={String(e.adjust.saturation)} onChange={(saturation) => adjustClip(c.id, { saturation })} />
         <Range id="v-wa" label="Warmth" value={e.adjust.warmth} min={-100} max={100} step={1} show={String(e.adjust.warmth)} onChange={(warmth) => adjustClip(c.id, { warmth })} />
       </div>
+      </fieldset>
     </div>
   );
 }
 
 function ProjectPanel() {
   const clips = useVideo((s) => s.clips),
-    kind = useVideo((s) => s.kind);
+    kind = useVideo((s) => s.kind),
+    total = useVideo(videoLength);
   const L = limits(kind);
   return (
     <div className="lp">
       <div className="ig-group">
         <h3>Project</h3>
         <p className="hint">
-          {clips.length} clip{clips.length === 1 ? '' : 's'} · {fmtTime(totalLength(clips))} of up to {limitText(L.seconds)}.
+          {clips.length} clip{clips.length === 1 ? '' : 's'} · {fmtTime(total)} of up to {limitText(L.seconds)}.
         </p>
         <p className="hint">Choose a clip on the timeline to edit it, or a layer to change it.</p>
       </div>
@@ -555,14 +572,16 @@ function ProjectPanel() {
 }
 
 function MusicPanel() {
-  const music = useVideo((s) => s.music),
-    clips = useVideo((s) => s.clips);
+  const music = useVideo((s) => s.music);
   const [msg, setMsg] = useState('');
-  const total = totalLength(clips);
+  const total = useVideo(videoLength);
+  const locked = useVideo((s) => lockedReason(s.tracks, MUSIC));
   return (
     <div className="ig-group">
       <h3>Music</h3>
       <p className="hint">Add a song or sound from this device. Use music you have the right to post: Instagram and YouTube may mute or claim recognised songs.</p>
+      {locked && <p className="hint lp-locked">{locked}</p>}
+      <fieldset className="lp-fs" disabled={!!locked}>
       <label className="sbtn mst-file">
         <MusicIcon />
         {music ? 'Choose another sound' : 'Add music'}
@@ -595,6 +614,7 @@ function MusicPanel() {
           </button>
         </>
       )}
+      </fieldset>
     </div>
   );
 }
@@ -610,7 +630,7 @@ function ExportPanel() {
     result = useVideo((s) => s.result),
     savedTo = useVideo((s) => s.savedTo);
   const caption = useIg((s) => s.caption);
-  const total = totalLength(clips);
+  const total = useVideo(videoLength);
   const L = limits(kind);
   const f = vFormat(format);
   const tooShort = clips.length > 0 && total < L.minSeconds;
