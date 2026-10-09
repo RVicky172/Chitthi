@@ -11,6 +11,20 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-09 — 202 verified: Implemented ✔️
+
+**Done:** on `feat/202-edit-operations`: T090 docs (MEDIA-STUDIO, lld, CHANGELOG, in-app docs); T001 closed with
+the maintainer's manual checks (Alt keys fine in Chrome and the desktop app); T041 timing: session 1 within the bar
+(10.4 ms / 2.64 s), session 2 slower for every build, and back to back with `main` level (12.4–12.6 vs 12.7–12.8 ms,
+2.92–3.07 vs 2.88–2.89 s). Verification: check 1,082 (one test added: silence from the video track in a gap, music
+through it, AC-4), e2e 83 passed / 15 skipped / 0 failed, build entry 327 KB, `npm test` 6,125 / 0, test:mcp passed
+(after `npm run fetch:libraw` on this machine), licences ok. All 13 ACs ticked; spec Implemented, roadmap ✔️,
+`editor-implementation.md` P2.2 Done. DoD 7 (agent tool) waived by Q7 for `212`.
+**Next:** merge `feat/202-edit-operations` into `main` (maintainer); answer 203 / 204's open questions.
+**Blockers:** none.
+
+---
+
 ## 2026-10-09 — 202 UI: T030–T033, T040
 
 **Done:** on `feat/202-edit-operations` (the work started on `main` by mistake and was moved before any commit).

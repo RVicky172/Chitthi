@@ -229,8 +229,9 @@ step.
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
 | Video formats, limits and frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/video.ts`; `src/engine/videoExport.ts` |
-| Video project as tracks: clips at a start time, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`; `src/engine/layers.ts` |
-| Video state: kind, tracks (hide / mute / lock, heights), clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
+| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`; `src/engine/layers.ts` |
+| Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
+| Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
 | Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx`, `VideoWorkspace.tsx`, `Timeline.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
 | Styles | `src/styles/36-media-studio.css` (workspace, timeline), `src/styles/35-instagram.css` (panels and controls) |
@@ -270,15 +271,19 @@ format, batch size and file settings are remembered.
 `src/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
 `mergeLayers`), `src/engine/timeline.test.ts` (the track model against the frozen 2.x code in `timeline.testkit.ts`:
 clip placement, frames and sound sources for every 2.x shape; hide, mute and lock; the project document, its round
-trips and 34 malformed documents).
+trips and 36 malformed documents), `src/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
+edits, 1,000 seeded random edits per operation through `checkTrack` and `mergeProject`, each operation under 2 ms on
+500 clips) and `src/state/video.test.ts` (the store's edits, undo steps and Magnetic).
 Browser: `e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
 and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
 `moov` before `mdat`, H.264, AAC and 1080 × 1920; timeline trim and reorder by dragging, split and delete; a YouTube
 video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; clips placed end to
-end; the track headers: Hide, Mute, Lock and its refusals, heights by keyboard, undo, axe and 360 px; accessibility).
+end; the track headers: Hide, Mute, Lock and its refusals, heights by keyboard, undo, axe and 360 px; the edit tools:
+Magnetic and gaps, Shift ripples, Roll, Slip and Slide by drag and keys, Q / W, snapping on, off and with Alt, the
+tool keys, a locked track refusing each, announcements, axe and 360 px; accessibility).
 Self-test: 200 preview frames (4 formats × 5 projects × 10 times) drawn through the 2.x placement and the track model
-are compared byte for byte; exports with the video track hidden (decoded: black with the layers) and the music muted
-(no sound track). Agents:
+are compared byte for byte; exports with the video track hidden (decoded: black with the layers), the music muted
+(no sound track) and a 1.5 s gap (45 black frames with the layers, the photos either side). Agents:
 the self-test draws an AI mask from a stand-in map, runs the real subject model in its worker and checks the sky model
 is never downloaded without consent; `e2e/instagram.e2e.ts` finds a subject with the real model under the production
 CSP (desktop project). RAW and 16-bit: Vitest checks the TIFF writer, the embedded-preview reader and a synthetic DNG
@@ -313,18 +318,45 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 | Action | How |
 | --- | --- |
 | Seek | Click the ruler or an empty part of a track; drag to scrub; drag the red playhead |
-| Reorder clips | Drag a clip along the video track; a marker shows where it will land |
-| Trim | Drag a clip's left or right edge (videos: in and out points; photos: how long they show) |
+| Reorder or place clips | Drag a clip along the video track (Select tool); a marker shows where it will land: its place in the order with **Magnetic** on, the time it goes to with Magnetic off |
+| Trim | Drag a clip's left or right edge (videos: in and out points; photos: how long they show); Shift ripples with Magnetic off |
+| Roll, Slip, Slide | Pick the tool (V / R / Y / U), then drag a cut, a video clip, or a clip between its neighbours (below) |
 | Time a layer | Drag its bar to move it in time, or its ends to change when it appears and disappears |
 | Slide the music | Drag the music bar to choose which part of the song plays; its waveform shows the loudness |
-| Split, duplicate, delete | Transport buttons, or S and Delete with the timeline focused |
+| Split, duplicate, delete | Transport buttons, or S and Delete with the timeline focused; Shift + Delete ripple-deletes |
+| Nudge, trim to the playhead | Alt + ← / → moves the selected clip a frame with the tool (Shift + Alt: a second); Q / W trim its start / end to the playhead |
 | Zoom | Ctrl + wheel over the timeline, the zoom slider, + / −, or **Fit** |
 | Play | The play button or Space; the timeline follows the playhead |
 | Step | ← / → one frame, Shift + ← / → one second, Home / End |
 
-Moves snap to clip edges, layer edges and the playhead. Video clips show a filmstrip of eight frames taken from the
-part in use; photos show their thumbnail. Each clip also has **Starts at** / **Ends at** sliders in the inspector, the
-full-size equivalent of the trim handles.
+Moves snap to clip edges, gap edges, layer edges, the playhead, the start and the end, within 8 px at the current
+zoom; with **Snap** off, or Alt held while dragging, they follow the pointer to the frame. Video clips show a filmstrip
+of eight frames taken from the part in use; photos show their thumbnail. Each clip also has **Starts at** / **Ends at**
+sliders in the inspector, the full-size equivalent of the trim handles.
+
+### Edit tools, Magnetic and gaps
+
+The transport has a tool picker (Select, Roll, Slip, Slide; a radio group, so arrow keys move between them) and two
+switches, **Magnetic** and **Snap**. With the timeline focused, V / R / Y / U pick the tool.
+
+| Tool | Drag a clip | Drag an edge | Alt + ← / → (clip selected) |
+| --- | --- | --- | --- |
+| **Select** (V) | Magnetic on: reorder; off: put it at a time (the nearest free spot where it fits, or refused: "No room here") | Trim; ripple with Magnetic on or Shift | Magnetic on: one place in the order; off: a frame in time |
+| **Roll** (R) | Selects it | Moves the cut between this clip and its neighbour: one gets longer as the other gets shorter, the video's length stays | Moves the clip's end cut |
+| **Slip** (Y) | A video clip plays a later (right) or earlier (left) part of its source, in the same place and length; refused on a photo | As dragging the clip | Slips; with no clip selected, slips the music |
+| **Slide** (U) | Moves the clip between its neighbours: the one before ends later, the one after starts later, nothing else moves | As dragging the clip | Slides |
+
+**Magnetic** (on by default) keeps the video track end to end, as before: deleting or trimming a clip pulls the later
+ones along. Switched off, edits leave **gaps**: Delete lifts a clip and leaves its length empty, trims move only the
+clip, and a clip can be dropped at any time. A gap plays black with the layers on top and the music going on, and
+exports as black frames for exactly its length. Gaps are buttons in the video row ("Gap, 1.5 s, from 0:03.0"): click
+one and press Delete to close it. Switching Magnetic back on closes every gap in one undo step (undoing it brings the
+gaps back with Magnetic off). Magnetic belongs to the project and is kept when switching Reel ↔ YouTube; the tool and
+Snap are view settings for the session. Layers and music keep their own times when clips ripple.
+
+Every edit is one undo step (a drag is one step however long), stops at 0.3 s, at a video's source and at the
+project's length limit, and is refused with the reason on a locked track. A polite announcement tells screen readers
+what changed ("Clip 2, 2.0 s to 4.0 s").
 
 ### Tracks
 
@@ -341,11 +373,13 @@ each, timed by **Appears at** and **Disappears at**. Each track's header, at the
 Hide, Mute and Lock are undo steps; the height is a view setting that lasts for the session. Each control is a button
 with a name for screen readers, usable from the keyboard; hidden and muted rows are dimmed, locked clips show a lock.
 
-Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`). The main video track
-places its clips end to end exactly as before, so every video looks and sounds the same as in 2.x. A project also has
-a document form (JSON, version 1) and one validator, `mergeProject()`, which reads any document (a 2.x project without
-a version is converted) and is the single way in for project data, ready for saving projects later. Adding tracks,
-overlay clips and gaps come with the next Phase 2 features.
+Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`). With Magnetic on the
+main video track places its clips end to end exactly as before, so every video looks and sounds the same as in 2.x;
+with it off it keeps gaps. A project also has a document form (JSON, version 1, with `magnetic`) and one validator,
+`mergeProject()`, which reads any document (a 2.x project without a version is converted; with Magnetic off, a clip
+overlapping the one before is moved after it) and is the single way in for project data, ready for saving projects
+later. The edits themselves are pure functions on the clips (`src/engine/edits.ts`), so agent tools can reuse them.
+Adding tracks and overlay clips come with the next Phase 2 features.
 
 Per clip, in the inspector: duration (photos) or trim and sound volume (videos), movement for photos (still, zoom in
 or out, pan four ways), fade in from black, framing (fill or whole picture with a blurred background, zoom, position)

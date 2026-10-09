@@ -5,6 +5,23 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ## [Unreleased]
 
+### Added
+
+- Video editor: **edit tools** on the timeline. **Roll** moves a cut between two clips without changing the video's
+  length, **Slip** picks which part of a video clip plays without moving it, and **Slide** moves a clip between its
+  neighbours. Pick them from the transport or with V / R / Y / U.
+- Video editor: a **Magnetic** switch (on by default, as before). Switched off, deleting or trimming a clip leaves a
+  **gap** and clips can be dropped at any time; gaps play and export as black with the layers on top. Shift + Delete
+  and Shift-drag still ripple; switching Magnetic back on closes every gap in one undo step.
+- Video editor: a **Snap** switch, and Alt held while dragging skips snapping; unsnapped moves land on a frame.
+- Video editor: keyboard editing with the timeline focused: Alt + ← / → nudges the selected clip a frame with the
+  current tool (Shift + Alt: a second), Q / W trim its start / end to the playhead. Each change is announced to
+  screen readers.
+
+### Changed
+
+- A message shown twice in a row is shown (and announced) again.
+
 ## [2.10.0] - 2026-10-06
 
 ### Added

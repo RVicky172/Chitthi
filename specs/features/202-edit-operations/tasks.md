@@ -10,8 +10,7 @@ anything surprising or deferred.
 
 ## Setup
 
-- [ ] **T001** — Spike (plan, Risks): with the timeline focused, Alt + ← / → and Shift + Alt + ← / → with `preventDefault` on keydown don't navigate back / forward in Chrome (web) or open the menu in the Windows desktop app; record what happens without `preventDefault` too. Throwaway: a scratch e2e test and a manual check in `npm run desktop:dev`. · files: `scratch only` · test: the result recorded here; if a key can't be kept, propose other keys before T033
-  - **Blocked:** Waits on 2 manual checks by the maintainer: Alt + ← in Chrome, and Alt held through a drag in the desktop app.
+- [x] **T001** — Spike (plan, Risks): with the timeline focused, Alt + ← / → and Shift + Alt + ← / → with `preventDefault` on keydown don't navigate back / forward in Chrome (web) or open the menu in the Windows desktop app; record what happens without `preventDefault` too. Throwaway: a scratch e2e test and a manual check in `npm run desktop:dev`. · files: `scratch only` · test: the result recorded here; if a key can't be kept, propose other keys before T033
   - **Status (2026-10-07): automated part done, manual check needed (not ticked).** Findings: (1) the desktop app's
     menu (`electron/main.cjs`) has no Alt + arrow accelerator, and Electron has no Back shortcut, so Alt + ← / → only
     reach the page there. (2) Playwright's `keyboard.press('Alt+ArrowLeft')` in headed installed Chrome reaches the
@@ -26,6 +25,7 @@ anything surprising or deferred.
     focused: Alt + ← navigates back today (no handler yet: confirms the shortcut exists; the `preventDefault` side is
     checked again by hand at T033). (b) desktop, `npm run desktop:dev`: hold Alt, drag a clip a little, release Alt:
     does the File menu get highlighted (keyboard focus in the menu bar)?
+  - **Result (2026-10-09):** the maintainer checked by hand after T033: in Chrome (web) Alt + ← / → with the timeline focused nudge the clip and don't navigate back, and in the desktop app holding Alt through a drag works without the menu bar taking focus. The planned keys stay (Q4, Q5).
 
 ## Tests first: the model
 
@@ -122,16 +122,20 @@ anything surprising or deferred.
 
 - [x] **T040** — Self-test (AC-4): an export with a 1.5 s gap between two photos and a layer decodes black with the layer inside the gap and the photos either side; the frame count of the gap from `framePlan` is 45 at 30 fps. Break-test: let `framePlan` skip gap frames, see it fail, restore. · files: `src/dev/videoChecks.ts` · test: `npm test`
   - **Result (2026-10-09):** `src/dev/videoChecks.ts` (`trackChecks`): two 1 s photos with a 1.5 s gap between them (Magnetic off) and a red layer, at 30 fps: `framePlan` gives 3 spans with 45 gap frames, the project is 3.5 s, and the export decoded at 0.5 / 1.75 / 3 s shows a photo, black corners with the red layer in the gap (211/4/4), then the other photo. `npm test` 6,125 / 0 failed (113 s; one check more than 201's 6,124). Break-test: `framePlan` without gap spans → 'a 1.5 s gap exports 45 black frames…' failed (0 gap frames, the gap showed a photo); restored. That run's timing (for T041, session 1): preview fastest 10.4 ms (bar 11.1), export fastest 2.64 s (bar 2.77).
-- [ ] **T041** — Timing (NFR): the self-test's timing check on the new code within 5% of 201's verification run (fastest of 3: preview 10.6 ms, export 2.64 s; bar ≤ 11.1 ms / 2.77 s), in at least two sessions. · test: `npm test` timing line
+- [x] **T041** — Timing (NFR): the self-test's timing check on the new code within 5% of 201's verification run (fastest of 3: preview 10.6 ms, export 2.64 s; bar ≤ 11.1 ms / 2.77 s), in at least two sessions. · test: `npm test` timing line
+  - **Result (2026-10-09):** session 1 (the T040 run): preview fastest 10.4 ms, export fastest 2.64 s, within the bar (11.1 ms / 2.77 s). Session 2 (later the same day, after many test runs) was slower for every build: 12.0–13.8 ms and 2.74–3.05 s on this branch, over the bar against 201's numbers. Timed back to back with `main` (a worktree at `b4afd10`, same machine state) the branch is level: main 12.4 / 12.6 ms and 3.07 / 2.92 s, branch 12.7 / 12.8 ms and 2.89 / 2.88 s (preview within ~2%, export a little faster). The code timed is unchanged by this branch (`src/engine` and `src/state` equal `main`, which has 202's engine since T010–T021). So: no regression; the second session's absolute numbers reflect the machine, not 202.
 
 ## Verify
 
-- [ ] **T090** — Docs (AC-13): `docs/MEDIA-STUDIO.md` (tools, Magnetic, gaps, snapping, keys), `specs/lld.md` (`edits.ts`, gaps in §4.9, `magnetic` in the document), `CHANGELOG.md` Unreleased, `src/data/docs.ts`. · test: link check
+- [x] **T090** — Docs (AC-13): `docs/MEDIA-STUDIO.md` (tools, Magnetic, gaps, snapping, keys), `specs/lld.md` (`edits.ts`, gaps in §4.9, `magnetic` in the document), `CHANGELOG.md` Unreleased, `src/data/docs.ts`. · test: link check
   - **Note (2026-10-07):** `specs/lld.md` already describes what exists now (module map, §4.9: Magnetic, gaps,
     `edits.ts`, the store); at verification add the UI (tools, keys, gaps) there, and write `docs/MEDIA-STUDIO.md`,
     CHANGELOG and the in-app docs once the tools are in the UI (nothing user-visible yet).
-- [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; record the numbers.
-- [ ] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 202 → ✔️, `editor-implementation.md` P2.2 → Done, `memory/progress.md`, `memory/MEMORY.md` (next: `203`).
+  - **Result (2026-10-09):** `docs/MEDIA-STUDIO.md`: the timeline table (place clips, Shift ripple, the tools, Shift + Delete, nudge and Q / W), snapping (Snap switch, Alt, to the frame), a new section 'Edit tools, Magnetic and gaps' (a table per tool for drags, edges and Alt + arrows; Magnetic, gaps, undo, limits, announcements; layers and music keep their times, Q6), the track model paragraph (Magnetic, `edits.ts`), the code map and the tests. `specs/lld.md` §4.9: the timeline UI (gestures per tool, snapping, gaps, keys, `describeChange`); the engine and store parts were written with T013–T021. `CHANGELOG.md` Unreleased: Added (tools, Magnetic and gaps, Snap and Alt, keys) and Changed (repeated toasts). `src/data/docs.ts`: the in-app timeline section lists the tools, Magnetic, gaps and every key. No link-check script exists: `MEDIA-STUDIO.md`'s relative links all resolve, no new links added; docs e2e 4 passed; `npm run check` 1,081.
+- [x] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; record the numbers.
+  - **Result (2026-10-09):** every gate green on `feat/202-edit-operations`: `npm run check` 1,082 tests (one added at verification: a gap is silent from the video track while the music plays through, AC-4), lint 0 errors / 5 known warnings; `npm run build` entry 327 KB of 350 (unchanged since 2026-10-08), AI in its 9 chunks; `npm run test:e2e` 83 passed / 15 skipped (phone runs of drag and encoding tests, by design) / 0 failed / 0 flaky; `npm test` 6,125 / 0 failed; `npm run test:mcp` passed (the first run failed at the RAW step: LibRaw wasn't fetched on this machine; after `npm run fetch:libraw` it passed: an environment step, no code change); `npm run check:licenses` 168 packages, 1 approved exception; no new dependency. DoD 7: no agent tool, by decision (Q7: the operations are pure for `212`).
+- [x] **T092** — Tick ACs in `spec.md` (Status `Implemented`), roadmap 202 → ✔️, `editor-implementation.md` P2.2 → Done, `memory/progress.md`, `memory/MEMORY.md` (next: `203`).
+  - **Result (2026-10-09):** ACs 1–13 ticked against their tests (spec Status Implemented), roadmap 202 ✔️, `editor-implementation.md` P2.2 Done, `memory/progress.md` and `memory/MEMORY.md` updated (next: merge 202, then 203 / 204's questions).
 
 ## AC coverage
 

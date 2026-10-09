@@ -327,7 +327,10 @@ export const DOC_PAGES: DocPage[] = [
         blocks: [
           {
             list: [
-              'Drag clips to reorder, drag their edges to trim, split and delete; moves snap to edges and the playhead.',
+              'Drag clips to reorder, drag their edges to trim, split and delete; moves snap to edges and the playhead (switch **Snap** off, or hold Alt, to skip it).',
+              'Edit tools: **Select** (V), **Roll** (R) moves a cut between two clips, **Slip** (Y) picks which part of a video plays, **Slide** (U) moves a clip between its neighbours.',
+              '**Magnetic** off: Delete and trims leave gaps (black, with the layers) and clips go where you drop them; Shift + Delete and Shift-drag ripple. Select a gap and press Delete to close it; Magnetic on closes them all.',
+              'Keys with the timeline focused: Space play, S split, Delete remove, ← / → a frame, Alt + ← / → nudge the selected clip with the tool (Shift: a second), Q / W trim it to the playhead.',
               'Per clip: duration or trim, volume, movement on photos (zoom and pan), fade from black, looks and adjustments.',
               'Text, shapes, stickers and drawings with **Appears at** and **Disappears at**; music with its waveform.',
               'Track headers: **Hide** the video (black with the layers), **Mute** the music, **Lock** a track against edits, and set its height. Hide, Mute and Lock can be undone.',
