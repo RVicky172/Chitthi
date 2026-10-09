@@ -140,7 +140,7 @@
       "203": {
         "title": "Compositing many tracks, picture-in-picture",
         "workItem": "P2.3",
-        "status": "spec-drafted",
+        "status": "spec-approved",
         "note": "",
         "folder": "features/203-compositing-pip",
         "needs": [
@@ -151,7 +151,7 @@
       "204": {
         "title": "Decoder pool with look-ahead",
         "workItem": "P2.4",
-        "status": "spec-drafted",
+        "status": "in-progress",
         "note": "",
         "folder": "features/204-decoder-pool",
         "needs": [

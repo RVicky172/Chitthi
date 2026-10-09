@@ -4,11 +4,11 @@
   "id": "203",
   "title": "Compositing many tracks, picture-in-picture (P2.3)",
   "workItem": "P2.3",
-  "status": "draft",
+  "status": "approved",
   "owner": "RVicky172",
   "dates": {
     "created": "2026-10-08",
-    "approved": null,
+    "approved": "2026-10-09",
     "started": null,
     "done": null
   },
@@ -178,60 +178,60 @@
       ],
       "byId": {
         "Q1": {
-          "text": "`201` Q2 and `202` Q6 left to 203 whether the timed layers (text, shapes, stickers, drawings, images) move onto overlay tracks. _Proposed:_ not in 203. Layers keep their own start / end and are drawn above every track, as today; ripples don't move them. Putting layers in the track stack (a title under a PiP clip) is reconsidered with compound clips and groups (`210`).",
-          "open": true
+          "text": "`201` Q2 and `202` Q6 left to 203 whether the timed layers (text, shapes, stickers, drawings, images) move onto overlay tracks. _Answer (accepted 2026-10-09):_ not in 203. Layers keep their own start / end and are drawn above every track, as today; ripples don't move them. Putting layers in the track stack (a title under a PiP clip) is reconsidered with compound clips and groups (`210`).",
+          "open": false
         },
         "Q2": {
-          "text": "Which properties does a clip's transform have? _Proposed:_ position, uniform size, rotation, opacity and a **corner radius** (0–50 % of the box's shorter side), the common picture-in-picture look. No crop, border, shadow or non-uniform stretch in 203; the clip keeps its aspect ratio. Today's per-clip framing (fill / whole picture with blurred background, zoom, position inside the frame) keeps working inside the box.",
-          "open": true
+          "text": "Which properties does a clip's transform have? _Answer (accepted 2026-10-09):_ position, uniform size, rotation, opacity and a **corner radius** (0–50 % of the box's shorter side), the common picture-in-picture look. No crop, border, shadow or non-uniform stretch in 203; the clip keeps its aspect ratio. Today's per-clip framing (fill / whole picture with blurred background, zoom, position inside the frame) keeps working inside the box.",
+          "open": false
         },
         "Q3": {
-          "text": "Can main-track clips be transformed too (e.g. shrink the main clip over a coloured or black background)? _Proposed:_ yes, the same transform on every picture track (one model, and `205` animates it the same way); main-track clips default to full frame, and the area they leave uncovered is black.",
-          "open": true
+          "text": "Can main-track clips be transformed too (e.g. shrink the main clip over a coloured or black background)? _Answer (accepted 2026-10-09):_ yes, the same transform on every picture track (one model, and `205` animates it the same way); main-track clips default to full frame, and the area they leave uncovered is black.",
+          "open": false
         },
         "Q4": {
-          "text": "Where does a new overlay clip appear? _Proposed:_ full frame (B-roll, the most common use), with **Full frame** and four corner presets in the inspector (35 % of the frame width, 4 % margin from the edges, on the safe side of the platform's UI for Reels / Shorts).",
-          "open": true
+          "text": "Where does a new overlay clip appear? _Answer (accepted 2026-10-09):_ full frame (B-roll, the most common use), with **Full frame** and four corner presets in the inspector (35 % of the frame width, 4 % margin from the edges, on the safe side of the platform's UI for Reels / Shorts).",
+          "open": false
         },
         "Q5": {
-          "text": "Blend modes on overlay clips (screen, multiply … as photo layers have)? _Proposed:_ not in 203: normal only. They are cheap to add later on the same drawing path and can come with a Phase 3 item.",
-          "open": true
+          "text": "Blend modes on overlay clips (screen, multiply … as photo layers have)? _Answer (accepted 2026-10-09):_ not in 203: normal only. They are cheap to add later on the same drawing path and can come with a Phase 3 item.",
+          "open": false
         },
         "Q6": {
-          "text": "Limits. _Proposed:_ the per-platform clip limits (20 / 50 / 60 / 500) count clips on every track; at most **3** video clips visible at the same moment on the web and **6** on the desktop app (photos don't count), the final numbers set from `204`'s measurements before 203's plan is approved.",
-          "open": true
+          "text": "Limits. _Answer (accepted 2026-10-09):_ the per-platform clip limits (20 / 50 / 60 / 500) count clips on every track; at most **3** video clips visible at the same moment on the web and **6** on the desktop app (photos don't count), the final numbers set from `204`'s measurements before 203's plan is approved.",
+          "open": false
         },
         "Q7": {
-          "text": "Sound of overlay clips. _Proposed:_ an overlay video clip's own sound plays at its clip volume (B-roll often has ambient sound the user can lower); overlay tracks get both **Hide** and **Mute** in their header (`201`'s Hide on the main track hides pictures only, D2, and stays so).",
-          "open": true
+          "text": "Sound of overlay clips. _Answer (accepted 2026-10-09):_ an overlay video clip's own sound plays at its clip volume (B-roll often has ambient sound the user can lower); overlay tracks get both **Hide** and **Mute** in their header (`201`'s Hide on the main track hides pictures only, D2, and stays so).",
+          "open": false
         },
         "Q8": {
-          "text": "How do overlay tracks behave with Magnetic and ripples? _Proposed:_ overlay tracks are never magnetic (free placement, gaps allowed, no overlaps); a ripple on the main track moves only main-track clips, as in `202` Q6. Connected clips that follow the main track can come later.",
-          "open": true
+          "text": "How do overlay tracks behave with Magnetic and ripples? _Answer (accepted 2026-10-09):_ overlay tracks are never magnetic (free placement, gaps allowed, no overlaps); a ripple on the main track moves only main-track clips, as in `202` Q6. Connected clips that follow the main track can come later.",
+          "open": false
         },
         "Q9": {
-          "text": "What sets the video's length when an overlay clip ends after the main track? _Proposed:_ the last clip end on any picture track; after the main track ends, its area is black under the overlays. The music and layers keep their own times.",
-          "open": true
+          "text": "What sets the video's length when an overlay clip ends after the main track? _Answer (accepted 2026-10-09):_ the last clip end on any picture track; after the main track ends, its area is black under the overlays. The music and layers keep their own times.",
+          "open": false
         },
         "Q10": {
-          "text": "Track order. _Proposed:_ the main video track stays the bottom picture track and can't be moved or deleted; overlay tracks are listed above it in drawing order and moved with up / down buttons in their header (keyboard-friendly, like `201` Q5's height menu), each an undo step.",
-          "open": true
+          "text": "Track order. _Answer (accepted 2026-10-09):_ the main video track stays the bottom picture track and can't be moved or deleted; overlay tracks are listed above it in drawing order and moved with up / down buttons in their header (keyboard-friendly, like `201` Q5's height menu), each an undo step.",
+          "open": false
         },
         "Q11": {
-          "text": "Project document version. _Proposed:_ stays **1**: overlay tracks already exist in the v1 model (`201` AC-1) and the transform is a new optional field with identity defaults, as `202` added Magnetic (`202` Q1). Bump to 2 only if the plan finds a change an old reader would misread.",
-          "open": true
+          "text": "Project document version. _Answer (accepted 2026-10-09):_ stays **1**: overlay tracks already exist in the v1 model (`201` AC-1) and the transform is a new optional field with identity defaults, as `202` added Magnetic (`202` Q1). Bump to 2 only if the plan finds a change an old reader would misread.",
+          "open": false
         },
         "Q12": {
-          "text": "How is a track added? _Proposed:_ an **Add track** button under the track headers (adds an empty overlay track at the top), and dropping files on the empty area above the top track creates one with the files placed at the drop time. New tracks are named \"Overlay 1\", \"Overlay 2\" …",
-          "open": true
+          "text": "How is a track added? _Answer (accepted 2026-10-09):_ an **Add track** button under the track headers (adds an empty overlay track at the top), and dropping files on the empty area above the top track creates one with the files placed at the drop time. New tracks are named \"Overlay 1\", \"Overlay 2\" …",
+          "open": false
         },
         "Q13": {
-          "text": "Performance target. The Phase 2 gate is a 4K timeline with 3 video and 2 audio tracks playing smoothly on desktop, which also depends on proxies (`211`). _Proposed:_ 203 proves 1080p (AC-12); the 4K gate is measured at the end of Phase 2, after `211`.",
-          "open": true
+          "text": "Performance target. The Phase 2 gate is a 4K timeline with 3 video and 2 audio tracks playing smoothly on desktop, which also depends on proxies (`211`). _Answer (accepted 2026-10-09):_ 203 proves 1080p (AC-12); the 4K gate is measured at the end of Phase 2, after `211`.",
+          "open": false
         },
         "Q14": {
-          "text": "Constitution XI (agent tools). _Proposed:_ as in `201` Q7 and `202` Q7, no tools in 203; tracks, overlay clips and transforms are plain operations on the project so `212` (which needs 203) exposes them. The gap stays recorded.",
-          "open": true
+          "text": "Constitution XI (agent tools). _Answer (accepted 2026-10-09):_ as in `201` Q7 and `202` Q7, no tools in 203; tracks, overlay clips and transforms are plain operations on the project so `212` (which needs 203) exposes them. The gap stays recorded.",
+          "open": false
         }
       }
     },
@@ -239,6 +239,10 @@
       {
         "date": "2026-10-08",
         "text": "Created (Draft)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Q1–Q14 resolved (all proposals accepted by the maintainer); Approved."
       }
     ],
     "sections": [

@@ -4,12 +4,12 @@
   "id": "204",
   "title": "Decoder pool with look-ahead (P2.4)",
   "workItem": "P2.4",
-  "status": "draft",
+  "status": "in-progress",
   "owner": "RVicky172",
   "dates": {
     "created": "2026-10-08",
-    "approved": null,
-    "started": null,
+    "approved": "2026-10-09",
+    "started": "2026-10-09",
     "done": null
   },
   "git": {
@@ -180,44 +180,44 @@
       ],
       "byId": {
         "Q1": {
-          "text": "Does the pool serve the preview as well as the export, or only the export (the work item names only the export)? _Proposed:_ both. `203` needs several videos drawn together in the preview (its AC-12), which separate players can't keep in step. Constitution VIII asks for one path, and a paused preview becomes frame-exact (AC-4). The export moves onto the pool in the same feature, so the leak check (AC-11) covers the code both use.",
-          "open": true
+          "text": "Does the pool serve the preview as well as the export, or only the export (the work item names only the export)? _Answer (accepted 2026-10-09):_ both. `203` needs several videos drawn together in the preview (its AC-12), which separate players can't keep in step. Constitution VIII asks for one path, and a paused preview becomes frame-exact (AC-4). The export moves onto the pool in the same feature, so the leak check (AC-11) covers the code both use.",
+          "open": false
         },
         "Q2": {
-          "text": "How are the visible-video limits set from the measurements? _Proposed:_ the limit is the largest count at which 1080p30 meets AC-15's bar (median ≤ 33 ms, 95th percentile ≤ 50 ms) on the development machine, minus one for slower machines. It is capped at `203` Q6's proposals of **3 on the web** and **6 on the desktop app**, and is never below 2 (main + one overlay) on either. Photos don't count. The numbers join the per-platform limits the editor already shows. If the web can't reach 2, `203`'s plan is reconsidered before approval.",
-          "open": true
+          "text": "How are the visible-video limits set from the measurements? _Answer (accepted 2026-10-09):_ the limit is the largest count at which 1080p30 meets AC-15's bar (median ≤ 33 ms, 95th percentile ≤ 50 ms) on the development machine, minus one for slower machines. It is capped at `203` Q6's proposals of **3 on the web** and **6 on the desktop app**, and is never below 2 (main + one overlay) on either. Photos don't count. The numbers join the per-platform limits the editor already shows. If the web can't reach 2, `203`'s plan is reconsidered before approval.",
+          "open": false
         },
         "Q3": {
-          "text": "The memory bounds. _Proposed:_ at most (visible-video limit + 2) decoders open at once. That is the visible clips plus the next clip to start within the look-ahead, and one spare for scrubbing. Each open clip holds at most 4 decoded frames ahead. Decoded frames held at once stay under **256 MB on the web** and **1 GB on the desktop app** (at 4 bytes a pixel, a 1080p frame is about 8 MB and a 4K frame about 33 MB). The least recently used decoder is closed first.",
-          "open": true
+          "text": "The memory bounds. _Answer (accepted 2026-10-09):_ at most (visible-video limit + 2) decoders open at once. That is the visible clips plus the next clip to start within the look-ahead, and one spare for scrubbing. Each open clip holds at most 4 decoded frames ahead. Decoded frames held at once stay under **256 MB on the web** and **1 GB on the desktop app** (at 4 bytes a pixel, a 1080p frame is about 8 MB and a 4K frame about 33 MB). The least recently used decoder is closed first.",
+          "open": false
         },
         "Q4": {
-          "text": "What happens when decoding can't keep up? _Proposed:_ preview: hold that clip's last frame and keep the playhead on wall-clock time (frames are skipped, never slowed down), as players do. Export: wait. The export never skips or repeats a frame because of speed, only where the source itself ends (today's \"hold the last frame\").",
-          "open": true
+          "text": "What happens when decoding can't keep up? _Answer (accepted 2026-10-09):_ preview: hold that clip's last frame and keep the playhead on wall-clock time (frames are skipped, never slowed down), as players do. Export: wait. The export never skips or repeats a frame because of speed, only where the source itself ends (today's \"hold the last frame\").",
+          "open": false
         },
         "Q5": {
-          "text": "Preview sound. Today each clip's sound plays from its own player, resynced when it drifts more than 0.3 s. _Proposed:_ how sound plays in the preview isn't redesigned in 204 (audio tracks are `208`), but picture and sound must stay within 2 frames (AC-8), tighter than today's 0.3 s.",
-          "open": true
+          "text": "Preview sound. Today each clip's sound plays from its own player, resynced when it drifts more than 0.3 s. _Answer (accepted 2026-10-09):_ how sound plays in the preview isn't redesigned in 204 (audio tracks are `208`), but picture and sound must stay within 2 frames (AC-8), tighter than today's 0.3 s.",
+          "open": false
         },
         "Q6": {
-          "text": "A clip the pool can't decode, though the browser can play it (some HEVC files, for example). _Proposed:_ the preview falls back to today's player for that clip only, with a note \"This clip can't be exported here\" and the reason. The export refuses it with today's message. Nothing that previews today stops previewing.",
-          "open": true
+          "text": "A clip the pool can't decode, though the browser can play it (some HEVC files, for example). _Answer (accepted 2026-10-09):_ the preview falls back to today's player for that clip only, with a note \"This clip can't be exported here\" and the reason. The export refuses it with today's message. Nothing that previews today stops previewing.",
+          "open": false
         },
         "Q7": {
-          "text": "Browsers without the needed decoding (Firefox before 130, Safari before 26). _Proposed:_ keep today's preview and export there. No new minimum browser version. The limit for those browsers is 1 visible video. `203` then tells the user why it can't add an overlay video clip there.",
-          "open": true
+          "text": "Browsers without the needed decoding (Firefox before 130, Safari before 26). _Answer (accepted 2026-10-09):_ keep today's preview and export there. No new minimum browser version. The limit for those browsers is 1 visible video. `203` then tells the user why it can't add an overlay video clip there.",
+          "open": false
         },
         "Q8": {
-          "text": "Constitution XI (agent tools). _Proposed:_ none. 204 adds no user-facing operation, only smoother playback, exact frames and limits. The agent's existing export tool gets the same benefits. `212` exposes the limits with the timeline tools.",
-          "open": true
+          "text": "Constitution XI (agent tools). _Answer (accepted 2026-10-09):_ none. 204 adds no user-facing operation, only smoother playback, exact frames and limits. The agent's existing export tool gets the same benefits. `212` exposes the limits with the timeline tools.",
+          "open": false
         },
         "Q9": {
-          "text": "The leak-test fixture and its cost to `npm test`. _Proposed:_ a 2-minute 1080p30 16:9 YouTube project (Reels on the web stop at 90 s). It has 24 clips of 5 s cut from 3 source clips of 10 s, each with a key frame every 2 s like phone video, all made in memory. It also has one hidden-track span and one 1.5 s gap. It adds at most 90 s to `npm test` on the development machine. If it adds more, the plan may lower the source clips (not the export) to 720p, with the maintainer's agreement.",
-          "open": true
+          "text": "The leak-test fixture and its cost to `npm test`. _Answer (accepted 2026-10-09):_ a 2-minute 1080p30 16:9 YouTube project (Reels on the web stop at 90 s). It has 24 clips of 5 s cut from 3 source clips of 10 s, each with a key frame every 2 s like phone video, all made in memory. It also has one hidden-track span and one 1.5 s gap. It adds at most 90 s to `npm test` on the development machine. If it adds more, the plan may lower the source clips (not the export) to 720p, with the maintainer's agreement.",
+          "open": false
         },
         "Q10": {
-          "text": "How far ahead to look. _Proposed:_ the next clip on each track is opened and its first frame decoded when its start is less than **2 s** of playback away, or when the playhead is paused within 2 s before it. The export looks ahead by one clip. Both share Q3's limits.",
-          "open": true
+          "text": "How far ahead to look. _Answer (accepted 2026-10-09):_ the next clip on each track is opened and its first frame decoded when its start is less than **2 s** of playback away, or when the playhead is paused within 2 s before it. The export looks ahead by one clip. Both share Q3's limits.",
+          "open": false
         }
       }
     },
@@ -225,6 +225,22 @@
       {
         "date": "2026-10-08",
         "text": "Created (Draft)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Q1–Q10 resolved (all proposals accepted by the maintainer); Approved."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Plan drafted (D1–D5 for the maintainer)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Plan approved (D1–D5 as recommended, D-028)."
+      },
+      {
+        "date": "2026-10-09",
+        "text": "Tasks written (T001–T092); In Progress."
       }
     ],
     "sections": [
@@ -260,6 +276,651 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-09, D1–D5 as recommended) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/decodePool.ts`",
+        "change": "new",
+        "purpose": "§1 pool, lanes, `lanePlan`, `frameTime`, `poolLimits`, holds, latest-wins, LRU"
+      },
+      {
+        "file": "`src/engine/decodePool.test.ts`",
+        "change": "new",
+        "purpose": "AC-6, AC-7 (logic), AC-12 (bounds), AC-14 (fallback) with a fake source"
+      },
+      {
+        "file": "`src/engine/frameSource.ts`",
+        "change": "new",
+        "purpose": "§2 Mediabunny `VideoSampleSink` source, shared inputs, frame registry `openFrames()`"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`",
+        "change": "modify",
+        "purpose": "§5 lanes from an export pool, look-ahead one clip, dispose in `finally`"
+      },
+      {
+        "file": "`src/engine/video.ts`",
+        "change": "modify",
+        "purpose": "`videosAtOnce` in `VLimits` / `limitsFor()` (§6)"
+      },
+      {
+        "file": "`src/components/studio/VideoWorkspace.tsx`",
+        "change": "modify",
+        "purpose": "§3 stage draws from the pool (peek / exact frame), look-ahead, release; §4 audio elements and drift correction; §7 fallback path and note"
+      },
+      {
+        "file": "`src/components/studio/Timeline.tsx`",
+        "change": "modify",
+        "purpose": "§7 the fallback note in the clip's name and title"
+      },
+      {
+        "file": "`src/dev/videoChecks.ts`",
+        "change": "modify",
+        "purpose": "`makeTestClip` size and key-frame interval; AC-9 export checks on the pool"
+      },
+      {
+        "file": "`src/dev/poolChecks.ts`",
+        "change": "new",
+        "purpose": "AC-1–AC-5, AC-7, AC-8, AC-10–AC-15 self-test checks and `poolTiming`"
+      },
+      {
+        "file": "`src/dev/selftest.ts`",
+        "change": "modify",
+        "purpose": "runs `poolChecks`"
+      },
+      {
+        "file": "`e2e/editors.e2e.ts`",
+        "change": "modify",
+        "purpose": "AC-14: without `VideoDecoder` the editor previews as today"
+      },
+      {
+        "file": "`specs/lld.md`, `docs/PERFORMANCE.md`, `docs/MEDIA-STUDIO.md`, `CHANGELOG.md`",
+        "change": "modify",
+        "purpose": "AC-16 (and AC-15's numbers)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**`VideoFrame` leaks** (a frame not closed keeps GPU memory until garbage collection, then the decoder stalls). → One registry for every frame (§2), counts read by AC-11 / AC-12 self-tests after exports, cancels and errors."
+      },
+      {
+        "text": "**Mediabunny's readers under many lanes** (decoder count per iterator, behaviour of `return()`, random access cost with 2 s key frames). → Spike T001 before building on it: 6 concurrent 1080p lanes, in-order and random reads, counts, memory and timings."
+      },
+      {
+        "text": "**Export speed** (full-size `VideoFrame`s drawn instead of `CanvasSink`'s downscaled canvases). → T001 times both on 201's fixture; D5's fallback keeps today's size."
+      },
+      {
+        "text": "**Hardware decoder limits** (Chromium may cap concurrent hardware decoders and fall back to software). → AC-15 measures what really happens; the limits come from the numbers (Q2), never guessed."
+      },
+      {
+        "text": "**Preview sound sync with audio-only elements** (start latency at a cut, drift). → Pre-seeked element per next clip, `playbackRate` correction, AC-8 measured automatically (D4) and by hand."
+      },
+      {
+        "text": "**Rewriting the preview path breaks today's behaviour** (play, scrub, hide, mute, lock, gaps). → The existing video e2e and self-test run after every UI task; the old `<video>` path stays for fallback."
+      },
+      {
+        "text": "**Self-test time** (1080p and 4K fixtures encoded in memory). → Fixtures made once per run and shared; the run is timed against Q9's +90 s budget, 720p sources if over (with the maintainer's agreement)."
+      },
+      {
+        "text": "**Timing noise on the development machine** (202 T041: absolute numbers drifted within one day). → AC-10 compares against `main` back to back in the same session; AC-15 records medians and 95th percentiles over 300 steps."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Spec approved (Q1–Q10, D-027)"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "Pool logic test-first with a fake source; self-test checks per AC; existing video e2e after each UI task"
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "None new: Mediabunny's `VideoSampleSink` (already shipped)"
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "D1–D5 to `decisions.md` once accepted; gotchas to `learnings.md`"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Same pool on web and desktop; lower limits on the web for memory only"
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "Decoding on the device; no network"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "Nothing new"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "Preview and export decode through the same pool; paused preview = export frame (AC-4)"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No IPC or Electron change"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "Entry chunk unchanged (pool loads with the editor / export); memory bounds AC-11–13; the note is screen-reader text"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "⚠️",
+        "notes": "No tools (Q8); the agent's export tool gets the pool through `encodeVideo`"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "What the code is today (read for this plan, at `e851ba1`, with 202 merged):\n\n- **Preview** (`components/studio/VideoWorkspace.tsx`, `useClipVideos` + `VideoStage`): one `<video>` element per\n  video clip, created on first use and kept for the whole session (memory grows with the clip count, US-3). Playback\n  advances the playhead with the wall clock in `requestAnimationFrame`; `sync()` plays the clip under the playhead\n  (re-seeking when it drifts > 0.3 s) and pauses the others; `draw()` hands the playing `<video>` to `renderFrame`.\n  The next clip starts cold at its cut (US-1). Paused, it seeks when off by > 0.02 s, so the frame can differ from the\n  export's (US-2). The clip's sound comes from the same `<video>`.\n- **Export** (`engine/videoExport.ts`): walks `framePlan`; per video clip it opens a Mediabunny `Input` and a\n  `CanvasSink` (resized to ≤ 1.8 × the frame's long side, pool of 2) and iterates `canvasesAtTimestamps` over that\n  clip's frame times, then disposes the input. One clip at a time, no look-ahead.\n- Mediabunny 1.61 (already shipped, MPL-2.0) also has `VideoSampleSink`: `getSample(t)` (random access),\n  `samples(from, to)` (in order, pre-decoding a few ahead) and `samplesAtTimestamps(ts)`; each `VideoSample` wraps a\n  WebCodecs `VideoFrame` that must be `close()`d, and `toCanvasImageSource()` gives something `renderFrame` can draw.\n\n**§1 The pool, pure (`src/engine/decodePool.ts`, new).** A `DecodePool` keeps **lanes**: one per clip that needs\npictures (two clips from the same file get two lanes, AC-1), each with a frame source opened on the clip's file, the\nframes decoded ahead (≤ 4, Q3) and the frame last handed out (held until a newer one replaces it). The pool knows\nnothing of Mediabunny: it gets a `FrameSourceFactory` (§2), so Vitest drives it with a fake source. It offers:\n`frame(clip, srcTime)` (async, exact: the export and paused previews), `peek(clip, srcTime)` (sync, never waits:\nplayback draws whatever is ready and holds the last frame otherwise, counting a **hold**, AC-6), `prepare(clip)`\n(look-ahead: open the lane and decode its first frame), `want(clipIds)` (the lanes the caller still needs; the rest may\nclose), `forget(clipId)`, `dispose()`, and `stats()` (open decoders, held frames, their bytes, holds). Limits come\nfrom `PoolLimits` (decoders = the visible-video limit + 2, frames ahead 4, a byte budget: Q3); over budget the least\nrecently used lane not wanted is closed first. Seeks are **latest wins**: each `frame()` on a lane carries a\ngeneration, and a result that a newer request superseded is closed, not returned (AC-7). Which lanes a time needs is\none pure function, `lanePlan(project, t, playing, ahead)`: the clips visible at `t` on every picture track, plus each\ntrack's next clip starting within 2 s of playback (Q10), so 203 reuses it for many tracks.\n\n**§2 Frames from Mediabunny (`src/engine/frameSource.ts`, new).** `mediabunnySource(file)` opens an `Input` (shared\nper file, reference-counted) and a `VideoSampleSink` per lane. In-order reading uses `samples(from)` (Mediabunny\npre-decodes a few ahead; the iterator's `return()` closes its decoder); a jump backwards or more than 2 s forwards\nrestarts it at the new time (`getSample` for a single exact frame). Every `VideoSample` passes through one registry\n(`trackFrame` / `releaseFrame`) that counts open frames, bytes (display width × height × 4, the spec's measure, D2)\nand decoders, so `openFrames()` can be read by any self-test at any moment (AC-11, reused by 203 and 206). A\nsource that fails to open (no video track, `canDecode()` false) or to decode rejects with an `ExportError`-style\nreason naming the file.\n\n**§3 Preview on the pool (`VideoWorkspace.tsx`).** `VideoStage` owns one pool (created with the editor, disposed on\nleaving it, AC-12). Drawing asks `peek()` for the clip at `t` (playing) or awaits `frame()` and redraws (paused).\nPaused or scrubbing, the time is put on the project's frame grid exactly as the export does (`frameTime(t, fps)`,\n`floor(t · fps + 1e-6) / fps`, D3), so a paused preview shows the export's frame (AC-4). Each playback tick calls\n`want(lanePlan(...))` and `prepare()` for the next clip within 2 s; paused within 2 s before a cut prepares it too.\nWhen clips change, lanes of removed clips are forgotten and lanes whose trim moved are kept (same file). Idle (paused,\nnothing changing) the pool decodes nothing and holds one frame per visible clip (AC-13). Photos are drawn as today.\n\n**§4 Preview sound.** The pictures no longer come from `<video>`; each clip's sound plays from an `<audio>` element\non the clip's file (audio only: no video decoding), created for the clip under the playhead and the next one within\n2 s, released after (D1, so elements no longer grow with the clip count). The next clip's element is loaded and\nseeked to its `in` ahead of its cut and started on the cut's tick. Sync (Q5, AC-8): each tick compares the element's\ntime with the playhead; a drift over 1 frame nudges `playbackRate` by up to ±3 % until within 10 ms, over 0.25 s it\nseeks. The music keeps today's element. A self-test measures the offset (D4).\n\n**§5 Export on the pool (`videoExport.ts`).** The per-clip `CanvasSink` block becomes a lane of an export pool: the\nclip's frame times are read in order (`samplesAtTimestamps`, as today), each frame is released as soon as the next\nreplaces it and the last one is held only for \"a source shorter than its trim\". While a clip is encoded, the next\nvideo clip in `framePlan` is prepared (look-ahead one clip, Q10), so opening it overlaps the current clip (AC-10). The\npool is disposed in `finally`: after a cancel or an error no frame or decoder is left (AC-11). If decoding full-size\nframes makes the export slower than 202 (the spike, T001), the export lanes ask the source for frames resized like\ntoday's `CanvasSink` (`width` ≤ 1.8 × long side).\n\n**§6 Limits from measurements (AC-15).** A self-test timing (`poolTiming`) plays 300 steps of 1, 2, 3, 4 and 6\nsimultaneous 1080p30 clips (and 2 and 3 4K30 clips on the desktop app) through the pool as the preview would, with\nthe median and 95th percentile time for every video's frame and the frames held. Q2's rule turns the numbers into\n`videosAtOnce` in `limitsFor()` (web ≤ 3, desktop ≤ 6, never < 2), recorded in this plan and `docs/PERFORMANCE.md`\nbefore 203's plan is approved. 204 only sets the numbers; 203 enforces them.\n\n**§7 Errors and older browsers (Q6, Q7, AC-14).** A clip whose source fails gets a lane in **fallback**: the preview\ndraws it from today's `<video>` path (kept for exactly this), the clip shows a note \"This clip can't be exported here:\n<reason>\" (text in the clip's accessible name and the inspector), the export refuses it with today's message, and the\nerror goes to `logError('handled', e)`. Without `VideoDecoder` (Firefox < 130, Safari < 26) the pool isn't created:\nthe preview and the export work as today and the visible-video limit is 1.\n\nThe development machine for every measurement: Intel Core Ultra 9 285K, 128 GB, NVIDIA GeForce RTX 5080, Windows 11;\nthe self-test runs in Electron (Chromium) with WebGPU."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// src/engine/decodePool.ts (pure: no Mediabunny, no DOM beyond the frame type)\nexport interface PoolFrame { image: CanvasImageSource; width: number; height: number; time: number; close(): void }\nexport interface FrameSource {\n  /** The frame showing at source time t (last frame starting at or before t), or null before the first. */\n  at(t: number): Promise<PoolFrame | null>;\n  /** Frames in order from t: a restartable reader that decodes a few ahead. */\n  from(t: number): AsyncIterator<PoolFrame>;\n  close(): void;\n}\nexport type FrameSourceFactory = (file: Blob, opts: { maxWidth?: number }) => Promise<FrameSource>;\nexport interface PoolLimits { decoders: number; ahead: number; bytes: number }\nexport interface PoolStats { decoders: number; frames: number; bytes: number; holds: number }\nexport interface PoolClip { id: string; file: Blob; in: number; out: number; start: number; track: string }\n\nexport class DecodePool {\n  constructor(open: FrameSourceFactory, limits: PoolLimits);\n  frame(clip: PoolClip, srcTime: number): Promise<PoolFrame | null>;     // exact; latest wins per lane\n  peek(clip: PoolClip, srcTime: number): PoolFrame | null;                // never waits; holds the last frame\n  prepare(clip: PoolClip): void;                                          // look-ahead: first frame ready\n  want(ids: Iterable<string>): void;                                      // the rest may close (LRU, budgets)\n  forget(id: string): void;\n  fallback(id: string): string | null;                                    // why a clip can't use the pool\n  stats(): PoolStats;\n  dispose(): void;\n}\n/** The clips a time needs: visible on every picture track, and each track's next clip within `ahead` seconds. */\nexport function lanePlan<C extends TimedClip>(p: Project<C>, t: number, ahead: number): { visible: C[]; next: C[] };\n/** A time on the project's frame grid, as the export encodes it (D3). */\nexport const frameTime = (t: number, fps: number) => Math.floor(t * fps + 1e-6) / fps;\nexport function poolLimits(videosAtOnce: number, desktop: boolean): PoolLimits; // Q3\n\n// src/engine/frameSource.ts (Mediabunny)\nexport const mediabunnySource: FrameSourceFactory;\nexport function openFrames(): { decoders: number; frames: number; bytes: number }; // every pool, for self-tests\n\n// src/engine/video.ts\nexport interface VLimits { /* … */ videosAtOnce: number }   // AC-15, set from the measurements (Q2)\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Frame ownership in one place.** Only `frameSource.ts` creates frames and only the pool closes them; every frame\n  goes through `trackFrame` / `releaseFrame`, so a leak shows as a non-zero count in a self-test, not as a slow tab.\n- **Never await in the draw loop.** Playback draws `peek()` (what's ready, else the held frame) and lets lanes decode\n  in the background; paused and export use the exact `frame()`.\n- **Latest wins** for seeks: generation counters per lane; superseded results are closed on arrival.\n- **Restartable in-order readers**: a reader continues while time moves forward by < 2 s, else restarts at the new\n  time (Mediabunny seeks to the key frame before it).\n- **Look-ahead from one pure plan** (`lanePlan`), shared by the preview and the export and by 203's many tracks.\n- **Bounded by numbers, not by clip count**: decoders = visible-video limit + 2, 4 frames ahead per lane, a byte\n  budget (256 MB web, 1 GB desktop), LRU close of unwanted lanes.\n- **Audio-only elements** for preview sound, with `playbackRate` drift correction instead of hard seeks.\n- Fixtures made in memory (`makeTestClip` gains a size and a key-frame interval: 2 s, Q9), no video file in the repo."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `poolChecks`: 3 overlapping clips (two from one file), 30 times incl. first / last frames; colours ±8 of the source time | self-test |\n| AC-2 | `poolChecks`: last 15 frames of clip A and first 15 of clip B at the same moments, 30 pairs exact | self-test |\n| AC-3 | `poolChecks`: 50 random times across 3 clips (backwards, forwards, across key frames) exact | self-test |\n| AC-4 | `poolChecks`: 6-clip projects at 9:16 and 16:9, 20 times: paused preview frame (the stage's own path) = the export's frame (decoded) ±8 | self-test |\n| AC-5 | `poolTiming`: 20 × 2 s 1080p clips played in real time, 3 runs: each of 19 cuts draws the new clip's first frame on the cut's frame; manual run in Chrome | self-test timing + manual |\n| AC-6 | `decodePool.test.ts`: a slow fake source → `peek` holds the last frame (never null, never another clip's), holds counted; self-test counts holds in AC-5's runs | unit + self-test |\n| AC-7 | `decodePool.test.ts`: latest wins (superseded frames closed); `poolTiming`: 50 random seeks on 1080p with 2 s key frames, median ≤ 100 ms, p95 ≤ 250 ms | unit + self-test timing |\n| AC-8 | self-test: generated sync clip (flash + beep every 2 s), the `<audio>` element's stream into an analyser vs the drawn flash frame, 30 s, ≤ 67 ms; manual check in Chrome and the desktop app | self-test + manual |\n| AC-9 | the existing video self-test (200 pixel-identical frames, hidden, muted, gap) and the 201 / 202 fixtures' exports decoded ±8 at 10 times each; existing video e2e unchanged | self-test + e2e |\n| AC-10 | `videoTiming` (201's fixture) within 5 % of 202's fastest of 3 measured in the same session (A/B against `main`, as 202 T041 learned); 30 × 4 s 1080p clips no slower than before | self-test timing |\n| AC-11 | `poolChecks`: 2-minute 1080p export (24 clips from 3 files, hidden span, gap): `openFrames()` all 0 after it, after 3 in a row, after a cancel at 50 %, after a failing clip at 1 minute | self-test |\n| AC-12 | `decodePool.test.ts`: decoders / frames / bytes never over `PoolLimits` under random wants, release on `forget` / `dispose`; `poolChecks`: 60-clip 1080p project played twice + 100 scrubs, sampled every step; leaving the editor and removing a clip release within 1 s | unit + self-test |\n| AC-13 | `poolChecks`: paused 2 s, no decode happens, held frames ≤ visible clips | self-test |\n| AC-14 | `decodePool.test.ts`: a failing source → fallback with its reason, others unaffected; `poolChecks`: export refusal message names the file, error logged; e2e: `VideoDecoder` removed by an init script → preview draws and the editor works as today | unit + self-test + e2e |\n| AC-15 | `poolTiming`: 1/2/3/4/6 × 1080p30 (and 2/3 × 4K30 desktop), 300 steps, median / p95 / frames; limits by Q2's rule recorded here and in `docs/PERFORMANCE.md`; manual Chrome run | self-test timing + manual |\n| AC-16 | docs reviewed at verification | manual |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-09: D1–D5 as recommended)",
+        "markdown": "- **D1** — Preview sound from audio-only `<audio>` elements for the clip under the playhead and the next one, instead\n  of a `<video>` per clip kept all session. Bounds memory (AC-12) and leaves picture decoding to the pool.\n  Alternative: keep a muted-picture `<video>` per clip for sound (simpler, but memory grows with clips). Recommended.\n- **D2** — Frame bytes counted as display width × height × 4 (the spec's Q3 measure), though decoders often hold\n  NV12 (1.5 bytes a pixel): the budget is conservative. Recommended.\n- **D3** — A paused preview shows the frame on the project's frame grid (`floor(t · fps)`), the one the export encodes,\n  even when the playhead sits between two frames; the time shown stays the playhead's. Recommended.\n- **D4** — AC-8 is measured automatically in the self-test (the `<audio>` element's `captureStream()` into an analyser\n  against the frame drawn) and confirmed by hand in Chrome, rather than by hand only. It measures the pipelines, not\n  the speakers' latency (the same for both). Recommended.\n- **D5** — The export decodes through the pool at full size first; if T001's spike shows it slower than `CanvasSink`'s\n  downscaled frames, export lanes ask for frames resized as today (`maxWidth`). Recommended."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass.\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done`: what was done, numbers measured,\nanything surprising or deferred.",
+    "sections": [
+      {
+        "title": "Setup",
+        "intro": null
+      },
+      {
+        "title": "Tests first: the pool",
+        "intro": null
+      },
+      {
+        "title": "Export on the pool",
+        "intro": null
+      },
+      {
+        "title": "Preview on the pool",
+        "intro": null
+      },
+      {
+        "title": "Errors and older browsers",
+        "intro": null
+      },
+      {
+        "title": "Limits from measurements",
+        "intro": null
+      },
+      {
+        "title": "Manual checks",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T002",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T020",
+        "T021",
+        "T022",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T040",
+        "T041",
+        "T050",
+        "T051",
+        "T060",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (plan, Risks; D5): Mediabunny `VideoSampleSink` under load. 6 concurrent 1080p lanes read in order (`samples`) and at random times (`getSample`) with key frames every 2 s: how many `VideoDecoder`s each opens, whether an iterator's `return()` closes its decoder, frames and memory held, time per frame; and 201's 60-clip export decoded full size through `VideoSampleSink` against today's `CanvasSink`. Throwaway code in the self-test, not committed.",
+          "section": "Setup",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "scratch only"
+          ],
+          "test": "the numbers recorded here; D5 decided (full size, or resized as today)",
+          "commits": [],
+          "notes": []
+        },
+        "T002": {
+          "text": "Fixtures: `makeTestClip(dur, W, H, keyEvery)` (size and a key frame every 2 s, Q9; today's defaults unchanged) and `makeSyncClip()` (a white flash and a beep on the same frame every 2 s, AC-8), made in memory.",
+          "section": "Setup",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/dev/videoChecks.ts"
+          ],
+          "test": "`npm test`: the existing clip check, plus a 1080p clip with 2 s key frames decoding to its colours",
+          "commits": [],
+          "notes": []
+        },
+        "T010": {
+          "text": "Failing tests (`src/engine/decodePool.test.ts`, new, a fake `FrameSource` with controllable delays and failures): `lanePlan` (visible clips at `t` on every picture track, the next clip within 2 s, gaps, a hidden track, Q10), `frameTime` (the export's grid, D3), `poolLimits` (Q3: decoders = limit + 2, 4 ahead, 256 MB / 1 GB); `frame()` exact; latest wins (a superseded result is closed, never returned); `peek` never waits, holds the last frame (never null after a first frame, never another clip's) and counts holds; random `want` / `prepare` / `peek` sequences never exceed decoders, frames or bytes; `forget` and `dispose` close everything; a source that fails puts its clip in fallback with the reason and leaves the others working.",
+          "section": "Tests first: the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-12",
+            "AC-14"
+          ],
+          "files": [
+            "src/engine/decodePool.test.ts"
+          ],
+          "test": "fails (module missing)",
+          "commits": [],
+          "notes": []
+        },
+        "T011": {
+          "text": "Implement `src/engine/decodePool.ts` (§1: lanes, `frame` / `peek` / `prepare` / `want` / `forget` / `fallback` / `stats` / `dispose`, LRU, generations, `lanePlan`, `frameTime`, `poolLimits`) until T010 passes. Break-test: let `peek` return null while a frame is pending, see the hold test fail, restore.",
+          "section": "Tests first: the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-12",
+            "AC-14"
+          ],
+          "files": [
+            "src/engine/decodePool.ts"
+          ],
+          "test": "T010",
+          "commits": [],
+          "notes": []
+        },
+        "T012": {
+          "text": "Failing self-test checks (`src/dev/poolChecks.ts`, new, run from `selftest.ts`) on the real decoder: AC-1 (3 overlapping clips, two from the same file, 30 times incl. each clip's first and last frame), AC-2 (the last 15 frames of one clip and the first 15 of the next at the same moments), AC-3 (50 random times, backwards and forwards across key frames); colours within ±8 of the source time; `openFrames()` back to 0 after `dispose`.",
+          "section": "Tests first: the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-11"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts",
+            "src/dev/selftest.ts"
+          ],
+          "test": "`npm test`: fails (no Mediabunny source yet)",
+          "commits": [],
+          "notes": []
+        },
+        "T013": {
+          "text": "Implement `src/engine/frameSource.ts` (§2: `mediabunnySource`, inputs shared per file, restartable in-order readers, the frame registry and `openFrames()`) until T012 passes. Break-test: skip `releaseFrame` on a superseded frame, see the count check fail, restore.",
+          "section": "Tests first: the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/frameSource.ts"
+          ],
+          "test": "T012; `npm run check`",
+          "commits": [],
+          "notes": []
+        },
+        "T020": {
+          "text": "Failing self-test checks for the export: AC-9 (201's fixtures and 202's gap fixture exported, decoded at 10 times each, equal ±8 to colours recorded from today's export before the change; frame and sound plans unchanged) and AC-11 (a 2-minute 1080p 16:9 export, 24 clips of 5 s from 3 files, a hidden span and a gap: frames went through the pool and `openFrames()` is 0 after it, after 3 in a row, after a cancel at 50 % and after an unreadable clip at 1 minute).",
+          "section": "Export on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-11"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts"
+          ],
+          "test": "`npm test`: the AC-11 checks fail (the export doesn't use the pool yet); AC-9 passes on today's code",
+          "commits": [],
+          "notes": []
+        },
+        "T021": {
+          "text": "Export on the pool (§5): lanes from an export pool, frames released as soon as replaced, the last held only for a short source, the next video clip prepared during the current one, `dispose` in `finally`; full size or resized per T001 (D5). Today's refusal messages kept.",
+          "section": "Export on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/videoExport.ts"
+          ],
+          "test": "T020; the existing video self-test; `npx playwright test e2e/editors.e2e.ts`",
+          "commits": [],
+          "notes": []
+        },
+        "T022": {
+          "text": "Export timing (AC-10): 201's 60-clip fixture within 5 % of `main`'s fastest of 3, timed back to back in one session (as 202 T041); a 30 × 4 s 1080p video-clip project no slower than `main`. Record the numbers.",
+          "section": "Export on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts"
+          ],
+          "test": "`npm test` timing lines, A/B against `main`",
+          "commits": [],
+          "notes": []
+        },
+        "T030": {
+          "text": "Failing self-test check AC-4: the stage's drawing as a function (`drawPreview`, exported from the workspace) on 6-clip projects at 9:16 and 16:9, paused at 20 times: the clip's frame equals the export's frame for that time (decoded, ±8).",
+          "section": "Preview on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts"
+          ],
+          "test": "`npm test`: fails (the preview still seeks a `<video>`)",
+          "commits": [],
+          "notes": []
+        },
+        "T031": {
+          "text": "Preview on the pool (§3): `VideoStage` owns a pool (disposed on leaving the editor); paused or scrubbing draws `frame()` at `frameTime` and redraws when it lands (latest wins); playing draws `peek()` and counts holds; every tick `want(lanePlan)` and `prepare` the next clip within 2 s (also paused within 2 s of a cut); removed clips forgotten; idle decodes nothing. The `<video>` path stays only for fallback clips (T041).",
+          "section": "Preview on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-6",
+            "AC-12",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/VideoWorkspace.tsx"
+          ],
+          "test": "T030; video e2e and track-header e2e unchanged",
+          "commits": [],
+          "notes": []
+        },
+        "T032": {
+          "text": "Self-test checks on the preview path, then fixes until they pass: AC-5 (20 × 2 s 1080p video clips played in real time, 3 runs: all 19 cuts draw the new clip's first frame on the cut's frame; no black, no hold over 1 frame; holds reported), AC-7 (50 random seeks on 1080p with 2 s key frames: exact frame, median ≤ 100 ms, p95 ≤ 250 ms; the last asked is the one shown), AC-12 (60-clip 1080p project played twice and scrubbed 100 times, sampled every step: within Q3; leaving the editor and removing a clip release within 1 s), AC-13 (paused 2 s: no decode, frames ≤ visible clips).",
+          "section": "Preview on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-12",
+            "AC-13"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts",
+            "src/components/studio/VideoWorkspace.tsx"
+          ],
+          "test": "`npm test`",
+          "commits": [],
+          "notes": []
+        },
+        "T033": {
+          "text": "Failing self-test check AC-8 (D4): the sync clip played 30 s in the editor; the clip's `<audio>` element's `captureStream()` into an analyser gives each beep's onset, the stage gives each flash's drawn frame; every pair within 67 ms.",
+          "section": "Preview on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts"
+          ],
+          "test": "`npm test`: fails (sound still comes from per-clip `<video>`)",
+          "commits": [],
+          "notes": []
+        },
+        "T034": {
+          "text": "Preview sound (§4, D1): an audio-only `<audio>` element for the clip under the playhead and the next within 2 s (pre-seeked to its `in`, started on the cut's tick), released after; drift over 1 frame corrected by `playbackRate` ±3 %, over 0.25 s by a seek; volume, mute and a hidden track's sound as today.",
+          "section": "Preview on the pool",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/components/studio/VideoWorkspace.tsx"
+          ],
+          "test": "T033; video e2e (the mute test records sounds started)",
+          "commits": [],
+          "notes": []
+        },
+        "T040": {
+          "text": "Failing checks for errors: self-test with a source factory that fails one clip: the preview draws it from the `<video>` fallback and the others from the pool, its note says it can't be exported, the export refuses it naming the file, `logError` got it; e2e (`e2e/editors.e2e.ts`): with `VideoDecoder` removed by an init script, the video editor adds clips, plays, scrubs and draws as today, without console errors.",
+          "section": "Errors and older browsers",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-14"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts",
+            "e2e/editors.e2e.ts"
+          ],
+          "test": "fails (no fallback note; the editor needs the pool)",
+          "commits": [],
+          "notes": []
+        },
+        "T041": {
+          "text": "Fallback (§7): clips the pool can't open use today's `<video>` path in the preview with the note \"This clip can't be exported here: <reason>\" (clip title, accessible name, inspector), logged with `logError('handled', e)`; no `VideoDecoder` = no pool, today's preview and export, a visible-video limit of 1.",
+          "section": "Errors and older browsers",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-14"
+          ],
+          "files": [
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/studio/Timeline.tsx"
+          ],
+          "test": "T040; `npx playwright test e2e/editors.e2e.ts`",
+          "commits": [],
+          "notes": []
+        },
+        "T050": {
+          "text": "`poolTiming` (AC-15): 1, 2, 3, 4 and 6 simultaneous 1080p30 clips (and 2 and 3 4K30 clips in the desktop app), 300 steps of 30 fps each as the preview draws them: median and p95 time to have every video's frame, frames held. Record the numbers here.",
+          "section": "Limits from measurements",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts"
+          ],
+          "test": "`npm test` timing lines",
+          "commits": [],
+          "notes": []
+        },
+        "T051": {
+          "text": "Limits from T050 by Q2's rule (largest count meeting median ≤ 33 ms and p95 ≤ 50 ms, minus one; web ≤ 3, desktop ≤ 6, never < 2): `videosAtOnce` in `limitsFor()` with a unit test; the numbers in the plan (§6) and `docs/PERFORMANCE.md`. If the web can't reach 2, stop: 203's plan is reconsidered (Q2).",
+          "section": "Limits from measurements",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "src/engine/video.ts",
+            "src/engine/layers.test.ts",
+            "docs/PERFORMANCE.md",
+            "specs/features/204-decoder-pool/feature.json"
+          ],
+          "test": "`npm run check`",
+          "commits": [],
+          "notes": []
+        },
+        "T060": {
+          "text": "Manual checks in Chrome (`npm run dev`) and the desktop app: a 20-clip 1080p project plays through its cuts without a freeze or black (AC-5); the sync clip's flash and beep look and sound together (AC-8); `poolTiming` run in Chrome for the web numbers (AC-15).",
+          "section": "Manual checks",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-5",
+            "AC-8",
+            "AC-15"
+          ],
+          "files": [
+            "none"
+          ],
+          "test": "the maintainer's results recorded here",
+          "commits": [],
+          "notes": []
+        },
+        "T090": {
+          "text": "Docs (AC-16): `specs/lld.md` (the pool, lanes, look-ahead, frame release, `openFrames()`), `docs/PERFORMANCE.md` (AC-15 numbers, limits, the pool's memory rules), `docs/MEDIA-STUDIO.md` (limits and the fallback note, if users see them), `CHANGELOG.md` Unreleased.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-16"
+          ],
+          "files": [
+            "specs/lld.md",
+            "docs/PERFORMANCE.md",
+            "docs/MEDIA-STUDIO.md",
+            "CHANGELOG.md"
+          ],
+          "test": "relative links resolve",
+          "commits": [],
+          "notes": []
+        },
+        "T091": {
+          "text": "Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; the self-test's added time within Q9's 90 s; record the numbers.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "all gates",
+          "commits": [],
+          "notes": []
+        },
+        "T092": {
+          "text": "Tick ACs (Status `Implemented`), roadmap 204 ✔️, `editor-implementation.md` P2.4 Done, `memory/progress.md`, `memory/MEMORY.md` (next: 203's plan with the limits).",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "commits": [],
+          "notes": []
+        }
+      }
+    }
+  }
 }

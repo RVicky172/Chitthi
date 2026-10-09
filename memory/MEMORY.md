@@ -23,7 +23,10 @@
 - **Drafts → Approved:** `203-compositing-pip` and `204-decoder-pool`: all 24 proposed answers accepted by the
   maintainer on 2026-10-09; branch `spec/203-204`. Build 204 first: 203's visible-video limit (its Q6) comes from 204's
   measurements.
-- **Next (roadmap):** 204's plan, then its tasks; 203's plan after 204's measurements.
+- **204:** `204-decoder-pool` 🚧 2026-10-09: plan approved (D1–D5, D-028), tasks T001–T092 written; branch
+  `spec/203-204` (move the build to `feat/204-decoder-pool`).
+- **Next (roadmap):** 204 T001 (spike: Mediabunny `VideoSampleSink` under load; decides D5); 203's plan after 204's
+  measurements (T050 / T051).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

@@ -312,3 +312,26 @@ same library as the CLI. `import` is removed. Supersedes D-025's split of source
 `specs/index.json`.
 **Consequences:** the six existing features were migrated (word check: nothing lost); raw generated Markdown has long
 lines; the `/spec-*` commands write JSON. The roadmap's current phase is named in `roadmap.json` (`currentPhase`).
+
+## D-027 — 203 and 204: every proposed answer accepted; 204 before 203 (2026-10-09)
+
+**Context:** the Draft specs `203-compositing-pip` (14 questions) and `204-decoder-pool` (10) proposed an answer to
+each open question.
+**Decision:** the maintainer accepted all 24 as proposed and approved both specs. Notably: the pool serves preview
+and export (204 Q1); visible videos at once = the largest smooth count measured, minus one, capped at 3 web / 6
+desktop, never below 2 (204 Q2, 203 Q6); frames held under 256 MB web / 1 GB desktop (204 Q3); layers stay above
+every track (203 Q1); one transform (position, size, rotation, opacity, corner radius) on every picture track (203
+Q2, Q3); overlay tracks never magnetic (203 Q8); document stays version 1 (203 Q11); no agent tools until `212`.
+**Alternatives:** answering per question; building 203 first with a guessed limit.
+**Consequences:** 204 is planned and built first; 203's plan waits for 204's measurements (its limits).
+
+## D-028 — 204's plan: one decoder pool for preview and export (2026-10-09)
+
+**Context:** 204's plan (`specs/features/204-decoder-pool`) left five choices to the maintainer.
+**Decision:** accepted as recommended. D1: preview sound from audio-only `<audio>` elements for the clip under the
+playhead and the next one (not a `<video>` per clip all session). D2: frame bytes counted as width × height × 4. D3: a
+paused preview shows the frame on the project's frame grid, the export's frame. D4: picture–sound sync (AC-8)
+measured in the self-test through `captureStream()` and an analyser, confirmed by hand in Chrome. D5: the export
+decodes full-size frames through the pool unless the spike shows it slower, then resized as today.
+**Alternatives:** a muted `<video>` per clip for sound; NV12-sized budgets; a manual-only sync check.
+**Consequences:** the pool is the only picture decoder in the editor (the `<video>` path stays for fallback clips).
