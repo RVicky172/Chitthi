@@ -4,6 +4,7 @@
  */
 import {
   ALL_FORMATS,
+  AudioBufferSource,
   BlobSource,
   BufferTarget,
   CanvasSink,
@@ -12,6 +13,7 @@ import {
   Mp4OutputFormat,
   Output,
   Quality,
+  canEncodeAudio,
   canEncodeVideo,
 } from 'mediabunny';
 
@@ -23,9 +25,15 @@ export const clipColour = (t: number, dur: number): [number, number, number] => 
   return [Math.round(40 + 180 * k), 120, Math.round(220 - 180 * k)];
 };
 
-/** A dur-second W×H H.264 MP4 at 30 fps, every frame one flat colour (clipColour). Null if this engine can't encode it. */
-export async function makeTestClip(dur = 2, W = 320, H = 240): Promise<Blob | null> {
-  if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate: 1e6 }))) return null;
+/**
+ * A dur-second W×H H.264 MP4 at 30 fps whose middle is one flat colour per frame (clipColour), with a key frame every
+ * `keyEvery` seconds (204 Q9: 2 s, like phone video). `texture` adds moving noise outside the middle third, so the
+ * clip costs about what real footage does to decode while its measured colour stays exact. Null if this engine can't
+ * encode it.
+ */
+export async function makeTestClip(dur = 2, W = 320, H = 240, keyEvery = 1, texture = false): Promise<Blob | null> {
+  const bitrate = texture ? Math.round(W * H * 30 * 0.1) : 1e6;
+  if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate }))) return null;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -34,19 +42,80 @@ export async function makeTestClip(dur = 2, W = 320, H = 240): Promise<Blob | nu
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target });
   const source = new CanvasSource(canvas, {
     codec: 'avc',
-    quality: new Quality({ bitrate: 1e6 }),
-    keyFrameInterval: 1,
+    quality: new Quality({ bitrate }),
+    keyFrameInterval: keyEvery,
   });
   output.addVideoTrack(source, { frameRate: 30 });
   await output.start();
   const frames = Math.round(dur * 30);
+  // Noise tiles, shifted every frame (cheap to draw, expensive to encode and decode); the middle third stays flat.
+  const noise = texture ? noiseTile(256) : null;
   for (let i = 0; i < frames; i++) {
     const [r, g, b] = clipColour(i / 30, dur);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(0, 0, W, H);
+    if (noise) {
+      const off = (i * 37) % 256;
+      for (let y = -off; y < H; y += 256)
+        for (let x = -off; x < W; x += 256) ctx.drawImage(noise, x, y);
+      ctx.fillRect(W / 3, H / 3, W / 3, H / 3);
+    }
     await source.add(i / 30, 1 / 30);
   }
   source.close();
+  await output.finalize();
+  return target.buffer ? new Blob([target.buffer], { type: 'video/mp4' }) : null;
+}
+
+/** A size × size canvas of grey noise, for textured test clips. */
+function noiseTile(size: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const x = c.getContext('2d')!;
+  const img = x.createImageData(size, size);
+  let seed = 7;
+  for (let i = 0; i < img.data.length; i += 4) {
+    seed = (seed * 1103515245 + 12345) >>> 0;
+    const v = seed >>> 24;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  return c;
+}
+
+/**
+ * A dur-second MP4 for picture–sound sync (204 AC-8): black frames with a white frame, and a 50 ms 1 kHz beep starting
+ * on that frame, every 2 s (at 0, 2, 4 … s). Null if this engine can't encode H.264 with AAC.
+ */
+export async function makeSyncClip(dur = 30, W = 640, H = 360): Promise<Blob | null> {
+  const rate = 48000;
+  if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate: 1e6 }))) return null;
+  if (!(await canEncodeAudio('aac', { numberOfChannels: 2, sampleRate: rate, bitrate: 128000 }))) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+  const target = new BufferTarget();
+  const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target });
+  const video = new CanvasSource(canvas, { codec: 'avc', quality: new Quality({ bitrate: 1e6 }), keyFrameInterval: 2 });
+  const sound = new AudioBufferSource({ codec: 'aac', quality: new Quality({ bitrate: 128000 }) });
+  output.addVideoTrack(video, { frameRate: 30 });
+  output.addAudioTrack(sound);
+  await output.start();
+  const buf = new AudioBuffer({ length: dur * rate, numberOfChannels: 2, sampleRate: rate });
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let s = 0; s < dur; s += 2) for (let i = 0; i < rate * 0.05; i++) d[s * rate + i] = 0.6 * Math.sin((2 * Math.PI * 1000 * i) / rate);
+  }
+  await sound.add(buf);
+  sound.close();
+  for (let i = 0; i < dur * 30; i++) {
+    ctx.fillStyle = i % 60 === 0 ? '#ffffff' : '#000000';
+    ctx.fillRect(0, 0, W, H);
+    await video.add(i / 30, 1 / 30);
+  }
+  video.close();
   await output.finalize();
   return target.buffer ? new Blob([target.buffer], { type: 'video/mp4' }) : null;
 }
@@ -449,6 +518,32 @@ export async function videoChecks(check: Check): Promise<string[]> {
     `video: the test clip decodes to its colours at ${times.join(', ')} s (${got.map((c) => c.map(Math.round).join('/')).join(' ')})`,
   );
   notes.push(`video: test clip ${(clip.size / 1024).toFixed(0)} KB made in ${made.toFixed(0)} ms`);
+
+  // 204's fixtures: a textured 1080p clip with a key frame every 2 s (Q9) and the sync clip (AC-8).
+  const t1 = performance.now();
+  const hd = await makeTestClip(4, 1920, 1080, 2, true);
+  const hdMade = performance.now() - t1;
+  const hdTimes = [0, 1.9, 2, 3.95];
+  const hdGot = hd ? await decodedColours(hd, hdTimes) : [];
+  check(
+    hdGot.length === hdTimes.length && hdGot.every((c, i) => clipColour(hdTimes[i], 4).every((v, k) => Math.abs(v - c[k]) <= 8)),
+    `video: a textured 1080p test clip with 2 s key frames decodes to its colours (${hdGot.map((c) => c.map(Math.round).join('/')).join(' ')})`,
+  );
+  const t2 = performance.now();
+  const sync = await makeSyncClip(4);
+  const syncMade = performance.now() - t2;
+  const flashes = sync ? await decodedColours(sync, [0, 0.5, 2, 2.5]) : [];
+  check(
+    !!sync &&
+      (await hasSound(sync)) &&
+      flashes.length === 4 &&
+      flashes[0].every((v) => v > 240) &&
+      flashes[1].every((v) => v < 12) &&
+      flashes[2].every((v) => v > 240) &&
+      flashes[3].every((v) => v < 12),
+    `video: the sync clip has sound and a white frame every 2 s (${flashes.map((c) => Math.round(c[0])).join(' ')})`,
+  );
+  notes.push(`video: 204 fixtures: textured 1080p 4 s ${((hd?.size ?? 0) / 1e6).toFixed(1)} MB in ${hdMade.toFixed(0)} ms; sync clip 4 s in ${syncMade.toFixed(0)} ms`);
   try {
     notes.push(...(await trackChecks(check)));
   } catch (e) {

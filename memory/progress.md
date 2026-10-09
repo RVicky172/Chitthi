@@ -11,6 +11,19 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-10 — 203 / 204 approved; 204 planned, T001–T002
+
+**Done:** 202 merged to `main` (`ecb55df`, pushed). 203 / 204: all 24 proposed answers accepted (D-027), both
+Approved; `main` merged into `spec/203-204`. 204's plan approved with D1–D5 (D-028) and tasks T001–T092 written
+(`3418745`, pushed). On `feat/204-decoder-pool`: T001 spike (Mediabunny `VideoSampleSink`: one decoder per reader,
+`return()` closes it; 6 lanes 2.4 ms a step; `getSample` 17.5 ms but a decoder per call; full-size frames 3–6.5 %
+slower in the export, so D5 = export keeps resized canvases); T002 fixtures (`makeTestClip` size / key frames /
+texture, `makeSyncClip`), `npm test` 6,127 / 0.
+**Next:** 204 T010 (failing pool unit tests with a fake source), then T011 (`decodePool.ts`).
+**Blockers:** none.
+
+---
+
 ## 2026-10-09 — 202 verified: Implemented ✔️
 
 **Done:** on `feat/202-edit-operations`: T090 docs (MEDIA-STUDIO, lld, CHANGELOG, in-app docs); T001 closed with

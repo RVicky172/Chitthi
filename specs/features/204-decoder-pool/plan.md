@@ -65,7 +65,7 @@ replaces it and the last one is held only for "a source shorter than its trim". 
 video clip in `framePlan` is prepared (look-ahead one clip, Q10), so opening it overlaps the current clip (AC-10). The
 pool is disposed in `finally`: after a cancel or an error no frame or decoder is left (AC-11). If decoding full-size
 frames makes the export slower than 202 (the spike, T001), the export lanes ask the source for frames resized like
-today's `CanvasSink` (`width` ≤ 1.8 × long side).
+today's `CanvasSink` (`width` ≤ 1.8 × long side). **Decided by T001:** full size was 3 % (1080p sources) and 6.5 % (4K) slower, so export lanes read resized canvases through the pool's source; the preview reads `VideoSample` frames.
 
 **§6 Limits from measurements (AC-15).** A self-test timing (`poolTiming`) plays 300 steps of 1, 2, 3, 4 and 6
 simultaneous 1080p30 clips (and 2 and 3 4K30 clips on the desktop app) through the pool as the preview would, with

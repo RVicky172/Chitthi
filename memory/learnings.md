@@ -57,6 +57,11 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   node, so the same message set again isn't drawn, and a keyed child removed under it makes React lose the element.
   Blank the inner text node only, and give a repeatable message a changing `key` (202 T033, the toast).
 
+- Mediabunny's `VideoSampleSink.getSample(t)` opens and closes a `VideoDecoder` on every call (~18 ms median with
+  2 s key frames); `samples()` keeps one decoder per reader until its `return()`. Use readers for playback and
+  `getSample` only for single seeks. Drawing full-size `VideoFrame`s in the export was 3–6.5 % slower than
+  `CanvasSink`'s canvases (204 T001).
+
 ## Formatting
 
 - Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier
