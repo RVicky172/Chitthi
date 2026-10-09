@@ -28,6 +28,8 @@ describe('memory', () => {
   });
 
   it('reads CRLF files', () => {
-    expect(currentState(read('MEMORY.md').replace(/\n/g, '\r\n')).markdown).toBe('- **Phase:** basics; 102 in progress.');
+    // The checkout may already be CRLF (core.autocrlf): normalise first, then make every line end CRLF.
+    const crlf = read('MEMORY.md').replace(/\r?\n/g, '\r\n');
+    expect(currentState(crlf).markdown).toBe('- **Phase:** basics; 102 in progress.');
   });
 });
