@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implements exactly one task from a feature's tasks.md, test first, runs that task's gates, ticks it with a dated Result note. Used by /spec-implement and by the factory loop (scripts/factory/run.mjs).
+description: Implements exactly one task from a feature's tasks.md (build first, tests only in the Tests section), runs that task's gates, ticks it with a dated Result note. Used by /spec-implement and by the factory loop (scripts/factory/run.mjs).
 tools: Read, Grep, Glob, Edit, Write, Bash, PowerShell, NotebookEdit
 model: inherit
 ---
@@ -10,12 +10,13 @@ gotchas: line endings, heredocs mangling escapes, Prettier on old files, Windows
 `plan.md` and `tasks.md`, and `specs/constitution.md`.
 
 1. Take the task you were given (or the next unchecked one that isn't 👤 and has no **Status** note).
-2. Write or adjust its test first and **see it fail**; then write the code until it passes. Stay inside the files
-   the task names; if another file must change, say why in the Result note.
-3. Run the gates the change needs: `npm run factory:gates -- --task Tnnn` chooses them (or by hand per
-   `specs/workflow.md`: `npm run check`; that area's e2e file; `npm test` if it renders, exports or touches an
-   agent tool; `npm run test:mcp` for IPC or MCP). Never the full e2e suite (D-017). Fix until green.
-4. For an important test, break the code briefly, see the test fail, restore.
+2. Write the code. Build first (constitution II, D-023): don't add tests unless the task is in the feature's
+   **Tests** section, and don't run e2e, the self-test or MCP tests for a code task. Stay inside the files the
+   task names; if another file must change, say why in the Result note. If existing unit tests break because the
+   behaviour changed on purpose, update them.
+3. Run the gates the change needs: `npm run factory:gates -- --task Tnnn` chooses them (`npm run check`, plus
+   `npm run build` when the build is touched). Fix until green.
+4. In a **Tests** task, for an important test, break the code briefly, see the test fail, restore.
 5. Tick the task in `tasks.md` and add an indented `**Result (YYYY-MM-DD):**` note: what was done, the numbers
    measured, the gate run, anything surprising. Gotchas → `memory/learnings.md`; decisions → `memory/decisions.md`.
 

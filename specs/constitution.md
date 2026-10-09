@@ -3,7 +3,8 @@
 > The non-negotiable principles of this project. Every spec, plan, task, and line of code must comply.
 > If a change needs to break a principle, amend this document first (see "Governance & Amendments").
 
-**Version:** 1.1.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-08 (1.1.0: XII added, D-016)
+**Version:** 2.0.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-09 (2.0.0: II redefined, build first and test at
+the end, D-023)
 
 ---
 
@@ -24,12 +25,12 @@ Bug fixes and refactors that do not change behavior may skip the spec but must s
 Editor work items from [vision/editor-implementation.md](vision/editor-implementation.md) (P2.x, P3.x) become
 feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not approval.
 
-### II. Test-Gated Delivery
+### II. Build First, Test at the End
 
-- No task is "done" until its tests pass: `npm run check` (and that area's e2e tests,
-  `npx playwright test e2e/<file>.e2e.ts`, if the change affects UI or integration; never the full suite, D-017;
-  `npm test` if it renders, exports or adds an agent tool).
-- Pure logic is unit-tested, test-first: write the failing test, then the code.
+- A task is "done" when its code works and `npm run check` stays green (typecheck, lint, the unit tests that
+  already exist). No new tests per task, no test-first, and no e2e, self-test or MCP run per task (D-023).
+- A feature's tests are written in its own **Tests** section, after the code tasks and before Verify; the full
+  Definition of Done runs once, at Verify (D-017).
 - Tests wait on real signals, never fixed sleeps; anything time-dependent takes time as an input so tests are
   deterministic.
 

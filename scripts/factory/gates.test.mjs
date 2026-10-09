@@ -8,31 +8,31 @@ import { DOD, chooseGates, commandFor, runGates, summarize } from './gates.mjs';
 const out = (name) => readFileSync(join(import.meta.dirname, 'fixtures/gate-output', name), 'utf8');
 
 describe('chooseGates', () => {
+  // Build first, test at the end (constitution II, D-023): code gets `check`; slow gates only for their own tests.
   const cases = [
-    ['engine only', ['src/engine/edits.ts'], {}, ['check', 'selftest']],
+    ['engine only', ['src/engine/edits.ts'], {}, ['check']],
     ['engine test only', ['src/engine/edits.test.ts'], {}, ['check']],
-    ['timeline component', ['src/components/studio/Timeline.tsx'], {}, ['check', 'e2e:editors']],
-    ['component with an area tag', ['src/components/studio/Shell.tsx'], { area: 'ui:instagram' }, ['check', 'e2e:instagram']],
-    ['print studio component', ['src/components/Stage.tsx'], {}, ['check', 'e2e:app']],
-    ['video store', ['src/state/video.ts'], {}, ['check', 'e2e:editors']],
-    ['settings / AI', ['src/components/SettingsDialog.tsx'], {}, ['check', 'e2e:instagram']],
-    ['docs page data', ['src/data/docs.ts'], {}, ['check', 'selftest', 'e2e:docs']],
-    ['electron main', ['electron/main.cjs'], {}, ['check', 'mcp']],
-    ['agent tools', ['src/agent/tools.ts'], {}, ['check', 'selftest', 'mcp']],
+    ['timeline component', ['src/components/studio/Timeline.tsx'], {}, ['check']],
+    ['component with an area tag', ['src/components/studio/Shell.tsx'], { area: 'ui:instagram' }, ['check']],
+    ['print studio component', ['src/components/Stage.tsx'], {}, ['check']],
+    ['electron main', ['electron/main.cjs'], {}, ['check']],
+    ['agent tools', ['src/agent/tools.ts'], {}, ['check']],
+    ['the self-test', ['src/dev/selftest.ts'], {}, ['check', 'selftest']],
+    ['the MCP smoke test', ['scripts/mcp-smoke.mjs'], {}, ['check', 'mcp']],
     ['a dependency', ['package.json', 'package-lock.json'], {}, ['check', 'licenses']],
     ['vite config', ['vite.config.ts'], {}, ['check', 'build']],
-    ['CSP', ['nginx/security-headers.conf'], {}, ['build', 'e2e:app']],
+    ['CSP', ['nginx/security-headers.conf'], {}, ['build']],
     ['docs only', ['docs/MEDIA-STUDIO.md', 'specs/roadmap.md', 'memory/progress.md', 'CHANGELOG.md'], {}, []],
     ['scripts only', ['scripts/factory/state.mjs'], {}, ['check']],
     ['an e2e file', ['e2e/editors.e2e.ts'], {}, ['check', 'e2e:editors']],
-    ['mixed', ['src/engine/timeline.ts', 'src/components/studio/Timeline.tsx', 'electron/ipc.cjs', 'docs/MCP.md'], {}, ['check', 'selftest', 'e2e:editors', 'mcp']],
+    ['mixed', ['src/engine/timeline.ts', 'src/components/studio/Timeline.tsx', 'e2e/editors.e2e.ts', 'docs/MCP.md'], {}, ['check', 'e2e:editors']],
   ];
   it.each(cases)('%s', (_name, paths, task, gates) => {
     expect(chooseGates(paths, task)).toEqual(gates);
   });
 
   it('accepts Windows paths', () => {
-    expect(chooseGates(['src\\engine\\edits.ts'])).toEqual(['check', 'selftest']);
+    expect(chooseGates(['src\\dev\\selftest.ts'])).toEqual(['check', 'selftest']);
   });
 
   it('verify runs the whole Definition of Done', () => {

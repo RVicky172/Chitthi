@@ -84,7 +84,8 @@ of each failed test.
 
 ## Rules
 
-1. **Test-first for pure logic.** Write the failing Vitest test next to the module, then the code.
+1. **Build first, test at the end** (constitution II, D-023). Code tasks keep `npm run check` green; a feature's
+   tests (Vitest next to the module, e2e, self-test) are written in its **Tests** section, before Verify.
 2. **Anything that renders gets a self-test check**; preview/export parity is checked against Canvas 2D on every GPU
    backend the machine has.
 3. **Agent tools are tested too.** A feature reachable from `src/agent/tools.ts` is covered by the self-test, and by

@@ -36,7 +36,7 @@ in the repository, so any agent or person can stop and pick up again without los
 | Specify | `spec.md` | User stories, numbered acceptance criteria (`AC-n`, each naming its test type), out of scope, open questions | A person sets `Status: Approved`; no `[NEEDS CLARIFICATION]` left |
 | Plan | `plan.md` | Files, interfaces, risks, a test for every AC, the **Constitution check** | A person approves; no new dependency without `tech-stack.md` + licence check |
 | Tasks | `tasks.md` | Ordered tasks of ≤ ~1 hour, each with files and its proving test; `[P]` parallel; 👤 for a person; AC coverage table | Every AC covered by a task |
-| Implement | code + tests | Test first; one task at a time; a dated **Result** note under each ticked task | `npm run check` (+ that area's e2e, self-test, MCP as needed) green |
+| Implement | code, then tests | Build first, tests in the Tests section (D-023); one task at a time; a dated **Result** note under each ticked task | `npm run check` (+ build when touched; e2e / self-test / MCP only for changes to those tests) green |
 | Verify | spec, docs, memory | Every Definition-of-Done gate; every AC ticked only with proof | Spec `Implemented`, roadmap ✔️, memory updated |
 
 Full rules: [workflow.md](workflow.md). The non-negotiables and the 10-point Definition of Done:
@@ -69,7 +69,7 @@ Numbering (D-003): `000–099` baseline, `2xx` / `3xx` the editor's work items (
 | `/spec-new <name>` | Next numbered folder with a draft `spec.md` |
 | `/spec-plan <NNN>` | `plan.md` for an approved spec |
 | `/spec-tasks <NNN>` | `tasks.md` from the plan |
-| `/spec-implement <NNN> [task]` | The next unchecked task(s), test first, gates, Result note |
+| `/spec-implement <NNN> [task]` | The next unchecked task(s), build first, gates, Result note |
 | `/spec-verify <NNN>` | Every Definition-of-Done gate, AC ticks, docs and memory |
 | `/spec-batch <NNN> …` | Draft specs for several roadmap items (F6) |
 | `/factory <NNN> [flags]` | The loop, unattended, until a stop (F5) |
@@ -220,7 +220,7 @@ principle if needed.
 | --- | --- | --- |
 | `spec-writer` | Drafts `spec.md` from a vision work item; marks open questions | Read; write in `specs/` |
 | `planner` | `plan.md`, Constitution check, licence check | Read; write in `specs/` |
-| `implementer` | One task, test first, runs `gates.mjs` | All, inside its worktree |
+| `implementer` | One task, build first, runs `gates.mjs` | All, inside its worktree |
 | `reviewer` | Reads the task's diff against spec, constitution, `lld.md`; can't edit | Read, Grep, read-only Bash |
 | `verifier` | Definition-of-Done gates; ticks ACs only with proof | Bash, Read, Edit for ticks |
 | `scribe` | `progress.md`, `MEMORY.md`, roadmap, CHANGELOG | Edit in `memory/`, `specs/`, `CHANGELOG.md` |

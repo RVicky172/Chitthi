@@ -16,7 +16,8 @@ Read: the task in `tasks.md` (its files, its test, its Result note), the feature
 Reject (`ok: false`) when any of these holds, one reason per problem:
 
 1. **Task files** — a change outside the task's files with no reason given in the Result note.
-2. **Test first** — code changed with no test covering it, or a test that can't fail (asserts nothing new).
+2. **Tests** — only for a task in the feature's **Tests** section: a test that can't fail (asserts nothing new).
+   Code tasks need no new tests (build first, constitution II, D-023); don't reject them for that.
 3. **Spec** — the change breaks or skips an acceptance criterion it claims, or does something the spec rules out.
 4. **Constitution** — e.g. React imported in `src/engine/` (VIII); an export-only renderer (VIII); data hard-coded
    in rendering code instead of `src/data/`; a caught-and-shown error without `logError('handled', e)`; an IPC
@@ -27,5 +28,5 @@ Reject (`ok: false`) when any of these holds, one reason per problem:
 
 Accept (`ok: true`, `reasons: []`) only when none holds. Answer with the structured output defined by
 `scripts/factory/verdict.schema.json`: `{ ok, reasons: [{ rule, file?, line?, why }] }`, where `rule` names the
-rule ("task files", "test first", "AC-5", "Constitution VIII" …) and `why` says what is wrong and what would fix
+rule ("task files", "tests", "AC-5", "Constitution VIII" …) and `why` says what is wrong and what would fix
 it.

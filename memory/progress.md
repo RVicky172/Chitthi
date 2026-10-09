@@ -11,6 +11,20 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-09 — 403 T011–T020, spikes T002 / T003; 403 paused; build first, test at the end (D-023)
+
+**Done:** On `feat/403-live-dashboard`: the loop committed T011–T014, T016, T032, T045 and T020 (`65f6755`);
+T015 committed by hand with the plan amended for 1-hour cache writes (D-021, `fc65495`). Spikes: T002 SSE (named
+`ping` event, not a comment: D-022; Windows `EPERM` on rename over a file being read) and T003 (stream-json
+parity, 114 tests unedited). Then, at the maintainer's request, 403 paused (loop stopped on T021; its work in
+`stash@{0}` on that branch) and the process lightened on `chore/build-first-testing`: constitution 2.0.0 II "Build
+first, test at the end" (D-023), gates per task now `check` (+ build / licences when touched).
+**Next:** product features: 202 T030 (`/factory 202`; its 2026-10-08 stash is on `feat/202-edit-operations`).
+403 resumes later from T021 (pop the stash or let the loop redo it).
+**Blockers:** none.
+
+---
+
 ## 2026-10-08 — 402 into `main`; 202 T030 stop; 403 spec → T004; allow-list fix
 
 **Done:** AC-11 amended to ≥ 2 (D-018); drill branches and worktrees removed; 402 merged into `main` (`5298b66`,

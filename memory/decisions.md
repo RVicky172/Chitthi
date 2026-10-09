@@ -246,3 +246,24 @@ before the spec is marked Implemented. `workflow.md`, `constitution.md` and `.cl
 **Decision:** The maintainer amended AC-11 to at least 2 unattended tasks and accepted T054 as its proof.
 **Alternatives:** let the loop finish a third agent task before ticking AC-11.
 **Consequences:** AC-11 ticked (17 of 18 ACs); F5 ✔️ in software-factory.md. 402 still waits on AC-16 (T063, backlog).
+
+## D-023 — Build first, test at the end: no per-task tests; constitution 2.0.0 (2026-10-09)
+
+_D-021 and D-022 are taken on `feat/403-live-dashboard` (not yet on `main`)._
+
+**Context:** The maintainer: too much of each step went to unit, e2e and self-test work and too little to the
+product. Every task was test-first, and the factory ran e2e, the self-test or MCP whenever a task touched UI, the
+engine or Electron. 403 (a dashboard for the factory itself) was taking the loop's time instead of product features.
+**Decision:** Constitution II redefined (2.0.0): a code task is done when its code works and `npm run check` stays
+green (typecheck, lint, existing unit tests). No test-first and no new tests per task; no e2e, self-test or MCP run
+per task. A feature's tests go in a **Tests** section after its code tasks; the full Definition of Done still runs
+once at Verify. `gates.mjs` gives code `check` (+ `build` / `licenses` when touched) and runs `selftest`, `mcp` or an
+`e2e:<area>` only when that test itself changes. The reviewer no longer rejects a code task for missing tests. 403
+is paused (branch kept; its T021 work in a stash) so the loop works on product features.
+**Alternatives:** typecheck and lint only, no reviewer (too little safety for unattended runs); keep unit tests per
+task and drop only e2e / self-test (still too slow, by the maintainer's call).
+**Consequences:** Faster tasks; regressions in UI, rendering or Electron show up at a feature's Tests / Verify
+instead of per task. Features already planned test-first (202, 403) keep their task text; implementers follow the
+new rule for new work. Changed: `constitution.md`, `workflow.md`, `testing-strategy.md`, `software-factory.md`, the
+tasks template, `/spec-tasks`, `/spec-implement`, the implementer and reviewer agents, `gates.mjs` (+ tests).
+

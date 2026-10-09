@@ -17,40 +17,29 @@ export const DOD = ['check', 'build', 'e2e', 'selftest', 'mcp', 'licenses'];
 const ORDER = ['check', 'build', 'selftest', 'e2e', 'mcp', 'licenses'];
 
 const norm = (p) => p.replace(/\\/g, '/');
-const isTest = (p) => /\.test\.[cm]?[jt]sx?$/.test(p);
 const CODE = /^(src|electron|scripts|e2e)\/|^[^/]+\.config\.[cm]?[jt]s$|^package(-lock)?\.json$|^tsconfig[^/]*\.json$|^index\.html$/;
-const SELFTEST = /^src\/(engine|data|agent|dev|ai)\//; // what renders, exports or is an agent tool (testing-strategy.md)
-const MCP = /^electron\/|^src\/agent\/|^scripts\/mcp-[^/]+$/;
+// Build first, test at the end (constitution II, D-023): a code task gets `check` (plus `build` / `licenses` when
+// those are touched); the slow gates run only for changes to their own tests, and all of them at --verify.
+const SELFTEST = /^src\/dev\//; // the self-test itself
+const MCP = /^scripts\/mcp-[^/]+$/; // the MCP smoke test itself
 const LICENSES = /^package(-lock)?\.json$/;
 const BUILD = /^nginx\/|^[^/]*vite\.config\.ts$|^scripts\/check-bundle\.mjs$|^index\.html$/;
-const UI = /^src\/(components|state|styles)\/|^src\/(App|main)\.tsx$|^src\/styles\.css$|^src\/data\/docs\.ts$|^index\.html$|^nginx\//;
 
-/** The e2e file that covers a UI path (e2e/<area>.e2e.ts). */
-const AREAS = [
-  [/^src\/data\/docs\.ts$|^src\/components\/DocsPage\.tsx$/, 'docs'],
-  [/^src\/components\/(studio|ig)\/|^src\/state\/video\.ts$|^src\/styles\/36-media-studio\.css$/, 'editors'],
-  [/^src\/components\/(InstagramStudio\.tsx|SettingsDialog\.tsx|ai\/)|^src\/state\/instagram\.ts$|^src\/styles\/35-instagram\.css$/, 'instagram'],
-];
-function e2eArea(p, task) {
-  const e2e = /^e2e\/([^/]+)\.e2e\.ts$/.exec(p);
-  if (e2e) return e2e[1];
-  if (!UI.test(p) || isTest(p)) return null;
-  if (task.area?.startsWith('ui:')) return task.area.slice(3);
-  return AREAS.find(([re]) => re.test(p))?.[1] ?? 'app';
-}
+/** The e2e file a change is to (e2e/<area>.e2e.ts); UI code alone no longer picks one. */
+const e2eArea = (p) => /^e2e\/([^/]+)\.e2e\.ts$/.exec(p)?.[1] ?? null;
 
 /** The gates a change needs, in run order: check, build, selftest, e2e:<area>…, mcp, licenses. */
-export function chooseGates(paths, task = {}, { verify = false } = {}) {
+export function chooseGates(paths, _task = {}, { verify = false } = {}) {
   if (verify) return [...DOD];
   const gates = new Set();
   const areas = [];
   for (const p of paths.map(norm)) {
     if (CODE.test(p)) gates.add('check');
     if (BUILD.test(p)) gates.add('build');
-    if (SELFTEST.test(p) && !isTest(p)) gates.add('selftest');
+    if (SELFTEST.test(p)) gates.add('selftest');
     if (MCP.test(p)) gates.add('mcp');
     if (LICENSES.test(p)) gates.add('licenses');
-    const a = e2eArea(p, task);
+    const a = e2eArea(p);
     if (a && !areas.includes(a)) areas.push(a);
   }
   return ORDER.flatMap((g) => (g === 'e2e' ? areas.map((a) => `e2e:${a}`) : gates.has(g) ? [g] : []));

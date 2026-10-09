@@ -34,23 +34,23 @@ AC, and a **Constitution check** (each principle: ✅ / ⚠️ with justificatio
 ## Stage 3 — Tasks (`tasks.md`)
 
 Copy `templates/tasks-template.md`. Break the plan into small ordered tasks (≤ ~1 hour each), each naming the files
-it touches and the test that proves it. Tests are written **before or with** the code they cover. Mark tasks that
-can run in parallel with `[P]`. Every AC is covered by at least one task (AC coverage table).
+it touches. Code tasks come first; the feature's tests are grouped in a **Tests** section after them, before
+Verify (build first, test at the end: constitution II, D-023). Mark tasks that can run in parallel with `[P]`. Every
+AC is covered by at least one task (AC coverage table).
 
 ## Stage 4 — Implement
 
 Work one task at a time. After each task:
 
-1. Run `npm run check` (and that area's e2e tests, `npx playwright test e2e/<file>.e2e.ts`, if the change affects
-   UI or integration; never the full suite, which runs once in Stage 5, D-017; `npm test` if it renders,
-   exports or touches an agent tool; `npm run test:mcp` if it touches IPC or the MCP server). Fix until green.
-   `npm run factory:gates -- --task Tnnn` picks these gates from the changed files, runs them and records the run
-   in `.factory/runs/` for the Result note.
+1. Run `npm run check` (typecheck, lint, the existing unit tests) and fix until green; `npm run build` too if the
+   change touches the build. No e2e, self-test or MCP run per task: those run in the Tests section and at Stage 5
+   (D-023, D-017). `npm run factory:gates -- --task Tnnn` picks these gates from the changed files, runs them and
+   records the run in `.factory/runs/` for the Result note.
 2. Tick the task in `tasks.md` and add a short dated **Result** note under it: what was done, what was measured,
    anything surprising. These notes are the evidence Stage 5 checks.
 3. Record decisions in `memory/decisions.md` and gotchas in `memory/learnings.md` as they happen.
 
-For an important test, prove it can fail: break the code briefly, see the test fail, restore.
+In the Tests section, for an important test, prove it can fail: break the code briefly, see it fail, restore.
 
 ## Stage 5 — Verify
 
