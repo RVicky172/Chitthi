@@ -103,11 +103,9 @@ the self-test runs in Electron (Chromium) with WebGPU.
 
 ```ts
 // src/engine/decodePool.ts (pure: no Mediabunny, no DOM beyond the frame type)
-export interface PoolFrame { image: CanvasImageSource; width: number; height: number; time: number; close(): void }
+export interface PoolFrame { image: CanvasImageSource; width: number; height: number; time: number; duration: number; close(): void }
 export interface FrameSource {
-  /** The frame showing at source time t (last frame starting at or before t), or null before the first. */
-  at(t: number): Promise<PoolFrame | null>;
-  /** Frames in order from t: a restartable reader that decodes a few ahead. */
+  /** Frames in order from the one showing at t: a restartable reader (no `at()`: T001 found Mediabunny's getSample opens a decoder per call). */
   from(t: number): AsyncIterator<PoolFrame>;
   close(): void;
 }
@@ -117,7 +115,7 @@ export interface PoolStats { decoders: number; frames: number; bytes: number; ho
 export interface PoolClip { id: string; file: Blob; in: number; out: number; start: number; track: string }
 
 export class DecodePool {
-  constructor(open: FrameSourceFactory, limits: PoolLimits);
+  constructor(open: FrameSourceFactory, limits: PoolLimits, source?: { maxWidth?: number }); // maxWidth: export lanes (D5)
   frame(clip: PoolClip, srcTime: number): Promise<PoolFrame | null>;     // exact; latest wins per lane
   peek(clip: PoolClip, srcTime: number): PoolFrame | null;                // never waits; holds the last frame
   prepare(clip: PoolClip): void;                                          // look-ahead: first frame ready

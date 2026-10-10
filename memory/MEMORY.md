@@ -24,8 +24,8 @@
   maintainer on 2026-10-09; branch `spec/203-204`. Build 204 first: 203's visible-video limit (its Q6) comes from 204's
   measurements.
 - **204:** `204-decoder-pool` 🚧: plan approved (D1–D5, D-028), tasks T001–T092; built on `feat/204-decoder-pool`
-  (from `spec/203-204`). T001 spike and T002 fixtures done 2026-10-10; D5 decided: the export keeps resized canvases.
-- **Next (roadmap):** 204 T010 / T011 (the pool, test-first with a fake source); 203's plan after 204's measurements
+  (from `spec/203-204`). T001 spike, T002 fixtures, T010 / T011 the pool (`engine/decodePool.ts`, fake-source tests) done 2026-10-10; D5: the export keeps resized canvases.
+- **Next (roadmap):** 204 T012 / T013 (real decoder checks, `frameSource.ts` on Mediabunny); 203's plan after 204's measurements
   (T050 / T051).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).

@@ -241,6 +241,10 @@
       {
         "date": "2026-10-09",
         "text": "Tasks written (T001–T092); In Progress."
+      },
+      {
+        "date": "2026-10-10",
+        "text": "Plan interface (T011): `PoolFrame.duration` (a frame covers [time, time + duration)); `FrameSource.at()` dropped, every read goes through the restartable `from(t)` reader (T001); `DecodePool` takes the source options (`maxWidth`, D5)."
       }
     ],
     "sections": [
@@ -436,7 +440,7 @@
       {
         "kind": "markdown",
         "title": "Data Structures & Interfaces",
-        "markdown": "```ts\n// src/engine/decodePool.ts (pure: no Mediabunny, no DOM beyond the frame type)\nexport interface PoolFrame { image: CanvasImageSource; width: number; height: number; time: number; close(): void }\nexport interface FrameSource {\n  /** The frame showing at source time t (last frame starting at or before t), or null before the first. */\n  at(t: number): Promise<PoolFrame | null>;\n  /** Frames in order from t: a restartable reader that decodes a few ahead. */\n  from(t: number): AsyncIterator<PoolFrame>;\n  close(): void;\n}\nexport type FrameSourceFactory = (file: Blob, opts: { maxWidth?: number }) => Promise<FrameSource>;\nexport interface PoolLimits { decoders: number; ahead: number; bytes: number }\nexport interface PoolStats { decoders: number; frames: number; bytes: number; holds: number }\nexport interface PoolClip { id: string; file: Blob; in: number; out: number; start: number; track: string }\n\nexport class DecodePool {\n  constructor(open: FrameSourceFactory, limits: PoolLimits);\n  frame(clip: PoolClip, srcTime: number): Promise<PoolFrame | null>;     // exact; latest wins per lane\n  peek(clip: PoolClip, srcTime: number): PoolFrame | null;                // never waits; holds the last frame\n  prepare(clip: PoolClip): void;                                          // look-ahead: first frame ready\n  want(ids: Iterable<string>): void;                                      // the rest may close (LRU, budgets)\n  forget(id: string): void;\n  fallback(id: string): string | null;                                    // why a clip can't use the pool\n  stats(): PoolStats;\n  dispose(): void;\n}\n/** The clips a time needs: visible on every picture track, and each track's next clip within `ahead` seconds. */\nexport function lanePlan<C extends TimedClip>(p: Project<C>, t: number, ahead: number): { visible: C[]; next: C[] };\n/** A time on the project's frame grid, as the export encodes it (D3). */\nexport const frameTime = (t: number, fps: number) => Math.floor(t * fps + 1e-6) / fps;\nexport function poolLimits(videosAtOnce: number, desktop: boolean): PoolLimits; // Q3\n\n// src/engine/frameSource.ts (Mediabunny)\nexport const mediabunnySource: FrameSourceFactory;\nexport function openFrames(): { decoders: number; frames: number; bytes: number }; // every pool, for self-tests\n\n// src/engine/video.ts\nexport interface VLimits { /* … */ videosAtOnce: number }   // AC-15, set from the measurements (Q2)\n```"
+        "markdown": "```ts\n// src/engine/decodePool.ts (pure: no Mediabunny, no DOM beyond the frame type)\nexport interface PoolFrame { image: CanvasImageSource; width: number; height: number; time: number; duration: number; close(): void }\nexport interface FrameSource {\n  /** Frames in order from the one showing at t: a restartable reader (no `at()`: T001 found Mediabunny's getSample opens a decoder per call). */\n  from(t: number): AsyncIterator<PoolFrame>;\n  close(): void;\n}\nexport type FrameSourceFactory = (file: Blob, opts: { maxWidth?: number }) => Promise<FrameSource>;\nexport interface PoolLimits { decoders: number; ahead: number; bytes: number }\nexport interface PoolStats { decoders: number; frames: number; bytes: number; holds: number }\nexport interface PoolClip { id: string; file: Blob; in: number; out: number; start: number; track: string }\n\nexport class DecodePool {\n  constructor(open: FrameSourceFactory, limits: PoolLimits, source?: { maxWidth?: number }); // maxWidth: export lanes (D5)\n  frame(clip: PoolClip, srcTime: number): Promise<PoolFrame | null>;     // exact; latest wins per lane\n  peek(clip: PoolClip, srcTime: number): PoolFrame | null;                // never waits; holds the last frame\n  prepare(clip: PoolClip): void;                                          // look-ahead: first frame ready\n  want(ids: Iterable<string>): void;                                      // the rest may close (LRU, budgets)\n  forget(id: string): void;\n  fallback(id: string): string | null;                                    // why a clip can't use the pool\n  stats(): PoolStats;\n  dispose(): void;\n}\n/** The clips a time needs: visible on every picture track, and each track's next clip within `ahead` seconds. */\nexport function lanePlan<C extends TimedClip>(p: Project<C>, t: number, ahead: number): { visible: C[]; next: C[] };\n/** A time on the project's frame grid, as the export encodes it (D3). */\nexport const frameTime = (t: number, fps: number) => Math.floor(t * fps + 1e-6) / fps;\nexport function poolLimits(videosAtOnce: number, desktop: boolean): PoolLimits; // Q3\n\n// src/engine/frameSource.ts (Mediabunny)\nexport const mediabunnySource: FrameSourceFactory;\nexport function openFrames(): { decoders: number; frames: number; bytes: number }; // every pool, for self-tests\n\n// src/engine/video.ts\nexport interface VLimits { /* … */ videosAtOnce: number }   // AC-15, set from the measurements (Q2)\n```"
       },
       {
         "kind": "markdown",
@@ -566,7 +570,7 @@
         "T010": {
           "text": "Failing tests (`src/engine/decodePool.test.ts`, new, a fake `FrameSource` with controllable delays and failures): `lanePlan` (visible clips at `t` on every picture track, the next clip within 2 s, gaps, a hidden track, Q10), `frameTime` (the export's grid, D3), `poolLimits` (Q3: decoders = limit + 2, 4 ahead, 256 MB / 1 GB); `frame()` exact; latest wins (a superseded result is closed, never returned); `peek` never waits, holds the last frame (never null after a first frame, never another clip's) and counts holds; random `want` / `prepare` / `peek` sequences never exceed decoders, frames or bytes; `forget` and `dispose` close everything; a source that fails puts its clip in fallback with the reason and leaves the others working.",
           "section": "Tests first: the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -581,12 +585,16 @@
           ],
           "test": "fails (module missing)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: 27 failing tests in src/engine/decodePool.test.ts on a fake FrameSource (module missing)"
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T011": {
           "text": "Implement `src/engine/decodePool.ts` (§1: lanes, `frame` / `peek` / `prepare` / `want` / `forget` / `fallback` / `stats` / `dispose`, LRU, generations, `lanePlan`, `frameTime`, `poolLimits`) until T010 passes. Break-test: let `peek` return null while a frame is pending, see the hold test fail, restore.",
           "section": "Tests first: the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -601,7 +609,11 @@
           ],
           "test": "T010",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: src/engine/decodePool.ts; 31 unit tests pass, npm run check green; break-test (peek returns null while pending) fails the 2 hold tests, restored"
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T012": {
           "text": "Failing self-test checks (`src/dev/poolChecks.ts`, new, run from `selftest.ts`) on the real decoder: AC-1 (3 overlapping clips, two from the same file, 30 times incl. each clip's first and last frame), AC-2 (the last 15 frames of one clip and the first 15 of the next at the same moments), AC-3 (50 random times, backwards and forwards across key frames); colours within ±8 of the source time; `openFrames()` back to 0 after `dispose`.",

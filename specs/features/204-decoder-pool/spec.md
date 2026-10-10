@@ -118,3 +118,4 @@ machine" is the one the measurements in `201` and `203` are recorded on; the pla
 - 2026-10-09 — Plan drafted (D1–D5 for the maintainer).
 - 2026-10-09 — Plan approved (D1–D5 as recommended, D-028).
 - 2026-10-09 — Tasks written (T001–T092); In Progress.
+- 2026-10-10 — Plan interface (T011): `PoolFrame.duration` (a frame covers [time, time + duration)); `FrameSource.at()` dropped, every read goes through the restartable `from(t)` reader (T001); `DecodePool` takes the source options (`maxWidth`, D5).

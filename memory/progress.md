@@ -11,6 +11,18 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-10 — 204 T010–T011: the pool
+
+**Done:** T010: 31 tests in `src/engine/decodePool.test.ts` on a fake `FrameSource` (delays, open / decode failures,
+counts of open sources, frames, bytes and readers): `lanePlan`, `frameTime`, `poolLimits`, exact frames on one
+in-order reader (restart for a jump back or ≥ 2 s), latest wins, `peek` holds, LRU decoders, byte budget, 400 random
+asks under the limits with true stats, `forget` / `dispose` incl. in-flight work, fallback. T011:
+`src/engine/decodePool.ts` (one worker per lane, byte reservations before each decode so the budget holds on arrival,
+lanes still opening never evicted). Plan interface changed (changelog): `PoolFrame.duration`, no `FrameSource.at()`.
+`npm run check` green.
+**Next:** T012 / T013: self-test checks on the real decoder, then `src/engine/frameSource.ts` (Mediabunny).
+**Blockers:** none
+
 ## 2026-10-10 — 203 / 204 approved; 204 planned, T001–T002
 
 **Done:** 202 merged to `main` (`ecb55df`, pushed). 203 / 204: all 24 proposed answers accepted (D-027), both
