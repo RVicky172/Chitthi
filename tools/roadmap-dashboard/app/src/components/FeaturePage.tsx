@@ -3,7 +3,7 @@ import { neededBy, waitingOn } from '../lib/roadmap';
 import { href, TABS, type Route, type Tab } from '../route';
 import type { FeatureData, ProjectData } from '../types';
 import { Board } from './Board';
-import { FeatureBadge, Md, Ring, StatusBadge } from './bits';
+import { FeatureBadge, Md, Ring, Segments, StatusBadge } from './bits';
 import { DocsTab, PlanTab, SpecTab } from './Documents';
 
 const TAB_LABELS: Record<Tab, string> = { board: 'Board', spec: 'Spec', plan: 'Plan', docs: 'Documents' };
@@ -68,6 +68,11 @@ export function FeaturePage({ project, route }: { project: ProjectData; route: E
           </div>
         )}
       </header>
+      {p && p.sections.length > 0 && (
+        <div className="feature-segments">
+          <Segments sections={p.sections} />
+        </div>
+      )}
 
       {!summary ? (
         <p className="empty card-like">{item ? 'No spec yet: this item has no feature folder.' : `Nothing called ${id} on the roadmap.`}</p>

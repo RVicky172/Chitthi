@@ -28,6 +28,7 @@ export function renderRoadmap(r) {
   for (const [, phase] of entries(r.phases)) {
     out.push(`## ${phase.title}`, '');
     if (phase.goal) out.push(`_Goal:_ ${phase.goal}`, '');
+    if (phase.release) out.push(`_Release:_ ${phase.release}`, '');
     if (phase.intro) out.push(phase.intro, '');
     const items = phase.items.map((id) => [id, r.items.byId[id]]).filter(([, item]) => item);
     if (items.length) {

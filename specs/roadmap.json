@@ -2,7 +2,7 @@
   "$schema": "./schema/roadmap.schema.json",
   "schema": 1,
   "title": "Chitthi Studio — Roadmap",
-  "updated": "2026-10-09",
+  "updated": "2026-10-10",
   "lead": "Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.",
   "intro": "The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work\nitems (files, tests, notes and measurements for Phases 0–1) are in\n[vision/editor-implementation.md](vision/editor-implementation.md). From Phase 2 on, each work item is a feature\nfolder here and this file holds its status. Numbers follow the work-item IDs: **P2.1 → 201**, **P3.4 → 304**.",
   "currentPhase": "phase-2",
@@ -72,6 +72,7 @@
         "title": "Phase 2 — Multi-track timeline (release 3.0.0)",
         "goal": "a real timeline with tracks, edit tools, keyframes, transitions, speed and audio.",
         "exit": "a 4K multi-track timeline (3 video and 2 audio tracks, transitions) plays smoothly on desktop;\nevery 2.x project opens unchanged.",
+        "release": "3.0.0",
         "intro": null,
         "items": [
           "201",
@@ -92,6 +93,7 @@
         "title": "Phase 3 — Colour and finishing (release 3.1.0)",
         "goal": "a colour page with scopes, captions, retouching, and professional outputs on desktop.",
         "exit": "none set yet (the editor roadmap marks it the last phase); the first Phase 3 spec proposes a\nmeasurable one.",
+        "release": "3.1.0",
         "intro": null,
         "items": [
           "301",
@@ -112,7 +114,8 @@
         "intro": "Print studio, site and anything outside the editor phases take the next free number from 401.",
         "items": [
           "401",
-          "404"
+          "404",
+          "405"
         ]
       }
     }
@@ -338,6 +341,16 @@
         "note": "",
         "folder": "features/404-roadmap-dashboard",
         "needs": []
+      },
+      "405": {
+        "title": "Roadmap dashboard revamp: a scrollable road, motion and live task progress",
+        "workItem": null,
+        "status": "done",
+        "note": "",
+        "folder": "features/405-roadmap-revamp",
+        "needs": [
+          "404"
+        ]
       },
       "000": {
         "title": "Baseline: print studio, photo & video studio, desktop app, MCP, AI, GPU render graph (editor P0.1–P0.9), advanced photo editor (P1.1–P1.12)",

@@ -6,7 +6,7 @@
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
-- **`main` (2026-10-09):** has 201, 401, 404 and 202 (`ecb55df`); releasable. The software
+- **`main` (2026-10-10):** has 201, 401, 404, 202 and 405 (`e27d04a`, not pushed yet); releasable. The software
   factory (402, 403) was removed on 2026-10-09 (D-024): plain spec-driven workflow, `/spec-*` commands run inline.
 - **Phase:** Editor Phase 2 (multi-track timeline): 201 and 202 done (on `main`); 204 then 203 next. Spec-driven development since 2026-10-06 (D-001).
 - **Features:** `000-baseline` ✔️. `001-phase1-gate-release` 🚧: released (T040–T043); open: post-release checks on
@@ -25,6 +25,7 @@
   measurements.
 - **204:** `204-decoder-pool` 🚧: plan approved (D1–D5, D-028), tasks T001–T092; built on `feat/204-decoder-pool`
   (from `spec/203-204`). T001 spike, T002 fixtures, T010–T013 the pool (`engine/decodePool.ts`) and its Mediabunny source (`engine/frameSource.ts`), the export on the pool (T020–T022, as fast as `main`) done 2026-10-10; D5: the export keeps resized canvases.
+- **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
 - **Next (roadmap):** 204 T030 / T031 (the preview on the pool); 203's plan after 204's measurements
   (T050 / T051).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;

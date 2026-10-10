@@ -25,6 +25,34 @@ describe('createProject', () => {
     expect(data.now.state.title).toBe('Current State (2026-01-03)');
   });
 
+  it('gives each feature what the road needs: sections, running, blocked and finished tasks, statuses (405)', () => {
+    const data = createProject(syncedMini()).project();
+    expect(data.schema).toBe(3);
+    expect(data.features['102'].progress).toMatchObject({
+      sections: [
+        { title: 'Core', done: 1, total: 2 },
+        { title: 'Verify', done: 0, total: 2 },
+      ],
+      running: [{ id: 'T002', text: 'Beta.', section: 'Core', startedOn: '2026-01-03' }],
+      blocked: [{ id: 'T003', text: 'Docs, checked by hand.', reason: 'Waits for the maintainer.' }],
+      finished: [{ id: 'T001', text: 'Tests for beta.', doneOn: '2026-01-03' }],
+      statuses: { T001: 'done', T002: 'in-progress', T003: 'blocked', T004: 'todo' },
+      upNext: { id: 'T004', text: 'Release.' },
+    });
+  });
+
+  it('leaves done tasks without a date out of finished', () => {
+    const dir = syncedMini();
+    editJson(join(dir, 'specs/features/102-beta/feature.json'), (f) => {
+      f.tasks.items.byId.T004.status = 'done';
+      f.tasks.items.byId.T004.doneOn = null;
+    });
+    const p = createProject(dir).project().features['102'].progress;
+    expect(p.finished.map((t) => t.id)).toEqual(['T001']);
+    expect(p.statuses.T004).toBe('done');
+    expect(p.sections[1]).toEqual({ title: 'Verify', done: 1, total: 2 });
+  });
+
   it('gives a feature with its coverage and generated documents', () => {
     const f = createProject(syncedMini()).feature('102');
     expect(f.feature.tasks.items.order).toEqual(['T001', 'T002', 'T003', 'T004']);

@@ -56,7 +56,7 @@ describe('the server', () => {
 
   it('answers the read API', async () => {
     const v = await (await fetch(`${base}/api/version`)).json();
-    expect(v).toMatchObject({ schema: 2, version: expect.stringMatching(/^[0-9a-f]{40}$/) });
+    expect(v).toMatchObject({ schema: 3, version: expect.stringMatching(/^[0-9a-f]{40}$/) });
     const p = await (await fetch(`${base}/api/project`)).json();
     expect(Object.keys(p.roadmap.items.byId)).toEqual(['101', '102', '103']);
     const f = await (await fetch(`${base}/api/features/102`)).json();

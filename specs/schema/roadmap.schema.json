@@ -212,6 +212,13 @@
           ],
           "description": "Exit criteria (Markdown)."
         },
+        "release": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The release the phase ends with (e.g. 3.0.0): a milestone on the dashboard road."
+        },
         "intro": {
           "type": [
             "string",

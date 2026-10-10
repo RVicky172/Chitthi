@@ -29,6 +29,7 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "measure:gate": "playwright test --config playwright.measure.config.ts",
+    "test:roadmap": "playwright test --config playwright.roadmap.config.ts",
     "mcp": "node scripts/mcp-dev.mjs",
     "test:mcp": "node scripts/mcp-smoke.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",

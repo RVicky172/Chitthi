@@ -11,6 +11,27 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-10 — 405 Implemented: the roadmap as a road (merged into main)
+
+**Done:** on `feat/405-roadmap-revamp` (from `spec/405-roadmap-revamp`, from `main`). Spec, plan (D1–D4, D-029) and
+tasks approved and committed (`54b86c6`). T001 spike: an SVG road over 26 measured stops scrolls at 16.7 ms a frame,
+also with the CPU slowed 4x; anchors near each column's edge and Catmull-Rom tangents. Data: `progress()` gains
+sections, running, blocked, finished, statuses and upNext; API 3; optional phase `release` (3.0.0, 3.1.0). Logic
+test-first: road, pace, changes, geometry (+49 unit tests). UI: the road with phase regions and stops, the hero on the
+dark stage, the route rail / bottom bar, Back to now and `?at=`, Pace, filters by dimming (D4), live changes announced
+once, reduced-motion twins, feature-page segments and gliding cards. Q9 revised (one scroll listener, not CSS scroll
+timelines). Browser checks `npm run test:roadmap` 17 / 17 (twice): they caught a 404-era bug (a pasted filter URL in an
+open tab was ignored) and WCAG 2.2 target size on the rail. Gates: check 1,131, build entry 327 KB, licences ok.
+Maintainer's first look (T050): "looks good but theme is not looking good … the green color is too much for the items".
+Theme reworked (no paid /scroll-world clips; its map-like art direction borrowed in CSS): the road as a road (kerbs,
+bed, dashed centre line, travelled part in airmail navy), a dotted map panel, phase headers with the airmail edge,
+done stops in calm graphite, in progress in navy, drawn status dots instead of the roadmap's emoji (the tick rendered
+purple), navy pace bars and segments with today in red; green stays only on the board's Done column. test:roadmap
+17 / 17 (axe contrast included).
+Second look: "perfect as of now". T050, AC-9 and T092 done; 405 Implemented, roadmap ✔️, merged into `main`.
+**Next:** 204 T030 (the preview on the pool) on `feat/204-decoder-pool`.
+**Blockers:** none.
+
 ## 2026-10-10 — 204 T010–T022: the pool, its Mediabunny source, the export on it
 
 **Done:** T010: 31 tests in `src/engine/decodePool.test.ts` on a fake `FrameSource` (delays, open / decode failures,

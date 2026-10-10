@@ -87,6 +87,8 @@ export interface Phase {
   title: string;
   goal?: string | null;
   exit?: string | null;
+  /** The release the phase ends with: a milestone on the road. */
+  release?: string | null;
   intro?: string | null;
   items: string[];
 }
@@ -116,6 +118,16 @@ export interface Progress {
   tasks: { done: number; total: number; byStatus: Record<TaskStatus, number> };
   openQuestions: number;
   next: { id: string; text: string; status: TaskStatus } | null;
+  /** Task sections in order, with their counts (405). */
+  sections: { title: string; done: number; total: number }[];
+  running: { id: string; text: string; section: string; startedOn: string | null }[];
+  blocked: { id: string; text: string; reason: string | null }[];
+  /** Done tasks with a date. */
+  finished: { id: string; text: string; doneOn: string }[];
+  /** Task id → status, for spotting changes between two loads. */
+  statuses: Record<string, TaskStatus>;
+  /** The first task still to do (the hero's "Next"). */
+  upNext: { id: string; text: string } | null;
 }
 export interface FeatureSummary {
   id: string;
@@ -150,4 +162,4 @@ export interface FeatureData {
 }
 
 /** The API's shape version; bumped with lib/project.mjs API_SCHEMA. */
-export const API_SCHEMA = 2;
+export const API_SCHEMA = 3;

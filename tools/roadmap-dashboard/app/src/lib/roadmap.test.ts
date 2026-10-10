@@ -77,6 +77,12 @@ describe('roadmap', () => {
           tasks: { done: 3, total: 10, byStatus: { todo: 5, 'in-progress': 1, blocked: 1, done: 3 } },
           openQuestions: 2,
           next: null,
+          sections: [],
+          running: [],
+          blocked: [],
+          finished: [],
+          statuses: {},
+          upNext: null,
         },
       },
     };

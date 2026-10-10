@@ -10,11 +10,12 @@ export function App() {
   const route = useRoute();
   const key = route.view === 'feature' ? `f-${route.id}` : 'roadmap';
 
-  // A new page: start at the top with focus on its heading, so screen readers announce it.
+  // A new page: start at the top with focus on its heading, so screen readers announce it. The roadmap places itself
+  // (at the current stop, or ?at=: 405).
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (route.view !== 'roadmap') window.scrollTo(0, 0);
     document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
-  }, [key]);
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- once per page, not per route object
 
   let body;
   if (live.error && !live.data) body = <Notice title="Couldn’t load the roadmap">{live.error}</Notice>;

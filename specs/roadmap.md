@@ -5,7 +5,7 @@
 > Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.
 > Status legend: ⬜ Not started · 📝 Spec drafted · ✅ Spec approved · 🚧 In progress · ✔️ Done
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-10
 
 The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work
 items (files, tests, notes and measurements for Phases 0–1) are in
@@ -30,6 +30,8 @@ _Goal:_ record the app as it stands (2.8.0 plus the unreleased editor Phases 0�
 
 _Goal:_ a real timeline with tracks, edit tools, keyframes, transitions, speed and audio.
 
+_Release:_ 3.0.0
+
 | #   | Feature | Spec | Status | Needs |
 | --- | ------- | ---- | ------ | ----- |
 | 201 | Track model and migration (P2.1) | [spec](features/201-track-model/spec.md) | ✔️ | — |
@@ -51,6 +53,8 @@ every 2.x project opens unchanged.
 ## Phase 3 — Colour and finishing (release 3.1.0)
 
 _Goal:_ a colour page with scopes, captions, retouching, and professional outputs on desktop.
+
+_Release:_ 3.1.0
 
 | #   | Feature | Spec | Status | Needs |
 | --- | ------- | ---- | ------ | ----- |
@@ -75,6 +79,7 @@ Print studio, site and anything outside the editor phases take the next free num
 | --- | ------- | ---- | ------ | ----- |
 | 401 | AI models on this device: see and delete downloaded models | [spec](features/401-ai-models-on-device/spec.md) | ✔️ | — |
 | 404 | Roadmap data (JSON) and a roadmap dashboard on localhost | [spec](features/404-roadmap-dashboard/spec.md) | ✔️ | — |
+| 405 | Roadmap dashboard revamp: a scrollable road, motion and live task progress | [spec](features/405-roadmap-revamp/spec.md) | ✔️ | 404 |
 
 ## Backlog (unscheduled ideas)
 

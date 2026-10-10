@@ -74,3 +74,23 @@ export function Md({ text, featureId, inline }: { text: string | null | undefine
   if (inline) return <span className="md-inline" dangerouslySetInnerHTML={{ __html: renderInline(text ?? '', { featureId }) }} />;
   return <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(text, { featureId }) }} />;
 }
+
+/** A feature's task sections as segments, each with its done / total (the hero, the feature page header). */
+export function Segments({ sections, onStage }: { sections: { title: string; done: number; total: number }[]; onStage?: boolean }) {
+  if (!sections.length) return null;
+  return (
+    <ol className={`segments${onStage ? ' on-stage' : ''}`} aria-label="Task sections">
+      {sections.map((s) => (
+        <li key={s.title} className={s.done === s.total ? 'is-full' : s.done ? 'is-part' : ''}>
+          <span className="seg-bar" aria-hidden="true">
+            <span className="seg-fill" style={{ transform: `scaleX(${s.total ? s.done / s.total : 0})` }} />
+          </span>
+          <span className="seg-title">{s.title}</span>
+          <span className="num seg-count">
+            {s.done}/{s.total}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
