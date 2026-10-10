@@ -297,3 +297,177 @@ export async function playbackTiming(check: Check): Promise<string[]> {
   }
   return notes;
 }
+
+/** p, or a failure naming `what` after `ms`: a decode that never lands fails the check instead of stalling the run. */
+function within<T>(p: Promise<T>, what: string, ms = 5000): Promise<T> {
+  let timer = 0;
+  return Promise.race([
+    p.finally(() => clearTimeout(timer)),
+    new Promise<never>((_, reject) => {
+      timer = window.setTimeout(() => reject(new Error(`no answer in ${ms / 1000} s: ${what}`)), ms);
+    }),
+  ]);
+}
+
+/** Yields one task (a MessageChannel message, not a timer: no 4 ms clamp) so decoder output can land. */
+const yieldTask = (() => {
+  let ch: MessageChannel | null = null;
+  return () =>
+    new Promise<void>((r) => {
+      ch ??= new MessageChannel();
+      ch.port1.onmessage = () => r();
+      ch.port2.postMessage(0);
+    });
+})();
+
+/** Q2's bar for one count of simultaneous 1080p30 videos. */
+const meetsBar = (med: number, p95: number) => med <= 33 && p95 <= 50;
+
+/**
+ * AC-15 (T050), on demand (CHITTHI_TEST_ONLY=pooltiming): the decoder pool with 1, 2, 3, 4 and 6 simultaneous 1080p30
+ * clips (and 2 and 3 4K30 clips in the desktop app), measured through the pool directly (several visible videos at once
+ * is 203's compositing). Per count, 300 steps of 1/30 s run back to back (decode throughput, not real time): at each
+ * step every clip is asked with `peek`, as the playing preview does, until each has the frame covering the step's time;
+ * the step's time and the frames held are recorded. The bar (median ≤ 33 ms, p95 ≤ 50 ms) is reported, not failed on:
+ * T051 sets the limits from it by Q2's rule.
+ */
+export async function poolTiming(check: Check): Promise<string[]> {
+  const notes: string[] = [];
+  const { isDesktop } = await import('../platform/desktop');
+  const { DecodePool, poolLimits } = await import('../engine/decodePool');
+  const { mediabunnySource, openFrames } = await import('../engine/frameSource');
+  type PoolClip = import('../engine/decodePool').PoolClip;
+  type PoolFrame = import('../engine/decodePool').PoolFrame;
+  const STEPS = 300,
+    DUR = 10,
+    STEP_MS = 5000;
+  const covers = (f: PoolFrame | null, t: number) => !!f && f.time <= t + 1e-4 && t + 1e-4 < f.time + f.duration;
+
+  // Distinct textured sources (decoding costs like real footage), made once and shared by every count.
+  const t0 = performance.now();
+  const hd: Blob[] = [];
+  for (let i = 0; i < 6; i++) {
+    const b = await makeTestClip(DUR, 1920, 1080, 2, true);
+    if (!b) return ['pool timing AC-15: skipped (no H.264 encoder)'];
+    hd.push(b);
+  }
+  const uhd: Blob[] = [];
+  if (isDesktop)
+    for (let i = 0; i < 3; i++) {
+      const b = await makeTestClip(DUR, 3840, 2160, 2, true);
+      if (!b) break;
+      uhd.push(b);
+    }
+  notes.push(
+    `pool timing AC-15: fixtures (6 × 1080p${isDesktop ? `, ${uhd.length} × 4K` : ''}, ${DUR} s, textured) made in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+  );
+
+  type Run = {
+    label: string;
+    n: number;
+    med: number;
+    p95: number;
+    max: number;
+    frames: number;
+    limit: number;
+    ok: boolean;
+    err?: string;
+    drained: boolean;
+  };
+  const measure = async (label: string, files: Blob[]): Promise<Run> => {
+    const n = files.length;
+    const limits = poolLimits(n, isDesktop);
+    const limit = n * (limits.ahead + 1);
+    const pool = new DecodePool(mediabunnySource, limits);
+    const clips: PoolClip[] = files.map((file, i) => ({
+      id: `${label}-${i}`,
+      file,
+      in: 0,
+      out: DUR,
+      start: 0,
+      track: `v${i}`,
+    }));
+    const times: number[] = [];
+    let frames = 0,
+      bytes = 0,
+      err: string | undefined;
+    try {
+      pool.want(clips.map((c) => c.id));
+      // Warm up: every clip open on its first frame, then playing from 0 with its look-ahead filled.
+      await within(Promise.all(clips.map((c) => pool.frame(c, 0))), `${label}: first frames`, 10000);
+      for (const c of clips) pool.peek(c, 0);
+      await sleep(300);
+      for (let k = 0; k < STEPS; k++) {
+        const t = k / FPS;
+        const s0 = performance.now();
+        const waiting = new Set(clips);
+        for (;;) {
+          for (const c of [...waiting]) if (covers(pool.peek(c, t), t)) waiting.delete(c);
+          if (!waiting.size) break;
+          for (const c of waiting) {
+            const why = pool.fallback(c.id);
+            if (why) throw new Error(`${c.id} can't be decoded: ${why}`);
+          }
+          if (performance.now() - s0 > STEP_MS)
+            throw new Error(`step ${k} (${t.toFixed(3)} s) not ready in ${STEP_MS / 1000} s`);
+          await yieldTask();
+        }
+        times.push(performance.now() - s0);
+        const s = pool.stats();
+        frames = Math.max(frames, s.frames);
+        bytes = Math.max(bytes, s.bytes);
+      }
+    } catch (e) {
+      err = e instanceof Error ? e.message : String(e);
+    } finally {
+      pool.dispose();
+    }
+    // Readers stop asynchronously: every frame and decoder back within 1 s.
+    const end = performance.now() + 1000;
+    while ((openFrames().frames || openFrames().decoders) && performance.now() < end) await sleep(20);
+    const drained = !openFrames().frames && !openFrames().decoders;
+    const med = median(times),
+      p95 = pct(times, 0.95);
+    const run: Run = {
+      label,
+      n,
+      med,
+      p95,
+      max: times.length ? Math.max(...times) : NaN,
+      frames,
+      limit,
+      ok: !err && times.length === STEPS && frames <= limit && bytes <= limits.bytes && drained,
+      err,
+      drained,
+    };
+    notes.push(
+      `pool timing AC-15 ${label}: median ${med.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${run.max.toFixed(1)} ms over ${times.length} steps; frames held max ${frames} (≤ ${limit}), ${(bytes / 2 ** 20).toFixed(0)} MB (≤ ${(limits.bytes / 2 ** 20).toFixed(0)}); bar (≤ 33 / 50 ms) ${meetsBar(med, p95) ? 'met' : 'missed'}${err ? `; ERROR ${err}` : ''}${drained ? '' : `; not drained ${JSON.stringify(openFrames())}`}`,
+    );
+    return run;
+  };
+
+  const runs: Run[] = [];
+  for (const n of [1, 2, 3, 4, 6]) runs.push(await measure(`${n} × 1080p30`, hd.slice(0, n)));
+  if (uhd.length >= 2)
+    for (const n of [2, 3]) if (uhd.length >= n) runs.push(await measure(`${n} × 4K30`, uhd.slice(0, n)));
+  if (isDesktop && uhd.length < 3)
+    notes.push(
+      `pool timing AC-15: 4K30 ${uhd.length ? `only ${uhd.length} source(s)` : 'skipped (no 4K H.264 encoder)'}`,
+    );
+
+  // Q2's rule (applied by T051, not here): the largest 1080p count meeting the bar, minus one; web ≤ 3, desktop ≤ 6, ≥ 2.
+  const passing = runs.filter((r) => r.label.endsWith('1080p30') && r.ok && meetsBar(r.med, r.p95)).map((r) => r.n);
+  const raw = (passing.length ? Math.max(...passing) : 0) - 1;
+  const clamp = (cap: number) => Math.max(2, Math.min(cap, raw));
+  notes.push(
+    `pool timing AC-15 Q2 proposal (${isDesktop ? 'desktop app' : 'Electron self-test, web numbers'}): largest 1080p count meeting the bar ${passing.length ? Math.max(...passing) : 'none'}, minus one = ${raw}; web limit ${clamp(3)}, desktop limit ${clamp(6)}${raw < 2 ? ' (below 2: 203 plan reconsidered, Q2)' : ''}`,
+  );
+  check(
+    runs.length >= 5 && runs.every((r) => r.ok),
+    `pool timing: ${STEPS} steps measured for ${runs.map((r) => r.label).join(', ')} with frames held within the limits and everything released after (AC-15)${runs
+      .filter((r) => !r.ok)
+      .map((r) => `; ${r.label} failed: ${r.err ?? `${r.frames} frames (≤ ${r.limit}), drained ${r.drained}`}`)
+      .join('')}`,
+  );
+  return notes;
+}
