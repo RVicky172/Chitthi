@@ -155,15 +155,23 @@ const lazyMediabunny: FrameSourceFactory = async (file, opts) => (await import('
  */
 export function stageSource(onFrame: () => void = () => undefined) {
   const elements = videoElementSource(onFrame);
-  const pool = typeof VideoDecoder === 'undefined' ? null : new DecodePool(lazyMediabunny, poolLimits(1, isDesktop));
+  const limits = poolLimits(1, isDesktop);
+  const pool = typeof VideoDecoder === 'undefined' ? null : new DecodePool(lazyMediabunny, limits);
   const source: PreviewSource = pool ? poolSource(pool, elements) : elements;
-  return {
+  const stage = {
     source,
     pool,
+    limits,
     element: elements.element,
     dispose() {
+      liveStages.delete(stage);
       pool?.dispose();
       elements.dispose();
     },
   };
+  liveStages.add(stage);
+  return stage;
 }
+
+/** The stage sources alive now (the editor's), so self-tests can read their pool's stats (holds, decoders). */
+export const liveStages = new Set<ReturnType<typeof stageSource>>();

@@ -777,7 +777,7 @@
         "T032": {
           "text": "Self-test checks on the preview path, then fixes until they pass: AC-5 (20 × 2 s 1080p video clips played in real time, 3 runs: all 19 cuts draw the new clip's first frame on the cut's frame; no black, no hold over 1 frame; holds reported), AC-7 (50 random seeks on 1080p with 2 s key frames: exact frame, median ≤ 100 ms, p95 ≤ 250 ms; the last asked is the one shown), AC-12 (60-clip 1080p project played twice and scrubbed 100 times, sampled every step: within Q3; leaving the editor and removing a clip release within 1 s), AC-13 (paused 2 s: no decode, frames ≤ visible clips).",
           "section": "Preview on the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -794,7 +794,11 @@
           ],
           "test": "`npm test`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: src/dev/playbackChecks.ts on the real editor (VideoWorkspace mounted in StrictMode, frame-coded 1080p clips, fade-out off). In npm test: AC-13 (paused 2 s, and after playing: 0 frames decoded, 1 held), AC-12 release (removing the clip frees frames and decoder within 1 s; leaving the editor frees everything and the stage source within 1 s). On demand, CHITTHI_TEST_ONLY=pooltiming npm test (a shown window: Chromium runs rAF ~1/s in npm test's hidden one; ~3.3 min): AC-5 20 × 2 s 1080p, 3 runs: 19/19 cuts on the cut's frame each run, 0 black, 0 frames over 1 behind, 0 holds (~2,700 frames sampled a run); AC-7 50 random seeks on 10 s 1080p with 2 s key frames: median 61 ms, p95 84 ms, max 103 ms, the last of 5 fast seeks shown; AC-12 60 × 0.5 s 1080p played twice + 100 scrubs: max 3 decoders (limit 3), 8 frames, 63 MB (limit 256). No pool fix needed. Test fixes on the way: codeColour repeats every 180 frames (compare modulo), the vlog fade-out dimmed the last 0.5 s, the AC-13 'after playing' step now drives peek like playback ticks (break-test: frame() keeping play mode → 5 frames held, fails). liveStages registry in previewFrame.ts for the stats. npm test 6,149 / 0 (183 s)."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T033": {
           "text": "Failing self-test check AC-8 (D4): the sync clip played 30 s in the editor; the clip's `<audio>` element's `captureStream()` into an analyser gives each beep's onset, the stage gives each flash's drawn frame; every pair within 67 ms.",

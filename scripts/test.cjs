@@ -8,7 +8,10 @@ const URL = process.env.CHITTHI_TEST_URL;
 
 app.whenReady().then(async () => {
   app.on('window-all-closed', () => undefined);
-  const win = new BrowserWindow({ show: false, width: 1200, height: 900, webPreferences: { backgroundThrottling: false } });
+  // Real-time playback measurements (CHITTHI_TEST_ONLY=pooltiming) need a shown window: Chromium throttles
+  // requestAnimationFrame in a hidden one to about once a second, whatever backgroundThrottling says.
+  const show = process.env.CHITTHI_TEST_ONLY === 'pooltiming';
+  const win = new BrowserWindow({ show, width: 1200, height: 900, webPreferences: { backgroundThrottling: false } });
   const errors = [];
   win.webContents.on('console-message', (e) => {
     if (e.level === 'error' && !String(e.message).includes('Electron Security Warning')) errors.push(e.message);
