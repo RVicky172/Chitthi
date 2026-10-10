@@ -711,7 +711,7 @@
         "T022": {
           "text": "Export timing (AC-10): 201's 60-clip fixture within 5 % of `main`'s fastest of 3, timed back to back in one session (as 202 T041); a 30 × 4 s 1080p video-clip project no slower than `main`. Record the numbers.",
           "section": "Export on the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -723,7 +723,11 @@
           ],
           "test": "`npm test` timing lines, A/B against `main`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: A/B back to back, one session, main (worktree at ecb55df + the same src/dev/exportTiming.ts) vs branch, alternating twice, fastest of 3: 201's 60-clip export main 2.64 / 2.69 s, branch 2.60 / 2.62 s (within 5 %, ~2 % faster); 30 × 4 s 1080p textured video clips main 13.45 / 13.47 s, branch 13.16 / 13.60 s (level, no slower). Timing runs on demand: CHITTHI_TEST_ONLY=timing npm test (~54 s, kept out of the regular run for Q9's budget)"
+          ],
+          "doneOn": "2026-10-10",
+          "startedOn": "2026-10-10"
         },
         "T030": {
           "text": "Failing self-test check AC-4: the stage's drawing as a function (`drawPreview`, exported from the workspace) on 6-clip projects at 9:16 and 16:9, paused at 20 times: the clip's frame equals the export's frame for that time (decoded, ±8).",

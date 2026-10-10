@@ -28,8 +28,14 @@ async function run(): Promise<Result> {
   const r: Result = { passed: 0, failed: [], notes: [] };
   const check = (ok: unknown, what: string) => (ok ? r.passed++ : r.failed.push(what));
   // `CHITTHI_TEST_ONLY=pool npm test` (scripts/test.cjs adds ?only=pool): just the decoder pool's checks.
-  if (new URLSearchParams(location.search).get('only') === 'pool') {
+  const only = new URLSearchParams(location.search).get('only');
+  if (only === 'pool') {
     await poolSection(check, r);
+    return r;
+  }
+  // `CHITTHI_TEST_ONLY=timing npm test`: export timings for A/B runs (exportTiming.ts).
+  if (only === 'timing') {
+    r.notes.push(...(await (await import('./exportTiming')).exportTiming()));
     return r;
   }
   const photos = [0, 1, 2, 3].map((i) => samplePhoto(i, 300, 200));

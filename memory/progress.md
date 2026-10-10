@@ -11,7 +11,7 @@ Newest first. One entry per working session.
 
 ---
 
-## 2026-10-10 — 204 T010–T013: the pool and its Mediabunny source
+## 2026-10-10 — 204 T010–T022: the pool, its Mediabunny source, the export on it
 
 **Done:** T010: 31 tests in `src/engine/decodePool.test.ts` on a fake `FrameSource` (delays, open / decode failures,
 counts of open sources, frames, bytes and readers): `lanePlan`, `frameTime`, `poolLimits`, exact frames on one
@@ -24,7 +24,14 @@ T012 / T013: `src/dev/poolChecks.ts` (AC-1–AC-3 on the real decoder, exact fra
 after dispose; timeouts so a stuck decoder fails a check) and `src/engine/frameSource.ts` (Mediabunny). Pool checks
 4 / 4 in 0.9 s; `npm test` 6,131 / 0 (118 s). `CHITTHI_TEST_ONLY=pool npm test` runs only the pool checks. One full
 run hung past 10 min before the timeouts were added and didn't come back (cause unknown).
-**Next:** T020 / T021: the export on the pool (AC-9, AC-11 checks first).
+T020–T022: the export decodes through the pool (look-ahead one clip, resized frames per D5, dispose in `finally`);
+AC-9 (70 exported frames against a `renderFrame` oracle) and AC-11 (2-minute 1080p ×3, cancel, broken file: nothing
+left open) pass; a broken file now names itself (it gave Mediabunny's bare error). `npm test` 6,142 / 0 (176 s, +58 s:
+Q9 review at T091). A/B with `main` back to back: 60-clip 2.60 / 2.62 s vs 2.64 / 2.69 s; 30 × 4 s 1080p 13.16 /
+13.60 s vs 13.45 / 13.47 s. `CHITTHI_TEST_ONLY=timing npm test` runs the A/B timings. A secret-scanning alert on
+`734d1d11` (403's `keys.jsonl`, line 12) is a false positive: `AIzaFixtureNotARealKey…`, a fake key shape for 403's
+redaction tests, on no current branch.
+**Next:** T030 / T031: the preview on the pool (AC-4 check first).
 **Blockers:** none
 
 ## 2026-10-10 — 203 / 204 approved; 204 planned, T001–T002
