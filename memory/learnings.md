@@ -57,6 +57,15 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   node, so the same message set again isn't drawn, and a keyed child removed under it makes React lose the element.
   Blank the inner text node only, and give a repeatable message a changing `key` (202 T033, the toast).
 
+- An animated number on screen is read by screen readers at whatever value it shows: a count-up that hasn't run yet
+  (a stop not scrolled into view) announced "0 of 20". Make the moving number `aria-hidden` and put the real value in
+  screen-reader text (405 T034). Likewise, `aria-label` on a link replaces its whole content for screen readers: don't
+  put one on a card whose text carries the facts.
+- The dashboard read `?q=` / `?status=` only when the page mounted, so a link pasted into an open tab (only the hash
+  changes) did nothing. Sync from the URL during render by comparing with the last seen query, not in an effect
+  (405 T040). axe's WCAG 2.2 `target-size` flags 12 px dots used as links: give the link a 24 px box and draw the dot
+  inside with `::before` (405 T043).
+
 ## Formatting
 
 - Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier

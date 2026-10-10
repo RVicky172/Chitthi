@@ -73,49 +73,49 @@
           "text": "The roadmap page shows one continuous road through every phase of `roadmap.json` in its `order` (Baseline, Phase 2, Phase 3, Other features today), each roadmap item a stop on it in the phase's item order: every item (26 in today's roadmap), including the ones without a spec yet (⬜). Each stop shows its id, title and status as text, and for features with tasks their task progress (done / total).",
           "proof": "unit (road layout from a fixture roadmap); manual screenshot",
           "group": "The road",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "text": "The road is drawn in three states: **travelled** up to the current stop, **current** at the active feature (the \"you are here\" marker), **ahead** after it. Done, in progress, blocked, approved, drafted and not started stops each look different and carry the status as text, not only colour. The current stop is `currentPhase`'s first item in progress (as 404's AC-10), else the first item not done.",
           "proof": "unit (stop states for 6 fixture roadmaps: none started, mid-phase, blocked item, all done, `currentPhase` set, a phase with no items)",
           "group": "The road",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "text": "Each phase is a region of the road with its title, goal, exit criteria and progress (items done / total and tasks done / total); the region of the current phase is open, the others show a one-line summary that opens on demand.",
           "proof": "unit; manual",
           "group": "The road",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "text": "A route rail stays on screen while the road scrolls: one mark per phase and one per stop, the current position, and the part of the road in view; choosing a mark scrolls there (by keyboard too). At 360 px wide the rail folds into a compact bar.",
           "proof": "e2e (rail marks = phases + stops; activating one scrolls that stop into view)",
           "group": "The road",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "text": "The page opens scrolled to the current stop, with a \"Back to now\" control that returns there from anywhere on the road; a link to a stop (`#/?at=203`) opens at that stop.",
           "proof": "e2e",
           "group": "The road",
-          "done": false
+          "done": true
         },
         "AC-6": {
           "text": "The current stop is the hero: it shows the active feature's title, status, task progress as a ring, its sections as segments (each segment's done / total), the running task(s) (status in progress: id, text, section, started date), the next task to do, and its blocked tasks with their reasons. A feature with no task in progress says so and shows the next task instead.",
           "proof": "unit (hero model from fixtures: one running task, two running, none running, blocked tasks, all done); manual",
           "group": "Now: the work in progress",
-          "done": false
+          "done": true
         },
         "AC-7": {
           "text": "Blocked tasks anywhere on the roadmap appear as roadblocks on their stop (count and, on focus or hover, each reason); when any task is blocked they are also listed in one place near the hero, each linking to its board filtered to that task.",
           "proof": "unit; e2e (link opens the board with the task)",
           "group": "Now: the work in progress",
-          "done": false
+          "done": true
         },
         "AC-8": {
           "text": "Every stop with a spec links to its feature page (board tab) as today; items without a spec are not links.",
           "proof": "e2e",
           "group": "Now: the work in progress",
-          "done": false
+          "done": true
         },
         "AC-9": {
           "text": "Scrolling draws the road progressively (the travelled line follows the scroll position) and each stop's progress (bar or ring, counts) animates from 0 to its value the first time it comes into view; with the page standing still nothing animates except the \"you are here\" marker's slow pulse.",
@@ -127,49 +127,49 @@
           "text": "A change that arrives while the page is open (404's 2 s version poll) is shown where it happened: a task that became done, in progress or blocked highlights its stop and the hero for 2 s and is announced once to screen readers (\"204 T030 done\"); a feature that changed status moves its marker along the road. Nothing highlights on the first load.",
           "proof": "unit (diff of two project snapshots gives the list of changes); e2e (`npm run specs -- done` on a fixture copy: highlight within 3 s, live region text)",
           "group": "Motion and live changes",
-          "done": false
+          "done": true
         },
         "AC-11": {
           "text": "With `prefers-reduced-motion: reduce` the road is drawn complete, progress shows its final values, the marker doesn't pulse and live changes are shown by a static highlight and the announcement, with no movement.",
           "proof": "e2e (reduced-motion emulation: `document.getAnimations()` empty after scrolling the road)",
           "group": "Motion and live changes",
-          "done": false
+          "done": true
         },
         "AC-12": {
           "text": "Motion stays smooth: scrolling the whole road at 1280 × 800 on the development machine has no frame longer than 50 ms and a median frame under 17 ms; the page is interactive within 1 s of load with today's roadmap.",
           "proof": "scripted measurement in Chromium (performance trace), numbers recorded in tasks",
           "group": "Motion and live changes",
-          "done": false
+          "done": true
         },
         "AC-13": {
           "text": "An activity strip shows the tasks finished today (from `doneOn`: feature, task id, text, linking to the board) and the tasks finished per day over the last 14 days as a small bar chart with its numbers available as text; days with nothing finished show as zero.",
           "proof": "unit (per-day counts from fixture tasks, including days with none and tasks without dates)",
           "group": "Pace and activity",
-          "done": false
+          "done": true
         },
         "AC-14": {
           "text": "Each feature stop shows how long it has been moving: started date, days since started, and for done features the days it took (from `dates`); a feature in progress with no task finished in the last 7 days is marked \"quiet\".",
           "proof": "unit",
           "group": "Pace and activity",
-          "done": false
+          "done": true
         },
         "AC-15": {
           "text": "Everything the roadmap page shows today stays reachable: totals, search and status filter (kept in the URL), the check's problems, the Now panel from `memory/` and the backlog. Search and filters dim the stops that don't match and the rail shows the matches; existing URLs (`#/`, `#/?q=…&status=…`, `#/feature/NNN/<tab>`) open what they open today.",
           "proof": "e2e (each URL from 404's tests still opens its view)",
           "group": "Keeping what works",
-          "done": false
+          "done": true
         },
         "AC-16": {
           "text": "Accessibility: the road is decoration over a plain list in reading order (phases as headings, stops as list items with their facts as text); every control works by keyboard with visible focus; axe reports no serious or critical issue at 1280 and 360 px in light and dark; no sideways scroll at 360 px.",
           "proof": "scripted axe run at 1280 and 360 px, light and dark, recorded in tasks",
           "group": "Keeping what works",
-          "done": false
+          "done": true
         },
         "AC-17": {
           "text": "Still a local tool: nothing of it in `dist/`, the desktop app or the Docker image; no npm package added; fonts and colours from the dashboard's `theme.css` tokens only (the Chitthi look of 404's AC-9, marigold only on the dark stage); `npm run roadmap` ready in under 5 s as before.",
           "proof": "build; `package.json` diff; manual",
           "group": "Keeping what works",
-          "done": false
+          "done": true
         }
       }
     },
@@ -1073,7 +1073,7 @@
         "T045": {
           "text": "Still a local tool (AC-17): `npm run build` has nothing of `tools/` in `dist/`; `package.json` adds no dependency (only the `test:roadmap` script); no raw colour in `app.css` (a grep for `#`, `rgb(`, `oklch(` outside `theme.css`); `npm run roadmap` ready in under 5 s. Record the numbers.",
           "section": "Browser checks (at the end)",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -1085,15 +1085,17 @@
           ],
           "test": "build; grep; timing",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: npm run build: entry 327 KB (budget 350, unchanged), nothing of tools/ in dist (no roadmap-dashboard, buildRoad or RouteRail strings); package.json vs main adds only the test:roadmap script, no dependency; app.css has no raw colour from 405 (the one oklch() is 404's dialog backdrop); npm run roadmap ready in 263-283 ms (bar < 5 s)."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T050": {
           "text": "Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9).",
           "section": "Manual checks",
-          "status": "todo",
-          "blockedReason": null,
+          "status": "blocked",
+          "blockedReason": "Needs the maintainer: open npm run roadmap, judge the road, the hero, a CLI done lighting up and the motion (light / dark, desktop and phone widths), and make a short recording at 1280 px.",
           "parallel": false,
           "manual": true,
           "covers": [
@@ -1111,7 +1113,7 @@
         "T090": {
           "text": "Docs: `tools/roadmap-dashboard/README.md` (the road, hero, rail, activity, motion rules and reduced motion, API 3, `npm run test:roadmap`), `tools/specs-index/README.md` (the new `progress()` fields, phase `release`).",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1124,14 +1126,16 @@
           ],
           "test": "relative links resolve",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: tools/roadmap-dashboard/README.md: the road, hero, rail, Pace, filters by dimming, live changes; layout of the new lib/ and components/ files and e2e/; 'The road' (list + aria-hidden SVG through anchors, Catmull-Rom path, one scroll listener) and 'Motion' (what moves, compositor-only, still twins, aria-hidden counts) sections; API 3 summary fields; upgrading: motion rule and npm run test:roadmap. tools/specs-index/README.md: phase release, progress()'s new fields. Relative links resolve."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T091": {
           "text": "Every Definition-of-Done gate that applies is green (`check`, `build`, `test:roadmap`, `check:licenses`); the app's entry chunk unchanged; record the numbers.",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1139,9 +1143,11 @@
           "files": [],
           "test": "all gates",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: npm run check: typecheck, lint 0 errors (the 5 known react-hooks warnings), specs:check, 1,131 unit tests (1,082 on main: +49 for 405); npm run build: entry 327 KB, unchanged, nothing of tools/ in dist; npm run test:roadmap 17 / 17 (twice); check:licenses: 168 shipped packages allowed, no package added. Not run: test:e2e, npm test and test:mcp (405 changes only tools/, which none of them load; the app, its bundle and the desktop app are untouched)."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T092": {
           "text": "Tick ACs (Status `Implemented`), roadmap 405 ✔️, `memory/progress.md`, `memory/MEMORY.md`.",

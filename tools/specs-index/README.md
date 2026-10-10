@@ -8,7 +8,7 @@ updates the data of the spec-driven workflow. Node built-ins only, no dependenci
 | File | Holds | Shape |
 | --- | --- | --- |
 | `specs/features/NNN-name/feature.json` | everything about a feature: header (status, dates, branch), `spec`, `plan`, `tasks` | `specs/schema/feature.schema.json` (schema 2) |
-| `specs/roadmap.json` | phases, items (status, note, work item, folder, `needs`), statuses, backlog, `currentPhase` | `specs/schema/roadmap.schema.json` |
+| `specs/roadmap.json` | phases (goal, exit, optional `release`), items (status, note, work item, folder, `needs`), statuses, backlog, `currentPhase` | `specs/schema/roadmap.schema.json` |
 | `spec.md`, `plan.md`, `tasks.md`, `specs/roadmap.md` | **generated** from the JSON (a note on line one says so); never edited | — |
 
 Collections looked up by id are `{ "order": [ids], "byId": { id: entry } }`: lookup is O(1), an insert splices
@@ -58,7 +58,8 @@ lib/paths.mjs        where things are; every function takes the repo root
 lib/json.mjs         read, and atomic write (temp file + rename), two-space JSON with a final newline
 lib/schema.mjs       a JSON Schema subset validator (the keywords the schemas use, including oneOf)
 lib/store.mjs        loadIndex(root): roadmap + every feature, problems instead of exceptions; entries, coverage,
-                     dependents, progress (tasks per status, next task)
+                     dependents, progress (tasks per status, next task, upNext, sections, running, blocked,
+                     finished with doneOn, statuses: what the dashboard's road shows)
 lib/render/feature.mjs   renderSpec, renderPlan, renderTasks: JSON → Markdown, deterministic
 lib/render/roadmap.mjs   renderRoadmap
 lib/sync.mjs         expectedFiles (what every generated file should be) and syncRepo (writes them)

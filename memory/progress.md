@@ -11,6 +11,20 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-10 — 405 built: the roadmap as a road (T001–T091; T050 and T092 wait for the maintainer)
+
+**Done:** on `feat/405-roadmap-revamp` (from `spec/405-roadmap-revamp`, from `main`). Spec, plan (D1–D4, D-029) and
+tasks approved and committed (`54b86c6`). T001 spike: an SVG road over 26 measured stops scrolls at 16.7 ms a frame,
+also with the CPU slowed 4x; anchors near each column's edge and Catmull-Rom tangents. Data: `progress()` gains
+sections, running, blocked, finished, statuses and upNext; API 3; optional phase `release` (3.0.0, 3.1.0). Logic
+test-first: road, pace, changes, geometry (+49 unit tests). UI: the road with phase regions and stops, the hero on the
+dark stage, the route rail / bottom bar, Back to now and `?at=`, Pace, filters by dimming (D4), live changes announced
+once, reduced-motion twins, feature-page segments and gliding cards. Q9 revised (one scroll listener, not CSS scroll
+timelines). Browser checks `npm run test:roadmap` 17 / 17 (twice): they caught a 404-era bug (a pasted filter URL in an
+open tab was ignored) and WCAG 2.2 target size on the rail. Gates: check 1,131, build entry 327 KB, licences ok.
+**Next:** the maintainer's T050 look (then AC-9 and T092: Implemented, merge); then back to 204 T030.
+**Blockers:** T050 needs the maintainer.
+
 ## 2026-10-09 — 202 verified: Implemented ✔️
 
 **Done:** on `feat/202-edit-operations`: T090 docs (MEDIA-STUDIO, lld, CHANGELOG, in-app docs); T001 closed with
