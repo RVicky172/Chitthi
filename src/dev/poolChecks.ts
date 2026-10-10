@@ -3,7 +3,7 @@
  * clips are made in memory (videoChecks.ts makeTestClip: a flat colour per frame that tells its source time).
  */
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
-import { clipColour, decodedColours, makeTestClip, testPhoto } from './videoChecks';
+import { clipColour, codeColour, decodedColours, makeTestClip, testPhoto } from './videoChecks';
 import type { PoolClip, PoolFrame } from '../engine/decodePool';
 import type { ExportClip, ExportJob } from '../engine/videoExport';
 
@@ -194,6 +194,9 @@ export async function poolChecks(check: Check): Promise<string[]> {
   });
   await group(check, 'preview AC-4', async () => {
     notes.push(await pausedPreviewIsExport(check));
+  });
+  await group(check, 'the editor stage', async () => {
+    notes.push(await editorStageShowsVideo(check));
   });
   return notes;
 }
@@ -541,4 +544,88 @@ async function pausedPreviewIsExport(check: Check): Promise<string> {
     `pool: the paused preview shows the export's frame at 20 times, 9:16 and 16:9 (${compared - bad.length} of ${compared} match)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
   );
   return `pool: AC-4 compared ${compared} paused frames with the export`;
+}
+
+/**
+ * The real video editor, mounted in StrictMode on the dev server as `npm run dev` runs it (StrictMode runs effects
+ * twice): a video clip added with the store's own addMedia shows on the stage, paused at its exact frame and moving
+ * while playing. (204 T031: a source kept in useMemo was disposed by StrictMode's second run and the stage stayed black;
+ * only development showed it.)
+ */
+async function editorStageShowsVideo(check: Check): Promise<string> {
+  const React = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
+  const v = await import('../state/video');
+  const clip = await makeTestClip(2, 640, 360, 1, false, true);
+  if (!clip) return 'pool: stage check skipped (no H.264 encoder)';
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined }),
+    ),
+  );
+  const centre = () => {
+    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const x = c?.getContext('2d');
+    if (!c || !x || !c.width) return null;
+    const d = x.getImageData(Math.floor(c.width / 2) - 4, Math.floor(c.height / 2) - 4, 8, 8).data;
+    let r = 0,
+      g = 0,
+      b = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      r += d[i];
+      g += d[i + 1];
+      b += d[i + 2];
+    }
+    return [r / 64, g / 64, b / 64];
+  };
+  const near = (a: number[] | null, want: number[]) => !!a && want.every((w, k) => Math.abs(w - a[k]) <= 8);
+  const frameOf = (a: number[] | null) =>
+    a ? (Array.from({ length: 60 }, (_, i) => i).find((i) => near(a, codeColour(i))) ?? -1) : -1;
+  const waitFor = async (ok: () => boolean, ms: number) => {
+    const end = performance.now() + ms;
+    while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 50));
+    return ok();
+  };
+  let ids: string[] = [];
+  try {
+    await new Promise((r) => setTimeout(r, 300));
+    const before = new Set(v.getVideo().clips.map((c) => c.id));
+    await v.addMedia([{ name: 'coded.mp4', blob: clip, type: 'video/mp4' }]);
+    ids = v
+      .getVideo()
+      .clips.filter((c) => !before.has(c.id))
+      .map((c) => c.id);
+    const added = v.getVideo().clips.find((c) => ids.includes(c.id));
+    if (!added) throw new Error('the clip was not added');
+    const t = added.start + 0.5;
+    v.setPlayhead(t);
+    const want = codeColour(Math.floor((t - added.start + added.in) * FPS + 1e-6));
+    const paused = await waitFor(() => near(centre(), want), 5000);
+    const seen = centre();
+    check(
+      paused,
+      `pool: the editor (StrictMode) shows an added video clip's exact frame paused (centre ${seen?.map(Math.round).join('/')}, want ${want.join('/')})`,
+    );
+    v.setPlaying(true);
+    await new Promise((r) => setTimeout(r, 700));
+    const playing = frameOf(centre());
+    v.setPlaying(false);
+    check(
+      playing > 15,
+      `pool: the editor (StrictMode) shows the video moving while it plays (frame ${playing} after 0.7 s from frame 15)`,
+    );
+  } finally {
+    v.setPlaying(false);
+    for (const id of ids) v.removeClip(id);
+    root.unmount();
+    host.remove();
+  }
+  return 'pool: the editor stage (StrictMode) shows and plays an added clip';
 }

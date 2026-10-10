@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, lockedReason, videoAt } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
@@ -299,14 +299,26 @@ function VideoStage() {
   const audio = useRef<HTMLAudioElement | null>(null);
   const draw = useRef<(frame?: StageFrame<VClip>) => void>(() => undefined);
   // Pictures: the decoder pool (204), with <video> elements for clips it can't decode and for each clip's sound.
-  const stage = useMemo(() => stageSource(() => draw.current()), []);
-  useEffect(() => () => stage.dispose(), [stage]);
-  const videoFor = stage.element;
+  // Created on first use and again after a cleanup: StrictMode runs effects twice in development, and a source kept in
+  // useMemo would stay disposed (the stage drew nothing).
+  const stageRef = useRef<ReturnType<typeof stageSource> | null>(null);
+  const stage = useCallback(() => (stageRef.current ??= stageSource(() => draw.current())), []);
+  useEffect(
+    () => () => {
+      stageRef.current?.dispose();
+      stageRef.current = null;
+    },
+    [],
+  );
+  const videoFor = useCallback((c: VClip) => stage().element(c), [stage]);
   /** The frame drawn last (paused: the exact one once it landed); held while the next one decodes. */
   const last = useRef<StageFrame<VClip> | null>(null);
   /** Paused asks: only the newest one is drawn (latest wins). */
   const asked = useRef(0);
-  const usesPool = (c: VClip) => Boolean(stage.pool && !stage.pool.fallback(c.id));
+  const usesPool = (c: VClip) => {
+    const pool = stage().pool;
+    return Boolean(pool && !pool.fallback(c.id));
+  };
 
   /** A picture without waiting (playback): what the pool has ready, or the clip's <video> for a fallback clip. */
   const pictureNow = (shown: { clip: VClip; local: number } | null): Picture | null => {
@@ -314,7 +326,7 @@ function VideoStage() {
     const c = shown.clip;
     if (c.kind === 'photo') return c.still ? { image: c.still, w: c.still.width, h: c.still.height } : null;
     if (usesPool(c)) {
-      const f = stage.pool!.peek(poolClip(c), c.in + shown.local);
+      const f = stage().pool!.peek(poolClip(c), c.in + shown.local);
       return f ? { image: f.image, w: f.width, h: f.height } : null;
     }
     const v = videoFor(c);
@@ -368,10 +380,11 @@ function VideoStage() {
   /** The clips the pool keeps open at playhead t: those showing and the next to start within 2 s (Q10). */
   const lookAhead = useCallback(
     (t: number) => {
-      if (!stage.pool) return;
+      const pool = stage().pool;
+      if (!pool) return;
       const plan = lanePlan(projectOf(getVideo()), t, 2);
-      stage.pool.want([...plan.visible, ...plan.next].map((c) => c.id));
-      for (const c of plan.next) if (usesPool(c)) stage.pool.prepare(poolClip(c));
+      pool.want([...plan.visible, ...plan.next].map((c) => c.id));
+      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c));
     },
     // usesPool only reads stage
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -397,7 +410,8 @@ function VideoStage() {
             if (v.paused) void v.play().catch(() => undefined);
           } else {
             v.pause();
-            if (!stage.pool || stage.pool.fallback(c.id)) {
+            const pool = stage().pool;
+            if (!pool || pool.fallback(c.id)) {
               if (Math.abs(v.currentTime - want) > 0.02) v.currentTime = want;
             }
           }
@@ -411,7 +425,7 @@ function VideoStage() {
   const known = useRef(new Set<string>());
   useEffect(() => {
     const now = new Set(clips.map((c) => c.id));
-    for (const id of known.current) if (!now.has(id)) stage.pool?.forget(id);
+    for (const id of known.current) if (!now.has(id)) stage().pool?.forget(id);
     known.current = now;
   }, [clips, stage]);
 
@@ -422,7 +436,7 @@ function VideoStage() {
     draw.current();
     const s = getVideo();
     const n = ++asked.current;
-    void pausedFrame(projectOf(s), s.t, s.fps, stage.source)
+    void pausedFrame(projectOf(s), s.t, s.fps, stage().source)
       .then((frame) => {
         if (n === asked.current && !getVideo().playing) draw.current(frame);
       })

@@ -76,6 +76,13 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   (405 T040). axe's WCAG 2.2 `target-size` flags 12 px dots used as links: give the link a 24 px box and draw the dot
   inside with `::before` (405 T043).
 
+- Don't keep a resource that an effect disposes in `useMemo`: React StrictMode (on in `src/main.tsx`) runs every
+  effect, its cleanup, then the effect again in development, so the memoised object stays disposed. The video stage's
+  frame source did that and the stage drew nothing in `npm run dev` / `desktop:dev`, while production (e2e, export)
+  was fine. Create it lazily in a ref and set the ref back to null in the cleanup. Tests that call the module directly
+  or run the production build miss this; `poolChecks` now mounts the real `VideoWorkspace` in StrictMode on the dev
+  server (204 T031 fix, found by the maintainer with DJI HEVC clips).
+
 ## Formatting
 
 - Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier
