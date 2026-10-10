@@ -1,9 +1,10 @@
 // The kanban board: To do, In progress, Blocked, Done. Cards move by dragging or by the card's "Move to" menu
 // (keyboard and touch); blocking asks for a reason. A move shows at once and is then saved by the server, which
 // writes feature.json and regenerates tasks.md; a refused move is undone and the reason shown.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { moveTaskOnServer } from '../api';
 import { columns, COLUMNS, moveTask, today, type Card } from '../lib/board';
+import { useReducedMotion } from '../lib/motion';
 import { replaceParams } from '../route';
 import type { FeatureData, TaskStatus } from '../types';
 import { Md, TASK_LABELS } from './bits';
@@ -36,6 +37,28 @@ export function Board({ data, params, replace }: Props) {
     setQ(t);
     replaceParams({ section: s, criterion: c, q: t.trim() });
   };
+
+  // A card that changed column (drag, menu or a change from outside) glides from where it was (FLIP, 405 §8).
+  const boardRef = useRef<HTMLDivElement>(null);
+  const places = useRef(new Map<string, { x: number; y: number; status: string }>());
+  const reduced = useReducedMotion();
+  useLayoutEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    const next = new Map<string, { x: number; y: number; status: string }>();
+    for (const card of el.querySelectorAll<HTMLElement>('[data-task]')) {
+      const r = card.getBoundingClientRect();
+      const now = { x: r.left + scrollX, y: r.top + scrollY, status: card.dataset.status ?? '' };
+      next.set(card.dataset.task!, now);
+      const was = places.current.get(card.dataset.task!);
+      if (!reduced && was && was.status !== now.status)
+        card.animate([{ transform: `translate(${was.x - now.x}px, ${was.y - now.y}px)` }, { transform: 'none' }], {
+          duration: 450,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        });
+    }
+    places.current = next;
+  });
 
   const cols = columns(feature, { section, criterion, q });
   const statusOf = (id: string) => feature.tasks?.items.byId[id]?.status;
@@ -107,7 +130,7 @@ export function Board({ data, params, replace }: Props) {
         </p>
       )}
 
-      <div className="board">
+      <div className="board" ref={boardRef}>
         {COLUMNS.map((col) => (
           <section
             key={col.id}
@@ -204,6 +227,7 @@ function TaskCard({ card, featureId, dragging, onDragStart, onDragEnd, onMove }:
     <li
       className={`card status-${task.status}${dragging ? ' is-dragging' : ''}`}
       data-task={id}
+      data-status={task.status}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', id);
