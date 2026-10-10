@@ -52,7 +52,7 @@
     "desktop:release": "npm run build && electron-builder --publish always"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "electron-updater": "^6.8.9",
     "zod": "^4.6.5"
   },
