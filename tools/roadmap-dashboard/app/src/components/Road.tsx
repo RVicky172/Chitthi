@@ -5,6 +5,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import { splitAt, type Point } from '../lib/geometry';
 import { useCountUp, useRevealed, useScrollDraw } from '../lib/motion';
 import type { Region, Road as RoadData, Stop } from '../lib/road';
+import { waitingOn } from '../lib/roadmap';
 import { href } from '../route';
 import type { Roadmap } from '../types';
 import { Md, StatusBadge } from './bits';
@@ -70,7 +71,7 @@ export function Road({ road, roadmap, reduced, changed, matches, hero, extra }: 
         <path className="road-travelled" d={travelled} />
         <path className="road-drawn" ref={drawn} d={travelled} />
       </svg>
-      {marker && <span className="road-marker" aria-hidden="true" style={{ left: marker.x, top: marker.y }} />}
+      {marker && <span className="road-marker" aria-hidden="true" style={{ transform: `translate(${marker.x}px, ${marker.y}px)` }} />}
       {road.regions.map((region) => (
         <RegionView
           key={region.phase}
@@ -196,10 +197,12 @@ function StopView({
           <span className="stop-track" aria-hidden="true">
             <span className="stop-fill" style={{ transform: `scaleX(${pct / 100})` }} />
           </span>
-          <span className="num">
+          <span className="num" aria-hidden="true">
             {done}/{p.tasks.total}
           </span>
-          <span className="sr-only"> tasks done</span>
+          <span className="sr-only">
+            {p.tasks.done} of {p.tasks.total} tasks done
+          </span>
         </span>
       ) : (
         <span className="stop-note muted">{stop.feature?.error ?? (stop.link ? 'No tasks yet' : 'No spec yet')}</span>
@@ -215,6 +218,9 @@ function StopView({
             ))}
           </span>
         </span>
+      )}
+      {stop.kind !== 'done' && waitingOn(roadmap, stop.id).length > 0 && (
+        <span className="stop-wait">Waiting on {waitingOn(roadmap, stop.id).join(', ')}</span>
       )}
       {extra?.(stop)}
       {dimmed && <span className="sr-only"> (not matching the filter)</span>}

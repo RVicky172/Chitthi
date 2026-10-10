@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { matchItem } from '../lib/filter';
 import { useLiveChanges, useReducedMotion } from '../lib/motion';
 import { localToday } from '../lib/pace';
 import { buildRoad } from '../lib/road';
-import { totals, waitingOn } from '../lib/roadmap';
-import { href, replaceParams } from '../route';
-import type { FeatureSummary, ProjectData, Roadmap, RoadmapItem } from '../types';
-import { Bar, FeatureBadge, Md, StatusBadge } from './bits';
+import { totals } from '../lib/roadmap';
+import { replaceParams } from '../route';
+import type { ProjectData } from '../types';
+import { Md } from './bits';
+import { Activity, StopAge } from './Activity';
 import { Hero } from './Hero';
 import { Road } from './Road';
+import { goToStop, RouteRail } from './RouteRail';
 
 interface Props {
   project: ProjectData;
@@ -22,6 +24,19 @@ export function RoadmapPage({ project, params }: Props) {
   const reduced = useReducedMotion();
   const live = useLiveChanges(project);
   const road = useMemo(() => (r ? buildRoad(r, project.features) : null), [r, project.features]);
+  const today = localToday();
+  // Open at ?at= or at the current stop, once (later data refreshes keep the scroll: 404's AC-12).
+  const opened = useRef(false);
+  const at = params.get('at');
+  useEffect(() => {
+    if (!road) return;
+    const target = at ?? road.current?.id;
+    if (!opened.current) {
+      opened.current = true;
+      // Placed, not announced: focus stays on the page heading (App).
+      if (target) requestAnimationFrame(() => goToStop(target, true, false));
+    } else if (at) goToStop(at, reduced);
+  }, [road, at, reduced]);
   if (!r)
     return (
       <>
@@ -41,12 +56,17 @@ export function RoadmapPage({ project, params }: Props) {
   const t = totals(r, project.features);
   const filtering = Boolean(q.trim() || status);
   const matches = Object.entries(r.items.byId).filter(([id, item]) => matchItem({ id, ...item }, { q, status }));
+  // Filtering dims the stops that don't match (405 D4); the road and every stop stay in place.
+  const matchSet = filtering ? new Set(matches.map(([id]) => id)) : undefined;
 
   return (
     <div className="roadmap">
       <h1 className="sr-only" tabIndex={-1}>
         {r.title}
       </h1>
+      <p className="sr-only" role="status" aria-live="polite" key={live.key}>
+        {live.announce}
+      </p>
       <dl className="stats" aria-label="Totals">
         <Stat label="Items done" value={`${t.done}/${t.items}`} />
         <Stat label="In progress" value={t.inProgress} />
@@ -57,6 +77,8 @@ export function RoadmapPage({ project, params }: Props) {
       </dl>
 
       <Problems problems={project.problems} />
+
+      <Activity features={project.features} today={today} />
 
       <form className="filters" role="search" onSubmit={(e) => e.preventDefault()}>
         <label className="field search">
@@ -78,36 +100,24 @@ export function RoadmapPage({ project, params }: Props) {
         </p>
       </form>
 
-      {filtering ? (
-        <section aria-labelledby="results">
-          <h2 id="results" className="section-title">
-            Results
+      {filtering && !matches.length && <p className="empty">Nothing matches: every stop is dimmed.</p>}
+
+      {road && (
+        <section aria-labelledby="the-road" className="road-section">
+          <h2 id="the-road" className="sr-only">
+            The road: every phase and item in order
           </h2>
-          {matches.length ? (
-            <ul className="rows">
-              {matches.map(([id, item]) => (
-                <ItemRow key={id} id={id} item={item} roadmap={r} feature={project.features[id]} />
-              ))}
-            </ul>
-          ) : (
-            <p className="empty">Nothing matches.</p>
-          )}
+          <RouteRail road={road} reduced={reduced} params={params} matches={matchSet} />
+          <Road
+            road={road}
+            roadmap={r}
+            reduced={reduced}
+            changed={live.changed}
+            matches={matchSet}
+            hero={road.current && <Hero stop={road.current} road={road} roadmap={r} today={today} changed={live.changed} />}
+            extra={(stop) => <StopAge stop={stop} today={today} />}
+          />
         </section>
-      ) : (
-        road && (
-          <section aria-labelledby="the-road" className="road-section">
-            <h2 id="the-road" className="sr-only">
-              The road: every phase and item in order
-            </h2>
-            <Road
-              road={road}
-              roadmap={r}
-              reduced={reduced}
-              changed={live.changed}
-              hero={road.current && <Hero stop={road.current} road={road} roadmap={r} today={localToday()} changed={live.changed} />}
-            />
-          </section>
-        )
       )}
 
       <Now now={project.now} />
@@ -140,42 +150,6 @@ function Stat({ label, value, warn }: { label: string; value: string | number; w
       <dt>{label}</dt>
       <dd className="num">{value}</dd>
     </div>
-  );
-}
-
-function ItemRow({ id, item, roadmap, feature }: { id: string; item: RoadmapItem; roadmap: Roadmap; feature?: FeatureSummary }) {
-  const waiting = waitingOn(roadmap, id);
-  const p = feature?.progress;
-  return (
-    <li>
-      <a className="row" href={href(`/feature/${id}/board`)}>
-        <span className="num row-id">{id}</span>
-        <span className="row-main">
-          <span className="row-title">
-            <Md text={item.title} inline />
-            {item.workItem && <span className="muted"> ({item.workItem})</span>}
-          </span>
-          <span className="row-meta">
-            {feature?.status && <FeatureBadge status={feature.status} />}
-            {p && <span>Criteria {p.criteria.done}/{p.criteria.total}</span>}
-            {p && p.openQuestions > 0 && <span className="tag warn">{p.openQuestions} open questions</span>}
-            {p?.next && (
-              <span>
-                Next <span className="num">{p.next.id}</span>
-              </span>
-            )}
-            {!feature && <span className="muted">No spec yet</span>}
-            {feature?.error && <span className="tag warn">{feature.error}</span>}
-            {waiting.length > 0 && <span className="tag">Waiting on {waiting.join(', ')}</span>}
-            {item.note && <span className="muted">{item.note}</span>}
-          </span>
-        </span>
-        <span className="row-side">
-          <StatusBadge roadmap={roadmap} status={item.status} />
-          {p && <Bar done={p.tasks.done} total={p.tasks.total} label={`${id} tasks done`} />}
-        </span>
-      </a>
-    </li>
   );
 }
 

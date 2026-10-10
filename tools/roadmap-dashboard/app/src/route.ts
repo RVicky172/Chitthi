@@ -1,5 +1,5 @@
 // Hash routes, so the page needs no server routing and every view can be bookmarked:
-//   #/                                   roadmap          ?q=…&status=…
+//   #/                                   roadmap          ?q=…&status=…&at=203   (at: the stop to open at)
 //   #/feature/202/board                  feature tab      ?section=…&criterion=…&q=…   (board filters)
 //   #/feature/202/docs                   documents        ?doc=spec|plan|tasks
 import { useEffect, useState } from 'react';

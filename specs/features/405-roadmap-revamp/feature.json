@@ -838,7 +838,7 @@
         "T033": {
           "text": "`components/RouteRail.tsx` and opening position (§6): sticky rail (a mark per phase and stop, the current position, the stretch in view from an `IntersectionObserver`; marks link to `#/?at=NNN`, scroll the stop into view and focus it), the ≤ 640 px bottom bar (phase in view, Back to now); `App.tsx` stops scrolling the roadmap to the top, `RoadmapPage` scrolls once on first render to `?at=` or the current stop; refreshes keep the scroll; `route.ts` documents `at`.",
           "section": "The road on screen",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -855,14 +855,16 @@
           ],
           "test": "`npm run check`; a look: open, Back to now, `#/?at=203`, a live refresh keeps the scroll",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: components/RouteRail.tsx: a sticky column beside the road (a mark per phase and stop by kind, the current one red, the stretch in view from an IntersectionObserver), Back to now; below 1100 px a fixed bottom bar (phase in view, Back to now, safe-area padding). Marks link to #/?at=NNN (keeping q and status), scroll the stop to the middle and focus it (goToStop). RoadmapPage opens once at ?at= or the current stop without moving focus; later ?at= changes scroll there; App no longer scrolls the roadmap to the top. Scripted check on the 204 copy: ?at=203 opens at 203, #/ at 204, Back to now from the end returns and focuses stop-204, a rail mark scrolls to and focuses 302. Noted: App's heading focus on load misses when the data isn't loaded yet (404 behaviour, unchanged)."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T034": {
           "text": "`components/Activity.tsx` (§3): today's finished tasks (feature, id, text, link to the board) and the 14-day bar chart with each day's number as text (a visually hidden table or `aria-label` per bar); each stop shows started / days / took and the quiet mark from `featureAge`.",
           "section": "The road on screen",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -877,14 +879,16 @@
           ],
           "test": "`npm run check`; a look",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: components/Activity.tsx: the Pace strip (tasks finished in the last 14 days as bars, today in brand red, weekday letters; each day's number as screen-reader text; Finished today with links to the board filtered by task, one line each) above the filters; StopAge on every stop through Road's extra slot (started and days, or days taken; Quiet tag). Fixed while looking: Activity was first inserted in the broken-roadmap branch; a stop's visible count-up is now aria-hidden with the real count as screen-reader text (stops not yet scrolled into view showed 0 / n to screen readers). Looked at on the 204 copy: no console errors, no sideways scroll."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T035": {
           "text": "`RoadmapPage.tsx` composition (§6, D4): hero, road, rail and activity; search and status filter stay in the URL, non-matching stops dimmed with \"not matching\" in their accessible name, the rail shows only matches, the count says \"n of 26 items\", the Results list removed; totals, problems, Now and backlog kept below the road.",
           "section": "The road on screen",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -897,14 +901,16 @@
           ],
           "test": "`npm run check`; a look at 404's URLs (`#/`, `#/?q=…&status=…`)",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: RoadmapPage: totals, problems, Pace, filters, then the road with its rail, then Now and the backlog; search and status filter stay in the URL and dim the stops that don't match (colour, not opacity; '(not matching the filter)' as screen-reader text), the rail shows only matches, the count says 'n of 26 items', 'Nothing matches' when none; the Results list and ItemRow removed (D4). Stops gained 'Waiting on …' (the old tiles showed it). The hero (current work) isn't dimmed by a filter. Looked at #/?status=done on the 204 copy: rail shows the 5 done stops; no console errors."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T036": {
           "text": "Live changes and reduced motion on screen (§7): `useLiveChanges` wired to the stops and the hero (2 s airmail-stripe sweep by `transform`, one polite live region), a feature that changed status moves its marker; `@media (prefers-reduced-motion: reduce)`: road complete, values final, no pulse, a static outline for changes.",
           "section": "The road on screen",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -920,9 +926,11 @@
           ],
           "test": "`npm run check`; a look while running `npm run specs -- start / done` on a copy, with reduced motion on and off",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: live changes on screen: one polite live region on the roadmap (keyed per announcement), useLiveChanges' ids mark the stop and the hero (airmail-stripe sweep, 2 s), the marker moves by transform (700 ms) when the current stop changes; reduced motion: no marker transition or pulse, a static outline for changes. Scripted on a copy with 204 in progress: first load marks nothing and announces nothing; 'specs done 204 T030 --root <copy>' highlights the hero in 1.93 s with '204 T030 done' in the live region, cleared after 2 s; with reducedMotion 'reduce', after scrolling the whole road document.getAnimations() is empty and no count shows 0/n."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T037": {
           "text": "Feature page, lightly (§8, Q8): the header gets `Ring` and `Segments`; `Board.tsx` animates a card that changed column (drag, menu or live change) by FLIP with the Web Animations API, skipped with reduced motion; columns and behaviour unchanged.",
