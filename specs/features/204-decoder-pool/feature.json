@@ -732,7 +732,7 @@
         "T030": {
           "text": "Failing self-test check AC-4: the stage's drawing as a function (`drawPreview`, exported from the workspace) on 6-clip projects at 9:16 and 16:9, paused at 20 times: the clip's frame equals the export's frame for that time (decoded, ±8).",
           "section": "Preview on the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -744,12 +744,16 @@
           ],
           "test": "`npm test`: fails (the preview still seeks a `<video>`)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: src/components/studio/previewFrame.ts (pausedAt, pausedFrame, drawPreview, PreviewSource; videoElementSource = today's <video>-per-clip with its 0.02 s seek tolerance); VideoStage draws through drawPreview and gets its <video> elements from videoElementSource (no behaviour change). makeTestClip(…, coded): each frame's colour names it (codeColour, 30+ levels apart). poolChecks pausedPreviewIsExport (AC-4): 6 coded clips with off-grid lengths, 9:16 and 16:9, 20 off-grid playhead times, the stage's paused path vs the decoded export frame floor(t·fps), ±8: fails on today's path (22 of 40 match: the seek lands on in + local, the export on the frame grid)."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T031": {
           "text": "Preview on the pool (§3): `VideoStage` owns a pool (disposed on leaving the editor); paused or scrubbing draws `frame()` at `frameTime` and redraws when it lands (latest wins); playing draws `peek()` and counts holds; every tick `want(lanePlan)` and `prepare` the next clip within 2 s (also paused within 2 s of a cut); removed clips forgotten; idle decodes nothing. The `<video>` path stays only for fallback clips (T041).",
           "section": "Preview on the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -764,7 +768,11 @@
           ],
           "test": "T030; video e2e and track-header e2e unchanged",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: previewFrame.ts: pausedAt puts the paused time on the export's frame grid (frameTime, D3); poolSource (exact pool frames, a clip the pool can't decode drawn from its <video>); stageSource (the pool where VideoDecoder exists, Mediabunny loaded by dynamic import with the first clip; <video> elements alone otherwise; poolLimits(1) until T051). VideoStage: draw never waits (playing: pool.peek; paused: the held picture of the same clip, photos at once), the paused effect asks pausedFrame and draws it when it lands (a generation counter: latest wins); every tick and every paused change want(lanePlan(t, 2)) and prepare the next video clips (Q10); removed clips forgotten; the pool disposed with the stage; the <video> elements now only give sound (and fallback pictures) and no longer seek while paused. AC-4 40 / 40 (it failed 22 / 40 on the <video> path); editors e2e 24 passed / 14 skipped as before; npm test 6,143 / 0 (179 s); preview timing 10.9 ms, export 2.62 s fastest."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T032": {
           "text": "Self-test checks on the preview path, then fixes until they pass: AC-5 (20 × 2 s 1080p video clips played in real time, 3 runs: all 19 cuts draw the new clip's first frame on the cut's frame; no black, no hold over 1 frame; holds reported), AC-7 (50 random seeks on 1080p with 2 s key frames: exact frame, median ≤ 100 ms, p95 ≤ 250 ms; the last asked is the one shown), AC-12 (60-clip 1080p project played twice and scrubbed 100 times, sampled every step: within Q3; leaving the editor and removing a clip release within 1 s), AC-13 (paused 2 s: no decode, frames ≤ visible clips).",

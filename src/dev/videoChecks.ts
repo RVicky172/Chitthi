@@ -25,14 +25,18 @@ export const clipColour = (t: number, dur: number): [number, number, number] => 
   return [Math.round(40 + 180 * k), 120, Math.round(220 - 180 * k)];
 };
 
+/** A frame-coded clip's colour for frame i: consecutive frames differ by 30+ levels per channel, so a decoded colour
+ * names its frame exactly (204 AC-4: one frame off shows). */
+export const codeColour = (i: number): [number, number, number] => [40 + ((i * 53) % 180), 40 + ((i * 97) % 180), 40 + ((i * 31) % 180)];
+
 /**
- * A dur-second W×H H.264 MP4 at 30 fps whose middle is one flat colour per frame (clipColour), with a key frame every
- * `keyEvery` seconds (204 Q9: 2 s, like phone video). `texture` adds moving noise outside the middle third, so the
- * clip costs about what real footage does to decode while its measured colour stays exact. Null if this engine can't
- * encode it.
+ * A dur-second W×H H.264 MP4 at 30 fps whose middle is one flat colour per frame (clipColour, or codeColour when
+ * `coded`), with a key frame every `keyEvery` seconds (204 Q9: 2 s, like phone video). `texture` adds moving noise
+ * outside the middle third, so the clip costs about what real footage does to decode while its measured colour stays
+ * exact. Null if this engine can't encode it.
  */
-export async function makeTestClip(dur = 2, W = 320, H = 240, keyEvery = 1, texture = false): Promise<Blob | null> {
-  const bitrate = texture ? Math.round(W * H * 30 * 0.1) : 1e6;
+export async function makeTestClip(dur = 2, W = 320, H = 240, keyEvery = 1, texture = false, coded = false): Promise<Blob | null> {
+  const bitrate = texture ? Math.round(W * H * 30 * 0.1) : coded ? 4e6 : 1e6;
   if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate }))) return null;
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -51,7 +55,7 @@ export async function makeTestClip(dur = 2, W = 320, H = 240, keyEvery = 1, text
   // Noise tiles, shifted every frame (cheap to draw, expensive to encode and decode); the middle third stays flat.
   const noise = texture ? noiseTile(256) : null;
   for (let i = 0; i < frames; i++) {
-    const [r, g, b] = clipColour(i / 30, dur);
+    const [r, g, b] = coded ? codeColour(i) : clipColour(i / 30, dur);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(0, 0, W, H);
     if (noise) {

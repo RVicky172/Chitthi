@@ -192,6 +192,9 @@ export async function poolChecks(check: Check): Promise<string[]> {
   await group(check, 'export AC-11', async () => {
     notes.push(await exportNoLeaks(check));
   });
+  await group(check, 'preview AC-4', async () => {
+    notes.push(await pausedPreviewIsExport(check));
+  });
   return notes;
 }
 
@@ -448,4 +451,94 @@ async function exportNoLeaks(check: Check): Promise<string> {
   await zero('an export that failed at 1 minute');
   const secs = (ms: number) => (ms / 1000).toFixed(1);
   return `pool: AC-11 sources made in ${secs(made)} s; 2-minute 1080p exports ${times.map(secs).join(', ')} s; all in ${secs(performance.now() - t0)} s`;
+}
+
+/**
+ * AC-4 (204): paused, the stage shows the frame the export encodes. Six frame-coded video clips (each frame's colour
+ * names it) with lengths off the frame grid, at 9:16 and 16:9, paused at 20 playhead times off the grid: the stage's
+ * own paused path (previewFrame.ts: pausedFrame with the stage's source, then drawPreview) and the decoded export frame
+ * for that time (frame floor(t * fps)) must match within ±8 in the middle.
+ */
+async function pausedPreviewIsExport(check: Check): Promise<string> {
+  const { encodeVideo } = await import('../engine/videoExport');
+  const { MAIN_VIDEO, defaultTracks, pack, projectLength } = await import('../engine/timeline');
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { drawPreview, pausedFrame, stageSource } = await import('../components/studio/previewFrame');
+  const files = (await Promise.all([0, 1].map(() => makeTestClip(4, 640, 360, 2, false, true)))).filter(
+    (f): f is Blob => !!f,
+  );
+  if (files.length < 2) return 'pool: AC-4 skipped (no H.264 encoder)';
+  const urls = files.map((f) => URL.createObjectURL(f));
+  const lengths = [1.37, 0.9, 1.53, 1.11, 0.77, 1.29],
+    ins = [0.2, 1.1, 0.5, 1.9, 0.33, 0.7];
+  const clips = pack(
+    lengths.map((len, i) => ({
+      id: `p${i}`,
+      track: MAIN_VIDEO,
+      start: 0,
+      kind: 'video' as const,
+      dur: 0,
+      in: ins[i],
+      out: ins[i] + len,
+      edit: { ...DEFAULT_EDIT },
+      motion: 'none' as const,
+      fade: false,
+      file: files[i % 2],
+      url: urls[i % 2],
+      volume: 0,
+    })),
+  );
+  const project = { tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false };
+  const total = projectLength(project);
+  const times = Array.from({ length: 20 }, (_, k) => ((k + 0.37) * total) / 20);
+  const bad: string[] = [];
+  let compared = 0;
+  try {
+    for (const [ratio, W, H] of [
+      ['9:16', 270, 480],
+      ['16:9', 480, 270],
+    ] as const) {
+      const mp4 = await encodeVideo({
+        ...project,
+        audio: [],
+        width: W,
+        height: H,
+        fps: FPS,
+        bitrate: 4e6,
+        sink: { kind: 'memory' },
+      });
+      if (!mp4) throw new Error('no export');
+      const exported = await decodedColours(
+        mp4,
+        times.map((t) => (Math.floor(t * FPS + 1e-6) + 0.5) / FPS),
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const x = canvas.getContext('2d', { willReadFrequently: true })!;
+      const stage = stageSource();
+      try {
+        for (const [k, t] of times.entries()) {
+          const frame = await within(pausedFrame(project, t, FPS, stage.source), `AC-4 preview at ${t.toFixed(3)} s`);
+          drawPreview(x, W, H, { layers: [], total, fadeOut: false }, frame);
+          const shown = mean16(x, W, H),
+            want = exported[k];
+          compared++;
+          if (!want || !shown.every((v, ch) => Math.abs(v - want[ch]) <= 8))
+            bad.push(
+              `${ratio} at ${t.toFixed(3)} s: preview ${shown.map(Math.round).join('/')}, export ${want?.map(Math.round).join('/')}`,
+            );
+        }
+      } finally {
+        stage.dispose();
+      }
+    }
+  } finally {
+    urls.forEach((u) => URL.revokeObjectURL(u));
+  }
+  check(
+    !bad.length,
+    `pool: the paused preview shows the export's frame at 20 times, 9:16 and 16:9 (${compared - bad.length} of ${compared} match)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+  );
+  return `pool: AC-4 compared ${compared} paused frames with the export`;
 }
