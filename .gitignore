@@ -33,6 +33,7 @@ Print Samples/
 !.claude/commands/
 !.claude/skills/
 !.claude/settings.json
+!.claude/agents/
 .claude/skills/scroll-world/
 .hallmark/
 

@@ -328,3 +328,19 @@ the separate Results list goes.
 library; bumping the roadmap schema to 2; a fixed hero panel at the top.
 **Consequences:** an open old page asks for a restart (API 3); 404's Results view is replaced by dimming.
 
+## D-030 — Independent tasks run as parallel agent batches (2026-10-10)
+
+**Context:** the maintainer asked for more agents working in parallel to finish tasks faster, within the current
+spec-driven workflow (and after D-024 removed the heavier software factory).
+**Decision:** the main session orchestrates batches of up to 3 `implementer` agents (`.claude/agents/implementer.md`),
+each in its own git worktree with `node_modules` linked as a junction, plus a `reviewer` agent per result
+(`.claude/agents/reviewer.md`). Batches are tasks that are independent (`[P]`, no shared files); dependent, manual and
+tracking work stays inline. Only the orchestrator edits `feature.json`, `memory/` and the feature branch
+(cherry-picks), and runs heavy checks one at a time; it reports at the end of each batch. Recorded as a workflow
+section, not a feature spec (maintainer's choice). Answers: parallel [P] tasks + reviewer, up to 3, light record,
+pause only at batch ends.
+**Alternatives:** implementers only (no reviewer); test-writer + implementer roles per task; whole features in
+parallel; a headless runner script (the D-024 factory).
+**Consequences:** more tokens per task; merge work for the orchestrator; heavy suites stay serial. Custom agent types
+load with a new session; until then the orchestrator starts general-purpose agents with the definition's text.
+

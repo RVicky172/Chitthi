@@ -25,6 +25,9 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 - Never plan from a spec that still has `[NEEDS CLARIFICATION]` markers — ask the user.
 - Work one task at a time: `npm run specs -- start NNN Txxx`, then `done` (with a dated `--result` note) once its
   tests pass, or `block` it with a reason when it needs the user.
+- Independent tasks run in parallel batches: up to 3 `implementer` agents in their own worktrees plus a `reviewer`
+  (`.claude/agents/`); the main session alone edits `feature.json` and `memory/`, merges, and runs heavy checks one at
+  a time (`specs/workflow.md` "Parallel tasks with agents", D-030).
 - A feature is one `specs/features/NNN-*/feature.json` (spec, plan, tasks); `specs/roadmap.json` is the roadmap.
   `spec.md`, `plan.md`, `tasks.md` and `roadmap.md` are generated from them: never edit those (a hook refuses it and
   regenerates them after JSON edits). See `specs/workflow.md` "One JSON per feature".
