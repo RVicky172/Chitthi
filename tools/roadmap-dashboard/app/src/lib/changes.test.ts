@@ -17,6 +17,7 @@ function feature(id: string, status: FeatureStatus, statuses: Record<string, Tas
       blocked: [],
       finished: [],
       statuses,
+      upNext: null,
     },
   };
 }

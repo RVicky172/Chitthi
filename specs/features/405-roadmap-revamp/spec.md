@@ -60,8 +60,7 @@ The roadmap dashboard (`npm run roadmap`, feature 404) shows the right facts but
   list; status is text; reduced motion respected (AC-11); live changes announced once (AC-10).
 - Responsive: 1920 px down to 360 px with no sideways scroll; the route rail folds at 360 px (AC-4).
 - Security: unchanged from 404 (127.0.0.1, Host / Origin checks, CSP `'self'` plus Google Fonts; no new host).
-- Compatibility: current Chrome, Edge, Firefox and Safari; scroll-driven CSS where supported, the same result
-  without it.
+- Compatibility: current Chrome, Edge, Firefox and Safari, the same behaviour in each (no browser-specific path).
 - Licences and size: no new library, model, font or asset beyond the dashboard's own (Constitution III, VII).
 
 ## Out of Scope
@@ -84,7 +83,7 @@ The roadmap dashboard (`npm run roadmap`, feature 404) shows the right facts but
 - **Q6** _(resolved)_ Pace: which numbers? _Answer (accepted 2026-10-10):_ tasks finished today, tasks per day over 14 days, days since a feature started, and "quiet" after 7 days without a finished task (AC-13, AC-14). No estimates or forecasts: the data has no effort sizes.
 - **Q7** _(resolved)_ Release milestones on the road (3.0.0 at the end of Phase 2, 3.1.0 after Phase 3)? _Answer (accepted 2026-10-10):_ yes, as a milestone at the end of each phase region, read from an optional `release` field on a phase in `roadmap.json` (added through `tools/specs-index`); phases without it show none. Alternative: parse "(release 3.0.0)" from the phase title (no data change, more fragile).
 - **Q8** _(resolved)_ Does the feature page (board) change too? _Answer (accepted 2026-10-10):_ lightly: its header gets the same section segments and progress ring as the hero, and a card that moves (by drag, menu or a live change) animates to its new column; the board's columns and behaviour stay as 404 built them.
-- **Q9** _(resolved)_ A motion library (Motion, GSAP)? _Answer (accepted 2026-10-10):_ none (Constitution III, AC-17): CSS transitions, the Web Animations API, SVG stroke drawing and `IntersectionObserver`; CSS scroll-driven animations (`animation-timeline: scroll()`) where the browser has them, the same effect from a scroll listener where it doesn't (Firefox today).
+- **Q9** _(resolved)_ A motion library (Motion, GSAP)? _Answer (accepted 2026-10-10):_ none (Constitution III, AC-17): CSS transitions, the Web Animations API, SVG stroke drawing and `IntersectionObserver`; the drawn road follows the scroll through a passive, frame-batched scroll listener in every browser (revised 2026-10-10 at T030: a CSS scroll timeline is linear in page scroll and can't follow the road's own shape, so its tip would drift from the stops in view; T001 measured the listener at 16.7 ms a frame, also with the CPU slowed 4x).
 - **Q10** _(resolved)_ Number 405? _Answer (accepted 2026-10-10):_ yes; 402 and 403 stay retired (the removed software factory, D-024).
 
 ## Changelog
@@ -94,3 +93,4 @@ The roadmap dashboard (`npm run roadmap`, feature 404) shows the right facts but
 - 2026-10-10 — Plan drafted (D1–D4 for the maintainer).
 - 2026-10-10 — Plan approved (D1–D4 as recommended, D-029).
 - 2026-10-10 — Tasks written (T001–T092); In Progress.
+- 2026-10-10 — Q9 revised at T030: the drawn road follows the scroll through one listener in every browser, not CSS scroll timelines (they are linear in page scroll and drift from the road; T001 measured the listener well within AC-12).

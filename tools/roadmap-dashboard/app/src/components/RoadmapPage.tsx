@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { matchItem } from '../lib/filter';
-import { currentPhase, phaseProgress, totals, waitingOn } from '../lib/roadmap';
+import { useLiveChanges, useReducedMotion } from '../lib/motion';
+import { localToday } from '../lib/pace';
+import { buildRoad } from '../lib/road';
+import { totals, waitingOn } from '../lib/roadmap';
 import { href, replaceParams } from '../route';
 import type { FeatureSummary, ProjectData, Roadmap, RoadmapItem } from '../types';
 import { Bar, FeatureBadge, Md, StatusBadge } from './bits';
+import { Hero } from './Hero';
+import { Road } from './Road';
 
 interface Props {
   project: ProjectData;
@@ -14,6 +19,9 @@ export function RoadmapPage({ project, params }: Props) {
   const r = project.roadmap;
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState(params.get('status') ?? '');
+  const reduced = useReducedMotion();
+  const live = useLiveChanges(project);
+  const road = useMemo(() => (r ? buildRoad(r, project.features) : null), [r, project.features]);
   if (!r)
     return (
       <>
@@ -30,7 +38,6 @@ export function RoadmapPage({ project, params }: Props) {
     setStatus(ns);
     replaceParams({ q: nq.trim() || null, status: ns || null });
   };
-  const current = currentPhase(r);
   const t = totals(r, project.features);
   const filtering = Boolean(q.trim() || status);
   const matches = Object.entries(r.items.byId).filter(([id, item]) => matchItem({ id, ...item }, { q, status }));
@@ -40,8 +47,6 @@ export function RoadmapPage({ project, params }: Props) {
       <h1 className="sr-only" tabIndex={-1}>
         {r.title}
       </h1>
-      {current && <PhaseStage roadmap={r} phaseId={current} features={project.features} />}
-
       <dl className="stats" aria-label="Totals">
         <Stat label="Items done" value={`${t.done}/${t.items}`} />
         <Stat label="In progress" value={t.inProgress} />
@@ -89,16 +94,20 @@ export function RoadmapPage({ project, params }: Props) {
           )}
         </section>
       ) : (
-        <section aria-labelledby="phases">
-          <h2 id="phases" className="section-title">
-            All phases
-          </h2>
-          <div className="phases">
-            {r.phases.order.map((pid) => (
-              <PhaseFold key={pid} roadmap={r} phaseId={pid} features={project.features} current={pid === current} />
-            ))}
-          </div>
-        </section>
+        road && (
+          <section aria-labelledby="the-road" className="road-section">
+            <h2 id="the-road" className="sr-only">
+              The road: every phase and item in order
+            </h2>
+            <Road
+              road={road}
+              roadmap={r}
+              reduced={reduced}
+              changed={live.changed}
+              hero={road.current && <Hero stop={road.current} road={road} roadmap={r} today={localToday()} changed={live.changed} />}
+            />
+          </section>
+        )
       )}
 
       <Now now={project.now} />
@@ -131,133 +140,6 @@ function Stat({ label, value, warn }: { label: string; value: string | number; w
       <dt>{label}</dt>
       <dd className="num">{value}</dd>
     </div>
-  );
-}
-
-/** The current phase on the dark stage: the only place marigold appears. */
-function PhaseStage({ roadmap, phaseId, features }: { roadmap: Roadmap; phaseId: string; features: Record<string, FeatureSummary> }) {
-  const phase = roadmap.phases.byId[phaseId];
-  const p = phaseProgress(roadmap, phaseId);
-  const index = roadmap.phases.order.indexOf(phaseId) + 1;
-  const items = phase.items.filter((id) => roadmap.items.byId[id]);
-  return (
-    <section className="stage" aria-labelledby="current-phase">
-      <div className="stage-head">
-        <div>
-          <p className="stage-eyebrow">
-            Current phase · {index} of {roadmap.phases.order.length}
-          </p>
-          <h2 id="current-phase" className="stage-title">
-            {phase.title}
-          </h2>
-          {phase.goal && (
-            <p className="stage-goal">
-              <Md text={phase.goal} inline />
-            </p>
-          )}
-        </div>
-        <div className="stage-score">
-          <span className="num big">
-            {p.done}
-            <span className="of">/{p.total}</span>
-          </span>
-          <span>items done</span>
-        </div>
-      </div>
-      <Bar done={p.done} total={p.total} label={`${phase.title}: items done`} onStage />
-      <ul className="tiles">
-        {items.map((id) => (
-          <StageTile key={id} id={id} item={roadmap.items.byId[id]} roadmap={roadmap} feature={features[id]} />
-        ))}
-      </ul>
-      {phase.exit && (
-        <p className="stage-exit">
-          <strong>Exit criteria:</strong> <Md text={phase.exit} inline />
-        </p>
-      )}
-    </section>
-  );
-}
-
-function StageTile({ id, item, roadmap, feature }: { id: string; item: RoadmapItem; roadmap: Roadmap; feature?: FeatureSummary }) {
-  const waiting = waitingOn(roadmap, id);
-  const active = roadmap.statuses.byId[item.status]?.featureStatus.includes('in-progress');
-  const p = feature?.progress;
-  return (
-    <li>
-      <a className={`tile${active ? ' is-active' : ''}`} href={href(`/feature/${id}/board`)} aria-label={`${id} ${item.title}`}>
-        <span className="tile-top">
-          <span className="num tile-id">{id}</span>
-          <StatusBadge roadmap={roadmap} status={item.status} onStage />
-        </span>
-        <span className="tile-title">
-          <Md text={item.title} inline />
-          {item.workItem && <span className="tile-wi"> {item.workItem}</span>}
-        </span>
-        {p ? (
-          <>
-            <Bar done={p.tasks.done} total={p.tasks.total} label={`${id} tasks done`} onStage />
-            {p.next && (
-              <span className="tile-next">
-                Next <span className="num">{p.next.id}</span>
-              </span>
-            )}
-          </>
-        ) : (
-          <span className="tile-next">{feature?.error ?? 'No spec yet'}</span>
-        )}
-        {waiting.length > 0 && <span className="tile-wait">Waiting on {waiting.join(', ')}</span>}
-      </a>
-    </li>
-  );
-}
-
-function PhaseFold({ roadmap, phaseId, features, current }: { roadmap: Roadmap; phaseId: string; features: Record<string, FeatureSummary>; current: boolean }) {
-  const phase = roadmap.phases.byId[phaseId];
-  const p = phaseProgress(roadmap, phaseId);
-  const items = phase.items.filter((id) => roadmap.items.byId[id]);
-  return (
-    <details className={`fold${current ? ' is-current' : ''}`}>
-      <summary>
-        <span className="fold-title">
-          {phase.title}
-          {current && <span className="tag">Current</span>}
-        </span>
-        <span className="fold-counts">
-          {roadmap.statuses.order
-            .filter((s) => p.byStatus[s])
-            .map((s) => (
-              <span key={s} className={`count-chip s-${s}`} title={roadmap.statuses.byId[s].label}>
-                <span aria-hidden="true">{roadmap.statuses.byId[s].icon}</span>
-                <span className="sr-only">{roadmap.statuses.byId[s].label}</span> {p.byStatus[s]}
-              </span>
-            ))}
-        </span>
-        <Bar done={p.done} total={p.total} label={`${phase.title}: items done`} />
-      </summary>
-      <div className="fold-body">
-        {phase.goal && (
-          <p className="muted">
-            <strong>Goal:</strong> <Md text={phase.goal} inline />
-          </p>
-        )}
-        {phase.intro && <Md text={phase.intro} />}
-        {items.length ? (
-          <ul className="rows">
-            {items.map((id) => (
-              <ItemRow key={id} id={id} item={roadmap.items.byId[id]} roadmap={roadmap} feature={features[id]} />
-            ))}
-          </ul>
-        ) : (
-          <p className="empty">No items yet.</p>
-        )}
-        {phase.exit && (
-          <p className="muted">
-            <strong>Exit criteria:</strong> <Md text={phase.exit} inline />
-          </p>
-        )}
-      </div>
-    </details>
   );
 }
 

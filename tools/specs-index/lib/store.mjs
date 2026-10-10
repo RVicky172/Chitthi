@@ -96,5 +96,6 @@ export function progress(feature) {
     blocked: tasks.filter(([, t]) => t.status === 'blocked').map(([id, t]) => ({ id, text: t.text, reason: t.blockedReason ?? null })),
     finished: tasks.filter(([, t]) => t.status === 'done' && t.doneOn).map(([id, t]) => ({ id, text: t.text, doneOn: t.doneOn })),
     statuses: Object.fromEntries(tasks.map(([id, t]) => [id, t.status])),
+    upNext: ((t) => (t ? { id: t[0], text: t[1].text } : null))(tasks.find(([, t]) => t.status === 'todo')),
   };
 }

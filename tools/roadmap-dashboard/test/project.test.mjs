@@ -37,6 +37,7 @@ describe('createProject', () => {
       blocked: [{ id: 'T003', text: 'Docs, checked by hand.', reason: 'Waits for the maintainer.' }],
       finished: [{ id: 'T001', text: 'Tests for beta.', doneOn: '2026-01-03' }],
       statuses: { T001: 'done', T002: 'in-progress', T003: 'blocked', T004: 'todo' },
+      upNext: { id: 'T004', text: 'Release.' },
     });
   });
 

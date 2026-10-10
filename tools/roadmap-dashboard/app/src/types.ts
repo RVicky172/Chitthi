@@ -126,6 +126,8 @@ export interface Progress {
   finished: { id: string; text: string; doneOn: string }[];
   /** Task id → status, for spotting changes between two loads. */
   statuses: Record<string, TaskStatus>;
+  /** The first task still to do (the hero's "Next"). */
+  upNext: { id: string; text: string } | null;
 }
 export interface FeatureSummary {
   id: string;

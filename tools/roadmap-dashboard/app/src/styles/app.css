@@ -1193,3 +1193,548 @@ button {
     display: none;
   }
 }
+
+/* ---------- roadmap: the road (405) ---------- */
+/* Stops sit left and right of a wide gutter (one column at 640 px); the SVG road runs through each stop's anchor near
+   the gutter edge. Only transform, opacity and stroke offsets move. */
+.road {
+  position: relative;
+  --gutter: clamp(96px, 14vw, 200px);
+}
+.road-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.road-svg path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.road-ahead {
+  stroke: var(--line-strong);
+  stroke-width: 2.5;
+  stroke-dasharray: 1 9;
+}
+.road-travelled {
+  stroke: var(--line);
+  stroke-width: 12;
+}
+.road-drawn {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+}
+.road-marker {
+  position: absolute;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--brand-red);
+  box-shadow: 0 0 0 4px var(--bg);
+  pointer-events: none;
+}
+.road-marker::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--brand-red);
+  animation: road-pulse 2.4s var(--ease) infinite;
+}
+@keyframes road-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.region {
+  position: relative;
+  padding: 8px 0 24px;
+}
+.region-head {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  max-width: min(640px, 100%);
+  margin: 24px auto 28px;
+  padding: 10px 18px 12px;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.region.is-current .region-head {
+  border-color: var(--line-strong);
+}
+.region-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.region-progress {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.region-progress .tag {
+  margin-left: 8px;
+}
+.region-more {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: left;
+}
+.region-more > summary {
+  cursor: pointer;
+  text-align: center;
+}
+.region-more p {
+  margin: 8px 0 0;
+}
+
+.stops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--gutter);
+  row-gap: 22px;
+}
+.stop {
+  position: relative;
+  z-index: 1;
+}
+.stop:focus {
+  outline: none;
+}
+.stop.side-left {
+  grid-column: 1;
+}
+.stop.side-right {
+  grid-column: 2;
+  margin-top: 64px;
+}
+.stop.side-wide {
+  grid-column: 1 / -1;
+  margin: 36px 0 12px;
+}
+.stop-anchor {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+}
+.side-left .stop-anchor {
+  right: -28px;
+}
+.side-right .stop-anchor {
+  left: -28px;
+}
+.side-wide .stop-anchor {
+  left: 50%;
+  top: -18px;
+}
+.stop-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line-strong);
+  border-radius: var(--r-md);
+  text-decoration: none;
+  box-shadow: var(--elev-1);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+a.stop-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elev-2);
+}
+a.stop-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.stop-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.stop-id {
+  font-weight: 600;
+  color: var(--muted);
+}
+.stop-title {
+  font-weight: 600;
+  line-height: 1.35;
+}
+.stop-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.stop-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sunk);
+  overflow: hidden;
+}
+.stop-fill {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  transform-origin: left center;
+}
+.stop-note {
+  font-size: 13px;
+}
+.stop-block {
+  position: relative;
+  width: fit-content;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--danger);
+}
+.stop-reasons {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  top: calc(100% + 6px);
+  display: none;
+  min-width: 260px;
+  padding: 10px 12px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 400;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--elev-3);
+}
+.stop-reasons > span {
+  display: block;
+}
+.stop-card:hover .stop-reasons,
+.stop-card:focus-visible .stop-reasons {
+  display: grid;
+  gap: 4px;
+}
+/* Kinds: the left edge and the card's tone (status is always text too). */
+.k-done .stop-card {
+  border-left-color: var(--good);
+}
+.k-in-progress .stop-card {
+  border-left-color: var(--accent);
+}
+.k-blocked .stop-card {
+  border-left-color: var(--danger);
+}
+.k-approved .stop-card {
+  border-left-color: var(--brand-ink);
+}
+.k-drafted .stop-card,
+.k-not-started .stop-card {
+  border-style: dashed;
+  border-left-style: solid;
+  box-shadow: none;
+}
+.k-not-started .stop-card {
+  background: var(--sunk);
+}
+.k-not-started .stop-title {
+  font-weight: 500;
+  color: var(--muted);
+}
+/* Filtering: the stops that don't match step back (colour, not opacity, so text keeps its contrast). */
+.stop.is-dim .stop-card {
+  background: var(--sunk);
+  border-color: var(--line);
+  border-style: dashed;
+  box-shadow: none;
+}
+.stop.is-dim .stop-title,
+.stop.is-dim .stop-progress {
+  color: var(--muted);
+}
+/* A live change: an airmail-stripe sweep over the card for 2 s. */
+.stop.is-changed .stop-card,
+.hero.is-changed {
+  position: relative;
+  overflow: hidden;
+}
+.stop.is-changed .stop-card::after,
+.hero.is-changed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(-45deg, var(--brand-red) 0 9px, transparent 9px 14px, var(--brand-ink) 14px 23px, transparent 23px 28px);
+  opacity: 0.18;
+  animation: road-sweep 2s var(--ease) forwards;
+}
+@keyframes road-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  60% {
+    transform: translateX(0);
+    opacity: 0.18;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+.milestone {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 28px auto 0;
+  padding: 6px 14px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+.milestone-flag {
+  width: 14px;
+  height: 10px;
+  background: repeating-linear-gradient(-45deg, var(--brand-red) 0 3px, var(--panel) 3px 5px, var(--brand-ink) 5px 8px, var(--panel) 8px 10px);
+  border-radius: 2px;
+}
+
+@media (max-width: 640px) {
+  .stops {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stop.side-left,
+  .stop.side-right,
+  .stop.side-wide {
+    grid-column: 1;
+    margin: 0;
+    padding-left: 36px;
+  }
+  .side-left .stop-anchor,
+  .side-right .stop-anchor,
+  .side-wide .stop-anchor {
+    left: 14px;
+    right: auto;
+    top: 28px;
+  }
+  .region-head {
+    margin-left: 36px;
+  }
+  .stop-reasons {
+    min-width: 0;
+    width: calc(100vw - 96px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .road-marker::after {
+    animation: none;
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+  .stop.is-changed .stop-card::after,
+  .hero.is-changed::after {
+    animation: none;
+    background: none;
+    opacity: 1;
+    outline: 3px solid var(--brand-red);
+    outline-offset: -3px;
+  }
+}
+
+/* ---------- roadmap: the hero, "you are here" (405) ---------- */
+.hero {
+  display: grid;
+  gap: 18px;
+  box-shadow: var(--elev-3);
+}
+.hero-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.hero-id {
+  color: var(--stage-accent);
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 12px 0 0;
+  color: var(--stage-muted);
+  font-size: 13px;
+}
+.hero-quiet {
+  background: var(--stage-2);
+  color: var(--stage-accent);
+  border-color: var(--stage-rule);
+}
+.hero .ring-track {
+  stroke: var(--stage-rule);
+}
+.hero .ring-fill {
+  stroke: var(--stage-accent);
+}
+.hero .ring-text {
+  fill: var(--stage-ink);
+}
+.hero-empty {
+  margin: 0;
+  color: var(--stage-muted);
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--stage-rule);
+  border: 1px solid var(--stage-rule);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.hero-grid > section {
+  padding: 14px 16px;
+  background: var(--stage-2);
+}
+.hero-label {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--stage-muted);
+}
+.hero-grid p {
+  margin: 0;
+}
+.hero-tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.hero-tasks li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+}
+.hero-tasks a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.hero-tasks a:hover {
+  text-decoration: underline;
+}
+.hero-live {
+  position: absolute;
+  left: -12px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--stage-accent);
+}
+.hero-sub {
+  color: var(--stage-muted);
+  font-size: 12.5px;
+}
+.hero-blocked .hero-label,
+.hero-roadblocks .hero-label {
+  color: var(--stage-accent);
+}
+.hero-open {
+  margin: 0;
+  font-weight: 600;
+}
+.hero-roadblocks {
+  padding-top: 14px;
+  border-top: 1px solid var(--stage-rule);
+}
+.hero .stage-title {
+  font-size: clamp(1.4rem, 1.1rem + 1.4vw, 2.1rem);
+}
+.segments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 14px;
+}
+.segments li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.seg-bar {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sunk);
+  overflow: hidden;
+}
+.seg-fill {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  transform-origin: left center;
+}
+.segments.on-stage li {
+  color: var(--stage-muted);
+}
+.segments.on-stage .seg-bar {
+  background: var(--stage-rule);
+}
+.segments.on-stage .seg-fill {
+  background: var(--stage-accent);
+}
+.segments li.is-full .seg-title {
+  color: inherit;
+}
+@media (max-width: 640px) {
+  .hero-head {
+    flex-direction: column-reverse;
+  }
+}
+.hero-grid p a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.hero-grid p a:hover {
+  text-decoration: underline;
+}
+/* Long task texts: three lines on the stage (the board has them in full; screen readers read all of it). */
+.hero-tasks a,
+.hero-grid p a {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

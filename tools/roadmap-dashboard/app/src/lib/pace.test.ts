@@ -19,6 +19,7 @@ function feature(id: string, finished: Progress['finished'], over: Partial<Featu
       blocked: [],
       finished,
       statuses: {},
+      upNext: null,
     },
     ...over,
   };

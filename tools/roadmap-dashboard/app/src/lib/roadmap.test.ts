@@ -82,6 +82,7 @@ describe('roadmap', () => {
           blocked: [],
           finished: [],
           statuses: {},
+          upNext: null,
         },
       },
     };

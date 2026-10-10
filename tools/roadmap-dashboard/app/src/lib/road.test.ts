@@ -63,6 +63,7 @@ function progress(over: Partial<Progress> = {}): Progress {
       { id: 'T002', text: 'Two.', doneOn: '2026-01-02' },
     ],
     statuses: { T001: 'done', T002: 'done', T003: 'in-progress', T004: 'todo', T005: 'todo' },
+    upNext: { id: 'T004', text: 'Four.' },
     ...over,
   };
 }
@@ -207,7 +208,7 @@ describe('heroModel (AC-6)', () => {
         { title: 'Core', done: 0, total: 3 },
       ],
       running: [{ id: 'T003', text: 'Three.', section: 'Core', startedOn: '2026-01-02' }],
-      next: { id: 'T003', text: 'Three.', status: 'in-progress' },
+      next: { id: 'T004', text: 'Four.' },
       blocked: [],
     });
   });
@@ -224,8 +225,8 @@ describe('heroModel (AC-6)', () => {
 
   it('none running: no running tasks, the next one to do is shown', () => {
     const f = features();
-    f['202'] = feature('202', { progress: progress({ running: [], next: { id: 'T004', text: 'Four.', status: 'todo' } }) });
-    expect(heroModel(stopOf(f))).toMatchObject({ running: [], next: { id: 'T004', status: 'todo' } });
+    f['202'] = feature('202', { progress: progress({ running: [], upNext: { id: 'T004', text: 'Four.' } }) });
+    expect(heroModel(stopOf(f))).toMatchObject({ running: [], next: { id: 'T004', text: 'Four.' } });
   });
 
   it('blocked tasks come with their reasons', () => {
@@ -237,7 +238,7 @@ describe('heroModel (AC-6)', () => {
   it('all done: a full ring, nothing running, no next', () => {
     const f = features();
     f['202'] = feature('202', {
-      progress: progress({ tasks: { done: 5, total: 5, byStatus: { todo: 0, 'in-progress': 0, blocked: 0, done: 5 } }, running: [], next: null }),
+      progress: progress({ tasks: { done: 5, total: 5, byStatus: { todo: 0, 'in-progress': 0, blocked: 0, done: 5 } }, running: [], next: null, upNext: null }),
     });
     expect(heroModel(stopOf(f))).toMatchObject({ ring: { done: 5, total: 5 }, running: [], next: null });
   });

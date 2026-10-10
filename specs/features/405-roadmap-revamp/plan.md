@@ -69,9 +69,9 @@ only matches, and the count says "n of 26 items" (AC-15). Totals, problems, Now 
 
 **§7 Motion (`app/src/lib/motion.ts`, new).** `useReducedMotion()` (the media query, live); `useReveal(ref)`: the
 first time an element enters the view (`IntersectionObserver`), its bar or ring animates from 0 to its value with the
-Web Animations API and its count counts up (≤ 600 ms); `useScrollDraw(path)`: where the browser supports CSS
-scroll-driven animations (`animation-timeline: scroll()`), the drawn line is a CSS animation; elsewhere a passive
-scroll listener sets `--drawn` once per animation frame. Live changes: `useLiveChanges(project)` keeps the previous
+Web Animations API and its count counts up (≤ 600 ms); `useScrollDraw(path)`: a passive scroll listener maps the
+viewport's reading line to a length along the road and sets the drawn line's offset once per animation frame, in
+every browser (Q9 revised: a CSS scroll timeline is linear in page scroll and can't follow the road). Live changes: `useLiveChanges(project)` keeps the previous
 project, runs `diffProjects`, marks the changed stops and the hero for 2 s (an airmail-stripe sweep: a gradient moved
 with `transform`, no layout) and writes the announcement into one polite live region. With reduced motion the road is
 drawn complete, values show at once, the marker is still and changes get a static outline for 2 s plus the
@@ -175,8 +175,8 @@ export function useLiveChanges(project: ProjectData): { changed: Set<string>; an
   sections); the one data addition is the optional phase `release` (Q7).
 - **Compositor-only motion**: `transform`, `opacity`, `stroke-dashoffset`; no animated layout properties, no filters;
   one measurement and one style write per animation frame.
-- **Progressive scroll drawing**: CSS scroll-driven animations where supported, a passive listener with
-  `requestAnimationFrame` elsewhere (Firefox today), same result.
+- **Progressive scroll drawing**: one passive listener with `requestAnimationFrame`, mapping the reading line to a
+  length along the road (Q9 revised).
 - **Reveal once**: `IntersectionObserver` starts each stop's count-up the first time it shows, then disconnects.
 - **FLIP** for board cards that change column (first / last positions, inverted transform, played with the Web
   Animations API).
@@ -213,7 +213,6 @@ Unit tests: `tools/specs-index/test/` (`progress()` new fields), `app/src/lib/ro
 
 - **Road geometry from measured DOM** (resizes, fonts loading, folding regions, 360 px) could jitter or lag the layout. → A spike first (T001: 26 stops in `--dev`, resize and fold, frame timing); one `ResizeObserver` measurement per frame; the road is redrawn only when points change.
 - **Scroll smoothness** (AC-12) with an SVG path the height of the page and count-ups. → Only compositor properties animate; no filters or shadows on the path; the scroll listener is passive and rAF-batched; measured by the browser script, and the spike measures it before the UI is built on it.
-- **Firefox lacks CSS scroll-driven animations.** → The listener fallback gives the same drawn line (§7); the browser script runs Chromium, and the fallback is checked by forcing it in the same run.
 - **Live highlights on noise** (a server restart, an edit to an unrelated file, a feature added). → `diffProjects` compares task statuses and feature status only, ignores first load, new or vanished features and a stale schema (unit cases).
 - **Opening at the current stop fights 404's scroll behaviour** (App scrolls to top; data refreshes must keep the scroll). → The roadmap positions itself once on first render; refreshes don't scroll; the e2e checks both.
 - **API change breaks an open old page.** → `API_SCHEMA` 3: an old page shows 404's "restart" notice instead of wrong data.

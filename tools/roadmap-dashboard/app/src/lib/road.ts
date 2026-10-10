@@ -118,7 +118,8 @@ export interface HeroModel {
   ring: { done: number; total: number };
   segments: Progress['sections'];
   running: Progress['running'];
-  next: Progress['next'];
+  /** The first task still to do. */
+  next: Progress['upNext'];
   blocked: Progress['blocked'];
 }
 
@@ -130,7 +131,7 @@ export function heroModel(stop: Stop): HeroModel | null {
     ring: { done: p.tasks.done, total: p.tasks.total },
     segments: p.sections,
     running: p.running,
-    next: p.next,
+    next: p.upNext,
     blocked: p.blocked,
   };
 }
