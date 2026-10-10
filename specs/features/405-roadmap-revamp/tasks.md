@@ -1,0 +1,79 @@
+<!-- Generated from feature.json by `npm run specs:sync`. Edit feature.json (or use `npm run specs`), not this file. -->
+
+# 405 — Roadmap dashboard revamp: a scrollable road, motion and live task progress · Tasks
+
+**Plan:** `./plan.md`
+Legend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.
+Test-first for the pure logic: each "failing" test must fail before its implementation makes it pass. UI tasks are
+checked by `npm run check` and a look in the browser; the browser script comes at the end (the maintainer's preference).
+When a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done`: what was done, numbers measured,
+anything surprising or deferred.
+
+## Setup
+
+- [ ] **T001** — Spike (plan, Risks): a throwaway road in `npm run roadmap -- --dev` with today's 26 items: stops as a list in alternating columns, anchor points measured with one `ResizeObserver`, an SVG path through them, the travelled / ahead split and a drawn line on scroll (CSS `animation-timeline: scroll()` and the listener fallback forced on); resize to 360 px and fold a region. Record frame timing from a Chromium trace (longest and median frame while scrolling top to bottom) and whether the approach holds; adjust the plan before T030 if it doesn't. · files: `scratch only` · test: the numbers recorded here (AC-12 bar: longest < 50 ms, median < 17 ms)
+
+## Data for the road
+
+- [ ] **T010** — Failing tests for §1: `project.test.mjs` on the mini fixture (give `102-beta` tasks in two sections, `startedOn` / `doneOn` dates and a blocked reason): each summary's `progress` has `sections` (title, done, total in section order), `running`, `blocked` (with reason), `finished` (only done tasks with `doneOn`) and `statuses`; `schema` is 3. A schema case: a phase with `release` is valid, an unknown phase field still isn't. · files: `tools/roadmap-dashboard/test/project.test.mjs`, `tools/specs-index/test/fixtures/mini/`, `tools/specs-index/test/schema.test.mjs` · test: fails (fields missing, schema 2)
+- [ ] **T011** — Implement §1 until T010 passes: `progress()` new fields (`tools/specs-index/lib/store.mjs`); optional phase `release` in `roadmap.schema.json` (D1, `schema` stays 1) and in the roadmap heading of `roadmap.md`; `roadmap.json` Phase 2 `3.0.0`, Phase 3 `3.1.0`; `API_SCHEMA` 3 in `lib/project.mjs` and `types.ts` with the new `Progress` and `Phase.release` types. Break-test: drop `finished`, see T010 fail, restore. · files: `tools/specs-index/lib/store.mjs`, `specs/schema/roadmap.schema.json`, `tools/specs-index/lib/render/`, `specs/roadmap.json`, `tools/roadmap-dashboard/lib/project.mjs`, `tools/roadmap-dashboard/app/src/types.ts` · test: T010; `npm run check`
+
+## Tests first: road, pace, changes, geometry
+
+- [ ] **T020** — Failing tests `road.test.ts`: `buildRoad` on a fixture roadmap (3 phases, 7 items, one without a spec) and on today's `roadmap.json` (26 stops in phase and item order, ids, titles, statuses, task counts; AC-1); stop states and kinds for 6 fixtures (none started, mid-phase, blocked item, all done, `currentPhase` set, a phase with no items), every kind with status text (AC-2); region progress and release (AC-3); `heroModel` for one running task, two, none (next shown), blocked tasks, all done (AC-6); `roadblocks` (AC-7). · files: `tools/roadmap-dashboard/app/src/lib/road.test.ts` · test: fails (module missing)
+- [ ] **T021** — Implement `lib/road.ts` (§2: `buildRoad`, `currentStop`, `heroModel`, `roadblocks`) until T020 passes. · files: `tools/roadmap-dashboard/app/src/lib/road.ts` · test: T020
+- [ ] **T022** [P] — Failing tests `pace.test.ts`, then `lib/pace.ts` (§3) until they pass: `perDay` over 14 days (gaps as 0, tasks without `doneOn` left out, today at the edge), `finishedOn(day)`, `featureAge` (in progress, done with days taken, quiet after 7 days without a finished task, no dates). · files: `tools/roadmap-dashboard/app/src/lib/pace.test.ts`, `tools/roadmap-dashboard/app/src/lib/pace.ts` · test: the new tests (failing first)
+- [ ] **T023** [P] — Failing tests `changes.test.ts`, then `lib/changes.ts` (§3) until they pass: `diffProjects` for a task done, started, blocked, a feature status change, several at once (one announcement, joined), and nothing for the first load, a new or vanished feature and a stale schema. · files: `tools/roadmap-dashboard/app/src/lib/changes.test.ts`, `tools/roadmap-dashboard/app/src/lib/changes.ts` · test: the new tests (failing first)
+- [ ] **T024** [P] — Failing tests `geometry.test.ts`, then `lib/geometry.ts` (§4, using T001's findings) until they pass: `roadPath` through 0, 1, 2 and 26 points (valid path data, passes through every point, vertical tangents), `splitAt` the current index (travelled ends and ahead starts at that point; index 0 and last). · files: `tools/roadmap-dashboard/app/src/lib/geometry.test.ts`, `tools/roadmap-dashboard/app/src/lib/geometry.ts` · test: the new tests (failing first)
+
+## The road on screen
+
+- [ ] **T030** — `lib/motion.ts` (§7): `useReducedMotion`, `useReveal` (first view: Web Animations count-up ≤ 600 ms, then disconnect), `useScrollDraw` (CSS scroll-driven animation where supported, else a passive rAF-batched listener setting `--drawn`), `useLiveChanges` (previous project, `diffProjects`, changed ids for 2 s, one announcement). Every hook has a still result with reduced motion. · files: `tools/roadmap-dashboard/app/src/lib/motion.ts` · test: `npm run check`; a look in `--dev` with reduced motion on and off
+- [ ] **T031** — `components/Road.tsx` (§4): phase regions (`h2`, goal, exit, progress, the current one open, others one line that opens), stops as an ordered list (id, title, status text, task progress, links to the board; items without a spec faint and not links), alternating columns and one column ≤ 640 px; the `aria-hidden` SVG road through measured anchors (`roadPath`, `splitAt`: travelled solid, ahead dashed, drawn line on scroll), release milestones at the end of regions, the pulsing "you are here" marker; styles in `app.css` (tokens only). · files: `tools/roadmap-dashboard/app/src/components/Road.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look at 1280 and 360 px in light and dark
+- [ ] **T032** — `components/Hero.tsx` (§5): the current stop opening into the dark stage (D3): title, status, task ring, section segments, running tasks (id, text, section, started), the next task, blocked tasks with reasons linking to the board filtered to the task, started / days / quiet; the "Blocked" list near the hero when any task is blocked. Shared `Ring` and `Segments` in `bits.tsx`. · files: `tools/roadmap-dashboard/app/src/components/Hero.tsx`, `tools/roadmap-dashboard/app/src/components/bits.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look with 204-like and 202-like fixtures (running, none running, blocked)
+- [ ] **T033** — `components/RouteRail.tsx` and opening position (§6): sticky rail (a mark per phase and stop, the current position, the stretch in view from an `IntersectionObserver`; marks link to `#/?at=NNN`, scroll the stop into view and focus it), the ≤ 640 px bottom bar (phase in view, Back to now); `App.tsx` stops scrolling the roadmap to the top, `RoadmapPage` scrolls once on first render to `?at=` or the current stop; refreshes keep the scroll; `route.ts` documents `at`. · files: `tools/roadmap-dashboard/app/src/components/RouteRail.tsx`, `tools/roadmap-dashboard/app/src/App.tsx`, `tools/roadmap-dashboard/app/src/route.ts`, `tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look: open, Back to now, `#/?at=203`, a live refresh keeps the scroll
+- [ ] **T034** [P] — `components/Activity.tsx` (§3): today's finished tasks (feature, id, text, link to the board) and the 14-day bar chart with each day's number as text (a visually hidden table or `aria-label` per bar); each stop shows started / days / took and the quiet mark from `featureAge`. · files: `tools/roadmap-dashboard/app/src/components/Activity.tsx`, `tools/roadmap-dashboard/app/src/components/Road.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look
+- [ ] **T035** — `RoadmapPage.tsx` composition (§6, D4): hero, road, rail and activity; search and status filter stay in the URL, non-matching stops dimmed with "not matching" in their accessible name, the rail shows only matches, the count says "n of 26 items", the Results list removed; totals, problems, Now and backlog kept below the road. · files: `tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look at 404's URLs (`#/`, `#/?q=…&status=…`)
+- [ ] **T036** — Live changes and reduced motion on screen (§7): `useLiveChanges` wired to the stops and the hero (2 s airmail-stripe sweep by `transform`, one polite live region), a feature that changed status moves its marker; `@media (prefers-reduced-motion: reduce)`: road complete, values final, no pulse, a static outline for changes. · files: `tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx`, `tools/roadmap-dashboard/app/src/components/Road.tsx`, `tools/roadmap-dashboard/app/src/components/Hero.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look while running `npm run specs -- start / done` on a copy, with reduced motion on and off
+- [ ] **T037** [P] — Feature page, lightly (§8, Q8): the header gets `Ring` and `Segments`; `Board.tsx` animates a card that changed column (drag, menu or live change) by FLIP with the Web Animations API, skipped with reduced motion; columns and behaviour unchanged. · files: `tools/roadmap-dashboard/app/src/components/FeaturePage.tsx`, `tools/roadmap-dashboard/app/src/components/Board.tsx`, `tools/roadmap-dashboard/app/src/styles/app.css` · test: `npm run check`; a look: drag, Move menu, a CLI change
+
+## Browser checks (at the end)
+
+- [ ] **T040** — Browser harness (§9, D2): `playwright.roadmap.config.ts` and `npm run test:roadmap`; `road.e2e.ts` builds the app once, copies `specs/` and `memory/` to a temporary folder and starts `server.mjs --root <copy> --static <build> --port 0 --no-open`; first checks: 404's URLs open their views (AC-15), stops with a spec link to their boards and items without one don't (AC-8). · files: `playwright.roadmap.config.ts`, `package.json`, `tools/roadmap-dashboard/e2e/road.e2e.ts` · test: `npm run test:roadmap`
+- [ ] **T041** — Browser checks for the road: rail marks = phases + stops and activating one scrolls to and focuses its stop, the 360 px bar (AC-4); opens at the current stop, Back to now, `#/?at=203` (AC-5); the current region open (AC-3); a roadblock link opens the board filtered to its task (AC-7); a stop's progress reaches its value after scrolling into view and the drawn line follows scroll (AC-9); filters dim stops and the rail shows matches (AC-15). Fix what fails. · files: `tools/roadmap-dashboard/e2e/road.e2e.ts` · test: `npm run test:roadmap`
+- [ ] **T042** — Browser checks for change and stillness: `npm run specs -- done` on the temporary copy highlights the stop and fills the live region within 3 s, nothing highlighted on first load (AC-10); with `reducedMotion: 'reduce'` `document.getAnimations()` is empty after scrolling the road and values are final (AC-11). Fix what fails. · files: `tools/roadmap-dashboard/e2e/road.e2e.ts` · test: `npm run test:roadmap`
+- [ ] **T043** — Accessibility: axe (no serious or critical) at 1280 and 360 px in light and dark on the roadmap and a feature page; no sideways scroll at 360 px; a keyboard path through skip link, rail, stops, hero and filters with visible focus. Fix what fails; record the counts. · files: `tools/roadmap-dashboard/e2e/road.e2e.ts` · test: `npm run test:roadmap`: 0 serious / critical
+- [ ] **T044** — Smoothness (AC-12): a scripted scroll through the whole road at 1280 × 800 with a Chromium performance trace, once with scroll-driven CSS and once with the listener fallback forced: longest frame < 50 ms, median < 17 ms; time to interactive < 1 s. Record the numbers. · files: `tools/roadmap-dashboard/e2e/road.e2e.ts` · test: `npm run test:roadmap` timing lines
+- [ ] **T045** [P] — Still a local tool (AC-17): `npm run build` has nothing of `tools/` in `dist/`; `package.json` adds no dependency (only the `test:roadmap` script); no raw colour in `app.css` (a grep for `#`, `rgb(`, `oklch(` outside `theme.css`); `npm run roadmap` ready in under 5 s. Record the numbers. · files: `none` · test: build; grep; timing
+
+## Manual checks
+
+- [ ] **T050** 👤 — Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9). · files: `none` · test: the maintainer's notes recorded here
+
+## Verify
+
+- [ ] **T090** — Docs: `tools/roadmap-dashboard/README.md` (the road, hero, rail, activity, motion rules and reduced motion, API 3, `npm run test:roadmap`), `tools/specs-index/README.md` (the new `progress()` fields, phase `release`). · files: `tools/roadmap-dashboard/README.md`, `tools/specs-index/README.md` · test: relative links resolve
+- [ ] **T091** — Every Definition-of-Done gate that applies is green (`check`, `build`, `test:roadmap`, `check:licenses`); the app's entry chunk unchanged; record the numbers. · test: all gates
+- [ ] **T092** — Tick ACs (Status `Implemented`), roadmap 405 ✔️, `memory/progress.md`, `memory/MEMORY.md`. · test: specs:check
+
+## AC coverage
+
+| AC | Tasks |
+| --- | --- |
+| AC-1 | T020, T021, T031 |
+| AC-2 | T020, T021, T024, T031 |
+| AC-3 | T011, T020, T021, T031, T041 |
+| AC-4 | T033, T041 |
+| AC-5 | T033, T041 |
+| AC-6 | T010, T011, T020, T021, T032 |
+| AC-7 | T010, T020, T021, T032, T041 |
+| AC-8 | T031, T040 |
+| AC-9 | T024, T030, T031, T037, T041, T050 |
+| AC-10 | T023, T030, T036, T042 |
+| AC-11 | T030, T036, T037, T042 |
+| AC-12 | T001, T044 |
+| AC-13 | T010, T011, T022, T034 |
+| AC-14 | T022, T032, T034 |
+| AC-15 | T035, T040, T041 |
+| AC-16 | T043 |
+| AC-17 | T045, T090 |

@@ -1,0 +1,1121 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "405",
+  "title": "Roadmap dashboard revamp: a scrollable road, motion and live task progress",
+  "workItem": null,
+  "status": "in-progress",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-10",
+    "approved": "2026-10-10",
+    "started": "2026-10-10",
+    "done": null
+  },
+  "git": {
+    "branch": "feat/405-roadmap-revamp"
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "The roadmap dashboard (`npm run roadmap`, feature 404) shows the right facts but reads as a static report: a dark tile grid for the current phase, folded lists for the rest, and no sense of movement or of what is happening right now. This feature turns the roadmap page into a **road**: one winding route that runs through the phases in order, each roadmap item a stop on it, with the road behind the current position drawn as travelled, a \"you are here\" marker at the feature being built and the road ahead faint. Scrolling travels along it: the route draws itself, stops reveal their progress as they come into view, and a route rail shows where you are. The work in progress is the hero: the active feature, its running task, its next task, its blocked tasks as roadblocks, and today's finished tasks, all live (a task finished from the CLI lights up on the road within seconds). Motion is there to show progress and change, never as decoration that hides facts: everything is readable without it, and `prefers-reduced-motion` gets the same page standing still. It stays a local development tool in the Chitthi look, built from the data 404 already records (statuses, task dates, sections, criteria), with no new library and nothing shipped in the app.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As the maintainer, I want the roadmap as a road I travel by scrolling, from what is done to what is ahead, so that I feel where the project stands instead of reading a table."
+        },
+        "US-2": {
+          "text": "As the maintainer, I want the feature and task being worked on right now highlighted, with what comes next and what is blocked, so that I see the current work at a glance."
+        },
+        "US-3": {
+          "text": "As the maintainer, I want progress to move when work moves (a task finished from the CLI or the board lights up on the road), so that the dashboard feels alive while I work."
+        },
+        "US-4": {
+          "text": "As the maintainer, I want to see the pace of the work (what finished today, tasks per day), so that I can tell whether a feature is moving or stuck."
+        },
+        "US-5": {
+          "text": "As a keyboard, screen reader or reduced-motion user, I want every fact on the road in a plain reading order without needing the motion, so that the revamp costs me nothing."
+        },
+        "US-6": {
+          "text": "As the maintainer, I want today's links, search, filters and boards to keep working, so that the revamp doesn't break how I already use the dashboard."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15",
+        "AC-16",
+        "AC-17"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "The roadmap page shows one continuous road through every phase of `roadmap.json` in its `order` (Baseline, Phase 2, Phase 3, Other features today), each roadmap item a stop on it in the phase's item order: every item (26 in today's roadmap), including the ones without a spec yet (⬜). Each stop shows its id, title and status as text, and for features with tasks their task progress (done / total).",
+          "proof": "unit (road layout from a fixture roadmap); manual screenshot",
+          "group": "The road",
+          "done": false
+        },
+        "AC-2": {
+          "text": "The road is drawn in three states: **travelled** up to the current stop, **current** at the active feature (the \"you are here\" marker), **ahead** after it. Done, in progress, blocked, approved, drafted and not started stops each look different and carry the status as text, not only colour. The current stop is `currentPhase`'s first item in progress (as 404's AC-10), else the first item not done.",
+          "proof": "unit (stop states for 6 fixture roadmaps: none started, mid-phase, blocked item, all done, `currentPhase` set, a phase with no items)",
+          "group": "The road",
+          "done": false
+        },
+        "AC-3": {
+          "text": "Each phase is a region of the road with its title, goal, exit criteria and progress (items done / total and tasks done / total); the region of the current phase is open, the others show a one-line summary that opens on demand.",
+          "proof": "unit; manual",
+          "group": "The road",
+          "done": false
+        },
+        "AC-4": {
+          "text": "A route rail stays on screen while the road scrolls: one mark per phase and one per stop, the current position, and the part of the road in view; choosing a mark scrolls there (by keyboard too). At 360 px wide the rail folds into a compact bar.",
+          "proof": "e2e (rail marks = phases + stops; activating one scrolls that stop into view)",
+          "group": "The road",
+          "done": false
+        },
+        "AC-5": {
+          "text": "The page opens scrolled to the current stop, with a \"Back to now\" control that returns there from anywhere on the road; a link to a stop (`#/?at=203`) opens at that stop.",
+          "proof": "e2e",
+          "group": "The road",
+          "done": false
+        },
+        "AC-6": {
+          "text": "The current stop is the hero: it shows the active feature's title, status, task progress as a ring, its sections as segments (each segment's done / total), the running task(s) (status in progress: id, text, section, started date), the next task to do, and its blocked tasks with their reasons. A feature with no task in progress says so and shows the next task instead.",
+          "proof": "unit (hero model from fixtures: one running task, two running, none running, blocked tasks, all done); manual",
+          "group": "Now: the work in progress",
+          "done": false
+        },
+        "AC-7": {
+          "text": "Blocked tasks anywhere on the roadmap appear as roadblocks on their stop (count and, on focus or hover, each reason); when any task is blocked they are also listed in one place near the hero, each linking to its board filtered to that task.",
+          "proof": "unit; e2e (link opens the board with the task)",
+          "group": "Now: the work in progress",
+          "done": false
+        },
+        "AC-8": {
+          "text": "Every stop with a spec links to its feature page (board tab) as today; items without a spec are not links.",
+          "proof": "e2e",
+          "group": "Now: the work in progress",
+          "done": false
+        },
+        "AC-9": {
+          "text": "Scrolling draws the road progressively (the travelled line follows the scroll position) and each stop's progress (bar or ring, counts) animates from 0 to its value the first time it comes into view; with the page standing still nothing animates except the \"you are here\" marker's slow pulse.",
+          "proof": "manual (recording at 1280 px); e2e (a stop's progress element reaches its final value after scrolling into view)",
+          "group": "Motion and live changes",
+          "done": false
+        },
+        "AC-10": {
+          "text": "A change that arrives while the page is open (404's 2 s version poll) is shown where it happened: a task that became done, in progress or blocked highlights its stop and the hero for 2 s and is announced once to screen readers (\"204 T030 done\"); a feature that changed status moves its marker along the road. Nothing highlights on the first load.",
+          "proof": "unit (diff of two project snapshots gives the list of changes); e2e (`npm run specs -- done` on a fixture copy: highlight within 3 s, live region text)",
+          "group": "Motion and live changes",
+          "done": false
+        },
+        "AC-11": {
+          "text": "With `prefers-reduced-motion: reduce` the road is drawn complete, progress shows its final values, the marker doesn't pulse and live changes are shown by a static highlight and the announcement, with no movement.",
+          "proof": "e2e (reduced-motion emulation: `document.getAnimations()` empty after scrolling the road)",
+          "group": "Motion and live changes",
+          "done": false
+        },
+        "AC-12": {
+          "text": "Motion stays smooth: scrolling the whole road at 1280 × 800 on the development machine has no frame longer than 50 ms and a median frame under 17 ms; the page is interactive within 1 s of load with today's roadmap.",
+          "proof": "scripted measurement in Chromium (performance trace), numbers recorded in tasks",
+          "group": "Motion and live changes",
+          "done": false
+        },
+        "AC-13": {
+          "text": "An activity strip shows the tasks finished today (from `doneOn`: feature, task id, text, linking to the board) and the tasks finished per day over the last 14 days as a small bar chart with its numbers available as text; days with nothing finished show as zero.",
+          "proof": "unit (per-day counts from fixture tasks, including days with none and tasks without dates)",
+          "group": "Pace and activity",
+          "done": false
+        },
+        "AC-14": {
+          "text": "Each feature stop shows how long it has been moving: started date, days since started, and for done features the days it took (from `dates`); a feature in progress with no task finished in the last 7 days is marked \"quiet\".",
+          "proof": "unit",
+          "group": "Pace and activity",
+          "done": false
+        },
+        "AC-15": {
+          "text": "Everything the roadmap page shows today stays reachable: totals, search and status filter (kept in the URL), the check's problems, the Now panel from `memory/` and the backlog. Search and filters dim the stops that don't match and the rail shows the matches; existing URLs (`#/`, `#/?q=…&status=…`, `#/feature/NNN/<tab>`) open what they open today.",
+          "proof": "e2e (each URL from 404's tests still opens its view)",
+          "group": "Keeping what works",
+          "done": false
+        },
+        "AC-16": {
+          "text": "Accessibility: the road is decoration over a plain list in reading order (phases as headings, stops as list items with their facts as text); every control works by keyboard with visible focus; axe reports no serious or critical issue at 1280 and 360 px in light and dark; no sideways scroll at 360 px.",
+          "proof": "scripted axe run at 1280 and 360 px, light and dark, recorded in tasks",
+          "group": "Keeping what works",
+          "done": false
+        },
+        "AC-17": {
+          "text": "Still a local tool: nothing of it in `dist/`, the desktop app or the Docker image; no npm package added; fonts and colours from the dashboard's `theme.css` tokens only (the Chitthi look of 404's AC-9, marigold only on the dark stage); `npm run roadmap` ready in under 5 s as before.",
+          "proof": "build; `package.json` diff; manual",
+          "group": "Keeping what works",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Which way does the road run? _Answer (accepted 2026-10-10):_ top to bottom, winding left and right across the page as you scroll down (Baseline at the top, Phase 3 and Other at the bottom), because the page already scrolls vertically and a vertical road keeps working at 360 px; a horizontal road would need sideways scrolling, which AC-16 forbids at 360 px.",
+          "open": false
+        },
+        "Q2": {
+          "text": "An AI-rendered scroll film (the `/scroll-world` skill: Higgsfield / Monid video clips scrubbed by scroll)? _Answer (accepted 2026-10-10):_ no. The roadmap changes every time a task is ticked, so pre-rendered clips would be stale at once and every re-render costs money; the road is drawn from the data in SVG and CSS in the Chitthi look. A short decorative clip could be a later idea, not part of this feature.",
+          "open": false
+        },
+        "Q3": {
+          "text": "Where does the page open? _Answer (accepted 2026-10-10):_ scrolled to the \"you are here\" stop (AC-5), with the travelled road above it and the road ahead below; \"Back to now\" returns there.",
+          "open": false
+        },
+        "Q4": {
+          "text": "Which items are stops? _Answer (accepted 2026-10-10):_ every item of every phase, including items without a spec (⬜, faint, not links); the backlog stays off the road in its own panel at the end.",
+          "open": false
+        },
+        "Q5": {
+          "text": "How loud is a live change? _Answer (accepted 2026-10-10):_ a 2 s highlight of the stop and the hero (an airmail-stripe sweep in the Chitthi look), one screen-reader announcement, no sound, no confetti; nothing on first load.",
+          "open": false
+        },
+        "Q6": {
+          "text": "Pace: which numbers? _Answer (accepted 2026-10-10):_ tasks finished today, tasks per day over 14 days, days since a feature started, and \"quiet\" after 7 days without a finished task (AC-13, AC-14). No estimates or forecasts: the data has no effort sizes.",
+          "open": false
+        },
+        "Q7": {
+          "text": "Release milestones on the road (3.0.0 at the end of Phase 2, 3.1.0 after Phase 3)? _Answer (accepted 2026-10-10):_ yes, as a milestone at the end of each phase region, read from an optional `release` field on a phase in `roadmap.json` (added through `tools/specs-index`); phases without it show none. Alternative: parse \"(release 3.0.0)\" from the phase title (no data change, more fragile).",
+          "open": false
+        },
+        "Q8": {
+          "text": "Does the feature page (board) change too? _Answer (accepted 2026-10-10):_ lightly: its header gets the same section segments and progress ring as the hero, and a card that moves (by drag, menu or a live change) animates to its new column; the board's columns and behaviour stay as 404 built them.",
+          "open": false
+        },
+        "Q9": {
+          "text": "A motion library (Motion, GSAP)? _Answer (accepted 2026-10-10):_ none (Constitution III, AC-17): CSS transitions, the Web Animations API, SVG stroke drawing and `IntersectionObserver`; CSS scroll-driven animations (`animation-timeline: scroll()`) where the browser has them, the same effect from a scroll listener where it doesn't (Firefox today).",
+          "open": false
+        },
+        "Q10": {
+          "text": "Number 405? _Answer (accepted 2026-10-10):_ yes; 402 and 403 stay retired (the removed software factory, D-024).",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-10",
+        "text": "Created (maintainer's request: the roadmap \"look very stagnent and boring\"; a scrollable road with animations and the current task progress highlighted)."
+      },
+      {
+        "date": "2026-10-10",
+        "text": "Q1–Q10 resolved (all proposed answers accepted by the maintainer); Approved."
+      },
+      {
+        "date": "2026-10-10",
+        "text": "Plan drafted (D1–D4 for the maintainer)."
+      },
+      {
+        "date": "2026-10-10",
+        "text": "Plan approved (D1–D4 as recommended, D-029)."
+      },
+      {
+        "date": "2026-10-10",
+        "text": "Tasks written (T001–T092); In Progress."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: AC-12 (no frame over 50 ms while scrolling the whole road, median under 17 ms, interactive within\n  1 s); `npm run roadmap` ready in under 5 s; a live change shown within 3 s (404's AC-12).\n- Accessibility: WCAG 2.2 AA in light and dark (Constitution X); the road is `aria-hidden` decoration over a plain\n  list; status is text; reduced motion respected (AC-11); live changes announced once (AC-10).\n- Responsive: 1920 px down to 360 px with no sideways scroll; the route rail folds at 360 px (AC-4).\n- Security: unchanged from 404 (127.0.0.1, Host / Origin checks, CSP `'self'` plus Google Fonts; no new host).\n- Compatibility: current Chrome, Edge, Firefox and Safari; scroll-driven CSS where supported, the same result\n  without it.\n- Licences and size: no new library, model, font or asset beyond the dashboard's own (Constitution III, VII)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- AI-generated or pre-rendered video, 3D scenes or WebGL for the road (Q2).\n- New data: no new task fields or effort estimates; the road is built from what 404 records (statuses, dates,\n  sections, criteria, needs). Q7's optional phase `release` field is the one possible exception.\n- Editing specs, plans or roadmap items from the dashboard (unchanged from 404: only task status moves).\n- Forecasts, burndown predictions or velocity targets.\n- Sound, confetti or celebration beyond AC-10's highlight.\n- Shipping any of it in the app, the desktop app or the Docker image."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-10, D1–D4 as recommended, D-029) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`tools/specs-index/lib/store.mjs`",
+        "change": "modify",
+        "purpose": "§1 `progress()`: sections, running, blocked, finished, statuses"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/test/project.test.mjs`, `tools/specs-index/test/fixtures/mini/`",
+        "change": "modify",
+        "purpose": "§1 the summary's new `progress` fields on the mini fixture (tasks with sections, dates, a blocked reason)"
+      },
+      {
+        "file": "`specs/schema/roadmap.schema.json`, `specs/roadmap.json`, `tools/specs-index/lib/render/` (roadmap)",
+        "change": "modify",
+        "purpose": "§1 optional phase `release` (Q7); 3.0.0 and 3.1.0; shown in `roadmap.md`"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/lib/project.mjs`, `app/src/types.ts`",
+        "change": "modify",
+        "purpose": "§1 API 3, `Progress` and `Phase.release` types"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/lib/road.ts`, `road.test.ts`",
+        "change": "new",
+        "purpose": "§2 stops, states, regions, hero model, roadblocks"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/lib/pace.ts`, `pace.test.ts`",
+        "change": "new",
+        "purpose": "§3 per-day counts, finished today, feature age, quiet"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/lib/changes.ts`, `changes.test.ts`",
+        "change": "new",
+        "purpose": "§3 live diff and announcement"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/lib/geometry.ts`, `geometry.test.ts`",
+        "change": "new",
+        "purpose": "§4 road path through stop points, split at the current stop"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/lib/motion.ts`",
+        "change": "new",
+        "purpose": "§7 reduced motion, reveal, scroll drawing, live changes"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/components/Road.tsx`",
+        "change": "new",
+        "purpose": "§4 regions, stops, SVG road, milestones"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/components/Hero.tsx`",
+        "change": "new",
+        "purpose": "§5 the current stop on the dark stage, blocked list"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/components/RouteRail.tsx`",
+        "change": "new",
+        "purpose": "§6 rail and the 360 px bar, Back to now"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/components/Activity.tsx`",
+        "change": "new",
+        "purpose": "§3 / AC-13 today and 14-day chart (numbers as text)"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx`",
+        "change": "modify",
+        "purpose": "§6 composes road, hero, rail, activity; filters dim; totals, problems, Now, backlog kept"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/App.tsx`, `route.ts`",
+        "change": "modify",
+        "purpose": "§6 open at the current stop / `?at=`; no scroll-to-top for the roadmap"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/components/bits.tsx`, `FeaturePage.tsx`, `Board.tsx`",
+        "change": "modify",
+        "purpose": "§8 shared Ring / Segments, feature header, card move animation"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/app/src/styles/app.css`",
+        "change": "modify",
+        "purpose": "§4–§8 road, hero, rail, activity, highlight sweep, reduced motion (tokens only)"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/e2e/road.e2e.ts`, `playwright.roadmap.config.ts`, `package.json` (`test:roadmap`)",
+        "change": "new",
+        "purpose": "§9 browser checks: e2e, axe, reduced motion, live change, frame timing"
+      },
+      {
+        "file": "`tools/roadmap-dashboard/README.md`",
+        "change": "modify",
+        "purpose": "the road, motion rules, API 3, the browser script"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Road geometry from measured DOM** (resizes, fonts loading, folding regions, 360 px) could jitter or lag the layout. → A spike first (T001: 26 stops in `--dev`, resize and fold, frame timing); one `ResizeObserver` measurement per frame; the road is redrawn only when points change."
+      },
+      {
+        "text": "**Scroll smoothness** (AC-12) with an SVG path the height of the page and count-ups. → Only compositor properties animate; no filters or shadows on the path; the scroll listener is passive and rAF-batched; measured by the browser script, and the spike measures it before the UI is built on it."
+      },
+      {
+        "text": "**Firefox lacks CSS scroll-driven animations.** → The listener fallback gives the same drawn line (§7); the browser script runs Chromium, and the fallback is checked by forcing it in the same run."
+      },
+      {
+        "text": "**Live highlights on noise** (a server restart, an edit to an unrelated file, a feature added). → `diffProjects` compares task statuses and feature status only, ignores first load, new or vanished features and a stale schema (unit cases)."
+      },
+      {
+        "text": "**Opening at the current stop fights 404's scroll behaviour** (App scrolls to top; data refreshes must keep the scroll). → The roadmap positions itself once on first render; refreshes don't scroll; the e2e checks both."
+      },
+      {
+        "text": "**API change breaks an open old page.** → `API_SCHEMA` 3: an old page shows 404's \"restart\" notice instead of wrong data."
+      },
+      {
+        "text": "**Accessibility regressions** from a visual-first redesign (decorative SVG, dimmed stops, live region chatter). → Facts stay in a plain list; dimmed stops keep their text; one announcement per change set; axe at 1280 and 360 px light and dark in the browser script."
+      },
+      {
+        "text": "**Time spent on tooling over product** (the maintainer's preference). → Unit tests only for the pure logic; one browser script at the end, on demand, not in `npm run check` or CI."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "spec approved 2026-10-10, Q1–Q10 accepted"
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "pure logic test-first (unit); UI checked by `npm run check` per task and one browser script at the end (every AC has a test, §9)"
+      },
+      {
+        "principle": "III. Simplicity and small dependencies",
+        "status": "✅",
+        "notes": "no library: CSS, Web Animations API, SVG, IntersectionObserver (Q9)"
+      },
+      {
+        "principle": "IV. Memory is maintained",
+        "status": "✅",
+        "notes": "decisions (API 3, phase `release`) to `decisions.md`; gotchas to `learnings.md`"
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "development tool, nothing paid or locked"
+      },
+      {
+        "principle": "VI. On the device, no backend",
+        "status": "✅",
+        "notes": "local server on 127.0.0.1 as 404; no new host"
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "nothing new; fonts as 404"
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "➖",
+        "notes": "not the app's rendering; the road reads the same data as the CLI"
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "➖",
+        "notes": "no Electron change; server security unchanged from 404"
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "app entry chunk untouched (tools only); WCAG 2.2 AA, reduced motion, 360 px (AC-11, AC-16)"
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "➖",
+        "notes": "no agent-facing operation; the data goes through `tools/specs-index` as the CLI"
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "What the dashboard is today (read for this plan, `main` at `ecb55df`):\n\n- `RoadmapPage.tsx` renders the current phase as a dark **stage** of tiles (`PhaseStage`), then totals, problems,\n  search / status chips (replacing the phases by a Results list while filtering), every phase as a `<details>` fold,\n  the Now panel and the backlog. `App.tsx` scrolls to the top and focuses the page's `h1` on every route change.\n- `/api/project` (`lib/project.mjs`) gives per feature a summary with `progress` from `tools/specs-index`\n  `progress()`: criteria and task counts, open questions and the next task. Task details (sections, running and\n  blocked tasks, `startedOn` / `doneOn`) are only in `/api/features/NNN`. `useProject()` polls `/api/version` every\n  2 s and reloads the project when it changes. Motion today: a few CSS transitions on bars and the board, and no\n  `prefers-reduced-motion` rule.\n\n**§1 Data for the road (`tools/specs-index`, API 3).** `progress(feature)` adds what the road and the hero need,\nderived from `feature.json` (no new stored field): `sections` (each task section's title, done, total), `running`\n(tasks in progress: id, text, section, startedOn), `blocked` (id, text, reason), `finished` (done tasks with a\n`doneOn`: id, text, doneOn) and `statuses` (task id → status, for the live diff). `/api/project` carries it in each\nsummary; `API_SCHEMA` goes to 3 in `lib/project.mjs` and `types.ts`, so an old page asks for a restart (404's\nmechanism). Release milestones (Q7): an optional `release` string on a phase in `specs/schema/roadmap.schema.json`\n(additive: today's files stay valid, `schema` stays 1); `roadmap.json` gets `\"release\": \"3.0.0\"` on Phase 2 and\n`\"3.1.0\"` on Phase 3; `roadmap.md` shows it in the phase heading.\n\n**§2 The road as pure logic (`app/src/lib/road.ts`, new).** `buildRoad(roadmap, features)` gives the stops in\nroadmap order (phase `order`, then each phase's items; AC-1), each with its phase, roadmap status, feature summary,\nstate `travelled | current | ahead` and kind (done, in progress, blocked when its feature has blocked tasks,\napproved, drafted, not started; AC-2), and the phase regions with their progress (items and tasks done / total,\nrelease; AC-3). `currentStop()` is `currentPhase()`'s first item in progress, else the first item not done (404's\nrule extended to one stop). `heroModel(stop, summary)` gives the ring, the section segments, running tasks, the next\ntask and blocked tasks (AC-6); `roadblocks(road)` lists every blocked task with its stop (AC-7).\n\n**§3 Pace and live changes as pure logic.** `app/src/lib/pace.ts` (new): `perDay(features, today, 14)` counts\n`finished` per local date (days with none are 0, tasks without `doneOn` are left out; AC-13), `finishedOn(day)` lists\nthem, and `featureAge(summary, today)` gives days since started, days taken for done features and `quiet` (in\nprogress with nothing finished in 7 days; AC-14). Dates are local `YYYY-MM-DD`, as the CLI writes them\n(`localToday`). `app/src/lib/changes.ts` (new): `diffProjects(prev, next)` compares each feature's `statuses` and\n`status`, giving `{ feature, task?, from, to }[]` and one announcement text (\"204 T030 done\", several joined); empty\nfor the first load, for features that appeared or vanished, and when the schema is stale (AC-10).\n\n**§4 The road on screen (`components/Road.tsx`, new).** The facts are a plain ordered list: each phase a region with\nan `h2`, each stop an `li` with id, title, status text, progress and links (AC-16). On wide screens the stops sit\nalternately left and right of a centre line; at ≤ 640 px they form one column with the road on the left edge. The\nroad itself is one `aria-hidden` SVG behind the list: `Road` measures each stop's anchor point (a\n`ResizeObserver` on the list, one measurement per animation frame) and `roadPath(points)` (`app/src/lib/geometry.ts`,\nnew, pure) builds a smooth path through them (cubic Béziers with vertical tangents), split at the current stop into\n**travelled** (solid) and **ahead** (dashed, faint) parts. A third copy of the travelled part is the **drawn** line:\nits `stroke-dashoffset` follows the scroll position (AC-9). Phase regions end with their release milestone (§1).\nItems without a spec are faint and not links (AC-8, Q4).\n\n**§5 Now: the hero and blocked tasks (`components/Hero.tsx`, new).** The current stop opens into the dark stage (the\nonly place marigold appears, as 404): feature title and status, task ring, section segments, running tasks (id,\ntext, section, started), the next task, blocked tasks with reasons linking to the board filtered to that task, and\nits age and quiet mark (AC-6, AC-7, AC-14). A \"Blocked\" list near the hero shows every roadblock when there are any.\nThe \"you are here\" marker on the road pulses slowly (the only animation while the page stands still; AC-9).\n\n**§6 Rail, opening position and filters.** `components/RouteRail.tsx` (new): a sticky rail with one mark per phase\nand stop, the current position, and the stretch in view (from an `IntersectionObserver` on the stops); marks are\nlinks (`#/?at=203`) that scroll the stop into view and move focus to it; ≤ 640 px it folds into a bottom bar with the\nphase in view and \"Back to now\" (AC-4). Opening: `App.tsx` no longer scrolls the roadmap to the top; `RoadmapPage`\nscrolls once, on its first render, to `?at=` or the current stop (instant, centred) and offers \"Back to now\" (AC-5);\nlater data refreshes keep the scroll (404's AC-12). Search and status filter stay in the URL; non-matching stops are\ndimmed (`aria-hidden` stays off: they're still listed, with \"not matching\" in their accessible name), the rail shows\nonly matches, and the count says \"n of 26 items\" (AC-15). Totals, problems, Now and backlog stay, below the road.\n\n**§7 Motion (`app/src/lib/motion.ts`, new).** `useReducedMotion()` (the media query, live); `useReveal(ref)`: the\nfirst time an element enters the view (`IntersectionObserver`), its bar or ring animates from 0 to its value with the\nWeb Animations API and its count counts up (≤ 600 ms); `useScrollDraw(path)`: where the browser supports CSS\nscroll-driven animations (`animation-timeline: scroll()`), the drawn line is a CSS animation; elsewhere a passive\nscroll listener sets `--drawn` once per animation frame. Live changes: `useLiveChanges(project)` keeps the previous\nproject, runs `diffProjects`, marks the changed stops and the hero for 2 s (an airmail-stripe sweep: a gradient moved\nwith `transform`, no layout) and writes the announcement into one polite live region. With reduced motion the road is\ndrawn complete, values show at once, the marker is still and changes get a static outline for 2 s plus the\nannouncement (AC-11). Only `transform`, `opacity` and `stroke-dashoffset` are animated (AC-12).\n\n**§8 Feature page, lightly (Q8).** `FeaturePage.tsx`'s header gets the hero's ring and section segments (shared\n`Ring` and `Segments` in `bits.tsx`); `Board.tsx` animates a card that changed column (drag, menu or live change)\nfrom its old position to its new one (FLIP with the Web Animations API, skipped with reduced motion). Columns and\nbehaviour stay as 404 built them.\n\n**§9 Tests at the end, light per task.** Pure logic (§1–§3, `roadPath`) is unit-tested first, in Vitest with small\nfixtures (fast, in `npm run check`). Each UI task is checked by `npm run check` and a look in `npm run roadmap --\n--dev`. One committed browser script at the end, `tools/roadmap-dashboard/e2e/road.e2e.ts` with its own config\n(`playwright.roadmap.config.ts`, as `playwright.measure.config.ts`; `npm run test:roadmap`), runs the dashboard on a\ntemporary copy of `specs/` and `memory/` (`server.mjs --root <copy> --static <build> --port 0 --no-open`) for the\ne2e, axe, reduced-motion, live-change and frame-timing checks; it isn't part of `npm run check` or CI."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// tools/specs-index/lib/store.mjs: progress(feature) gains (types in app/src/types.ts)\ninterface Progress {\n  criteria: { done: number; total: number };\n  tasks: { done: number; total: number; byStatus: Record<TaskStatus, number> };\n  openQuestions: number;\n  next: { id: string; text: string; status: TaskStatus } | null;\n  sections: { title: string; done: number; total: number }[];          // in tasks.sections order\n  running: { id: string; text: string; section: string; startedOn: string | null }[];\n  blocked: { id: string; text: string; reason: string | null }[];\n  finished: { id: string; text: string; doneOn: string }[];            // done tasks with a doneOn\n  statuses: Record<string, TaskStatus>;                                // task id → status (live diff)\n}\ninterface Phase { /* … */ release?: string | null }                    // roadmap.schema.json, optional (Q7)\nexport const API_SCHEMA = 3;\n\n// app/src/lib/road.ts\ntype StopState = 'travelled' | 'current' | 'ahead';\ntype StopKind = 'done' | 'in-progress' | 'blocked' | 'approved' | 'drafted' | 'not-started';\ninterface Stop { id: string; phase: string; item: RoadmapItem; feature?: FeatureSummary; state: StopState; kind: StopKind; index: number }\ninterface Region { phase: string; title: string; goal?: string | null; exit?: string | null; release?: string | null;\n                   items: { done: number; total: number }; tasks: { done: number; total: number }; stops: Stop[] }\nexport function buildRoad(roadmap: Roadmap, features: Record<string, FeatureSummary>): { regions: Region[]; stops: Stop[]; current: Stop | null };\nexport function heroModel(stop: Stop): { ring: { done: number; total: number }; segments: Progress['sections'];\n  running: Progress['running']; next: Progress['next']; blocked: Progress['blocked'] } | null;\nexport function roadblocks(stops: Stop[]): { stop: Stop; task: Progress['blocked'][number] }[];\n\n// app/src/lib/pace.ts\nexport function perDay(features: Record<string, FeatureSummary>, today: string, days: number): { day: string; count: number }[];\nexport function finishedOn(features: Record<string, FeatureSummary>, day: string): { feature: string; id: string; text: string }[];\nexport function featureAge(f: FeatureSummary, today: string): { started: string | null; days: number | null; took: number | null; quiet: boolean };\n\n// app/src/lib/changes.ts\ninterface Change { feature: string; task?: string; from: string; to: string }\nexport function diffProjects(prev: ProjectData | null, next: ProjectData): { changes: Change[]; announce: string };\n\n// app/src/lib/geometry.ts\nexport function roadPath(points: { x: number; y: number }[]): string;                 // SVG path data\nexport function splitAt(points: { x: number; y: number }[], index: number): { travelled: string; ahead: string };\n\n// app/src/lib/motion.ts\nexport function useReducedMotion(): boolean;\nexport function useReveal<T extends Element>(ref: RefObject<T>, run: (el: T) => Animation | void): void;\nexport function useScrollDraw(ref: RefObject<SVGPathElement>): void;\nexport function useLiveChanges(project: ProjectData): { changed: Set<string>; announce: string };  // ids \"204\", \"204/T030\"\n\n// app/src/route.ts: #/?at=203 (stop to open at) joins q and status\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Facts in the DOM, the road as decoration**: stops are a real ordered list (reading order, focus, links, axe); the\n  SVG road is `aria-hidden` and drawn through the measured stops, so layout stays CSS (alternating columns, one\n  column at 360 px) and the road follows it.\n- **Pure logic first**: road, hero, pace, diff and geometry are framework-free functions with fixture tests; the\n  components only render them.\n- **Derived, not stored**: everything new comes from what `feature.json` already records (statuses, dates,\n  sections); the one data addition is the optional phase `release` (Q7).\n- **Compositor-only motion**: `transform`, `opacity`, `stroke-dashoffset`; no animated layout properties, no filters;\n  one measurement and one style write per animation frame.\n- **Progressive scroll drawing**: CSS scroll-driven animations where supported, a passive listener with\n  `requestAnimationFrame` elsewhere (Firefox today), same result.\n- **Reveal once**: `IntersectionObserver` starts each stop's count-up the first time it shows, then disconnects.\n- **FLIP** for board cards that change column (first / last positions, inverted transform, played with the Web\n  Animations API).\n- **One live region**, one message per change set; highlights keyed by stop and task id, cleared after 2 s.\n- **Reduced motion as a first-class state**: every motion hook reads `useReducedMotion()` and has a still result."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `road.test.ts`: `buildRoad` on a fixture roadmap (3 phases, 7 items, one without a spec) and on today's `roadmap.json`: stops in phase and item order, 26 today, ids / titles / statuses / task counts | unit |\n| AC-2 | `road.test.ts`: states and kinds for 6 fixtures (none started, mid-phase, blocked item, all done, `currentPhase` set, a phase with no items); status text present for every kind | unit |\n| AC-3 | `road.test.ts`: region progress (items and tasks done / total, release); e2e: the current region open, others summarised | unit + e2e |\n| AC-4 | `road.e2e.ts`: rail marks = phases + stops; activating a mark scrolls that stop into view and focuses it; at 360 px the bar shows the phase in view | e2e |\n| AC-5 | `road.e2e.ts`: `#/` opens with the current stop in view; \"Back to now\" after scrolling to the end returns; `#/?at=203` opens at 203 | e2e |\n| AC-6 | `road.test.ts`: `heroModel` for one running task, two, none (next shown), blocked tasks, all done | unit |\n| AC-7 | `road.test.ts`: `roadblocks`; e2e: a roadblock's link opens the board filtered to its task | unit + e2e |\n| AC-8 | `road.e2e.ts`: stops with a spec link to `#/feature/NNN/board`; items without one have no link | e2e |\n| AC-9 | `road.e2e.ts`: a stop's progress reaches its final value after scrolling into view; the drawn line's offset changes with scroll; manual recording at 1280 px | e2e + manual |\n| AC-10 | `changes.test.ts`: diffs (task done, started, blocked, feature status, first load, new feature, stale schema) and the announcement text; e2e: `npm run specs -- done` on the temporary copy → stop highlighted and live region text within 3 s | unit + e2e |\n| AC-11 | `road.e2e.ts` with `reducedMotion: 'reduce'`: after scrolling the road `document.getAnimations()` is empty, the road is complete, values final | e2e |\n| AC-12 | `road.e2e.ts`: a scripted scroll through the whole road at 1280 × 800 with a performance trace: longest frame < 50 ms, median < 17 ms; time to interactive < 1 s; numbers recorded in tasks | scripted measurement |\n| AC-13 | `pace.test.ts`: `perDay` over 14 days (gaps, no dates, today at the edge), `finishedOn` | unit |\n| AC-14 | `pace.test.ts`: `featureAge` (in progress, done, quiet after 7 days, no dates) | unit |\n| AC-15 | `road.e2e.ts`: 404's URLs (`#/`, `#/?q=…&status=…`, `#/feature/202/board`, `/spec`, `/plan`, `/docs`) open their views; filters dim stops and the rail shows matches; totals, problems, Now and backlog present | e2e |\n| AC-16 | `road.e2e.ts`: axe (no serious / critical) at 1280 and 360 px in light and dark on the roadmap and a feature page; no sideways scroll at 360 px; keyboard path through rail, stops and hero | scripted axe run |\n| AC-17 | `npm run build` (nothing of `tools/` in `dist/`), `package.json` diff (no dependency), `npm run roadmap` ready < 5 s; theme tokens only (a grep for raw colours in `app.css`) | build + manual |\n\nUnit tests: `tools/specs-index/test/` (`progress()` new fields), `app/src/lib/road.test.ts`, `pace.test.ts`,\n`changes.test.ts`, `geometry.test.ts` (path through points, split at index, one and two points), all in\n`npm run check`. The browser script runs on demand (`npm run test:roadmap`)."
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-10: D1–D4 as recommended)",
+        "markdown": "- **D1** — Release milestones come from a new optional `release` field on a phase in `roadmap.json`, without\n  bumping the roadmap's `schema` (the field is additive: every existing file stays valid, old readers ignore it).\n  Alternative: bump `schema` to 2 as 404's AC-16 rule says for shape changes. Recommended: no bump.\n- **D2** — The browser checks are a committed script (`npm run test:roadmap`, own Playwright config, on demand,\n  not in `npm run check` or CI) instead of 404's throwaway scratch run, so the ACs can be re-checked later.\n  Recommended.\n- **D3** — The hero is the current stop opening in place on the road (the dark stage moves along the road as the\n  work moves), rather than a fixed panel at the top. With the page opening at the current stop (AC-5), it is the\n  first thing seen either way. Recommended.\n- **D4** — While filtering, stops are dimmed on the road (AC-15) and today's separate Results list goes away.\n  Recommended (it is what AC-15 says; noted because it removes a view)."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first for the pure logic: each \"failing\" test must fail before its implementation makes it pass. UI tasks are\nchecked by `npm run check` and a look in the browser; the browser script comes at the end (the maintainer's preference).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done`: what was done, numbers measured,\nanything surprising or deferred.",
+    "sections": [
+      {
+        "title": "Setup",
+        "intro": null
+      },
+      {
+        "title": "Data for the road",
+        "intro": null
+      },
+      {
+        "title": "Tests first: road, pace, changes, geometry",
+        "intro": null
+      },
+      {
+        "title": "The road on screen",
+        "intro": null
+      },
+      {
+        "title": "Browser checks (at the end)",
+        "intro": null
+      },
+      {
+        "title": "Manual checks",
+        "intro": null
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T011",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045",
+        "T050",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (plan, Risks): a throwaway road in `npm run roadmap -- --dev` with today's 26 items: stops as a list in alternating columns, anchor points measured with one `ResizeObserver`, an SVG path through them, the travelled / ahead split and a drawn line on scroll (CSS `animation-timeline: scroll()` and the listener fallback forced on); resize to 360 px and fold a region. Record frame timing from a Chromium trace (longest and median frame while scrolling top to bottom) and whether the approach holds; adjust the plan before T030 if it doesn't.",
+          "section": "Setup",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-12"
+          ],
+          "files": [
+            "scratch only"
+          ],
+          "test": "the numbers recorded here (AC-12 bar: longest < 50 ms, median < 17 ms)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T010": {
+          "text": "Failing tests for §1: `project.test.mjs` on the mini fixture (give `102-beta` tasks in two sections, `startedOn` / `doneOn` dates and a blocked reason): each summary's `progress` has `sections` (title, done, total in section order), `running`, `blocked` (with reason), `finished` (only done tasks with `doneOn`) and `statuses`; `schema` is 3. A schema case: a phase with `release` is valid, an unknown phase field still isn't.",
+          "section": "Data for the road",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-13"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/test/project.test.mjs",
+            "tools/specs-index/test/fixtures/mini/",
+            "tools/specs-index/test/schema.test.mjs"
+          ],
+          "test": "fails (fields missing, schema 2)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T011": {
+          "text": "Implement §1 until T010 passes: `progress()` new fields (`tools/specs-index/lib/store.mjs`); optional phase `release` in `roadmap.schema.json` (D1, `schema` stays 1) and in the roadmap heading of `roadmap.md`; `roadmap.json` Phase 2 `3.0.0`, Phase 3 `3.1.0`; `API_SCHEMA` 3 in `lib/project.mjs` and `types.ts` with the new `Progress` and `Phase.release` types. Break-test: drop `finished`, see T010 fail, restore.",
+          "section": "Data for the road",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-6",
+            "AC-13"
+          ],
+          "files": [
+            "tools/specs-index/lib/store.mjs",
+            "specs/schema/roadmap.schema.json",
+            "tools/specs-index/lib/render/",
+            "specs/roadmap.json",
+            "tools/roadmap-dashboard/lib/project.mjs",
+            "tools/roadmap-dashboard/app/src/types.ts"
+          ],
+          "test": "T010; `npm run check`",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T020": {
+          "text": "Failing tests `road.test.ts`: `buildRoad` on a fixture roadmap (3 phases, 7 items, one without a spec) and on today's `roadmap.json` (26 stops in phase and item order, ids, titles, statuses, task counts; AC-1); stop states and kinds for 6 fixtures (none started, mid-phase, blocked item, all done, `currentPhase` set, a phase with no items), every kind with status text (AC-2); region progress and release (AC-3); `heroModel` for one running task, two, none (next shown), blocked tasks, all done (AC-6); `roadblocks` (AC-7).",
+          "section": "Tests first: road, pace, changes, geometry",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-6",
+            "AC-7"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/road.test.ts"
+          ],
+          "test": "fails (module missing)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T021": {
+          "text": "Implement `lib/road.ts` (§2: `buildRoad`, `currentStop`, `heroModel`, `roadblocks`) until T020 passes.",
+          "section": "Tests first: road, pace, changes, geometry",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-6",
+            "AC-7"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/road.ts"
+          ],
+          "test": "T020",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T022": {
+          "text": "Failing tests `pace.test.ts`, then `lib/pace.ts` (§3) until they pass: `perDay` over 14 days (gaps as 0, tasks without `doneOn` left out, today at the edge), `finishedOn(day)`, `featureAge` (in progress, done with days taken, quiet after 7 days without a finished task, no dates).",
+          "section": "Tests first: road, pace, changes, geometry",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-13",
+            "AC-14"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/pace.test.ts",
+            "tools/roadmap-dashboard/app/src/lib/pace.ts"
+          ],
+          "test": "the new tests (failing first)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T023": {
+          "text": "Failing tests `changes.test.ts`, then `lib/changes.ts` (§3) until they pass: `diffProjects` for a task done, started, blocked, a feature status change, several at once (one announcement, joined), and nothing for the first load, a new or vanished feature and a stale schema.",
+          "section": "Tests first: road, pace, changes, geometry",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/changes.test.ts",
+            "tools/roadmap-dashboard/app/src/lib/changes.ts"
+          ],
+          "test": "the new tests (failing first)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T024": {
+          "text": "Failing tests `geometry.test.ts`, then `lib/geometry.ts` (§4, using T001's findings) until they pass: `roadPath` through 0, 1, 2 and 26 points (valid path data, passes through every point, vertical tangents), `splitAt` the current index (travelled ends and ahead starts at that point; index 0 and last).",
+          "section": "Tests first: road, pace, changes, geometry",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-9"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/geometry.test.ts",
+            "tools/roadmap-dashboard/app/src/lib/geometry.ts"
+          ],
+          "test": "the new tests (failing first)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T030": {
+          "text": "`lib/motion.ts` (§7): `useReducedMotion`, `useReveal` (first view: Web Animations count-up ≤ 600 ms, then disconnect), `useScrollDraw` (CSS scroll-driven animation where supported, else a passive rAF-batched listener setting `--drawn`), `useLiveChanges` (previous project, `diffProjects`, changed ids for 2 s, one announcement). Every hook has a still result with reduced motion.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-10",
+            "AC-11"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/motion.ts"
+          ],
+          "test": "`npm run check`; a look in `--dev` with reduced motion on and off",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T031": {
+          "text": "`components/Road.tsx` (§4): phase regions (`h2`, goal, exit, progress, the current one open, others one line that opens), stops as an ordered list (id, title, status text, task progress, links to the board; items without a spec faint and not links), alternating columns and one column ≤ 640 px; the `aria-hidden` SVG road through measured anchors (`roadPath`, `splitAt`: travelled solid, ahead dashed, drawn line on scroll), release milestones at the end of regions, the pulsing \"you are here\" marker; styles in `app.css` (tokens only).",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-8",
+            "AC-9"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/Road.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look at 1280 and 360 px in light and dark",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T032": {
+          "text": "`components/Hero.tsx` (§5): the current stop opening into the dark stage (D3): title, status, task ring, section segments, running tasks (id, text, section, started), the next task, blocked tasks with reasons linking to the board filtered to the task, started / days / quiet; the \"Blocked\" list near the hero when any task is blocked. Shared `Ring` and `Segments` in `bits.tsx`.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-14"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/Hero.tsx",
+            "tools/roadmap-dashboard/app/src/components/bits.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look with 204-like and 202-like fixtures (running, none running, blocked)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T033": {
+          "text": "`components/RouteRail.tsx` and opening position (§6): sticky rail (a mark per phase and stop, the current position, the stretch in view from an `IntersectionObserver`; marks link to `#/?at=NNN`, scroll the stop into view and focus it), the ≤ 640 px bottom bar (phase in view, Back to now); `App.tsx` stops scrolling the roadmap to the top, `RoadmapPage` scrolls once on first render to `?at=` or the current stop; refreshes keep the scroll; `route.ts` documents `at`.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-5"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/RouteRail.tsx",
+            "tools/roadmap-dashboard/app/src/App.tsx",
+            "tools/roadmap-dashboard/app/src/route.ts",
+            "tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look: open, Back to now, `#/?at=203`, a live refresh keeps the scroll",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T034": {
+          "text": "`components/Activity.tsx` (§3): today's finished tasks (feature, id, text, link to the board) and the 14-day bar chart with each day's number as text (a visually hidden table or `aria-label` per bar); each stop shows started / days / took and the quiet mark from `featureAge`.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-13",
+            "AC-14"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/Activity.tsx",
+            "tools/roadmap-dashboard/app/src/components/Road.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T035": {
+          "text": "`RoadmapPage.tsx` composition (§6, D4): hero, road, rail and activity; search and status filter stay in the URL, non-matching stops dimmed with \"not matching\" in their accessible name, the rail shows only matches, the count says \"n of 26 items\", the Results list removed; totals, problems, Now and backlog kept below the road.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look at 404's URLs (`#/`, `#/?q=…&status=…`)",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T036": {
+          "text": "Live changes and reduced motion on screen (§7): `useLiveChanges` wired to the stops and the hero (2 s airmail-stripe sweep by `transform`, one polite live region), a feature that changed status moves its marker; `@media (prefers-reduced-motion: reduce)`: road complete, values final, no pulse, a static outline for changes.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10",
+            "AC-11"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx",
+            "tools/roadmap-dashboard/app/src/components/Road.tsx",
+            "tools/roadmap-dashboard/app/src/components/Hero.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look while running `npm run specs -- start / done` on a copy, with reduced motion on and off",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T037": {
+          "text": "Feature page, lightly (§8, Q8): the header gets `Ring` and `Segments`; `Board.tsx` animates a card that changed column (drag, menu or live change) by FLIP with the Web Animations API, skipped with reduced motion; columns and behaviour unchanged.",
+          "section": "The road on screen",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-11"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/FeaturePage.tsx",
+            "tools/roadmap-dashboard/app/src/components/Board.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css"
+          ],
+          "test": "`npm run check`; a look: drag, Move menu, a CLI change",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T040": {
+          "text": "Browser harness (§9, D2): `playwright.roadmap.config.ts` and `npm run test:roadmap`; `road.e2e.ts` builds the app once, copies `specs/` and `memory/` to a temporary folder and starts `server.mjs --root <copy> --static <build> --port 0 --no-open`; first checks: 404's URLs open their views (AC-15), stops with a spec link to their boards and items without one don't (AC-8).",
+          "section": "Browser checks (at the end)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8",
+            "AC-15"
+          ],
+          "files": [
+            "playwright.roadmap.config.ts",
+            "package.json",
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "`npm run test:roadmap`",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T041": {
+          "text": "Browser checks for the road: rail marks = phases + stops and activating one scrolls to and focuses its stop, the 360 px bar (AC-4); opens at the current stop, Back to now, `#/?at=203` (AC-5); the current region open (AC-3); a roadblock link opens the board filtered to its task (AC-7); a stop's progress reaches its value after scrolling into view and the drawn line follows scroll (AC-9); filters dim stops and the rail shows matches (AC-15). Fix what fails.",
+          "section": "Browser checks (at the end)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-4",
+            "AC-5",
+            "AC-7",
+            "AC-9",
+            "AC-15"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "`npm run test:roadmap`",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T042": {
+          "text": "Browser checks for change and stillness: `npm run specs -- done` on the temporary copy highlights the stop and fills the live region within 3 s, nothing highlighted on first load (AC-10); with `reducedMotion: 'reduce'` `document.getAnimations()` is empty after scrolling the road and values are final (AC-11). Fix what fails.",
+          "section": "Browser checks (at the end)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10",
+            "AC-11"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "`npm run test:roadmap`",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T043": {
+          "text": "Accessibility: axe (no serious or critical) at 1280 and 360 px in light and dark on the roadmap and a feature page; no sideways scroll at 360 px; a keyboard path through skip link, rail, stops, hero and filters with visible focus. Fix what fails; record the counts.",
+          "section": "Browser checks (at the end)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-16"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "`npm run test:roadmap`: 0 serious / critical",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T044": {
+          "text": "Smoothness (AC-12): a scripted scroll through the whole road at 1280 × 800 with a Chromium performance trace, once with scroll-driven CSS and once with the listener fallback forced: longest frame < 50 ms, median < 17 ms; time to interactive < 1 s. Record the numbers.",
+          "section": "Browser checks (at the end)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-12"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "`npm run test:roadmap` timing lines",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T045": {
+          "text": "Still a local tool (AC-17): `npm run build` has nothing of `tools/` in `dist/`; `package.json` adds no dependency (only the `test:roadmap` script); no raw colour in `app.css` (a grep for `#`, `rgb(`, `oklch(` outside `theme.css`); `npm run roadmap` ready in under 5 s. Record the numbers.",
+          "section": "Browser checks (at the end)",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-17"
+          ],
+          "files": [
+            "none"
+          ],
+          "test": "build; grep; timing",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T050": {
+          "text": "Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9).",
+          "section": "Manual checks",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": true,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "none"
+          ],
+          "test": "the maintainer's notes recorded here",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T090": {
+          "text": "Docs: `tools/roadmap-dashboard/README.md` (the road, hero, rail, activity, motion rules and reduced motion, API 3, `npm run test:roadmap`), `tools/specs-index/README.md` (the new `progress()` fields, phase `release`).",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-17"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/README.md",
+            "tools/specs-index/README.md"
+          ],
+          "test": "relative links resolve",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T091": {
+          "text": "Every Definition-of-Done gate that applies is green (`check`, `build`, `test:roadmap`, `check:licenses`); the app's entry chunk unchanged; record the numbers.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "all gates",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        },
+        "T092": {
+          "text": "Tick ACs (Status `Implemented`), roadmap 405 ✔️, `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Verify",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "specs:check",
+          "commits": [],
+          "notes": [],
+          "startedOn": null,
+          "doneOn": null
+        }
+      }
+    }
+  }
+}

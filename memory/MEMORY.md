@@ -21,6 +21,7 @@
   (hook refuses hand edits). `npm run specs -- start|block|done …`; `npm run roadmap` = dashboard with kanban boards.
 - **Process:** test-first spec-driven workflow (constitution as before 402; D-023 build-first reverted by D-024).
   203 / 204 Draft specs on branch `spec/203-204`.
+- **405 (in progress since 2026-10-10):** `405-roadmap-revamp` on branch `spec/405-roadmap-revamp` (from `main`): the roadmap dashboard as a scrollable road (stops per item, you-are-here hero, live task changes, pace, release milestones); Q1–Q10 accepted. Plan §1–§9 (API 3, pure road / pace / diff logic, SVG road over a plain list, no library); plan approved (D1–D4 as recommended, D-029); tasks T001–T092 written, 405 🚧; next: T001 (road spike), then T010 / T011.
 - **Next (roadmap):** merge 202 into `main`; answer 203 / 204's questions (Draft specs on `spec/203-204`).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).

@@ -312,3 +312,19 @@ same library as the CLI. `import` is removed. Supersedes D-025's split of source
 `specs/index.json`.
 **Consequences:** the six existing features were migrated (word check: nothing lost); raw generated Markdown has long
 lines; the `/spec-*` commands write JSON. The roadmap's current phase is named in `roadmap.json` (`currentPhase`).
+
+## D-029 — 405's plan: the roadmap as a road, built from data 404 already records (2026-10-10)
+
+**Context:** the maintainer found the roadmap dashboard "stagnent and boring" and asked for a scrollable road with
+animations and the current task progress highlighted (405).
+**Decision:** the road is drawn in SVG over a plain list of stops (facts stay in the DOM; the road is decoration),
+with CSS, the Web Animations API and `IntersectionObserver` for motion and no library. Everything comes from
+`feature.json` through `tools/specs-index` `progress()` (sections, running, blocked, finished tasks, statuses; API 3).
+D1: release milestones from an optional phase `release` field in `roadmap.json`, without bumping its `schema` (additive,
+every file stays valid). D2: the browser checks are a committed on-demand script (`npm run test:roadmap`), not in
+`npm run check` or CI. D3: the hero is the current stop opening in place on the road. D4: filters dim stops on the road;
+the separate Results list goes.
+**Alternatives:** an AI-rendered scroll film (`/scroll-world`; stale at every ticked task, paid per render); a motion
+library; bumping the roadmap schema to 2; a fixed hero panel at the top.
+**Consequences:** an open old page asks for a restart (API 3); 404's Results view is replaced by dimming.
+
