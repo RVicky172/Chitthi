@@ -645,7 +645,7 @@
         "T020": {
           "text": "Failing tests `road.test.ts`: `buildRoad` on a fixture roadmap (3 phases, 7 items, one without a spec) and on today's `roadmap.json` (26 stops in phase and item order, ids, titles, statuses, task counts; AC-1); stop states and kinds for 6 fixtures (none started, mid-phase, blocked item, all done, `currentPhase` set, a phase with no items), every kind with status text (AC-2); region progress and release (AC-3); `heroModel` for one running task, two, none (next shown), blocked tasks, all done (AC-6); `roadblocks` (AC-7).",
           "section": "Tests first: road, pace, changes, geometry",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -661,14 +661,16 @@
           ],
           "test": "fails (module missing)",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: road.test.ts, 21 tests: buildRoad order and facts, links only with a spec, unknown ids skipped, today's roadmap.json one stop per item (not a hard-coded count); states and kinds for none started, mid-phase, blocked (done wins), all done, currentPhase set, a done current phase handing over, an empty phase; status text always (unknown status shows its id); regions; heroModel (one, two, none running, blocked, all done, no spec); roadblocks. Failed: module missing."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T021": {
           "text": "Implement `lib/road.ts` (§2: `buildRoad`, `currentStop`, `heroModel`, `roadblocks`) until T020 passes.",
           "section": "Tests first: road, pace, changes, geometry",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -684,14 +686,16 @@
           ],
           "test": "T020",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: lib/road.ts (buildRoad, heroModel, roadblocks; current stop = current phase's first in progress, else its first not done, else the first not done after it, else anywhere); T020 21 / 21 on the first run."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T022": {
           "text": "Failing tests `pace.test.ts`, then `lib/pace.ts` (§3) until they pass: `perDay` over 14 days (gaps as 0, tasks without `doneOn` left out, today at the edge), `finishedOn(day)`, `featureAge` (in progress, done with days taken, quiet after 7 days without a finished task, no dates).",
           "section": "Tests first: road, pace, changes, geometry",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -705,14 +709,16 @@
           ],
           "test": "the new tests (failing first)",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: pace.test.ts (8: per-day over 14 days with quiet days as 0, month and year ends, finishedOn, featureAge in progress / quiet at 7 days / fresh feature / done with days taken / no dates), failed first (module missing); lib/pace.ts (calendar-day maths on local dates, localToday). Quiet counts from the start date when nothing is finished yet, so a feature started in the last 7 days isn't quiet."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T023": {
           "text": "Failing tests `changes.test.ts`, then `lib/changes.ts` (§3) until they pass: `diffProjects` for a task done, started, blocked, a feature status change, several at once (one announcement, joined), and nothing for the first load, a new or vanished feature and a stale schema.",
           "section": "Tests first: road, pace, changes, geometry",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -725,14 +731,16 @@
           ],
           "test": "the new tests (failing first)",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: changes.test.ts (10: first load, no change, task done / started / blocked / back to do, feature status, several joined in one announcement, new or vanished feature and new tasks ignored, stale schema either side, features without progress), failed first (module missing); lib/changes.ts (diffProjects, changedIds for the page). Announcement words: done, started, blocked, back to do; feature statuses in plain words."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T024": {
           "text": "Failing tests `geometry.test.ts`, then `lib/geometry.ts` (§4, using T001's findings) until they pass: `roadPath` through 0, 1, 2 and 26 points (valid path data, passes through every point, smooth: Catmull-Rom tangents, T001), `splitAt` the current index (travelled ends and ahead starts at that point; index 0 and last).",
           "section": "Tests first: road, pace, changes, geometry",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -746,9 +754,11 @@
           ],
           "test": "the new tests (failing first)",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: geometry.test.ts (7: no / one / two points, passes through all 26 in order, smooth: handles collinear through every inner point, splitAt meets the whole road exactly, first / last / no current point), failed first (module missing); lib/geometry.ts (Catmull-Rom handles as T001 found; travelled and ahead share the whole road's curves)."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T030": {
           "text": "`lib/motion.ts` (§7): `useReducedMotion`, `useReveal` (first view: Web Animations count-up ≤ 600 ms, then disconnect), `useScrollDraw` (CSS scroll-driven animation where supported, else a passive rAF-batched listener setting `--drawn`), `useLiveChanges` (previous project, `diffProjects`, changed ids for 2 s, one announcement). Every hook has a still result with reduced motion.",
