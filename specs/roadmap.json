@@ -345,7 +345,7 @@
       "405": {
         "title": "Roadmap dashboard revamp: a scrollable road, motion and live task progress",
         "workItem": null,
-        "status": "in-progress",
+        "status": "done",
         "note": "",
         "folder": "features/405-roadmap-revamp",
         "needs": [

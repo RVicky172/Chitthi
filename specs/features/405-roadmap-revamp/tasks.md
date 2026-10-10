@@ -70,8 +70,8 @@ anything surprising or deferred.
 
 ## Manual checks
 
-- [ ] **T050** 👤 — Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9). · files: `none` · test: the maintainer's notes recorded here
-  - **Blocked:** Second look by the maintainer after the theme change of 2026-10-10 (their first look: 'looks good but theme is not looking good … the green color is too much for the items'): airmail palette on the road, then AC-9 and T092.
+- [x] **T050** 👤 — Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9). · files: `none` · test: the maintainer's notes recorded here
+  - 2026-10-10: the maintainer's look: first 'looks good but theme is not looking good … the green color is too much for the items' (theme reworked: airmail palette on the road), then 'perfect as of now'. No recording made.
 
 ## Verify
 
@@ -79,7 +79,8 @@ anything surprising or deferred.
   - 2026-10-10: tools/roadmap-dashboard/README.md: the road, hero, rail, Pace, filters by dimming, live changes; layout of the new lib/ and components/ files and e2e/; 'The road' (list + aria-hidden SVG through anchors, Catmull-Rom path, one scroll listener) and 'Motion' (what moves, compositor-only, still twins, aria-hidden counts) sections; API 3 summary fields; upgrading: motion rule and npm run test:roadmap. tools/specs-index/README.md: phase release, progress()'s new fields. Relative links resolve.
 - [x] **T091** — Every Definition-of-Done gate that applies is green (`check`, `build`, `test:roadmap`, `check:licenses`); the app's entry chunk unchanged; record the numbers. · test: all gates
   - 2026-10-10: npm run check: typecheck, lint 0 errors (the 5 known react-hooks warnings), specs:check, 1,131 unit tests (1,082 on main: +49 for 405); npm run build: entry 327 KB, unchanged, nothing of tools/ in dist; npm run test:roadmap 17 / 17 (twice); check:licenses: 168 shipped packages allowed, no package added. Not run: test:e2e, npm test and test:mcp (405 changes only tools/, which none of them load; the app, its bundle and the desktop app are untouched).
-- [ ] **T092** — Tick ACs (Status `Implemented`), roadmap 405 ✔️, `memory/progress.md`, `memory/MEMORY.md`. · test: specs:check
+- [x] **T092** — Tick ACs (Status `Implemented`), roadmap 405 ✔️, `memory/progress.md`, `memory/MEMORY.md`. · test: specs:check
+  - 2026-10-10: all 17 ACs ticked; status Implemented, roadmap ✔️; memory/progress.md and MEMORY.md updated; merged into main.
 
 ## AC coverage
 

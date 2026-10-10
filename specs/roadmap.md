@@ -79,7 +79,7 @@ Print studio, site and anything outside the editor phases take the next free num
 | --- | ------- | ---- | ------ | ----- |
 | 401 | AI models on this device: see and delete downloaded models | [spec](features/401-ai-models-on-device/spec.md) | ✔️ | — |
 | 404 | Roadmap data (JSON) and a roadmap dashboard on localhost | [spec](features/404-roadmap-dashboard/spec.md) | ✔️ | — |
-| 405 | Roadmap dashboard revamp: a scrollable road, motion and live task progress | [spec](features/405-roadmap-revamp/spec.md) | 🚧 | 404 |
+| 405 | Roadmap dashboard revamp: a scrollable road, motion and live task progress | [spec](features/405-roadmap-revamp/spec.md) | ✔️ | 404 |
 
 ## Backlog (unscheduled ideas)
 

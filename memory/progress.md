@@ -11,7 +11,7 @@ Newest first. One entry per working session.
 
 ---
 
-## 2026-10-10 — 405 built: the roadmap as a road (T001–T091; T050 and T092 wait for the maintainer)
+## 2026-10-10 — 405 Implemented: the roadmap as a road (merged into main)
 
 **Done:** on `feat/405-roadmap-revamp` (from `spec/405-roadmap-revamp`, from `main`). Spec, plan (D1–D4, D-029) and
 tasks approved and committed (`54b86c6`). T001 spike: an SVG road over 26 measured stops scrolls at 16.7 ms a frame,
@@ -28,8 +28,9 @@ bed, dashed centre line, travelled part in airmail navy), a dotted map panel, ph
 done stops in calm graphite, in progress in navy, drawn status dots instead of the roadmap's emoji (the tick rendered
 purple), navy pace bars and segments with today in red; green stays only on the board's Done column. test:roadmap
 17 / 17 (axe contrast included).
-**Next:** the maintainer's second T050 look (then AC-9 and T092: Implemented, merge); then back to 204 T030.
-**Blockers:** T050 needs the maintainer.
+Second look: "perfect as of now". T050, AC-9 and T092 done; 405 Implemented, roadmap ✔️, merged into `main`.
+**Next:** 204 T030 (the preview on the pool) on `feat/204-decoder-pool`.
+**Blockers:** none.
 
 ## 2026-10-09 — 202 verified: Implemented ✔️
 

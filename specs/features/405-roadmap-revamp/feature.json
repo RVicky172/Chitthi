@@ -4,13 +4,13 @@
   "id": "405",
   "title": "Roadmap dashboard revamp: a scrollable road, motion and live task progress",
   "workItem": null,
-  "status": "in-progress",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-10",
     "approved": "2026-10-10",
     "started": "2026-10-10",
-    "done": null
+    "done": "2026-10-10"
   },
   "git": {
     "branch": "feat/405-roadmap-revamp"
@@ -121,7 +121,7 @@
           "text": "Scrolling draws the road progressively (the travelled line follows the scroll position) and each stop's progress (bar or ring, counts) animates from 0 to its value the first time it comes into view; with the page standing still nothing animates except the \"you are here\" marker's slow pulse.",
           "proof": "manual (recording at 1280 px); e2e (a stop's progress element reaches its final value after scrolling into view)",
           "group": "Motion and live changes",
-          "done": false
+          "done": true
         },
         "AC-10": {
           "text": "A change that arrives while the page is open (404's 2 s version poll) is shown where it happened: a task that became done, in progress or blocked highlights its stop and the hero for 2 s and is announced once to screen readers (\"204 T030 done\"); a feature that changed status moves its marker along the road. Nothing highlights on the first load.",
@@ -1094,8 +1094,8 @@
         "T050": {
           "text": "Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9).",
           "section": "Manual checks",
-          "status": "blocked",
-          "blockedReason": "Second look by the maintainer after the theme change of 2026-10-10 (their first look: 'looks good but theme is not looking good … the green color is too much for the items'): airmail palette on the road, then AC-9 and T092.",
+          "status": "done",
+          "blockedReason": null,
           "parallel": false,
           "manual": true,
           "covers": [
@@ -1106,9 +1106,11 @@
           ],
           "test": "the maintainer's notes recorded here",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-10: the maintainer's look: first 'looks good but theme is not looking good … the green color is too much for the items' (theme reworked: airmail palette on the road), then 'perfect as of now'. No recording made."
+          ],
           "startedOn": "2026-10-10",
-          "doneOn": null
+          "doneOn": "2026-10-10"
         },
         "T090": {
           "text": "Docs: `tools/roadmap-dashboard/README.md` (the road, hero, rail, activity, motion rules and reduced motion, API 3, `npm run test:roadmap`), `tools/specs-index/README.md` (the new `progress()` fields, phase `release`).",
@@ -1152,7 +1154,7 @@
         "T092": {
           "text": "Tick ACs (Status `Implemented`), roadmap 405 ✔️, `memory/progress.md`, `memory/MEMORY.md`.",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1160,9 +1162,11 @@
           "files": [],
           "test": "specs:check",
           "commits": [],
-          "notes": [],
-          "startedOn": null,
-          "doneOn": null
+          "notes": [
+            "2026-10-10: all 17 ACs ticked; status Implemented, roadmap ✔️; memory/progress.md and MEMORY.md updated; merged into main."
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         }
       }
     }

@@ -2,7 +2,7 @@
 
 # 405 — Roadmap dashboard revamp: a scrollable road, motion and live task progress
 
-**Status:** In Progress
+**Status:** Implemented
 **Roadmap phase:** Other features (400+) · **Created:** 2026-10-10
 
 ## Summary
@@ -36,7 +36,7 @@ The roadmap dashboard (`npm run roadmap`, feature 404) shows the right facts but
 
 ### Motion and live changes
 
-- [ ] **AC-9:** Scrolling draws the road progressively (the travelled line follows the scroll position) and each stop's progress (bar or ring, counts) animates from 0 to its value the first time it comes into view; with the page standing still nothing animates except the "you are here" marker's slow pulse. _(manual (recording at 1280 px); e2e (a stop's progress element reaches its final value after scrolling into view))_
+- [x] **AC-9:** Scrolling draws the road progressively (the travelled line follows the scroll position) and each stop's progress (bar or ring, counts) animates from 0 to its value the first time it comes into view; with the page standing still nothing animates except the "you are here" marker's slow pulse. _(manual (recording at 1280 px); e2e (a stop's progress element reaches its final value after scrolling into view))_
 - [x] **AC-10:** A change that arrives while the page is open (404's 2 s version poll) is shown where it happened: a task that became done, in progress or blocked highlights its stop and the hero for 2 s and is announced once to screen readers ("204 T030 done"); a feature that changed status moves its marker along the road. Nothing highlights on the first load. _(unit (diff of two project snapshots gives the list of changes); e2e (`npm run specs -- done` on a fixture copy: highlight within 3 s, live region text))_
 - [x] **AC-11:** With `prefers-reduced-motion: reduce` the road is drawn complete, progress shows its final values, the marker doesn't pulse and live changes are shown by a static highlight and the announcement, with no movement. _(e2e (reduced-motion emulation: `document.getAnimations()` empty after scrolling the road))_
 - [x] **AC-12:** Motion stays smooth: scrolling the whole road at 1280 × 800 on the development machine has no frame longer than 50 ms and a median frame under 17 ms; the page is interactive within 1 s of load with today's roadmap. _(scripted measurement in Chromium (performance trace), numbers recorded in tasks)_
