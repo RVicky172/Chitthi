@@ -7,6 +7,7 @@ import {
   type InputVideoTrack,
   type VideoSample,
 } from 'mediabunny';
+import { isDesktop } from '../platform/desktop';
 import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
 
 /*
@@ -61,7 +62,7 @@ function share(file: Blob): Shared {
       if (!t) throw new Error(`${nameOf(file)} has no video track.`);
       if (!(await t.canDecode()))
         throw new Error(
-          `${nameOf(file)} uses a video format this ${'chitthiDesktop' in window ? 'computer' : 'browser'} can’t decode (often HEVC from an iPhone).`,
+          `${nameOf(file)} uses a video format this ${isDesktop ? 'computer' : 'browser'} can’t decode (often HEVC from an iPhone).`,
         );
       return t;
     })();

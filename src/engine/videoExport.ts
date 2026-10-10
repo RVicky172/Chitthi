@@ -14,6 +14,7 @@ import {
   canEncodeVideo,
   type StreamTargetChunk,
 } from 'mediabunny';
+import { isDesktop } from '../platform/desktop';
 import { DecodePool, poolLimits, type PoolClip } from './decodePool';
 import { mediabunnySource } from './frameSource';
 import { loadImage } from './photo';
@@ -148,7 +149,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   const total = projectLength(job);
   if (!job.clips.length || total <= 0) throw new ExportError('Add photos or videos first.');
   if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate: job.bitrate })))
-    throw new ExportError(`This ${typeof window !== 'undefined' && 'chitthiDesktop' in window ? 'computer' : 'browser'} can’t make H.264 video at ${W}×${H}. Choose a smaller size, or use Chrome, Edge or the Chitthi Studio desktop app.`);
+    throw new ExportError(`This ${isDesktop ? 'computer' : 'browser'} can’t make H.264 video at ${W}×${H}. Choose a smaller size, or use Chrome, Edge or the Chitthi Studio desktop app.`);
   const withSound = await canEncodeAudio('aac', { numberOfChannels: 2, sampleRate: SAMPLE_RATE, bitrate: 128000 });
 
   job.onProgress?.(0, 'Opening the sound…');
@@ -164,8 +165,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   const frames = Math.max(1, Math.round(total * fps));
   // Video clips decode through a pool: the clip being encoded and the next one (look-ahead), frames no wider than
   // needed for this frame size at up to 1.8× zoom (D5).
-  const desktop = typeof window !== 'undefined' && 'chitthiDesktop' in window;
-  const pool = new DecodePool(mediabunnySource, poolLimits(1, desktop), { maxWidth: Math.round(Math.max(W, H) * 1.8) });
+  const pool = new DecodePool(mediabunnySource, poolLimits(1, isDesktop), { maxWidth: Math.round(Math.max(W, H) * 1.8) });
   const lane = (c: ExportClip): PoolClip => ({ id: c.id, file: c.file, in: c.in, out: c.out, start: c.start, track: c.track });
   const memory = job.sink.kind === 'memory';
   const target = job.sink.kind === 'memory' ? new BufferTarget() : new StreamTarget(job.sink.writable, { chunked: true });
@@ -196,6 +196,13 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
       aborted(job.signal);
     };
     const plan = framePlan(job, fps);
+    // The next video clip after each span, for look-ahead (one pass from the end).
+    const nextVideo: (ExportClip | undefined)[] = [];
+    for (let k = plan.length - 1, n: ExportClip | undefined; k >= 0; k--) {
+      nextVideo[k] = n;
+      const c = plan[k].clip;
+      if (c?.kind === 'video') n = c;
+    }
     for (const [k, { clip: c, f0, f1: last, start }] of plan.entries()) {
       if (!c) {
         // The video track is hidden: black frames, the layers still on top.
@@ -218,7 +225,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
         }
       } else {
         const now = lane(c);
-        const next = plan.slice(k + 1).find((p) => p.clip?.kind === 'video')?.clip;
+        const next = nextVideo[k];
         pool.want(next ? [c.id, next.id] : [c.id]);
         if (next) pool.prepare(lane(next));
         // Past the end of a source shorter than its trim the pool gives its last frame (held, as before).
