@@ -78,6 +78,28 @@ Work one task at a time. After each task:
 
 For an important test, prove it can fail: break the code briefly, see the test fail, restore.
 
+### Parallel tasks with agents (D-030)
+
+Independent tasks run in **batches** of up to **3 implementer agents** (`.claude/agents/implementer.md`), each in its
+own git worktree, with a **reviewer agent** (`.claude/agents/reviewer.md`) checking each result before it is merged.
+The main session is the **orchestrator**: it alone changes `feature.json`, `memory/` and the feature branch.
+
+1. **Pick the batch:** the next tasks that don't depend on each other's results and don't edit the same files (`[P]`
+   tasks, or a test-first pair given whole to one agent). A task that depends on another, a single task with no
+   partner, a 👤 task, or a change to tracking files is done inline by the orchestrator, as before.
+2. `npm run specs -- start NNN Txxx` for each, then start the implementers in **one message** (Agent tool,
+   `isolation: "worktree"`), each with its task text, files, proving test and the plan section it implements.
+3. As each finishes, a reviewer checks its commit. CHANGES go back to the same implementer once (SendMessage); a
+   second CHANGES is fixed inline by the orchestrator.
+4. **Merge** the approved commits into the feature branch one by one (cherry-pick), resolving conflicts.
+5. Run `npm run check` once, then the heavy checks the batch needs, **one at a time** (`npm test`, the area's e2e,
+   `test:roadmap`, `test:mcp`, timing runs): they share ports and caches and timings skew when they overlap.
+6. `npm run specs -- done NNN Txxx --result "…"` for each (from the implementer's result note and the orchestrator's
+   checks), commit, and remove the worktrees (`cmd /c rmdir <worktree>\node_modules` first: it is a junction, then
+   `git worktree remove`).
+7. **Report at the batch end** only: what was done, checks, anything that needs the user. Manual tasks, approvals,
+   pushes and anything outward-facing still wait for the user.
+
 ## Stage 5 — Verify
 
 Run every gate in the Definition of Done (`constitution.md`): `npm run check`, `npm run test:e2e`, `npm run build`,
@@ -114,5 +136,5 @@ Shortcuts in `.claude/commands/`:
 | `/spec-new <name>`      | Creates the next numbered feature folder with a draft `spec.md` |
 | `/spec-plan <NNN>`      | Writes `plan.md` for an approved spec                           |
 | `/spec-tasks <NNN>`     | Writes `tasks.md` from the plan                                 |
-| `/spec-implement <NNN>` | Implements the next unchecked task(s), running tests            |
+| `/spec-implement <NNN>` | Implements the next task(s), running tests; independent tasks as a parallel batch |
 | `/spec-verify <NNN>`    | Runs the Definition-of-Done checklist and updates docs/memory   |

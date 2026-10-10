@@ -17,5 +17,10 @@ Implement feature $ARGUMENTS.
    done, numbers measured). If it needs the user (a manual check, a decision), use
    `npm run specs -- block NNN Txxx --reason "…"` instead and say so. Never tick boxes in the Markdown: it is
    generated. Record any non-obvious gotcha in `memory/learnings.md` and any decision in `memory/decisions.md`.
-5. Continue with the next task only if it is small and in the same area; otherwise stop and report.
+5. **Parallel batch (D-030):** when the next tasks include up to 3 that are independent (`[P]`, no shared files, none
+   waiting on another's result), run them as a batch instead: `start` each, launch one `implementer` agent per task
+   in one message (`isolation: "worktree"`), have a `reviewer` agent check each commit, cherry-pick the approved ones,
+   run `npm run check` and the needed heavy checks one at a time, `done` each with its result, commit, remove the
+   worktrees, and report at the batch end. Details: `specs/workflow.md` "Parallel tasks with agents".
+6. Otherwise continue with the next task only if it is small and in the same area; else stop and report.
    If the code must diverge from the spec, or a result needs the user's call, stop and propose the change first.
