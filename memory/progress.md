@@ -11,7 +11,7 @@ Newest first. One entry per working session.
 
 ---
 
-## 2026-10-10 — 204 T010–T011: the pool
+## 2026-10-10 — 204 T010–T013: the pool and its Mediabunny source
 
 **Done:** T010: 31 tests in `src/engine/decodePool.test.ts` on a fake `FrameSource` (delays, open / decode failures,
 counts of open sources, frames, bytes and readers): `lanePlan`, `frameTime`, `poolLimits`, exact frames on one
@@ -20,7 +20,11 @@ asks under the limits with true stats, `forget` / `dispose` incl. in-flight work
 `src/engine/decodePool.ts` (one worker per lane, byte reservations before each decode so the budget holds on arrival,
 lanes still opening never evicted). Plan interface changed (changelog): `PoolFrame.duration`, no `FrameSource.at()`.
 `npm run check` green.
-**Next:** T012 / T013: self-test checks on the real decoder, then `src/engine/frameSource.ts` (Mediabunny).
+T012 / T013: `src/dev/poolChecks.ts` (AC-1–AC-3 on the real decoder, exact frame time and colour, `openFrames()` 0
+after dispose; timeouts so a stuck decoder fails a check) and `src/engine/frameSource.ts` (Mediabunny). Pool checks
+4 / 4 in 0.9 s; `npm test` 6,131 / 0 (118 s). `CHITTHI_TEST_ONLY=pool npm test` runs only the pool checks. One full
+run hung past 10 min before the timeouts were added and didn't come back (cause unknown).
+**Next:** T020 / T021: the export on the pool (AC-9, AC-11 checks first).
 **Blockers:** none
 
 ## 2026-10-10 — 203 / 204 approved; 204 planned, T001–T002

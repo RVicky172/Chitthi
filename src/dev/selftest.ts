@@ -15,6 +15,7 @@ import { renderCard } from '../engine/render';
 import { samplePhoto } from '../engine/sample';
 import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '../lib/credits';
 import type { Design, ProductId } from '../types';
+import { poolChecks } from './poolChecks';
 import { videoChecks } from './videoChecks';
 
 interface Result {
@@ -26,6 +27,11 @@ interface Result {
 async function run(): Promise<Result> {
   const r: Result = { passed: 0, failed: [], notes: [] };
   const check = (ok: unknown, what: string) => (ok ? r.passed++ : r.failed.push(what));
+  // `CHITTHI_TEST_ONLY=pool npm test` (scripts/test.cjs adds ?only=pool): just the decoder pool's checks.
+  if (new URLSearchParams(location.search).get('only') === 'pool') {
+    await poolSection(check, r);
+    return r;
+  }
   const photos = [0, 1, 2, 3].map((i) => samplePhoto(i, 300, 200));
   const products = PRODUCTS.map((p) => p.id);
 
@@ -164,7 +170,16 @@ async function run(): Promise<Result> {
   await perfChecks(check);
   await gpuChecks(check, r);
   r.notes.push(...(await videoChecks(check)));
+  await poolSection(check, r);
   return r;
+}
+
+async function poolSection(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+  try {
+    r.notes.push(...(await poolChecks(check)));
+  } catch (e) {
+    check(false, `pool checks threw: ${e instanceof Error ? e.message : e}`);
+  }
 }
 
 /* ---------- GPU device layer (P0.2): every backend this machine offers ---------- */

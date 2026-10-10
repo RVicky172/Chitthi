@@ -15,7 +15,8 @@ app.whenReady().then(async () => {
   });
   let code;
   try {
-    await win.loadURL(`${URL}?selftest`).catch((e) => {
+    const only = process.env.CHITTHI_TEST_ONLY ? `&only=${encodeURIComponent(process.env.CHITTHI_TEST_ONLY)}` : '';
+    await win.loadURL(`${URL}?selftest${only}`).catch((e) => {
       if (!String(e && e.message).includes('ERR_ABORTED')) throw e;
     });
     for (let i = 0; i < 150; i++) {

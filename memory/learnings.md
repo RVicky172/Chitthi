@@ -62,6 +62,12 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   `getSample` only for single seeks. Drawing full-size `VideoFrame`s in the export was 3–6.5 % slower than
   `CanvasSink`'s canvases (204 T001).
 
+- Mediabunny's `VideoSample.toCanvasImageSource()` may hand back a `VideoFrame` that is closed in the next microtask:
+  never keep it. To hold a decoded frame, take `toVideoFrame()` (its own frame, closed separately) and close the
+  sample at once; a bare `VideoFrame` ignores the file's rotation / flip, so draw those samples to a canvas. Frames
+  left open don't just leak: once a few dozen are held the `VideoDecoder` stops producing (204 T013 break-test: the
+  pool's next `frame()` never answered). Self-test waits on decoders need a timeout (`within` in poolChecks.ts).
+
 ## Formatting
 
 - Many `src/` files (e.g. `src/state/video.ts`, `Timeline.tsx`) aren't Prettier-formatted (long lines); `npx prettier
