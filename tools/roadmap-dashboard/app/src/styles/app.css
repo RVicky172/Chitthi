@@ -1749,7 +1749,7 @@ a.stop-card:focus-visible {
 /* ---------- roadmap: the route rail (405) ---------- */
 .road-section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px;
+  grid-template-columns: minmax(0, 1fr) 160px;
   gap: 20px;
   align-items: start;
 }
@@ -1777,8 +1777,10 @@ a.stop-card:focus-visible {
   border-left: 2px solid var(--line);
 }
 .rail-phase > a {
-  display: block;
-  padding: 2px 0 4px 10px;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 0 2px 10px;
   color: var(--muted);
   font-weight: 600;
   text-decoration: none;
@@ -1790,11 +1792,19 @@ a.stop-card:focus-visible {
 .rail-phase ol {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  padding-left: 10px;
+  gap: 0;
+  padding-left: 4px;
 }
 .rail-stop {
-  display: block;
+  /* A 24 × 24 target (WCAG 2.2 target size) with the dot drawn inside. */
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.rail-stop::before {
+  content: '';
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -1802,29 +1812,29 @@ a.stop-card:focus-visible {
   background: var(--bg);
   transition: transform var(--dur-fast) var(--ease);
 }
-.rail-stop.k-done {
+.rail-stop.k-done::before {
   background: var(--good);
   border-color: var(--good);
 }
-.rail-stop.k-in-progress {
+.rail-stop.k-in-progress::before {
   border-color: var(--accent);
 }
-.rail-stop.k-blocked {
+.rail-stop.k-blocked::before {
   border-color: var(--danger);
 }
-.rail-stop.k-approved {
+.rail-stop.k-approved::before {
   border-color: var(--brand-ink);
 }
-.rail-stop.st-current {
+.rail-stop.st-current::before {
   background: var(--brand-red);
   border-color: var(--brand-red);
   transform: scale(1.3);
 }
-.rail-stop.is-in-view {
+.rail-stop.is-in-view::before {
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--line-strong);
 }
-.rail-stop:hover,
-.rail-stop:focus-visible {
+.rail-stop:hover::before,
+.rail-stop:focus-visible::before {
   transform: scale(1.4);
 }
 .rail a:focus-visible {

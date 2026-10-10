@@ -21,6 +21,15 @@ export function RoadmapPage({ project, params }: Props) {
   const r = project.roadmap;
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState(params.get('status') ?? '');
+  // A new ?q= / ?status= from the address bar (a pasted link: only the hash changes) replaces the filter.
+  const fromUrl = `${params.get('q') ?? ''}
+${params.get('status') ?? ''}`;
+  const [seenUrl, setSeenUrl] = useState(fromUrl);
+  if (seenUrl !== fromUrl) {
+    setSeenUrl(fromUrl);
+    setQ(params.get('q') ?? '');
+    setStatus(params.get('status') ?? '');
+  }
   const reduced = useReducedMotion();
   const live = useLiveChanges(project);
   const road = useMemo(() => (r ? buildRoad(r, project.features) : null), [r, project.features]);
