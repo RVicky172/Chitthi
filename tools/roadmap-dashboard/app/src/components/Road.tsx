@@ -2,7 +2,7 @@
 // through each stop's anchor (travelled solid up to the current stop, ahead dashed, a line drawn as you scroll) and the
 // "you are here" marker. The road is decoration (aria-hidden): every fact is in the list.
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { splitAt, type Point } from '../lib/geometry';
+import { roadPath, splitAt, type Point } from '../lib/geometry';
 import { useCountUp, useRevealed, useScrollDraw } from '../lib/motion';
 import type { Region, Road as RoadData, Stop } from '../lib/road';
 import { waitingOn } from '../lib/roadmap';
@@ -67,6 +67,9 @@ export function Road({ road, roadmap, reduced, changed, matches, hero, extra }: 
   return (
     <div className="road" ref={wrap}>
       <svg className="road-svg" aria-hidden="true" focusable="false">
+        {/* A road: kerbs, the bed, a dashed centre line ahead; the travelled part tinted and drawn as you scroll. */}
+        <path className="road-kerb" d={roadPath(points)} />
+        <path className="road-bed" d={roadPath(points)} />
         <path className="road-ahead" d={ahead} />
         <path className="road-travelled" d={travelled} />
         <path className="road-drawn" ref={drawn} d={travelled} />

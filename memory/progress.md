@@ -22,7 +22,13 @@ dark stage, the route rail / bottom bar, Back to now and `?at=`, Pace, filters b
 once, reduced-motion twins, feature-page segments and gliding cards. Q9 revised (one scroll listener, not CSS scroll
 timelines). Browser checks `npm run test:roadmap` 17 / 17 (twice): they caught a 404-era bug (a pasted filter URL in an
 open tab was ignored) and WCAG 2.2 target size on the rail. Gates: check 1,131, build entry 327 KB, licences ok.
-**Next:** the maintainer's T050 look (then AC-9 and T092: Implemented, merge); then back to 204 T030.
+Maintainer's first look (T050): "looks good but theme is not looking good … the green color is too much for the items".
+Theme reworked (no paid /scroll-world clips; its map-like art direction borrowed in CSS): the road as a road (kerbs,
+bed, dashed centre line, travelled part in airmail navy), a dotted map panel, phase headers with the airmail edge,
+done stops in calm graphite, in progress in navy, drawn status dots instead of the roadmap's emoji (the tick rendered
+purple), navy pace bars and segments with today in red; green stays only on the board's Done column. test:roadmap
+17 / 17 (axe contrast included).
+**Next:** the maintainer's second T050 look (then AC-9 and T092: Implemented, merge); then back to 204 T030.
 **Blockers:** T050 needs the maintainer.
 
 ## 2026-10-09 — 202 verified: Implemented ✔️

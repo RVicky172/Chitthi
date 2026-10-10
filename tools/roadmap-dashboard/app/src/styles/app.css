@@ -2024,3 +2024,178 @@ a.stop-card:focus-visible {
 .feature-segments {
   margin: 4px 0 20px;
 }
+
+/* ---------- roadmap: the airmail theme for the road (405, after the maintainer's look: less green) ----------
+   One palette for the journey: paper and graphite for what's done, airmail navy (--brand-ink) for the work in
+   progress and the travelled road, airmail red (--brand-red) for "you are here" and today, danger only for blocked.
+   Green stays for the board's Done column; on the road, done is calm. */
+.road-section > .road {
+  padding: 8px clamp(8px, 2vw, 24px) 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background-color: var(--bg);
+  /* A faint map grid. */
+  background-image: radial-gradient(var(--line) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+.road-kerb {
+  stroke: var(--line);
+  stroke-width: 20;
+}
+.road-bed {
+  stroke: var(--panel);
+  stroke-width: 15;
+}
+.road-ahead {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  stroke-dasharray: 8 9;
+  stroke-linecap: butt;
+}
+.road-travelled {
+  stroke: color-mix(in oklab, var(--brand-ink) 18%, var(--panel));
+  stroke-width: 15;
+}
+.road-drawn {
+  stroke: var(--brand-ink);
+  stroke-width: 4;
+}
+.road-marker {
+  box-shadow:
+    0 0 0 4px var(--panel),
+    0 0 0 5px var(--brand-red);
+}
+
+/* Phase headers: an envelope with the airmail edge. */
+.region-head {
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: var(--elev-1);
+}
+.region-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: repeating-linear-gradient(-45deg, var(--brand-red) 0 9px, var(--panel) 9px 14px, var(--brand-ink) 14px 23px, var(--panel) 23px 28px);
+}
+.region.is-current .region-head {
+  border-color: var(--brand-ink);
+}
+
+/* Stops by kind. */
+.stop-fill {
+  background: var(--brand-ink);
+}
+.k-done .stop-card {
+  border-left-color: var(--line-strong);
+}
+.k-done .stop-fill {
+  background: var(--muted);
+}
+.k-done .stop-title {
+  font-weight: 600;
+}
+.k-in-progress .stop-card {
+  border-left-color: var(--brand-ink);
+}
+.k-approved .stop-card {
+  border-left-color: var(--accent-strong);
+}
+.stop-card .badge.s-done {
+  border-color: var(--line-strong);
+  color: var(--muted);
+}
+.stop-card .badge.s-in-progress {
+  border-color: var(--brand-ink);
+  color: var(--brand-ink);
+}
+.stop.st-ahead.k-done .stop-card,
+.stop.st-travelled .stop-card {
+  background: var(--panel);
+}
+
+/* The rail: graphite for done, navy for in progress, red for you are here. */
+.rail-stop.k-done::before {
+  background: var(--muted);
+  border-color: var(--muted);
+}
+.rail-stop.k-in-progress::before {
+  border-color: var(--brand-ink);
+}
+.rail-stop.k-approved::before {
+  border-color: var(--accent-strong);
+}
+.rail-phase {
+  border-left-color: var(--line);
+}
+.rail-phase:has(.is-in-view) {
+  border-left-color: var(--brand-ink);
+}
+
+/* Pace and sections: navy, today in red. */
+.pace-fill,
+.seg-fill {
+  background: var(--brand-ink);
+}
+.pace li.is-today .pace-fill {
+  background: var(--brand-red);
+}
+.segments li.is-full .seg-fill {
+  background: var(--muted);
+}
+.segments.on-stage .seg-fill,
+.segments.on-stage li.is-full .seg-fill {
+  background: var(--stage-accent);
+}
+.stop-age {
+  color: var(--muted);
+}
+/* On the road, a status is a small drawn dot in the theme's colours and its words (the emoji icons from roadmap.json
+   render in the font's own colours: a purple tick next to navy and red). */
+.stop-card .badge > [aria-hidden='true'] {
+  display: none;
+}
+.stop-card .badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+.k-done .stop-card .badge::before,
+.k-in-progress .stop-card .badge::before,
+.k-blocked .stop-card .badge::before {
+  background: currentColor;
+}
+.k-blocked .stop-card .badge {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+/* Status chips: the same drawn dots as the stops (colour by status, words beside). */
+.chips .chip[class*=' s-'] > [aria-hidden='true'] {
+  display: none;
+}
+.chips .chip[class*=' s-']::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  vertical-align: 1px;
+}
+.chips .chip.s-done::before {
+  background: var(--muted);
+  border-color: var(--muted);
+}
+.chips .chip.s-in-progress::before {
+  background: var(--brand-ink);
+  border-color: var(--brand-ink);
+}
+.chips .chip.s-spec-approved::before {
+  border-color: var(--accent-strong);
+}

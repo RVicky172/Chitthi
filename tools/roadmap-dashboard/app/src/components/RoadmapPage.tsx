@@ -99,7 +99,7 @@ ${params.get('status') ?? ''}`;
             All
           </button>
           {r.statuses.order.map((sid) => (
-            <button key={sid} type="button" className="chip" aria-pressed={status === sid} onClick={() => update({ status: status === sid ? '' : sid })}>
+            <button key={sid} type="button" className={`chip s-${sid}`} aria-pressed={status === sid} onClick={() => update({ status: status === sid ? '' : sid })}>
               <span aria-hidden="true">{r.statuses.byId[sid].icon}</span> {r.statuses.byId[sid].label}
             </button>
           ))}

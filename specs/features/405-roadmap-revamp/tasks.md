@@ -71,7 +71,7 @@ anything surprising or deferred.
 ## Manual checks
 
 - [ ] **T050** 👤 — Manual check by the maintainer in `npm run roadmap`: the road reads as a journey, the current work stands out, a CLI `done` lights up, the motion feels right (not busy) in light and dark, at a desktop width and a phone width; a short screen recording at 1280 px for the record (AC-9). · files: `none` · test: the maintainer's notes recorded here
-  - **Blocked:** Needs the maintainer: open npm run roadmap, judge the road, the hero, a CLI done lighting up and the motion (light / dark, desktop and phone widths), and make a short recording at 1280 px.
+  - **Blocked:** Second look by the maintainer after the theme change of 2026-10-10 (their first look: 'looks good but theme is not looking good … the green color is too much for the items'): airmail palette on the road, then AC-9 and T092.
 
 ## Verify
 
