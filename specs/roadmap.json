@@ -72,6 +72,7 @@
         "title": "Phase 2 — Multi-track timeline (release 3.0.0)",
         "goal": "a real timeline with tracks, edit tools, keyframes, transitions, speed and audio.",
         "exit": "a 4K multi-track timeline (3 video and 2 audio tracks, transitions) plays smoothly on desktop;\nevery 2.x project opens unchanged.",
+        "release": "3.0.0",
         "intro": null,
         "items": [
           "201",
@@ -92,6 +93,7 @@
         "title": "Phase 3 — Colour and finishing (release 3.1.0)",
         "goal": "a colour page with scopes, captions, retouching, and professional outputs on desktop.",
         "exit": "none set yet (the editor roadmap marks it the last phase); the first Phase 3 spec proposes a\nmeasurable one.",
+        "release": "3.1.0",
         "intro": null,
         "items": [
           "301",

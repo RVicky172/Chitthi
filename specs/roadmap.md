@@ -30,6 +30,8 @@ _Goal:_ record the app as it stands (2.8.0 plus the unreleased editor Phases 0�
 
 _Goal:_ a real timeline with tracks, edit tools, keyframes, transitions, speed and audio.
 
+_Release:_ 3.0.0
+
 | #   | Feature | Spec | Status | Needs |
 | --- | ------- | ---- | ------ | ----- |
 | 201 | Track model and migration (P2.1) | [spec](features/201-track-model/spec.md) | ✔️ | — |
@@ -51,6 +53,8 @@ every 2.x project opens unchanged.
 ## Phase 3 — Colour and finishing (release 3.1.0)
 
 _Goal:_ a colour page with scopes, captions, retouching, and professional outputs on desktop.
+
+_Release:_ 3.1.0
 
 | #   | Feature | Spec | Status | Needs |
 | --- | ------- | ---- | ------ | ----- |

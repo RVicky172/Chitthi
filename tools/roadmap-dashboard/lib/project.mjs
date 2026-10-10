@@ -12,7 +12,7 @@ import { coverage, featureFolders, loadIndex, progress } from '../../specs-index
 import { currentState, latestProgress } from './memory.mjs';
 
 /** The API's shape version; app/src/types.ts API_SCHEMA must match (the page asks for a restart otherwise). */
-export const API_SCHEMA = 2;
+export const API_SCHEMA = 3;
 
 const DOCS = ['spec.md', 'plan.md', 'tasks.md'];
 

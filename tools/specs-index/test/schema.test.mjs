@@ -53,6 +53,16 @@ describe('the repo schemas', () => {
       expect(validate(loadSchema('feature'), readJsonFile(join(MINI, `specs/features/${f}/feature.json`)))).toEqual([]);
   });
 
+  it('accept a phase with a release, and still reject unknown phase fields (405 D1)', () => {
+    const r = readJsonFile(join(MINI, 'specs/roadmap.json'));
+    r.phases.byId['phase-1'].release = '1.0.0';
+    expect(validate(loadSchema('roadmap'), r)).toEqual([]);
+    r.phases.byId['phase-1'].release = null;
+    expect(validate(loadSchema('roadmap'), r)).toEqual([]);
+    r.phases.byId['phase-1'].ship = 'soon';
+    expect(validate(loadSchema('roadmap'), r)).toEqual(['/phases/byId/phase-1/ship: is not allowed']);
+  });
+
   it('reject a bad feature', () => {
     const f = readJsonFile(join(MINI, 'specs/features/102-beta/feature.json'));
     f.status = 'nearly';

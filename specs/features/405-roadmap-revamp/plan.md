@@ -47,7 +47,7 @@ an `h2`, each stop an `li` with id, title, status text, progress and links (AC-1
 alternately left and right of a centre line; at ≤ 640 px they form one column with the road on the left edge. The
 road itself is one `aria-hidden` SVG behind the list: `Road` measures each stop's anchor point (a
 `ResizeObserver` on the list, one measurement per animation frame) and `roadPath(points)` (`app/src/lib/geometry.ts`,
-new, pure) builds a smooth path through them (cubic Béziers with vertical tangents), split at the current stop into
+new, pure) builds a smooth path through them (cubic Béziers with Catmull-Rom tangents: T001 found vertical tangents give kinked S-bends), with each anchor near its own column's inner edge so the road swings across the gap (anchors at the centre made a straight line), split at the current stop into
 **travelled** (solid) and **ahead** (dashed, faint) parts. A third copy of the travelled part is the **drawn** line:
 its `stroke-dashoffset` follows the scroll position (AC-9). Phase regions end with their release milestone (§1).
 Items without a spec are faint and not links (AC-8, Q4).

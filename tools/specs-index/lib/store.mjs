@@ -82,5 +82,19 @@ export function progress(feature) {
     tasks: { done: byStatus.done, total: tasks.length, byStatus },
     openQuestions: entries(feature?.spec?.questions).filter(([, q]) => q.open).length,
     next: next ? { id: next[0], text: next[1].text, status: next[1].status } : null,
+    // For the roadmap's road (405): sections in their order (then any section only tasks name), the tasks in
+    // progress, blocked and finished (done with a date), and every task's status for spotting changes.
+    sections: [...new Set([...(feature?.tasks?.sections ?? []).map((s) => s.title), ...tasks.map(([, t]) => t.section)])]
+      .map((title) => {
+        const inSection = tasks.filter(([, t]) => t.section === title);
+        return { title, done: inSection.filter(([, t]) => t.status === 'done').length, total: inSection.length };
+      })
+      .filter((s) => s.total > 0),
+    running: tasks
+      .filter(([, t]) => t.status === 'in-progress')
+      .map(([id, t]) => ({ id, text: t.text, section: t.section, startedOn: t.startedOn ?? null })),
+    blocked: tasks.filter(([, t]) => t.status === 'blocked').map(([id, t]) => ({ id, text: t.text, reason: t.blockedReason ?? null })),
+    finished: tasks.filter(([, t]) => t.status === 'done' && t.doneOn).map(([id, t]) => ({ id, text: t.text, doneOn: t.doneOn })),
+    statuses: Object.fromEntries(tasks.map(([id, t]) => [id, t.status])),
   };
 }
