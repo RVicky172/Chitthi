@@ -4,7 +4,6 @@ import {
   AudioBufferSource,
   BlobSource,
   BufferTarget,
-  CanvasSink,
   CanvasSource,
   Input,
   Mp4OutputFormat,
@@ -15,6 +14,8 @@ import {
   canEncodeVideo,
   type StreamTargetChunk,
 } from 'mediabunny';
+import { DecodePool, poolLimits, type PoolClip } from './decodePool';
+import { mediabunnySource } from './frameSource';
 import { loadImage } from './photo';
 import { audioPlan, framePlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
 import { NO_PICTURE, renderFrame, type FrameClip } from './video';
@@ -26,7 +27,9 @@ import { NO_PICTURE, renderFrame, type FrameClip } from './video';
  *
  * Memory stays flat however long the video is:
  *   - frames are drawn one at a time (`framePlan`) and handed to the encoder; video clips are decoded frame by frame at
- *     exactly the times needed; a hidden video track gives black frames with the layers on top;
+ *     exactly the times needed, through the decoder pool (decodePool.ts, as the preview), which opens the next video
+ *     clip while the current one encodes and releases every frame once replaced; a hidden video track gives black
+ *     frames with the layers on top;
  *   - sound (`audioPlan`: clips' own sound plus music, unless its track is muted) is decoded and mixed in 10-second
  *     windows, interleaved with the frames;
  *   - long videos stream to a file (desktop: through the main process; Chrome and Edge: the File System Access API),
@@ -70,7 +73,6 @@ const AAC_FRAME = 1024;
 const aborted = (signal?: AbortSignal) => {
   if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
 };
-const nameOf = (b: Blob) => (b instanceof File ? b.name : 'A clip');
 
 /** A sound the mix plays (timeline times, source time, volume and its ramps), opened for decoding. */
 interface AudioSource extends SoundSource {
@@ -160,6 +162,11 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   if (!ctx) throw new ExportError('Canvas unavailable.');
 
   const frames = Math.max(1, Math.round(total * fps));
+  // Video clips decode through a pool: the clip being encoded and the next one (look-ahead), frames no wider than
+  // needed for this frame size at up to 1.8× zoom (D5).
+  const desktop = typeof window !== 'undefined' && 'chitthiDesktop' in window;
+  const pool = new DecodePool(mediabunnySource, poolLimits(1, desktop), { maxWidth: Math.round(Math.max(W, H) * 1.8) });
+  const lane = (c: ExportClip): PoolClip => ({ id: c.id, file: c.file, in: c.in, out: c.out, start: c.start, track: c.track });
   const memory = job.sink.kind === 'memory';
   const target = job.sink.kind === 'memory' ? new BufferTarget() : new StreamTarget(job.sink.writable, { chunked: true });
   // Streamed files reserve space at the front for the index, so they get fast start without holding the video in memory.
@@ -188,7 +195,8 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
       if (done % 10 === 0) job.onProgress?.(done / frames, `Encoding frame ${done.toLocaleString()} of ${frames.toLocaleString()}…`);
       aborted(job.signal);
     };
-    for (const { clip: c, f0, f1: last, start } of framePlan(job, fps)) {
+    const plan = framePlan(job, fps);
+    for (const [k, { clip: c, f0, f1: last, start }] of plan.entries()) {
       if (!c) {
         // The video track is hidden: black frames, the layers still on top.
         for (let i = f0; i < last; i++) {
@@ -209,38 +217,28 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
           URL.revokeObjectURL(url);
         }
       } else {
-        const input = new Input({ source: new BlobSource(c.file), formats: ALL_FORMATS });
-        try {
-          const track = await input.getPrimaryVideoTrack();
-          if (!track) throw new ExportError(`${nameOf(c.file)} has no video track.`);
-          if (!(await track.canDecode())) throw new ExportError(`${nameOf(c.file)} uses a video format this ${'chitthiDesktop' in window ? 'computer' : 'browser'} can’t decode (often HEVC from an iPhone).`);
-          // Decode no wider than needed for this frame size at up to 1.8× zoom.
-          const sink = new CanvasSink(track, { width: Math.min(track.displayWidth, Math.round(Math.max(W, H) * 1.8)), poolSize: 2 });
-          const times = Array.from({ length: last - f0 }, (_, k) => c.in + (f0 + k) / fps - start);
-          let i = f0;
-          let prev: CanvasImageSource | null = null,
-            pw = 0,
-            ph = 0;
-          for await (const wc of sink.canvasesAtTimestamps(times)) {
-            if (wc) {
-              prev = wc.canvas;
-              pw = wc.canvas.width;
-              ph = wc.canvas.height;
-            }
-            const t = i / fps;
-            renderFrame(ctx, W, H, c, prev, pw, ph, t - start, job.layers, t, total, job.fadeOut);
-            await step(t);
-            if (++i >= last) break;
+        const now = lane(c);
+        const next = plan.slice(k + 1).find((p) => p.clip?.kind === 'video')?.clip;
+        pool.want(next ? [c.id, next.id] : [c.id]);
+        if (next) pool.prepare(lane(next));
+        // Past the end of a source shorter than its trim the pool gives its last frame (held, as before).
+        let prev: CanvasImageSource | null = null,
+          pw = 0,
+          ph = 0;
+        for (let i = f0; i < last; i++) {
+          const t = i / fps;
+          const f = await pool.frame(now, c.in + t - start).catch((e: unknown) => {
+            throw new ExportError(e instanceof Error ? e.message : String(e));
+          });
+          if (f) {
+            prev = f.image;
+            pw = f.width;
+            ph = f.height;
           }
-          // A source shorter than its trim: hold the last frame.
-          for (; i < last; i++) {
-            const t = i / fps;
-            renderFrame(ctx, W, H, c, prev, pw, ph, t - start, job.layers, t, total, job.fadeOut);
-            await step(t);
-          }
-        } finally {
-          input.dispose();
+          renderFrame(ctx, W, H, c, prev, pw, ph, t - start, job.layers, t, total, job.fadeOut);
+          await step(t);
         }
+        pool.forget(c.id);
       }
     }
     await feedSound(total);
@@ -252,6 +250,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
     await output.cancel().catch(() => undefined);
     throw e;
   } finally {
+    pool.dispose();
     for (const s of sources) s.input.dispose();
     canvas.width = canvas.height = 1;
   }

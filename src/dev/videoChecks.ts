@@ -161,7 +161,7 @@ export async function decodedColours(
 }
 
 /** A W×H JPEG photo for test clips: a gradient with a few shapes, different per index. */
-async function testPhoto(i: number, W = 1600, H = 1067): Promise<{ blob: Blob; still: HTMLCanvasElement }> {
+export async function testPhoto(i: number, W = 1600, H = 1067): Promise<{ blob: Blob; still: HTMLCanvasElement }> {
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;

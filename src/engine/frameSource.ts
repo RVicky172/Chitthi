@@ -1,4 +1,12 @@
-import { ALL_FORMATS, BlobSource, CanvasSink, Input, VideoSampleSink, type InputVideoTrack, type VideoSample } from 'mediabunny';
+import {
+  ALL_FORMATS,
+  BlobSource,
+  CanvasSink,
+  Input,
+  VideoSampleSink,
+  type InputVideoTrack,
+  type VideoSample,
+} from 'mediabunny';
 import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
 
 /*
@@ -8,15 +16,17 @@ import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
  * decoded them. Every frame goes through one registry, so `openFrames()` tells any self-test what is still open.
  */
 
-const open = { decoders: 0, frames: 0, bytes: 0 };
+const open = { decoders: 0, frames: 0, bytes: 0, made: 0 };
 
-/** Frames, their bytes (width × height × 4, D2) and decoders open right now, across every pool. */
+/** Frames, their bytes (width × height × 4, D2) and decoders open right now, across every pool; `made` counts every
+ * frame ever decoded (a self-test tells from it that frames went through the pool). */
 export const openFrames = () => ({ ...open });
 
 function trackFrame(f: Omit<PoolFrame, 'close'>, release: () => void): PoolFrame {
   const bytes = f.width * f.height * 4;
   let closed = false;
   open.frames++;
+  open.made++;
   open.bytes += bytes;
   return {
     ...f,
@@ -45,7 +55,9 @@ function share(file: Blob): Shared {
   if (!s) {
     const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
     const track = (async () => {
-      const t = await input.getPrimaryVideoTrack();
+      const t = await input.getPrimaryVideoTrack().catch(() => {
+        throw new Error(`${nameOf(file)} couldn’t be read. It may be damaged, or not a video file.`);
+      });
       if (!t) throw new Error(`${nameOf(file)} has no video track.`);
       if (!(await t.canDecode()))
         throw new Error(
@@ -87,8 +99,13 @@ function fromSample(s: VideoSample): PoolFrame {
   }
 }
 
-/** Wraps one Mediabunny iterator as a reader: counted as a decoder until it ends or is stopped. */
-function reader<T>(gen: AsyncGenerator<T, void, unknown>, wrap: (v: T) => PoolFrame): AsyncIterator<PoolFrame> {
+/** Wraps one Mediabunny iterator as a reader: counted as a decoder until it ends or is stopped. A decoding error
+ * names the file. */
+function reader<T>(
+  gen: AsyncGenerator<T, void, unknown>,
+  wrap: (v: T) => PoolFrame,
+  file: Blob,
+): AsyncIterator<PoolFrame> {
   open.decoders++;
   let live = true;
   const stop = () => {
@@ -108,7 +125,9 @@ function reader<T>(gen: AsyncGenerator<T, void, unknown>, wrap: (v: T) => PoolFr
         return { done: false, value: wrap(r.value) };
       } catch (e) {
         stop();
-        throw e;
+        throw new Error(`${nameOf(file)} couldn’t be decoded: ${e instanceof Error ? e.message : String(e)}`, {
+          cause: e,
+        });
       }
     },
     async return() {
@@ -141,13 +160,22 @@ export const mediabunnySource: FrameSourceFactory = async (file, opts) => {
     from(t) {
       if (closed) throw new Error('The video was closed.');
       if (canvases)
-        return reader(canvases.canvases(Math.max(0, t)), (wc) =>
-          trackFrame(
-            { image: wc.canvas, width: wc.canvas.width, height: wc.canvas.height, time: wc.timestamp, duration: wc.duration },
-            () => undefined,
-          ),
+        return reader(
+          canvases.canvases(Math.max(0, t)),
+          (wc) =>
+            trackFrame(
+              {
+                image: wc.canvas,
+                width: wc.canvas.width,
+                height: wc.canvas.height,
+                time: wc.timestamp,
+                duration: wc.duration,
+              },
+              () => undefined,
+            ),
+          file,
         );
-      return reader(samples!.samples(Math.max(0, t)), fromSample);
+      return reader(samples!.samples(Math.max(0, t)), fromSample, file);
     },
     close() {
       if (closed) return;

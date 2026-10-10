@@ -2,8 +2,10 @@
  * Development only: the decoder pool's self-test checks on the real decoder (specs/features/204-decoder-pool). Test
  * clips are made in memory (videoChecks.ts makeTestClip: a flat colour per frame that tells its source time).
  */
-import { clipColour, makeTestClip } from './videoChecks';
+import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
+import { clipColour, decodedColours, makeTestClip, testPhoto } from './videoChecks';
 import type { PoolClip, PoolFrame } from '../engine/decodePool';
+import type { ExportClip, ExportJob } from '../engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;
 
@@ -184,5 +186,266 @@ export async function poolChecks(check: Check): Promise<string[]> {
   notes.push(
     `pool: AC-1–AC-3 on 2 × 10 s 640×360 clips (2 s key frames) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   );
+  await group(check, 'export AC-9', async () => {
+    notes.push(await exportSameFrames(check, A, B));
+  });
+  await group(check, 'export AC-11', async () => {
+    notes.push(await exportNoLeaks(check));
+  });
   return notes;
+}
+
+/** The mean colour of the 16 × 16 patch in the middle of a W × H canvas. */
+function mean16(x: CanvasRenderingContext2D, W: number, H: number): [number, number, number] {
+  const d = x.getImageData(Math.round(W / 2) - 8, Math.round(H / 2) - 8, 16, 16).data;
+  let r = 0,
+    g = 0,
+    b = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    r += d[i];
+    g += d[i + 1];
+    b += d[i + 2];
+  }
+  return [r / 256, g / 256, b / 256];
+}
+
+/**
+ * AC-9 (204): the export shows the same source frames as it always did. 201's project shapes (video clips from the
+ * test clips, photos from test photos) and 202's gap are exported at 16:9; at 10 frames each the decoded middle must
+ * match (±8) that frame drawn by `renderFrame` from a source frame decoded on its own (`CanvasSink.getCanvas`, as the
+ * export decoded before the pool): an oracle that holds on today's code and after.
+ */
+async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string> {
+  const { encodeVideo } = await import('../engine/videoExport');
+  const { renderFrame, NO_PICTURE } = await import('../engine/video');
+  const { legacyFixtures } = await import('../engine/timeline.testkit');
+  const { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength } = await import('../engine/timeline');
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { loadImage } = await import('../engine/photo');
+  const W = 480,
+    H = 270;
+  const photos = await Promise.all([0, 1, 2].map((i) => testPhoto(i, 640, 427)));
+  const images = new Map<Blob, HTMLImageElement>();
+  for (const p of photos) {
+    const url = URL.createObjectURL(p.blob);
+    images.set(p.blob, await loadImage(url));
+    URL.revokeObjectURL(url);
+  }
+  const lf = legacyFixtures();
+  const shapes = {
+    videoOnly: lf.videoOnly,
+    mixed: lf.mixed,
+    musicOffset: lf.musicOffset,
+    noFadeOut: lf.noFadeOut,
+    tinyClips: lf.tinyClips,
+    clips20: lf.clips20,
+  };
+  const base = { tracks: defaultTracks(), audio: [], width: W, height: H, fps: FPS, bitrate: 1.5e6 };
+  const jobs: [string, ExportJob][] = Object.entries(shapes).map(([name, lp]) => {
+    let k = 0;
+    const clips = pack(
+      lp.clips.map((c): ExportClip => ({
+        ...c,
+        track: MAIN_VIDEO,
+        start: 0,
+        file: c.kind === 'video' ? (k++ % 2 ? B : A) : photos[k++ % 3].blob,
+      })),
+    );
+    return [name, { ...base, clips, layers: lp.layers, fadeOut: lp.fadeOut, sink: { kind: 'memory' } }];
+  });
+  // 202's gap: two 1 s photos 1.5 s apart.
+  const gapClips = [0, 1].map((i): ExportClip => ({
+    id: `g${i}`,
+    track: MAIN_VIDEO,
+    start: i ? 2.5 : 0,
+    kind: 'photo',
+    dur: 1,
+    in: 0,
+    out: 0,
+    edit: { ...DEFAULT_EDIT },
+    motion: 'none',
+    fade: false,
+    file: photos[i].blob,
+    volume: 0,
+  }));
+  jobs.push(['gap', { ...base, clips: gapClips, layers: [], fadeOut: false, sink: { kind: 'memory' } }]);
+
+  const ox = document.createElement('canvas');
+  ox.width = W;
+  ox.height = H;
+  const octx = ox.getContext('2d', { willReadFrequently: true })!;
+  const bad: string[] = [];
+  let compared = 0;
+  for (const [name, job] of jobs) {
+    const mp4 = await encodeVideo(job);
+    if (!mp4) throw new Error(`${name}: no file`);
+    const total = projectLength(job);
+    const frames = Math.max(1, Math.round(total * FPS));
+    const idx = Array.from({ length: 10 }, (_, k) => Math.min(frames - 1, Math.floor(((k + 0.5) / 10) * frames)));
+    const got = await decodedColours(
+      mp4,
+      idx.map((i) => (i + 0.5) / FPS),
+    );
+    const plan = framePlan(job, FPS);
+    const inputs = new Map<Blob, { input: Input; sink: CanvasSink }>();
+    try {
+      for (const [n, i] of idx.entries()) {
+        const span = plan.find((p) => i >= p.f0 && i < p.f1);
+        const t = i / FPS;
+        const c = span?.clip ?? null;
+        if (!c)
+          renderFrame(octx, W, H, NO_PICTURE, null, 0, 0, t - (span?.start ?? 0), job.layers, t, total, job.fadeOut);
+        else if (c.kind === 'photo') {
+          const img = images.get(c.file)!;
+          renderFrame(
+            octx,
+            W,
+            H,
+            c,
+            img,
+            img.naturalWidth,
+            img.naturalHeight,
+            t - c.start,
+            job.layers,
+            t,
+            total,
+            job.fadeOut,
+          );
+        } else {
+          let o = inputs.get(c.file);
+          if (!o) {
+            const input = new Input({ source: new BlobSource(c.file), formats: ALL_FORMATS });
+            const track = (await input.getPrimaryVideoTrack())!;
+            const width = Math.min(track.displayWidth, Math.round(Math.max(W, H) * 1.8));
+            o = { input, sink: new CanvasSink(track, { width }) };
+            inputs.set(c.file, o);
+          }
+          const wc = await o.sink.getCanvas(c.in + t - c.start);
+          const cv = wc?.canvas ?? null;
+          renderFrame(
+            octx,
+            W,
+            H,
+            c,
+            cv,
+            cv?.width ?? 0,
+            cv?.height ?? 0,
+            t - c.start,
+            job.layers,
+            t,
+            total,
+            job.fadeOut,
+          );
+        }
+        const want = mean16(octx, W, H);
+        compared++;
+        if (!got[n] || !want.every((v, ch) => Math.abs(v - got[n][ch]) <= 8))
+          bad.push(`${name} frame ${i}: ${got[n]?.map(Math.round).join('/')} (want ${want.map(Math.round).join('/')})`);
+      }
+    } finally {
+      for (const o of inputs.values()) o.input.dispose();
+    }
+  }
+  check(
+    !bad.length,
+    `pool: exports of 201's shapes and 202's gap show the expected source frames (${compared} frames)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+  );
+  return `pool: AC-9 compared ${compared} exported frames in ${jobs.length} projects`;
+}
+
+/**
+ * AC-11 (204): a 2-minute 1080p 16:9 export (24 clips of 5 s from 3 source files, a hidden track's span, a 1.5 s gap)
+ * decodes its frames through the pool and leaves no frame or decoder open: after it, after 3 in a row, after a cancel
+ * at 50 % and after a clip that can't be read at about 1 minute.
+ */
+async function exportNoLeaks(check: Check): Promise<string> {
+  const { encodeVideo, ExportError } = await import('../engine/videoExport');
+  const { openFrames } = await import('../engine/frameSource');
+  const { MAIN_VIDEO, defaultTracks } = await import('../engine/timeline');
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const t0 = performance.now();
+  const srcs = await Promise.all([0, 1, 2].map(() => makeTestClip(10, 1920, 1080, 2)));
+  const files = srcs.filter((s): s is Blob => !!s);
+  if (files.length < 3) return 'pool: AC-11 skipped (no 1080p H.264 encoder)';
+  const made = performance.now() - t0;
+  let start = 0;
+  const clips: ExportClip[] = Array.from({ length: 24 }, (_, i) => {
+    const inT = (i * 1.3) % 5;
+    const c: ExportClip = {
+      id: `l${i}`,
+      track: MAIN_VIDEO,
+      start,
+      kind: 'video',
+      dur: 0,
+      in: inT,
+      out: inT + 5,
+      edit: { ...DEFAULT_EDIT },
+      motion: 'none',
+      fade: false,
+      file: files[i % 3],
+      volume: 1,
+    };
+    start += 5 + (i === 11 ? 1.5 : 0);
+    return c;
+  });
+  const overlay = { id: 'V2', kind: 'overlay' as const, name: 'Overlay', hidden: true, muted: false, locked: false };
+  clips.push({ ...clips[3], id: 'hidden', track: 'V2', start: 30 });
+  const job = (cs: ExportClip[], extra: Partial<ExportJob> = {}): ExportJob => ({
+    tracks: [...defaultTracks(), overlay],
+    clips: cs,
+    audio: [],
+    layers: [],
+    fadeOut: false,
+    width: 1920,
+    height: 1080,
+    fps: FPS,
+    bitrate: 4e6,
+    sink: { kind: 'memory' },
+    ...extra,
+  });
+  const zero = async (what: string) => {
+    const o = await drained(openFrames);
+    check(
+      !o.decoders && !o.frames && !o.bytes,
+      `pool: no frame or decoder open after ${what} (${o.decoders} decoders, ${o.frames} frames, ${(o.bytes / 2 ** 20).toFixed(0)} MB)`,
+    );
+  };
+  const times: number[] = [];
+  for (let run = 0; run < 3; run++) {
+    const before = openFrames().made,
+      s0 = performance.now();
+    const mp4 = await encodeVideo(job(clips));
+    times.push(performance.now() - s0);
+    const through = openFrames().made - before;
+    check(
+      !!mp4 && mp4.size > 1e5 && through >= 24 * 5 * FPS,
+      `pool: a 2-minute 1080p export decodes its video frames through the pool (run ${run + 1}: ${through} frames)`,
+    );
+    await zero(`a 2-minute export (run ${run + 1})`);
+  }
+  // Cancelled half way.
+  const ac = new AbortController();
+  let cancelled = false;
+  try {
+    await encodeVideo(job(clips, { signal: ac.signal, onProgress: (f) => (f >= 0.5 ? ac.abort() : undefined) }));
+  } catch (e) {
+    cancelled = e instanceof DOMException && e.name === 'AbortError';
+  }
+  check(cancelled, 'pool: an export cancelled at 50 % stops with AbortError');
+  await zero('an export cancelled at 50 %');
+  // A clip that can't be read at about 1 minute.
+  const broken = new File([new Uint8Array(4096).fill(7)], 'broken.mp4', { type: 'video/mp4' });
+  let refused = '';
+  try {
+    await encodeVideo(job(clips.map((c, i) => (i === 12 ? { ...c, file: broken } : c))));
+  } catch (e) {
+    refused = e instanceof ExportError ? e.message : `${e}`;
+  }
+  check(
+    refused.includes('broken.mp4'),
+    `pool: an export refuses a clip it can't read, naming the file (${refused || 'no error'})`,
+  );
+  await zero('an export that failed at 1 minute');
+  const secs = (ms: number) => (ms / 1000).toFixed(1);
+  return `pool: AC-11 sources made in ${secs(made)} s; 2-minute 1080p exports ${times.map(secs).join(', ')} s; all in ${secs(performance.now() - t0)} s`;
 }

@@ -667,7 +667,7 @@
         "T020": {
           "text": "Failing self-test checks for the export: AC-9 (201's fixtures and 202's gap fixture exported, decoded at 10 times each, equal ±8 to colours recorded from today's export before the change; frame and sound plans unchanged) and AC-11 (a 2-minute 1080p 16:9 export, 24 clips of 5 s from 3 files, a hidden span and a gap: frames went through the pool and `openFrames()` is 0 after it, after 3 in a row, after a cancel at 50 % and after an unreadable clip at 1 minute).",
           "section": "Export on the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -680,12 +680,16 @@
           ],
           "test": "`npm test`: the AC-11 checks fail (the export doesn't use the pool yet); AC-9 passes on today's code",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: poolChecks exportSameFrames (AC-9: 201's shapes + 202's gap, 70 frames vs a renderFrame oracle on CanvasSink.getCanvas, ±8) passes on today's export; exportNoLeaks (AC-11: 2-min 1080p, 3 runs, cancel at 50 %, broken file at 1 min) fails: 0 frames through the pool, and the broken file gives UnsupportedInputFormatError without its name; adds ~53 s"
+          ],
+          "doneOn": "2026-10-10",
+          "startedOn": "2026-10-10"
         },
         "T021": {
           "text": "Export on the pool (§5): lanes from an export pool, frames released as soon as replaced, the last held only for a short source, the next video clip prepared during the current one, `dispose` in `finally`; full size or resized per T001 (D5). Today's refusal messages kept.",
           "section": "Export on the pool",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -698,7 +702,11 @@
           ],
           "test": "T020; the existing video self-test; `npx playwright test e2e/editors.e2e.ts`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-10: videoExport.ts decodes video clips through a DecodePool (mediabunnySource, maxWidth 1.8 × long side, D5), the next video clip prepared during the current one, forget after each clip, dispose in finally; frameSource names the file for unreadable files and decode errors. Pool checks 15 / 15 (AC-9 70 frames, AC-11 3 runs + cancel + broken file, 0 left open); npm test 6,142 / 0 (176 s, +58 s); editors e2e 24 passed / 14 skipped; 2-min 1080p export 12.4–13.1 s as before"
+          ],
+          "startedOn": "2026-10-10",
+          "doneOn": "2026-10-10"
         },
         "T022": {
           "text": "Export timing (AC-10): 201's 60-clip fixture within 5 % of `main`'s fastest of 3, timed back to back in one session (as 202 T041); a 30 × 4 s 1080p video-clip project no slower than `main`. Record the numbers.",
