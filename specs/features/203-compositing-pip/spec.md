@@ -110,3 +110,4 @@ It needs the decoder pool (`204`) to decode several videos at the same moment.
 
 - 2026-10-08 — Created (Draft).
 - 2026-10-09 — Q1–Q14 resolved (all proposals accepted by the maintainer); Approved.
+- 2026-10-11 — Q6's limits set from 204's measurements (AC-15): 3 videos at once on the web, 5 on the desktop app (not the proposed 6). Plan drafted (§1–§14, D1–D3 for the maintainer).
