@@ -844,7 +844,7 @@
         "T020": {
           "text": "Failing tests (`src/engine/timeline.test.ts`, `src/components/studio/previewSound.test.ts`): `audioPlan` with overlays equals the expected list exactly (start, end, from, volume, ramps), a muted overlay track adds nothing, a hidden one keeps its sound; 201 / 202 fixtures' sound sources unchanged (testkit); `soundPlan` returns every clip sounding at `t` (main + unmuted overlays), and `previewSound` keeps one element per current clip within D1's bound.",
           "section": "Store and timeline rows",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -858,12 +858,14 @@
           ],
           "test": "vitest: fails",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T021": {
           "text": "Implement §7 in the engine and the sound module: `audioPlan` (overlay clips), `soundPlan` (`current` as a list), `previewSound.update` for several current clips (the stage's call site moves in T034).",
           "section": "Store and timeline rows",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -876,12 +878,14 @@
           ],
           "test": "T020",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T040": {
           "text": "Store actions (§9, `src/state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for overlays), `addMedia(files, { track, at })` (at the playhead or drop time, after the clips there if it doesn't fit; a track added first when dropped above the top track), `moveClipToTrack`, `setClipTransform` (key coalescing: one undo step per drag), `applyPreset`; `editCtx()` passes `maxVideos` from `limitsFor`. Each one undo step, returning the message to show. Unit tests for the pure parts already exist (T010–T019); here `src/state/video.test.ts` drives each action without DOM (one undo step, the messages, the limit). From the T015 / T019 reviews, the store must also: wrap with `limitVideos` the results it builds itself (split, now on overlay clips too; duplicate; addMedia onto a track; Magnetic on via `closeGaps`; its own main-track moves), checked on what it stores (after `apply`'s pack); refuse a `moveClipToTrack` target that isn't a picture track; remove an overlay clip with `lift` (never ripple) even with Magnetic on (Q8); key `moveClip` and the inspector's \"Clip N\" per track (the gate returns clips grouped by track, main first).",
           "section": "Store and timeline rows",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -897,12 +901,14 @@
           ],
           "test": "`npx vitest run src/state/video.test.ts`; `npm run check`",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T050": {
           "text": "Behaviour-neutral refactor (§10, plan Risks): the main row's clip blocks, trims, tools and drags move into a `PictureRow` component in `Timeline.tsx` used for the main track only; nothing a user sees changes.",
           "section": "Store and timeline rows",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -914,7 +920,9 @@
           ],
           "test": "`npx playwright test e2e/editors.e2e.ts` unchanged (desktop + phone)",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T030": {
           "text": "Failing self-test checks (`src/dev/poolChecks.ts`): the stage draws stacks, `drawPreview` of the T002 fixture at its 8 times (paused, through `pausedFrame` and the pool) equals `renderStack` from the same pictures; all of a paused stack's pictures resolve together (latest wins per lane); the held picture is per clip (an overlay arriving doesn't blank the main clip); 201 fixtures' paused frames unchanged (AC-10); the real editor (StrictMode) shows an overlay clip.",
