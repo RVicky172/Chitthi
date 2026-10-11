@@ -68,9 +68,10 @@ anything surprising or deferred.
 
 ## Verify
 
-- [ ] **T090** — Docs (AC-16): `specs/lld.md` (the pool, lanes, look-ahead, frame release, `openFrames()`), `docs/PERFORMANCE.md` (AC-15 numbers, limits, the pool's memory rules), `docs/MEDIA-STUDIO.md` (limits and the fallback note, if users see them), `CHANGELOG.md` Unreleased. · files: `specs/lld.md`, `docs/PERFORMANCE.md`, `docs/MEDIA-STUDIO.md`, `CHANGELOG.md` · test: relative links resolve
-  - **In progress** since 2026-10-11
-- [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; the self-test's added time within Q9's 90 s; record the numbers. · test: all gates
+- [x] **T090** — Docs (AC-16): `specs/lld.md` (the pool, lanes, look-ahead, frame release, `openFrames()`), `docs/PERFORMANCE.md` (AC-15 numbers, limits, the pool's memory rules), `docs/MEDIA-STUDIO.md` (limits and the fallback note, if users see them), `CHANGELOG.md` Unreleased. · files: `specs/lld.md`, `docs/PERFORMANCE.md`, `docs/MEDIA-STUDIO.md`, `CHANGELOG.md` · test: relative links resolve
+  - 2026-10-11: specs/lld.md §4.10 Decoder pool (the pool, lanes, readers, limits and what makes room, fallback and reopening, frameSource and openFrames(), preview, preview sound, export, limits, where the checks live) + module map; docs/PERFORMANCE.md (pool memory rules; at most 3 decoders today, limit + 2 with 203; byte budget drops read-ahead then held frames); docs/MEDIA-STUDIO.md (the preview, the fallback note and the H.264 MP4 fix, videos-at-once row for 203); CHANGELOG Unreleased. Two agents in parallel; reviewed (lld APPROVE + nits fixed; user docs CHANGES once, fixed). Relative links and anchors: 0 broken.
+- [x] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; the self-test's added time within Q9's 90 s; record the numbers. · test: all gates
+  - 2026-10-11 on feat/204-decoder-pool: check 1,174 unit tests (lint 0 errors, 5 known warnings); build entry 327 KB (unchanged from main, budget 350); test:e2e 84 passed / 0 failed (16 phone skips as on main; the no-VideoDecoder test now polls the paused frame, it flaked once under load); npm test 6,157 / 0 in 178 s (about +60 s over the pre-pool 118 s, within Q9's 90 s); pooltiming 6 / 0; test:mcp passed; check:licenses 168 packages ok (1 approved exception).
 - [ ] **T092** — Tick ACs (Status `Implemented`), roadmap 204 ✔️, `editor-implementation.md` P2.4 Done, `memory/progress.md`, `memory/MEMORY.md` (next: 203's plan with the limits).
 
 ## AC coverage
