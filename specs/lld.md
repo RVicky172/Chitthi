@@ -56,6 +56,9 @@ src/
     timeline.ts              Video project as tracks (201): pack, gaps, videoAt, framePlan, audioPlan, document, mergeProject
     edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
                              slide, nudge, snapping, checkTrack
+    decodePool.ts            Decoder pool (204): lanes of decoded frames for the preview and the export, lanePlan,
+                             frameTime, poolLimits (section 4.10)
+    frameSource.ts           The pool's frames from Mediabunny: inputs shared per file, readers, openFrames() registry
     videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny over framePlan / audioPlan, on export
     export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
     envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
@@ -104,6 +107,8 @@ src/
     menu.ts                  Desktop menu commands → actions
   dev/                     Development only, never in production builds
     selftest.ts              The checks behind npm test (opened at ?selftest in Electron)
+    poolChecks.ts,           Decoder pool checks (204): poolChecks in npm test; playbackChecks' timings on demand
+      playbackChecks.ts        (CHITTHI_TEST_ONLY=pooltiming / poolcount)
     showcase.ts              Renders the landing examples for npm run build:showcase
     printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
@@ -443,6 +448,99 @@ selected, `slipMusic`), Q / W `rippleTrimToPlayhead`, Shift + Delete `rippleDele
 changed clip's times in the polite `.tl-live` region 250 ms after a change settles.
 
 Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: not undone, not saved.
+
+### 4.10 Decoder pool (`decodePool.ts`, `frameSource.ts`, 204)
+
+The preview and the export get their video pictures from one place, so a paused preview shows the frame the export
+encodes and memory doesn't grow with the clip count. Spec, decisions D1–D5 and the measurements:
+`specs/features/204-decoder-pool/`.
+
+**The pool (`engine/decodePool.ts`, pure).** A `DecodePool(open, limits, { maxWidth? })` keeps one **lane** per clip
+id that needs pictures (two clips of one file get two lanes). A lane has a frame source on the clip's file, the frames
+decoded ahead (`buf`, in time order) and `last`, the frame handed out last, held until a newer one replaces it. The
+pool knows nothing of Mediabunny: sources come from a `FrameSourceFactory`, whose `from(t)` is a restartable reader of
+frames in order from the one showing at `t` (`decodePool.test.ts` drives the pool with a fake). Only the pool closes
+the frames it hands out. Each lane has one worker (`run`) at a time, which opens the source and then steps towards the
+lane's goal: an exact ask, else the playing target, else the prepared first frame; with none it stops, so an idle
+pool decodes nothing.
+
+- `frame(clip, srcTime)` (async, exact: the export and a paused preview) resolves with the frame covering the time
+  (`time ≤ t < time + duration`; the source's last frame past its end, its first before its start). Latest wins: a
+  newer ask on the lane resolves the older one to `null`. Rejects when the clip can't be decoded.
+- `peek(clip, srcTime)` (sync, never waits: playback) returns the frame if it is decoded, else the lane's `last` (a
+  **hold**, counted in `stats().holds`; null before the clip's first frame). It marks the lane playing, so the worker
+  decodes up to `limits.ahead` frames past the one shown.
+- `prepare(clip)` (look-ahead) opens the lane and decodes its first frame; `want(ids)` names the lanes still needed;
+  `forget(id)` closes one; `fallback(id)` is why a clip can't be decoded (or null); `stats()` gives decoders, frames,
+  bytes and holds; `dispose()` closes every lane.
+- Readers: a lane reads on while the time moves forward by less than 2 s (`REREAD`), else restarts its reader at the
+  new time (the source seeks to the key frame before it). Handing a frame out closes the frames before it, and of the
+  unshown frames at or before the goal only the newest is kept.
+- Limits (`poolLimits(videosAtOnce, desktop)`, Q3): decoders = `videosAtOnce` + 2 (the visible clips, the next to
+  start, a spare for scrubbing), 4 frames ahead per lane, and a byte budget of 256 MB on the web and 1 GB on the
+  desktop app, counted at display width × height × 4 a frame (D2). Opening a lane at the decoder limit closes another
+  open lane, those not wanted first, then the least recently used; with none to close the lane waits and is woken when
+  one closes. Before each decode the lane **reserves** the frame's bytes (its last frame's size, else the biggest seen),
+  so frames in flight count against the budget. At the budget, decoding ahead stops; an exact or playing frame makes
+  room from the other lanes in the same order: their frames ahead first (keeping the one their goal needs), then their
+  held frames.
+- Failures: a source that fails to open or to decode puts its lane in **fallback** (`failed` = the reason, naming the
+  file): the pending ask rejects, later `frame()` calls reject and `peek()` returns null; other lanes go on. A decoder
+  the browser took back (`takenBack`: a `QuotaExceededError`, or a "reclaimed" message, as Chrome reclaims idle
+  codecs) is not the file's fault: the lane releases its frames and reopens, up to `REOPENS` = 2 times, keeping the
+  pending exact ask, before it goes to fallback.
+
+`lanePlan(project, t, ahead)` is the clips a time needs (Q10): on every visible picture track the video clip showing
+at `t` (the main track clamps at its ends as `videoAt` does) and the track's next video clip starting less than
+`ahead` seconds later. Photos need no lane. `frameTime(t, fps)` = `floor(t · fps + 1e-6) / fps` puts a time on the
+export's frame grid (D3).
+
+**Frames from Mediabunny (`engine/frameSource.ts`).** `mediabunnySource(file, { maxWidth })` shares one `Input` per
+file (reference-counted, disposed with the last source on it) and checks its video track once: an unreadable file, no
+video track or `canDecode()` false rejects with a message naming the file. Each reader is one Mediabunny iterator, so
+one `VideoDecoder` until it ends or its `return()` stops it (T001). Preview sources read `VideoSampleSink.samples(t)`
+and keep a `VideoFrame` per sample (a canvas when the file asks for a rotation or flip); export sources (`maxWidth`,
+D5) read `CanvasSink.canvases(t)`, no wider than `maxWidth`, from a ring of 8 canvases. Every frame goes through one
+registry (`trackFrame`), so `openFrames()` gives the frames, bytes and decoders open right now across every pool, and
+`made`, every frame decoded so far: the self-tests read it after exports, cancels and failures (AC-11, AC-12).
+`undecodableForTests` (a `WeakSet` of files, empty in the app) makes a self-test's file fail as an undecodable codec.
+
+**Preview (`components/studio/previewFrame.ts`, `VideoStage` in `VideoWorkspace.tsx`).** `stageSource()` makes the
+stage's picture source: where `VideoDecoder` exists, a `DecodePool` (`poolLimits(1, …)`; Mediabunny is imported with
+the first lane, not with the editor) wrapped by `poolSource`, which draws a clip in fallback from a muted `<video>`
+(`videoElementSource`, the pre-204 path); without `VideoDecoder` (Q7), `<video>` elements alone. `pausedAt` /
+`pausedFrame` give the paused picture on the export's grid (`frameTime`, then `videoAt`), and `drawPreview` draws it
+through `renderFrame` as the export does; the stage and the AC-4 self-test call the same functions. `noteFallback` /
+`useFallbackNote` keep per file "This clip can't be exported here: <reason>" (logged once with `logError`), shown in
+the clip's timeline title and accessible name and in the inspector. `VideoStage` creates the stage on first use and
+disposes it when the editor closes. Playing, each tick draws `peek()` (what is ready, else the held frame); paused, it
+draws the held picture at once, then the exact `pausedFrame` when it lands (only the newest ask is drawn). Each tick
+and each paused change calls `want()` with `lanePlan(…, 2)` and `prepare()` for the next clips; a clip removed from
+the project is `forget`-ed.
+
+**Preview sound (`components/studio/previewSound.ts`, D1).** `soundPlan(project, t)` is whose sound plays: the video
+clip on top at `t` (a hidden main track's clips still sound), the clips starting within 2 s, and the other visible
+clips (covered by an overlay, kept loaded and silent). `previewSound()` keeps an audio-only `<audio>` element for
+exactly those and releases the rest, so elements don't grow with the clip count; the next ones are pre-seeked to their
+`in`, so a cut starts without a seek. A playing element is kept in step by `soundFix(drift, fps, rate)`: over 0.25 s
+it seeks; over one frame (or, while still nudging, over 10 ms) `playbackRate` moves by up to ±3 % in 0.5 % steps;
+otherwise it is 1. The music keeps its own element in `VideoStage`.
+
+**Export (`engine/videoExport.ts`).** Video clips decode through a pool of the export's own, with `poolLimits(1, …)`
+and `maxWidth` = 1.8 × the frame's long side (D5). For each video span of `framePlan` it calls `want([clip, next])`
+and `prepare(next)` (look-ahead one clip), awaits `frame()` for every frame time (the export waits, never skips; past
+the end of a source shorter than its trim the last frame is held), then `forget`s the clip. `dispose()` runs in
+`finally`, so after a cancel or an error no frame or decoder is left. A clip the pool can't decode is refused with its
+reason, which names the file.
+
+**Limits.** `limitsFor()` (`engine/video.ts`) gives `videosAtOnce`: 3 on the web, 5 on the desktop app, 1 without
+`VideoDecoder`, set from the AC-15 measurements by Q2's rule (the numbers: [PERFORMANCE.md](../docs/PERFORMANCE.md));
+`203` enforces it. The preview's and the export's pools use `poolLimits(1, …)` (3 decoders) today.
+
+**Checks.** `decodePool.test.ts` (unit: holds, latest wins, bounds, fallback, reopening); `src/dev/poolChecks.ts` in
+the default `npm test` (AC-1–AC-4, AC-9, AC-11, AC-14), with `playbackChecks`' quick checks (AC-12's release, AC-13);
+`src/dev/playbackChecks.ts` timings on demand: `CHITTHI_TEST_ONLY=pooltiming npm test` (AC-5, AC-7, AC-8 and AC-12's
+bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: simultaneous videos through the pool).
 
 ## 5. Integrations
 
