@@ -343,7 +343,7 @@ export async function playbackTiming(check: Check): Promise<string[]> {
         const mean = r.offsets.reduce((a, b) => a + b, 0) / (r.offsets.length || 1);
         check(
           r.offsets.length === r.expected && r.onsets === r.expected && worst <= 67,
-          `pool timing: ${what}: every flash and its beep within 67 ms (AC-8): ${r.flashes}/${r.expected} flashes drawn, ${r.onsets} beeps heard from the clip's <audio>, sound − picture ${r.offsets.map((d) => d.toFixed(0)).join(' ')} ms`,
+          `pool timing: ${what}: every flash and its beep within 67 ms (AC-8): ${r.flashes}/${r.expected} flashes drawn, ${r.onsets} beeps heard from the clip's <audio>, sound − picture ${r.offsets.map((d) => d.toFixed(0)).join(' ')} ms (${r.rate} frames/s)`,
         );
         // The offsets include the capture path's latency (element → MediaStream → analyser); T060's check by ear judges.
         notes.push(
@@ -582,9 +582,12 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
   ed.v.setPlayhead(from);
   await sleep(800);
   ed.v.setPlaying(true);
+  const began = performance.now();
+  let frames = 0;
   try {
     while (ed.v.getVideo().playing) {
       await frame();
+      frames++;
       const now = performance.now(),
         t = ed.v.getVideo().t;
       // Not ticking yet: the playhead hasn't moved.
@@ -623,13 +626,17 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
     latency.output = ((ctx.outputLatency ?? 0) * 1000).toFixed(1);
     await ctx.close();
   }
-  // A flash every 2 s of each clip's own time, after `from`.
+  // Animation frames per second: far under 60 means the window was throttled (hidden, covered, the display asleep), so
+  // flashes were missed: not a sync fault.
+  const rate = Math.round(frames / ((performance.now() - began) / 1000));
+  // A flash every 2 s of each clip's own time, after `from`. A clip runs as long as its sound, a little longer than its
+  // pictures (the AAC encoder's padding): no flash at its very end.
   let expected = 0;
   for (const c of ed.v.getVideo().clips)
-    for (let k = 0; k < c.out - c.in - 1e-3; k += 2) if (c.start + k > from) expected++;
+    for (let k = 0; k < c.out - c.in - 0.05; k += 2) if (c.start + k > from) expected++;
   const offsets = flashT
     .map((t) => zero + t * 1000)
     .map((f) => onsets.reduce((best, o) => (Math.abs(o - f) < Math.abs(best) ? o - f : best), Infinity))
     .filter(Number.isFinite);
-  return { expected, flashes: flashT.length, onsets: onsets.length, offsets, latency };
+  return { expected, flashes: flashT.length, onsets: onsets.length, offsets, latency, rate };
 }

@@ -2,17 +2,27 @@
  * Runs the self-test suite (src/dev/selftest.ts) in Electron against the dev server started by scripts/test.mjs, and
  * exits with 1 when any check fails. Run through `npm test`.
  */
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, powerSaveBlocker } = require('electron');
 
 const URL = process.env.CHITTHI_TEST_URL;
+// Real-time playback measurements (CHITTHI_TEST_ONLY=pooltiming) need a shown window: Chromium throttles
+// requestAnimationFrame in a hidden one to about once a second, whatever backgroundThrottling says, and in a shown one
+// that other windows cover or while the display sleeps (204 T033 lost its frames mid-run to that). So that window stays
+// on top, isn't treated as covered, and keeps the display awake. The pool count timing
+// (CHITTHI_TEST_ONLY=poolcount) uses no requestAnimationFrame and runs hidden.
+const show = process.env.CHITTHI_TEST_ONLY === 'pooltiming';
+if (show) {
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+}
 
 app.whenReady().then(async () => {
   app.on('window-all-closed', () => undefined);
-  // Real-time playback measurements (CHITTHI_TEST_ONLY=pooltiming) need a shown window: Chromium throttles
-  // requestAnimationFrame in a hidden one to about once a second, whatever backgroundThrottling says. The pool count
-  // timing (CHITTHI_TEST_ONLY=poolcount) uses no requestAnimationFrame and runs hidden.
-  const show = process.env.CHITTHI_TEST_ONLY === 'pooltiming';
   const win = new BrowserWindow({ show, width: 1200, height: 900, webPreferences: { backgroundThrottling: false } });
+  if (show) {
+    win.setAlwaysOnTop(true);
+    powerSaveBlocker.start('prevent-display-sleep');
+  }
   const errors = [];
   win.webContents.on('console-message', (e) => {
     if (e.level === 'error' && !String(e.message).includes('Electron Security Warning')) errors.push(e.message);

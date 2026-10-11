@@ -560,7 +560,8 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
   const v = await import('../state/video');
-  const clip = await makeTestClip(2, 640, 360, 1, false, true);
+  // 6 s, so playback is still running after a few of the hidden window's slow ticks (below).
+  const clip = await makeTestClip(6, 640, 360, 1, false, true);
   if (!clip) return 'pool: stage check skipped (no H.264 encoder)';
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
@@ -590,7 +591,7 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
   };
   const near = (a: number[] | null, want: number[]) => !!a && want.every((w, k) => Math.abs(w - a[k]) <= 8);
   const frameOf = (a: number[] | null) =>
-    a ? (Array.from({ length: 60 }, (_, i) => i).find((i) => near(a, codeColour(i))) ?? -1) : -1;
+    a ? (Array.from({ length: 180 }, (_, i) => i).find((i) => near(a, codeColour(i))) ?? -1) : -1;
   const waitFor = async (ok: () => boolean, ms: number) => {
     const end = performance.now() + ms;
     while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 50));
@@ -616,13 +617,30 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
       paused,
       `pool: the editor (StrictMode) shows an added video clip's exact frame paused (centre ${seen?.map(Math.round).join('/')}, want ${want.join('/')})`,
     );
+    // npm test's window is hidden, where Chromium runs animation frames (the stage's playback ticks) about once a
+    // second. A tick draws the frame the pool has ready for its time and holds the last one otherwise; ticks a second
+    // apart always find the pool's reader a second behind, so the picture would stay put. Between ticks this asks the
+    // pool for the playing time at 30 fps, as a shown window's ticks do (AC-5 in CHITTHI_TEST_ONLY=pooltiming plays in
+    // one). Until 204 T034 the clip's <video>, playing for its sound, redrew the stage on its seek events, which hid this.
+    const { liveStages, poolClip } = await import('../components/studio/previewFrame');
+    const pool = [...liveStages][0]?.pool;
+    const startWall = performance.now();
+    let feeding = true;
+    void (async () => {
+      while (feeding && pool) {
+        pool.peek(poolClip(added), added.in + 0.5 + (performance.now() - startWall) / 1000);
+        await new Promise((r) => setTimeout(r, 33));
+      }
+    })();
     v.setPlaying(true);
-    await new Promise((r) => setTimeout(r, 700));
-    const playing = frameOf(centre());
+    const moved = await waitFor(() => v.getVideo().playing && frameOf(centre()) > 15, 5000);
+    feeding = false;
+    const playing = frameOf(centre()),
+      at = v.getVideo().t - added.start;
     v.setPlaying(false);
     check(
-      playing > 15,
-      `pool: the editor (StrictMode) shows the video moving while it plays (frame ${playing} after 0.7 s from frame 15)`,
+      moved,
+      `pool: the editor (StrictMode) shows the video moving while it plays (frame ${playing} at ${at.toFixed(2)} s, from frame 15)`,
     );
   } finally {
     v.setPlaying(false);
