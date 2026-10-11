@@ -69,6 +69,7 @@ anything surprising or deferred.
 ## Verify
 
 - [ ] **T090** — Docs (AC-16): `specs/lld.md` (the pool, lanes, look-ahead, frame release, `openFrames()`), `docs/PERFORMANCE.md` (AC-15 numbers, limits, the pool's memory rules), `docs/MEDIA-STUDIO.md` (limits and the fallback note, if users see them), `CHANGELOG.md` Unreleased. · files: `specs/lld.md`, `docs/PERFORMANCE.md`, `docs/MEDIA-STUDIO.md`, `CHANGELOG.md` · test: relative links resolve
+  - **In progress** since 2026-10-11
 - [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; the self-test's added time within Q9's 90 s; record the numbers. · test: all gates
 - [ ] **T092** — Tick ACs (Status `Implemented`), roadmap 204 ✔️, `editor-implementation.md` P2.4 Done, `memory/progress.md`, `memory/MEMORY.md` (next: 203's plan with the limits).
 
