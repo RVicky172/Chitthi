@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { moveTaskOnServer } from '../api';
 import { columns, COLUMNS, moveTask, today, type Card } from '../lib/board';
 import { useReducedMotion } from '../lib/motion';
+import { taskBrief } from '../lib/taskBrief';
 import { replaceParams } from '../route';
 import type { FeatureData, TaskStatus } from '../types';
 import { Md, TASK_LABELS } from './bits';
@@ -77,6 +78,27 @@ export function Board({ data, params, replace }: Props) {
       replace(before);
       setMessage('');
       setError(`${id} couldn’t be moved: ${(e as Error).message}`);
+    }
+  }
+
+  async function copyBrief(id: string) {
+    setError('');
+    const brief = taskBrief(feature, id);
+    if (!brief.ok) {
+      setMessage('');
+      setError(
+        brief.reason === 'task-not-found'
+          ? `Couldn't find task ${id} to copy its brief.`
+          : `Task brief for ${id} exceeds 2,000 characters; shorten its required instructions or test.`,
+      );
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(brief.text);
+      setMessage(`${id} brief copied.`);
+    } catch (e) {
+      setMessage('');
+      setError(`${id} brief couldn't be copied: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -177,6 +199,7 @@ export function Board({ data, params, replace }: Props) {
                       setTarget(null);
                     }}
                     onMove={(to) => void move(card.id, to)}
+                    onCopyBrief={() => void copyBrief(card.id)}
                   />
                 ))}
               </ul>
@@ -208,9 +231,10 @@ interface CardProps {
   onDragStart: () => void;
   onDragEnd: () => void;
   onMove: (to: TaskStatus) => void;
+  onCopyBrief: () => void;
 }
 
-function TaskCard({ card, featureId, dragging, onDragStart, onDragEnd, onMove }: CardProps) {
+function TaskCard({ card, featureId, dragging, onDragStart, onDragEnd, onMove, onCopyBrief }: CardProps) {
   const { id, task } = card;
   const [menu, setMenu] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -248,6 +272,9 @@ function TaskCard({ card, featureId, dragging, onDragStart, onDragEnd, onMove }:
             👤 by hand
           </span>
         )}
+        <button type="button" className="ghost" aria-label={`Copy brief for ${id}`} onClick={onCopyBrief}>
+          Copy brief
+        </button>
         <span className="card-menu">
           <button
             ref={button}

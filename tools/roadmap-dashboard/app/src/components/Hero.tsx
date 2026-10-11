@@ -87,7 +87,7 @@ export function Hero({ stop, road, roadmap, today, changed }: Props) {
                   </a>
                 </p>
               ) : (
-                <p className="hero-sub">No task left to do.</p>
+                <p className="hero-sub">No todo tasks remain.</p>
               )}
             </section>
             {model.blocked.length > 0 && (

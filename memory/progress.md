@@ -25,6 +25,12 @@ editors e2e 25 / 25. The store's remaining duties (limit on split, duplicate, ad
 **Next:** batch 3: T020/T021 (sound), T040 (store), T050 (PictureRow refactor).
 **Blockers:** none.
 
+## 2026-10-11 — 406 roadmap workflow implementation
+
+**Done:** Approved and implemented T001/T002/T010/T011/T020/T030/T040; all AC-1–AC-6 proven and feature marked Implemented. Added compact task briefs, phase/search/status filtering with URL persistence, update/Pace trust cues, dependency links, feature outcome fallback, and clear hero states. Updated dashboard README and changelog. `npm run check`: 44 files, 1,361 tests; `npm run test:roadmap`: 25/25; `npm run test:e2e -- --workers=1`: 84 passed, 16 skipped (12-worker runs hit transient input/server failures); `npm run build`: passed, entry 327 KB; `npm test`: 6,187 checks, 0 failed; `npm run test:mcp`: passed; `npm run check:licenses`: 168 packages passed.
+**Next:** Continue the active feature work after branch synchronization.
+**Blockers:** none.
+
 ## 2026-10-11 — 203 planned, tasked, batch 1 (T001, T002, T010–T013)
 
 **Done:** 203's plan approved (D1–D3, D-031; Q6 = web 3 / desktop 5) and tasks T001–T092 in five agent batches.

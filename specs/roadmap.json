@@ -115,7 +115,8 @@
         "items": [
           "401",
           "404",
-          "405"
+          "405",
+          "406"
         ]
       }
     }
@@ -351,6 +352,14 @@
         "needs": [
           "404"
         ]
+      },
+      "406": {
+        "title": "Roadmap improvements: next actions, task briefs and planning clarity",
+        "workItem": null,
+        "status": "done",
+        "note": "",
+        "folder": "features/406-roadmap-actionable-workflow",
+        "needs": []
       },
       "000": {
         "title": "Baseline: print studio, photo & video studio, desktop app, MCP, AI, GPU render graph (editor P0.1–P0.9), advanced photo editor (P1.1–P1.12)",

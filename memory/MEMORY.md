@@ -27,6 +27,7 @@
   (`previewSound.ts`), the can't-export fallback note, `videosAtOnce` web 3 / desktop 5 (1 without VideoDecoder); every
   DoD gate green; maintainer's manual checks (T060) passed in Chrome and the desktop app.
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
+- **406 ✔️ Implemented 2026-10-11:** roadmap-actionable-workflow; AC-1–AC-6 proven, all tasks done; README/changelog updated. DoD gates pass; production e2e 84 passed / 16 skipped serially.
 - **203:** `203-compositing-pip` 🚧: plan approved 2026-10-11 (D1–D3, D-031; Q6 = web 3 / desktop 5), tasks
   T001–T092 in 5 agent batches; branch `feat/203-compositing-pip`. **204** merged into `main` and pushed
   (2026-10-11, with Dependabot #23–#27).

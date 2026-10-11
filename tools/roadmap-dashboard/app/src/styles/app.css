@@ -509,6 +509,11 @@ button {
 .stat.warn dd {
   color: var(--warn);
 }
+.roadmap-updated {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -517,6 +522,9 @@ button {
   margin: 24px 0 16px;
 }
 .field.search input {
+  width: min(320px, 80vw);
+}
+.field.phase select {
   width: min(320px, 80vw);
 }
 .chips {
@@ -711,6 +719,27 @@ button {
   margin: 0 0 6px;
   color: var(--muted);
   font-size: 13px;
+}
+.feature-outcome {
+  max-width: 72ch;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.feature-outcome h2 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.feature-outcome .md > :first-child {
+  margin-top: 0;
+}
+.feature-outcome .md > :last-child {
+  margin-bottom: 0;
 }
 .facts,
 .links {
@@ -2005,6 +2034,18 @@ a.stop-card:focus-visible {
   gap: 8px;
   font-size: 12.5px;
   color: var(--muted);
+}
+.stop-dependencies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stop-dependencies a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 @media (max-width: 760px) {
   .activity-body {

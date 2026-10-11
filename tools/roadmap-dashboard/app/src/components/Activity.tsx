@@ -21,7 +21,8 @@ export function Activity({ features, today }: { features: Record<string, Feature
           Pace
         </h2>
         <p className="muted">
-          <span className="num">{total}</span> tasks finished in the last {DAYS} days · <span className="num">{done.length}</span> today
+          Historical completed-task data, not a delivery forecast. <span className="num">{total}</span> tasks finished in the last {DAYS} days ·{' '}
+          <span className="num">{done.length}</span> today
         </p>
       </div>
       <div className="activity-body">

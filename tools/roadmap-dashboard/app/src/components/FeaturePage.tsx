@@ -17,6 +17,9 @@ export function FeaturePage({ project, route }: { project: ProjectData; route: E
   const f = data?.feature;
   const title = f?.title ?? summary?.title ?? item?.title ?? `Feature ${id}`;
   const p = summary?.progress;
+  const outcome = f
+    ? f.spec.summary.trim() || f.spec.stories.order.map((storyId) => f.spec.stories.byId[storyId]?.text).find((text) => text?.trim())
+    : undefined;
 
   return (
     <article className="feature">
@@ -32,6 +35,12 @@ export function FeaturePage({ project, route }: { project: ProjectData; route: E
           <h1 tabIndex={-1}>
             <Md text={title} inline />
           </h1>
+          {outcome && (
+            <section className="feature-outcome" aria-label="Outcome">
+              <h2>Outcome</h2>
+              <Md text={outcome} />
+            </section>
+          )}
           <div className="facts">
             {r && item && <StatusBadge roadmap={r} status={item.status} />}
             {f && <FeatureBadge status={f.status} />}
@@ -163,4 +172,3 @@ function Links({ roadmapId, roadmap }: { roadmapId: string; roadmap: NonNullable
     </p>
   );
 }
-
