@@ -229,6 +229,7 @@ step.
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
 | Video formats, limits and frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/video.ts`; `src/engine/videoExport.ts` |
+| Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
 | Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`; `src/engine/layers.ts` |
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
 | Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
@@ -386,6 +387,26 @@ or out, pan four ways), fade in from black, framing (fill or whole picture with 
 and colour (the presets and LUTs of the photo editor, brightness, contrast, saturation, warmth). Layers are the same text, shapes, stickers and
 drawings as photos, each with **Appears at** and **Disappears at** times; new ones start at the playhead.
 
+### The preview
+
+The preview decodes video clips the way the export does, through one **decoder pool** (`src/engine/decodePool.ts`):
+
+- **Playback** decodes a few frames ahead and opens the next clip about 2 s before its cut, so cuts don't stall or
+  flash black. If a frame isn't ready in time, the clip holds its last frame and the playhead keeps real time.
+- **Paused or scrubbing**, the preview shows the exact frame the export will encode at that time (the time is put on
+  the project's frame grid, as the export does). When scrubbing fast, the last position asked for wins.
+- **Sound** comes from the clip itself (audio-only elements, at most for the clip under the playhead and the next one
+  to start) and is kept within a frame of the picture; the music plays as before.
+
+**"This clip can’t be exported here: <reason>".** Some files a browser can play can't be decoded frame by frame (often
+HEVC video from an iPhone, or a damaged file). Such a clip still previews, from the browser's own player, and the other
+clips are unaffected, but the export refuses it with a message naming the file. The note shows in the clip's tooltip on
+the timeline (with ⚠ on the clip), in its name for screen readers, and in the inspector. To use the clip, convert the
+file to **H.264 MP4** (most video converters and phone export settings offer it) and add it again.
+
+Browsers without WebCodecs' video decoding (Firefox before 130, Safari before 26) don't use the pool: their preview
+and export work as before.
+
 ### In the browser and in the desktop app
 
 Video work in a browser tab is limited by the tab's memory and by browsers slowing down tabs in the background, so the
@@ -397,15 +418,20 @@ app tells users so and sends long or demanding projects to the desktop app:
 | YouTube video | Up to 15 min, 60 clips, 4 GB files, 1080p, 30 fps | Up to 3 hours, 500 clips, 50 GB files, 1080p / 1440p / 4K, 30 or 60 fps |
 | Saving long videos | Streamed to a file in Chrome and Edge (File System Access API); built in memory elsewhere | Streamed to a file through the main process |
 | Encoding | WebCodecs, hardware-accelerated where the browser allows | WebCodecs in Electron, using the graphics card's encoder |
+| Videos on screen at once | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
 
-Limits live in `limitsFor()` (`src/engine/video.ts`); the notes in the editor read from it.
+Limits live in `limitsFor()` (`src/engine/video.ts`); the notes in the editor read from it. Videos on screen at once
+is measured (see [PERFORMANCE.md](PERFORMANCE.md#videos-on-screen-at-once)) and matters once overlay video clips arrive
+with the multi-track timeline; today's projects show one video at a time. Photos don't count.
 
 ### How exports stay small in memory
 
 `src/engine/videoExport.ts` (loaded only when exporting, together with [Mediabunny](https://mediabunny.dev), MPL-2.0):
 
 - **Frames** are drawn one at a time with the same `renderFrame()` as the preview and handed to the encoder. Video
-  clips are decoded frame by frame at exactly the times needed, no wider than the frame needs.
+  clips are decoded through the export's own decoder pool, frame by frame at exactly the times needed, no wider than
+  the frame needs; each frame is released as soon as the next replaces it, and the next clip opens while the current
+  one is encoded. The pool is released when the export ends, is cancelled or fails.
 - **Sound** is decoded and mixed in 10-second windows (`OfflineAudioContext`): each clip's own track at its volume,
   with short ramps at the cuts, plus the music with its fade-out. Windows are added just ahead of the frames, so the two
   tracks interleave in the file.

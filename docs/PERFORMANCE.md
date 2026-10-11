@@ -45,6 +45,10 @@ under 10 ms, JS heap 40–50 MB, 7 MB of decoded photo pixels, about 1,100 page 
 | Desktop AI requests | Responses capped at 40 MB, 180 s, 2 at a time | `electron/ai.cjs` |
 | Agent previews | `render_preview` ≤ 1024 px; exports go to disk, not into the reply | `agent/tools.ts` |
 | Small caches | Photo keys and the agent's seen Pexels photos are capped at 500 entries | `lib/photoKey.ts`, `agent/tools.ts` |
+| Video decoders | At most the visible-video limit + 2 decoders open at once (the clips on screen, the next to start, a spare for scrubbing), one per clip that needs pictures; **4 frames** read ahead per clip. The preview and the export each size their pool for one visible video for now (**3 decoders**); overlay videos (`203`) raise it to the limit + 2 | `engine/decodePool.ts` (`poolLimits`), `components/studio/previewFrame.ts` |
+| Decoded video frames | Held frames stay under **256 MB on the web** and **1 GB in the desktop app**, counted as width × height × 4 bytes (a 1080p frame ≈ 8 MB, 4K ≈ 33 MB). A frame is closed as soon as a newer one replaces it; when a limit needs room, decoders close in order: clips no longer wanted first, then the least recently wanted. Leaving the video editor (or removing a clip) releases its decoders and frames. Idle, the pool decodes nothing and holds one frame per visible clip | `engine/decodePool.ts`, `engine/frameSource.ts` |
+| Video export | Its own pool, released in `finally` (after a cancel or an error too); frames are read resized to at most 1.8 × the output's long side, as before, not at full size | `engine/videoExport.ts` |
+| Clip sound in the preview | Audio-only `<audio>` elements for at most the clip under the playhead, the next one starting within 2 s and the clips an overlay covers, released after; they don't grow with the clip count. The music keeps one element | `components/studio/previewSound.ts` |
 
 Every `addEventListener`, `setInterval`, `requestAnimationFrame`, `ResizeObserver` and `IntersectionObserver` in a
 component is undone in its cleanup (checked across `src/` for this page).
@@ -90,11 +94,13 @@ and would hide slow updates.
 
 ## Videos on screen at once
 
-The video editor decodes clips through a decoder pool (`engine/decodePool.ts`): one decoder per visible video, four
-frames read ahead, a byte budget, and every frame released when it is replaced. How many videos can show at once comes
-from a measurement, `CHITTHI_TEST_ONLY=poolcount npm test` (`poolTiming` in `src/dev/playbackChecks.ts`, never part
-of the default run): 300 back-to-back 1/30 s steps (stricter than playing in real time; 5 warm-up steps left out),
-each lasting until every clip's frame has arrived and been drawn into a 1280 × 720 canvas.
+The video editor decodes clips through a decoder pool (`engine/decodePool.ts`): one decoder per clip that needs
+pictures, at most the limit below + 2 open, four frames read ahead, a byte budget, and every frame released when it is
+replaced (the rules are under [Memory rules](#memory-rules); the design is in [lld.md](../specs/lld.md)). How many
+videos can show at once comes from a measurement, `CHITTHI_TEST_ONLY=poolcount npm test` (`poolTiming` in
+`src/dev/playbackChecks.ts`, never part of the default run): 300 back-to-back 1/30 s steps (stricter than playing in
+real time; 5 warm-up steps left out), each lasting until every clip's frame has arrived and been drawn into a 1280 × 720
+canvas.
 
 Development machine, 2026-10-11 (Electron self-test, desktop limits):
 
@@ -110,8 +116,9 @@ Development machine, 2026-10-11 (Electron self-test, desktop limits):
 
 The limit is the largest 1080p30 count with a median ≤ 33 ms and a 95th percentile ≤ 50 ms, minus one for slower
 machines, capped at 3 on the web and 6 in the desktop app and never below 2: **3 on the web, 5 in the desktop app**
-(`videosAtOnce` in `limitsFor()`, `engine/video.ts`). Photos don't count. Without `VideoDecoder` there is no pool and
-the limit is 1.
+(`videosAtOnce` in `limitsFor()`, `engine/video.ts`). Photos don't count. Without `VideoDecoder` (Firefox before
+130, Safari before 26) there is no pool and the limit is 1. The numbers are set here; the multi-track timeline (`203`)
+is what enforces them, since today's projects have a single video track.
 
 ## Investigating a slowdown
 
