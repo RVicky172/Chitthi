@@ -11,6 +11,20 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-11 — 203 batch 2 (T014–T019)
+
+**Done:** T014 / T015 edits across tracks: `moveToTrack`, the videos-at-once limit after every edit (`limitVideos`,
+only refused when over the limit and above before; explicit `EditCtx.desktop`; a no-WebCodecs reason), Q8 fixes
+(slide / nudge Magnetic only on main; reorder refuses overlays). T018 / T019 the document gate: `transform` ↔ `tf`,
+overlays and their overlaps, track-limit slots for main and music (no silent removals), main never muted, clips past
+the length limit left out with one counted reason. T016 / T017 `renderStack`: one box geometry (`intoBox`); a
+see-through clip drawn into its box on a per-target scratch canvas (renderIg's passes would show its background
+through its photo); golden frames worst 1 level on CPU, WebGL2, WebGPU; 2,160 frames identical to the frozen pre-203
+renderFrame. Every pair reviewed (CHANGES once for T016/T017 and T018/T019). check 1,334; npm test 6,187 / 0 (211 s);
+editors e2e 25 / 25. The store's remaining duties (limit on split, duplicate, add, Magnetic on) are in T040's text.
+**Next:** batch 3: T020/T021 (sound), T040 (store), T050 (PictureRow refactor).
+**Blockers:** none.
+
 ## 2026-10-11 — 203 planned, tasked, batch 1 (T001, T002, T010–T013)
 
 **Done:** 203's plan approved (D1–D3, D-031; Q6 = web 3 / desktop 5) and tasks T001–T092 in five agent batches.

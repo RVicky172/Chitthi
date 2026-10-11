@@ -51,9 +51,12 @@ track, hidden tracks included so unhiding can't break the limit, D3); photos don
 **§4 Drawing (engine/video.ts, AC-6, AC-7, AC-10).** `renderStack(ctx, W, H, items, layers, t, total, fadeOut)`, items
 = `{ clip, src, sw, sh, local }[]` bottom first: black; each item with its picture; the layers; the darkness. An item
 at identity draws through exactly today's call (`renderIg(ctx, src, sw, sh, edit, W, H)`), so a project without
-transforms is pixel-identical (AC-10). Otherwise `save`, `globalAlpha = opacity`, `translate(x·W, y·H)`, `rotate`,
-`scale(w)`, `translate(−W/2, −H/2)`, a rounded-rectangle clip (`roundRect`, `arcTo` where missing), `renderIg(…, W, H)`,
-`restore`. Fades (D2): the main track clip's fade-in darkens the whole frame as today (layers included, 2.x's look);
+transforms is pixel-identical (AC-10). Otherwise one geometry, `intoBox`: `translate(x·W, y·H)`, `rotate`, a rounded-rectangle
+clip (`roundRect`, `arcTo` where missing), `scale(w)`, `translate(−W/2, −H/2)`, then `renderIg(…, W, H)`. An opaque
+clip draws straight into the frame (T001). A see-through clip (opacity × fade ramp < 1) is drawn the same way into a
+scratch canvas of the frame's size, one per target canvas (a `WeakMap` by `ctx.canvas`, cleared per item), then laid
+down once at its alpha: `renderIg` draws in passes (background, photo, vignette), so `globalAlpha` on the frame would
+let a clip's own background show through its photo (T017 review). `IDENTITY` / `isIdentity` live in `video.ts`. Fades (D2): the main track clip's fade-in darkens the whole frame as today (layers included, 2.x's look);
 an overlay clip's fade-in ramps its own opacity from 0 over `V_FADE`; the video's fade-out darkens everything as
 today. `renderFrame` becomes `renderStack` with one item (its callers unchanged until §5 / §6 move them).
 

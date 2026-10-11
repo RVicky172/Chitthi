@@ -30,7 +30,7 @@
 - **203:** `203-compositing-pip` 🚧: plan approved 2026-10-11 (D1–D3, D-031; Q6 = web 3 / desktop 5), tasks
   T001–T092 in 5 agent batches; branch `feat/203-compositing-pip`. **204** merged into `main` and pushed
   (2026-10-11, with Dependabot #23–#27).
-- **Next (roadmap):** 203 batch 2: T014/T015 (edits), T016/T017 (renderStack), T018/T019 (document gate). Batch 1 done 2026-10-11.
+- **Next (roadmap):** 203 batch 3: T020/T021 (sound), T040 (store), T050 (PictureRow refactor). Batches 1–2 done 2026-10-11.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
