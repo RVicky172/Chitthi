@@ -54,7 +54,7 @@ function mulberry32(seed: number) {
 }
 
 /** p, or a failure naming `what` after `ms`: a pool that never answers fails its check instead of stalling the run. */
-function within<T>(p: Promise<T>, what: string, ms = 5000): Promise<T> {
+export function within<T>(p: Promise<T>, what: string, ms = 5000): Promise<T> {
   let timer = 0;
   return Promise.race([
     p.finally(() => clearTimeout(timer)),

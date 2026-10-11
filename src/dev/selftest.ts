@@ -43,6 +43,16 @@ async function run(): Promise<Result> {
     }
     return r;
   }
+  // `CHITTHI_TEST_ONLY=poolcount npm test`: how many simultaneous videos the pool keeps up with (204 T050, AC-15),
+  // measured through the pool alone; minutes of decoding, so never in the default run.
+  if (only === 'poolcount') {
+    try {
+      r.notes.push(...(await (await import('./playbackChecks')).poolTiming(check)));
+    } catch (e) {
+      check(false, `pool count timing threw: ${e instanceof Error ? e.message : e}`);
+    }
+    return r;
+  }
   if (only === 'timing') {
     r.notes.push(...(await (await import('./exportTiming')).exportTiming()));
     return r;

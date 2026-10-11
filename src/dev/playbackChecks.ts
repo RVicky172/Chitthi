@@ -3,7 +3,10 @@
  * mounted in StrictMode on the dev server as `npm run dev` runs it) with frame-coded clips (each frame's colour names
  * it: videoChecks.ts codeColour). 204 T032: the quick checks (AC-12's release, AC-13) run in `npm test`; the real-time
  * ones (AC-5, AC-7, AC-12's bounds) run on demand with `CHITTHI_TEST_ONLY=pooltiming npm test` (minutes of playback).
+ * T050's count of simultaneous videos (AC-15, poolTiming) is measured through the pool alone, without the editor, on
+ * demand with `CHITTHI_TEST_ONLY=poolcount npm test`.
  */
+import { within } from './poolChecks';
 import { codeColour, makeTestClip } from './videoChecks';
 
 type Check = (ok: unknown, what: string) => void;
@@ -298,17 +301,6 @@ export async function playbackTiming(check: Check): Promise<string[]> {
   return notes;
 }
 
-/** p, or a failure naming `what` after `ms`: a decode that never lands fails the check instead of stalling the run. */
-function within<T>(p: Promise<T>, what: string, ms = 5000): Promise<T> {
-  let timer = 0;
-  return Promise.race([
-    p.finally(() => clearTimeout(timer)),
-    new Promise<never>((_, reject) => {
-      timer = window.setTimeout(() => reject(new Error(`no answer in ${ms / 1000} s: ${what}`)), ms);
-    }),
-  ]);
-}
-
 /** Yields one task (a MessageChannel message, not a timer: no 4 ms clamp) so decoder output can land. */
 const yieldTask = (() => {
   let ch: MessageChannel | null = null;
@@ -324,23 +316,38 @@ const yieldTask = (() => {
 const meetsBar = (med: number, p95: number) => med <= 33 && p95 <= 50;
 
 /**
- * AC-15 (T050), on demand (CHITTHI_TEST_ONLY=pooltiming): the decoder pool with 1, 2, 3, 4 and 6 simultaneous 1080p30
- * clips (and 2 and 3 4K30 clips in the desktop app), measured through the pool directly (several visible videos at once
- * is 203's compositing). Per count, 300 steps of 1/30 s run back to back (decode throughput, not real time): at each
- * step every clip is asked with `peek`, as the playing preview does, until each has the frame covering the step's time;
- * the step's time and the frames held are recorded. The bar (median ≤ 33 ms, p95 ≤ 50 ms) is reported, not failed on:
- * T051 sets the limits from it by Q2's rule.
+ * AC-15 (T050), on demand (CHITTHI_TEST_ONLY=poolcount): the decoder pool with 1, 2, 3, 4 and 6 simultaneous 1080p30
+ * clips (and 2 and 3 4K30 clips in the desktop app or the Electron self-test), measured through the pool directly
+ * (several visible videos at once is 203's compositing). Per count, 300 steps of 1/30 s: at each step every clip is
+ * asked with `peek`, as the playing preview does, until each has the frame covering the step's time, and then every
+ * frame is drawn scaled into a 1280×720 canvas (dpr 1, the preview's size); that is the step's time. One pixel is read
+ * back every 30 steps, outside the timing, so the draws can't be skipped.
+ *
+ * The steps run back to back, not paced at 30 fps: a step gets no idle time from the one before to decode ahead in, so
+ * this is a stricter proxy than real-time playback, on purpose (a count that keeps up here keeps up when playing). The
+ * first 5 steps are warm-up (lanes reaching their look-ahead) and stay out of the median and p95. The bar (median
+ * ≤ 33 ms, p95 ≤ 50 ms) is reported, not failed on: T051 sets the limits from it by Q2's rule.
  */
 export async function poolTiming(check: Check): Promise<string[]> {
   const notes: string[] = [];
   const { isDesktop } = await import('../platform/desktop');
+  // The Electron self-test has no preload, so isDesktop is false there; it measures the desktop app's case.
+  const desktopRun = isDesktop || navigator.userAgent.includes('Electron');
   const { DecodePool, poolLimits } = await import('../engine/decodePool');
   const { mediabunnySource, openFrames } = await import('../engine/frameSource');
   type PoolClip = import('../engine/decodePool').PoolClip;
   type PoolFrame = import('../engine/decodePool').PoolFrame;
   const STEPS = 300,
+    WARM = 5,
     DUR = 10,
-    STEP_MS = 5000;
+    STEP_MS = 5000,
+    W = 1280,
+    H = 720;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return ['pool timing AC-15: skipped (no 2D canvas)'];
   const covers = (f: PoolFrame | null, t: number) => !!f && f.time <= t + 1e-4 && t + 1e-4 < f.time + f.duration;
 
   // Distinct textured sources (decoding costs like real footage), made once and shared by every count.
@@ -352,14 +359,14 @@ export async function poolTiming(check: Check): Promise<string[]> {
     hd.push(b);
   }
   const uhd: Blob[] = [];
-  if (isDesktop)
+  if (desktopRun)
     for (let i = 0; i < 3; i++) {
       const b = await makeTestClip(DUR, 3840, 2160, 2, true);
       if (!b) break;
       uhd.push(b);
     }
   notes.push(
-    `pool timing AC-15: fixtures (6 × 1080p${isDesktop ? `, ${uhd.length} × 4K` : ''}, ${DUR} s, textured) made in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+    `pool timing AC-15: fixtures (6 × 1080p${desktopRun ? `, ${uhd.length} × 4K` : ''}, ${DUR} s, textured) made in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   );
 
   type Run = {
@@ -369,6 +376,8 @@ export async function poolTiming(check: Check): Promise<string[]> {
     p95: number;
     max: number;
     frames: number;
+    decoders: number;
+    drawn: number;
     limit: number;
     ok: boolean;
     err?: string;
@@ -376,7 +385,7 @@ export async function poolTiming(check: Check): Promise<string[]> {
   };
   const measure = async (label: string, files: Blob[]): Promise<Run> => {
     const n = files.length;
-    const limits = poolLimits(n, isDesktop);
+    const limits = poolLimits(n, desktopRun);
     const limit = n * (limits.ahead + 1);
     const pool = new DecodePool(mediabunnySource, limits);
     const clips: PoolClip[] = files.map((file, i) => ({
@@ -390,6 +399,8 @@ export async function poolTiming(check: Check): Promise<string[]> {
     const times: number[] = [];
     let frames = 0,
       bytes = 0,
+      decoders = 0,
+      drawn = 0,
       err: string | undefined;
     try {
       pool.want(clips.map((c) => c.id));
@@ -412,10 +423,19 @@ export async function poolTiming(check: Check): Promise<string[]> {
             throw new Error(`step ${k} (${t.toFixed(3)} s) not ready in ${STEP_MS / 1000} s`);
           await yieldTask();
         }
-        times.push(performance.now() - s0);
+        // Draw as the preview does: every clip's frame, scaled into the stage.
+        ctx.clearRect(0, 0, W, H);
+        for (const c of clips) {
+          const f = pool.peek(c, t);
+          if (!f) throw new Error(`${c.id} lost its frame at ${t.toFixed(3)} s`);
+          ctx.drawImage(f.image, 0, 0, W, H);
+        }
+        if (k >= WARM) times.push(performance.now() - s0);
+        if (k % 30 === 0 && ctx.getImageData(W >> 1, H >> 1, 1, 1).data[3] === 255) drawn++;
         const s = pool.stats();
         frames = Math.max(frames, s.frames);
         bytes = Math.max(bytes, s.bytes);
+        decoders = Math.max(decoders, s.decoders);
       }
     } catch (e) {
       err = e instanceof Error ? e.message : String(e);
@@ -435,13 +455,22 @@ export async function poolTiming(check: Check): Promise<string[]> {
       p95,
       max: times.length ? Math.max(...times) : NaN,
       frames,
+      decoders,
+      drawn,
       limit,
-      ok: !err && times.length === STEPS && frames <= limit && bytes <= limits.bytes && drained,
+      ok:
+        !err &&
+        times.length === STEPS - WARM &&
+        drawn === STEPS / 30 &&
+        frames <= limit &&
+        decoders <= limits.decoders &&
+        bytes <= limits.bytes &&
+        drained,
       err,
       drained,
     };
     notes.push(
-      `pool timing AC-15 ${label}: median ${med.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${run.max.toFixed(1)} ms over ${times.length} steps; frames held max ${frames} (≤ ${limit}), ${(bytes / 2 ** 20).toFixed(0)} MB (≤ ${(limits.bytes / 2 ** 20).toFixed(0)}); bar (≤ 33 / 50 ms) ${meetsBar(med, p95) ? 'met' : 'missed'}${err ? `; ERROR ${err}` : ''}${drained ? '' : `; not drained ${JSON.stringify(openFrames())}`}`,
+      `pool timing AC-15 ${label}: median ${med.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${run.max.toFixed(1)} ms over ${times.length} steps (+${WARM} warm-up, drawn ${drawn}/${STEPS / 30} read back); frames held max ${frames} (≤ ${limit}), decoders max ${decoders} (≤ ${limits.decoders}), ${(bytes / 2 ** 20).toFixed(0)} MB (≤ ${(limits.bytes / 2 ** 20).toFixed(0)}); bar (≤ 33 / 50 ms) ${meetsBar(med, p95) ? 'met' : 'missed'}${err ? `; ERROR ${err}` : ''}${drained ? '' : `; not drained ${JSON.stringify(openFrames())}`}`,
     );
     return run;
   };
@@ -450,7 +479,7 @@ export async function poolTiming(check: Check): Promise<string[]> {
   for (const n of [1, 2, 3, 4, 6]) runs.push(await measure(`${n} × 1080p30`, hd.slice(0, n)));
   if (uhd.length >= 2)
     for (const n of [2, 3]) if (uhd.length >= n) runs.push(await measure(`${n} × 4K30`, uhd.slice(0, n)));
-  if (isDesktop && uhd.length < 3)
+  if (desktopRun && uhd.length < 3)
     notes.push(
       `pool timing AC-15: 4K30 ${uhd.length ? `only ${uhd.length} source(s)` : 'skipped (no 4K H.264 encoder)'}`,
     );
@@ -460,13 +489,16 @@ export async function poolTiming(check: Check): Promise<string[]> {
   const raw = (passing.length ? Math.max(...passing) : 0) - 1;
   const clamp = (cap: number) => Math.max(2, Math.min(cap, raw));
   notes.push(
-    `pool timing AC-15 Q2 proposal (${isDesktop ? 'desktop app' : 'Electron self-test, web numbers'}): largest 1080p count meeting the bar ${passing.length ? Math.max(...passing) : 'none'}, minus one = ${raw}; web limit ${clamp(3)}, desktop limit ${clamp(6)}${raw < 2 ? ' (below 2: 203 plan reconsidered, Q2)' : ''}`,
+    `pool timing AC-15 Q2 proposal (${isDesktop ? 'desktop app' : desktopRun ? 'Electron self-test, desktop limits' : 'web'}): largest 1080p count meeting the bar ${passing.length ? Math.max(...passing) : 'none'}, minus one = ${raw}; web limit ${clamp(3)}, desktop limit ${clamp(6)}${raw < 2 ? ' (below 2: 203 plan reconsidered, Q2)' : ''}`,
   );
   check(
     runs.length >= 5 && runs.every((r) => r.ok),
-    `pool timing: ${STEPS} steps measured for ${runs.map((r) => r.label).join(', ')} with frames held within the limits and everything released after (AC-15)${runs
+    `pool timing: ${STEPS} steps decoded and drawn for ${runs.map((r) => r.label).join(', ')} with frames held within the limits and everything released after (AC-15)${runs
       .filter((r) => !r.ok)
-      .map((r) => `; ${r.label} failed: ${r.err ?? `${r.frames} frames (≤ ${r.limit}), drained ${r.drained}`}`)
+      .map(
+        (r) =>
+          `; ${r.label} failed: ${r.err ?? `${r.frames} frames (≤ ${r.limit}), ${r.decoders} decoders, ${r.drawn} draws read back, drained ${r.drained}`}`,
+      )
       .join('')}`,
   );
   return notes;

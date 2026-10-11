@@ -9,7 +9,8 @@ const URL = process.env.CHITTHI_TEST_URL;
 app.whenReady().then(async () => {
   app.on('window-all-closed', () => undefined);
   // Real-time playback measurements (CHITTHI_TEST_ONLY=pooltiming) need a shown window: Chromium throttles
-  // requestAnimationFrame in a hidden one to about once a second, whatever backgroundThrottling says.
+  // requestAnimationFrame in a hidden one to about once a second, whatever backgroundThrottling says. The pool count
+  // timing (CHITTHI_TEST_ONLY=poolcount) uses no requestAnimationFrame and runs hidden.
   const show = process.env.CHITTHI_TEST_ONLY === 'pooltiming';
   const win = new BrowserWindow({ show, width: 1200, height: 900, webPreferences: { backgroundThrottling: false } });
   const errors = [];
