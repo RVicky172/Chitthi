@@ -11,6 +11,22 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-11 — 204 Implemented: T033–T092 with parallel agents (D-030): sound, fallback, limits, docs, every gate
+
+**Done:** first two agent batches (implementers in worktrees + reviewers; the main session merged and ran heavy
+checks one at a time). T050 `poolTiming` (`CHITTHI_TEST_ONLY=poolcount`): 1–6 × 1080p30 and 2–3 × 4K30 all far under
+33 / 50 ms (worst p95 5.7 ms) → T051 `videosAtOnce` web 3, desktop 5, 1 without VideoDecoder. T040 / T041 fallback note
+"This clip can’t be exported here: <reason>" (title, accessible name, inspector, logged once); review fix: a decoder the
+browser takes back reopens twice before fallback. T033 / T034 preview sound from audio-only `<audio>` (`previewSound.ts`):
+AC-8 mean 24 ms, worst 43 ms over 30 s; through a cut worst 37 ms. Two failures were rAF throttling in test windows, not
+bugs (learnings.md); `scripts/test.cjs` keeps the pooltiming window on top with the display awake. T090 docs (lld §4.10,
+PERFORMANCE, MEDIA-STUDIO, CHANGELOG). T091: check 1,174; build entry 327 KB; e2e 84 / 0; npm test 6,157 / 0 (178 s);
+pooltiming 6 / 0; test:mcp ok; licences ok.
+Then the maintainer's T060: cuts, sync and poolTiming all work in Chrome and the desktop app. T092: AC-1–AC-16 ticked,
+204 Implemented, roadmap ✔️, P2.4 Done.
+**Next:** merge 204 into `main` (maintainer's call); 203's plan with the limits (web 3, desktop 5).
+**Blockers:** none.
+
 ## 2026-10-10 — 405 Implemented: the roadmap as a road (merged into main)
 
 **Done:** on `feat/405-roadmap-revamp` (from `spec/405-roadmap-revamp`, from `main`). Spec, plan (D1–D4, D-029) and
@@ -31,6 +47,42 @@ purple), navy pace bars and segments with today in red; green stays only on the 
 Second look: "perfect as of now". T050, AC-9 and T092 done; 405 Implemented, roadmap ✔️, merged into `main`.
 **Next:** 204 T030 (the preview on the pool) on `feat/204-decoder-pool`.
 **Blockers:** none.
+
+## 2026-10-10 — 204 T010–T022: the pool, its Mediabunny source, the export on it
+
+**Done:** T010: 31 tests in `src/engine/decodePool.test.ts` on a fake `FrameSource` (delays, open / decode failures,
+counts of open sources, frames, bytes and readers): `lanePlan`, `frameTime`, `poolLimits`, exact frames on one
+in-order reader (restart for a jump back or ≥ 2 s), latest wins, `peek` holds, LRU decoders, byte budget, 400 random
+asks under the limits with true stats, `forget` / `dispose` incl. in-flight work, fallback. T011:
+`src/engine/decodePool.ts` (one worker per lane, byte reservations before each decode so the budget holds on arrival,
+lanes still opening never evicted). Plan interface changed (changelog): `PoolFrame.duration`, no `FrameSource.at()`.
+`npm run check` green.
+T012 / T013: `src/dev/poolChecks.ts` (AC-1–AC-3 on the real decoder, exact frame time and colour, `openFrames()` 0
+after dispose; timeouts so a stuck decoder fails a check) and `src/engine/frameSource.ts` (Mediabunny). Pool checks
+4 / 4 in 0.9 s; `npm test` 6,131 / 0 (118 s). `CHITTHI_TEST_ONLY=pool npm test` runs only the pool checks. One full
+run hung past 10 min before the timeouts were added and didn't come back (cause unknown).
+T020–T022: the export decodes through the pool (look-ahead one clip, resized frames per D5, dispose in `finally`);
+AC-9 (70 exported frames against a `renderFrame` oracle) and AC-11 (2-minute 1080p ×3, cancel, broken file: nothing
+left open) pass; a broken file now names itself (it gave Mediabunny's bare error). `npm test` 6,142 / 0 (176 s, +58 s:
+Q9 review at T091). A/B with `main` back to back: 60-clip 2.60 / 2.62 s vs 2.64 / 2.69 s; 30 × 4 s 1080p 13.16 /
+13.60 s vs 13.45 / 13.47 s. `CHITTHI_TEST_ONLY=timing npm test` runs the A/B timings. A secret-scanning alert on
+`734d1d11` (403's `keys.jsonl`, line 12) is a false positive: `AIzaFixtureNotARealKey…`, a fake key shape for 403's
+redaction tests, on no current branch.
+**Next:** T030 / T031: the preview on the pool (AC-4 check first).
+**Blockers:** none
+
+## 2026-10-10 — 203 / 204 approved; 204 planned, T001–T002
+
+**Done:** 202 merged to `main` (`ecb55df`, pushed). 203 / 204: all 24 proposed answers accepted (D-027), both
+Approved; `main` merged into `spec/203-204`. 204's plan approved with D1–D5 (D-028) and tasks T001–T092 written
+(`3418745`, pushed). On `feat/204-decoder-pool`: T001 spike (Mediabunny `VideoSampleSink`: one decoder per reader,
+`return()` closes it; 6 lanes 2.4 ms a step; `getSample` 17.5 ms but a decoder per call; full-size frames 3–6.5 %
+slower in the export, so D5 = export keeps resized canvases); T002 fixtures (`makeTestClip` size / key frames /
+texture, `makeSyncClip`), `npm test` 6,127 / 0.
+**Next:** 204 T010 (failing pool unit tests with a fake source), then T011 (`decodePool.ts`).
+**Blockers:** none.
+
+---
 
 ## 2026-10-09 — 202 verified: Implemented ✔️
 

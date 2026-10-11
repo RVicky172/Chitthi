@@ -53,6 +53,8 @@ export interface VLimits {
   /** Largest video file that can be added, MB. */
   fileMB: number;
   fps: VFps[];
+  /** Videos on screen at once (203 enforces it; photos don't count): set from 204's measurements, AC-15 / Q2. */
+  videosAtOnce: number;
 }
 
 /**
@@ -60,9 +62,11 @@ export interface VLimits {
  * small and may throttle a background tab, so the full studio (long vlogs, 1440p and 4K, 60 fps, big files) is the
  * desktop app's. Exports always stream frame by frame; long videos also stream to disk.
  */
-export function limitsFor(kind: VKind, desktop: boolean): VLimits {
-  if (kind === 'reel') return desktop ? { seconds: 180, minSeconds: 3, clips: 50, fileMB: 4096, fps: [30, 60] } : { seconds: 90, minSeconds: 3, clips: 20, fileMB: 300, fps: [30] };
-  return desktop ? { seconds: 3 * 3600, minSeconds: 1, clips: 500, fileMB: 50 * 1024, fps: [30, 60] } : { seconds: 15 * 60, minSeconds: 1, clips: 60, fileMB: 4096, fps: [30] };
+export function limitsFor(kind: VKind, desktop: boolean, decoder = typeof VideoDecoder !== 'undefined'): VLimits {
+  // Without WebCodecs there is no decoder pool: one <video> at a time, as before 204 (Q7).
+  const videosAtOnce = !decoder ? 1 : desktop ? 5 : 3;
+  if (kind === 'reel') return desktop ? { seconds: 180, minSeconds: 3, clips: 50, fileMB: 4096, fps: [30, 60], videosAtOnce } : { seconds: 90, minSeconds: 3, clips: 20, fileMB: 300, fps: [30], videosAtOnce };
+  return desktop ? { seconds: 3 * 3600, minSeconds: 1, clips: 500, fileMB: 50 * 1024, fps: [30, 60], videosAtOnce } : { seconds: 15 * 60, minSeconds: 1, clips: 60, fileMB: 4096, fps: [30], videosAtOnce };
 }
 
 export const V_PHOTO_SECONDS = 3;

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
-import { MAIN_VIDEO, MUSIC, lockedReason, videoAt } from '../../engine/timeline';
-import { MOTIONS, NO_PICTURE, bitrateFor, clipLength, fmtTime, formatsFor, renderFrame, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
+import { MUSIC, lockedReason, videoAt } from '../../engine/timeline';
+import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
+import { lanePlan } from '../../engine/decodePool';
+import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
+import { previewSound, soundPlan } from './previewSound';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { canStreamToDisk } from '../../lib/fileSink';
@@ -277,37 +280,6 @@ function MediaPanel() {
   );
 }
 
-/** One <video> element per video clip, created on demand; redraws when a seek lands. */
-function useClipVideos(onFrame: () => void) {
-  const els = useRef(new Map<string, HTMLVideoElement>());
-  const cb = useRef(onFrame);
-  cb.current = onFrame;
-  useEffect(() => {
-    const map = els.current;
-    return () => {
-      for (const v of map.values()) {
-        v.pause();
-        v.removeAttribute('src');
-        v.load();
-      }
-      map.clear();
-    };
-  }, []);
-  return useCallback((c: VClip): HTMLVideoElement => {
-    let v = els.current.get(c.id);
-    if (!v) {
-      v = document.createElement('video');
-      v.preload = 'auto';
-      v.playsInline = true;
-      v.src = c.url;
-      v.addEventListener('seeked', () => cb.current());
-      v.addEventListener('loadeddata', () => cb.current());
-      els.current.set(c.id, v);
-    }
-    return v;
-  }, []);
-}
-
 function VideoStage() {
   const ref = useRef<HTMLCanvasElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -326,10 +298,59 @@ function VideoStage() {
   const { width, height } = useFit(box, f.w, f.h, 56);
   const tick = useFontsTick(layers);
   const audio = useRef<HTMLAudioElement | null>(null);
-  const draw = useRef<() => void>(() => undefined);
-  const videoFor = useClipVideos(() => draw.current());
+  const draw = useRef<(frame?: StageFrame<VClip>) => void>(() => undefined);
+  // Pictures: the decoder pool (204), with <video> elements for clips it can't decode (sound: below).
+  // Created on first use and again after a cleanup: StrictMode runs effects twice in development, and a source kept in
+  // useMemo would stay disposed (the stage drew nothing).
+  const stageRef = useRef<ReturnType<typeof stageSource> | null>(null);
+  const stage = useCallback(() => (stageRef.current ??= stageSource(() => draw.current())), []);
+  useEffect(
+    () => () => {
+      stageRef.current?.dispose();
+      stageRef.current = null;
+    },
+    [],
+  );
+  const videoFor = useCallback((c: VClip) => stage().element(c), [stage]);
+  // Clip sound (204 §4, D1): <audio> elements for the clip under the playhead and the next ones; lazy like the stage.
+  // `mounted` stops the playback cleanup's last sync from making the stage or the sound again once they're disposed.
+  const soundRef = useRef<ReturnType<typeof previewSound> | null>(null);
+  const mounted = useRef(false);
+  const sound = useCallback(() => (soundRef.current ??= previewSound()), []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      soundRef.current?.dispose();
+      soundRef.current = null;
+    };
+  }, []);
+  /** The frame drawn last (paused: the exact one once it landed); held while the next one decodes. */
+  const last = useRef<StageFrame<VClip> | null>(null);
+  /** Paused asks: only the newest one is drawn (latest wins). */
+  const asked = useRef(0);
+  /** Does the clip's picture come from the pool? Not without one, nor for a clip it can't decode (noted on the clip). */
+  const usesPool = (c: VClip) => {
+    const pool = stage().pool;
+    const why = pool?.fallback(c.id);
+    if (why) noteFallback(c.file, why);
+    return Boolean(pool && !why);
+  };
 
-  draw.current = () => {
+  /** A picture without waiting (playback): what the pool has ready, or the clip's <video> for a fallback clip. */
+  const pictureNow = (shown: { clip: VClip; local: number } | null): Picture | null => {
+    if (!shown) return null;
+    const c = shown.clip;
+    if (c.kind === 'photo') return c.still ? { image: c.still, w: c.still.width, h: c.still.height } : null;
+    if (usesPool(c)) {
+      const f = stage().pool!.peek(poolClip(c), c.in + shown.local);
+      return f ? { image: f.image, w: f.width, h: f.height } : null;
+    }
+    const v = videoFor(c);
+    return v.readyState >= 2 ? { image: v, w: v.videoWidth, h: v.videoHeight } : null;
+  };
+
+  draw.current = (frame) => {
     const cv = ref.current,
       x = cv?.getContext('2d');
     if (!cv || !x || width <= 0) return;
@@ -340,43 +361,69 @@ function VideoStage() {
       cv.width = W;
       cv.height = H;
     }
-    const s = getVideo(),
-      p = videoAt(projectOf(s), s.t);
-    if (!p && !s.clips.length) return;
-    let src: CanvasImageSource | null = null,
-      sw = 0,
-      sh = 0;
-    if (p?.clip.kind === 'photo' && p.clip.still) {
-      src = p.clip.still;
-      sw = p.clip.still.width;
-      sh = p.clip.still.height;
-    } else if (p?.clip.kind === 'video') {
-      const v = videoFor(p.clip);
-      if (v.readyState >= 2) {
-        src = v;
-        sw = v.videoWidth;
-        sh = v.videoHeight;
+    const s = getVideo();
+    let f = frame;
+    if (!f) {
+      if (s.playing) {
+        const shown = videoAt(projectOf(s), s.t);
+        f = { at: s.t, shown, pic: pictureNow(shown) };
+      } else {
+        // Paused, until the exact frame lands: a photo at once; a video's held picture while it's the same clip.
+        const { at, shown } = pausedAt(projectOf(s), s.t, s.fps);
+        const held = last.current;
+        const pic =
+          shown?.clip.kind === 'photo' || (shown && !usesPool(shown.clip))
+            ? pictureNow(shown)
+            : held && held.shown?.clip.id === shown?.clip.id
+              ? held.pic
+              : null;
+        f = { at, shown, pic };
       }
     }
-    // No clip shows when the video track is hidden: black with the layers, as the export draws it.
-    renderFrame(x, W, H, p?.clip ?? NO_PICTURE, src, sw, sh, p ? p.local : s.t, s.layers, s.t, videoLength(s), s.fadeOut);
+    if (!f.shown && !s.clips.length) return;
+    last.current = f;
+    const view = { layers: s.layers, total: videoLength(s), fadeOut: s.fadeOut };
+    try {
+      drawPreview(x, W, H, view, f);
+    } catch {
+      // A held frame the pool has since released (a clip removed): draw without it until the next frame.
+      last.current = { ...f, pic: null };
+      drawPreview(x, W, H, view, last.current);
+    }
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
   };
 
-  /** Points each clip's <video> at the playhead: the current one seeks (and plays when playing), the rest pause. */
+  /** The clips the pool keeps open at playhead t: those showing and the next to start within 2 s (Q10). */
+  const lookAhead = useCallback(
+    (t: number) => {
+      const pool = stage().pool;
+      if (!pool) return;
+      const plan = lanePlan(projectOf(getVideo()), t, 2);
+      pool.want([...plan.visible, ...plan.next].map((c) => c.id));
+      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c));
+    },
+    // usesPool only reads stage
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stage],
+  );
+
+  /** The clip sound at the playhead (playing when playing, kept within a frame), the next clip's pre-seeked; and the
+   * muted <video> of a clip the pool can't decode, for its picture: the current one at the playhead, the rest paused. */
   const sync = useCallback(
     (play: boolean) => {
+      if (!mounted.current) return;
       const s = getVideo(),
-        // A hidden video track still plays its clips' sound (D2): find the clip as if it were shown.
-        p = videoAt({ ...projectOf(s), tracks: s.tracks.map((tr) => (tr.id === MAIN_VIDEO ? { ...tr, hidden: false } : tr)) }, s.t);
+        plan = soundPlan(projectOf(s), s.t);
+      sound().update(plan, play, s.fps);
+      const p = plan.current,
+        pool = stage().pool;
       for (const c of s.clips) {
-        if (c.kind !== 'video') continue;
+        if (c.kind !== 'video' || (pool && !pool.fallback(c.id))) continue;
         const v = videoFor(c);
+        v.muted = true;
         if (p && c.id === p.clip.id) {
           const want = c.in + p.local;
-          v.volume = Math.max(0, Math.min(1, c.volume));
-          v.muted = c.volume <= 0;
           if (play) {
             if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;
             if (v.paused) void v.play().catch(() => undefined);
@@ -387,14 +434,31 @@ function VideoStage() {
         } else if (!v.paused) v.pause();
       }
     },
-    [videoFor],
+    [videoFor, stage, sound],
   );
 
+  // Clips removed from the project give their decoders and frames back.
+  const known = useRef(new Set<string>());
+  useEffect(() => {
+    const now = new Set(clips.map((c) => c.id));
+    for (const id of known.current) if (!now.has(id)) stage().pool?.forget(id);
+    known.current = now;
+  }, [clips, stage]);
+
+  // Paused or scrubbing: draw at once with what's held, then the exact frame of the export's grid when it lands.
   useEffect(() => {
     if (playing) return;
     sync(false);
     draw.current();
-  }, [clips, tracks, layers, layerSel, format, fadeOut, t, tick, playing, width, height, sync]);
+    const s = getVideo();
+    const n = ++asked.current;
+    void pausedFrame(projectOf(s), s.t, s.fps, stage().source)
+      .then((frame) => {
+        if (n === asked.current && !getVideo().playing) draw.current(frame);
+      })
+      .catch((e: unknown) => logError('handled', e));
+    lookAhead(s.t);
+  }, [clips, tracks, layers, layerSel, format, fadeOut, t, tick, playing, width, height, sync, stage, lookAhead]);
 
   // Playback: advance the playhead with the wall clock, keep the clip videos and the music in step.
   useEffect(() => {
@@ -423,6 +487,7 @@ function VideoStage() {
       }
       setPlayhead(now);
       sync(true);
+      lookAhead(now);
       draw.current();
       raf = requestAnimationFrame(loop);
     };
@@ -432,7 +497,7 @@ function VideoStage() {
       audio.current?.pause();
       sync(false);
     };
-  }, [playing, music, sync]);
+  }, [playing, music, sync, lookAhead]);
   // Muting the music track while it plays.
   useEffect(() => {
     if (audio.current) audio.current.muted = musicMuted;
@@ -484,6 +549,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
   const i = clips.findIndex((x) => x.id === c.id);
   const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
   const locked = useVideo((s) => lockedReason(s.tracks, c.track));
+  const cantExport = useFallbackNote(c.file);
   const e = c.edit;
   return (
     <div className="lp">
@@ -497,6 +563,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           {c.name} · {c.w}×{c.h}
           {c.kind === 'video' ? ` · ${fmtTime(c.srcDur)}` : ''}
         </p>
+        {cantExport && <p className="hint bad" role="status">{cantExport}</p>}
         {c.kind === 'photo' ? (
           <>
             <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip(c.id, { dur })} />

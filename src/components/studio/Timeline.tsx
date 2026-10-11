@@ -42,6 +42,7 @@ import {
   videoLength,
 } from '../../state/video';
 import { typingIn } from '../ig/LayerPanel';
+import { useFallbackNote } from './previewFrame';
 import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 
 /*
@@ -500,6 +501,8 @@ function ClipBlock(p: {
   onEdge: (e: ReactPointerEvent, side: 'start' | 'end') => void;
 }) {
   const c = p.clip;
+  // A clip the decoder pool can't decode previews from its <video>, but the export can't use it (204 §7).
+  const cantExport = useFallbackNote(c.file);
   // Filmstrip tiles for the part of the source that is used.
   const tiles = Math.max(1, Math.min(24, Math.round(p.width / 56)));
   const frames = Array.from({ length: tiles }, (_, k) => {
@@ -512,7 +515,7 @@ function ClipBlock(p: {
       className={`tl-clip tl-${c.kind}${p.selected ? ' on' : ''}${p.dragging !== null ? ' dragging' : ''}${p.locked ? ' locked' : ''}`}
       style={{ left: p.left, width: Math.max(8, p.width - 2), transform: p.dragging !== null ? `translateX(${p.dragging}px)` : undefined }}
       onPointerDown={p.onBody}
-      title={`${c.name} · ${clipLength(c).toFixed(1)} s${c.kind === 'video' ? ` · source ${c.in.toFixed(1)}–${c.out.toFixed(1)} s` : ''}`}
+      title={`${c.name} · ${clipLength(c).toFixed(1)} s${c.kind === 'video' ? ` · source ${c.in.toFixed(1)}–${c.out.toFixed(1)} s` : ''}${cantExport ? `\n${cantExport}` : ''}`}
     >
       <div className="tl-film" aria-hidden="true">
         {frames.map((src, k) => (
@@ -521,12 +524,13 @@ function ClipBlock(p: {
       </div>
       <span className="tl-clip-label">
         {p.locked && <LockIcon on />}
+        {cantExport && <span aria-hidden="true">⚠ </span>}
         {c.kind === 'video' ? '▶ ' : ''}
         {clipLength(c).toFixed(1)}s{c.fade ? ' · fade' : ''}
       </span>
       <button type="button" className="tl-edge tl-edge-start" aria-label={`Trim the start of clip ${p.index + 1}`} onPointerDown={(e) => p.onEdge(e, 'start')} />
       <button type="button" className="tl-edge tl-edge-end" aria-label={`Trim the end of clip ${p.index + 1}`} onPointerDown={(e) => p.onEdge(e, 'end')} />
-      <button type="button" className="vh" aria-label={`Clip ${p.index + 1}: ${c.name}, ${c.kind}, ${clipLength(c).toFixed(1)} seconds`} aria-pressed={p.selected} onClick={() => selectClip(c.id)} />
+      <button type="button" className="vh" aria-label={`Clip ${p.index + 1}: ${c.name}, ${c.kind}, ${clipLength(c).toFixed(1)} seconds${cantExport ? `. ${cantExport}` : ''}`} aria-pressed={p.selected} onClick={() => selectClip(c.id)} />
     </div>
   );
 }

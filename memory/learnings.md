@@ -57,6 +57,16 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   node, so the same message set again isn't drawn, and a keyed child removed under it makes React lose the element.
   Blank the inner text node only, and give a repeatable message a changing `key` (202 T033, the toast).
 
+- Mediabunny's `VideoSampleSink.getSample(t)` opens and closes a `VideoDecoder` on every call (~18 ms median with
+  2 s key frames); `samples()` keeps one decoder per reader until its `return()`. Use readers for playback and
+  `getSample` only for single seeks. Drawing full-size `VideoFrame`s in the export was 3–6.5 % slower than
+  `CanvasSink`'s canvases (204 T001).
+
+- Mediabunny's `VideoSample.toCanvasImageSource()` may hand back a `VideoFrame` that is closed in the next microtask:
+  never keep it. To hold a decoded frame, take `toVideoFrame()` (its own frame, closed separately) and close the
+  sample at once; a bare `VideoFrame` ignores the file's rotation / flip, so draw those samples to a canvas. Frames
+  left open don't just leak: once a few dozen are held the `VideoDecoder` stops producing (204 T013 break-test: the
+  pool's next `frame()` never answered). Self-test waits on decoders need a timeout (`within` in poolChecks.ts).
 - An animated number on screen is read by screen readers at whatever value it shows: a count-up that hasn't run yet
   (a stop not scrolled into view) announced "0 of 20". Make the moving number `aria-hidden` and put the real value in
   screen-reader text (405 T034). Likewise, `aria-label` on a link replaces its whole content for screen readers: don't
@@ -65,6 +75,13 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   changes) did nothing. Sync from the URL during render by comparing with the last seen query, not in an effect
   (405 T040). axe's WCAG 2.2 `target-size` flags 12 px dots used as links: give the link a 24 px box and draw the dot
   inside with `::before` (405 T043).
+
+- Don't keep a resource that an effect disposes in `useMemo`: React StrictMode (on in `src/main.tsx`) runs every
+  effect, its cleanup, then the effect again in development, so the memoised object stays disposed. The video stage's
+  frame source did that and the stage drew nothing in `npm run dev` / `desktop:dev`, while production (e2e, export)
+  was fine. Create it lazily in a ref and set the ref back to null in the cleanup. Tests that call the module directly
+  or run the production build miss this; `poolChecks` now mounts the real `VideoWorkspace` in StrictMode on the dev
+  server (204 T031 fix, found by the maintainer with DJI HEVC clips).
 
 ## Formatting
 
@@ -78,3 +95,12 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   point, so a roll to the limit left `in` at −2.8e-17 and `checkTrack` failed. Clamp the stored edge itself
   (`Math.max(0, in + d)`, `Math.min(srcDur, out + d)`), not just the delta. Only seeded random edits found it
   (202 T017).
+
+## 2026-10-11 — Self-test playback checks and throttled animation frames (204 T033)
+
+Chromium runs `requestAnimationFrame` about once a second in `npm test`'s hidden window, and also in a shown window
+that is covered or whose display sleeps (Windows stops vsync). The video stage draws only what the pool has ready at
+each tick, so at ~1 Hz the picture never advances and sync checks see "0 flashes". Real-time checks go in
+`CHITTHI_TEST_ONLY=pooltiming` (shown window, kept on top, occlusion tracking off, display awake: `scripts/test.cjs`);
+hidden-window checks feed the pool between ticks instead of sleeping. If a pooltiming check fails oddly, look at its
+frames-per-second first. Cost ~30 min.

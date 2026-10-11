@@ -87,8 +87,10 @@ The main session is the **orchestrator**: it alone changes `feature.json`, `memo
 1. **Pick the batch:** the next tasks that don't depend on each other's results and don't edit the same files (`[P]`
    tasks, or a test-first pair given whole to one agent). A task that depends on another, a single task with no
    partner, a 👤 task, or a change to tracking files is done inline by the orchestrator, as before.
-2. `npm run specs -- start NNN Txxx` for each, then start the implementers in **one message** (Agent tool,
-   `isolation: "worktree"`), each with its task text, files, proving test and the plan section it implements.
+2. `npm run specs -- start NNN Txxx` for each, commit, then start the implementers in **one message** (Agent tool,
+   `isolation: "worktree"`), each with its task text, files, proving test, the plan section it implements, and the
+   feature branch commit to start from (worktrees are created from `main`; the implementer resets onto it). Worktrees
+   live in `.claude/worktrees/`, which Vitest, ESLint and the Vite watcher ignore.
 3. As each finishes, a reviewer checks its commit. CHANGES go back to the same implementer once (SendMessage); a
    second CHANGES is fixed inline by the orchestrator.
 4. **Merge** the approved commits into the feature branch one by one (cherry-pick), resolving conflicts.

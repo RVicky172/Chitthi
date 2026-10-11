@@ -11,7 +11,9 @@ main session (the orchestrator) owns the feature's tracking, merges your work an
 
 1. Read `CLAUDE.md`, `memory/learnings.md`, and the feature's `specs/features/NNN-*/spec.md`, `plan.md` and
    `tasks.md` (the parts your task names). Read the code you'll touch and match its style, comment density and idiom.
-2. Your worktree has no `node_modules`. Link the main checkout's with PowerShell (never `npm install`):
+2. Your worktree may start from `main`, not the feature branch. If `git log -1` isn't the commit the orchestrator
+   named, move it there before anything else: `git reset --hard <that commit or branch>` (your worktree branch only).
+3. Your worktree has no `node_modules`. Link the main checkout's with PowerShell (never `npm install`):
    `New-Item -ItemType Junction -Path node_modules -Target <main checkout>\node_modules`
    Never delete it with `Remove-Item` (that can empty the real folder); leave it, the orchestrator removes it.
 

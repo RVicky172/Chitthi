@@ -2,7 +2,7 @@
   "$schema": "./schema/roadmap.schema.json",
   "schema": 1,
   "title": "Chitthi Studio — Roadmap",
-  "updated": "2026-10-10",
+  "updated": "2026-10-11",
   "lead": "Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.",
   "intro": "The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work\nitems (files, tests, notes and measurements for Phases 0–1) are in\n[vision/editor-implementation.md](vision/editor-implementation.md). From Phase 2 on, each work item is a feature\nfolder here and this file holds its status. Numbers follow the work-item IDs: **P2.1 → 201**, **P3.4 → 304**.",
   "currentPhase": "phase-2",
@@ -143,9 +143,9 @@
       "203": {
         "title": "Compositing many tracks, picture-in-picture",
         "workItem": "P2.3",
-        "status": "not-started",
+        "status": "spec-approved",
         "note": "",
-        "folder": null,
+        "folder": "features/203-compositing-pip",
         "needs": [
           "201",
           "204"
@@ -154,9 +154,9 @@
       "204": {
         "title": "Decoder pool with look-ahead",
         "workItem": "P2.4",
-        "status": "not-started",
+        "status": "done",
         "note": "",
-        "folder": null,
+        "folder": "features/204-decoder-pool",
         "needs": [
           "201"
         ]
