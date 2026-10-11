@@ -2,7 +2,7 @@
 
 # 204 — Decoder pool with look-ahead (P2.4)
 
-**Status:** In Progress
+**Status:** Implemented
 **Roadmap phase:** 2 — Multi-track timeline · **Created:** 2026-10-08 · **Owner:** RVicky172
 
 ## Summary
@@ -36,40 +36,40 @@ machine" is the one the measurements in `201` and `203` are recorded on; the pla
 
 ### Decoding several videos at once
 
-- [ ] **AC-1:** For any set of up to the desktop limit (Q2) of video clips asked for the same timeline time `t`, the pool returns for each clip the source frame at that clip's source time (`in` + local time), the same frame the export uses for `t`. Checked at 30 times across 3 clips that overlap in time, including each clip's first and last frame and two clips from the **same file** at different source times. Every decoded colour matches the expected source time within ±8 levels per channel. _(self-test)_
-- [ ] **AC-2:** Two adjacent clips on one track can be decoded for the same moment: the last 15 frames of the first and the first 15 frames of the second, as a transition of 0.5 s at 30 fps needs (`206`). All 30 pairs are the expected frames. _(self-test)_
-- [ ] **AC-3:** Asking for frames out of order works and stays exact: 50 random times within 3 clips (seeks backwards and forwards, across key frames) each give the expected frame. _(self-test)_
+- [x] **AC-1:** For any set of up to the desktop limit (Q2) of video clips asked for the same timeline time `t`, the pool returns for each clip the source frame at that clip's source time (`in` + local time), the same frame the export uses for `t`. Checked at 30 times across 3 clips that overlap in time, including each clip's first and last frame and two clips from the **same file** at different source times. Every decoded colour matches the expected source time within ±8 levels per channel. _(self-test)_
+- [x] **AC-2:** Two adjacent clips on one track can be decoded for the same moment: the last 15 frames of the first and the first 15 frames of the second, as a transition of 0.5 s at 30 fps needs (`206`). All 30 pairs are the expected frames. _(self-test)_
+- [x] **AC-3:** Asking for frames out of order works and stays exact: 50 random times within 3 clips (seeks backwards and forwards, across key frames) each give the expected frame. _(self-test)_
 
 ### Preview
 
-- [ ] **AC-4:** Paused, the preview shows the same source frame as the export at the same time. At 20 times across a project of 6 video clips at 9:16 and at 16:9, the clip's frame drawn by the preview equals the frame the export encodes for that time (decoded colours within ±8). Today a paused preview can be up to 0.02 s off. _(self-test)_
-- [ ] **AC-5:** Look-ahead: during playback the next video clip's first frame is decoded before its cut. Playing a 1080p 16:9 project of 20 video clips of 2 s each through in real time on the development machine, all 19 cuts draw the new clip's first frame on the cut's frame (3 runs). No cut shows black or holds the previous clip for more than 1 frame. _(self-test timing, desktop; manual measurement in Chrome)_
-- [ ] **AC-6:** If a frame isn't ready in time during playback, the preview holds that clip's last drawn frame (never black, never a frame from another clip) and the playhead keeps wall-clock time, as today (Q4). The number of held frames per playback is counted for the measurements. _(unit + self-test)_
-- [ ] **AC-7:** Scrubbing (moving the playhead while paused) on a 1080p clip with key frames 2 s apart shows the exact frame at the new time within a median of 100 ms and a 95th percentile of 250 ms over 50 random seeks on the development machine. Faster moves replace slower ones: the frame shown at the end is the last one asked for. _(self-test timing)_
-- [ ] **AC-8:** A clip's sound stays with its picture in the preview. On a generated sync clip (a white flash and a beep on the same frame every 2 s), the picture and the sound are at most 2 frames (67 ms) apart through 30 s of playback in the desktop app and in Chrome (Q5). _(manual measurement)_
+- [x] **AC-4:** Paused, the preview shows the same source frame as the export at the same time. At 20 times across a project of 6 video clips at 9:16 and at 16:9, the clip's frame drawn by the preview equals the frame the export encodes for that time (decoded colours within ±8). Today a paused preview can be up to 0.02 s off. _(self-test)_
+- [x] **AC-5:** Look-ahead: during playback the next video clip's first frame is decoded before its cut. Playing a 1080p 16:9 project of 20 video clips of 2 s each through in real time on the development machine, all 19 cuts draw the new clip's first frame on the cut's frame (3 runs). No cut shows black or holds the previous clip for more than 1 frame. _(self-test timing, desktop; manual measurement in Chrome)_
+- [x] **AC-6:** If a frame isn't ready in time during playback, the preview holds that clip's last drawn frame (never black, never a frame from another clip) and the playhead keeps wall-clock time, as today (Q4). The number of held frames per playback is counted for the measurements. _(unit + self-test)_
+- [x] **AC-7:** Scrubbing (moving the playhead while paused) on a 1080p clip with key frames 2 s apart shows the exact frame at the new time within a median of 100 ms and a 95th percentile of 250 ms over 50 random seeks on the development machine. Faster moves replace slower ones: the frame shown at the end is the last one asked for. _(self-test timing)_
+- [x] **AC-8:** A clip's sound stays with its picture in the preview. On a generated sync clip (a white flash and a beep on the same frame every 2 s), the picture and the sound are at most 2 frames (67 ms) apart through 30 s of playback in the desktop app and in Chrome (Q5). _(manual measurement)_
 
 ### Export
 
-- [ ] **AC-9:** The export uses the same decoding as the preview (Q1). For `201`'s fixtures and `202`'s gap fixture, the exported frames show the same source frames as before this feature (decoded colours within ±8 at 10 times each), and the frame and sound plans are unchanged. All existing video self-test checks and video e2e tests pass unchanged. _(self-test + e2e)_
-- [ ] **AC-10:** Export speed doesn't get worse. The `201` timing fixture (60 clips, 1080p) exports within 5 % of `202`'s time (fastest of 3 runs, as `201` AC-5). A 1080p project of 30 video clips of 4 s each exports no slower than before, with look-ahead opening each next clip during the current one. _(self-test timing)_
+- [x] **AC-9:** The export uses the same decoding as the preview (Q1). For `201`'s fixtures and `202`'s gap fixture, the exported frames show the same source frames as before this feature (decoded colours within ±8 at 10 times each), and the frame and sound plans are unchanged. All existing video self-test checks and video e2e tests pass unchanged. _(self-test + e2e)_
+- [x] **AC-10:** Export speed doesn't get worse. The `201` timing fixture (60 clips, 1080p) exports within 5 % of `202`'s time (fastest of 3 runs, as `201` AC-5). A 1080p project of 30 video clips of 4 s each exports no slower than before, with look-ahead opening each next clip during the current one. _(self-test timing)_
 
 ### Memory and leaks
 
-- [ ] **AC-11:** No leaked frames. After a **2-minute 1080p 16:9 export** (Q9: 24 video clips of 5 s from 3 source files, with cuts, a hidden-track span and a gap), no decoded frame and no decoder is left open. The same holds after 3 such exports in a row, after an export cancelled at 50 %, and after an export that fails on an unreadable clip at 1 minute. Any self-test can read the count of open frames and decoders at any moment, so `203` AC-13 and `206` reuse the same check. _(self-test)_
-- [ ] **AC-12:** Bounded memory, whatever the project's size. While a 60-clip 1080p project (all video clips) plays through twice and is scrubbed at 100 random times, at no moment are more decoders open than Q3's number, or more decoded frames held than Q3's budget. After the user leaves the video editor, or removes a clip, its decoders and frames are released within 1 s. _(self-test)_
-- [ ] **AC-13:** Idle costs nothing. With the preview paused and nothing changing for 2 s, the pool decodes no frames and holds at most one frame per visible clip. _(self-test)_
+- [x] **AC-11:** No leaked frames. After a **2-minute 1080p 16:9 export** (Q9: 24 video clips of 5 s from 3 source files, with cuts, a hidden-track span and a gap), no decoded frame and no decoder is left open. The same holds after 3 such exports in a row, after an export cancelled at 50 %, and after an export that fails on an unreadable clip at 1 minute. Any self-test can read the count of open frames and decoders at any moment, so `203` AC-13 and `206` reuse the same check. _(self-test)_
+- [x] **AC-12:** Bounded memory, whatever the project's size. While a 60-clip 1080p project (all video clips) plays through twice and is scrubbed at 100 random times, at no moment are more decoders open than Q3's number, or more decoded frames held than Q3's budget. After the user leaves the video editor, or removes a clip, its decoders and frames are released within 1 s. _(self-test)_
+- [x] **AC-13:** Idle costs nothing. With the preview paused and nothing changing for 2 s, the pool decodes no frames and holds at most one frame per visible clip. _(self-test)_
 
 ### Errors and older browsers
 
-- [ ] **AC-14:** A clip the pool can't decode (unsupported codec, broken file) never stops the other clips. In the preview it falls back to how it previews today (Q6), with a note on the clip saying the export can't use it. The export refuses it with today's message (naming the file). The error is logged for reports. A browser without the decoding the pool needs (Q7) previews as today and exports as today. _(self-test + e2e)_
+- [x] **AC-14:** A clip the pool can't decode (unsupported codec, broken file) never stops the other clips. In the preview it falls back to how it previews today (Q6), with a note on the clip saying the export can't use it. The export refuses it with today's message (naming the file). The error is logged for reports. A browser without the decoding the pool needs (Q7) previews as today and exports as today. _(self-test + e2e)_
 
 ### Limits for picture-in-picture
 
-- [ ] **AC-15:** The pool is measured with 1, 2, 3, 4 and 6 simultaneous 1080p30 videos (and 2 and 3 simultaneous 4K30 videos on the desktop app): median and 95th percentile time to have every video's frame for a 30 fps step, over 300 steps, and frames held. The numbers are recorded in the plan and in the performance doc. The visible-video limits for the web and the desktop app follow from them by Q2's rule, before `203`'s plan is approved. At the limit, 300 steps of 1080p30 play in real time: median step ≤ 33 ms and 95th percentile ≤ 50 ms on the development machine. _(self-test timing, desktop; manual measurement in Chrome)_
+- [x] **AC-15:** The pool is measured with 1, 2, 3, 4 and 6 simultaneous 1080p30 videos (and 2 and 3 simultaneous 4K30 videos on the desktop app): median and 95th percentile time to have every video's frame for a 30 fps step, over 300 steps, and frames held. The numbers are recorded in the plan and in the performance doc. The visible-video limits for the web and the desktop app follow from them by Q2's rule, before `203`'s plan is approved. At the limit, 300 steps of 1080p30 play in real time: median step ≤ 33 ms and 95th percentile ≤ 50 ms on the development machine. _(self-test timing, desktop; manual measurement in Chrome)_
 
 ### Docs
 
-- [ ] **AC-16:** `specs/lld.md` (the pool, look-ahead, frame release, the open-frame check), `docs/PERFORMANCE.md` (the AC-15 measurements and the limits), `docs/MEDIA-STUDIO.md` (limits, if they change what users see) and `CHANGELOG.md` describe the change. _(manual check)_
+- [x] **AC-16:** `specs/lld.md` (the pool, look-ahead, frame release, the open-frame check), `docs/PERFORMANCE.md` (the AC-15 measurements and the limits), `docs/MEDIA-STUDIO.md` (limits, if they change what users see) and `CHANGELOG.md` describe the change. _(manual check)_
 
 ## Non-Functional Requirements
 

@@ -11,7 +11,7 @@ Newest first. One entry per working session.
 
 ---
 
-## 2026-10-11 — 204 T033–T091 with parallel agents (D-030): sound, fallback, limits, docs, every gate
+## 2026-10-11 — 204 Implemented: T033–T092 with parallel agents (D-030): sound, fallback, limits, docs, every gate
 
 **Done:** first two agent batches (implementers in worktrees + reviewers; the main session merged and ran heavy
 checks one at a time). T050 `poolTiming` (`CHITTHI_TEST_ONLY=poolcount`): 1–6 × 1080p30 and 2–3 × 4K30 all far under
@@ -22,9 +22,10 @@ AC-8 mean 24 ms, worst 43 ms over 30 s; through a cut worst 37 ms. Two failures 
 bugs (learnings.md); `scripts/test.cjs` keeps the pooltiming window on top with the display awake. T090 docs (lld §4.10,
 PERFORMANCE, MEDIA-STUDIO, CHANGELOG). T091: check 1,174; build entry 327 KB; e2e 84 / 0; npm test 6,157 / 0 (178 s);
 pooltiming 6 / 0; test:mcp ok; licences ok.
-**Next:** T060 👤 (maintainer: Chrome + desktop manual checks, poolTiming in Chrome), then T092 (Implemented, roadmap,
-memory), then 203's plan with the limits.
-**Blockers:** none (T060 waits on the maintainer).
+Then the maintainer's T060: cuts, sync and poolTiming all work in Chrome and the desktop app. T092: AC-1–AC-16 ticked,
+204 Implemented, roadmap ✔️, P2.4 Done.
+**Next:** merge 204 into `main` (maintainer's call); 203's plan with the limits (web 3, desktop 5).
+**Blockers:** none.
 
 ## 2026-10-10 — 405 Implemented: the roadmap as a road (merged into main)
 

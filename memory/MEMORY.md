@@ -8,7 +8,7 @@
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
 - **`main` (2026-10-10):** has 201, 401, 404, 202 and 405 (`e27d04a`, not pushed yet); releasable. The software
   factory (402, 403) was removed on 2026-10-09 (D-024): plain spec-driven workflow, `/spec-*` commands run inline.
-- **Phase:** Editor Phase 2 (multi-track timeline): 201 and 202 done (on `main`); 204 then 203 next. Spec-driven development since 2026-10-06 (D-001).
+- **Phase:** Editor Phase 2 (multi-track timeline): 201 and 202 done (on `main`), 204 done (on its branch); 203 next. Spec-driven development since 2026-10-06 (D-001).
 - **Features:** `000-baseline` ✔️. `001-phase1-gate-release` 🚧: released (T040–T043); open: post-release checks on
   the maintainer's hardware — T044 / T045 clean installs, T046 update from 2.8.0, T047 web redeploy if hosted, and
   the Phase 1 gate (T022, T023: `npm run measure:gate` on a mid-range laptop) and Mac RAW (T030, T033) per D-007.
@@ -23,13 +23,12 @@
 - **Drafts → Approved:** `203-compositing-pip` and `204-decoder-pool`: all 24 proposed answers accepted by the
   maintainer on 2026-10-09; branch `spec/203-204`. Build 204 first: 203's visible-video limit (its Q6) comes from 204's
   measurements.
-- **204:** `204-decoder-pool` 🚧: plan approved (D1–D5, D-028), tasks T001–T092; built on `feat/204-decoder-pool`
-  (from `spec/203-204`). T001 spike, T002 fixtures, T010–T013 the pool (`engine/decodePool.ts`) and its Mediabunny source (`engine/frameSource.ts`), the export on the pool (T020–T022, as fast as `main`) done 2026-10-10; D5: the export keeps resized canvases.
-  Preview on the pool, preview sound, fallback, limits (web 3 / desktop 5), docs and every DoD gate done 2026-10-11
-  (T030–T091, agent batches per D-030). Open: T060 👤 manual checks, then T092.
+- **204:** `204-decoder-pool` ✔️ Implemented 2026-10-11 on `feat/204-decoder-pool` (not merged into `main`, not
+  pushed): the decoder pool (`engine/decodePool.ts`, `engine/frameSource.ts`) for preview and export, preview sound
+  (`previewSound.ts`), the can't-export fallback note, `videosAtOnce` web 3 / desktop 5 (1 without VideoDecoder); every
+  DoD gate green; maintainer's manual checks (T060) passed in Chrome and the desktop app.
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
-- **Next (roadmap):** 204 T060 👤 (maintainer) then T092; 203's plan after 204's measurements
-  (T050 / T051).
+- **Next (roadmap):** merge 204 into `main` (maintainer's call), then 203's plan with 204's limits (web 3, desktop 5).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

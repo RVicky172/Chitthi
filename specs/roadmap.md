@@ -5,7 +5,7 @@
 > Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.
 > Status legend: ⬜ Not started · 📝 Spec drafted · ✅ Spec approved · 🚧 In progress · ✔️ Done
 
-**Last updated:** 2026-10-10
+**Last updated:** 2026-10-11
 
 The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work
 items (files, tests, notes and measurements for Phases 0–1) are in
@@ -37,7 +37,7 @@ _Release:_ 3.0.0
 | 201 | Track model and migration (P2.1) | [spec](features/201-track-model/spec.md) | ✔️ | — |
 | 202 | Edit operations: ripple, roll, slip, slide, magnetic main track, snapping (P2.2) | [spec](features/202-edit-operations/spec.md) | ✔️ | 201 |
 | 203 | Compositing many tracks, picture-in-picture (P2.3) | [spec](features/203-compositing-pip/spec.md) | ✅ | 201, 204 |
-| 204 | Decoder pool with look-ahead (P2.4) | [spec](features/204-decoder-pool/spec.md) | 🚧 | 201 |
+| 204 | Decoder pool with look-ahead (P2.4) | [spec](features/204-decoder-pool/spec.md) | ✔️ | 201 |
 | 205 | Keyframes: `Animated<T>`, keyframe lane (P2.5) | — | ⬜ | 201 |
 | 206 | Transitions as shaders (P2.6) | — | ⬜ | 201, 204 |
 | 207 | Speed: constant, reverse, freeze, ramps (P2.7) | — | ⬜ | 201 |
