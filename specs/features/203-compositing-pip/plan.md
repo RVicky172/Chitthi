@@ -2,7 +2,7 @@
 
 # 203 — Compositing many tracks, picture-in-picture (P2.3) · Implementation Plan
 
-**Spec:** `./spec.md` · **Status:** Draft <!-- Draft | Approved -->
+**Spec:** `./spec.md` · **Status:** Approved (2026-10-11, D1–D3 as recommended, D-031) <!-- Draft | Approved -->
 
 ## Approach
 
@@ -260,7 +260,7 @@ setClipTransform(id, patch: Partial<ClipTransform>, key?): string | null; applyP
 | X. Budgets and accessibility | ✅ | No entry-chunk growth expected (the studio is lazy); AC-14; memory within 204's pool budgets. |
 | XI. Agents use the same code | ⚠️ | No tools in 203 (Q14); plain actions and pure functions so `212` exposes them. The gap stays recorded. |
 
-## Decisions for the maintainer
+## Decisions for the maintainer (accepted 2026-10-11: D1–D3 as recommended)
 
 - **D1 — The box's shape.** _Recommended:_ the box has the **frame's** aspect ratio; the clip's own framing (fill,
   or whole picture with blurred background) decides what shows inside, as it does today for the full frame. Identity =

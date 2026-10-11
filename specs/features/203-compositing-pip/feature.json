@@ -247,6 +247,10 @@
       {
         "date": "2026-10-11",
         "text": "Q6's limits set from 204's measurements (AC-15): 3 videos at once on the web, 5 on the desktop app (not the proposed 6). Plan drafted (§1–§14, D1–D3 for the maintainer)."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "Plan approved (D1–D3 as recommended, D-031)."
       }
     ],
     "sections": [
@@ -283,7 +287,7 @@
     ]
   },
   "plan": {
-    "header": "**Spec:** `./spec.md` · **Status:** Draft <!-- Draft | Approved -->",
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-11, D1–D3 as recommended, D-031) <!-- Draft | Approved -->",
     "files": [
       {
         "file": "`src/engine/timeline.ts`",
@@ -473,7 +477,7 @@
       },
       {
         "kind": "markdown",
-        "title": "Decisions for the maintainer",
+        "title": "Decisions for the maintainer (accepted 2026-10-11: D1–D3 as recommended)",
         "markdown": "- **D1 — The box's shape.** _Recommended:_ the box has the **frame's** aspect ratio; the clip's own framing (fill,\n  or whole picture with blurred background) decides what shows inside, as it does today for the full frame. Identity =\n  today's look (AC-10 by construction), one model for main and overlay clips. _Alternative:_ the box takes the clip's\n  own aspect (a 16:9 face-cam in a 9:16 Reel is a 16:9 box, nothing cropped), but Full frame then needs its own fill\n  rule and main clips change model. With D1, a 16:9 face-cam in a corner shows cropped until its framing is set to\n  \"whole picture\"; the corner preset could set that for videos whose aspect differs from the frame's.\n- **D2 — Fade-in on an overlay clip.** _Recommended:_ it fades the clip in (opacity 0 → its opacity over 0.5 s); the\n  main clip's fade-in keeps darkening the whole frame from black as today.\n- **D3 — What the videos-at-once limit counts.** _Recommended:_ video clips on every picture track, hidden tracks\n  included, so unhiding a track can never exceed it; photos don't count (Q6).\n- **Q6's number.** The desktop limit is **5** (204's measurement by Q2's rule), not the proposed 6; the web stays 3."
       }
     ]

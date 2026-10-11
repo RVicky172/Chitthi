@@ -366,3 +366,14 @@ parallel; a headless runner script (the D-024 factory).
 **Consequences:** more tokens per task; merge work for the orchestrator; heavy suites stay serial. Custom agent types
 load with a new session; until then the orchestrator starts general-purpose agents with the definition's text.
 
+## D-031 — 203's plan: a stack of picture tracks with a per-clip transform (2026-10-11)
+
+**Context:** 203's plan (`specs/features/203-compositing-pip`) left three choices to the maintainer, and Q6's desktop
+limit waited on 204's measurements.
+**Decision:** accepted as recommended. D1: a clip's box has the frame's aspect ratio; the clip's own framing (fill or
+whole picture) decides what shows inside, so identity is today's look. D2: an overlay clip's fade-in ramps its own
+opacity; a main clip's fade-in still darkens the whole frame. D3: the videos-at-once limit counts video clips on every
+picture track, hidden ones included; photos don't count. Q6: 3 videos at once on the web, 5 on the desktop app (204).
+**Alternatives:** a box with the clip's own aspect ratio; fade overlays from black; count only shown tracks.
+**Consequences:** projects without transforms draw exactly as before (AC-10 by construction); a 16:9 clip in a corner
+of a 9:16 Reel shows cropped until set to "whole picture".
