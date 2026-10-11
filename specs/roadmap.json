@@ -143,7 +143,7 @@
       "203": {
         "title": "Compositing many tracks, picture-in-picture",
         "workItem": "P2.3",
-        "status": "spec-approved",
+        "status": "in-progress",
         "note": "",
         "folder": "features/203-compositing-pip",
         "needs": [

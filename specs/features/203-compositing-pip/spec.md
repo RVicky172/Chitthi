@@ -2,7 +2,7 @@
 
 # 203 — Compositing many tracks, picture-in-picture (P2.3)
 
-**Status:** Approved
+**Status:** In Progress
 **Roadmap phase:** 2 — Multi-track timeline · **Created:** 2026-10-08 · **Owner:** RVicky172
 
 ## Summary
@@ -112,3 +112,4 @@ It needs the decoder pool (`204`) to decode several videos at the same moment.
 - 2026-10-09 — Q1–Q14 resolved (all proposals accepted by the maintainer); Approved.
 - 2026-10-11 — Q6's limits set from 204's measurements (AC-15): 3 videos at once on the web, 5 on the desktop app (not the proposed 6). Plan drafted (§1–§14, D1–D3 for the maintainer).
 - 2026-10-11 — Plan approved (D1–D3 as recommended, D-031).
+- 2026-10-11 — Tasks written (T001–T092). Two placements differ from the plan's Files so parallel agents don't share files: `frameStack`, `mostVideosAt` and `snapBox` in a new `src/engine/stack.ts`; the new e2e tests in `e2e/tracks.e2e.ts` and `e2e/overlays.e2e.ts`; store tests in `src/state/video.test.ts`.

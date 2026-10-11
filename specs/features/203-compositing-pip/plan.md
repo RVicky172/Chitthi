@@ -142,6 +142,8 @@ which `212` exposes. Constitution XI's gap stays recorded.
 | `src/dev/videoChecks.ts`, `src/dev/playbackChecks.ts`, `src/dev/poolChecks.ts` | modify | golden frames (AC-6, AC-7, AC-10), timing (AC-12), export (AC-13) |
 | `e2e/editors.e2e.ts` | modify | AC-1–AC-3, AC-5, AC-9, AC-14 |
 | `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `docs/PERFORMANCE.md`, `CHANGELOG.md`, in-app docs | modify | AC-15; PERFORMANCE: decoders = limit + 2 now in use |
+| `src/engine/stack.ts`, `src/engine/stack.test.ts` | new | §3 frameStack, mostVideosAt, snapBox (own module so parallel tasks share no file) |
+| `e2e/tracks.e2e.ts`, `e2e/overlays.e2e.ts`, `src/state/video.test.ts` | new / modify | AC-1–AC-3, AC-5, AC-9, AC-14 e2e; store actions |
 
 ## Data Structures & Interfaces
 
