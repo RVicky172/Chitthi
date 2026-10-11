@@ -16,7 +16,7 @@ import { samplePhoto } from '../engine/sample';
 import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '../lib/credits';
 import type { Design, ProductId } from '../types';
 import { poolChecks } from './poolChecks';
-import { videoChecks } from './videoChecks';
+import { overlayFixtureChecks, videoChecks } from './videoChecks';
 
 interface Result {
   passed: number;
@@ -209,6 +209,12 @@ async function poolSection(check: (ok: unknown, what: string) => void, r: Result
     r.notes.push(...(await (await import('./playbackChecks')).playbackChecks(check)));
   } catch (e) {
     check(false, `playback checks threw: ${e instanceof Error ? e.message : e}`);
+  }
+  // 203's overlay fixtures (T002): each one builds; the golden frames and the export that use them come later.
+  try {
+    r.notes.push(...(await overlayFixtureChecks(check)));
+  } catch (e) {
+    check(false, `overlay fixture checks threw: ${e instanceof Error ? e.message : e}`);
   }
 }
 

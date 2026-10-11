@@ -16,6 +16,8 @@ import {
   canEncodeAudio,
   canEncodeVideo,
 } from 'mediabunny';
+import type { Project, Track } from '../engine/timeline';
+import type { ExportClip } from '../engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;
 
@@ -26,17 +28,42 @@ export const clipColour = (t: number, dur: number): [number, number, number] => 
 };
 
 /** A frame-coded clip's colour for frame i: consecutive frames differ by 30+ levels per channel, so a decoded colour
- * names its frame exactly (204 AC-4: one frame off shows). */
-export const codeColour = (i: number): [number, number, number] => [40 + ((i * 53) % 180), 40 + ((i * 97) % 180), 40 + ((i * 31) % 180)];
+ * names its frame exactly (204 AC-4: one frame off shows). With a clip code (0–6, 203) the frame is in red and green
+ * (any two of a clip's 180 frames differ by 13+ levels, consecutive ones by 89) and the clip in blue (25 levels apart),
+ * so one pixel names both its clip and its frame (nameCode). */
+export const codeColour = (i: number, clip?: number): [number, number, number] =>
+  clip === undefined
+    ? [40 + ((i * 53) % 180), 40 + ((i * 97) % 180), 40 + ((i * 31) % 180)]
+    : [40 + ((i * 77) % 180), 40 + ((i * 89) % 180), 40 + clip * 25];
+
+/** The clip code and frame (mod 180) a colour from codeColour(i, clip) names: the nearest code, and how far it was. */
+export function nameCode(rgb: readonly number[]): { clip: number; frame: number; off: number } {
+  const clip = Math.max(0, Math.min(6, Math.round((rgb[2] - 40) / 25)));
+  let frame = 0,
+    off = Infinity;
+  for (let i = 0; i < 180; i++) {
+    const c = codeColour(i, clip);
+    const d = Math.max(Math.abs(c[0] - rgb[0]), Math.abs(c[1] - rgb[1]), Math.abs(c[2] - rgb[2]));
+    if (d < off) [frame, off] = [i, d];
+  }
+  return { clip, frame, off };
+}
 
 /**
  * A dur-second W×H H.264 MP4 at 30 fps whose middle is one flat colour per frame (clipColour, or codeColour when
- * `coded`), with a key frame every `keyEvery` seconds (204 Q9: 2 s, like phone video). `texture` adds moving noise
+ * `coded`; a number is the clip code, codeColour(i, coded)), with a key frame every `keyEvery` seconds (204 Q9: 2 s, like phone video). `texture` adds moving noise
  * outside the middle third, so the clip costs about what real footage does to decode while its measured colour stays
  * exact. Null if this engine can't encode it.
  */
-export async function makeTestClip(dur = 2, W = 320, H = 240, keyEvery = 1, texture = false, coded = false): Promise<Blob | null> {
-  const bitrate = texture ? Math.round(W * H * 30 * 0.1) : coded ? 4e6 : 1e6;
+export async function makeTestClip(
+  dur = 2,
+  W = 320,
+  H = 240,
+  keyEvery = 1,
+  texture = false,
+  coded: boolean | number = false,
+): Promise<Blob | null> {
+  const bitrate = texture ? Math.round(W * H * 30 * 0.1) : coded !== false ? 4e6 : 1e6;
   if (!(await canEncodeVideo('avc', { width: W, height: H, bitrate }))) return null;
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -55,7 +82,7 @@ export async function makeTestClip(dur = 2, W = 320, H = 240, keyEvery = 1, text
   // Noise tiles, shifted every frame (cheap to draw, expensive to encode and decode); the middle third stays flat.
   const noise = texture ? noiseTile(256) : null;
   for (let i = 0; i < frames; i++) {
-    const [r, g, b] = coded ? codeColour(i) : clipColour(i / 30, dur);
+    const [r, g, b] = typeof coded === 'number' ? codeColour(i, coded) : coded ? codeColour(i) : clipColour(i / 30, dur);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fillRect(0, 0, W, H);
     if (noise) {
@@ -187,6 +214,274 @@ export async function testPhoto(i: number, W = 1600, H = 1067): Promise<{ blob: 
   still.height = Math.round(H * k);
   still.getContext('2d')!.drawImage(c, 0, 0, still.width, still.height);
   return { blob, still };
+}
+
+/* ---------- 203: overlay fixtures (AC-6, AC-13) ---------- */
+
+/** 203 plan §1's ClipTransform, structurally: the box's centre and width as shares of the frame, degrees, 0–1, and the
+ * corner radius as a share of the box's shorter side. */
+export interface FixtureTransform {
+  x: number;
+  y: number;
+  w: number;
+  rot: number;
+  opacity: number;
+  radius: number;
+}
+/** 203 plan §1's IDENTITY: the whole frame. */
+export const FIXTURE_IDENTITY: FixtureTransform = { x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 };
+
+/** A clip of an overlay fixture: an export clip with its transform (none = full frame) and, for a photo, its still. */
+export interface OverlayClip extends ExportClip {
+  tf?: FixtureTransform;
+  still?: HTMLCanvasElement;
+}
+
+/** What a golden check needs to know about one clip of the AC-6 fixture. */
+export interface OverlayExpect {
+  id: string;
+  track: string;
+  kind: 'video' | 'photo';
+  /** Its colour code: frame f of its source is codeColour(f, code); a photo is codeColour(0, code) everywhere. */
+  code: number;
+  /** The timeline frames it shows in, first and last inclusive (at the fixture's fps). */
+  first: number;
+  last: number;
+  /** Source seconds at its first frame. */
+  in: number;
+  /** Its box: its transform, or IDENTITY when it has none. */
+  tf: FixtureTransform;
+}
+
+export interface OverlayFixture {
+  format: '9:16' | '16:9';
+  width: number;
+  height: number;
+  fps: number;
+  /** The main track V1 (two videos with a cut at 2 s), Overlay 1 (V2) and Overlay 2 (V3) above it, the music track A1;
+   * no layers, fades or fade-out, so every pixel is a clip's code (or a blend of two, at 50 % opacity). */
+  project: Project<OverlayClip>;
+  /** The 8 sample frames (every clip's first and last among them) and their times, frame / fps. */
+  frames: number[];
+  times: number[];
+  /** Bottom track first, in drawing order within a time. */
+  clips: OverlayExpect[];
+  /** The colour clip `id`'s source shows at timeline time t, or null when it isn't on screen then. */
+  colourAt(id: string, t: number): [number, number, number] | null;
+}
+
+const OVERLAY_FPS = 30;
+const OVERLAY_SIZES = { '9:16': [270, 480], '16:9': [480, 270] } as const;
+
+/** An overlay fixture's tracks: the picture tracks bottom first (drawing order), then the music. */
+export const overlayTracks = (n = 2): Track[] => [
+  { id: 'V1', kind: 'video', name: 'Video', hidden: false, muted: false, locked: false },
+  ...Array.from({ length: n }, (_, i) => ({
+    id: `V${i + 2}`,
+    kind: 'overlay' as const,
+    name: `Overlay ${i + 1}`,
+    hidden: false,
+    muted: false,
+    locked: false,
+  })),
+  { id: 'A1', kind: 'audio', name: 'Music', hidden: false, muted: false, locked: false },
+];
+
+/** A W×H PNG of one flat colour (exact after decoding, unlike a JPEG), and the canvas it was drawn on. */
+async function flatPhoto(rgb: readonly number[], W = 400, H = 300): Promise<{ blob: Blob; still: HTMLCanvasElement }> {
+  const still = document.createElement('canvas');
+  still.width = W;
+  still.height = H;
+  const x = still.getContext('2d')!;
+  x.fillStyle = `rgb(${rgb.join(',')})`;
+  x.fillRect(0, 0, W, H);
+  const blob = await new Promise<Blob>((res) => still.toBlob((b) => res(b!), 'image/png'));
+  return { blob, still };
+}
+
+/**
+ * The AC-6 fixture's clips in frames at 30 fps (4 s): id, track, kind, colour code, first frame, end frame (exclusive),
+ * source in (s), source file length (s). Main: m1 0–2 s, a cut, m2 2–4 s. Overlay 1: the full-frame B-roll 0.5–2 s, the
+ * rotated rounded photo 2–3 s, the clip partly outside the frame 3–4 s. Overlay 2: the face-cam at 50 % 0.5–4 s. Both
+ * overlays have a gap at 0–0.5 s (frame 0 is the main clip alone).
+ */
+const OVERLAY_PLAN = [
+  ['m1', 'V1', 'video', 0, 0, 60, 0, 2],
+  ['m2', 'V1', 'video', 1, 60, 120, 0.5, 2.5],
+  ['broll', 'V2', 'video', 2, 15, 60, 0.3, 2],
+  ['photo', 'V2', 'photo', 3, 60, 90, 0, 0],
+  ['edge', 'V2', 'video', 4, 90, 120, 0.2, 1.5],
+  ['face', 'V3', 'video', 5, 15, 120, 0, 3.5],
+] as const;
+/** Every clip's first and last frame, and one with B-roll and face-cam over m1. */
+const OVERLAY_FRAMES = [0, 15, 37, 59, 60, 89, 90, 119];
+
+/** The AC-6 fixture's source files, made once per run (the same files serve both formats). */
+let overlaySources: Promise<Map<string, { blob: Blob; still?: HTMLCanvasElement }> | null> | null = null;
+function overlayFiles() {
+  overlaySources ??= (async () => {
+    const out = new Map<string, { blob: Blob; still?: HTMLCanvasElement }>();
+    for (const [id, , kind, code, , , , len] of OVERLAY_PLAN) {
+      if (kind === 'photo') {
+        out.set(id, await flatPhoto(codeColour(0, code)));
+        continue;
+      }
+      const blob = await makeTestClip(len, 320, 240, 1, false, code);
+      if (!blob) return null;
+      out.set(id, { blob });
+    }
+    return out;
+  })();
+  return overlaySources;
+}
+
+/**
+ * 203 AC-6's fixture at 9:16 (270×480) or 16:9 (480×270): a main track with two video clips and a cut, and two overlay
+ * tracks with a full-frame B-roll video, a face-cam video in the top-right corner (plan §1's preset: width 0.35, 4 % of
+ * the frame width from the top and right edges) at 50 % opacity, a photo rotated 15° with a 10 % corner radius, and a
+ * video partly outside the frame (right and top). Every clip has its own colour code, so a pixel names its clip and
+ * frame (nameCode). Null if this engine can't encode H.264.
+ */
+export async function makeOverlayProject(format: '9:16' | '16:9'): Promise<OverlayFixture | null> {
+  const files = await overlayFiles();
+  if (!files) return null;
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const [W, H] = OVERLAY_SIZES[format];
+  const fps = OVERLAY_FPS;
+  const corner = 0.35,
+    margin = 0.04 * W;
+  const tfs: Record<string, FixtureTransform | undefined> = {
+    photo: { x: 0.4, y: 0.6, w: 0.5, rot: 15, opacity: 1, radius: 0.1 },
+    edge: { x: 0.9, y: 0.15, w: 0.5, rot: 0, opacity: 1, radius: 0 },
+    face: {
+      x: 1 - (margin + (corner * W) / 2) / W,
+      y: (margin + (corner * H) / 2) / H,
+      w: corner,
+      rot: 0,
+      opacity: 0.5,
+      radius: 0,
+    },
+  };
+  const clips: OverlayClip[] = OVERLAY_PLAN.map(([id, track, kind, , f0, f1, inT]) => {
+    const file = files.get(id)!;
+    const len = (f1 - f0) / fps;
+    const tf = tfs[id];
+    return {
+      id,
+      track,
+      start: f0 / fps,
+      kind,
+      dur: kind === 'photo' ? len : 0,
+      in: inT,
+      out: kind === 'photo' ? 0 : inT + len,
+      edit: { ...DEFAULT_EDIT },
+      motion: 'none',
+      fade: false,
+      file: file.blob,
+      volume: 0,
+      ...(file.still ? { still: file.still } : {}),
+      ...(tf ? { tf } : {}),
+    };
+  });
+  const expect: OverlayExpect[] = OVERLAY_PLAN.map(([id, track, kind, code, f0, f1, inT]) => ({
+    id,
+    track,
+    kind,
+    code,
+    first: f0,
+    last: f1 - 1,
+    in: inT,
+    tf: tfs[id] ?? FIXTURE_IDENTITY,
+  }));
+  return {
+    format,
+    width: W,
+    height: H,
+    fps,
+    project: { tracks: overlayTracks(2), clips, audio: [], layers: [], fadeOut: false },
+    frames: [...OVERLAY_FRAMES],
+    times: OVERLAY_FRAMES.map((k) => k / fps),
+    clips: expect,
+    colourAt(id, t) {
+      const c = expect.find((e) => e.id === id);
+      const k = Math.floor(t * fps + 1e-6);
+      if (!c || k < c.first || k > c.last) return null;
+      if (c.kind === 'photo') return codeColour(0, c.code);
+      return codeColour(Math.floor((c.in + t - c.first / fps) * fps + 1e-6), c.code);
+    },
+  };
+}
+
+export interface LongOverlayFixture {
+  width: number;
+  height: number;
+  fps: number;
+  project: Project<OverlayClip>;
+  /** The source files of the main track, Overlay 1 and Overlay 2 (codes 0, 1, 2; 6 s, so every frame's code differs). */
+  sources: Blob[];
+  /** Milliseconds spent encoding the sources. */
+  made: number;
+}
+
+/**
+ * 203 AC-13's fixture: a 2-minute 1080p project with the main track and two overlay video tracks, each from its own 6 s
+ * 1920×1080 flat frame-coded source (codeColour(frame, track index)) with a key frame every 2 s. Main: 24 clips of 5 s
+ * end to end. Overlay 1: 20 clips of 5 s every 6 s from 0.5 s, bottom-left at 35 %. Overlay 2: 24 clips of 4 s every
+ * 5 s from 1 s, top-right at 35 % and 50 % opacity. Three videos show at once most of the time. Null if this engine
+ * can't encode 1080p H.264.
+ */
+export async function makeLongOverlayProject(): Promise<LongOverlayFixture | null> {
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const W = 1920,
+    H = 1080,
+    fps = OVERLAY_FPS;
+  const t0 = performance.now();
+  const sources: Blob[] = [];
+  for (const code of [0, 1, 2]) {
+    const b = await makeTestClip(6, W, H, 2, false, code);
+    if (!b) return null;
+    sources.push(b);
+  }
+  const made = performance.now() - t0;
+  const m = 0.04 * W,
+    w = 0.35;
+  const left: FixtureTransform = {
+    x: (m + (w * W) / 2) / W,
+    y: 1 - (m + (w * H) / 2) / H,
+    w,
+    rot: 0,
+    opacity: 1,
+    radius: 0,
+  };
+  const right: FixtureTransform = { x: 1 - left.x, y: 1 - left.y, w, rot: 0, opacity: 0.5, radius: 0 };
+  const lane = (track: string, n: number, len: number, every: number, from: number, tf?: FixtureTransform) =>
+    Array.from({ length: n }, (_, i): OverlayClip => {
+      const inT = Math.round(((i * 0.3) % 1) * fps) / fps;
+      return {
+        id: `${track}-${i}`,
+        track,
+        start: from + i * every,
+        kind: 'video',
+        dur: 0,
+        in: inT,
+        out: inT + len,
+        edit: { ...DEFAULT_EDIT },
+        motion: 'none',
+        fade: false,
+        file: sources[Number(track.slice(1)) - 1],
+        volume: 0,
+        ...(tf ? { tf } : {}),
+      };
+    });
+  const clips = [...lane('V1', 24, 5, 5, 0), ...lane('V2', 20, 5, 6, 0.5, left), ...lane('V3', 24, 4, 5, 1, right)];
+  return {
+    width: W,
+    height: H,
+    fps,
+    project: { tracks: overlayTracks(2), clips, audio: [], layers: [], fadeOut: false },
+    sources,
+    made,
+  };
 }
 
 /** A mono 16-bit 48 kHz WAV tone, for music in export checks. */
@@ -558,5 +853,113 @@ export async function videoChecks(check: Check): Promise<string[]> {
   } catch (e) {
     check(false, `video timing threw: ${e instanceof Error ? e.message : e}`);
   }
+  return notes;
+}
+
+/** Do a track's clips follow one another without overlapping? */
+const noOverlaps = (clips: OverlayClip[]) => {
+  const end = (c: OverlayClip) => c.start + (c.kind === 'photo' ? c.dur : c.out - c.in);
+  const tracks = new Set(clips.map((c) => c.track));
+  return [...tracks].every((tr) => {
+    const on = clips.filter((c) => c.track === tr).sort((a, b) => a.start - b.start);
+    return on.every((c, i) => !i || c.start >= end(on[i - 1]) - 1e-9);
+  });
+};
+
+/** The most video clips on screen at once (a sweep over the clips' intervals). */
+function videosAtOnce(clips: OverlayClip[]): number {
+  const ev = clips
+    .filter((c) => c.kind === 'video')
+    .flatMap((c) => [
+      [c.start, 1],
+      [c.start + c.out - c.in, -1],
+    ])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let n = 0,
+    most = 0;
+  for (const [, d] of ev) most = Math.max(most, (n += d));
+  return most;
+}
+
+/**
+ * 203 T002: the overlay fixtures build. AC-6's at 9:16 and 16:9: the main track then two overlay tracks, no clip
+ * overlapping another on its track, every clip's first and last frame among the 8 samples, every (clip, sample) colour
+ * at least 13 levels from every other, and each source decodes to the colour the fixture expects at its first and
+ * last frame (named back to its clip and frame). AC-13's: 2 minutes, three video tracks with three videos at once, its
+ * sources decoding to their codes. One check per fixture. Returns notes for the report.
+ */
+export async function overlayFixtureChecks(check: Check): Promise<string[]> {
+  const notes: string[] = [];
+  const near = (a: readonly number[], b: readonly number[], tol = 8) => a.every((v, k) => Math.abs(v - b[k]) <= tol);
+  const t0 = performance.now();
+  for (const format of ['9:16', '16:9'] as const) {
+    const fx = await makeOverlayProject(format);
+    if (!fx) {
+      notes.push(`video: 203 overlay fixture ${format} skipped (no H.264 encoder)`);
+      continue;
+    }
+    const bad: string[] = [];
+    const kinds = fx.project.tracks.map((t) => `${t.id}:${t.kind}`).join(' ');
+    if (kinds !== 'V1:video V2:overlay V3:overlay A1:audio') bad.push(`tracks ${kinds}`);
+    if (!noOverlaps(fx.project.clips)) bad.push('clips overlap on a track');
+    if (fx.frames.length !== 8) bad.push(`${fx.frames.length} sample frames`);
+    for (const c of fx.clips)
+      if (!fx.frames.includes(c.first) || !fx.frames.includes(c.last)) bad.push(`${c.id}'s first or last frame not sampled`);
+    const want = ['broll', 'face', 'photo', 'edge'].map((id) => fx.clips.find((c) => c.id === id)!.tf);
+    if (want[0].w !== 1 || want[1].opacity !== 0.5 || want[2].rot !== 15 || want[2].radius !== 0.1 || want[3].x + want[3].w / 2 <= 1)
+      bad.push('transforms');
+    // Every colour a sample can show, distinct from every other.
+    const shown = fx.clips.flatMap((c) =>
+      fx.times.flatMap((t) => {
+        const col = fx.colourAt(c.id, t);
+        return col ? [{ id: c.id, t, col }] : [];
+      }),
+    );
+    for (let i = 0; i < shown.length; i++)
+      for (let j = i + 1; j < shown.length; j++)
+        if (shown[i].id !== shown[j].id && near(shown[i].col, shown[j].col, 12))
+          bad.push(`${shown[i].id} at ${shown[i].t.toFixed(3)} and ${shown[j].id} at ${shown[j].t.toFixed(3)} look alike`);
+    // Each source at its first and last frame decodes to the expected colour, which names its clip and frame.
+    for (const c of fx.clips) {
+      const clip = fx.project.clips.find((x) => x.id === c.id)!;
+      const ends = [c.first, c.last].map((k) => k / fx.fps);
+      const exp = ends.map((t) => fx.colourAt(c.id, t)!);
+      let got: number[][];
+      if (c.kind === 'photo') {
+        const d = clip.still!.getContext('2d')!.getImageData(10, 10, 1, 1).data;
+        got = [[d[0], d[1], d[2]], [d[0], d[1], d[2]]];
+      } else got = await decodedColours(clip.file, ends.map((t) => c.in + t - clip.start + 0.5 / fx.fps));
+      exp.forEach((e, k) => {
+        const g = got[k],
+          named = g && nameCode(g);
+        const frame = c.kind === 'photo' ? 0 : Math.floor((c.in + ends[k] - clip.start) * fx.fps + 1e-6);
+        if (!g || !near(g, e) || named.clip !== c.code || named.frame !== frame)
+          bad.push(`${c.id} at ${ends[k].toFixed(3)} s: ${g?.map(Math.round).join('/')} (want ${e.join('/')}, frame ${frame})`);
+      });
+    }
+    check(
+      !bad.length,
+      `video: 203's overlay fixture builds at ${format} (main + 2 overlay tracks, 6 clips, 8 samples, colours name clip and frame)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+    );
+  }
+  notes.push(`video: 203 overlay fixtures (9:16, 16:9) built and checked in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+
+  const t1 = performance.now();
+  const long = await makeLongOverlayProject();
+  if (!long) return [...notes, 'video: 203 long overlay fixture skipped (no 1080p H.264 encoder)'];
+  const built = performance.now() - t1;
+  const { clips } = long.project;
+  const end = Math.max(...clips.map((c) => c.start + c.out - c.in));
+  const per = ['V1', 'V2', 'V3'].map((tr) => clips.filter((c) => c.track === tr).length);
+  const decoded = await Promise.all(long.sources.map((s) => decodedColours(s, [0.5 / 30, 179.5 / 30])));
+  const named = decoded.map((cs) => cs.map((c) => nameCode(c)));
+  const codesOk = named.every((ns, i) => ns.length === 2 && ns[0].clip === i && ns[0].frame === 0 && ns[1].clip === i && ns[1].frame === 179 && ns.every((n) => n.off <= 8));
+  check(
+    Math.abs(end - 120) < 1e-6 && per.join() === '24,20,24' && noOverlaps(clips) && videosAtOnce(clips) === 3 && codesOk,
+    `video: 203's 2-minute 1080p overlay fixture builds (${end.toFixed(1)} s, clips ${per.join('/')}, ${videosAtOnce(clips)} videos at once, sources ${named.map((ns) => ns.map((n) => `${n.clip}:${n.frame}±${n.off.toFixed(0)}`).join(',')).join(' ')})`,
+  );
+  notes.push(
+    `video: 203 long overlay fixture: 3 sources of 6 s 1920×1080 (${(long.sources.reduce((n, s) => n + s.size, 0) / 1e6).toFixed(1)} MB) encoded in ${(long.made / 1000).toFixed(1)} s, built and checked in ${((performance.now() - t1) / 1000).toFixed(1)} s (${(built / 1000).toFixed(1)} s to build)`,
+  );
   return notes;
 }
