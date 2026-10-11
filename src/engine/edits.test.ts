@@ -6,7 +6,9 @@ import {
   closeGap,
   closeGaps,
   lift,
+  limitVideos,
   moveTo,
+  moveToTrack,
   nudge,
   reorder,
   rippleDelete,
@@ -15,6 +17,7 @@ import {
   slip,
   snapTargets,
   snapTime,
+  tooManyVideos,
   trim,
   type EditClip,
   type EditCtx,
@@ -27,7 +30,7 @@ import { clipLength } from './video';
 
 type C = LegacyClip & EditClip;
 
-const ctx: EditCtx = { maxLength: 3 * 3600, locked: () => null };
+const ctx: EditCtx = { maxLength: 3 * 3600, locked: () => null, maxVideos: 5 };
 const lockedCtx: EditCtx = {
   ...ctx,
   locked: (t) => (t === MAIN_VIDEO ? 'The Video track is locked. Unlock it to change its clips.' : null),
@@ -428,6 +431,279 @@ describe('snapping (moved out of the timeline)', () => {
     expect(snapTime(2.1, [], tol)).toBe(2.1);
     // Nearest wins when two are in range.
     expect(snapTime(2.06, [2, 2.1], tol)).toBe(2.1);
+  });
+});
+
+/* ---------- 203: overlay tracks (AC-3, AC-9) ---------- */
+
+const O1 = 'O1',
+  O2 = 'O2',
+  O3 = 'O3';
+/** A photo clip [start, start + dur] on a track. */
+const pic = (id: string, start: number, dur: number, track = O1): C => ({ ...photos([start, dur])[0], id, track });
+/** A video clip on a track, its source 10 s long. */
+const clip = (id: string, start: number, len: number, track: string): C => ({ ...vid(id, start, 0, len, 10), track });
+/** One track's clips in the order they are listed: [id, start, length]. */
+const onTrack_ = (cs: C[], track: string) => spans(cs.filter((c) => c.track === track));
+
+describe('203 moveToTrack: between picture tracks (AC-3)', () => {
+  // Main: a 0–2, b 2–5, c 5–6; Overlay 1: x 1–4.
+  const base = [...photos([0, 2], [2, 3], [5, 1]), pic('x', 1, 3)];
+  const off = { ...ctx, magnetic: false },
+    on = { ...ctx, magnetic: true };
+  it('main → overlay: at the time asked when it fits, else the nearest free spot; the main track keeps its gap', () => {
+    const r = ok(moveToTrack(base, 'c', O1, 0, off));
+    expect(onTrack_(r, O1)).toEqual([
+      ['c', 0, 1],
+      ['x', 1, 3],
+    ]);
+    const s = ok(moveToTrack(base, 'b', O1, 2, off));
+    expect(onTrack_(s, O1)).toEqual([
+      ['x', 1, 3],
+      ['b', 4, 3],
+    ]);
+    expect(onTrack_(s, MAIN_VIDEO)).toEqual([
+      ['a', 0, 2],
+      ['c', 5, 1],
+    ]);
+    expect(checkTrack(s, ctx.maxLength, base)).toBeNull();
+  });
+  it('main → overlay with Magnetic on: the main track closes up, the overlay track is not packed', () => {
+    const r = ok(moveToTrack(base, 'b', O1, 2, on));
+    expect(onTrack_(r, MAIN_VIDEO)).toEqual([
+      ['a', 0, 2],
+      ['c', 2, 1],
+    ]);
+    expect(onTrack_(r, O1)).toEqual([
+      ['x', 1, 3],
+      ['b', 4, 3],
+    ]);
+  });
+  it('overlay → main with Magnetic on: inserted where its centre falls (as the timeline’s drag), then packed', () => {
+    // Centre 2 is before b's middle (3.5).
+    expect(onTrack_(ok(moveToTrack(base, 'x', MAIN_VIDEO, 0.5, on)), MAIN_VIDEO)).toEqual([
+      ['a', 0, 2],
+      ['x', 2, 3],
+      ['b', 5, 3],
+      ['c', 8, 1],
+    ]);
+    // Centre 5.5 is not before c's middle (5.5): last.
+    expect(onTrack_(ok(moveToTrack(base, 'x', MAIN_VIDEO, 4, on)), MAIN_VIDEO)).toEqual([
+      ['a', 0, 2],
+      ['b', 2, 3],
+      ['c', 5, 1],
+      ['x', 6, 3],
+    ]);
+    const first = ok(moveToTrack(base, 'x', MAIN_VIDEO, -5, on));
+    expect(onTrack_(first, MAIN_VIDEO).map((s) => s[0])).toEqual(['x', 'a', 'b', 'c']);
+    expect(onTrack_(first, O1)).toEqual([]);
+  });
+  it('overlay → main with Magnetic off is moveTo: there if it fits, else the nearest free spot', () => {
+    const gap = [...photos([0, 2]), pic('c', 5, 1, MAIN_VIDEO), pic('x', 1, 3)];
+    expect(onTrack_(ok(moveToTrack(gap, 'x', MAIN_VIDEO, 1.5, off)), MAIN_VIDEO)).toEqual([
+      ['a', 0, 2],
+      ['x', 2, 3],
+      ['c', 5, 1],
+    ]);
+    expect(onTrack_(ok(moveToTrack(base, 'x', MAIN_VIDEO, 2, off)), MAIN_VIDEO)).toEqual([
+      ['a', 0, 2],
+      ['b', 2, 3],
+      ['c', 5, 1],
+      ['x', 6, 3],
+    ]);
+  });
+  it('within its own track it is moveTo (or reorder for the main track with Magnetic on)', () => {
+    expect(ok(moveToTrack(base, 'x', O1, 6, off))).toEqual(ok(moveTo(base, 'x', 6, ctx)));
+    expect(onTrack_(ok(moveToTrack(base, 'a', MAIN_VIDEO, 5.5, on)), MAIN_VIDEO).map((s) => s[0])).toEqual([
+      'b',
+      'c',
+      'a',
+    ]);
+  });
+  it('a locked source or target track is refused', () => {
+    const lockedO1 = { ...ctx, locked: (t: string) => (t === O1 ? 'Overlay 1 is locked.' : null) };
+    expect(err(moveToTrack(base, 'x', MAIN_VIDEO, 0, { ...lockedCtx, magnetic: true }))).toMatch(/locked/);
+    expect(err(moveToTrack(base, 'a', O1, 6, { ...lockedCtx, magnetic: false }))).toMatch(/locked/);
+    expect(err(moveToTrack(base, 'a', O1, 6, { ...lockedO1, magnetic: false }))).toBe('Overlay 1 is locked.');
+    expect(err(moveToTrack(base, 'x', MAIN_VIDEO, 0, { ...lockedO1, magnetic: true }))).toBe('Overlay 1 is locked.');
+    expect(err(moveToTrack(base, 'nope', O1, 0, off))).toBe('That clip isn’t on the timeline.');
+  });
+  it('never overlaps: no free spot within the length limit is refused', () => {
+    expect(err(moveToTrack(base, 'b', O1, 2, { ...off, maxLength: 6.5 }))).toBe(
+      'No room here: make a gap first or switch Magnetic on',
+    );
+    expect(err(moveToTrack(base, 'b', O1, 2, { ...on, maxLength: 6.5 }))).toBe(
+      'No room here: make a gap first or switch Magnetic on',
+    );
+    expect(err(moveToTrack(base, 'x', MAIN_VIDEO, 0, { ...on, maxLength: 8 }))).toMatch(/longer/);
+  });
+  it('300 seeded moves between three picture tracks, with edits in between, keep every track valid', () => {
+    const rnd = mulberry32(203);
+    const tracks = [MAIN_VIDEO, O1, O2];
+    const kinds = ['moveToTrack', 'moveTo', 'trim', 'rippleDelete', 'slide', 'roll', 'closeGap'];
+    let cs = fixtures[2][1],
+      applied = 0;
+    for (let i = 0; i < 300; i++) {
+      if (cs.length < 3) cs = fixtures[i % fixtures.length][1];
+      const before = cs;
+      const id = cs[Math.floor(rnd() * cs.length)].id;
+      const magnetic = rnd() < 0.5;
+      const x = { ...ctx, magnetic };
+      const kind = rnd() < 0.5 ? 'moveToTrack' : kinds[Math.floor(rnd() * kinds.length)];
+      const r =
+        kind === 'moveToTrack'
+          ? moveToTrack(cs, id, tracks[Math.floor(rnd() * 3)], rnd() * (length(cs) + 2) - 1, x)
+          : kind === 'closeGap'
+            ? closeGap(cs, rnd() * length(cs), x, tracks[Math.floor(rnd() * 3)])
+            : OPS[kind](cs, id, rnd, x);
+      if ('error' in r) continue;
+      expect(checkTrack(r.clips, x.maxLength, before), `step ${i} ${kind}`).toBeNull();
+      if (r.clips !== before) applied++;
+      cs = r.clips;
+    }
+    expect(applied).toBeGreaterThan(100);
+    expect(new Set(cs.map((c) => c.track)).size).toBeGreaterThan(1);
+  });
+});
+
+describe('203: every 202 operation works on an overlay track, which is never packed (AC-3, Q8)', () => {
+  // Main: a 0–2, b 2–5. Overlay 1: p 1–3, q 5–7, r 7–8 (gaps before p and q). Overlay 2: the video w 3–5.
+  const ov = [...photos([0, 2], [2, 3]), pic('p', 1, 2), pic('q', 5, 2), pic('r', 7, 1), clip('w', 3, 2, O2)];
+  const main = onTrack_(ov, MAIN_VIDEO);
+  const o1 = (cs: C[]) => onTrack_(cs, O1);
+  it('trim, with and without ripple; the main track and the gaps stay', () => {
+    const t = ok(trim(ov, 'p', 'end', 1, { ripple: false }, ctx));
+    expect(o1(t)).toEqual([
+      ['p', 1, 3],
+      ['q', 5, 2],
+      ['r', 7, 1],
+    ]);
+    expect(onTrack_(t, MAIN_VIDEO)).toEqual(main);
+    // Without ripple, lengthening stops at the next clip.
+    expect(o1(ok(trim(ov, 'p', 'end', 5, { ripple: false }, ctx)))[0]).toEqual(['p', 1, 4]);
+    const rt = ok(trim(ov, 'q', 'end', 1, { ripple: true }, ctx));
+    expect(o1(rt)).toEqual([
+      ['p', 1, 2],
+      ['q', 5, 3],
+      ['r', 8, 1],
+    ]);
+    expect(onTrack_(rt, MAIN_VIDEO)).toEqual(main);
+  });
+  it('ripple delete and lift: later clips on the track follow (ripple), nothing is packed', () => {
+    const d = ok(rippleDelete(ov, 'q', ctx));
+    expect(o1(d)).toEqual([
+      ['p', 1, 2],
+      ['r', 5, 1],
+    ]);
+    expect(onTrack_(d, MAIN_VIDEO)).toEqual(main);
+    expect(o1(ok(lift(ov, 'q', ctx)))).toEqual([
+      ['p', 1, 2],
+      ['r', 7, 1],
+    ]);
+  });
+  it('closing one gap on the overlay track closes only that gap', () => {
+    expect(o1(ok(closeGap(ov, 4, ctx, O1)))).toEqual([
+      ['p', 1, 2],
+      ['q', 3, 2],
+      ['r', 5, 1],
+    ]);
+  });
+  it('roll, slip and slide', () => {
+    expect(o1(ok(roll(ov, 'q', 0.5, ctx)))).toEqual([
+      ['p', 1, 2],
+      ['q', 5, 2.5],
+      ['r', 7.5, 0.5],
+    ]);
+    const w = get(ok(slip(ov, 'w', 1, ctx)), 'w');
+    expect([w.start, w.in, w.out]).toEqual([3, 1, 3]);
+    expect(o1(ok(slide(ov, 'q', -1, ctx)))).toEqual([
+      ['p', 1, 2],
+      ['q', 4, 2],
+      ['r', 6, 2],
+    ]);
+    // With Magnetic on a main-track slide may not open a gap; an overlay track is never magnetic.
+    expect(o1(ok(slide(ov, 'q', 0.5, ctx, true)))).toEqual([
+      ['p', 1, 2],
+      ['q', 5.5, 2],
+      ['r', 7.5, 0.5],
+    ]);
+  });
+  it('moveTo and the keyboard’s nudge (Magnetic on moves by time there, it doesn’t reorder)', () => {
+    expect(o1(ok(moveTo(ov, 'p', 3.5, ctx)))).toEqual([
+      ['p', 3, 2],
+      ['q', 5, 2],
+      ['r', 7, 1],
+    ]);
+    expect(get(ok(nudge(ov, 'q', 'select', -1, 30, true, ctx)), 'q').start).toBeCloseTo(5 - 1 / 30, 12);
+    expect(onTrack_(ok(nudge(ov, 'q', 'select', -1, 30, true, ctx)), MAIN_VIDEO)).toEqual(main);
+    expect(err(reorder(ov, 'q', 0, ctx))).toMatch(/main video track/);
+  });
+  it('split and duplicate (the store makes them) pass the videos-at-once check when they add no video at once', () => {
+    const q = get(ov, 'q');
+    const split = ov.flatMap((c) =>
+      c.id === 'q'
+        ? [
+            { ...q, dur: 1 },
+            { ...q, id: 'q2', start: 6, dur: 1 },
+          ]
+        : [c],
+    );
+    expect(ok(limitVideos(ov, { clips: split }, ctx))).toBe(split);
+    expect(checkTrack(split, ctx.maxLength, ov)).toBeNull();
+    const dup = [...ov, { ...get(ov, 'w'), id: 'w2', start: 5 }];
+    expect(ok(limitVideos(ov, { clips: dup }, { ...ctx, maxVideos: 2 }))).toBe(dup);
+  });
+  it('snapping targets include every overlay clip’s edges', () => {
+    const t = snapTargets(ov, [], 0, 8);
+    for (const at of [1, 3, 5, 7, 8]) expect(t).toContain(at);
+    expect(snapTargets(ov, [], 0, 8, { clip: 'p' })).not.toContain(1);
+  });
+});
+
+describe('203: the videos-at-once limit (AC-9, D3)', () => {
+  // Main: the video v 0–6. Overlay 1: w 0–2. Overlay 2: y 4–6, a photo ph 7–9. Two videos at once at most.
+  const lim = [clip('v', 0, 6, MAIN_VIDEO), clip('w', 0, 2, O1), clip('y', 4, 2, O2), pic('ph', 7, 2, O2)];
+  const c2 = { ...ctx, maxVideos: 2 },
+    c3 = { ...ctx, maxVideos: 3 };
+  it('an edit that shows more videos at once than the limit is refused with the message naming it', () => {
+    expect(err(moveTo(lim, 'y', 0, c2))).toBe(tooManyVideos(2, false));
+    expect(err(trim(lim, 'w', 'end', 3, { ripple: false }, c2))).toBe(tooManyVideos(2, false));
+    expect(err(moveToTrack(lim, 'y', O3, 0, { ...c2, magnetic: false }))).toBe(tooManyVideos(2, false));
+    expect(get(ok(moveTo(lim, 'y', 0, c3)), 'y').start).toBe(0);
+    expect(clipLength(get(ok(trim(lim, 'w', 'end', 1.5, { ripple: false }, c2)), 'w'))).toBe(3.5);
+  });
+  it('photos don’t count', () => {
+    expect(get(ok(moveTo(lim, 'ph', 0, c2)), 'ph').start).toBe(0);
+    expect(get(ok(moveToTrack(lim, 'ph', O3, 0, { ...c2, magnetic: false })), 'ph').track).toBe(O3);
+  });
+  it('an edit that doesn’t raise the count is allowed, even over the limit (a lower limit, an older project)', () => {
+    const over = lim.map((c) => (c.id === 'y' ? { ...c, start: 0 } : c)).sort((a, b) => a.start - b.start);
+    expect(get(ok(moveTo(over, 'y', 0.5, c2)), 'y').start).toBe(0.5);
+    expect(get(ok(trim(over, 'v', 'end', -1, { ripple: false }, c2)), 'v').out).toBe(5);
+  });
+  it('limitVideos checks a result the store made itself (split, duplicate)', () => {
+    const dup = [...lim, { ...get(lim, 'y'), id: 'y2', track: O3, start: 0 }];
+    expect(err(limitVideos(lim, { clips: dup }, c2))).toBe(tooManyVideos(2, false));
+    expect(ok(limitVideos(lim, { clips: dup }, c3))).toBe(dup);
+    expect(err(limitVideos(lim, { error: 'no' }, c2))).toBe('no');
+  });
+  it('the desktop app’s limit has no “the desktop app allows” in its message', () => {
+    // Five videos at 0–2 (main and Overlays 1–4) and a sixth on Overlay 5 at 4–6.
+    const five = [
+      clip('v', 0, 6, MAIN_VIDEO),
+      ...[1, 2, 3, 4].map((k) => clip(`o${k}`, 0, 2, `O${k}`)),
+      clip('z', 4, 2, 'O5'),
+    ];
+    expect(err(moveTo(five, 'z', 0, ctx))).toBe(tooManyVideos(5, true));
+  });
+  it('the message says the limit, why, and (in the browser) what the desktop app allows', () => {
+    expect(tooManyVideos(3, false)).toMatch(/^At most 3 videos can show at the same time in the browser/);
+    expect(tooManyVideos(3, false)).toMatch(/memory/);
+    expect(tooManyVideos(3, false)).toMatch(/the desktop app allows 5\.$/);
+    expect(tooManyVideos(1, false)).toMatch(/^At most 1 video can show/);
+    expect(tooManyVideos(5, true)).toMatch(/^At most 5 videos can show at the same time/);
+    expect(tooManyVideos(5, true)).toMatch(/memory/);
+    expect(tooManyVideos(5, true)).not.toMatch(/desktop app/);
   });
 });
 
