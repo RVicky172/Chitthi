@@ -586,7 +586,7 @@
         "T002": {
           "text": "Fixtures (`src/dev/videoChecks.ts`): `makeOverlayProject(format)` for AC-6, a main track (two video clips with a cut) and two overlay tracks: a full-frame B-roll video, a corner face-cam video at 50 % opacity, a photo rotated 15° with a 10 % corner radius, and a clip partly outside the frame, at 9:16 and 16:9, with each clip's first and last frame among 8 sample times; `makeLongOverlayProject()` (2 minutes 1080p, main + 2 overlay videos, AC-13). Colour-coded frames as `makeTestClip` so a pixel names its clip and frame.",
           "section": "Setup",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -596,12 +596,14 @@
           ],
           "test": "`CHITTHI_TEST_ONLY=pool npm test`: the fixtures build (a check per fixture)",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T010": {
           "text": "Failing tests (`src/engine/timeline.test.ts`): `IDENTITY`, `isIdentity`, `clampTransform` (every field's range, NaN and missing fields), `presetTransform` (full and the four corners at 9:16 and 16:9: w 0.35, 4 % margin); `addTrack` (top of the overlays, \"Overlay N\" with the lowest free N, refused at `TRACK_LIMITS` web 4 / desktop 8 with the button's message), `renameTrack` (1–40 characters, trimmed), `moveTrack` (only among overlays, main stays bottom), `deleteTrack` (overlay only, with its clips; main and music refused); `patchTrack` mutes overlay tracks but not the main track.",
           "section": "Tests first: the model",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -615,12 +617,14 @@
           ],
           "test": "`npx vitest run src/engine/timeline.test.ts`: fails (nothing exported yet)",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T011": {
           "text": "Implement §1 and §2 in `src/engine/timeline.ts`: `ClipTransform`, `IDENTITY`, `isIdentity`, `clampTransform`, `Preset`, `presetTransform`, `tf?` on `TimedClip`; `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`; `patchTrack`'s Mute for overlay tracks.",
           "section": "Tests first: the model",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -634,12 +638,14 @@
           ],
           "test": "T010",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T012": {
           "text": "Failing tests (`src/engine/stack.test.ts`, new): `frameStack` bottom first; the main track's clamp only before 0 and at or past the video's end, black between the main track's end and a later overlay clip's end (Q9); an overlay clip starting at 2.0 s first in frame 60 at 30 fps and gone in the frame after its last (AC-7); hidden tracks left out; gaps leave the tracks below; for 201 / 202 fixtures (`timeline.testkit.ts`) the stack is exactly `[videoAt]` at every frame time (AC-10). `mostVideosAt` (overlaps across tracks, hidden tracks counted, photos not, touching clips not overlapping). `snapBox` (centre lines and edges within the tolerance, the nearest wins, none outside it).",
           "section": "Tests first: the model",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -654,12 +660,14 @@
           ],
           "test": "`npx vitest run src/engine/stack.test.ts`: fails",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T013": {
           "text": "Implement §3 in `src/engine/stack.ts` (new, pure): `frameStack`, `StackItem`, `mostVideosAt` (an event sweep), `snapBox` (uses `Box` from `engine/layers.ts`). The plan placed these in timeline.ts; a module of their own keeps batch 1's agents apart (changelog).",
           "section": "Tests first: the model",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -673,7 +681,9 @@
           ],
           "test": "T012",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T014": {
           "text": "Failing tests (`src/engine/edits.test.ts`): `moveToTrack` (main → overlay at the nearest free spot, overlay → main with Magnetic on inserted at its time and packed, with Magnetic off as `moveTo`; locked source or target refused; never overlapping); every 202 operation (trim, ripple trim and delete, roll, slip, slide, split, duplicate, snapping targets) on an overlay track, never packed (Q8); an edit whose result has more videos at once than `maxVideos` (and more than before) refused with `tooManyVideos`' message naming the limit; one that doesn't raise the count allowed.",
