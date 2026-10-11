@@ -78,7 +78,7 @@ time) list for a project without overlays must equal what `framePlan` gives).
 isn't muted (hidden keeps the sound: Hide is pictures, Q7) with the same 0.03 s ramps as main-track clips; the main
 track's entries and their order don't change (AC-10's identical sound sources). `soundPlan` returns `current` as a
 list (every clip sounding at `t`: the main clip and each unmuted overlay clip) and `previewSound` keeps one element per
-current clip; D1's bound becomes current + next + covered, still bounded by the visible-video limit.
+current clip; D1's bound becomes current + next + held (the clips under the playhead on muted overlay tracks, loaded and muted so Unmute plays at once), still bounded by the visible-video limit.
 
 **§8 Limits and edits (engine/edits.ts, state/video.ts, AC-3, AC-9).** `EditCtx` gains `maxVideos`; the store's
 `apply` refuses an edit whose result has `mostVideosAt > maxVideos` (and more than before) with "At most N videos can

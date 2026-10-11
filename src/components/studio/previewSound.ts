@@ -13,8 +13,8 @@ import { type Project, type TimedClip } from '../../engine/timeline';
  * and pre-seek; and the video clips under it on muted overlay tracks, kept loaded and silent so an Unmute plays at
  * once. Hide is about pictures: a hidden track still plays its clips' sound (201 D2, 203 Q7), so the clips are found
  * as if every track were shown. "Under the playhead" is frameStack's (its EDGE_EPS edges), so the sound starts on the
- * frame the picture does. Every clip in `current` and `held` is on screen at once, so together they stay within the
- * videos-at-once limit (203 AC-9).
+ * frame the picture does. Every clip in `current` and `held` is under the playhead at once (on screen or on a hidden
+ * track), so together they stay within `mostVideosAt`, the videos-at-once limit (203 AC-9).
  */
 export function soundPlan<C extends TimedClip>(
   p: Project<C>,
@@ -145,7 +145,13 @@ export function previewSound() {
         halt(el);
         if (Math.abs(el.currentTime - c.in) > SETTLED) el.currentTime = c.in;
       }
-      for (const c of held) if (!playing.has(c.id)) halt(element(c));
+      for (const c of held)
+        if (!playing.has(c.id)) {
+          // A muted track's clip: loaded and silent (muted, not only paused), so an Unmute plays at once.
+          const el = element(c);
+          halt(el);
+          el.muted = true;
+        }
       for (const x of current) follow(x.clip, x.local, play, fps);
     },
     /** The element playing a clip's sound now, if any (self-tests capture it: AC-8). */

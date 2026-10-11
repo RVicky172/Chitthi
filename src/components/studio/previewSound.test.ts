@@ -203,6 +203,7 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
     expect(el(s, 'a')!.paused).toBe(false);
     expect(el(s, 'ov')!.paused).toBe(false);
     expect(el(s, 'w')!.paused).toBe(true);
+    expect(el(s, 'w')!.muted).toBe(true);
     // At 5.5 only c (next) is wanted: a, ov and w are released.
     const old = ['a', 'ov', 'w'].map((id) => el(s, id)!);
     tick(s, project({ wMuted: true }), 5.5, true);
@@ -232,7 +233,8 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
         expect(plan.current.length + plan.held.length, `t = ${t}`).toBeLessThanOrEqual(mostVideosAt(p.clips, p.tracks));
         most = Math.max(most, s.size);
       }
-      expect(most).toBeLessThanOrEqual(limit + p.tracks.length);
+      // Current and held stay within the limit; at most one next clip per picture track on top.
+      expect(most).toBeLessThanOrEqual(limit + p.tracks.filter((tr) => tr.kind !== 'audio').length);
       expect(made.filter((e) => e.src !== '').length).toBe(s.size);
       s.dispose();
       expect(made.every((e) => e.src === '')).toBe(true);
