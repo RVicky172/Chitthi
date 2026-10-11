@@ -259,6 +259,10 @@
       {
         "date": "2026-10-11",
         "text": "T013 review: one edge rule `EDGE_EPS` (1e-9 s) for `videoAt`, `frameStack` and `mostVideosAt`, so a frame whose start sits a floating-point hair off the frame grid shows the same clip in the paused preview as in the export (`framePlan`); before, 201 / 202 preview and export disagreed on such frames (tinyClips 1, clips500 42 at 30 fps). `snapBox` returns `{ axis, at }` guides and lives in `engine/stack.ts`."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "T019 review: the document gate also leaves out picture clips that start at or past the platform's length limit after packing or overlap moves (one reason with the count), like the clip-count limit it already enforced; a desktop project opened on the web loses what lies beyond the web limit. The main track's `muted` is always false (Hide only); the main and music tracks never count against the track limits."
       }
     ],
     "sections": [
@@ -790,7 +794,7 @@
         "T018": {
           "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): at least 30 malformed documents (transform fields out of range, of the wrong type, missing; overlay tracks beyond the limit; clips on a missing track with a reason; overlapping clips on an overlay track moved to the end of the one they overlap, never dropped; too many clips across tracks) and none throws; the AC-6 fixture round-trips document → gate → document equal; 201 / 202 documents round-trip byte-identical (no `transform` written at identity). Also (T011 review): a non-main track of kind `video` in a document becomes an `overlay`, and the main track is always put first among the picture tracks (a document listing [O1, V1] keeps nothing under the main track).",
           "section": "Drawing, document and sound",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -802,14 +806,16 @@
           ],
           "test": "`npx vitest run src/engine/timeline.test.ts`: fails",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: 15 failing tests first, then 45 malformed documents each with its own assertions plus shared checks (never throws, valid project, second pass equal, starts within the limit); AC-6-like fixture round-trips byte-equal; 13 2.x fixtures byte-identical with Magnetic on and off."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T019": {
           "text": "Implement §12 in `src/engine/timeline.ts`: `DocClip.transform`, `toDocument` (written only when not identity), `mergeProject` (clamp, overlay tracks kept, the overlap rule on every picture track).",
           "section": "Drawing, document and sound",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -821,9 +827,11 @@
           ],
           "test": "T018",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: engine/timeline.ts: DocClip.transform ↔ tf (toDocument writes clampTransform only when not identity); mergeProject clamps (no readable number → 'couldn't be read', fills the frame), non-main video tracks → overlay, main first among picture tracks with muted false, main and music never count against TRACK_LIMITS (no silent removal), the overlap rule on every picture track (main only with Magnetic off), clips starting past the length limit left out (one counted reason). Version 1. Reviewed: CHANGES once (track slots, muted, per-case asserts, length, clamped writes), then APPROVE; message merged at merge. src/engine 1,127 tests."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T020": {
           "text": "Failing tests (`src/engine/timeline.test.ts`, `src/components/studio/previewSound.test.ts`): `audioPlan` with overlays equals the expected list exactly (start, end, from, volume, ramps), a muted overlay track adds nothing, a hidden one keeps its sound; 201 / 202 fixtures' sound sources unchanged (testkit); `soundPlan` returns every clip sounding at `t` (main + unmuted overlays), and `previewSound` keeps one element per current clip within D1's bound.",

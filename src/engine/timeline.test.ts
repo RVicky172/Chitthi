@@ -1241,9 +1241,9 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       (r) => {
         // A web reel is 90 s at most: the clips moved to 90 s and later go.
         expect(onTrack(r.doc, 'O1').map((c) => c.start)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80]);
-        expect(
-          r.dropped.filter((m) => m === 'A clip didn’t fit within the 90-second limit and was left out.'),
-        ).toHaveLength(10);
+        expect(r.dropped.filter((m) => /didn’t fit within/.test(m))).toEqual([
+          '10 clips didn’t fit within the 90-second limit and were left out.',
+        ]);
       },
     ],
   ];

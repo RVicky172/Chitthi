@@ -605,9 +605,10 @@ function placeClips<C extends TimedClip>(
 ): C[] {
   const out: C[] = [];
   const limit = maxSeconds % 60 ? `${maxSeconds}-second` : `${maxSeconds / 60}-minute`;
+  let late = 0;
   const fits = (c: C) => {
     if (c.start < maxSeconds) return true;
-    dropped.push(`A clip didn’t fit within the ${limit} limit and was left out.`);
+    late++;
     return false;
   };
   for (const t of tracks.filter(isVisual)) {
@@ -627,6 +628,12 @@ function placeClips<C extends TimedClip>(
       out.push(placed);
     }
   }
+  if (late)
+    dropped.push(
+      late === 1
+        ? `A clip didn’t fit within the ${limit} limit and was left out.`
+        : `${late} clips didn’t fit within the ${limit} limit and were left out.`,
+    );
   return out;
 }
 
