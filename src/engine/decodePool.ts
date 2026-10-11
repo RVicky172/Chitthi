@@ -111,6 +111,8 @@ interface Lane {
   running: boolean;
   closed: boolean;
   failed: string | null;
+  /** Times the decoder was taken back (not the file's fault) and the lane reopened. */
+  reopened: number;
   reader: Reader | null;
   /** Decoded, not handed out yet, in time order. */
   buf: PoolFrame[];
@@ -130,6 +132,13 @@ interface Lane {
 }
 
 const bytesOf = (f: PoolFrame) => f.width * f.height * 4;
+
+/** Reopens of a lane whose decoder was taken back, before it goes to fallback. */
+const REOPENS = 2;
+
+/** A decoder the browser closed for its own reasons (Chrome: "Codec reclaimed due to inactivity"), not a bad file. */
+const takenBack = (e: unknown): boolean =>
+  e instanceof DOMException && (e.name === 'QuotaExceededError' || /reclaim/i.test(e.message));
 
 export class DecodePool {
   private lanes = new Map<string, Lane>();
@@ -243,6 +252,7 @@ export class DecodePool {
         running: false,
         closed: false,
         failed: null,
+        reopened: 0,
         reader: null,
         buf: [],
         last: null,
@@ -331,6 +341,7 @@ export class DecodePool {
   private async run(lane: Lane): Promise<void> {
     if (lane.running || lane.closed || lane.failed) return;
     lane.running = true;
+    let reopen = false;
     try {
       while (!lane.closed && !lane.failed) {
         if (!lane.src) {
@@ -338,9 +349,21 @@ export class DecodePool {
         } else if (!(await this.step(lane))) break;
       }
     } catch (e) {
-      if (!lane.closed) this.fail(lane, e);
+      if (lane.closed) return;
+      // The browser took the decoder back (an idle background tab, too many decoders): the file is fine, so open it
+      // again rather than put the clip in fallback, which would say it can't be exported.
+      reopen = takenBack(e) && lane.reopened < REOPENS;
+      if (reopen) {
+        // The frame asked for is still wanted: it comes from the reopened decoder.
+        const ask = lane.exact;
+        lane.exact = null;
+        lane.reopened++;
+        this.release(lane);
+        lane.exact = ask;
+      } else this.fail(lane, e);
     } finally {
       lane.running = false;
+      if (reopen) this.kick(lane);
     }
   }
 

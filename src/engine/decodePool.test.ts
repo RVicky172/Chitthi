@@ -28,6 +28,9 @@ interface FakeFile {
   failOpen?: string;
   /** Decoding a frame at or after this source time fails. */
   failAt?: number;
+  /** The first `reclaims` decodes at or after `reclaimAt` fail as Chrome does when it takes back an idle decoder. */
+  reclaimAt?: number;
+  reclaims?: number;
 }
 
 interface FakeFrame extends PoolFrame {
@@ -77,6 +80,11 @@ function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
                       return;
                     }
                     const time = i / FPS;
+                    if (f.reclaimAt !== undefined && time >= f.reclaimAt - 1e-9 && (f.reclaims ?? 1) > 0) {
+                      f.reclaims = (f.reclaims ?? 1) - 1;
+                      fail(new DOMException('Codec reclaimed due to inactivity.', 'QuotaExceededError'));
+                      return;
+                    }
                     if (f.failAt !== undefined && time >= f.failAt - 1e-9) {
                       fail(new Error(`Can't decode ${f.name} at ${time.toFixed(2)} s`));
                       return;
@@ -627,6 +635,32 @@ describe('DecodePool: a source that fails (AC-14)', () => {
     expect(pool.fallback('c')).toMatch(/broken\.mp4/);
     expect(fake.frames()).toBe(0);
     expect(fake.counts.sources).toBe(0);
+    pool.dispose();
+  });
+
+  it('reopens a clip whose decoder was taken back: not a fault of the file, so no fallback', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const c = clip('c', fake.file({ name: 'idle.mp4', dur: 4, reclaimAt: 1 }), 0, 4);
+    const p = pool.frame(c, 1.5);
+    await settle();
+    expect((await p)?.time).toBeCloseTo(1.5, 9);
+    expect(pool.fallback('c')).toBeNull();
+    expect(fake.counts.sources).toBe(1);
+    pool.dispose();
+    expect(fake.frames()).toBe(0);
+  });
+
+  it('gives up on a decoder taken back again and again, with the reason', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const c = clip('c', fake.file({ name: 'idle.mp4', dur: 4, reclaimAt: 1, reclaims: 99 }), 0, 4);
+    const p = expect(pool.frame(c, 1.5)).rejects.toThrow('reclaimed');
+    await settle();
+    await p;
+    expect(pool.fallback('c')).toMatch(/reclaimed/);
+    expect(fake.counts.sources).toBe(0);
+    expect(fake.frames()).toBe(0);
     pool.dispose();
   });
 

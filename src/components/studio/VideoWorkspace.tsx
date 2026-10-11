@@ -550,7 +550,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           {c.name} · {c.w}×{c.h}
           {c.kind === 'video' ? ` · ${fmtTime(c.srcDur)}` : ''}
         </p>
-        {cantExport && <p className="hint bad">{cantExport}</p>}
+        {cantExport && <p className="hint bad" role="status">{cantExport}</p>}
         {c.kind === 'photo' ? (
           <>
             <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip(c.id, { dur })} />
