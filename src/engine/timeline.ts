@@ -438,6 +438,8 @@ export interface DocClip extends TimedClip {
   fade: boolean;
   /** Its own sound, 0–1 (photos: 0). */
   volume: number;
+  /** In the document only: the clip's `tf` (203), written when it isn't the identity; the gate turns it into `tf`. */
+  transform?: ClipTransform;
 }
 
 export interface DocAudio extends AudioClip {
@@ -479,7 +481,10 @@ export function fromSequence<
   return { tracks: defaultTracks(), clips, audio, layers: seq.layers, fadeOut: seq.fadeOut };
 }
 
-/** The JSON form of a project: only the fields a project is made of (no files, URLs, thumbnails or view state). */
+/**
+ * The JSON form of a project: only the fields a project is made of (no files, URLs, thumbnails or view state). A
+ * clip's `tf` is written as `transform`, and only when it isn't the identity, so 201 / 202 documents stay as they were.
+ */
 export function toDocument(p: ProjectDoc): ProjectDoc {
   return {
     version: 1,
@@ -490,20 +495,28 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     fadeOut: p.fadeOut,
     magnetic: p.magnetic !== false,
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
-    clips: p.clips.map(({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume }) => ({
-      id,
-      track,
-      start,
-      media,
-      kind,
-      dur,
-      in: i,
-      out,
-      edit,
-      motion,
-      fade,
-      volume,
-    })),
+    clips: p.clips.map(
+      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform }) => {
+        const t = tf ?? transform;
+        return {
+          id,
+          track,
+          start,
+          media,
+          kind,
+          dur,
+          in: i,
+          out,
+          edit,
+          motion,
+          fade,
+          volume,
+          ...(!t || isIdentity(t)
+            ? {}
+            : { transform: { x: t.x, y: t.y, w: t.w, rot: t.rot, opacity: t.opacity, radius: t.radius } }),
+        };
+      },
+    ),
     audio: p.audio.map(({ id, track, start, media, in: i, volume, toEnd, srcDur }) => ({
       id,
       track,
@@ -580,26 +593,53 @@ function upgrade(o: Record<string, unknown>): Record<string, unknown> {
 }
 
 /**
- * The main track of a project with Magnetic off: its clips in start order (equal starts keep the document's order),
- * and a clip that overlaps the one before it moved to that clip's end, with a reason (D-009 D3). Other tracks as read.
+ * The picture clips track by track, in the tracks' order: the main track packed (Magnetic on) or, like every overlay
+ * track, its clips in start order (equal starts keep the document's order) with a clip that overlaps the one before it
+ * moved to that clip's end, never dropped, with a reason (D-009 D3, 203).
  */
-function unpacked<C extends TimedClip>(clips: C[], dropped: string[]): C[] {
-  const main = clips.filter((c) => c.track === MAIN_VIDEO).sort((a, b) => a.start - b.start);
-  let end = 0;
-  const placed = main.map((c) => {
-    const start = c.start < end - 1e-6 ? end : c.start;
-    if (start !== c.start) dropped.push('Two clips overlapped on the video track; one was moved to after the other.');
-    end = Math.max(end, start + clipLength(c));
-    return start === c.start ? c : { ...c, start };
-  });
-  return [...placed, ...clips.filter((c) => c.track !== MAIN_VIDEO)];
+function placeClips<C extends TimedClip>(clips: C[], tracks: Track[], magnetic: boolean, dropped: string[]): C[] {
+  const out: C[] = [];
+  for (const t of tracks.filter(isVisual)) {
+    const on = clips.filter((c) => c.track === t.id);
+    if (t.id === MAIN_VIDEO && magnetic) {
+      out.push(...pack(on));
+      continue;
+    }
+    const where = t.id === MAIN_VIDEO ? 'the video track' : `the ${t.name} track`;
+    let end = 0;
+    for (const c of on.sort((a, b) => a.start - b.start)) {
+      const start = c.start < end - 1e-6 ? end : c.start;
+      if (start !== c.start) dropped.push(`Two clips overlapped on ${where}; one was moved to after the other.`);
+      end = Math.max(end, start + clipLength(c));
+      out.push(start === c.start ? c : { ...c, start });
+    }
+  }
+  return out;
+}
+
+/**
+ * A clip's `transform` from a document as its `tf`: undefined at the identity (or when missing), clamped otherwise; a
+ * reason when a field was out of range, missing or unreadable.
+ */
+function readTransform(v: unknown, dropped: string[]): ClipTransform | undefined {
+  if (v === undefined) return undefined;
+  const o = obj(v);
+  const tf = clampTransform((o ?? {}) as Partial<ClipTransform>);
+  if (!o || (Object.keys(TF_RANGE) as (keyof ClipTransform)[]).some((k) => o[k] !== tf[k]))
+    dropped.push(
+      o
+        ? 'A clip’s position and size were out of range or incomplete and were adjusted.'
+        : 'A clip’s position and size couldn’t be read; it fills the frame.',
+    );
+  return isIdentity(tf) ? undefined : tf;
 }
 
 /**
  * The single gate for project data from outside the running app (project files; 2.x projects): a valid version 1
  * project and what it dropped or changed, and why. Values out of range are clamped or replaced by defaults; clips on a
- * missing or wrong track or without their media, and unknown fields, are dropped; ids are made unique; the main track
- * is packed (with Magnetic off: sorted, overlaps moved apart). Never throws.
+ * missing or wrong track or without their media, and unknown fields, are dropped; ids are made unique; a clip's
+ * `transform` is clamped into its `tf`; the main track is the one video track and the bottom picture track; it is
+ * packed (with Magnetic off: sorted, overlaps moved apart, as overlay tracks always are). Never throws.
  */
 export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc; dropped: string[] } {
   const dropped: string[] = [];
@@ -667,7 +707,15 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         dropped.push('A track was unreadable and was left out.');
         continue;
       }
-      const kindT: TrackKind = t.id === MAIN_VIDEO ? 'video' : t.id === MUSIC ? 'audio' : (t.kind as TrackKind);
+      // One video track, the main one: any other picture track is an overlay (203).
+      const kindT: TrackKind =
+        t.id === MAIN_VIDEO
+          ? 'video'
+          : t.id === MUSIC
+            ? 'audio'
+            : t.kind === 'video'
+              ? 'overlay'
+              : (t.kind as TrackKind);
       const full =
         kindT === 'audio'
           ? tracks.filter((x) => x.kind === 'audio').length >= T.audio
@@ -678,10 +726,13 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         );
         continue;
       }
+      const name = text(t.name, 40) || (kindT === 'audio' ? 'Audio' : kindT === 'overlay' ? 'Overlay' : 'Video');
+      if (kindT === 'overlay' && t.kind === 'video')
+        dropped.push(`The “${name}” track became an overlay track: a project has one main video track.`);
       tracks.push({
         id: t.id,
         kind: kindT,
-        name: text(t.name, 40) || (kindT === 'audio' ? 'Audio' : 'Video'),
+        name,
         hidden: t.hidden === true,
         muted: t.muted === true,
         locked: t.locked === true,
@@ -698,6 +749,13 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
           );
         tracks.splice(d.kind === 'video' ? 0 : tracks.length, 0, d);
       }
+    // The main track is the bottom picture track: nothing is drawn under it (203 Q10).
+    const first = tracks.findIndex(isVisual),
+      main = tracks.findIndex((t) => t.id === MAIN_VIDEO);
+    if (main !== first) {
+      tracks.splice(first, 0, ...tracks.splice(main, 1));
+      dropped.push('The main video track was moved below the overlay tracks.');
+    }
     const trackOf = (id: unknown) => tracks.find((t) => t.id === id);
 
     // Picture clips.
@@ -744,6 +802,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
           continue;
         }
       }
+      const tf = readTransform(c.transform, dropped);
       clips.push({
         id: unique(c.id, 'v'),
         track: tr.id,
@@ -757,6 +816,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         motion: (MOTION_IDS.includes(c.motion as string) ? c.motion : cKind === 'photo' ? 'zoom-in' : 'none') as Motion,
         fade: c.fade === true,
         volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
+        ...(tf ? { tf } : {}),
       });
     }
 
@@ -797,7 +857,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         fadeOut,
         magnetic,
         tracks,
-        clips: magnetic ? pack(clips) : unpacked(clips, dropped),
+        clips: placeClips(clips, tracks, magnetic, dropped),
         audio,
         layers,
         media,
