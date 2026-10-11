@@ -704,7 +704,7 @@
         "T014": {
           "text": "Failing tests (`src/engine/edits.test.ts`): `moveToTrack` (main → overlay at the nearest free spot, overlay → main with Magnetic on inserted at its time and packed, with Magnetic off as `moveTo`; locked source or target refused; never overlapping); every 202 operation (trim, ripple trim and delete, roll, slip, slide, split, duplicate, snapping targets) on an overlay track, never packed (Q8); an edit whose result has more videos at once than `maxVideos` (and more than before) refused with `tooManyVideos`' message naming the limit; one that doesn't raise the count allowed.",
           "section": "Drawing, document and sound",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -717,14 +717,16 @@
           ],
           "test": "`npx vitest run src/engine/edits.test.ts`: fails",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: 16 failing tests in edits.test.ts (exports missing; two real: slide capped by Magnetic on an overlay, nudge reordering overlays), then green with T015."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T015": {
           "text": "Implement §8 in `src/engine/edits.ts`: `maxVideos` in `EditCtx`, the limit check after each edit (`mostVideosAt`), `tooManyVideos(n, desktop)`, `moveToTrack`.",
           "section": "Drawing, document and sound",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -737,9 +739,11 @@
           ],
           "test": "T014; `npx vitest run src/engine`",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: engine/edits.ts: EditCtx.maxVideos and desktop; limitVideos(before, result, ctx) after every edit (mostVideosAt; refused only when over the limit AND above before's peak, so an older over-limit project stays editable); tooManyVideos (the limit and why; the browser adds what the desktop app allows; without WebCodecs: one video at a time because the browser can't decode frames); moveToTrack (overlay / Magnetic off: nearest free spot; onto main with Magnetic on: inserted where its centre falls, packed; locks both ends); Q8 fixes: slide and nudge apply Magnetic only on the main track; reorder refuses overlay clips. edits.test.ts 89 / 89 (300 seeded cross-track moves via checkTrack); two break-tests. Reviewed: APPROVE; the explicit desktop flag and the no-WebCodecs message added at merge; the store's remaining duties moved into T040."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T016": {
           "text": "Failing self-test checks (`src/dev/videoChecks.ts`): AC-6 golden frames, `renderStack` of the T002 fixture at 9:16 and 16:9 at its 8 times against per-pixel references computed from the colour codes (each clip's box, rotation, opacity and corners) within the self-test's tolerance, on every GPU backend; AC-7 a full-frame opaque overlay leaves no main-clip pixel, 0 % opacity and hidden draw nothing; AC-10 `renderStack` with one identity item equals `renderFrame` pixel for pixel on 201's fixtures at 10 times; D2 an overlay's fade-in ramps its opacity, the main clip's darkens the frame.",
@@ -859,7 +863,7 @@
           "notes": []
         },
         "T040": {
-          "text": "Store actions (§9, `src/state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for overlays), `addMedia(files, { track, at })` (at the playhead or drop time, after the clips there if it doesn't fit; a track added first when dropped above the top track), `moveClipToTrack`, `setClipTransform` (key coalescing: one undo step per drag), `applyPreset`; `editCtx()` passes `maxVideos` from `limitsFor`. Each one undo step, returning the message to show. Unit tests for the pure parts already exist (T010–T019); here `src/state/video.test.ts` drives each action without DOM (one undo step, the messages, the limit).",
+          "text": "Store actions (§9, `src/state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for overlays), `addMedia(files, { track, at })` (at the playhead or drop time, after the clips there if it doesn't fit; a track added first when dropped above the top track), `moveClipToTrack`, `setClipTransform` (key coalescing: one undo step per drag), `applyPreset`; `editCtx()` passes `maxVideos` from `limitsFor`. Each one undo step, returning the message to show. Unit tests for the pure parts already exist (T010–T019); here `src/state/video.test.ts` drives each action without DOM (one undo step, the messages, the limit). From the T015 / T019 reviews, the store must also: wrap with `limitVideos` the results it builds itself (split, now on overlay clips too; duplicate; addMedia onto a track; Magnetic on via `closeGaps`; its own main-track moves), checked on what it stores (after `apply`'s pack); refuse a `moveClipToTrack` target that isn't a picture track; remove an overlay clip with `lift` (never ripple) even with Magnetic on (Q8); key `moveClip` and the inspector's \"Clip N\" per track (the gate returns clips grouped by track, main first).",
           "section": "Store and timeline rows",
           "status": "todo",
           "blockedReason": null,

@@ -171,7 +171,7 @@ export const limits = (kind: VKind = state.kind): VLimits => limitsFor(kind, isD
 const lengthOf = (clips: VClip[], tracks: Track[] = state.tracks, magnetic = state.magnetic) =>
   projectLength({ tracks, clips: magnetic ? pack(clips) : clips, audio: [], layers: [], fadeOut: false });
 /** What the edit operations need to know (engine/edits.ts). */
-const editCtx = (): EditCtx => ({ maxLength: limits().seconds, locked: (track) => lockedReason(state.tracks, track), maxVideos: limits().videosAtOnce });
+const editCtx = (): EditCtx => ({ maxLength: limits().seconds, locked: (track) => lockedReason(state.tracks, track), maxVideos: limits().videosAtOnce, desktop: isDesktop });
 /** The state as the track model sees it (engine/timeline.ts): for the preview, the timeline and the export. */
 export const projectOf = (s: VState = state): Project<VClip> => ({ tracks: s.tracks, clips: s.clips, audio: musicClips(s.music), layers: s.layers, fadeOut: s.fadeOut });
 /** The video's length (a selector: `useVideo(videoLength)`). */

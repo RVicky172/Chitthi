@@ -30,6 +30,8 @@ export interface EditCtx {
   locked: (track: string) => string | null;
   /** The most video clips on screen at once (`limitsFor().videosAtOnce`; 203 Q6). */
   maxVideos: number;
+  /** The desktop app: its limits, and no "the desktop app allows more" in messages. */
+  desktop: boolean;
 }
 
 export const NOT_FOUND = 'That clip isn’t on the timeline.';
@@ -41,9 +43,12 @@ const NOT_MAGNETIC = 'Only the main video track keeps its clips in order: move t
 const DESKTOP_VIDEOS = limitsFor('reel', true, true).videosAtOnce;
 /**
  * Why an edit was refused for showing more than `n` videos at once (203 AC-9): each video showing is decoded and held
- * in memory. In the browser (a lower limit) it says what the desktop app allows.
+ * in memory. In the browser (a lower limit) it says what the desktop app allows; a browser without WebCodecs' video
+ * decoding (`limitsFor` gives 1) plays one video at a time, as before 204.
  */
 export const tooManyVideos = (n: number, desktop: boolean): string => {
+  if (n === 1 && !desktop)
+    return `This browser can show one video at a time: it can’t decode video frames itself. Chrome, Edge and the desktop app show up to ${DESKTOP_VIDEOS}.`;
   const most = `At most ${n} ${n === 1 ? 'video' : 'videos'} can show at the same time`;
   const why = 'each one showing is decoded and kept in memory';
   return desktop ? `${most} (${why}).` : `${most} in the browser (${why}); the desktop app allows ${DESKTOP_VIDEOS}.`;
@@ -77,7 +82,7 @@ export function limitVideos<C extends EditClip>(before: C[], r: Edit<C>, ctx: Ed
   if ('error' in r || r.clips === before) return r;
   const n = videosAtOnce(r.clips);
   if (n <= ctx.maxVideos || n <= videosAtOnce(before)) return r;
-  return { error: tooManyVideos(ctx.maxVideos, ctx.maxVideos >= DESKTOP_VIDEOS) };
+  return { error: tooManyVideos(ctx.maxVideos, ctx.desktop) };
 }
 
 /** The clip, or the reason it can't be edited. */

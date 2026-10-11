@@ -30,7 +30,7 @@ import { clipLength } from './video';
 
 type C = LegacyClip & EditClip;
 
-const ctx: EditCtx = { maxLength: 3 * 3600, locked: () => null, maxVideos: 5 };
+const ctx: EditCtx = { maxLength: 3 * 3600, locked: () => null, maxVideos: 5, desktop: true };
 const lockedCtx: EditCtx = {
   ...ctx,
   locked: (t) => (t === MAIN_VIDEO ? 'The Video track is locked. Unlock it to change its clips.' : null),
@@ -663,8 +663,8 @@ describe('203: every 202 operation works on an overlay track, which is never pac
 describe('203: the videos-at-once limit (AC-9, D3)', () => {
   // Main: the video v 0–6. Overlay 1: w 0–2. Overlay 2: y 4–6, a photo ph 7–9. Two videos at once at most.
   const lim = [clip('v', 0, 6, MAIN_VIDEO), clip('w', 0, 2, O1), clip('y', 4, 2, O2), pic('ph', 7, 2, O2)];
-  const c2 = { ...ctx, maxVideos: 2 },
-    c3 = { ...ctx, maxVideos: 3 };
+  const c2 = { ...ctx, maxVideos: 2, desktop: false },
+    c3 = { ...ctx, maxVideos: 3, desktop: false };
   it('an edit that shows more videos at once than the limit is refused with the message naming it', () => {
     expect(err(moveTo(lim, 'y', 0, c2))).toBe(tooManyVideos(2, false));
     expect(err(trim(lim, 'w', 'end', 3, { ripple: false }, c2))).toBe(tooManyVideos(2, false));
@@ -700,7 +700,10 @@ describe('203: the videos-at-once limit (AC-9, D3)', () => {
     expect(tooManyVideos(3, false)).toMatch(/^At most 3 videos can show at the same time in the browser/);
     expect(tooManyVideos(3, false)).toMatch(/memory/);
     expect(tooManyVideos(3, false)).toMatch(/the desktop app allows 5\.$/);
-    expect(tooManyVideos(1, false)).toMatch(/^At most 1 video can show/);
+    // Without WebCodecs' video decoding the browser plays one video at a time: that, not memory, is the reason.
+    expect(tooManyVideos(1, false)).toMatch(/^This browser can show one video at a time: it can’t decode video frames itself/);
+    expect(tooManyVideos(1, false)).not.toMatch(/memory/);
+    expect(tooManyVideos(1, true)).toMatch(/^At most 1 video can show/);
     expect(tooManyVideos(5, true)).toMatch(/^At most 5 videos can show at the same time/);
     expect(tooManyVideos(5, true)).toMatch(/memory/);
     expect(tooManyVideos(5, true)).not.toMatch(/desktop app/);
