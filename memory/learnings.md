@@ -95,3 +95,12 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
   point, so a roll to the limit left `in` at −2.8e-17 and `checkTrack` failed. Clamp the stored edge itself
   (`Math.max(0, in + d)`, `Math.min(srcDur, out + d)`), not just the delta. Only seeded random edits found it
   (202 T017).
+
+## 2026-10-11 — Self-test playback checks and throttled animation frames (204 T033)
+
+Chromium runs `requestAnimationFrame` about once a second in `npm test`'s hidden window, and also in a shown window
+that is covered or whose display sleeps (Windows stops vsync). The video stage draws only what the pool has ready at
+each tick, so at ~1 Hz the picture never advances and sync checks see "0 flashes". Real-time checks go in
+`CHITTHI_TEST_ONLY=pooltiming` (shown window, kept on top, occlusion tracking off, display awake: `scripts/test.cjs`);
+hidden-window checks feed the pool between ticks instead of sleeping. If a pooltiming check fails oddly, look at its
+frames-per-second first. Cost ~30 min.

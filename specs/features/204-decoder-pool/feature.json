@@ -245,6 +245,10 @@
       {
         "date": "2026-10-10",
         "text": "Plan interface (T011): `PoolFrame.duration` (a frame covers [time, time + duration)); `FrameSource.at()` dropped, every read goes through the restartable `from(t)` reader (T001); `DecodePool` takes the source options (`maxWidth`, D5)."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "Plan files (T033, T050): the real-time checks AC-5, AC-7, AC-8 and `poolTiming` live in `src/dev/playbackChecks.ts` and run on demand (`CHITTHI_TEST_ONLY=pooltiming` / `poolcount`, never in the default `npm test`, whose hidden window throttles animation frames). T041 review: a decoder the browser takes back reopens (twice) before the clip goes to fallback; `limitsFor()` gives one video at a time without `VideoDecoder`."
       }
     ],
     "sections": [
@@ -326,7 +330,7 @@
       {
         "file": "`src/dev/poolChecks.ts`",
         "change": "new",
-        "purpose": "AC-1–AC-5, AC-7, AC-8, AC-10–AC-15 self-test checks and `poolTiming`"
+        "purpose": "AC-1–AC-4, AC-9–AC-14 self-test checks (AC-5, AC-7, AC-8 and `poolTiming` are in `src/dev/playbackChecks.ts`, run on demand: `CHITTHI_TEST_ONLY=pooltiming` / `poolcount`)"
       },
       {
         "file": "`src/dev/selftest.ts`",
@@ -803,7 +807,7 @@
         "T033": {
           "text": "Failing self-test check AC-8 (D4): the sync clip played 30 s in the editor; the clip's `<audio>` element's `captureStream()` into an analyser gives each beep's onset, the stage gives each flash's drawn frame; every pair within 67 ms.",
           "section": "Preview on the pool",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -811,18 +815,20 @@
             "AC-8"
           ],
           "files": [
-            "src/dev/poolChecks.ts"
+            "src/dev/playbackChecks.ts"
           ],
-          "test": "`npm test`: fails (sound still comes from per-clip `<video>`)",
+          "test": "`CHITTHI_TEST_ONLY=pooltiming npm test` (shown window: the hidden `npm test` window throttles animation frames, as T032): fails (sound still comes from per-clip `<video>`)",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: AC-8 in src/dev/playbackChecks.ts (CHITTHI_TEST_ONLY=pooltiming, shown window): the clip's <audio> captureStream into an analyser vs the drawn flash. Failed first on pre-T034 code (0 beeps heard from the clip's <audio>). After T034: 30 s of one sync clip 15 pairs, sound − picture mean 24 ms, worst 43 ms; two 4 s clips through a cut 3 pairs, mean −8 ms, worst 37 ms (≤ 67 ms; includes the capture path: baseLatency 10 ms, outputLatency 42–272 ms; T060 is the real judge). The shown test window stays on top, off occlusion tracking, display awake (a sleeping display throttled it to ~1 frame/s). Reviewed: APPROVE with fixes, applied."
+          ],
           "startedOn": "2026-10-10",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T034": {
           "text": "Preview sound (§4, D1): an audio-only `<audio>` element for the clip under the playhead and the next within 2 s (pre-seeked to its `in`, started on the cut's tick), released after; drift over 1 frame corrected by `playbackRate` ±3 %, over 0.25 s by a seek; volume, mute and a hidden track's sound as today.",
           "section": "Preview on the pool",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -834,14 +840,16 @@
           ],
           "test": "T033; video e2e (the mute test records sounds started)",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: src/components/studio/previewSound.ts (soundPlan, soundFix, previewSound): audio-only <audio> per clip under the playhead, the next within 2 s pre-seeked to in and started on the cut's tick, clips an overlay covers kept silent, released after; drift over 1 frame nudged by playbackRate ±3 % in 0.5 % steps until within 10 ms, over 0.25 s a seek; volume, mute, hidden-track sound as before; pool clips get no <video>, fallback clips a muted one for their picture. Unit tests 9/9; D1 at most 2 sound elements over 20 clips; leaving the editor while playing frees stage, sounds, frames, decoders (AC-12). npm test 6,157 / 0; pooltiming 6 / 0 (AC-5 19/19 cuts × 3, 0 holds); editor e2e 25 / 25; build entry 327 KB."
+          ],
           "startedOn": "2026-10-10",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T040": {
           "text": "Failing checks for errors: self-test with a source factory that fails one clip: the preview draws it from the `<video>` fallback and the others from the pool, its note says it can't be exported, the export refuses it naming the file, `logError` got it; e2e (`e2e/editors.e2e.ts`): with `VideoDecoder` removed by an init script, the video editor adds clips, plays, scrubs and draws as today, without console errors.",
           "section": "Errors and older browsers",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -854,14 +862,16 @@
           ],
           "test": "fails (no fallback note; the editor needs the pool)",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: self-test 'fallback AC-14' in poolChecks.ts (real editor, StrictMode, one file refused via frameSource undecodableForTests): <video> fallback picture, the other clip from the pool, the note in title / accessible name / inspector, logError, the export refuses naming the file; e2e 'without VideoDecoder' in editors.e2e.ts. Self-test failed before T041 (no note, no log)."
+          ],
           "startedOn": "2026-10-10",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T041": {
           "text": "Fallback (§7): clips the pool can't open use today's `<video>` path in the preview with the note \"This clip can't be exported here: <reason>\" (clip title, accessible name, inspector), logged with `logError('handled', e)`; no `VideoDecoder` = no pool, today's preview and export, a visible-video limit of 1.",
           "section": "Errors and older browsers",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -874,9 +884,11 @@
           ],
           "test": "T040; `npx playwright test e2e/editors.e2e.ts`",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: the note 'This clip can’t be exported here: <reason>' per file (previewFrame.ts noteFallback / useFallbackNote, logged once) in the timeline title, accessible name and inspector (role=status); no VideoDecoder = no pool and limitsFor().videosAtOnce 1. Review fixes: a decoder the browser takes back (reclaim / QuotaExceededError) reopens twice before fallback (2 unit tests, break-tested). npm test 6,157 / 0; editor e2e 25 / 25 (desktop + phone)."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T050": {
           "text": "`poolTiming` (AC-15): 1, 2, 3, 4 and 6 simultaneous 1080p30 clips (and 2 and 3 4K30 clips in the desktop app), 300 steps of 30 fps each as the preview draws them: median and p95 time to have every video's frame, frames held. Record the numbers here.",

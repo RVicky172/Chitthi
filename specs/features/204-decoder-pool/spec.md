@@ -119,3 +119,4 @@ machine" is the one the measurements in `201` and `203` are recorded on; the pla
 - 2026-10-09 — Plan approved (D1–D5 as recommended, D-028).
 - 2026-10-09 — Tasks written (T001–T092); In Progress.
 - 2026-10-10 — Plan interface (T011): `PoolFrame.duration` (a frame covers [time, time + duration)); `FrameSource.at()` dropped, every read goes through the restartable `from(t)` reader (T001); `DecodePool` takes the source options (`maxWidth`, D5).
+- 2026-10-11 — Plan files (T033, T050): the real-time checks AC-5, AC-7, AC-8 and `poolTiming` live in `src/dev/playbackChecks.ts` and run on demand (`CHITTHI_TEST_ONLY=pooltiming` / `poolcount`, never in the default `npm test`, whose hidden window throttles animation frames). T041 review: a decoder the browser takes back reopens (twice) before the clip goes to fallback; `limitsFor()` gives one video at a time without `VideoDecoder`.

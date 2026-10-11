@@ -108,7 +108,7 @@ the self-test runs in Electron (Chromium) with WebGPU.
 | `src/components/studio/VideoWorkspace.tsx` | modify | §3 stage draws from the pool (peek / exact frame), look-ahead, release; §4 audio elements and drift correction; §7 fallback path and note |
 | `src/components/studio/Timeline.tsx` | modify | §7 the fallback note in the clip's name and title |
 | `src/dev/videoChecks.ts` | modify | `makeTestClip` size and key-frame interval; AC-9 export checks on the pool |
-| `src/dev/poolChecks.ts` | new | AC-1–AC-5, AC-7, AC-8, AC-10–AC-15 self-test checks and `poolTiming` |
+| `src/dev/poolChecks.ts` | new | AC-1–AC-4, AC-9–AC-14 self-test checks (AC-5, AC-7, AC-8 and `poolTiming` are in `src/dev/playbackChecks.ts`, run on demand: `CHITTHI_TEST_ONLY=pooltiming` / `poolcount`) |
 | `src/dev/selftest.ts` | modify | runs `poolChecks` |
 | `e2e/editors.e2e.ts` | modify | AC-14: without `VideoDecoder` the editor previews as today |
 | `specs/lld.md`, `docs/PERFORMANCE.md`, `docs/MEDIA-STUDIO.md`, `CHANGELOG.md` | modify | AC-16 (and AC-15's numbers) |
