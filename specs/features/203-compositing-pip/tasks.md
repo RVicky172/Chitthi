@@ -33,11 +33,17 @@ Batch 1 runs T001–T013 (the spike inline, the three test-first pairs as agents
 Batch 2: T014/T015, T016/T017 and T018/T019 touch different files.
 
 - [ ] **T014** — Failing tests (`src/engine/edits.test.ts`): `moveToTrack` (main → overlay at the nearest free spot, overlay → main with Magnetic on inserted at its time and packed, with Magnetic off as `moveTo`; locked source or target refused; never overlapping); every 202 operation (trim, ripple trim and delete, roll, slip, slide, split, duplicate, snapping targets) on an overlay track, never packed (Q8); an edit whose result has more videos at once than `maxVideos` (and more than before) refused with `tooManyVideos`' message naming the limit; one that doesn't raise the count allowed. · files: `src/engine/edits.test.ts` · test: `npx vitest run src/engine/edits.test.ts`: fails
+  - **In progress** since 2026-10-11
 - [ ] **T015** — Implement §8 in `src/engine/edits.ts`: `maxVideos` in `EditCtx`, the limit check after each edit (`mostVideosAt`), `tooManyVideos(n, desktop)`, `moveToTrack`. · files: `src/engine/edits.ts` · test: T014; `npx vitest run src/engine`
+  - **In progress** since 2026-10-11
 - [ ] **T016** [P] — Failing self-test checks (`src/dev/videoChecks.ts`): AC-6 golden frames, `renderStack` of the T002 fixture at 9:16 and 16:9 at its 8 times against per-pixel references computed from the colour codes (each clip's box, rotation, opacity and corners) within the self-test's tolerance, on every GPU backend; AC-7 a full-frame opaque overlay leaves no main-clip pixel, 0 % opacity and hidden draw nothing; AC-10 `renderStack` with one identity item equals `renderFrame` pixel for pixel on 201's fixtures at 10 times; D2 an overlay's fade-in ramps its opacity, the main clip's darkens the frame. · files: `src/dev/videoChecks.ts` · test: `npm test`: fails (no renderStack)
+  - **In progress** since 2026-10-11
 - [ ] **T017** — Implement §4 in `src/engine/video.ts`: `renderStack` (identity fast path through today's call; the transform, rounded clip and opacity as T001 decided; D2's fades), `renderFrame` as `renderStack` with one item. · files: `src/engine/video.ts` · test: T016
+  - **In progress** since 2026-10-11
 - [ ] **T018** [P] — Failing tests (`src/engine/timeline.test.ts`, the document gate): at least 30 malformed documents (transform fields out of range, of the wrong type, missing; overlay tracks beyond the limit; clips on a missing track with a reason; overlapping clips on an overlay track moved to the end of the one they overlap, never dropped; too many clips across tracks) and none throws; the AC-6 fixture round-trips document → gate → document equal; 201 / 202 documents round-trip byte-identical (no `transform` written at identity). Also (T011 review): a non-main track of kind `video` in a document becomes an `overlay`, and the main track is always put first among the picture tracks (a document listing [O1, V1] keeps nothing under the main track). · files: `src/engine/timeline.test.ts` · test: `npx vitest run src/engine/timeline.test.ts`: fails
+  - **In progress** since 2026-10-11
 - [ ] **T019** — Implement §12 in `src/engine/timeline.ts`: `DocClip.transform`, `toDocument` (written only when not identity), `mergeProject` (clamp, overlay tracks kept, the overlap rule on every picture track). · files: `src/engine/timeline.ts` · test: T018
+  - **In progress** since 2026-10-11
 
 ## Store and timeline rows
 
