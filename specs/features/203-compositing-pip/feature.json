@@ -908,7 +908,7 @@
         "T050": {
           "text": "Behaviour-neutral refactor (§10, plan Risks): the main row's clip blocks, trims, tools and drags move into a `PictureRow` component in `Timeline.tsx` used for the main track only; nothing a user sees changes.",
           "section": "Store and timeline rows",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -920,9 +920,11 @@
           ],
           "test": "`npx playwright test e2e/editors.e2e.ts` unchanged (desktop + phone)",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: PictureRow in Timeline.tsx (track, its clips, height, zoom, tool, selected, snap, snapSpan, seekFrom) holds the main row's clip blocks, trims, edit-tool drags, gaps and drop marker; rendered for the main track only; DOM, classes, aria and events unchanged. editors e2e 25 passed / 15 phone skips (desktop + phone); break-test (one gap button dropped) fails the Magnetic-off test. Reviewed: APPROVE; notes for T052 added to its text."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T030": {
           "text": "Failing self-test checks (`src/dev/poolChecks.ts`): the stage draws stacks, `drawPreview` of the T002 fixture at its 8 times (paused, through `pausedFrame` and the pool) equals `renderStack` from the same pictures; all of a paused stack's pictures resolve together (latest wins per lane); the held picture is per clip (an overlay arriving doesn't blank the main clip); 201 fixtures' paused frames unchanged (AC-10); the real editor (StrictMode) shows an overlay clip.",
@@ -1056,7 +1058,7 @@
           "notes": []
         },
         "T052": {
-          "text": "Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's \"Move to track…\"; styles in `36-media-studio.css`.",
+          "text": "Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's \"Move to track…\"; styles in `36-media-studio.css`. From the T050 review: lift the per-row drag / reorder state into Timeline (or a context) so a drag can cross rows with the target row drawing the drop marker; snap targets from every picture track's clips (Timeline uses only the main track's today); decide whether overlay rows show gap buttons (overlays lift, never ripple, Q8) and word them for overlays; clip labels name their track so two rows don't both announce \"Clip 1\"; pass the row's track id to drop and add-media targets.",
           "section": "Tracks and the stage",
           "status": "todo",
           "blockedReason": null,
