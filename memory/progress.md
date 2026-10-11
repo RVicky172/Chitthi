@@ -11,6 +11,21 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-11 — 204 T033–T091 with parallel agents (D-030): sound, fallback, limits, docs, every gate
+
+**Done:** first two agent batches (implementers in worktrees + reviewers; the main session merged and ran heavy
+checks one at a time). T050 `poolTiming` (`CHITTHI_TEST_ONLY=poolcount`): 1–6 × 1080p30 and 2–3 × 4K30 all far under
+33 / 50 ms (worst p95 5.7 ms) → T051 `videosAtOnce` web 3, desktop 5, 1 without VideoDecoder. T040 / T041 fallback note
+"This clip can’t be exported here: <reason>" (title, accessible name, inspector, logged once); review fix: a decoder the
+browser takes back reopens twice before fallback. T033 / T034 preview sound from audio-only `<audio>` (`previewSound.ts`):
+AC-8 mean 24 ms, worst 43 ms over 30 s; through a cut worst 37 ms. Two failures were rAF throttling in test windows, not
+bugs (learnings.md); `scripts/test.cjs` keeps the pooltiming window on top with the display awake. T090 docs (lld §4.10,
+PERFORMANCE, MEDIA-STUDIO, CHANGELOG). T091: check 1,174; build entry 327 KB; e2e 84 / 0; npm test 6,157 / 0 (178 s);
+pooltiming 6 / 0; test:mcp ok; licences ok.
+**Next:** T060 👤 (maintainer: Chrome + desktop manual checks, poolTiming in Chrome), then T092 (Implemented, roadmap,
+memory), then 203's plan with the limits.
+**Blockers:** none (T060 waits on the maintainer).
+
 ## 2026-10-10 — 405 Implemented: the roadmap as a road (merged into main)
 
 **Done:** on `feat/405-roadmap-revamp` (from `spec/405-roadmap-revamp`, from `main`). Spec, plan (D1–D4, D-029) and
