@@ -861,7 +861,7 @@
         "T041": {
           "text": "Fallback (§7): clips the pool can't open use today's `<video>` path in the preview with the note \"This clip can't be exported here: <reason>\" (clip title, accessible name, inspector), logged with `logError('handled', e)`; no `VideoDecoder` = no pool, today's preview and export, a visible-video limit of 1.",
           "section": "Errors and older browsers",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -874,7 +874,9 @@
           ],
           "test": "T040; `npx playwright test e2e/editors.e2e.ts`",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-11",
+          "doneOn": null
         },
         "T050": {
           "text": "`poolTiming` (AC-15): 1, 2, 3, 4 and 6 simultaneous 1080p30 clips (and 2 and 3 4K30 clips in the desktop app), 300 steps of 30 fps each as the preview draws them: median and p95 time to have every video's frame, frames held. Record the numbers here.",

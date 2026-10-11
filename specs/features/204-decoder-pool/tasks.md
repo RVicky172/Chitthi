@@ -53,6 +53,7 @@ anything surprising or deferred.
 - [ ] **T040** — Failing checks for errors: self-test with a source factory that fails one clip: the preview draws it from the `<video>` fallback and the others from the pool, its note says it can't be exported, the export refuses it naming the file, `logError` got it; e2e (`e2e/editors.e2e.ts`): with `VideoDecoder` removed by an init script, the video editor adds clips, plays, scrubs and draws as today, without console errors. · files: `src/dev/poolChecks.ts`, `e2e/editors.e2e.ts` · test: fails (no fallback note; the editor needs the pool)
   - **In progress** since 2026-10-10
 - [ ] **T041** — Fallback (§7): clips the pool can't open use today's `<video>` path in the preview with the note "This clip can't be exported here: <reason>" (clip title, accessible name, inspector), logged with `logError('handled', e)`; no `VideoDecoder` = no pool, today's preview and export, a visible-video limit of 1. · files: `src/components/studio/VideoWorkspace.tsx`, `src/components/studio/Timeline.tsx` · test: T040; `npx playwright test e2e/editors.e2e.ts`
+  - **In progress** since 2026-10-11
 
 ## Limits from measurements
 
