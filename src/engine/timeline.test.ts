@@ -828,7 +828,6 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
     ];
     return toDocument({ ...d, tracks, clips });
   };
-  const L = limitsFor('vlog', false);
   type Doc = ReturnType<typeof fixture>;
   const onTrack = (doc: Doc, id: string) => doc.clips.filter((c) => c.track === id);
 
@@ -901,31 +900,92 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
     let k = 0;
     return { ...d, clips: d.clips.map((c) => (c.track === track ? { ...c, start: starts[k++] } : c)) };
   };
-  const bad: [string, (d: Doc) => unknown][] = [
-    ['a transform that is text', tfOf(() => 'top-right')],
-    ['a transform that is an array', tfOf(() => [0.5, 0.5, 1])],
-    ['a transform that is null', tfOf(() => null)],
-    ['a transform that is a number', tfOf(() => 3)],
-    ['an empty transform', tfOf(() => ({}))],
-    ['a transform with only a width', tfOf(() => ({ w: 0.3 }))],
-    ['x and y far outside', tfOf((t) => ({ ...t, x: 1e9, y: -1e9 }))],
-    ['NaN and infinite fields', tfOf((t) => ({ ...t, x: NaN, w: Infinity, rot: -Infinity }))],
-    ['a width of 0', tfOf((t) => ({ ...t, w: 0 }))],
-    ['a negative width', tfOf((t) => ({ ...t, w: -2 }))],
-    ['a huge width', tfOf((t) => ({ ...t, w: 1e6 }))],
-    ['a rotation of 720', tfOf((t) => ({ ...t, rot: 720 }))],
-    ['opacity 2', tfOf((t) => ({ ...t, opacity: 2 }))],
-    ['a negative opacity', tfOf((t) => ({ ...t, opacity: -0.5 }))],
-    ['a corner radius of 3', tfOf((t) => ({ ...t, radius: 3 }))],
-    ['fields as text', tfOf(() => ({ x: '0.2', y: '0.2', w: '0.3', rot: '0', opacity: '1', radius: '0' }))],
-    ['fields of the wrong type', tfOf(() => ({ x: true, y: null, w: {}, rot: [], opacity: 'x', radius: false }))],
-    ['unknown fields in a transform', tfOf((t) => ({ ...t, skew: 30, href: 'javascript:x' }))],
-    ['an identity transform written out', tfOf(() => ({ ...IDENTITY }))],
+  type Gated = ReturnType<typeof mergeProject>;
+  const clipOf = (r: Gated, id: string) => r.doc.clips.find((c) => c.id === id);
+  const why = (r: Gated) => r.dropped.join(' ');
+  const trackIds = (r: Gated) => r.doc.tracks.map((t) => t.id);
+  const startsOf = (r: Gated, track: string) => onTrack(r.doc, track).map((c) => [c.id, c.start]);
+  const TR = presetTransform('top-right', 1920, 1080);
+  const UNREAD = /position and size couldn’t be read; it fills the frame/;
+  const ADJUSTED = /position and size were out of range or incomplete and were adjusted/;
+  const leftOut = (name: string) => `A project holds up to 4 picture and 4 sound tracks here; “${name}” was left out.`;
+  /** o1a has no tf and the reason says its transform couldn't be read. */
+  const unread = (r: Gated) => {
+    expect('tf' in clipOf(r, 'o1a')!).toBe(false);
+    expect(why(r)).toMatch(UNREAD);
+  };
+  /** o1a's tf has these fields (the rest of the top-right preset) and the reason says it was adjusted. */
+  const adjusted = (fields: Partial<typeof IDENTITY>) => (r: Gated) => {
+    expect(clipOf(r, 'o1a')!.tf).toEqual({ ...TR, ...fields });
+    expect(r.dropped).toEqual([expect.stringMatching(ADJUSTED)]);
+  };
+  const bad: [string, (d: Doc) => unknown, (r: Gated) => void][] = [
+    ['a transform that is text', tfOf(() => 'top-right'), unread],
+    ['a transform that is an array', tfOf(() => [0.5, 0.5, 1]), unread],
+    ['a transform that is null', tfOf(() => null), unread],
+    ['a transform that is a number', tfOf(() => 3), unread],
+    ['an empty transform', tfOf(() => ({})), unread],
+    [
+      'a transform with only a width',
+      tfOf(() => ({ w: 0.3 })),
+      (r) => {
+        expect(clipOf(r, 'o1a')!.tf).toEqual({ ...IDENTITY, w: 0.3 });
+        expect(why(r)).toMatch(ADJUSTED);
+      },
+    ],
+    ['x and y far outside', tfOf((t) => ({ ...t, x: 1e9, y: -1e9 })), adjusted({ x: 1.5, y: -0.5 })],
+    // JSON writes NaN and ±Infinity as null: those fields take the identity value.
+    [
+      'NaN and infinite fields',
+      tfOf((t) => ({ ...t, x: NaN, w: Infinity, rot: -Infinity })),
+      adjusted({ x: 0.5, w: 1 }),
+    ],
+    ['a width of 0', tfOf((t) => ({ ...t, w: 0 })), adjusted({ w: 0.05 })],
+    ['a negative width', tfOf((t) => ({ ...t, w: -2 })), adjusted({ w: 0.05 })],
+    ['a huge width', tfOf((t) => ({ ...t, w: 1e6 })), adjusted({ w: 4 })],
+    ['a rotation of 720', tfOf((t) => ({ ...t, rot: 720 })), adjusted({ rot: 180 })],
+    ['opacity 2', tfOf((t) => ({ ...t, opacity: 2 })), adjusted({ opacity: 1 })],
+    ['a negative opacity', tfOf((t) => ({ ...t, opacity: -0.5 })), adjusted({ opacity: 0 })],
+    ['a corner radius of 3', tfOf((t) => ({ ...t, radius: 3 })), adjusted({ radius: 0.5 })],
+    ['fields as text', tfOf(() => ({ x: '0.2', y: '0.2', w: '0.3', rot: '0', opacity: '1', radius: '0' })), unread],
+    [
+      'fields of the wrong type',
+      tfOf(() => ({ x: true, y: null, w: {}, rot: [], opacity: 'x', radius: false })),
+      unread,
+    ],
+    [
+      'unknown fields in a transform',
+      tfOf((t) => ({ ...t, skew: 30, href: 'javascript:x' })),
+      (r) => {
+        expect(clipOf(r, 'o1a')!.tf).toEqual(TR);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
+    [
+      'an identity transform written out',
+      tfOf(() => ({ ...IDENTITY })),
+      (r) => {
+        expect('tf' in clipOf(r, 'o1a')!).toBe(false);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
     [
       'a main track clip with a transform out of range',
       (d) => ({ ...d, clips: d.clips.map((c, i) => (i ? c : { ...c, transform: { x: 9, w: 9, opacity: 9 } })) }),
+      (r) => {
+        expect(r.doc.clips[0].tf).toEqual({ ...IDENTITY, x: 1.5, w: 4 });
+        expect(why(r)).toMatch(ADJUSTED);
+      },
     ],
-    ['a tf field written instead of transform', (d) => ({ ...d, clips: d.clips.map((c) => ({ ...c, tf: 'x' })) })],
+    [
+      'a tf field written instead of transform',
+      (d) => ({ ...d, clips: d.clips.map((c) => ({ ...c, tf: 'x' })) }),
+      (r) => {
+        expect('tf' in r.doc.clips[0]).toBe(false);
+        expect(clipOf(r, 'o1a')!.tf).toEqual(TR);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
     [
       '12 overlay tracks (beyond the limit), clips on the last',
       (d) => ({
@@ -933,57 +993,217 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
         tracks: [d.tracks[0], ...Array.from({ length: 12 }, (_, i) => overlay(i + 1)), d.tracks.at(-1)],
         clips: d.clips.map((c) => (c.id === 'o2b' ? { ...c, track: 'O12' } : c)),
       }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', 'O2', 'O3', MUSIC]);
+        for (let i = 4; i <= 12; i++) expect(r.dropped).toContain(leftOut(`Overlay ${i}`));
+        expect(clipOf(r, 'o2b')).toBeUndefined();
+        expect(r.dropped).toContain('A clip on a missing or sound track was left out.');
+      },
     ],
     [
       'two overlay tracks with the same id',
       (d) => ({ ...d, tracks: [d.tracks[0], d.tracks[1], { ...d.tracks[2], id: 'O1' }, d.tracks[3]] }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', MUSIC]);
+        expect(r.doc.tracks[1].name).toBe('Face cam');
+        expect(clipOf(r, 'o2a')).toBeUndefined();
+        expect(why(r)).toMatch(/track was unreadable.*missing or sound track/);
+      },
     ],
     [
       'an overlay track with a bad id',
       (d) => ({ ...d, tracks: d.tracks.map((t) => (t.id === 'O2' ? { ...t, id: '<O2>' } : t)) }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', MUSIC]);
+        expect(onTrack(r.doc, 'O2')).toEqual([]);
+        expect(why(r)).toMatch(/track was unreadable.*missing or sound track/);
+      },
     ],
     [
       'an overlay track turned into sound',
       (d) => ({ ...d, tracks: d.tracks.map((t) => (t.id === 'O1' ? { ...t, kind: 'audio' } : t)) }),
+      (r) => {
+        expect(r.doc.tracks.find((t) => t.id === 'O1')!.kind).toBe('audio');
+        expect(clipOf(r, 'o1a')).toBeUndefined();
+        expect(clipOf(r, 'o1b')).toBeUndefined();
+        expect(r.dropped).toEqual(Array(2).fill('A clip on a missing or sound track was left out.'));
+      },
     ],
     [
       'a clip on a missing overlay track',
       (d) => ({ ...d, clips: [...d.clips, { ...d.clips[4], id: 'x', track: 'O9' }] }),
+      (r) => {
+        expect(clipOf(r, 'x')).toBeUndefined();
+        expect(r.dropped).toEqual(['A clip on a missing or sound track was left out.']);
+      },
     ],
-    ['the overlay tracks gone, their clips kept', (d) => ({ ...d, tracks: [d.tracks[0], d.tracks[3]] })],
-    ['two overlay clips at the same start', startsOn('O1', [1, 1])],
-    ['an overlay clip inside another', startsOn('O1', [1, 2])],
-    ['overlay clips out of order', startsOn('O2', [6, 2])],
+    [
+      'the overlay tracks gone: their clips are left out',
+      (d) => ({ ...d, tracks: [d.tracks[0], d.tracks[3]] }),
+      (r) => {
+        expect(r.doc.clips.map((c) => c.track)).toEqual(Array(4).fill(MAIN_VIDEO));
+        expect(r.dropped).toEqual(Array(4).fill('A clip on a missing or sound track was left out.'));
+      },
+    ],
+    [
+      'two overlay clips at the same start',
+      startsOn('O1', [1, 1]),
+      (r) => {
+        expect(startsOf(r, 'O1')).toEqual([
+          ['o1a', 1],
+          ['o1b', 5.5],
+        ]);
+        expect(r.dropped).toEqual(['Two clips overlapped on the Face cam track; one was moved to after the other.']);
+      },
+    ],
+    [
+      'an overlay clip inside another',
+      startsOn('O1', [1, 2]),
+      (r) => {
+        expect(startsOf(r, 'O1')).toEqual([
+          ['o1a', 1],
+          ['o1b', 5.5],
+        ]);
+        expect(why(r)).toMatch(/overlapped on the Face cam track/);
+      },
+    ],
+    [
+      'overlay clips out of order',
+      startsOn('O2', [6, 2]),
+      (r) => {
+        expect(startsOf(r, 'O2')).toEqual([
+          ['o2b', 2],
+          ['o2a', 6],
+        ]);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
     [
       'three overlay clips all at 0',
       (d) => {
         const z = startsOn('O1', [0, 0])(d);
         return { ...z, clips: [...z.clips, { ...d.clips[4], id: 'o1c', start: 0, transform: undefined }] };
       },
+      (r) => {
+        expect(startsOf(r, 'O1')).toEqual([
+          ['o1a', 0],
+          ['o1b', 4.5],
+          ['o1c', 9],
+        ]);
+        expect(r.dropped).toEqual(
+          Array(2).fill('Two clips overlapped on the Face cam track; one was moved to after the other.'),
+        );
+      },
     ],
-    ['overlapping overlay clips with Magnetic off', (d) => ({ ...startsOn('O2', [2, 3])(d), magnetic: false })],
-    ['a negative start on an overlay clip', startsOn('O1', [-3, 6])],
-    ['a start as text on an overlay clip', startsOn('O2', ['2', 6])],
+    [
+      'overlapping overlay clips with Magnetic off',
+      (d) => ({ ...startsOn('O2', [2, 3])(d), magnetic: false }),
+      (r) => {
+        expect(r.doc.magnetic).toBe(false);
+        expect(startsOf(r, 'O2')).toEqual([
+          ['o2a', 2],
+          ['o2b', 5],
+        ]);
+        expect(why(r)).toMatch(/overlapped on the Overlay 2 track/);
+      },
+    ],
+    [
+      'a negative start on an overlay clip',
+      startsOn('O1', [-3, 6]),
+      (r) => {
+        expect(startsOf(r, 'O1')).toEqual([
+          ['o1a', 0],
+          ['o1b', 6],
+        ]);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
+    [
+      'a start as text on an overlay clip',
+      startsOn('O2', ['2', 6]),
+      (r) => {
+        expect(startsOf(r, 'O2')).toEqual([
+          ['o2a', 0],
+          ['o2b', 6],
+        ]);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
     [
       'too many clips across tracks',
       (d) => ({
         ...d,
         clips: Array.from({ length: 90 }, (_, i) => ({ ...d.clips[4], id: `c${i}`, track: ['V1', 'O1', 'O2'][i % 3] })),
       }),
+      (r) => {
+        expect(r.doc.clips).toHaveLength(60);
+        expect(r.dropped[0]).toBe('A project holds up to 60 clips here; 30 were left out.');
+        for (const t of [MAIN_VIDEO, 'O1', 'O2']) expect(onTrack(r.doc, t)).toHaveLength(20);
+      },
     ],
     [
       'a second track of kind video',
       (d) => ({ ...d, tracks: d.tracks.map((t) => (t.id === 'O1' ? { ...t, id: 'V2', kind: 'video' } : t)) }),
+      (r) => {
+        expect(r.doc.tracks.find((t) => t.id === 'V2')!.kind).toBe('overlay');
+        expect(r.dropped[0]).toBe('The “Face cam” track became an overlay track: a project has one main video track.');
+      },
     ],
     [
       'the main track listed above the overlays',
       (d) => ({ ...d, tracks: [d.tracks[1], d.tracks[2], d.tracks[0], d.tracks[3]] }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', 'O2', MUSIC]);
+        expect(r.dropped).toEqual(['The main video track was moved below the overlay tracks.']);
+      },
     ],
-    ['the sound track listed first', (d) => ({ ...d, tracks: [d.tracks[3], d.tracks[1], d.tracks[0], d.tracks[2]] })],
-    ['no main track, overlays kept', (d) => ({ ...d, tracks: d.tracks.slice(1) })],
+    [
+      'the sound track listed first',
+      (d) => ({ ...d, tracks: [d.tracks[3], d.tracks[1], d.tracks[0], d.tracks[2]] }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MUSIC, MAIN_VIDEO, 'O1', 'O2']);
+        expect(r.dropped).toEqual(['The main video track was moved below the overlay tracks.']);
+      },
+    ],
+    [
+      'no main track, overlays kept',
+      (d) => ({ ...d, tracks: d.tracks.slice(1) }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', 'O2', MUSIC]);
+        expect(r.doc.clips).toHaveLength(8);
+      },
+    ],
     [
       'no main track and the picture tracks full',
       (d) => ({ ...d, tracks: [overlay(1), overlay(2), overlay(3), overlay(4), d.tracks[3]] }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', 'O2', 'O3', MUSIC]);
+        expect(r.dropped).toEqual([leftOut('Overlay 4')]);
+      },
+    ],
+    [
+      'the picture tracks full with the main track listed last',
+      (d) => ({ ...d, tracks: [overlay(1), overlay(2), overlay(3), overlay(4), d.tracks[0], d.tracks[3]] }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', 'O2', 'O3', MUSIC]);
+        expect(r.dropped).toEqual([leftOut('Overlay 4'), 'The main video track was moved below the overlay tracks.']);
+      },
+    ],
+    [
+      'the picture tracks full with the main track listed first',
+      (d) => ({ ...d, tracks: [d.tracks[0], overlay(1), overlay(2), overlay(3), overlay(4), d.tracks[3]] }),
+      (r) => {
+        expect(trackIds(r)).toEqual([MAIN_VIDEO, 'O1', 'O2', 'O3', MUSIC]);
+        expect(r.dropped).toEqual([leftOut('Overlay 4')]);
+      },
+    ],
+    [
+      'the main track muted',
+      (d) => ({ ...d, tracks: d.tracks.map((t) => (t.id === MAIN_VIDEO ? { ...t, muted: true } : t)) }),
+      (r) => {
+        expect(r.doc.tracks[0].muted).toBe(false);
+        expect(r.doc.tracks.find((t) => t.id === 'O2')!.muted).toBe(true);
+      },
     ],
     [
       'overlay track switches and name of the wrong type',
@@ -991,32 +1211,65 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
         ...d,
         tracks: d.tracks.map((t) => (t.id === 'O1' ? { ...t, name: 42, hidden: 'yes', muted: 1, locked: 'no' } : t)),
       }),
+      (r) => {
+        expect(r.doc.tracks[1]).toEqual({
+          id: 'O1',
+          kind: 'overlay',
+          name: 'Overlay',
+          hidden: false,
+          muted: false,
+          locked: false,
+        });
+      },
     ],
     [
       'an overlay track name of 500 characters',
       (d) => ({ ...d, tracks: d.tracks.map((t) => (t.id === 'O2' ? { ...t, name: 'n'.repeat(500) } : t)) }),
+      (r) => expect(r.doc.tracks[2].name).toBe('n'.repeat(40)),
+    ],
+    [
+      'overlay clips moved past the length limit',
+      (d) => ({
+        ...d,
+        kind: 'reel',
+        format: 'reel',
+        clips: [
+          d.clips[0],
+          ...Array.from({ length: 19 }, (_, i) => ({ ...d.clips[0], id: `p${i}`, track: 'O1', start: 0, dur: 10 })),
+        ],
+      }),
+      (r) => {
+        // A web reel is 90 s at most: the clips moved to 90 s and later go.
+        expect(onTrack(r.doc, 'O1').map((c) => c.start)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80]);
+        expect(
+          r.dropped.filter((m) => m === 'A clip didn’t fit within the 90-second limit and was left out.'),
+        ).toHaveLength(10);
+      },
     ],
   ];
 
   it(`has ${bad.length} malformed documents (at least 30)`, () => expect(bad.length).toBeGreaterThanOrEqual(30));
 
-  it.each(bad)('%s: a valid project, never an exception', (_, make) => {
+  it.each(bad)('%s: a valid project, never an exception', (_, make, check) => {
     expect(() => mergeProject(make(fixture()), false)).not.toThrow();
     let out: ReturnType<typeof mergeProject> | undefined;
     expect(() => (out = mergeProject(JSON.parse(JSON.stringify(make(fixture()))), false))).not.toThrow();
+    check(out!);
     const { doc } = out!;
     expect(doc.version).toBe(1);
     const pictures = doc.tracks.filter((t) => t.kind !== 'audio');
     // The main track is the bottom picture track, the only one of kind video; the rest are overlays.
     expect(pictures[0]?.id).toBe(MAIN_VIDEO);
+    expect(pictures[0].muted).toBe(false);
     expect(pictures.slice(1).every((t) => t.kind === 'overlay')).toBe(true);
     expect(pictures.length).toBeLessThanOrEqual(TRACK_LIMITS(false).visual);
     expect(doc.tracks.find((t) => t.id === MUSIC)?.kind).toBe('audio');
     expect(new Set(doc.tracks.map((t) => t.id)).size).toBe(doc.tracks.length);
-    expect(doc.clips.length).toBeLessThanOrEqual(L.clips);
+    const lim = limitsFor(doc.kind, false);
+    expect(doc.clips.length).toBeLessThanOrEqual(lim.clips);
     for (const c of doc.clips) {
       expect(pictures.some((t) => t.id === c.track)).toBe(true);
-      expect(Number.isFinite(c.start) && c.start >= 0).toBe(true);
+      expect(Number.isFinite(c.start) && c.start >= 0 && c.start < lim.seconds).toBe(true);
       expect('transform' in c).toBe(false);
       if ('tf' in c) {
         expect(isIdentity(c.tf)).toBe(false);
@@ -1106,6 +1359,18 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
     );
     expect(r.doc.tracks.map((t) => t.id)).toEqual([MAIN_VIDEO, 'O1', 'O2', 'O3', MUSIC]);
     expect(r.doc.clips.some((c) => c.id === 'o2b')).toBe(false);
-    expect(r.dropped.join(' ')).toMatch(/up to 4 picture/);
+    expect(r.dropped).toEqual([
+      leftOut('Overlay 4'),
+      leftOut('Overlay 5'),
+      leftOut('Overlay 6'),
+      'A clip on a missing or sound track was left out.',
+    ]);
+  });
+
+  it('toDocument never writes a transform out of range', () => {
+    const g = mergeProject(fixture(), true).doc;
+    const wild = { x: 9, y: -9, w: 0, rot: 999, opacity: 7, radius: -1 };
+    const out = toDocument({ ...g, clips: g.clips.map((c) => (c.id === 'o1a' ? { ...c, tf: wild } : c)) });
+    expect(out.clips.find((c) => c.id === 'o1a')!.transform).toEqual(clampTransform(wild));
   });
 });

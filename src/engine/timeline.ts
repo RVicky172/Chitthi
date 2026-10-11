@@ -497,7 +497,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
     clips: p.clips.map(
       ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform }) => {
-        const t = tf ?? transform;
+        const t = clampTransform(tf ?? transform);
         return {
           id,
           track,
@@ -511,9 +511,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
           motion,
           fade,
           volume,
-          ...(!t || isIdentity(t)
-            ? {}
-            : { transform: { x: t.x, y: t.y, w: t.w, rot: t.rot, opacity: t.opacity, radius: t.radius } }),
+          ...(isIdentity(t) ? {} : { transform: t }),
         };
       },
     ),
@@ -595,23 +593,38 @@ function upgrade(o: Record<string, unknown>): Record<string, unknown> {
 /**
  * The picture clips track by track, in the tracks' order: the main track packed (Magnetic on) or, like every overlay
  * track, its clips in start order (equal starts keep the document's order) with a clip that overlaps the one before it
- * moved to that clip's end, never dropped, with a reason (D-009 D3, 203).
+ * moved to that clip's end, with a reason (D-009 D3, 203). A clip that then starts at or past the project's length
+ * limit (`maxSeconds`) is left out, with a reason.
  */
-function placeClips<C extends TimedClip>(clips: C[], tracks: Track[], magnetic: boolean, dropped: string[]): C[] {
+function placeClips<C extends TimedClip>(
+  clips: C[],
+  tracks: Track[],
+  magnetic: boolean,
+  maxSeconds: number,
+  dropped: string[],
+): C[] {
   const out: C[] = [];
+  const limit = maxSeconds % 60 ? `${maxSeconds}-second` : `${maxSeconds / 60}-minute`;
+  const fits = (c: C) => {
+    if (c.start < maxSeconds) return true;
+    dropped.push(`A clip didn’t fit within the ${limit} limit and was left out.`);
+    return false;
+  };
   for (const t of tracks.filter(isVisual)) {
     const on = clips.filter((c) => c.track === t.id);
     if (t.id === MAIN_VIDEO && magnetic) {
-      out.push(...pack(on));
+      out.push(...pack(on).filter(fits));
       continue;
     }
     const where = t.id === MAIN_VIDEO ? 'the video track' : `the ${t.name} track`;
     let end = 0;
     for (const c of on.sort((a, b) => a.start - b.start)) {
       const start = c.start < end - 1e-6 ? end : c.start;
+      const placed = start === c.start ? c : { ...c, start };
+      if (!fits(placed)) continue;
       if (start !== c.start) dropped.push(`Two clips overlapped on ${where}; one was moved to after the other.`);
       end = Math.max(end, start + clipLength(c));
-      out.push(start === c.start ? c : { ...c, start });
+      out.push(placed);
     }
   }
   return out;
@@ -619,18 +632,19 @@ function placeClips<C extends TimedClip>(clips: C[], tracks: Track[], magnetic: 
 
 /**
  * A clip's `transform` from a document as its `tf`: undefined at the identity (or when missing), clamped otherwise; a
- * reason when a field was out of range, missing or unreadable.
+ * reason when it had no number to read, or a field was out of range or missing.
  */
 function readTransform(v: unknown, dropped: string[]): ClipTransform | undefined {
   if (v === undefined) return undefined;
   const o = obj(v);
+  const keys = Object.keys(TF_RANGE) as (keyof ClipTransform)[];
   const tf = clampTransform((o ?? {}) as Partial<ClipTransform>);
-  if (!o || (Object.keys(TF_RANGE) as (keyof ClipTransform)[]).some((k) => o[k] !== tf[k]))
-    dropped.push(
-      o
-        ? 'A clip’s position and size were out of range or incomplete and were adjusted.'
-        : 'A clip’s position and size couldn’t be read; it fills the frame.',
-    );
+  if (!o || !keys.some((k) => typeof o[k] === 'number' && Number.isFinite(o[k]))) {
+    dropped.push('A clip’s position and size couldn’t be read; it fills the frame.');
+    return undefined;
+  }
+  if (keys.some((k) => o[k] !== tf[k]))
+    dropped.push('A clip’s position and size were out of range or incomplete and were adjusted.');
   return isIdentity(tf) ? undefined : tf;
 }
 
@@ -716,17 +730,20 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
             : t.kind === 'video'
               ? 'overlay'
               : (t.kind as TrackKind);
+      // The main video and music tracks never count against the limits: a slot is kept for each until it is read.
+      const audio = kindT === 'audio';
       const full =
-        kindT === 'audio'
-          ? tracks.filter((x) => x.kind === 'audio').length >= T.audio
-          : tracks.filter(isVisual).length >= T.visual;
+        t.id !== MAIN_VIDEO &&
+        t.id !== MUSIC &&
+        tracks.filter(audio ? (x) => x.kind === 'audio' : isVisual).length >=
+          (audio ? T.audio : T.visual) - (tracks.some((x) => x.id === (audio ? MUSIC : MAIN_VIDEO)) ? 0 : 1);
+      const name = text(t.name, 40) || (audio ? 'Audio' : kindT === 'overlay' ? 'Overlay' : 'Video');
       if (full) {
         dropped.push(
-          `A project holds up to ${T.visual} picture and ${T.audio} sound tracks here; “${text(t.name, 40)}” was left out.`,
+          `A project holds up to ${T.visual} picture and ${T.audio} sound tracks here; “${name}” was left out.`,
         );
         continue;
       }
-      const name = text(t.name, 40) || (kindT === 'audio' ? 'Audio' : kindT === 'overlay' ? 'Overlay' : 'Video');
       if (kindT === 'overlay' && t.kind === 'video')
         dropped.push(`The “${name}” track became an overlay track: a project has one main video track.`);
       tracks.push({
@@ -734,21 +751,14 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         kind: kindT,
         name,
         hidden: t.hidden === true,
-        muted: t.muted === true,
+        // The main track has Hide only (201 D2): its clips' sound is set per clip.
+        muted: kindT !== 'video' && t.muted === true,
         locked: t.locked === true,
       });
     }
+    // Missing ones are added: the slots kept for them mean no other track has to go.
     for (const d of defaultTracks())
-      if (!tracks.some((t) => t.id === d.id)) {
-        if (d.kind === 'video' && tracks.filter(isVisual).length >= T.visual)
-          tracks.splice(tracks.findLastIndex(isVisual), 1);
-        if (d.kind === 'audio' && tracks.filter((t) => t.kind === 'audio').length >= T.audio)
-          tracks.splice(
-            tracks.findLastIndex((t) => t.kind === 'audio'),
-            1,
-          );
-        tracks.splice(d.kind === 'video' ? 0 : tracks.length, 0, d);
-      }
+      if (!tracks.some((t) => t.id === d.id)) tracks.splice(d.kind === 'video' ? 0 : tracks.length, 0, d);
     // The main track is the bottom picture track: nothing is drawn under it (203 Q10).
     const first = tracks.findIndex(isVisual),
       main = tracks.findIndex((t) => t.id === MAIN_VIDEO);
@@ -857,7 +867,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         fadeOut,
         magnetic,
         tracks,
-        clips: placeClips(clips, tracks, magnetic, dropped),
+        clips: placeClips(clips, tracks, magnetic, L.seconds, dropped),
         audio,
         layers,
         media,
