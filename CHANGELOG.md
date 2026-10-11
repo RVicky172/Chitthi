@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Roadmap dashboard (development tool): copyable task briefs, phase filtering, prerequisite and dependent links,
+  feature outcome summaries, the recorded update date and clearer next-task states.
 - Video editor: **edit tools** on the timeline. **Roll** moves a cut between two clips without changing the video's
   length, **Slip** picks which part of a video clip plays without moving it, and **Slide** moves a clip between its
   neighbours. Pick them from the transport or with V / R / Y / U.

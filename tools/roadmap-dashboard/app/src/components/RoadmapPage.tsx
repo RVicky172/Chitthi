@@ -21,18 +21,30 @@ export function RoadmapPage({ project, params }: Props) {
   const r = project.roadmap;
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState(params.get('status') ?? '');
-  // A new ?q= / ?status= from the address bar (a pasted link: only the hash changes) replaces the filter.
+  const [phase, setPhase] = useState(params.get('phase') ?? '');
+  // A new filter URL from the address bar (a pasted link: only the hash changes) replaces the filters.
   const fromUrl = `${params.get('q') ?? ''}
-${params.get('status') ?? ''}`;
+${params.get('status') ?? ''}
+${params.get('phase') ?? ''}`;
   const [seenUrl, setSeenUrl] = useState(fromUrl);
   if (seenUrl !== fromUrl) {
     setSeenUrl(fromUrl);
     setQ(params.get('q') ?? '');
     setStatus(params.get('status') ?? '');
+    setPhase(params.get('phase') ?? '');
   }
   const reduced = useReducedMotion();
   const live = useLiveChanges(project);
   const road = useMemo(() => (r ? buildRoad(r, project.features) : null), [r, project.features]);
+  const phaseByItem = useMemo(() => {
+    const result = new Map<string, string>();
+    if (r) {
+      for (const phaseId of r.phases.order) {
+        for (const id of r.phases.byId[phaseId]?.items ?? []) result.set(id, phaseId);
+      }
+    }
+    return result;
+  }, [r]);
   const today = localToday();
   // Open at ?at= or at the current stop, once (later data refreshes keep the scroll: 404's AC-12).
   const opened = useRef(false);
@@ -55,16 +67,18 @@ ${params.get('status') ?? ''}`;
       </>
     );
 
-  const update = (next: { q?: string; status?: string }) => {
+  const update = (next: { q?: string; status?: string; phase?: string }) => {
     const nq = next.q ?? q;
     const ns = next.status ?? status;
+    const np = next.phase ?? phase;
     setQ(nq);
     setStatus(ns);
-    replaceParams({ q: nq.trim() || null, status: ns || null });
+    setPhase(np);
+    replaceParams({ q: nq.trim() || null, status: ns || null, phase: np || null });
   };
   const t = totals(r, project.features);
-  const filtering = Boolean(q.trim() || status);
-  const matches = Object.entries(r.items.byId).filter(([id, item]) => matchItem({ id, ...item }, { q, status }));
+  const filtering = Boolean(q.trim() || status || phase);
+  const matches = Object.entries(r.items.byId).filter(([id, item]) => matchItem({ id, ...item, phase: phaseByItem.get(id) }, { q, status, phase }));
   // Filtering dims the stops that don't match (405 D4); the road and every stop stay in place.
   const matchSet = filtering ? new Set(matches.map(([id]) => id)) : undefined;
 
@@ -84,6 +98,9 @@ ${params.get('status') ?? ''}`;
         <Stat label="Blocked tasks" value={t.tasks.blocked} warn={t.tasks.blocked > 0} />
         <Stat label="Open questions" value={t.openQuestions} warn={t.openQuestions > 0} />
       </dl>
+      <p className="roadmap-updated">
+        Roadmap updated <time dateTime={r.updated}>{r.updated}</time>
+      </p>
 
       <Problems problems={project.problems} />
 
@@ -93,6 +110,17 @@ ${params.get('status') ?? ''}`;
         <label className="field search">
           <span>Search</span>
           <input type="search" value={q} placeholder="Number, title or work item" onChange={(e) => update({ q: e.target.value })} />
+        </label>
+        <label className="field phase">
+          <span>Phase</span>
+          <select value={phase} onChange={(e) => update({ phase: e.target.value })}>
+            <option value="">All phases</option>
+            {r.phases.order.map((phaseId) => (
+              <option key={phaseId} value={phaseId}>
+                {r.phases.byId[phaseId].title}
+              </option>
+            ))}
+          </select>
         </label>
         <div className="chips" role="group" aria-label="Status">
           <button type="button" className="chip" aria-pressed={!status} onClick={() => update({ status: '' })}>

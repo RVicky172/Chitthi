@@ -30,10 +30,16 @@ test.beforeAll(async () => {
   const rm = json(join(root, 'specs/roadmap.json'));
   rm.currentPhase = 'other';
   rm.items.byId['405'].status = 'in-progress';
+  rm.items.byId['202'].status = 'in-progress';
+  rm.items.byId['202'].needs = ['201'];
+  rm.items.byId['203'].needs = ['202'];
+  rm.items.byId['204'].needs = ['203'];
+  rm.items.byId['205'].needs = ['201'];
   save(join(root, 'specs/roadmap.json'), rm);
   const fp = join(root, 'specs/features/405-roadmap-revamp/feature.json');
   const f = json(fp);
   f.status = 'in-progress';
+  f.spec.summary = '';
   const ids: string[] = f.tasks.items.order;
   for (const id of ids) {
     f.tasks.items.byId[id].status = 'todo';
@@ -41,7 +47,7 @@ test.beforeAll(async () => {
   }
   const [a, b, c, d] = ids;
   Object.assign(f.tasks.items.byId[a], { status: 'done', doneOn: new Date().toISOString().slice(0, 10) });
-  Object.assign(f.tasks.items.byId[b], { status: 'in-progress', startedOn: '2026-10-10' });
+  Object.assign(f.tasks.items.byId[b], { status: 'in-progress', startedOn: '2026-10-10', test: 'npx vitest run task.test.ts' });
   Object.assign(f.tasks.items.byId[c], { status: 'blocked', blockedReason: 'Waits for the e2e maintainer.' });
   void d;
   save(fp, f);
@@ -96,6 +102,20 @@ test.describe('views and links (T040: AC-8, AC-15)', () => {
       await expect(page.getByRole('tab', { selected: true })).toBeVisible();
     }
     expect(errors).toEqual([]);
+  });
+
+  test('feature outcome uses its summary or falls back to its first user story beside progress', async ({ page }) => {
+    const f405 = json(join(root, 'specs/features/405-roadmap-revamp/feature.json'));
+    const firstStoryId = f405.spec.stories.order[0];
+    const firstStory = f405.spec.stories.byId[firstStoryId].text;
+    await open(page, '#/feature/405/board');
+    await expect(page.locator('.feature-outcome')).toContainText(firstStory);
+    await expect(page.locator('.feature-score')).toBeVisible();
+
+    const f406 = json(join(root, 'specs/features/406-roadmap-actionable-workflow/feature.json'));
+    await open(page, '#/feature/406/board');
+    await expect(page.locator('.feature-outcome')).toContainText(f406.spec.summary);
+    await expect(page.locator('.feature-score')).toBeVisible();
   });
 
   test('stops with a spec link to their board; items without one are not links', async ({ page }) => {
@@ -184,7 +204,140 @@ test.describe('the road (T041: AC-3, AC-4, AC-5, AC-7, AC-9, AC-15)', () => {
     await expect(page.locator('.stop.is-dim').first()).toContainText('not matching');
     await expect(page.getByRole('search').locator('.count')).toHaveText(`${done.length} of ${Object.keys(rm.items.byId).length} items`);
   });
+
+  test('road stops link recorded prerequisites and downstream dependents with accurate waiting state', async ({ page }) => {
+    await open(page, '#/');
+
+    const waiting = page.locator('#stop-203 .stop-dependencies');
+    await expect(waiting.getByRole('link', { name: '202' })).toHaveAttribute('href', '#/feature/202/board');
+    await expect(waiting).toContainText('Needs');
+    await expect(waiting).toContainText('202 (unfinished)');
+    await expect(waiting.getByRole('link', { name: '204' })).toHaveAttribute('href', '#/feature/204/board');
+    await expect(waiting).toContainText('Needed by');
+
+    const complete = page.locator('#stop-202 .stop-dependencies');
+    await expect(complete).toContainText('201 (complete)');
+    await expect(complete).not.toContainText('Waiting');
+    await expect(page.locator('#stop-205 .stop-dependencies')).not.toContainText('Waiting');
+  });
+
+  test('phase, status and search filters combine, clear independently and persist in the URL', async ({ page }) => {
+    const rm = json(join(root, 'specs/roadmap.json'));
+    const phase = 'phase-2';
+    const q = 'video';
+    const status = 'done';
+    const matches = rm.phases.byId[phase].items.filter((id: string) => rm.items.byId[id].status === status && rm.items.byId[id].title.toLowerCase().includes(q));
+    await open(page, `#/?q=${q}&status=${status}`);
+
+    const phaseSelect = page.getByRole('combobox', { name: 'Phase' });
+    await phaseSelect.selectOption(phase);
+    await expect(page).toHaveURL(new RegExp(`phase=${phase}`));
+    await expect(page).toHaveURL(new RegExp(`q=${q}`));
+    await expect(page).toHaveURL(new RegExp(`status=${status}`));
+    await expect(page.getByRole('search').locator('.count')).toHaveText(`${matches.length} of ${Object.keys(rm.items.byId).length} items`);
+
+    await phaseSelect.selectOption('');
+    await expect(page).not.toHaveURL(/phase=/);
+    await expect(page).toHaveURL(new RegExp(`q=${q}`));
+    await expect(page).toHaveURL(new RegExp(`status=${status}`));
+    await page.getByRole('button', { name: 'All' }).click();
+    await expect(page).not.toHaveURL(/status=/);
+    await expect(page).toHaveURL(new RegExp(`q=${q}`));
+    await page.getByRole('search').getByRole('searchbox', { name: 'Search' }).fill('');
+    await expect(page).not.toHaveURL(/(?:q|status|phase)=/);
+    await expect(page.getByRole('search').locator('.count')).toHaveText(`${Object.keys(rm.items.byId).length} items`);
+  });
+
+  test('phase filter is keyboard operable and fits at 360 px', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await open(page, '#/');
+    const phaseSelect = page.getByRole('combobox', { name: 'Phase' });
+    await phaseSelect.focus();
+    await expect(phaseSelect).toBeFocused();
+    await phaseSelect.press('ArrowDown');
+    await phaseSelect.press('Enter');
+    await expect(phaseSelect).not.toHaveValue('');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  });
+
+  test('shows the recorded roadmap update date and labels Pace as historical', async ({ page }) => {
+    await open(page, '#/');
+    const rm = json(join(root, 'specs/roadmap.json'));
+    await expect(page.locator('time[datetime]')).toHaveAttribute('datetime', rm.updated);
+    await expect(page.locator('time[datetime]')).toContainText(rm.updated);
+    await expect(page.locator('.activity')).toContainText('Historical completed-task data, not a delivery forecast');
+    await expect(page.locator('.activity')).not.toContainText(/forecast date|confidence/i);
+  });
+
+  test('hero distinguishes running, first todo, blocked-only and all-complete states', async ({ page }) => {
+    const fpath = join(root, 'specs/features/405-roadmap-revamp/feature.json');
+    const original = json(fpath);
+    const f = json(fpath);
+    const ids: string[] = f.tasks.items.order;
+    const running = ids.find((id) => f.tasks.items.byId[id].status === 'in-progress')!;
+    const blocked = ids.find((id) => f.tasks.items.byId[id].status === 'blocked')!;
+    const firstTodo = ids.find((id) => f.tasks.items.byId[id].status === 'todo')!;
+    await open(page, '#/');
+    await expect(page.locator('section[aria-labelledby="hero-now"]')).toContainText(running);
+    await expect(page.locator('section[aria-labelledby="hero-next"] a')).toContainText(firstTodo);
+    await expect(page.locator('section[aria-labelledby="hero-next"] a')).not.toContainText(blocked);
+    await expect(page.locator('section[aria-labelledby="hero-blocked"] a')).toContainText(blocked);
+
+    for (const id of ids) Object.assign(f.tasks.items.byId[id], { status: 'done', doneOn: '2026-10-11', blockedReason: null });
+    Object.assign(f.tasks.items.byId[blocked], { status: 'blocked', doneOn: null, blockedReason: 'Waits for the e2e maintainer.' });
+    save(fpath, f);
+    execFileSync(process.execPath, [CLI, 'sync', '--root', root]);
+    await open(page, '#/');
+    await expect(page.locator('section[aria-labelledby="hero-next"]')).toContainText('No todo tasks remain.');
+    await expect(page.locator('section[aria-labelledby="hero-blocked"] a')).toContainText(blocked);
+    await expect(page.locator('section[aria-labelledby="hero-blocked"]')).toContainText('Waits for the e2e maintainer.');
+
+    for (const id of ids) Object.assign(f.tasks.items.byId[id], { status: 'done', doneOn: '2026-10-11', blockedReason: null });
+    save(fpath, f);
+    execFileSync(process.execPath, [CLI, 'sync', '--root', root]);
+    await open(page, '#/');
+    await expect(page.locator('section[aria-labelledby="hero-now"]')).toContainText('Nothing in progress.');
+    await expect(page.locator('section[aria-labelledby="hero-next"]')).toContainText('No todo tasks remain.');
+    await expect(page.locator('#hero-blocked')).toHaveCount(0);
+    await expect(page.locator('.hero .ring')).toHaveAttribute('aria-label', `${current} tasks done: ${ids.length} of ${ids.length}`);
+    save(fpath, original);
+    execFileSync(process.execPath, [CLI, 'sync', '--root', root]);
+  });
 });
+
+test.describe('task briefs (406 AC-2)', () => {
+  test('copies a task brief and announces success', async ({ page }) => {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await open(page, `#/feature/${current}/board`);
+    const board = page.getByRole('tabpanel', { name: /Board/ });
+    const button = page.getByRole('button', { name: `Copy brief for ${runningTask()}` });
+    await button.click();
+    await expect(board.getByRole('status')).toContainText(`${runningTask()} brief copied.`);
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toContain(`Task: ${runningTask()}`);
+    expect(copied).toContain('Proving test:');
+    expect(copied).toContain('npx vitest run task.test.ts');
+  });
+
+  test('announces a clipboard write failure and does not claim success', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async () => Promise.reject(new Error('permission denied')) },
+      });
+    });
+    await open(page, `#/feature/${current}/board`);
+    const board = page.getByRole('tabpanel', { name: /Board/ });
+    await page.getByRole('button', { name: `Copy brief for ${runningTask()}` }).click();
+    await expect(board.getByRole('alert')).toContainText('permission denied');
+    await expect(board.getByRole('status')).not.toContainText('brief copied');
+  });
+});
+
+function runningTask() {
+  const f = json(join(root, `specs/features/${current}-roadmap-revamp/feature.json`));
+  return f.tasks.items.order[1] as string;
+}
 
 test.describe('live changes and stillness (T042: AC-10, AC-11)', () => {
   test('a task finished from the CLI lights up its stop and is announced within 3 s; nothing on first load', async ({ page }) => {

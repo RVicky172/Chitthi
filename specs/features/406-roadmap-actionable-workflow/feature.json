@@ -1,0 +1,511 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "406",
+  "title": "Roadmap improvements: next actions, task briefs and planning clarity",
+  "workItem": null,
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-11",
+    "approved": "2026-10-11",
+    "started": "2026-10-11",
+    "done": "2026-10-11"
+  },
+  "git": {
+    "branch": "feat/406-roadmap-actionable-workflow"
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "The roadmap dashboard already shows project progress, but contributors still have to search feature boards and reread specs to find the next useful task or give an AI agent enough context to start. Make the roadmap actionable: surface the next task and its blockers, copy a concise task brief, show dependencies and user outcomes, and help people find work while making update freshness and estimate uncertainty clear. Use only project data already recorded unless the maintainer explicitly approves adding metadata.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a maintainer, I want the roadmap to identify the next actionable task and explain blockers, so that I can begin work without searching through multiple feature boards."
+        },
+        "US-2": {
+          "text": "As a maintainer using AI agents, I want to copy a compact, self-contained brief for a task, so that an agent receives the relevant instructions without rereading unrelated project context."
+        },
+        "US-3": {
+          "text": "As a contributor, I want to understand what a feature unlocks and what user outcome it delivers, so that I can prioritize work by its value and dependencies."
+        },
+        "US-4": {
+          "text": "As a contributor, I want to search and filter roadmap work, so that I can quickly find relevant features and tasks as the roadmap grows."
+        },
+        "US-5": {
+          "text": "As a maintainer, I want to see when roadmap data was updated and distinguish measured facts from uncertain estimates, so that progress indicators do not imply unsupported certainty."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6"
+      ],
+      "byId": {
+        "AC-1": {
+          "text": "For the current in-progress feature, the roadmap distinguishes every running task from the first remaining todo task in task order; when there is no todo task, it shows the recorded blockers or says no task remains. It never presents a blocked task as the next todo task.",
+          "proof": "unit + e2e",
+          "group": "Actionable work",
+          "done": true
+        },
+        "AC-2": {
+          "text": "A contributor can copy a task brief containing the task ID and text, its feature, relevant acceptance criteria and plan context, listed files, and proving test when those fields exist. The brief is copied with one action, excludes unrelated feature history, and reports copy failures accessibly.",
+          "proof": "unit + e2e",
+          "group": "Actionable work",
+          "done": true
+        },
+        "AC-3": {
+          "text": "Each roadmap stop with recorded prerequisites or downstream dependents exposes links to those roadmap entries. An unfinished prerequisite is identified as such; a feature without unfinished prerequisites is not shown as waiting.",
+          "proof": "unit + e2e",
+          "group": "Planning clarity",
+          "done": true
+        },
+        "AC-4": {
+          "text": "A feature detail view shows its outcome description alongside task progress, using the feature summary or first user story when available, without changing the underlying feature specification.",
+          "proof": "e2e",
+          "group": "Planning clarity",
+          "done": true
+        },
+        "AC-5": {
+          "text": "The existing roadmap title search and status filter are extended with a phase filter; each filter can be cleared independently and together they restore or narrow the same set of stops. Controls work by keyboard and fit a 360 CSS-pixel viewport without horizontal page scrolling.",
+          "proof": "unit + e2e",
+          "group": "Discovery",
+          "done": true
+        },
+        "AC-6": {
+          "text": "The dashboard shows the update date recorded in roadmap.json and labels the existing pace as historical completed-task data, not a delivery forecast. It does not invent a timestamp, forecast, or confidence value that the source data does not provide.",
+          "proof": "unit + e2e",
+          "group": "Trust",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "How should the next task be chosen when there are several eligible tasks or task-level dependencies are not explicitly recorded? Proposed: use the active feature first, then its task order; never infer task dependencies beyond recorded blockers and feature dependencies.",
+          "open": false
+        },
+        "Q2": {
+          "text": "Should roadmap search and filters include only metadata already present, or should this feature add tags for work area and platform? Proposed: ship title search plus phase/status filters first; defer new tags until there is a maintained source of truth.",
+          "open": false
+        },
+        "Q3": {
+          "text": "What should the task brief include when a task has no listed files, test, plan section, or acceptance criteria, and should the brief have a strict length budget? Proposed: include available fields only, state which context is missing, and keep generated brief text under 2,000 characters without truncating the task instruction or proving test.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-11",
+        "text": "Created draft from the requested roadmap improvements: next actions, copyable task briefs, dependencies, user outcomes, discovery filters, and freshness/estimate clarity."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "Maintainer accepted the proposed defaults for Q1–Q3; questions closed for planning."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: Roadmap filtering and next-task selection should complete in under 100 ms for 1,000 roadmap tasks on a mid-range laptop.\n- Accessibility: All added controls work by keyboard, expose accessible names and status, retain WCAG 2.2 AA contrast, and respect reduced motion.\n- Compatibility: Preserve the local roadmap dashboard workflow and work at 360 CSS pixels and wider.\n- Privacy: Use only repository roadmap/spec data; add no analytics, network calls, account, or backend."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Automatically assigning tasks or agents, editing feature specs from the dashboard, estimating delivery dates from historical data, and adding roadmap analytics.\n- Adding task-area or platform metadata before its source of truth is agreed."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved. Build on existing roadmap behavior rather than reimplementing the road, hero, dependency detail links, story tab, or title/status search from 405.",
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "§1 — Next-work clarity: retain the current hero's in-progress and first-todo task model, but make its no-todo state explicit and keep blocked work visibly separate. Add a pure helper/test only if the current progress model cannot prove that behavior.\n\n§2 — Copyable agent briefs: add a pure formatter for a selected task using the already-loaded FeatureData: feature name/ID, task ID and full text, covered acceptance criteria, files and proving test when present, plus a short plan header/context. Keep the output within 2,000 characters without truncating task text or test; if the required fields cannot fit, report a clear copy failure. Add a one-action copy control to each board task card and an accessible success/error live message.\n\n§3 — Dependencies and user outcomes: retain feature-page prerequisite/unlock links and show the same recorded relationships on roadmap stops. On feature detail, surface the feature summary (or first user story if the summary is empty) beside task progress.\n\n§4 — Discovery and trust: extend the existing search/status filter with phase selection, preserving independent filters in the URL and the current dimmed-stop behavior. Show `roadmap.updated` and label Pace as recent historical activity, not a forecast. Add responsive and accessible browser coverage; no new metadata, dependency, network call or backend."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "- Extend the roadmap filter input with an optional `phase` key; pass each stop's phase ID into the existing `matchItem` predicate.\n- Add a pure `taskBrief(feature, taskId)` formatter that resolves the task, covered criterion texts, files, test and bounded plan context from a `Feature` object. Return a string or a typed failure for an unknown task / required content exceeding the 2,000-character budget.\n- Do not change the dashboard API schema: all required task data is available from the existing feature endpoint and the board already loads it."
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- Preserve the URL-driven filter pattern (`q`, `status`, plus `phase`) and update it when a new roadmap hash is opened in the same tab.\n- Use the browser Clipboard API from a user-initiated button; announce success/failure through the board's existing `role=status` region and do not silently swallow a rejection.\n- Render dependency relationships as links using the existing roadmap dependency helpers and render markdown through the existing safe `Md` component.\n- Keep all filtering and brief construction pure and local; add no package or service."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test file | Type |\n| --- | --- | --- |\n| AC-1 | `tools/roadmap-dashboard/e2e/road.e2e.ts` | e2e: running, next todo, blocked and no remaining task states |\n| AC-2 | `tools/roadmap-dashboard/app/src/lib/taskBrief.test.ts`; `tools/roadmap-dashboard/e2e/road.e2e.ts` | unit + e2e: exact fields, missing optional fields, 2,000-character boundary, clipboard action and failure announcement |\n| AC-3 | `tools/roadmap-dashboard/app/src/lib/roadmap.test.ts`; `tools/roadmap-dashboard/e2e/road.e2e.ts` | unit + e2e: prerequisite/dependent links and non-blocking when no unfinished prerequisite exists |\n| AC-4 | `tools/roadmap-dashboard/e2e/road.e2e.ts` | e2e: summary/story appears next to progress |\n| AC-5 | `tools/roadmap-dashboard/app/src/lib/filter.test.ts`; `tools/roadmap-dashboard/e2e/road.e2e.ts` | unit + e2e: phase/status/search combination, clearing filters, URL updates, keyboard and 360 px layout |\n| AC-6 | `tools/roadmap-dashboard/e2e/road.e2e.ts` | e2e: recorded update date and historical Pace label; no forecast shown |\n\nRun `npx vitest run tools/roadmap-dashboard/app/src/lib/taskBrief.test.ts tools/roadmap-dashboard/app/src/lib/filter.test.ts tools/roadmap-dashboard/app/src/lib/roadmap.test.ts`, then `npm run test:roadmap`."
+      },
+      {
+        "kind": "files",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      }
+    ],
+    "files": [
+      {
+        "file": "tools/roadmap-dashboard/app/src/lib/taskBrief.ts",
+        "change": "new",
+        "purpose": "Format a bounded, task-specific agent brief using existing feature data."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/lib/taskBrief.test.ts",
+        "change": "new",
+        "purpose": "Prove brief contents, missing fields and length boundary."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/lib/filter.ts",
+        "change": "modify",
+        "purpose": "Add phase matching to the existing pure search/status predicate."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/lib/filter.test.ts",
+        "change": "modify",
+        "purpose": "Cover phase and combined filter behavior."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/lib/roadmap.ts",
+        "change": "modify",
+        "purpose": "Expose readiness/relationship helpers only if existing helpers do not cover stop-level presentation."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx",
+        "change": "modify",
+        "purpose": "Add phase filter control, update-date disclosure, and truthful Pace label."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/components/Road.tsx",
+        "change": "modify",
+        "purpose": "Expose recorded prerequisite and unlock links on road stops."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/components/FeaturePage.tsx",
+        "change": "modify",
+        "purpose": "Show the outcome summary beside feature task progress."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/components/Board.tsx",
+        "change": "modify",
+        "purpose": "Add a one-action copy-brief control for task cards with accessible feedback."
+      },
+      {
+        "file": "tools/roadmap-dashboard/app/src/styles/app.css",
+        "change": "modify",
+        "purpose": "Style new controls and outcome/relationship text responsively using existing theme tokens."
+      },
+      {
+        "file": "tools/roadmap-dashboard/e2e/road.e2e.ts",
+        "change": "modify",
+        "purpose": "Verify roadmap and board UI behavior, accessibility and narrow viewport."
+      }
+    ],
+    "risks": [
+      {
+        "text": "Clipboard writes may fail in an unsupported or denied browser context. Show an explicit accessible failure and keep the brief available only through the same controlled UI flow; never report success unless writeText resolves."
+      },
+      {
+        "text": "Task content can exceed the brief size budget. Preserve task text and proving test; return an actionable error instead of silently truncating required instructions."
+      },
+      {
+        "text": "Roadmap feature dependencies are recorded but task-level dependencies are not. Never infer task readiness beyond the accepted active-feature/task-order default or invent task dependencies."
+      },
+      {
+        "text": "Added phase controls or relationship labels could widen the page on phones. Verify at 360 CSS pixels and in light/dark theme browser checks."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "The maintainer accepted the Q1–Q3 defaults; this approved spec and plan precede implementation."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Pure formatter and filter behavior get unit tests; dashboard interactions get Playwright coverage."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "Use existing React, Clipboard API, and dashboard helpers; add no dependencies."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "Update progress and current state during verification."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "No paid capability or restriction is introduced."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "All dashboard behavior stays local and reads existing repository data."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "No library, model, binary, font or asset is added."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "Not applicable to this development dashboard; no product renderer changes."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No Electron IPC or desktop shell changes."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "Dashboard remains development-only; added controls are keyboard-accessible, responsive and covered by axe checks."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "✅",
+        "notes": "This is a development dashboard feature, not a user-facing studio feature or new agent tool."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "Implement one focused dashboard improvement at a time. Test pure formatting/filter behavior before UI changes, and use the existing Playwright roadmap suite for visible behavior.",
+    "sections": [
+      {
+        "title": "Copyable task briefs"
+      },
+      {
+        "title": "Roadmap discovery and context"
+      },
+      {
+        "title": "Clarity and verification"
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T002",
+        "T010",
+        "T011",
+        "T020",
+        "T030",
+        "T040"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Test-first: add a pure `taskBrief(feature, taskId)` formatter with a 2,000-character limit. Include feature/task identity and full task text, covered criteria, files, proving test, and concise plan context when available; do not truncate required task text or test. Prove unknown tasks, missing optional fields and over-budget required content.",
+          "section": "Copyable task briefs",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/taskBrief.ts",
+            "tools/roadmap-dashboard/app/src/lib/taskBrief.test.ts"
+          ],
+          "test": "npx vitest run tools/roadmap-dashboard/app/src/lib/taskBrief.test.ts",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Added taskBrief formatter with full task instructions, relevant criteria, files, proving test and bounded feature/plan context. Unknown tasks and required content over 2,000 characters return explicit failures; optional context is omitted rather than required content truncated. Focused tests 5/5; npm run check passed, 44 files / 1,359 tests, lint 0 errors (5 existing warnings)."
+          ]
+        },
+        "T002": {
+          "text": "Add a Copy task brief action to each board task card using its loaded feature data. Announce successful copy and surface clipboard errors accessibly; do not report success when the clipboard rejects the write.",
+          "section": "Copyable task briefs",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/Board.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css",
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "npm run test:roadmap (copy success and rejected clipboard write)",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Added Copy brief to task cards, using the new formatter. Success is announced in the board live region; unknown/overlong briefs and Clipboard API failures are surfaced as accessible errors without a success message. `npm run test:roadmap -- -g 'task briefs'`: 2/2 passed. `npm run check`: typecheck and specs:check passed, lint 0 errors (5 existing warnings), 44 unit files / 1,359 tests passed."
+          ]
+        },
+        "T010": {
+          "text": "Test-first: extend the roadmap match predicate to filter by phase in addition to its existing title search and status filter; verify independent and combined filters across 1,000 synthetic items.",
+          "section": "Roadmap discovery and context",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/lib/filter.ts",
+            "tools/roadmap-dashboard/app/src/lib/filter.test.ts"
+          ],
+          "test": "npx vitest run tools/roadmap-dashboard/app/src/lib/filter.test.ts",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Added optional phase matching to matchItem; focused filter tests passed (4/4), including combined phase/status/query filtering and 1,000-item behavior. Repository check reached Vitest but failed before executing tests: 44/44 suites error with TypeError reading undefined.config, including unrelated files."
+          ]
+        },
+        "T011": {
+          "text": "Add a phase selector to the existing roadmap filters, preserve phase/search/status in the URL, and display the recorded roadmap update date and historical Pace label. Verify filter clearing, keyboard access, updated labels, and the 360 px layout.",
+          "section": "Roadmap discovery and context",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/RoadmapPage.tsx",
+            "tools/roadmap-dashboard/app/src/components/Activity.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css",
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "npm run test:roadmap",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Added a phase selector that combines with search/status and persists/clears filters independently in URL parameters; memoized item-to-phase lookup; displayed roadmap.json's recorded update date and labeled Pace as historical completed-task data, not a forecast. Roadmap E2E 22/22 passed (including keyboard/360 px checks); npm run check passed (44 files, 1,361 tests; lint 0 errors, 5 existing warnings)."
+          ]
+        },
+        "T020": {
+          "text": "Show recorded prerequisites and downstream dependents as links on roadmap stops. Keep completed prerequisites distinct from unfinished prerequisites and do not imply blockers when there are none.",
+          "section": "Roadmap discovery and context",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/Road.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css",
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "npm run test:roadmap (prerequisite and unlock links)",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Road stops now show linked prerequisite and dependent roadmap entries outside their main card link; prerequisites are labeled complete or unfinished and no waiting label appears when all needs are done. Focused dependency E2E passed (1/1); npm run check passed (44 files, 1,361 tests; lint 0 errors, 5 existing warnings)."
+          ]
+        },
+        "T030": {
+          "text": "Show the feature's outcome summary beside its task progress on the feature detail page, falling back to the first user story only when the summary is empty.",
+          "section": "Clarity and verification",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/app/src/components/FeaturePage.tsx",
+            "tools/roadmap-dashboard/app/src/styles/app.css",
+            "tools/roadmap-dashboard/e2e/road.e2e.ts"
+          ],
+          "test": "npm run test:roadmap (feature outcome alongside task progress)",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Feature detail shows the spec summary in an Outcome panel in the header alongside task progress; when the summary is blank, it displays the first user story. Browser checks passed for summary and fallback (1/1); npm run check passed (44 files, 1,361 tests; lint 0 errors, 5 existing warnings)."
+          ]
+        },
+        "T040": {
+          "text": "Verify the roadmap hero distinguishes running, first todo, blocked, and all-complete task states for an in-progress feature. Update the hero only if a state is ambiguous, and run the focused dashboard checks.",
+          "section": "Clarity and verification",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tools/roadmap-dashboard/e2e/road.e2e.ts",
+            "tools/roadmap-dashboard/app/src/components/Hero.tsx"
+          ],
+          "test": "npm run test:roadmap (running, first todo, blocked and no remaining task states)",
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-11):** Verified the hero shows all running tasks, the first todo (not a blocked task), recorded blockers when no todo remains, and a full completion state. Clarified the empty Next state as ‘No todo tasks remain.’ Focused hero E2E passed (1/1); roadmap E2E passed (25/25); npm run check passed (44 files, 1,361 tests; lint 0 errors, 5 existing warnings)."
+          ]
+        }
+      }
+    }
+  }
+}

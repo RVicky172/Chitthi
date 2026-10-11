@@ -25,11 +25,14 @@ Ctrl + C stops it. Changes to `specs/` or `memory/` show up in the page within a
   (counting up the first time it comes into view), what it waits on, its age and a **Quiet** mark after 7 days without
   a finished task; phases end with their release (`release` in `roadmap.json`). A **rail** beside the road (a bottom
   bar below 1100 px) marks every phase and stop and the stretch in view, with **Back to now**. Above the road: totals,
-  the check's problems, **Pace** (tasks finished per day over 14 days, and today) and search and status chips (kept in
-  the URL; they dim the stops that don't match). Below it: the "Now" panel from `memory/` and the backlog. A task that
-  changes while the page is open (CLI, board, editor) lights up its stop for 2 s and is announced once to screen
-  readers.
-- **Feature** (`#/feature/202/<tab>`): status, dates, branch, needs / needed by, task progress and its sections, and
+  the check's problems, **Pace** (historical task completions over 14 days and today; not a delivery forecast), the
+  recorded roadmap update date, and search, phase and status filters (kept in the URL; they dim the stops that don't
+  match). Stops link to recorded prerequisites and downstream dependents, labeling unfinished prerequisites. The
+  current feature's hero distinguishes running tasks, the first todo and blocked tasks; its task cards can copy
+  compact agent briefs. Below it: the "Now" panel from `memory/` and the backlog. A task that changes while the page
+  is open (CLI, board, editor) lights up its stop for 2 s and is announced once to screen readers.
+- **Feature** (`#/feature/202/<tab>`): status, dates, branch, needs / needed by, outcome summary beside task progress
+  (falling back to the first user story when needed), its sections, and
   four tabs:
   - **Board**: To do, In progress, Blocked, Done. Drag a card to another column, or use its **Move** button (keyboard
     and touch); blocking asks for a reason; a card that changes column glides there. Filters: section, the criterion

@@ -28,7 +28,8 @@
   (`previewSound.ts`), the can't-export fallback note, `videosAtOnce` web 3 / desktop 5 (1 without VideoDecoder); every
   DoD gate green; maintainer's manual checks (T060) passed in Chrome and the desktop app.
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
-- **Next (roadmap):** merge 204 into `main` (maintainer's call), then 203's plan with 204's limits (web 3, desktop 5).
+- **406 ✔️ Implemented 2026-10-11:** roadmap-actionable-workflow; AC-1–AC-6 proven, all tasks done, README/changelog updated. All DoD gates pass; production e2e 84 passed / 16 skipped serially.
+- **Next (roadmap):** merge 204 into `main` (maintainer's call), then continue 203's plan with 204's limits (web 3, desktop 5).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

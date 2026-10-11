@@ -5,7 +5,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import { roadPath, splitAt, type Point } from '../lib/geometry';
 import { useCountUp, useRevealed, useScrollDraw } from '../lib/motion';
 import type { Region, Road as RoadData, Stop } from '../lib/road';
-import { waitingOn } from '../lib/roadmap';
+import { neededBy, waitingOn } from '../lib/roadmap';
 import { href } from '../route';
 import type { Roadmap } from '../types';
 import { Md, StatusBadge } from './bits';
@@ -185,6 +185,8 @@ function StopView({
   const pct = p && p.tasks.total ? (done / p.tasks.total) * 100 : 0;
   const side = stop.state === 'current' ? 'wide' : stop.index % 2 ? 'right' : 'left';
   const blocked = p?.blocked ?? [];
+  const waiting = waitingOn(roadmap, stop.id);
+  const dependents = neededBy(roadmap, stop.id);
   const body = (
     <>
       <span className="stop-top">
@@ -222,9 +224,6 @@ function StopView({
           </span>
         </span>
       )}
-      {stop.kind !== 'done' && waitingOn(roadmap, stop.id).length > 0 && (
-        <span className="stop-wait">Waiting on {waitingOn(roadmap, stop.id).join(', ')}</span>
-      )}
       {extra?.(stop)}
       {dimmed && <span className="sr-only"> (not matching the filter)</span>}
     </>
@@ -248,6 +247,32 @@ function StopView({
             <div className="stop-card">{body}</div>
           )}
         </>
+      )}
+      {(stop.item.needs.length > 0 || dependents.length > 0) && (
+        <div className="stop-dependencies" aria-label={`Dependencies for ${stop.id}`}>
+          {stop.item.needs.length > 0 && (
+            <span>
+              Needs{' '}
+              {stop.item.needs.map((id, i) => (
+                <span key={id}>
+                  {i > 0 && ', '}
+                  <a href={href(`/feature/${id}/board`)}>{id}</a> {waiting.includes(id) ? '(unfinished)' : '(complete)'}
+                </span>
+              ))}
+            </span>
+          )}
+          {dependents.length > 0 && (
+            <span>
+              Needed by{' '}
+              {dependents.map((id, i) => (
+                <span key={id}>
+                  {i > 0 && ', '}
+                  <a href={href(`/feature/${id}/board`)}>{id}</a>
+                </span>
+              ))}
+            </span>
+          )}
+        </div>
       )}
     </li>
   );
