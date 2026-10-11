@@ -113,16 +113,9 @@ export function Timeline() {
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState(600);
-  // A clip being dragged by its body: `to` is its place in the order (Magnetic on), `at` the time it goes to (off).
-  const [reorder, setReorder] = useState<{ id: string; dx: number; to: number; at?: number } | null>(null);
   const total = useVideo(videoLength);
-  const placed = clips.filter((c) => c.track === MAIN_VIDEO).map((clip, index) => ({ clip, index, start: clip.start, end: clip.start + clipLength(clip) }));
+  const mainClips = clips.filter((c) => c.track === MAIN_VIDEO);
   const width = Math.max(view - 2, total * zoom + 160);
-  // The gaps on the video track (Magnetic off): before the first clip and between clips.
-  const holes = placed.flatMap((p, i) => {
-    const from = i ? placed[i - 1].end : 0;
-    return p.start - from > 1e-6 ? [{ start: from, end: p.start }] : [];
-  });
 
   // Each change to the video track is announced (politely, once a drag settles): the clip and its new times.
   const [said, setSaid] = useState('');
@@ -182,7 +175,7 @@ export function Timeline() {
    */
   const snap = (v: number, skip: { clip?: string; layer?: string } = {}, ev?: { altKey: boolean }) => {
     const s = getVideo();
-    const to = s.snapping && !ev?.altKey ? snapTime(v, snapTargets(placed.map((p) => p.clip), layers, s.t, total, skip), SNAP_PX / zoom) : v;
+    const to = s.snapping && !ev?.altKey ? snapTime(v, snapTargets(mainClips, layers, s.t, total, skip), SNAP_PX / zoom) : v;
     return to === v ? toFrame(v) : to;
   };
   /** Snaps a clip moved to start at `s`: by its start, else by its end. */
@@ -245,19 +238,6 @@ export function Timeline() {
 
   const step = tickStep(zoom);
   const ticks = Array.from({ length: Math.floor(width / zoom / step) + 1 }, (_, i) => i * step);
-  // Where a dragged clip would land: before the first other clip whose middle is right of the dragged clip's centre.
-  const others = (id: string) => placed.filter((q) => q.clip.id !== id);
-  const reorderTarget = (id: string, centreX: number) => {
-    const list = others(id),
-      at = centreX / zoom;
-    const k = list.findIndex((q) => at < (q.start + q.end) / 2);
-    return k < 0 ? list.length : k;
-  };
-  /** The drop marker sits at the start of the clip it will go before (or the end of the last one). */
-  const markerAt = (id: string, to: number) => {
-    const list = others(id);
-    return (list[to]?.start ?? list.at(-1)?.end ?? 0) * zoom;
-  };
 
   return (
     <div className={`tl tl-tool-${tool}`} onKeyDown={onKey}>
@@ -284,125 +264,7 @@ export function Timeline() {
             ))}
           </div>
 
-          <div className={`tl-row tl-video${videoTrack.hidden ? ' tl-off' : ''}`} style={{ height: px(MAIN_VIDEO) }} onPointerDown={seekFrom}>
-            {placed.map((p) => (
-              <ClipBlock
-                key={p.clip.id}
-                clip={p.clip}
-                index={p.index}
-                left={p.start * zoom}
-                width={(p.end - p.start) * zoom}
-                selected={p.clip.id === selected && !layerSel}
-                dragging={reorder?.id === p.clip.id ? reorder.dx : null}
-                locked={videoTrack.locked}
-                onBody={(e) => {
-                  if (refused(p.clip.id)) return;
-                  selectClip(p.clip.id);
-                  selectVLayer(null);
-                  const id = p.clip.id,
-                    len = p.end - p.start,
-                    key = `drag:${id}:${++dragSeq}`,
-                    say = refusals();
-                  // A click (no drag) puts the playhead in the clip, if it isn't there already.
-                  const clicked = (moved: boolean) => {
-                    const now = getVideo().t;
-                    if (!moved && (now < p.start || now >= p.end)) setPlayhead(p.start);
-                  };
-                  if (tool === 'slip' || tool === 'slide') {
-                    const in0 = p.clip.in;
-                    drag(
-                      e,
-                      (dx, ev) => {
-                        const c = current(id);
-                        if (!c) return;
-                        // Slip: a drag right plays a later part of the video; Slide: the clip goes where it's dropped.
-                        if (tool === 'slip') say(slipClip(id, toFrame(dx / zoom) - (c.in - in0), key));
-                        else say(slideClip(id, snapSpan(p.start + dx / zoom, len, id, ev) - c.start, key));
-                      },
-                      clicked,
-                    );
-                  } else if (tool === 'roll') drag(e, () => undefined, clicked);
-                  else if (getVideo().magnetic)
-                    drag(
-                      e,
-                      (dx) => setReorder({ id, dx, to: reorderTarget(id, p.start * zoom + dx + (len * zoom) / 2) }),
-                      (moved) => {
-                        setReorder((r) => {
-                          if (moved && r) moveClipTo(r.id, r.to);
-                          return null;
-                        });
-                        clicked(moved);
-                      },
-                    );
-                  else
-                    // Magnetic off: the block follows the pointer, a marker shows where it lands, and it moves on release.
-                    drag(
-                      e,
-                      (dx, ev) => setReorder({ id, dx, to: 0, at: Math.max(0, snapSpan(p.start + dx / zoom, len, id, ev)) }),
-                      (moved) => {
-                        setReorder((r) => {
-                          if (moved && r?.at !== undefined) say(moveClipToTime(r.id, r.at, key));
-                          return null;
-                        });
-                        clicked(moved);
-                      },
-                    );
-                }}
-                onEdge={(e, side) => {
-                  // Slip and Slide act on the whole clip: the edge passes the press on to the body.
-                  if (tool === 'slip' || tool === 'slide') return;
-                  if (refused(p.clip.id)) return;
-                  selectClip(p.clip.id);
-                  const id = p.clip.id,
-                    key = `trim:${id}:${++dragSeq}`,
-                    say = refusals(),
-                    at = side === 'end' ? p.end : p.start;
-                  if (tool === 'roll') {
-                    // The cut at this edge: this clip's end, or the end of the clip before it.
-                    const left = side === 'end' ? p.clip : placed[p.index - 1]?.clip;
-                    if (!left) {
-                      e.stopPropagation();
-                      toast('There’s no clip before this one to roll into.');
-                      return;
-                    }
-                    drag(e, (dx, ev) => {
-                      const c = current(left.id);
-                      if (c) say(rollClip(left.id, snap(at + dx / zoom, { clip: id }, ev) - (c.start + clipLength(c)), key));
-                    });
-                    return;
-                  }
-                  // Select: trim; ripple with Magnetic on or Shift held (Q3). A ripple start trim keeps the clip's start.
-                  const ripple = e.shiftKey || getVideo().magnetic,
-                    len0 = p.end - p.start;
-                  drag(e, (dx, ev) => {
-                    const c = current(id);
-                    if (!c) return;
-                    const step =
-                      side === 'end'
-                        ? snap(at + dx / zoom, { clip: id }, ev) - (c.start + clipLength(c))
-                        : ripple
-                          ? toFrame(dx / zoom) - (len0 - clipLength(c))
-                          : snap(at + dx / zoom, { clip: id }, ev) - c.start;
-                    say(trimClip(id, side, step, { ripple }, key));
-                  });
-                }}
-              />
-            ))}
-            {holes.map((g) => (
-              <button
-                key={g.start}
-                type="button"
-                className="tl-gap"
-                data-at={g.start}
-                style={{ left: g.start * zoom, width: Math.max(8, (g.end - g.start) * zoom - 2) }}
-                aria-label={`Gap, ${(g.end - g.start).toFixed(1)} s, from ${fmtTime(g.start)}`}
-                title="A gap: black, with the layers on top. Select it and press Delete to close it."
-                // Not a seek: a click selects (focuses) the gap.
-                onPointerDown={(e) => e.stopPropagation()}
-              />
-            ))}
-            {reorder && <span className="tl-drop" style={{ left: reorder.at !== undefined ? reorder.at * zoom : markerAt(reorder.id, reorder.to) }} />}
-          </div>
+          <PictureRow track={videoTrack} clips={mainClips} height={px(MAIN_VIDEO)} zoom={zoom} tool={tool} selected={layerSel ? null : selected} snap={snap} snapSpan={snapSpan} seekFrom={seekFrom} />
 
           {layers.length === 0 && (
             <div className="tl-row tl-layer tl-empty" onPointerDown={seekFrom}>
@@ -484,6 +346,178 @@ export function Timeline() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One picture track's row: its clips (with filmstrips), their trims and drags with the edit tool, the gaps between
+ * them, and the drop marker of a clip being moved. `clips` are the track's clips in order; `snap` and `snapSpan` are
+ * the timeline's, so moves catch edges on every row. Only the main track has a row so far (203 §10).
+ */
+function PictureRow({
+  track,
+  clips,
+  height,
+  zoom,
+  tool,
+  selected,
+  snap,
+  snapSpan,
+  seekFrom,
+}: {
+  track: Track;
+  clips: VClip[];
+  height: number;
+  zoom: number;
+  tool: Tool;
+  /** The selected clip, or null (none, or a layer is selected). */
+  selected: string | null;
+  snap: (v: number, skip?: { clip?: string; layer?: string }, ev?: { altKey: boolean }) => number;
+  snapSpan: (s: number, len: number, id: string, ev: PointerEvent) => number;
+  seekFrom: (e: ReactPointerEvent) => void;
+}) {
+  // A clip being dragged by its body: `to` is its place in the order (Magnetic on), `at` the time it goes to (off).
+  const [reorder, setReorder] = useState<{ id: string; dx: number; to: number; at?: number } | null>(null);
+  const placed = clips.map((clip, index) => ({ clip, index, start: clip.start, end: clip.start + clipLength(clip) }));
+  // The gaps on the track (Magnetic off): before the first clip and between clips.
+  const holes = placed.flatMap((p, i) => {
+    const from = i ? placed[i - 1].end : 0;
+    return p.start - from > 1e-6 ? [{ start: from, end: p.start }] : [];
+  });
+  // Where a dragged clip would land: before the first other clip whose middle is right of the dragged clip's centre.
+  const others = (id: string) => placed.filter((q) => q.clip.id !== id);
+  const reorderTarget = (id: string, centreX: number) => {
+    const list = others(id),
+      at = centreX / zoom;
+    const k = list.findIndex((q) => at < (q.start + q.end) / 2);
+    return k < 0 ? list.length : k;
+  };
+  /** The drop marker sits at the start of the clip it will go before (or the end of the last one). */
+  const markerAt = (id: string, to: number) => {
+    const list = others(id);
+    return (list[to]?.start ?? list.at(-1)?.end ?? 0) * zoom;
+  };
+
+  return (
+    <div className={`tl-row tl-video${track.hidden ? ' tl-off' : ''}`} style={{ height }} onPointerDown={seekFrom}>
+      {placed.map((p) => (
+        <ClipBlock
+          key={p.clip.id}
+          clip={p.clip}
+          index={p.index}
+          left={p.start * zoom}
+          width={(p.end - p.start) * zoom}
+          selected={p.clip.id === selected}
+          dragging={reorder?.id === p.clip.id ? reorder.dx : null}
+          locked={track.locked}
+          onBody={(e) => {
+            if (refused(p.clip.id)) return;
+            selectClip(p.clip.id);
+            selectVLayer(null);
+            const id = p.clip.id,
+              len = p.end - p.start,
+              key = `drag:${id}:${++dragSeq}`,
+              say = refusals();
+            // A click (no drag) puts the playhead in the clip, if it isn't there already.
+            const clicked = (moved: boolean) => {
+              const now = getVideo().t;
+              if (!moved && (now < p.start || now >= p.end)) setPlayhead(p.start);
+            };
+            if (tool === 'slip' || tool === 'slide') {
+              const in0 = p.clip.in;
+              drag(
+                e,
+                (dx, ev) => {
+                  const c = current(id);
+                  if (!c) return;
+                  // Slip: a drag right plays a later part of the video; Slide: the clip goes where it's dropped.
+                  if (tool === 'slip') say(slipClip(id, toFrame(dx / zoom) - (c.in - in0), key));
+                  else say(slideClip(id, snapSpan(p.start + dx / zoom, len, id, ev) - c.start, key));
+                },
+                clicked,
+              );
+            } else if (tool === 'roll') drag(e, () => undefined, clicked);
+            else if (getVideo().magnetic)
+              drag(
+                e,
+                (dx) => setReorder({ id, dx, to: reorderTarget(id, p.start * zoom + dx + (len * zoom) / 2) }),
+                (moved) => {
+                  setReorder((r) => {
+                    if (moved && r) moveClipTo(r.id, r.to);
+                    return null;
+                  });
+                  clicked(moved);
+                },
+              );
+            else
+              // Magnetic off: the block follows the pointer, a marker shows where it lands, and it moves on release.
+              drag(
+                e,
+                (dx, ev) => setReorder({ id, dx, to: 0, at: Math.max(0, snapSpan(p.start + dx / zoom, len, id, ev)) }),
+                (moved) => {
+                  setReorder((r) => {
+                    if (moved && r?.at !== undefined) say(moveClipToTime(r.id, r.at, key));
+                    return null;
+                  });
+                  clicked(moved);
+                },
+              );
+          }}
+          onEdge={(e, side) => {
+            // Slip and Slide act on the whole clip: the edge passes the press on to the body.
+            if (tool === 'slip' || tool === 'slide') return;
+            if (refused(p.clip.id)) return;
+            selectClip(p.clip.id);
+            const id = p.clip.id,
+              key = `trim:${id}:${++dragSeq}`,
+              say = refusals(),
+              at = side === 'end' ? p.end : p.start;
+            if (tool === 'roll') {
+              // The cut at this edge: this clip's end, or the end of the clip before it.
+              const left = side === 'end' ? p.clip : placed[p.index - 1]?.clip;
+              if (!left) {
+                e.stopPropagation();
+                toast('There’s no clip before this one to roll into.');
+                return;
+              }
+              drag(e, (dx, ev) => {
+                const c = current(left.id);
+                if (c) say(rollClip(left.id, snap(at + dx / zoom, { clip: id }, ev) - (c.start + clipLength(c)), key));
+              });
+              return;
+            }
+            // Select: trim; ripple with Magnetic on or Shift held (Q3). A ripple start trim keeps the clip's start.
+            const ripple = e.shiftKey || getVideo().magnetic,
+              len0 = p.end - p.start;
+            drag(e, (dx, ev) => {
+              const c = current(id);
+              if (!c) return;
+              const step =
+                side === 'end'
+                  ? snap(at + dx / zoom, { clip: id }, ev) - (c.start + clipLength(c))
+                  : ripple
+                    ? toFrame(dx / zoom) - (len0 - clipLength(c))
+                    : snap(at + dx / zoom, { clip: id }, ev) - c.start;
+              say(trimClip(id, side, step, { ripple }, key));
+            });
+          }}
+        />
+      ))}
+      {holes.map((g) => (
+        <button
+          key={g.start}
+          type="button"
+          className="tl-gap"
+          data-at={g.start}
+          style={{ left: g.start * zoom, width: Math.max(8, (g.end - g.start) * zoom - 2) }}
+          aria-label={`Gap, ${(g.end - g.start).toFixed(1)} s, from ${fmtTime(g.start)}`}
+          title="A gap: black, with the layers on top. Select it and press Delete to close it."
+          // Not a seek: a click selects (focuses) the gap.
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+      ))}
+      {reorder && <span className="tl-drop" style={{ left: reorder.at !== undefined ? reorder.at * zoom : markerAt(reorder.id, reorder.to) }} />}
     </div>
   );
 }
