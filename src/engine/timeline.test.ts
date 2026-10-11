@@ -1,23 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
+  IDENTITY,
   MAIN_VIDEO,
   MUSIC,
   TRACK_LIMITS,
+  addTrack,
   audioPlan,
+  clampTransform,
   defaultTracks,
+  deleteTrack,
   framePlan,
   fromSequence,
   gaps,
+  isIdentity,
   lockedReason,
   mergeProject,
+  moveTrack,
   pack,
   patchTrack,
+  presetTransform,
   projectLength,
+  renameTrack,
   toDocument,
+  tooManyTracks,
   videoAt,
   type AudioClip,
   type Project,
   type TimedClip,
+  type Track,
 } from './timeline';
 import {
   legacyAudioPlan,
@@ -584,5 +594,195 @@ describe('Magnetic in the document (202)', () => {
     expect(all.doc.clips.map((c) => c.start)).toEqual([0, 3, 7.5, 9]);
     expect(all.doc.clips.map((c) => c.id)).toEqual(d.clips.map((c) => c.id));
     expect(all.dropped.length).toBe(3);
+  });
+});
+
+/* ---------- 203 T010: the clip transform ---------- */
+
+describe('the clip transform (203 AC-4)', () => {
+  it('identity is the whole frame, and a clip without a transform is at identity', () => {
+    expect(IDENTITY).toEqual({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
+    expect(isIdentity(undefined)).toBe(true);
+    expect(isIdentity({ ...IDENTITY })).toBe(true);
+    for (const k of Object.keys(IDENTITY) as (keyof typeof IDENTITY)[])
+      expect(isIdentity({ ...IDENTITY, [k]: IDENTITY[k] + 0.01 }), k).toBe(false);
+  });
+
+  it('clamps every field to its range', () => {
+    const lo = clampTransform({ x: -9, y: -0.6, w: 0, rot: -400, opacity: -1, radius: -0.1 });
+    expect(lo).toEqual({ x: -0.5, y: -0.5, w: 0.05, rot: -180, opacity: 0, radius: 0 });
+    const hi = clampTransform({ x: 9, y: 1.6, w: 99, rot: 400, opacity: 2, radius: 3 });
+    expect(hi).toEqual({ x: 1.5, y: 1.5, w: 4, rot: 180, opacity: 1, radius: 0.5 });
+    const inside = { x: -0.25, y: 1.25, w: 0.35, rot: -45, opacity: 0.4, radius: 0.2 };
+    expect(clampTransform(inside)).toEqual(inside);
+  });
+
+  it('missing, NaN, infinite or non-number fields take the identity value; never throws', () => {
+    expect(clampTransform(undefined)).toEqual(IDENTITY);
+    expect(clampTransform({})).toEqual(IDENTITY);
+    expect(clampTransform({ x: 0.2 })).toEqual({ ...IDENTITY, x: 0.2 });
+    expect(clampTransform({ x: NaN, y: Infinity, w: -Infinity, rot: NaN, opacity: NaN, radius: NaN })).toEqual(
+      IDENTITY,
+    );
+    const junk = { x: '0.2', y: null, w: {}, rot: [], opacity: true } as unknown as Partial<typeof IDENTITY>;
+    expect(clampTransform(junk)).toEqual(IDENTITY);
+    expect(clampTransform(IDENTITY)).not.toBe(IDENTITY); // a copy: callers may change it
+  });
+
+  it('Full frame is identity at any frame size', () => {
+    expect(presetTransform('full', 1080, 1920)).toEqual(IDENTITY);
+    expect(presetTransform('full', 1920, 1080)).toEqual(IDENTITY);
+  });
+
+  // The box has the frame's aspect: width 0.35 W, height 0.35 H; the margin is 4 % of the frame width on both axes.
+  it.each([
+    { ratio: '9:16', W: 1080, H: 1920 },
+    { ratio: '16:9', W: 1920, H: 1080 },
+  ])('the four corners at $ratio: 35 percent wide, 4 percent of the width from the two nearest edges', ({ W, H }) => {
+    const m = 0.04 * W;
+    const box = (p: Parameters<typeof presetTransform>[0]) => {
+      const t = presetTransform(p, W, H);
+      expect(t).toMatchObject({ w: 0.35, rot: 0, opacity: 1, radius: 0 });
+      const bw = t.w * W,
+        bh = t.w * H;
+      return {
+        left: t.x * W - bw / 2,
+        right: W - (t.x * W + bw / 2),
+        top: t.y * H - bh / 2,
+        bottom: H - (t.y * H + bh / 2),
+      };
+    };
+    const tl = box('top-left'),
+      tr = box('top-right'),
+      bl = box('bottom-left'),
+      br = box('bottom-right');
+    for (const [b, near] of [
+      [tl, ['left', 'top']],
+      [tr, ['right', 'top']],
+      [bl, ['left', 'bottom']],
+      [br, ['right', 'bottom']],
+    ] as const)
+      for (const side of near) expect(b[side], side).toBeCloseTo(m, 6);
+    // Inside the frame, on the far sides too.
+    for (const b of [tl, tr, bl, br]) for (const v of Object.values(b)) expect(v).toBeGreaterThan(0);
+    // The numbers, worked out by hand.
+    const left = presetTransform('top-left', W, H);
+    expect(left.x).toBeCloseTo(0.215, 9);
+    expect(left.y).toBeCloseTo(0.175 + (0.04 * W) / H, 9);
+  });
+});
+
+/* ---------- 203 T010: adding, renaming, moving and deleting tracks ---------- */
+
+describe('overlay tracks (203 AC-1, AC-2)', () => {
+  const ids = (ts: Track[]) => ts.map((t) => t.id);
+  const add = (ts: Track[], desktop = false): Track[] => {
+    const r = addTrack(ts, desktop);
+    if ('error' in r) throw new Error(r.error);
+    return r.tracks;
+  };
+  const ok = <T>(r: T | { error: string }): T => {
+    if (r && typeof r === 'object' && 'error' in r) throw new Error((r as { error: string }).error);
+    return r as T;
+  };
+  const err = (r: unknown) => (r && typeof r === 'object' && 'error' in r ? (r as { error: string }).error : null);
+
+  it('adds an empty overlay track at the top of the picture tracks, named Overlay 1, 2 …', () => {
+    const tracks = defaultTracks();
+    const r = addTrack(tracks, false);
+    if ('error' in r) throw new Error(r.error);
+    expect(r.tracks).toHaveLength(3);
+    const o = r.tracks.find((t) => t.id === r.id)!;
+    expect(o).toMatchObject({ kind: 'overlay', name: 'Overlay 1', hidden: false, muted: false, locked: false });
+    expect(o.id).toMatch(/^[A-Za-z0-9_-]{1,40}$/);
+    // Drawing order, bottom first: the main track, the new overlay, then the sound tracks.
+    expect(ids(r.tracks)).toEqual([MAIN_VIDEO, r.id, MUSIC]);
+    expect(tracks).toEqual(defaultTracks()); // the input is left alone
+    const two = add(r.tracks);
+    expect(two.map((t) => t.name)).toEqual(['Video', 'Overlay 1', 'Overlay 2', 'Music']);
+    expect(new Set(ids(two)).size).toBe(4);
+  });
+
+  it('names a new track with the lowest free number, and ids stay unique', () => {
+    const three = add(add(add(defaultTracks(), true), true), true);
+    const o2 = three.find((t) => t.name === 'Overlay 2')!;
+    const gone = ok(deleteTrack(three, [], o2.id)).tracks;
+    const again = add(gone, true);
+    expect(again.map((t) => t.name)).toEqual(['Video', 'Overlay 1', 'Overlay 3', 'Overlay 2', 'Music']);
+    expect(new Set(ids(again)).size).toBe(again.length);
+    // A renamed track frees its number.
+    const renamed = ok(renameTrack(three, three[1].id, 'Face cam'));
+    expect(add(renamed, true).at(-2)!.name).toBe('Overlay 1');
+  });
+
+  it('is refused at the picture track limit with the message the button shows: 4 on the web, 8 on desktop', () => {
+    let web = defaultTracks();
+    for (let i = 0; i < 3; i++) web = add(web);
+    expect(web.filter((t) => t.kind !== 'audio')).toHaveLength(TRACK_LIMITS(false).visual);
+    expect(err(addTrack(web, false))).toBe(tooManyTracks(false));
+    expect(tooManyTracks(false)).toMatch(/\b4\b/);
+    expect(tooManyTracks(false)).toMatch(/desktop app.*\b8\b/);
+    let desk = web;
+    for (let i = 0; i < 4; i++) desk = add(desk, true);
+    expect(desk.filter((t) => t.kind !== 'audio')).toHaveLength(TRACK_LIMITS(true).visual);
+    expect(err(addTrack(desk, true))).toBe(tooManyTracks(true));
+    expect(tooManyTracks(true)).toMatch(/\b8\b/);
+    expect(tooManyTracks(true)).not.toMatch(/desktop app/);
+  });
+
+  it('renames a track: trimmed, 1–40 characters', () => {
+    const tracks = add(defaultTracks());
+    const id = tracks[1].id;
+    expect(ok(renameTrack(tracks, id, '  Face cam  '))[1].name).toBe('Face cam');
+    expect(ok(renameTrack(tracks, id, 'x'.repeat(40)))[1].name).toHaveLength(40);
+    expect(err(renameTrack(tracks, id, 'x'.repeat(41)))).toMatch(/40/);
+    expect(err(renameTrack(tracks, id, '   '))).toMatch(/name/i);
+    expect(err(renameTrack(tracks, 'X9', 'B-roll'))).toBeTruthy();
+    expect(renameTrack(tracks, id, ' Overlay 1 ')).toBe(tracks); // no change: the same array
+    expect(tracks[1].name).toBe('Overlay 1');
+  });
+
+  it('moves an overlay track up or down among the overlay tracks; the main track stays the bottom', () => {
+    const tracks = add(add(add(defaultTracks(), true), true), true);
+    const [, a, b, c] = ids(tracks);
+    expect(ids(ok(moveTrack(tracks, a, 1)))).toEqual([MAIN_VIDEO, b, a, c, MUSIC]);
+    expect(ids(ok(moveTrack(tracks, c, -1)))).toEqual([MAIN_VIDEO, a, c, b, MUSIC]);
+    expect(err(moveTrack(tracks, c, 1))).toMatch(/top/);
+    expect(err(moveTrack(tracks, a, -1))).toMatch(/main video track/);
+    expect(err(moveTrack(tracks, MAIN_VIDEO, 1))).toMatch(/main video track/);
+    expect(err(moveTrack(tracks, MUSIC, -1))).toBeTruthy();
+    expect(err(moveTrack(tracks, 'X9', 1))).toBeTruthy();
+    expect(ids(tracks)).toEqual([MAIN_VIDEO, a, b, c, MUSIC]); // the input is left alone
+  });
+
+  it('deletes an overlay track with its clips; the main and music tracks can’t be deleted', () => {
+    const tracks = add(add(defaultTracks()));
+    const [, a, b] = ids(tracks);
+    const clip = (id: string, track: string): TimedClip => ({
+      id,
+      track,
+      start: 0,
+      kind: 'photo',
+      dur: 2,
+      in: 0,
+      out: 0,
+    });
+    const clips = [clip('m', MAIN_VIDEO), clip('x', a), clip('y', b), clip('z', a)];
+    const r = ok(deleteTrack(tracks, clips, a));
+    expect(ids(r.tracks)).toEqual([MAIN_VIDEO, b, MUSIC]);
+    expect(r.clips.map((c) => c.id)).toEqual(['m', 'y']);
+    expect(err(deleteTrack(tracks, clips, MAIN_VIDEO))).toMatch(/main video track/);
+    expect(err(deleteTrack(tracks, clips, MUSIC))).toBeTruthy();
+    expect(err(deleteTrack(tracks, clips, 'X9'))).toBeTruthy();
+    // A locked track keeps its clips: unlock it first.
+    expect(err(deleteTrack(patchTrack(tracks, a, { locked: true }), clips, a))).toMatch(/locked/);
+  });
+
+  it('mutes an overlay track (its clips’ sound), but the main track keeps Hide only', () => {
+    const tracks = add(defaultTracks());
+    const id = tracks[1].id;
+    expect(patchTrack(tracks, id, { muted: true })[1]).toMatchObject({ muted: true, hidden: false });
+    expect(patchTrack(tracks, id, { hidden: true })[1]).toMatchObject({ hidden: true, muted: false });
+    expect(patchTrack(tracks, MAIN_VIDEO, { muted: true })).toBe(tracks);
   });
 });
