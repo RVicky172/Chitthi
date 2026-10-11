@@ -398,11 +398,12 @@ The preview decodes video clips the way the export does, through one **decoder p
 - **Sound** comes from the clip itself (audio-only elements, at most for the clip under the playhead and the next one
   to start) and is kept within a frame of the picture; the music plays as before.
 
-**"This clip can’t be exported here: <reason>".** Some files a browser can play can't be decoded frame by frame (often
-HEVC video from an iPhone, or a damaged file). Such a clip still previews, from the browser's own player, and the other
-clips are unaffected, but the export refuses it with a message naming the file. The note shows in the clip's tooltip on
-the timeline (with ⚠ on the clip), in its name for screen readers, and in the inspector. To use the clip, convert the
-file to **H.264 MP4** (most video converters and phone export settings offer it) and add it again.
+**"This clip can’t be exported here: <reason>".** Some files a browser can play can't be decoded frame by frame (such as
+some HEVC video, the format iPhones record by default, or a damaged file). Such a clip still previews, from the
+browser's own player, and the other clips are unaffected, but the export refuses it with a message naming the file. The
+note shows in the clip's tooltip on the timeline (with ⚠ on the clip), in its name for screen readers, and in the
+inspector. To use the clip, convert the file to **H.264 MP4** (most video converters and phone export settings offer it)
+and add it again.
 
 Browsers without WebCodecs' video decoding (Firefox before 130, Safari before 26) don't use the pool: their preview
 and export work as before.
@@ -418,7 +419,7 @@ app tells users so and sends long or demanding projects to the desktop app:
 | YouTube video | Up to 15 min, 60 clips, 4 GB files, 1080p, 30 fps | Up to 3 hours, 500 clips, 50 GB files, 1080p / 1440p / 4K, 30 or 60 fps |
 | Saving long videos | Streamed to a file in Chrome and Edge (File System Access API); built in memory elsewhere | Streamed to a file through the main process |
 | Encoding | WebCodecs, hardware-accelerated where the browser allows | WebCodecs in Electron, using the graphics card's encoder |
-| Videos on screen at once | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
+| Videos on screen at once (with overlay video clips, coming in `203`) | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
 
 Limits live in `limitsFor()` (`src/engine/video.ts`); the notes in the editor read from it. Videos on screen at once
 is measured (see [PERFORMANCE.md](PERFORMANCE.md#videos-on-screen-at-once)) and matters once overlay video clips arrive

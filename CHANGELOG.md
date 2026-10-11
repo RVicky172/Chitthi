@@ -17,9 +17,10 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 - Video editor: keyboard editing with the timeline focused: Alt + ← / → nudges the selected clip a frame with the
   current tool (Shift + Alt: a second), Q / W trim its start / end to the playhead. Each change is announced to
   screen readers.
-- Video editor: a clip the browser can play but not decode frame by frame (often HEVC from an iPhone) says so: **"This
-  clip can’t be exported here"** with the reason, on the clip (tooltip and screen-reader name) and in the inspector.
-  It still previews and the other clips are unaffected; convert the file to H.264 MP4 to export it.
+- Video editor: a clip the browser can play but not decode frame by frame (some HEVC video, the format iPhones record
+  by default) says so: **"This clip can’t be exported here"** with the reason, on the clip (tooltip and screen-reader
+  name) and in the inspector. It still previews and the other clips are unaffected; convert the file to H.264 MP4 to
+  export it.
 
 ### Changed
 
@@ -28,10 +29,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   clip is opened before its cut, so cuts no longer stall or flash black, and a late frame holds the last one while the
   playhead keeps time. Paused or scrubbing, the preview shows exactly the frame the export will encode. Exports are as
   fast as before. Decoders and decoded frames stay within fixed limits (256 MB of frames on the web, 1 GB in the
-  desktop app) however many clips a project has, and are released on leaving the editor.
-- Video editor: a clip's sound in the preview comes from the clip itself and is kept within a frame of its picture.
-- Video editor: browsers without WebCodecs video decoding (Firefox before 130, Safari before 26) keep working as
-  before, previews and exports included.
+  desktop app) however many clips a project has, and are released on leaving the editor. Browsers without WebCodecs
+  video decoding (Firefox before 130, Safari before 26) keep today's preview and export.
+- Video editor: a clip's sound in the preview stays within a frame of its picture.
 
 ## [2.10.0] - 2026-10-06
 
