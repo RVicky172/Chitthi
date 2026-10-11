@@ -164,6 +164,13 @@ describe('video formats and limits', () => {
     expect([web.fps, desk.fps]).toEqual([[30], [30, 60]]);
     expect(limitsFor('reel', false)).toMatchObject({ seconds: 90, minSeconds: 3, clips: 20 });
   });
+  it('sets the videos on screen at once by 204 Q2: largest count meeting the bar minus one, web ≤ 3, desktop ≤ 6, never < 2', async () => {
+    const { limitsFor } = await import('./video');
+    for (const kind of ['reel', 'vlog'] as const) {
+      expect(limitsFor(kind, false).videosAtOnce).toBe(3);
+      expect(limitsFor(kind, true).videosAtOnce).toBe(5);
+    }
+  });
 });
 
 describe('mergeLayers: the gate for layers from project files', () => {

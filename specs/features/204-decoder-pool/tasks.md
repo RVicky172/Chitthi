@@ -57,9 +57,10 @@ anything surprising or deferred.
 
 ## Limits from measurements
 
-- [ ] **T050** — `poolTiming` (AC-15): 1, 2, 3, 4 and 6 simultaneous 1080p30 clips (and 2 and 3 4K30 clips in the desktop app), 300 steps of 30 fps each as the preview draws them: median and p95 time to have every video's frame, frames held. Record the numbers here. · files: `src/dev/poolChecks.ts` · test: `npm test` timing lines
-  - **In progress** since 2026-10-10
-- [ ] **T051** — Limits from T050 by Q2's rule (largest count meeting median ≤ 33 ms and p95 ≤ 50 ms, minus one; web ≤ 3, desktop ≤ 6, never < 2): `videosAtOnce` in `limitsFor()` with a unit test; the numbers in the plan (§6) and `docs/PERFORMANCE.md`. If the web can't reach 2, stop: 203's plan is reconsidered (Q2). · files: `src/engine/video.ts`, `src/engine/layers.test.ts`, `docs/PERFORMANCE.md`, `specs/features/204-decoder-pool/feature.json` · test: `npm run check`
+- [x] **T050** — `poolTiming` (AC-15): 1, 2, 3, 4 and 6 simultaneous 1080p30 clips (and 2 and 3 4K30 clips in the desktop app), 300 steps of 30 fps each as the preview draws them: median and p95 time to have every video's frame, frames held. Record the numbers here. · files: `src/dev/poolChecks.ts` · test: `npm test` timing lines
+  - 2026-10-11: poolTiming (AC-15) on demand via CHITTHI_TEST_ONLY=poolcount (never in the default run); Electron self-test = desktop limits; 300 back-to-back 1/30 s steps (5 warm-up, 295 timed, stricter than real time), every frame drawn into a 1280x720 canvas (read back 10/10). Dev machine: 1080p30 x1 median 0.3 / p95 1.3 ms; x2 0.5 / 1.8; x3 0.9 / 2.4; x4 1.4 / 4.7; x6 2.0 / 5.4 (237 MB); 4K30 x2 0.9 / 5.7 (316 MB); x3 1.3 / 5.2 (475 MB). Frames, decoders and bytes within limits, all released. Q2 proposal: desktop 5, web 3. Reviewed (CHANGES once, then APPROVE).
+- [x] **T051** — Limits from T050 by Q2's rule (largest count meeting median ≤ 33 ms and p95 ≤ 50 ms, minus one; web ≤ 3, desktop ≤ 6, never < 2): `videosAtOnce` in `limitsFor()` with a unit test; the numbers in the plan (§6) and `docs/PERFORMANCE.md`. If the web can't reach 2, stop: 203's plan is reconsidered (Q2). · files: `src/engine/video.ts`, `src/engine/layers.test.ts`, `docs/PERFORMANCE.md`, `specs/features/204-decoder-pool/feature.json` · test: `npm run check`
+  - 2026-10-11: by Q2 from T050's numbers (every 1080p30 count to 6 meets ≤ 33 / 50 ms): videosAtOnce 5 on the desktop app (6 − 1), 3 on the web (cap), in limitsFor() for both kinds, unit test in layers.test.ts; numbers in plan §6 and docs/PERFORMANCE.md ('Videos on screen at once'). Web stays 2+, so 203's plan goes ahead; T060's Chrome run checks the web number. npm run check green (1,163 unit tests).
 
 ## Manual checks
 

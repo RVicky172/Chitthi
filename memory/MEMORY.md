@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-10)
+## Current State (2026-10-11)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -25,8 +25,10 @@
   measurements.
 - **204:** `204-decoder-pool` 🚧: plan approved (D1–D5, D-028), tasks T001–T092; built on `feat/204-decoder-pool`
   (from `spec/203-204`). T001 spike, T002 fixtures, T010–T013 the pool (`engine/decodePool.ts`) and its Mediabunny source (`engine/frameSource.ts`), the export on the pool (T020–T022, as fast as `main`) done 2026-10-10; D5: the export keeps resized canvases.
+  The preview on the pool (T030–T032) done. 2026-10-11: batch 1 of parallel agents (D-030) running: T033/T034 (preview
+  sound), T040/T041 (fallback), T050 (poolTiming, in review).
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
-- **Next (roadmap):** 204 T030 / T031 (the preview on the pool); 203's plan after 204's measurements
+- **Next (roadmap):** 204 batch 1 merge, then T051 (limits from T050), T060 👤, T090–T092; 203's plan after 204's measurements
   (T050 / T051).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).

@@ -88,6 +88,31 @@ the run fails on a software renderer. The results are saved to `test-results/gat
 `npm run test:e2e`. Display-frame intervals alone can't be the measure: at 60–120 Hz most frames carry no new input
 and would hide slow updates.
 
+## Videos on screen at once
+
+The video editor decodes clips through a decoder pool (`engine/decodePool.ts`): one decoder per visible video, four
+frames read ahead, a byte budget, and every frame released when it is replaced. How many videos can show at once comes
+from a measurement, `CHITTHI_TEST_ONLY=poolcount npm test` (`poolTiming` in `src/dev/playbackChecks.ts`, never part
+of the default run): 300 back-to-back 1/30 s steps (stricter than playing in real time; 5 warm-up steps left out),
+each lasting until every clip's frame has arrived and been drawn into a 1280 × 720 canvas.
+
+Development machine, 2026-10-11 (Electron self-test, desktop limits):
+
+| Videos | Median step | 95th percentile | Frames held | Memory |
+| --- | --- | --- | --- | --- |
+| 1 × 1080p30 | 0.3 ms | 1.3 ms | 5 | 40 MB |
+| 2 × 1080p30 | 0.5 ms | 1.8 ms | 10 | 79 MB |
+| 3 × 1080p30 | 0.9 ms | 2.4 ms | 15 | 119 MB |
+| 4 × 1080p30 | 1.4 ms | 4.7 ms | 20 | 158 MB |
+| 6 × 1080p30 | 2.0 ms | 5.4 ms | 30 | 237 MB |
+| 2 × 4K30 | 0.9 ms | 5.7 ms | 10 | 316 MB |
+| 3 × 4K30 | 1.3 ms | 5.2 ms | 15 | 475 MB |
+
+The limit is the largest 1080p30 count with a median ≤ 33 ms and a 95th percentile ≤ 50 ms, minus one for slower
+machines, capped at 3 on the web and 6 in the desktop app and never below 2: **3 on the web, 5 in the desktop app**
+(`videosAtOnce` in `limitsFor()`, `engine/video.ts`). Photos don't count. Without `VideoDecoder` there is no pool and
+the limit is 1.
+
 ## Investigating a slowdown
 
 1. Open the monitor, reproduce the slow action, and watch **Main thread busy** / **CPU** and **Input delay**.

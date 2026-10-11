@@ -73,6 +73,20 @@ the median and 95th percentile time for every video's frame and the frames held.
 `videosAtOnce` in `limitsFor()` (web ≤ 3, desktop ≤ 6, never < 2), recorded in this plan and `docs/PERFORMANCE.md`
 before 203's plan is approved. 204 only sets the numbers; 203 enforces them.
 
+**Measured 2026-10-11** (`CHITTHI_TEST_ONLY=poolcount npm test`, Electron self-test with desktop limits, development machine; steps run back to back, a stricter proxy than real time; 5 warm-up steps, 295 timed; every frame drawn into a 1280×720 canvas):
+
+| Videos | Median | p95 | Frames held | Memory |
+| --- | --- | --- | --- | --- |
+| 1 × 1080p30 | 0.3 ms | 1.3 ms | 5 | 40 MB |
+| 2 × 1080p30 | 0.5 ms | 1.8 ms | 10 | 79 MB |
+| 3 × 1080p30 | 0.9 ms | 2.4 ms | 15 | 119 MB |
+| 4 × 1080p30 | 1.4 ms | 4.7 ms | 20 | 158 MB |
+| 6 × 1080p30 | 2.0 ms | 5.4 ms | 30 | 237 MB |
+| 2 × 4K30 | 0.9 ms | 5.7 ms | 10 | 316 MB |
+| 3 × 4K30 | 1.3 ms | 5.2 ms | 15 | 475 MB |
+
+Every count meets the bar (≤ 33 / 50 ms), so by Q2: 6 − 1 = **5 on the desktop app**, **3 on the web** (the cap): `videosAtOnce` in `limitsFor()`. The Chrome measurement (T060) checks the web number.
+
 **§7 Errors and older browsers (Q6, Q7, AC-14).** A clip whose source fails gets a lane in **fallback**: the preview
 draws it from today's `<video>` path (kept for exactly this), the clip shows a note "This clip can't be exported here:
 <reason>" (text in the clip's accessible name and the inspector), the export refuses it with today's message, and the
