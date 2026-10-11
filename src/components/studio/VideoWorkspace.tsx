@@ -312,11 +312,11 @@ function VideoStage() {
     [],
   );
   const videoFor = useCallback((c: VClip) => stage().element(c), [stage]);
-  // Clip sound (204 §4, D1): <audio> elements for the clip under the playhead and the next ones; lazy like the stage,
-  // and not made again by the playback cleanup's last sync once the stage has gone.
+  // Clip sound (204 §4, D1): <audio> elements for the clip under the playhead and the next ones; lazy like the stage.
+  // `mounted` stops the playback cleanup's last sync from making the stage or the sound again once they're disposed.
   const soundRef = useRef<ReturnType<typeof previewSound> | null>(null);
   const mounted = useRef(false);
-  const sound = useCallback(() => (mounted.current ? (soundRef.current ??= previewSound()) : null), []);
+  const sound = useCallback(() => (soundRef.current ??= previewSound()), []);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -412,9 +412,10 @@ function VideoStage() {
    * muted <video> of a clip the pool can't decode, for its picture: the current one at the playhead, the rest paused. */
   const sync = useCallback(
     (play: boolean) => {
+      if (!mounted.current) return;
       const s = getVideo(),
         plan = soundPlan(projectOf(s), s.t);
-      sound()?.update(plan.current, plan.next, play, s.fps);
+      sound().update(plan, play, s.fps);
       const p = plan.current,
         pool = stage().pool;
       for (const c of s.clips) {

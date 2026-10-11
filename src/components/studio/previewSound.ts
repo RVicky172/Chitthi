@@ -1,23 +1,26 @@
 // The video stage's clip sound (204 §4, D1): audio-only <audio> elements on the clip's file, for the clip under the
-// playhead and the next one within 2 s, released after, so elements don't grow with the clip count and the pool
-// alone decodes pictures. Kept within a frame of the picture by nudging playbackRate (AC-8, Q5). The music keeps its
+// playhead, the next one within 2 s and a clip an overlay covers for now, released after, so elements don't grow with
+// the clip count and the pool alone decodes pictures. Kept within a frame of the picture by nudging playbackRate (AC-8, Q5). The music keeps its
 // own element in VideoStage.
 import { lanePlan } from '../../engine/decodePool';
 import { MAIN_VIDEO, videoAt, type Project, type TimedClip } from '../../engine/timeline';
 
 /**
- * Whose sound plays at playhead `t`: the video clip on top (a photo has none), and the video clips starting within
- * `ahead` seconds, to load and pre-seek. A hidden video track still plays its clips' sound (201 D2): the clips are
+ * Whose sound plays at playhead `t`: the video clip on top (a photo has none); the video clips starting within `ahead`
+ * seconds, to load and pre-seek; and the other video clips under the playhead (covered by an overlay), kept loaded
+ * and silent so they play on when it ends. A hidden video track still plays its clips' sound (201 D2): the clips are
  * found as if it were shown.
  */
 export function soundPlan<C extends TimedClip>(
   p: Project<C>,
   t: number,
   ahead = 2,
-): { current: { clip: C; local: number } | null; next: C[] } {
+): { current: { clip: C; local: number } | null; next: C[]; held: C[] } {
   const shown = { ...p, tracks: p.tracks.map((tr) => (tr.id === MAIN_VIDEO ? { ...tr, hidden: false } : tr)) };
-  const at = videoAt(shown, t);
-  return { current: at?.clip.kind === 'video' ? at : null, next: lanePlan(shown, t, ahead).next };
+  const at = videoAt(shown, t),
+    lanes = lanePlan(shown, t, ahead);
+  const current = at?.clip.kind === 'video' ? at : null;
+  return { current, next: lanes.next, held: lanes.visible.filter((c) => c.id !== current?.clip.id) };
 }
 
 /** Over this drift (seconds) the element seeks instead of catching up. */
@@ -35,8 +38,9 @@ export const SETTLED = 0.01;
 export function soundFix(drift: number, fps: number, rate: number): { seek: true } | { seek: false; rate: number } {
   const a = Math.abs(drift);
   if (a > SEEK_DRIFT) return { seek: true };
+  // In steps of 0.5 %, so the element's rate is written only when the step changes, not on every tick.
   if (a > 1 / fps || (rate !== 1 && a > SETTLED))
-    return { seek: false, rate: 1 - Math.sign(drift) * Math.min(MAX_NUDGE, a * 2) };
+    return { seek: false, rate: Math.round((1 - Math.sign(drift) * Math.min(MAX_NUDGE, a * 2)) * 200) / 200 };
   return { seek: false, rate: 1 };
 }
 
@@ -82,12 +86,21 @@ export function previewSound() {
   };
   const sound = {
     /**
-     * One tick: `current` is the clip whose sound plays at the playhead (with its local time), `next` the clips to start
-     * within 2 s; every other element is released. Playing, the current element plays (seeked first if it was paused
-     * elsewhere) and is kept in step; paused, it waits at the playhead's time.
+     * One tick (a soundPlan): `current` is the clip whose sound plays at the playhead (with its local time), `next` the
+     * clips to start within 2 s (pre-seeked to their `in`), `held` the covered clips (kept, silent); every other element
+     * is released. Playing, the current element plays (seeked first if it was paused elsewhere) and is kept in step;
+     * paused, it waits at the playhead's time.
      */
-    update(current: { clip: SoundClip; local: number } | null, next: SoundClip[], play: boolean, fps: number) {
-      const keep = new Set([...(current ? [current.clip.id] : []), ...next.map((c) => c.id)]);
+    update(
+      {
+        current,
+        next,
+        held,
+      }: { current: { clip: SoundClip; local: number } | null; next: SoundClip[]; held: SoundClip[] },
+      play: boolean,
+      fps: number,
+    ) {
+      const keep = new Set([...(current ? [current.clip.id] : []), ...next.map((c) => c.id), ...held.map((c) => c.id)]);
       for (const [id, el] of els)
         if (!keep.has(id)) {
           release(el);
@@ -99,6 +112,7 @@ export function previewSound() {
         halt(el);
         if (Math.abs(el.currentTime - c.in) > SETTLED) el.currentTime = c.in;
       }
+      for (const c of held) if (c.id !== current?.clip.id) halt(element(c));
       if (!current) return;
       const { clip: c, local } = current;
       const el = element(c),
@@ -123,13 +137,9 @@ export function previewSound() {
         el.playbackRate = 1;
       } else if (fix.rate !== el.playbackRate) el.playbackRate = fix.rate;
     },
-    /** Pauses every element (playback stopped). */
-    pause() {
-      for (const el of els.values()) halt(el);
-    },
     /** The element playing a clip's sound now, if any (self-tests capture it: AC-8). */
     element: (id: string): HTMLAudioElement | undefined => els.get(id),
-    /** How many elements are open (bounded: the current clip and the next). */
+    /** How many elements are open (bounded: the clips under the playhead and the next ones). */
     get size() {
       return els.size;
     },

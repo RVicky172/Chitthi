@@ -375,11 +375,12 @@ test.describe('video track headers', () => {
   test.beforeEach(async ({ page }) => {
     // Records whether each sound started by playback is muted (the music plays through an <audio> outside the page).
     await page.addInitScript(() => {
-      const w = window as unknown as { __plays: { audio: boolean; muted: boolean }[] };
+      const w = window as unknown as { __plays: { music: boolean; muted: boolean }[] };
       w.__plays = [];
       const play = HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
-        w.__plays.push({ audio: this instanceof HTMLAudioElement, muted: this.muted });
+        // The music is an <audio> without data-clip (a clip's own sound is an <audio> with it, 204 T034).
+        w.__plays.push({ music: this instanceof HTMLAudioElement && !this.dataset.clip, muted: this.muted });
         return play.call(this);
       };
     });
@@ -459,7 +460,7 @@ test.describe('video track headers', () => {
     const mute = head(page, 'Music').getByRole('button', { name: 'Mute Music', exact: true });
     await mute.click();
     await expect(mute).toHaveAttribute('aria-pressed', 'true');
-    const lastMusic = () => page.evaluate(() => (window as unknown as { __plays: { audio: boolean; muted: boolean }[] }).__plays.filter((p) => p.audio).at(-1)?.muted);
+    const lastMusic = () => page.evaluate(() => (window as unknown as { __plays: { music: boolean; muted: boolean }[] }).__plays.filter((p) => p.music).at(-1)?.muted);
     await page.getByRole('button', { name: 'Play', exact: true }).click();
     await expect.poll(lastMusic).toBe(true);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();

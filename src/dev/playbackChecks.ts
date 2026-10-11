@@ -93,10 +93,12 @@ async function mountEditor() {
     stage,
     openFrames,
     waitFor,
-    unmount() {
-      clear();
+    /** Leaves the editor: stopped and emptied first, or `whilePlaying` (emptied after). */
+    unmount(whilePlaying = false) {
+      if (!whilePlaying) clear();
       root.unmount();
       host.remove();
+      if (whilePlaying) clear();
     },
   };
 }
@@ -104,6 +106,8 @@ async function mountEditor() {
 /** AC-12 (release) and AC-13, in npm test. */
 export async function playbackChecks(check: Check): Promise<string[]> {
   const notes: string[] = [];
+  const { liveSounds } = await import('../components/studio/previewSound');
+  const liveSoundCount = () => liveSounds.size;
   const clip = await makeTestClip(4, 1920, 1080, 2, false, true);
   if (!clip) return ['playback: skipped (no H.264 encoder)'];
   const ed = await mountEditor();
@@ -149,25 +153,28 @@ export async function playbackChecks(check: Check): Promise<string[]> {
     await ed.add([clip]);
     ed.v.setPlayhead(1);
     await ed.waitFor(() => frameOf(ed.centre()) === 30, 3000);
+    // Left while playing: the playback cleanup's last sync must not make a stage or a sound again.
+    ed.v.setPlaying(true);
+    await sleep(300);
+    check(ed.v.getVideo().playing, 'playback: the editor plays before it is left (AC-12)');
   } finally {
-    ed.unmount();
+    ed.unmount(true);
   }
-  // AC-12: leaving the editor frees everything within 1 s.
+  // AC-12: leaving the editor (while playing) frees everything within 1 s.
   const end = performance.now() + 1000;
   const { openFrames } = await import('../engine/frameSource');
   const { liveStages } = await import('../components/studio/previewFrame');
-  const { liveSounds } = await import('../components/studio/previewSound');
-  const busy = () => openFrames().frames || openFrames().decoders || liveStages.size || liveSounds.size;
+  const busy = () => openFrames().frames || openFrames().decoders || liveStages.size || liveSoundCount();
   while (busy() && performance.now() < end) await sleep(20);
   check(
     !busy(),
-    `playback: leaving the editor frees every frame, decoder and clip sound within 1 s (${JSON.stringify(openFrames())}, stages ${liveStages.size}, sounds ${liveSounds.size}) (AC-12)`,
+    `playback: leaving the editor while playing frees every frame, decoder and clip sound within 1 s (${JSON.stringify(openFrames())}, stages ${liveStages.size}, sounds ${liveSoundCount()}) (AC-12)`,
   );
   notes.push('playback: AC-12 release and AC-13 on the real editor (StrictMode)');
   return notes;
 }
 
-/** AC-5, AC-7 and AC-12's bounds, on demand (CHITTHI_TEST_ONLY=pooltiming). */
+/** AC-5, AC-7, AC-8, AC-12's bounds and D1's sound elements, on demand (CHITTHI_TEST_ONLY=pooltiming). */
 export async function playbackTiming(check: Check): Promise<string[]> {
   const notes: string[] = [];
   const t0 = performance.now();
@@ -181,6 +188,15 @@ export async function playbackTiming(check: Check): Promise<string[]> {
     // AC-5: 20 × 2 s 1080p clips played in real time, 3 runs: each cut draws the new clip's first frame on the cut's frame.
     const clips = await ed.add(Array.from({ length: 20 }, (_, i) => (i % 2 ? b : a)));
     const cuts = clips.slice(1).map((c) => c.start);
+    // D1: clip sound elements stay within the clips under the playhead and those starting within 2 s.
+    const { liveSounds } = await import('../components/studio/previewSound');
+    const { lanePlan } = await import('../engine/decodePool');
+    const lanes = (t: number) => {
+      const l = lanePlan(ed.v.projectOf(), t, 2);
+      return l.visible.length + l.next.length;
+    };
+    let soundMax = 0,
+      soundOver = 0;
     const runs: string[] = [];
     let allGood = true;
     for (let run = 0; run < 3; run++) {
@@ -189,9 +205,16 @@ export async function playbackTiming(check: Check): Promise<string[]> {
       const holds0 = ed.stage()?.pool?.stats().holds ?? 0;
       const samples: { t: number; f: number }[] = [];
       ed.v.setPlaying(true);
+      let prevT = 0;
       while (ed.v.getVideo().playing) {
         await frame();
-        samples.push({ t: ed.v.getVideo().t, f: frameOf(ed.centre()) });
+        const t = ed.v.getVideo().t;
+        samples.push({ t, f: frameOf(ed.centre()) });
+        // The elements follow the last tick: allowed what this tick's or the one before's playhead needs.
+        const n = [...liveSounds][0]?.size ?? 0;
+        soundMax = Math.max(soundMax, n);
+        if (n > Math.max(lanes(t), lanes(prevT))) soundOver++;
+        prevT = t;
       }
       const holds = (ed.stage()?.pool?.stats().holds ?? 0) - holds0;
       const want = (t: number) => {
@@ -220,6 +243,11 @@ export async function playbackTiming(check: Check): Promise<string[]> {
       `pool timing: 20 × 2 s 1080p clips play through every cut on the cut's frame, nothing black, no hold over 1 frame (AC-5): ${runs.join('; ')}`,
     );
     notes.push(`pool timing AC-5: ${runs.join('; ')}`);
+    check(
+      soundMax > 0 && !soundOver,
+      `pool timing: playing 20 clips, the clip sound elements stay within the clips under the playhead and the next within 2 s (D1): at most ${soundMax}, over the bound ${soundOver} times`,
+    );
+    notes.push(`pool timing D1: at most ${soundMax} clip sound elements over 20 clips`);
     ed.clear();
 
     // AC-7: 50 random seeks on a 10 s 1080p clip with key frames 2 s apart: the exact frame, median ≤ 100 ms, p95 ≤ 250 ms.
@@ -317,8 +345,9 @@ export async function playbackTiming(check: Check): Promise<string[]> {
           r.offsets.length === r.expected && r.onsets === r.expected && worst <= 67,
           `pool timing: ${what}: every flash and its beep within 67 ms (AC-8): ${r.flashes}/${r.expected} flashes drawn, ${r.onsets} beeps heard from the clip's <audio>, sound − picture ${r.offsets.map((d) => d.toFixed(0)).join(' ')} ms`,
         );
+        // The offsets include the capture path's latency (element → MediaStream → analyser); T060's check by ear judges.
         notes.push(
-          `pool timing AC-8 ${what}: ${r.offsets.length} pairs, sound − picture mean ${mean.toFixed(0)} ms, worst ${worst.toFixed(0)} ms`,
+          `pool timing AC-8 ${what}: ${r.offsets.length} pairs, sound − picture mean ${mean.toFixed(0)} ms, worst ${worst.toFixed(0)} ms (includes the capture path; AudioContext baseLatency ${r.latency.base} ms, outputLatency ${r.latency.output} ms)`,
         );
         ed.clear();
       }
@@ -549,6 +578,7 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
   /** The wall time of playhead 0 (performance.now() − t · 1000 at a tick); the lowest seen is the tick's own. */
   let zero = Infinity,
     white = false;
+  const latency = { base: '', output: '' };
   ed.v.setPlayhead(from);
   await sleep(800);
   ed.v.setPlaying(true);
@@ -588,6 +618,9 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
     }
   } finally {
     ed.v.setPlaying(false);
+    for (const tap of taps.values()) for (const tr of tap.stream.getTracks()) tr.stop();
+    latency.base = (ctx.baseLatency * 1000).toFixed(1);
+    latency.output = ((ctx.outputLatency ?? 0) * 1000).toFixed(1);
     await ctx.close();
   }
   // A flash every 2 s of each clip's own time, after `from`.
@@ -598,5 +631,5 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
     .map((t) => zero + t * 1000)
     .map((f) => onsets.reduce((best, o) => (Math.abs(o - f) < Math.abs(best) ? o - f : best), Infinity))
     .filter(Number.isFinite);
-  return { expected, flashes: flashT.length, onsets: onsets.length, offsets };
+  return { expected, flashes: flashT.length, onsets: onsets.length, offsets, latency };
 }

@@ -44,18 +44,23 @@ describe('preview sound: whose sound plays (204 §4, D1)', () => {
   const names = (r: ReturnType<typeof soundPlan<C>>) => ({
     current: r.current && [r.current.clip.name, r.current.local],
     next: r.next.map((x) => x.name),
+    held: r.held.map((x) => x.name),
   });
 
   it('plays the clip on top and loads the next ones starting within 2 s', () => {
-    expect(names(soundPlan(project(), 0.5))).toEqual({ current: ['a', 0.5], next: ['ov'] });
-    expect(names(soundPlan(project(), 2.5))).toEqual({ current: ['ov', 0.5], next: [] });
-    expect(names(soundPlan(project(), 5.5))).toEqual({ current: null, next: ['c'] });
-    expect(names(soundPlan(project(), 4.5))).toEqual({ current: null, next: [] });
+    expect(names(soundPlan(project(), 0.5))).toEqual({ current: ['a', 0.5], next: ['ov'], held: [] });
+    expect(names(soundPlan(project(), 5.5))).toEqual({ current: null, next: ['c'], held: [] });
+    expect(names(soundPlan(project(), 4.5))).toEqual({ current: null, next: [], held: [] });
+  });
+
+  it('keeps the element of a clip covered by an overlay, to play on when the overlay ends', () => {
+    expect(names(soundPlan(project(), 2.5))).toEqual({ current: ['ov', 0.5], next: [], held: ['a'] });
   });
 
   it("still plays a hidden video track's sound (201 D2)", () => {
-    expect(names(soundPlan(project(true), 0.5))).toEqual({ current: ['a', 0.5], next: ['ov'] });
-    expect(names(soundPlan(project(true), 5.5))).toEqual({ current: null, next: ['c'] });
+    expect(names(soundPlan(project(true), 0.5))).toEqual({ current: ['a', 0.5], next: ['ov'], held: [] });
+    expect(names(soundPlan(project(true), 2.5))).toEqual({ current: ['ov', 0.5], next: [], held: ['a'] });
+    expect(names(soundPlan(project(true), 5.5))).toEqual({ current: null, next: ['c'], held: [] });
   });
 });
 
@@ -81,6 +86,17 @@ describe('preview sound drift correction (204 §4)', () => {
     expect(r.seek).toBe(false);
     expect(!r.seek && r.rate).toBeGreaterThan(1);
     expect(soundFix(-0.008, 30, 1.03)).toEqual({ seek: false, rate: 1 });
+  });
+
+  it('moves the rate in 0.5 % steps, so it is not rewritten on every tick', () => {
+    const rates = new Set<number>();
+    for (let d = -0.24; d <= 0.24; d += 0.0007) {
+      const f = soundFix(d, 30, 1.01);
+      if (f.seek) throw new Error('seeked');
+      expect(Math.abs(f.rate * 200 - Math.round(f.rate * 200))).toBeLessThan(1e-9);
+      rates.add(f.rate);
+    }
+    expect(rates.size).toBeLessThanOrEqual(13);
   });
 
   it('seeks over 0.25 s', () => {

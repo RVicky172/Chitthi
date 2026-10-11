@@ -157,8 +157,8 @@ const lazyMediabunny: FrameSourceFactory = async (file, opts) => (await import('
 
 /**
  * The stage's picture source: the decoder pool where the browser has WebCodecs' VideoDecoder, with <video> elements for
- * clips it can't decode; <video> elements alone where it hasn't (Q7: Firefox before 130, Safari before 26). The
- * elements also play each clip's sound until 204 T034.
+ * clips it can't decode; <video> elements alone where it hasn't (Q7: Firefox before 130, Safari before 26). Clip
+ * sound plays from previewSound.ts's <audio> elements (204 T034); these <video> elements stay muted.
  */
 export function stageSource(onFrame: () => void = () => undefined) {
   const elements = videoElementSource(onFrame);
