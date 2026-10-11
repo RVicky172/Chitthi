@@ -104,3 +104,12 @@ each tick, so at ~1 Hz the picture never advances and sync checks see "0 flashes
 `CHITTHI_TEST_ONLY=pooltiming` (shown window, kept on top, occlusion tracking off, display awake: `scripts/test.cjs`);
 hidden-window checks feed the pool between ticks instead of sleeping. If a pooltiming check fails oddly, look at its
 frames-per-second first. Cost ~30 min.
+
+## 2026-10-11 — Installing dependencies (Dependabot batch)
+
+`npm ci` deletes `node_modules` first: with `npm run dev` (Vite) or `npm run roadmap` running from the checkout it
+fails half-way with a permissions error (locked files) and leaves `node_modules` gutted. Stop them first. npm 11 runs
+only install scripts allowed by `allowScripts`, and Electron 44 has no install script any more: after `npm ci` run
+`node node_modules/electron/install.js` (unset `ELECTRON_RUN_AS_NODE`) or `npm test` has no Electron binary.
+`electron-winstaller`'s install script (picks 7-Zip's architecture) is also skipped: check `npm run desktop:dist`
+before a release.

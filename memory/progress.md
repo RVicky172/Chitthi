@@ -11,6 +11,16 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-11 — chore: Dependabot PRs #23–#27
+
+**Done:** on `chore/deps-2026-10-11`: actions/upload-artifact 7.0.2, download-artifact 8.0.2, setup-node 7.1.0;
+@modelcontextprotocol/sdk 1.32.1; dev-tools group (@anthropic-ai/sdk 0.131, @vitejs/plugin-react 6.1.2, electron
+44.6.0, eslint 10.12, lucide-react 1.52, mediabunny 1.61.3, typescript-eslint 8.71.1, vite 8.3.3). Licences ok (168);
+check 1,174; build entry 327 KB; npm test 6,157 / 0; test:mcp ok; e2e 84 / 0. tech-stack.md versions updated.
+Merged into `main` locally; the PRs close as merged when `main` is pushed.
+**Next:** 203's plan.
+**Blockers:** none.
+
 ## 2026-10-11 — 204 Implemented: T033–T092 with parallel agents (D-030): sound, fallback, limits, docs, every gate
 
 **Done:** first two agent batches (implementers in worktrees + reviewers; the main session merged and ran heavy
