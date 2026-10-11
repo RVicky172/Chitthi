@@ -40,6 +40,7 @@ import {
   type LegacyProject,
 } from './timeline.testkit';
 import { clipLength, limitsFor } from './video';
+import * as V from './video';
 
 /** A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document). */
 function onTracks(p: LegacyProject): Project<LegacyClip & TimedClip> {
@@ -623,6 +624,13 @@ describe('the clip transform (203 AC-4)', () => {
     expect(isIdentity({ ...IDENTITY })).toBe(true);
     for (const k of Object.keys(IDENTITY) as (keyof typeof IDENTITY)[])
       expect(isIdentity({ ...IDENTITY, [k]: IDENTITY[k] + 0.01 }), k).toBe(false);
+  });
+
+  it('has one definition: the drawing fast path (video.ts) is the one timeline.ts exports', () => {
+    expect(IDENTITY).toBe(V.IDENTITY);
+    expect(isIdentity).toBe(V.isIdentity);
+    for (const k of Object.keys(V.IDENTITY) as (keyof typeof IDENTITY)[])
+      expect(V.isIdentity({ ...V.IDENTITY, [k]: V.IDENTITY[k] + 0.25 }), k).toBe(false);
   });
 
   it('clamps every field to its range', () => {

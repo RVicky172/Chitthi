@@ -1,11 +1,13 @@
 import { mergeEdit, type IgEdit } from './instagram';
 import { mergeLayers, type Layer } from './layers';
 import {
+  IDENTITY,
   MOTIONS,
   V_PHOTO_SECONDS,
   clipLength,
   formatsFor,
   frameRange,
+  isIdentity,
   limitsFor,
   type ClipTiming,
   type Motion,
@@ -181,8 +183,8 @@ export interface ClipTransform {
   radius: number;
 }
 
-/** The whole frame: a clip without a transform draws exactly as before 203. */
-export const IDENTITY: ClipTransform = Object.freeze({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
+// The whole frame and the test for it live with the drawing (engine/video.ts renderStack's fast path), here for callers.
+export { IDENTITY, isIdentity };
 
 const TF_RANGE: Record<keyof ClipTransform, [number, number]> = {
   x: [-0.5, 1.5],
@@ -202,10 +204,6 @@ export function clampTransform(t: Partial<ClipTransform> | undefined): ClipTrans
   }
   return out;
 }
-
-/** True for no transform or one equal to the identity (the fast path that draws as before 203). */
-export const isIdentity = (t?: ClipTransform): boolean =>
-  !t || (Object.keys(TF_RANGE) as (keyof ClipTransform)[]).every((k) => t[k] === IDENTITY[k]);
 
 export type Preset = 'full' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 

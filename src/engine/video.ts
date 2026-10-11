@@ -152,12 +152,39 @@ export interface StackDraw {
   local: number;
 }
 
-/** timeline.ts IDENTITY and isIdentity, here without importing timeline.ts at run time (it imports this module). */
-const FULL: ClipTransform = { x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 };
-const atIdentity = (t: ClipTransform) => t.x === 0.5 && t.y === 0.5 && t.w === 1 && t.rot === 0 && t.opacity === 1 && t.radius === 0;
+/** The whole frame: a clip without a transform draws exactly as before 203 (timeline.ts re-exports it). */
+export const IDENTITY: ClipTransform = Object.freeze({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
 
-/** A reused frame-size canvas for a see-through clip (made on first use). */
-let scratch: HTMLCanvasElement | null = null;
+/** True for no transform or one equal to the identity (the fast path that draws as before 203). */
+export const isIdentity = (t?: ClipTransform): boolean =>
+  !t || (Object.keys(IDENTITY) as (keyof ClipTransform)[]).every((k) => t[k] === IDENTITY[k]);
+
+/** Each target canvas's own frame-size canvas for its see-through clips (made on first use, gone with the target), so
+ * the preview and the export, of different sizes and interleaved, don't remake it every frame. */
+const scratches = new WeakMap<HTMLCanvasElement | OffscreenCanvas, HTMLCanvasElement>();
+
+function scratchFor(ctx: CanvasRenderingContext2D, W: number, H: number): CanvasRenderingContext2D | null {
+  let c = scratches.get(ctx.canvas);
+  if (!c) scratches.set(ctx.canvas, (c = document.createElement('canvas')));
+  if (c.width !== W || c.height !== H) [c.width, c.height] = [W, H];
+  const x = c.getContext('2d');
+  if (!x) return null;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.clearRect(0, 0, W, H);
+  return x;
+}
+
+/** Sets x up to draw a whole frame (W × H) into a clip's box: moved, turned, its corners rounded, scaled by w. */
+function intoBox(x: CanvasRenderingContext2D, tf: ClipTransform, W: number, H: number): void {
+  const bw = tf.w * W,
+    bh = tf.w * H;
+  x.translate(tf.x * W, tf.y * H);
+  x.rotate((tf.rot * Math.PI) / 180);
+  roundedBox(x, -bw / 2, -bh / 2, bw, bh, tf.radius * Math.min(bw, bh));
+  x.clip();
+  x.scale(tf.w, tf.w);
+  x.translate(-W / 2, -H / 2);
+}
 
 /** The rounded rectangle x, y, w × h with corner radius r as the current path (arcTo where roundRect is missing). */
 function roundedBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -200,39 +227,27 @@ export function renderStack(
     if (!clip.overlay) [mainLocal, mainFade] = [local, clip.fade];
     if (!src || sw <= 0 || sh <= 0) continue;
     const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
-    const tf = clip.tf ?? FULL;
+    const tf = clip.tf ?? IDENTITY;
     const alpha = tf.opacity * (clip.overlay && clip.fade ? Math.min(1, Math.max(0, local / V_FADE)) : 1);
     if (alpha <= 0) continue;
-    if (alpha >= 1 && atIdentity(tf)) {
+    if (alpha >= 1 && isIdentity(tf)) {
       renderIg(ctx, src, sw, sh, edit, W, H);
       continue;
     }
-    // See-through: the finished picture (its background, colour and vignette) is made first and laid down once, so
-    // its own passes don't show through one another.
-    let pic: HTMLCanvasElement | null = null;
-    if (alpha < 1) {
-      scratch ??= document.createElement('canvas');
-      if (scratch.width !== W || scratch.height !== H) [scratch.width, scratch.height] = [W, H];
-      const sx = scratch.getContext('2d');
-      if (sx) {
-        sx.clearRect(0, 0, W, H);
-        renderIg(sx, src, sw, sh, edit, W, H);
-        pic = scratch;
-      }
+    // See-through: the finished picture (its background, colour and vignette) is drawn into its box on a canvas of
+    // its own first and laid down once, so its own passes don't show through one another. The same geometry either way.
+    const sx = alpha < 1 ? scratchFor(ctx, W, H) : null;
+    const x = sx ?? ctx;
+    x.save();
+    intoBox(x, tf, W, H);
+    renderIg(x, src, sw, sh, edit, W, H);
+    x.restore();
+    if (sx) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(sx.canvas, 0, 0);
+      ctx.restore();
     }
-    const bw = tf.w * W,
-      bh = tf.w * H;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(tf.x * W, tf.y * H);
-    ctx.rotate((tf.rot * Math.PI) / 180);
-    roundedBox(ctx, -bw / 2, -bh / 2, bw, bh, tf.radius * Math.min(bw, bh));
-    ctx.clip();
-    ctx.scale(tf.w, tf.w);
-    ctx.translate(-W / 2, -H / 2);
-    if (pic) ctx.drawImage(pic, 0, 0, W, H);
-    else renderIg(ctx, src, sw, sh, edit, W, H);
-    ctx.restore();
   }
   const dark = fadeAmount(mainLocal, mainFade, t, total, fadeOut);
   // Layers fade with the picture, so a title can fade in with the first photo.

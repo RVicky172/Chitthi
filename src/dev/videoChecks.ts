@@ -1153,7 +1153,7 @@ export async function stackChecks(check: Check): Promise<string[]> {
         if (r.max > max) [max, where] = [r.max, `frame ${Math.round(t * fps)} ${r.where}`];
         sum += r.mean * r.n;
         n += r.n;
-        if (r.n < W * H * 0.8) bad.push(`only ${r.n} pixels compared at ${t.toFixed(3)} s`);
+        if (r.n < W * H * 0.95) bad.push(`only ${r.n} pixels compared at ${t.toFixed(3)} s`);
       }
       const mean = n ? sum / n : 0;
       check(
@@ -1247,10 +1247,16 @@ export async function stackChecks(check: Check): Promise<string[]> {
       nearTo(inPhoto, half(m1rgb, photoRgb)) && nearTo(inBand, half(m1rgb, [255, 255, 255])),
       `video (${backend}): a see-through clip's background doesn't show through its photo (photo ${inPhoto.join('/')}, want ${half(m1rgb, photoRgb).map(Math.round).join('/')}; background ${inBand.join('/')}, want ${half(m1rgb, [255, 255, 255]).map(Math.round).join('/')})`,
     );
-    const red: Layer = { ...newShape('rect'), fill: '#ff0000', x: 0.5, y: 0.5, w: 0.3, h: 0.3 };
-    const withLayer = draw([fading, facePic], [red]);
-    const mid = ((H >> 1) * W + (W >> 1)) * 4;
-    const layer = [...withLayer.slice(mid, mid + 3)];
+    // A red layer over the face-cam's box: layers sit above every track (pure red), and fade with the main clip.
+    const red: Layer = { ...newShape('rect'), fill: '#ff0000', x: face.tf!.x, y: face.tf!.y, w: 0.1, h: 0.1 };
+    const mid = (Math.floor(face.tf!.y * H) * W + Math.floor(face.tf!.x * W)) * 4;
+    const pixel = (d: Uint8ClampedArray) => [...d.slice(mid, mid + 3)];
+    const onTop = pixel(draw([main, facePic], [red]));
+    const layer = pixel(draw([fading, facePic], [red]));
+    check(
+      onTop[0] >= 250 && onTop[1] <= 4 && onTop[2] <= 4,
+      `video (${backend}): layers draw above the overlays (a red layer over the face-cam: ${onTop.join('/')})`,
+    );
     check(
       darkened.max <= 8 && Math.abs(layer[0] - 128) <= 8 && layer[1] <= 8 && layer[2] <= 8,
       `video (${backend}): the main clip's fade-in darkens the whole frame, overlays and layers included (worst ${darkened.max}; red layer at half fade ${layer.join('/')})`,
@@ -1302,9 +1308,10 @@ export async function stackChecks(check: Check): Promise<string[]> {
           fadeOut: lp.fadeOut,
         };
         const len = projectLength(project);
-        // 10 times: the cuts (and just before them), then evenly through the video.
         const cuts = tl.slice(1).flatMap((q) => [q.start, q.start - 1e-4]);
-        const times = [...cuts.slice(0, 4), ...Array.from({ length: 10 }, (_, k) => (k / 9) * (total - 1e-3))].slice(0, 10);
+        // 10 times: the cuts (and just before them), into the video's fade-out, then evenly through the video.
+        const even = Array.from({ length: 10 }, (_, k) => (k / 9) * (total - 1e-3));
+        const times = [...cuts.slice(0, 3), total - V_FADE / 2, total - 1e-3, ...even].slice(0, 10);
         for (const t of times) {
           const l = legacyClipAt(tl, t)!;
           const s = srcOf(l.clip);
