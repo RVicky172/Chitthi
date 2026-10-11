@@ -605,7 +605,7 @@
         "T010": {
           "text": "Failing tests (`src/engine/timeline.test.ts`): `IDENTITY`, `isIdentity`, `clampTransform` (every field's range, NaN and missing fields), `presetTransform` (full and the four corners at 9:16 and 16:9: w 0.35, 4 % margin); `addTrack` (top of the overlays, \"Overlay N\" with the lowest free N, refused at `TRACK_LIMITS` web 4 / desktop 8 with the button's message), `renameTrack` (1–40 characters, trimmed), `moveTrack` (only among overlays, main stays bottom), `deleteTrack` (overlay only, with its clips; main and music refused); `patchTrack` mutes overlay tracks but not the main track.",
           "section": "Tests first: the model",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -619,14 +619,16 @@
           ],
           "test": "`npx vitest run src/engine/timeline.test.ts`: fails (nothing exported yet)",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: 13 failing tests in timeline.test.ts (functions missing), then green with T011."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T011": {
           "text": "Implement §1 and §2 in `src/engine/timeline.ts`: `ClipTransform`, `IDENTITY`, `isIdentity`, `clampTransform`, `Preset`, `presetTransform`, `tf?` on `TimedClip`; `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`; `patchTrack`'s Mute for overlay tracks.",
           "section": "Tests first: the model",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -640,9 +642,11 @@
           ],
           "test": "T010",
           "commits": [],
-          "notes": [],
+          "notes": [
+            "2026-10-11: engine/timeline.ts: ClipTransform, IDENTITY {0.5,0.5,1,0,1,0}, isIdentity, clampTransform (x, y −0.5…1.5; w 0.05…4; rot ±180; opacity 0…1; radius 0…0.5; NaN / missing → identity), Preset, PRESETS, presetTransform (corners w 0.35, margin 0.04·W on both axes: x 0.215 / 0.785; y 0.1975 / 0.8025 at 9:16, 0.2461 / 0.7539 at 16:9), tf? on TimedClip; addTrack (O<n>, 'Overlay N', above the last picture track; limit message names the browser's memory), renameTrack (any track; the UI offers overlays only), moveTrack (overlays only), deleteTrack (overlay only, with its clips; a LOCKED track is refused: the UI disables Delete on it with that reason), tooManyTracks; patchTrack mutes overlays. timeline.test.ts 146 / 146; src/engine 1,002 tests. Reviewed: APPROVE (nits fixed inline; the gate's video-kind / order rule moved to T018)."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-11"
         },
         "T012": {
           "text": "Failing tests (`src/engine/stack.test.ts`, new): `frameStack` bottom first; the main track's clamp only before 0 and at or past the video's end, black between the main track's end and a later overlay clip's end (Q9); an overlay clip starting at 2.0 s first in frame 60 at 30 fps and gone in the frame after its last (AC-7); hidden tracks left out; gaps leave the tracks below; for 201 / 202 fixtures (`timeline.testkit.ts`) the stack is exactly `[videoAt]` at every frame time (AC-10). `mostVideosAt` (overlaps across tracks, hidden tracks counted, photos not, touching clips not overlapping). `snapBox` (centre lines and edges within the tolerance, the nearest wins, none outside it).",
@@ -762,7 +766,7 @@
           "notes": []
         },
         "T018": {
-          "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): at least 30 malformed documents (transform fields out of range, of the wrong type, missing; overlay tracks beyond the limit; clips on a missing track with a reason; overlapping clips on an overlay track moved to the end of the one they overlap, never dropped; too many clips across tracks) and none throws; the AC-6 fixture round-trips document → gate → document equal; 201 / 202 documents round-trip byte-identical (no `transform` written at identity).",
+          "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): at least 30 malformed documents (transform fields out of range, of the wrong type, missing; overlay tracks beyond the limit; clips on a missing track with a reason; overlapping clips on an overlay track moved to the end of the one they overlap, never dropped; too many clips across tracks) and none throws; the AC-6 fixture round-trips document → gate → document equal; 201 / 202 documents round-trip byte-identical (no `transform` written at identity). Also (T011 review): a non-main track of kind `video` in a document becomes an `overlay`, and the main track is always put first among the picture tracks (a document listing [O1, V1] keeps nothing under the main track).",
           "section": "Drawing, document and sound",
           "status": "todo",
           "blockedReason": null,

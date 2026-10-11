@@ -84,7 +84,7 @@ export const TRACK_LIMITS = (desktop: boolean): { visual: number; audio: number 
 export const tooManyTracks = (desktop: boolean): string =>
   desktop
     ? `A project holds up to ${TRACK_LIMITS(true).visual} picture tracks.`
-    : `A project holds up to ${TRACK_LIMITS(false).visual} picture tracks here; the desktop app allows ${TRACK_LIMITS(true).visual}.`;
+    : `A project holds up to ${TRACK_LIMITS(false).visual} picture tracks in the browser (memory); the desktop app allows ${TRACK_LIMITS(true).visual}.`;
 
 const OVERLAY_ID = /^O(\d+)$/;
 const OVERLAY_NAME = /^Overlay (\d+)$/;
@@ -118,7 +118,8 @@ export function addTrack(tracks: Track[], desktop: boolean): { tracks: Track[]; 
 const NO_TRACK = 'That track isn’t in the project.';
 const MAIN_FIXED = 'The main video track stays the bottom picture track.';
 
-/** A track renamed (trimmed, 1–40 characters); the same array when the name doesn't change. */
+/** A track renamed (trimmed, 1–40 characters); the same array when the name doesn't change. Any track: the UI
+ * offers it for overlay tracks only (AC-1). */
 export function renameTrack(tracks: Track[], id: string, name: string): Track[] | { error: string } {
   const i = tracks.findIndex((t) => t.id === id);
   if (i < 0) return { error: NO_TRACK };
