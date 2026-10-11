@@ -5,6 +5,7 @@ import {
   MAIN_VIDEO,
   MUSIC,
   defaultTracks,
+  framePlan,
   pack,
   projectLength,
   videoAt,
@@ -174,6 +175,40 @@ describe('for 201 / 202 projects the stack is exactly [videoAt] at every frame t
     for (const fps of [30, 60]) for (const t of frameTimes(p, fps)) same(p, t);
     const hidden = { ...p, tracks: p.tracks.map((t) => ({ ...t, hidden: true })) };
     for (const t of frameTimes(hidden, 30)) same(hidden, t);
+  });
+});
+
+describe('for 201 / 202 projects the stack is the export’s frame plan at every frame (AC-10)', () => {
+  const agrees = (p: Project, fps: number) => {
+    for (const span of framePlan(p, fps))
+      for (let i = span.f0; i < span.f1; i++) {
+        const got = frameStack(p, i / fps);
+        if (span.clip) expect(got[0]?.clip, `${fps} fps, frame ${i}`).toBe(span.clip);
+        else expect(got, `${fps} fps, frame ${i}`).toEqual([]);
+      }
+  };
+
+  it.each(Object.entries(legacyFixtures()))('%s at 30 and 60 fps', (_, lp) => {
+    const p = onTracks(lp);
+    for (const fps of [30, 60]) agrees(p, fps);
+  });
+
+  it('202 projects with gaps at 30 and 60 fps', () => {
+    const p = project([
+      clip('a', MAIN_VIDEO, 1 / 3, 0.37),
+      clip('b', MAIN_VIDEO, 1.1, 2),
+      clip('c', MAIN_VIDEO, 3.5, 2),
+    ]);
+    for (const fps of [30, 60]) agrees(p, fps);
+  });
+
+  it('a clip ending a rounding hair after the next one starts: the frame on the edge is the later clip’s', () => {
+    // a covers [0.2, 0.30000000000000004) (0.2 + 0.1 in floating point), b starts at 0.3 on an overlay track.
+    const a = { ...clip('a', MAIN_VIDEO, 0.2, 0.1, 'video'), in: 0, out: 0.1 };
+    const q = project([a, clip('b', 'V2', 0.3, 1, 'video')], [overlay('V2')]);
+    expect(a.start + (a.out - a.in)).toBeGreaterThan(9 / 30);
+    expect(ids(q, 9 / 30)).toEqual(['b']);
+    expect(mostVideosAt(q.clips, q.tracks)).toBe(1);
   });
 });
 

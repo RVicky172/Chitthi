@@ -287,6 +287,13 @@ export function pack<C extends TimedClip>(clips: C[]): C[] {
 
 const endOf = (c: TimedClip) => c.start + clipLength(c);
 
+/**
+ * Seconds of slack at a clip's edges when asking which clip covers a time. Starts summed in floating point (pack, 2.x)
+ * sit a hair (~1e-13 s) off the frame grid; frameRange puts such a frame in the later clip, so every "what shows at t"
+ * rule (videoAt, frameStack, mostVideosAt) treats a time within EDGE_EPS before an edge as past it. Far below a frame.
+ */
+export const EDGE_EPS = 1e-9;
+
 /** The video's length: where the last picture clip ends (hidden tracks count too: hiding doesn't shorten it). */
 export function projectLength(p: Project): number {
   const visual = new Set(p.tracks.filter(isVisual).map((t) => t.id));
@@ -310,18 +317,18 @@ export function gaps(p: Project, track: string): { start: number; end: number }[
 
 /** The picture clip showing at time t on the topmost visible picture track, and seconds into it; null for none (a
  * gap shows nothing). The main track clamps as 2.x did: before 0 its first clip (when it starts at 0), at or past the
- * end its last. */
+ * end its last. Edges are EDGE_EPS early, as frameRange's, so the paused preview and the export agree on every frame. */
 export function videoAt<C extends TimedClip>(p: Project<C>, t: number): { clip: C; local: number } | null {
   const visual = p.tracks.filter((tr) => isVisual(tr) && !tr.hidden);
   for (let i = visual.length - 1; i >= 0; i--) {
     const on = p.clips.filter((c) => c.track === visual[i].id);
     if (!on.length) continue;
-    const hit = on.find((c) => t >= c.start && t < endOf(c));
+    const hit = on.find((c) => t >= c.start - EDGE_EPS && t < endOf(c) - EDGE_EPS);
     if (hit) return { clip: hit, local: t - hit.start };
     if (visual[i].id === MAIN_VIDEO) {
       const first = on[0],
         last = on[on.length - 1];
-      const c = t < 0 && first.start <= 0 ? first : t >= endOf(last) ? last : null;
+      const c = t < 0 && first.start <= 0 ? first : t >= endOf(last) - EDGE_EPS ? last : null;
       if (c) return { clip: c, local: t - c.start };
     }
   }

@@ -1,5 +1,5 @@
 import type { Box } from './layers';
-import { MAIN_VIDEO, projectLength, type Project, type TimedClip, type Track } from './timeline';
+import { EDGE_EPS, MAIN_VIDEO, projectLength, type Project, type TimedClip, type Track } from './timeline';
 import { clipLength } from './video';
 
 /*
@@ -22,8 +22,9 @@ const endOf = (c: TimedClip) => c.start + clipLength(c);
  * The picture clips drawn at time t, bottom first: on every visible picture track the clip covering t (a gap draws
  * nothing, so the tracks below show). The main track keeps videoAt's clamp only where 2.x had it: before 0 its first
  * clip (when that starts at 0), at or past the video's end its last clip. Between the main track's end and a later
- * overlay clip's end its area is black (Q9). With the main track the only picture track this is exactly
- * [videoAt(p, t)] (AC-10).
+ * overlay clip's end its area is black (Q9). Edges are EDGE_EPS early, as in videoAt and frameRange, so the stack
+ * agrees with the export's frames (framePlan) at every frame. With the main track the only picture track this is
+ * exactly [videoAt(p, t)] (AC-10).
  */
 export function frameStack<C extends TimedClip>(p: Project<C>, t: number): StackItem<C>[] {
   const out: StackItem<C>[] = [];
@@ -34,10 +35,10 @@ export function frameStack<C extends TimedClip>(p: Project<C>, t: number): Stack
       if (c.track !== tr.id) continue;
       first ??= c;
       last = c;
-      if (!hit && t >= c.start && t < endOf(c)) hit = c;
+      if (!hit && t >= c.start - EDGE_EPS && t < endOf(c) - EDGE_EPS) hit = c;
     }
     if (!hit && first && last && tr.id === MAIN_VIDEO)
-      hit = t < 0 && first.start <= 0 ? first : t >= projectLength(p) ? last : undefined;
+      hit = t < 0 && first.start <= 0 ? first : t >= projectLength(p) - EDGE_EPS ? last : undefined;
     if (hit) out.push({ clip: hit, local: t - hit.start, track: tr.id });
   }
   return out;
@@ -46,15 +47,15 @@ export function frameStack<C extends TimedClip>(p: Project<C>, t: number): Stack
 /**
  * The most video clips on screen at one moment: video clips (not photos) on every picture track, hidden ones included
  * so unhiding a track can't break the limit (D3). A sweep over the clips' start and end events; clips that only
- * touch (one ends where the next starts, within a hair of floating point) don't overlap.
+ * touch (one ends where the next starts, within EDGE_EPS of floating point) don't overlap, as in frameStack.
  */
 export function mostVideosAt(clips: TimedClip[], tracks: Track[]): number {
   const picture = new Set(tracks.filter(isPicture).map((t) => t.id));
   const events: [number, number][] = [];
   for (const c of clips) {
     if (c.kind !== 'video' || !picture.has(c.track)) continue;
-    // An end counts a hair early, so it comes before a start at (about) the same time.
-    events.push([c.start, 1], [endOf(c) - 1e-9, -1]);
+    // An end counts EDGE_EPS early (as frameStack's), so it comes before a start at (about) the same time.
+    events.push([c.start, 1], [Math.max(c.start, endOf(c) - EDGE_EPS), -1]);
   }
   events.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   let n = 0,
@@ -82,7 +83,8 @@ function snapAxis(c: number, h: number, lines: number[], tol: number): { d: numb
 
 /**
  * Where a moved box lands: its centre or the edges of its (rotated) bounding box snap to the frame's centre lines
- * and edges when within `tolerance` pixels, the nearest on each axis. Returns the centre as shares of the frame (as
+ * and edges when within `tolerance`, the nearest on each axis. Everything is in frame pixels: `box` as layerBox gives
+ * it (`box.rot` in radians; ClipTransform.rot is degrees), and `tolerance` too (the stage converts its 8 screen px). Returns the centre as shares of the frame (as
  * layers' and clip transforms' x, y) and the lines snapped to, for the stage to draw.
  */
 export function snapBox(

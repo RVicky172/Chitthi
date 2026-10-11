@@ -101,6 +101,21 @@ describe('the track model gives the 2.x answers for every 2.x project', () => {
       ).toEqual(legacyFramePlan(p, fps));
   });
 
+  it.each(fixtures)('%s: the paused frame (videoAt) is the export’s at every frame, hair edges included', (name, p) => {
+    const tp = onTracks(p);
+    for (const fps of [30, 60]) {
+      let hairs = 0;
+      for (const span of framePlan(tp, fps))
+        for (let i = span.f0; i < span.f1; i++) {
+          const got = videoAt(tp, i / fps);
+          expect(got?.clip, `${fps} fps, frame ${i}`).toBe(span.clip ?? undefined);
+          // A start summed in floating point a hair after the frame's time: exact edges would pick the earlier clip.
+          if (span.clip && i / fps < span.clip.start) hairs++;
+        }
+      if (name === 'tinyClips' || name === 'clips500') expect(hairs, `${fps} fps`).toBeGreaterThan(0);
+    }
+  });
+
   it.each(fixtures)('%s: the export’s sound', (_, p) => {
     expect(audioPlan(onTracks(p))).toEqual(legacyAudioPlan(p));
   });
@@ -257,7 +272,8 @@ describe('gaps on the main video track (202)', () => {
     const plan = audioPlan({ ...withGaps, clips: withGaps.clips.map((c) => ({ ...c, volume: 1 })), audio: [music] });
     const own = plan.filter((s) => s.ref !== 'music');
     expect(own.map((s) => s.ref)).toEqual(['c']);
-    for (const g of gaps(withGaps, MAIN_VIDEO)) for (const s of own) expect(s.end <= g.start || s.start >= g.end).toBe(true);
+    for (const g of gaps(withGaps, MAIN_VIDEO))
+      for (const s of own) expect(s.end <= g.start || s.start >= g.end).toBe(true);
     expect(plan.find((s) => s.ref === 'music')).toMatchObject({ start: 0, end: 8, from: 0 });
   });
 });
