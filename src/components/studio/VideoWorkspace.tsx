@@ -416,13 +416,13 @@ function VideoStage() {
       const s = getVideo(),
         plan = soundPlan(projectOf(s), s.t);
       sound().update(plan, play, s.fps);
-      const p = plan.current,
-        pool = stage().pool;
+      const pool = stage().pool;
       for (const c of s.clips) {
         if (c.kind !== 'video' || (pool && !pool.fallback(c.id))) continue;
         const v = videoFor(c);
         v.muted = true;
-        if (p && c.id === p.clip.id) {
+        const p = plan.current.find((x) => x.clip.id === c.id);
+        if (p) {
           const want = c.in + p.local;
           if (play) {
             if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;

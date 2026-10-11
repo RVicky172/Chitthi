@@ -1382,3 +1382,114 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
     expect(out.clips.find((c) => c.id === 'o1a')!.transform).toEqual(clampTransform(wild));
   });
 });
+
+/* ---------- 203 T020: the sound of overlay clips (AC-8, AC-10, Q7) ---------- */
+
+describe('overlay clips’ sound in the export (203 AC-8, Q7)', () => {
+  type SC = TimedClip & { volume: number };
+  const video = (id: string, track: string, start: number, from: number, len: number, volume: number): SC => ({
+    id,
+    track,
+    start,
+    kind: 'video',
+    in: from,
+    out: from + len,
+    dur: 0,
+    volume,
+  });
+  const still = (id: string, track: string, start: number, len: number): SC => ({
+    id,
+    track,
+    start,
+    kind: 'photo',
+    in: 0,
+    out: 0,
+    dur: len,
+    volume: 0,
+  });
+  const overlay = (id: string, patch: Partial<Track> = {}): Track => ({
+    id,
+    kind: 'overlay',
+    name: id,
+    hidden: false,
+    muted: false,
+    locked: false,
+    ...patch,
+  });
+  // V1: a 0–4 (video), p 4–6 (photo), b 6–9 (video). O1: x 1–3, q 4–5 (photo), y 5–7 (volume 0). O2: z 2–3.5.
+  // The music plays from 2 s into the song to the end (9 s).
+  const fixture = (o1: Partial<Track> = {}, o2: Partial<Track> = {}, main: Partial<Track> = {}): Project<SC> => ({
+    tracks: [
+      { ...defaultTracks()[0], ...main },
+      overlay('O1', o1),
+      overlay('O2', o2),
+      defaultTracks()[1],
+    ],
+    clips: [
+      video('a', MAIN_VIDEO, 0, 1, 4, 0.8),
+      still('p', MAIN_VIDEO, 4, 2),
+      video('b', MAIN_VIDEO, 6, 0, 3, 1),
+      video('x', 'O1', 1, 5, 2, 0.5),
+      still('q', 'O1', 4, 1),
+      video('y', 'O1', 5, 0, 2, 0),
+      video('z', 'O2', 2, 0, 1.5, 1),
+    ],
+    audio: [{ id: 'music', track: MUSIC, start: 0, in: 2, volume: 0.6, toEnd: true, srcDur: 60 }],
+    layers: [],
+    fadeOut: false,
+  });
+  const cut = (ref: string, start: number, end: number, from: number, volume: number) => ({
+    ref,
+    start,
+    end,
+    from,
+    volume,
+    fadeIn: 0.03,
+    fadeOut: 0.03,
+  });
+  const music = { ref: 'music', start: 0, end: 9, from: 2, volume: 0.6, fadeIn: 0, fadeOut: 1.5 };
+
+  it('mixes each overlay video clip’s own sound at its volume, after the main track’s clips, with the same ramps', () => {
+    expect(audioPlan(fixture())).toEqual([
+      cut('a', 0, 4, 1, 0.8),
+      cut('b', 6, 9, 0, 1),
+      cut('x', 1, 3, 5, 0.5),
+      cut('z', 2, 3.5, 0, 1),
+      music,
+    ]);
+  });
+
+  it('a muted overlay track adds nothing', () => {
+    const all = audioPlan(fixture());
+    expect(audioPlan(fixture({}, { muted: true }))).toEqual(all.filter((s) => s.ref !== 'z'));
+    expect(audioPlan(fixture({ muted: true }))).toEqual(all.filter((s) => s.ref !== 'x'));
+    const bare = fixture();
+    expect(audioPlan(fixture({ muted: true }, { muted: true }))).toEqual(
+      audioPlan({ ...bare, clips: bare.clips.filter((c) => c.track === MAIN_VIDEO) }),
+    );
+  });
+
+  it('a hidden overlay track keeps its sound (Hide is pictures); so does the hidden main track (201 D2)', () => {
+    const all = audioPlan(fixture());
+    expect(audioPlan(fixture({ hidden: true }))).toEqual(all);
+    expect(audioPlan(fixture({ hidden: true }, { hidden: true }, { hidden: true }))).toEqual(all);
+    expect(audioPlan(fixture({ hidden: true, muted: true }))).toEqual(all.filter((s) => s.ref !== 'x'));
+  });
+
+  it.each(fixtures)('%s: overlay tracks without sound leave the 2.x sound sources unchanged (AC-10)', (_, p) => {
+    const tp = onTracks(p);
+    const [main, ...rest] = tp.tracks;
+    const empty = { ...tp, tracks: [main, overlay('O1'), ...rest] };
+    expect(audioPlan(empty)).toEqual(legacyAudioPlan(p));
+    const silent = {
+      ...tp,
+      tracks: [main, overlay('O1', { muted: true }), overlay('O2'), ...rest],
+      // A clip on a muted track and a clip at volume 0: the pictures differ, the sound mustn't.
+      clips: [
+        ...tp.clips,
+        ...([video('m', 'O1', 0, 0, 1, 1), video('n', 'O2', 0, 0, 1, 0)] as unknown as typeof tp.clips),
+      ],
+    };
+    expect(audioPlan(silent)).toEqual(legacyAudioPlan(p));
+  });
+});

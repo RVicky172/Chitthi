@@ -379,18 +379,24 @@ export interface SoundSource {
 
 /**
  * The sounds the export mixes: each video clip's own sound on the main track (hiding the track keeps it: hiding is
- * about pictures) with short ramps at the cuts, then the audio clips of tracks that aren't muted; a `toEnd` clip plays
- * to the end of the video and fades out over min(1.5 s, a third of the video), as 2.x's music did.
+ * about pictures) with short ramps at the cuts, then each video clip's on the overlay tracks that aren't muted (hidden
+ * ones too, 203 Q7), bottom track first, then the audio clips of tracks that aren't muted; a `toEnd` clip plays to the
+ * end of the video and fades out over min(1.5 s, a third of the video), as 2.x's music did. The main track's entries
+ * come first in their own order, so a project without overlay clips mixes exactly 202's sources (203 AC-10).
  */
 export function audioPlan(p: Project): SoundSource[] {
   const total = projectLength(p);
   const out: SoundSource[] = [];
-  for (const c of p.clips) {
-    if (c.track !== MAIN_VIDEO || c.kind !== 'video') continue;
-    const volume = (c as TimedClip & { volume?: number }).volume ?? 0;
-    if (volume <= 0) continue;
-    out.push({ ref: c.id, start: c.start, end: endOf(c), from: c.in, volume, fadeIn: 0.03, fadeOut: 0.03 });
-  }
+  const own = (track: string) => {
+    for (const c of p.clips) {
+      if (c.track !== track || c.kind !== 'video') continue;
+      const volume = (c as TimedClip & { volume?: number }).volume ?? 0;
+      if (volume <= 0) continue;
+      out.push({ ref: c.id, start: c.start, end: endOf(c), from: c.in, volume, fadeIn: 0.03, fadeOut: 0.03 });
+    }
+  };
+  own(MAIN_VIDEO);
+  for (const t of p.tracks) if (t.kind === 'overlay' && !t.muted) own(t.id);
   const muted = new Set(p.tracks.filter((t) => t.kind === 'audio' && t.muted).map((t) => t.id));
   for (const a of p.audio) {
     if (muted.has(a.track) || a.volume <= 0) continue;
