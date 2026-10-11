@@ -377,3 +377,16 @@ picture track, hidden ones included; photos don't count. Q6: 3 videos at once on
 **Alternatives:** a box with the clip's own aspect ratio; fade overlays from black; count only shown tracks.
 **Consequences:** projects without transforms draw exactly as before (AC-10 by construction); a 16:9 clip in a corner
 of a 9:16 Reel shows cropped until set to "whole picture".
+
+## D-032 — One edge rule for which clip a time shows (2026-10-11)
+
+**Context:** 203 T013's review found that `videoAt` (paused preview) decided coverage exactly while the export's
+`framePlan` (via `frameRange`) put a frame lying a floating-point hair before a cut into the later clip; starts summed by
+`pack()` sit ~1e-13 s off the grid, so 201 / 202 preview and export disagreed on a few frames (tinyClips 1, clips500 42
+at 30 fps).
+**Decision:** `EDGE_EPS` = 1e-9 s in `engine/timeline.ts`, used by `videoAt`, `frameStack` and `mostVideosAt`: a time
+within EPS before a boundary belongs to the later clip, as the export already drew it.
+**Alternatives:** keep the exact rule and make the export follow it (changes exported files); fps-dependent tolerance.
+**Consequences:** preview and export agree on every frame; `local` can be about −1e-13 at such frames (already so in the
+export; fades and motion clamp it).
+

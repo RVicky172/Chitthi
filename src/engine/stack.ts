@@ -84,8 +84,9 @@ function snapAxis(c: number, h: number, lines: number[], tol: number): { d: numb
 /**
  * Where a moved box lands: its centre or the edges of its (rotated) bounding box snap to the frame's centre lines
  * and edges when within `tolerance`, the nearest on each axis. Everything is in frame pixels: `box` as layerBox gives
- * it (`box.rot` in radians; ClipTransform.rot is degrees), and `tolerance` too (the stage converts its 8 screen px). Returns the centre as shares of the frame (as
- * layers' and clip transforms' x, y) and the lines snapped to, for the stage to draw.
+ * it (`box.rot` in radians; ClipTransform.rot is degrees), and `tolerance` too (the stage converts its 8 screen
+ * px). Returns the centre as shares of the frame (as layers' and clip transforms' x, y) and the lines snapped to, for
+ * the stage to draw.
  */
 export function snapBox(
   box: Box,

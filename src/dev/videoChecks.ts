@@ -16,7 +16,7 @@ import {
   canEncodeAudio,
   canEncodeVideo,
 } from 'mediabunny';
-import type { Project, Track } from '../engine/timeline';
+import { IDENTITY, presetTransform, type ClipTransform, type Project, type Track } from '../engine/timeline';
 import type { ExportClip } from '../engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;
@@ -36,7 +36,9 @@ export const codeColour = (i: number, clip?: number): [number, number, number] =
     ? [40 + ((i * 53) % 180), 40 + ((i * 97) % 180), 40 + ((i * 31) % 180)]
     : [40 + ((i * 77) % 180), 40 + ((i * 89) % 180), 40 + clip * 25];
 
-/** The clip code and frame (mod 180) a colour from codeColour(i, clip) names: the nearest code, and how far it was. */
+/** The clip code and frame (mod 180) a colour from codeColour(i, clip) names: the nearest code, and how far it was.
+ * Two frames' codes can be 13 levels apart, so the frame is reliable only within about ±6 levels (the pool checks' ±8
+ * tolerance can name a neighbour); meaningless on blended pixels (a 50 % overlay): compute those from colourAt. */
 export function nameCode(rgb: readonly number[]): { clip: number; frame: number; off: number } {
   const clip = Math.max(0, Math.min(6, Math.round((rgb[2] - 40) / 25)));
   let frame = 0,
@@ -218,22 +220,8 @@ export async function testPhoto(i: number, W = 1600, H = 1067): Promise<{ blob: 
 
 /* ---------- 203: overlay fixtures (AC-6, AC-13) ---------- */
 
-/** 203 plan §1's ClipTransform, structurally: the box's centre and width as shares of the frame, degrees, 0–1, and the
- * corner radius as a share of the box's shorter side. */
-export interface FixtureTransform {
-  x: number;
-  y: number;
-  w: number;
-  rot: number;
-  opacity: number;
-  radius: number;
-}
-/** 203 plan §1's IDENTITY: the whole frame. */
-export const FIXTURE_IDENTITY: FixtureTransform = { x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 };
-
 /** A clip of an overlay fixture: an export clip with its transform (none = full frame) and, for a photo, its still. */
 export interface OverlayClip extends ExportClip {
-  tf?: FixtureTransform;
   still?: HTMLCanvasElement;
 }
 
@@ -250,7 +238,7 @@ export interface OverlayExpect {
   /** Source seconds at its first frame. */
   in: number;
   /** Its box: its transform, or IDENTITY when it has none. */
-  tf: FixtureTransform;
+  tf: ClipTransform;
 }
 
 export interface OverlayFixture {
@@ -348,19 +336,10 @@ export async function makeOverlayProject(format: '9:16' | '16:9'): Promise<Overl
   const { DEFAULT_EDIT } = await import('../engine/instagram');
   const [W, H] = OVERLAY_SIZES[format];
   const fps = OVERLAY_FPS;
-  const corner = 0.35,
-    margin = 0.04 * W;
-  const tfs: Record<string, FixtureTransform | undefined> = {
+  const tfs: Record<string, ClipTransform | undefined> = {
     photo: { x: 0.4, y: 0.6, w: 0.5, rot: 15, opacity: 1, radius: 0.1 },
     edge: { x: 0.9, y: 0.15, w: 0.5, rot: 0, opacity: 1, radius: 0 },
-    face: {
-      x: 1 - (margin + (corner * W) / 2) / W,
-      y: (margin + (corner * H) / 2) / H,
-      w: corner,
-      rot: 0,
-      opacity: 0.5,
-      radius: 0,
-    },
+    face: { ...presetTransform('top-right', W, H), opacity: 0.5 },
   };
   const clips: OverlayClip[] = OVERLAY_PLAN.map(([id, track, kind, , f0, f1, inT]) => {
     const file = files.get(id)!;
@@ -391,7 +370,7 @@ export async function makeOverlayProject(format: '9:16' | '16:9'): Promise<Overl
     first: f0,
     last: f1 - 1,
     in: inT,
-    tf: tfs[id] ?? FIXTURE_IDENTITY,
+    tf: tfs[id] ?? IDENTITY,
   }));
   return {
     format,
@@ -430,7 +409,10 @@ export interface LongOverlayFixture {
  * 5 s from 1 s, top-right at 35 % and 50 % opacity. Three videos show at once most of the time. Null if this engine
  * can't encode 1080p H.264.
  */
-export async function makeLongOverlayProject(): Promise<LongOverlayFixture | null> {
+let longOverlay: Promise<LongOverlayFixture | null> | null = null;
+/** Made once per run: the build check and the export checks (T032) share it. */
+export const makeLongOverlayProject = (): Promise<LongOverlayFixture | null> => (longOverlay ??= buildLongOverlayProject());
+async function buildLongOverlayProject(): Promise<LongOverlayFixture | null> {
   const { DEFAULT_EDIT } = await import('../engine/instagram');
   const W = 1920,
     H = 1080,
@@ -443,18 +425,9 @@ export async function makeLongOverlayProject(): Promise<LongOverlayFixture | nul
     sources.push(b);
   }
   const made = performance.now() - t0;
-  const m = 0.04 * W,
-    w = 0.35;
-  const left: FixtureTransform = {
-    x: (m + (w * W) / 2) / W,
-    y: 1 - (m + (w * H) / 2) / H,
-    w,
-    rot: 0,
-    opacity: 1,
-    radius: 0,
-  };
-  const right: FixtureTransform = { x: 1 - left.x, y: 1 - left.y, w, rot: 0, opacity: 0.5, radius: 0 };
-  const lane = (track: string, n: number, len: number, every: number, from: number, tf?: FixtureTransform) =>
+  const left = presetTransform('bottom-left', W, H);
+  const right: ClipTransform = { ...presetTransform('top-right', W, H), opacity: 0.5 };
+  const lane = (track: string, n: number, len: number, every: number, from: number, tf?: ClipTransform) =>
     Array.from({ length: n }, (_, i): OverlayClip => {
       const inT = Math.round(((i * 0.3) % 1) * fps) / fps;
       return {
@@ -926,7 +899,14 @@ export async function overlayFixtureChecks(check: Check): Promise<string[]> {
       const exp = ends.map((t) => fx.colourAt(c.id, t)!);
       let got: number[][];
       if (c.kind === 'photo') {
-        const d = clip.still!.getContext('2d')!.getImageData(10, 10, 1, 1).data;
+        // The file the preview and the export load, decoded (not the still drawn from it).
+        const bmp = await createImageBitmap(clip.file);
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = 1;
+        const x = cv.getContext('2d', { willReadFrequently: true })!;
+        x.drawImage(bmp, 10, 10, 1, 1, 0, 0, 1, 1);
+        bmp.close();
+        const d = x.getImageData(0, 0, 1, 1).data;
         got = [[d[0], d[1], d[2]], [d[0], d[1], d[2]]];
       } else got = await decodedColours(clip.file, ends.map((t) => c.in + t - clip.start + 0.5 / fx.fps));
       exp.forEach((e, k) => {

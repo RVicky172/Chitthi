@@ -169,9 +169,13 @@ export function moveTrack(tracks: Track[], id: string, by: 1 | -1): Track[] | { 
 export function deleteTrack<C extends TimedClip>(tracks: Track[], clips: C[], id: string): { tracks: Track[]; clips: C[] } | { error: string };
 
 export interface StackItem<C extends TimedClip> { clip: C; local: number; track: string }
+export const EDGE_EPS = 1e-9;   // one edge rule for videoAt, frameStack, mostVideosAt (= framePlan's frames)
+
+// engine/stack.ts (T013: its own module)
 export function frameStack<C extends TimedClip>(p: Project<C>, t: number): StackItem<C>[];   // bottom first
 export function mostVideosAt(clips: TimedClip[], tracks: Track[]): number;
-export function snapBox(box: Box, W: number, H: number, tolerance: number): { x: number; y: number; guides: number[] };
+export interface SnapGuide { axis: 'x' | 'y'; at: number }   // frame pixels
+export function snapBox(box: Box, W: number, H: number, tolerance: number): { x: number; y: number; guides: SnapGuide[] };
 export interface DocClip extends TimedClip { /* … */ transform?: ClipTransform }
 
 // engine/video.ts
