@@ -2,12 +2,13 @@
  * Development only: the video editor's playback on the decoder pool, measured on the real editor (VideoWorkspace,
  * mounted in StrictMode on the dev server as `npm run dev` runs it) with frame-coded clips (each frame's colour names
  * it: videoChecks.ts codeColour). 204 T032: the quick checks (AC-12's release, AC-13) run in `npm test`; the real-time
- * ones (AC-5, AC-7, AC-12's bounds) run on demand with `CHITTHI_TEST_ONLY=pooltiming npm test` (minutes of playback).
+ * ones (AC-5, AC-7, AC-8, AC-12's bounds) run on demand with `CHITTHI_TEST_ONLY=pooltiming npm test` (minutes of
+ * playback).
  * T050's count of simultaneous videos (AC-15, poolTiming) is measured through the pool alone, without the editor, on
  * demand with `CHITTHI_TEST_ONLY=poolcount npm test`.
  */
 import { within } from './poolChecks';
-import { codeColour, makeTestClip } from './videoChecks';
+import { codeColour, makeSyncClip, makeTestClip } from './videoChecks';
 
 type Check = (ok: unknown, what: string) => void;
 const FPS = 30;
@@ -155,10 +156,12 @@ export async function playbackChecks(check: Check): Promise<string[]> {
   const end = performance.now() + 1000;
   const { openFrames } = await import('../engine/frameSource');
   const { liveStages } = await import('../components/studio/previewFrame');
-  while ((openFrames().frames || openFrames().decoders || liveStages.size) && performance.now() < end) await sleep(20);
+  const { liveSounds } = await import('../components/studio/previewSound');
+  const busy = () => openFrames().frames || openFrames().decoders || liveStages.size || liveSounds.size;
+  while (busy() && performance.now() < end) await sleep(20);
   check(
-    !openFrames().frames && !openFrames().decoders && !liveStages.size,
-    `playback: leaving the editor frees every frame and decoder within 1 s (${JSON.stringify(openFrames())}, stages ${liveStages.size}) (AC-12)`,
+    !busy(),
+    `playback: leaving the editor frees every frame, decoder and clip sound within 1 s (${JSON.stringify(openFrames())}, stages ${liveStages.size}, sounds ${liveSounds.size}) (AC-12)`,
   );
   notes.push('playback: AC-12 release and AC-13 on the real editor (StrictMode)');
   return notes;
@@ -295,6 +298,30 @@ export async function playbackTiming(check: Check): Promise<string[]> {
     notes.push(
       `pool timing AC-12: max decoders ${maxPoolDec}, readers ${maxDec}, frames ${maxFrames}, ${(maxBytes / 2 ** 20).toFixed(0)} MB`,
     );
+    ed.clear();
+
+    // AC-8 (D4): the sync clip played 30 s, and two short ones through a cut: each flash and its beep ≤ 67 ms apart.
+    const sync = await makeSyncClip(31);
+    const shortSync = await Promise.all([0, 1].map(() => makeSyncClip(4)));
+    if (!sync || shortSync.some((x) => !x)) notes.push('pool timing AC-8: skipped (no H.264 + AAC encoder)');
+    else
+      for (const [what, blobs] of [
+        ['30 s of one clip', [sync]],
+        ['two 4 s clips through a cut', shortSync as Blob[]],
+      ] as const) {
+        const added = await ed.add([...blobs]);
+        const r = await syncOffsets(ed, added, 0.5);
+        const worst = Math.max(...r.offsets.map(Math.abs));
+        const mean = r.offsets.reduce((a, b) => a + b, 0) / (r.offsets.length || 1);
+        check(
+          r.offsets.length === r.expected && r.onsets === r.expected && worst <= 67,
+          `pool timing: ${what}: every flash and its beep within 67 ms (AC-8): ${r.flashes}/${r.expected} flashes drawn, ${r.onsets} beeps heard from the clip's <audio>, sound − picture ${r.offsets.map((d) => d.toFixed(0)).join(' ')} ms`,
+        );
+        notes.push(
+          `pool timing AC-8 ${what}: ${r.offsets.length} pairs, sound − picture mean ${mean.toFixed(0)} ms, worst ${worst.toFixed(0)} ms`,
+        );
+        ed.clear();
+      }
   } finally {
     ed.unmount();
   }
@@ -502,4 +529,74 @@ export async function poolTiming(check: Check): Promise<string[]> {
       .join('')}`,
   );
   return notes;
+}
+
+/**
+ * AC-8 (D4): plays from `from` to the end of the sync clips (a white frame and a beep on the same frame every 2 s) and
+ * pairs each flash with its beep. A beep's onset: the clip's <audio> element's captureStream() into an analyser (the
+ * first loud sample, dated back from the newest sample); a flash's time: the playback tick that first drew it white (a
+ * tick sets the playhead to its wall-clock time and draws, so its playhead dates it). Sound − picture, in ms.
+ */
+async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: { id: string }[], from: number) {
+  const { liveSounds } = await import('../components/studio/previewSound');
+  const ctx = new AudioContext();
+  await ctx.resume();
+  const N = 8192,
+    buf = new Float32Array(N);
+  const taps = new Map<HTMLMediaElement, { stream: MediaStream; an?: AnalyserNode }>();
+  const onsets: number[] = [],
+    flashT: number[] = [];
+  /** The wall time of playhead 0 (performance.now() − t · 1000 at a tick); the lowest seen is the tick's own. */
+  let zero = Infinity,
+    white = false;
+  ed.v.setPlayhead(from);
+  await sleep(800);
+  ed.v.setPlaying(true);
+  try {
+    while (ed.v.getVideo().playing) {
+      await frame();
+      const now = performance.now(),
+        t = ed.v.getVideo().t;
+      // Not ticking yet: the playhead hasn't moved.
+      if (t === from) continue;
+      zero = Math.min(zero, now - t * 1000);
+      const c = ed.centre(),
+        w = !!c && c.every((x) => x > 200);
+      if (w && !white) flashT.push(t);
+      white = w;
+      for (const snd of liveSounds)
+        for (const { id } of clips) {
+          const el = snd.element(id);
+          if (!el) continue;
+          let tap = taps.get(el);
+          if (!tap) {
+            const media = el as HTMLMediaElement & { captureStream(): MediaStream };
+            taps.set(el, (tap = { stream: media.captureStream() }));
+          }
+          // The stream gets its audio track once the element plays.
+          if (!tap.an && tap.stream.getAudioTracks().length) {
+            tap.an = ctx.createAnalyser();
+            tap.an.fftSize = N;
+            ctx.createMediaStreamSource(tap.stream).connect(tap.an);
+          }
+          if (!tap.an) continue;
+          tap.an.getFloatTimeDomainData(buf);
+          const i = buf.findIndex((x) => Math.abs(x) > 0.1);
+          const at = now - ((N - i) / ctx.sampleRate) * 1000;
+          if (i >= 0 && !onsets.some((o) => Math.abs(o - at) < 1000)) onsets.push(at);
+        }
+    }
+  } finally {
+    ed.v.setPlaying(false);
+    await ctx.close();
+  }
+  // A flash every 2 s of each clip's own time, after `from`.
+  let expected = 0;
+  for (const c of ed.v.getVideo().clips)
+    for (let k = 0; k < c.out - c.in - 1e-3; k += 2) if (c.start + k > from) expected++;
+  const offsets = flashT
+    .map((t) => zero + t * 1000)
+    .map((f) => onsets.reduce((best, o) => (Math.abs(o - f) < Math.abs(best) ? o - f : best), Infinity))
+    .filter(Number.isFinite);
+  return { expected, flashes: flashT.length, onsets: onsets.length, offsets };
 }

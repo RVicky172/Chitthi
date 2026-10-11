@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
-import { MAIN_VIDEO, MUSIC, lockedReason, videoAt } from '../../engine/timeline';
+import { MUSIC, lockedReason, videoAt } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
 import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
+import { previewSound, soundPlan } from './previewSound';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { canStreamToDisk } from '../../lib/fileSink';
@@ -298,7 +299,7 @@ function VideoStage() {
   const tick = useFontsTick(layers);
   const audio = useRef<HTMLAudioElement | null>(null);
   const draw = useRef<(frame?: StageFrame<VClip>) => void>(() => undefined);
-  // Pictures: the decoder pool (204), with <video> elements for clips it can't decode and for each clip's sound.
+  // Pictures: the decoder pool (204), with <video> elements for clips it can't decode (sound: below).
   // Created on first use and again after a cleanup: StrictMode runs effects twice in development, and a source kept in
   // useMemo would stay disposed (the stage drew nothing).
   const stageRef = useRef<ReturnType<typeof stageSource> | null>(null);
@@ -311,6 +312,19 @@ function VideoStage() {
     [],
   );
   const videoFor = useCallback((c: VClip) => stage().element(c), [stage]);
+  // Clip sound (204 §4, D1): <audio> elements for the clip under the playhead and the next ones; lazy like the stage,
+  // and not made again by the playback cleanup's last sync once the stage has gone.
+  const soundRef = useRef<ReturnType<typeof previewSound> | null>(null);
+  const mounted = useRef(false);
+  const sound = useCallback(() => (mounted.current ? (soundRef.current ??= previewSound()) : null), []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      soundRef.current?.dispose();
+      soundRef.current = null;
+    };
+  }, []);
   /** The frame drawn last (paused: the exact one once it landed); held while the next one decodes. */
   const last = useRef<StageFrame<VClip> | null>(null);
   /** Paused asks: only the newest one is drawn (latest wins). */
@@ -394,34 +408,32 @@ function VideoStage() {
     [stage],
   );
 
-  /** Each clip's <video> for its sound (and the picture of a clip the pool can't decode): the current one at the
-   * playhead (playing when playing), the rest paused. */
+  /** The clip sound at the playhead (playing when playing, kept within a frame), the next clip's pre-seeked; and the
+   * muted <video> of a clip the pool can't decode, for its picture: the current one at the playhead, the rest paused. */
   const sync = useCallback(
     (play: boolean) => {
       const s = getVideo(),
-        // A hidden video track still plays its clips' sound (D2): find the clip as if it were shown.
-        p = videoAt({ ...projectOf(s), tracks: s.tracks.map((tr) => (tr.id === MAIN_VIDEO ? { ...tr, hidden: false } : tr)) }, s.t);
+        plan = soundPlan(projectOf(s), s.t);
+      sound()?.update(plan.current, plan.next, play, s.fps);
+      const p = plan.current,
+        pool = stage().pool;
       for (const c of s.clips) {
-        if (c.kind !== 'video') continue;
+        if (c.kind !== 'video' || (pool && !pool.fallback(c.id))) continue;
         const v = videoFor(c);
+        v.muted = true;
         if (p && c.id === p.clip.id) {
           const want = c.in + p.local;
-          v.volume = Math.max(0, Math.min(1, c.volume));
-          v.muted = c.volume <= 0;
           if (play) {
             if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;
             if (v.paused) void v.play().catch(() => undefined);
           } else {
             v.pause();
-            const pool = stage().pool;
-            if (!pool || pool.fallback(c.id)) {
-              if (Math.abs(v.currentTime - want) > 0.02) v.currentTime = want;
-            }
+            if (Math.abs(v.currentTime - want) > 0.02) v.currentTime = want;
           }
         } else if (!v.paused) v.pause();
       }
     },
-    [videoFor, stage],
+    [videoFor, stage, sound],
   );
 
   // Clips removed from the project give their decoders and frames back.
