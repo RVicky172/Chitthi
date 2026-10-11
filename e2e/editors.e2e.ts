@@ -234,6 +234,70 @@ test.describe('video editor', () => {
     expect(errors).toEqual([]);
   });
 
+  test('without VideoDecoder (older browsers) the editor adds a video clip, plays, scrubs and draws as before', async ({ page }) => {
+    test.setTimeout(150_000);
+    // A 6 s MP4 made by the app itself (two photos as a Reel; encoding needs VideoEncoder only).
+    await page.goto('./#/instagram/video');
+    await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES.slice(0, 2));
+    await expect(page.locator('.tl-clip')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page.getByRole('button', { name: /Export MP4/ }).click();
+    const save = page.getByRole('button', { name: /Download MP4/ });
+    await save.waitFor({ timeout: 90_000 });
+    const dl = page.waitForEvent('download');
+    await save.click();
+    const reel = readFileSync(await (await dl).path());
+
+    // From here on the page has no WebCodecs decoder, as in Firefox before 130 and Safari before 26 (204 Q7): no pool,
+    // the preview draws from <video> elements as before 204. The editor keeps no clips across the reload.
+    await page.addInitScript(() => {
+      delete (window as unknown as { VideoDecoder?: unknown }).VideoDecoder;
+    });
+    await page.reload();
+    const errors = watchErrors(page);
+    expect(await page.evaluate(() => typeof (window as unknown as { VideoDecoder?: unknown }).VideoDecoder)).toBe('undefined');
+    await page
+      .locator('.mst-file input[type=file]')
+      .first()
+      .setInputFiles([
+        { name: 'reel.mp4', mimeType: 'video/mp4', buffer: reel },
+        { name: 'tea.jpg', mimeType: 'image/jpeg', buffer: readFileSync(SAMPLES[2]) },
+      ]);
+    const clips = page.locator('.tl-clip');
+    await expect(clips).toHaveCount(2);
+    await expect.poll(() => clips.evaluateAll((els) => els.map((e) => e.classList.contains('tl-video')))).toEqual([true, false]);
+    // No pool, so nothing to fall back from: no clip says it can't be exported.
+    await expect(page.locator('.tl-clip[title*="can’t be exported"]')).toHaveCount(0);
+
+    /** The preview's colour in the middle, averaged over 4 × 4 pixels (0 = black). */
+    const middle = () =>
+      page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => {
+        const d = c.getContext('2d')!.getImageData(Math.floor(c.width / 2) - 2, Math.floor(c.height / 2) - 2, 4, 4).data;
+        const s = [0, 0, 0];
+        for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k] / 16;
+        return s.map(Math.round);
+      });
+    // Scrub: the video's first photo at 1 s, its second at 4.5 s (60 px a second): each drawn, and different.
+    await page.locator('.tl-ruler').click({ position: { x: 60, y: 10 } });
+    await expect.poll(async () => (await middle()).reduce((a, b) => a + b)).toBeGreaterThan(30);
+    const first = await middle();
+    await page.locator('.tl-ruler').click({ position: { x: 270, y: 10 } });
+    await expect
+      .poll(async () => {
+        const m = await middle();
+        return m.reduce((a, b) => a + b) > 30 && m.some((v, k) => Math.abs(v - first[k]) > 20);
+      })
+      .toBe(true);
+    // Play a second from the start.
+    await page.locator('.tl-ruler').click({ position: { x: 1, y: 10 } });
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await page.waitForTimeout(1000);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await expect(page.locator('.tl-time b')).not.toHaveText('0:00.0');
+    expect((await middle()).reduce((a, b) => a + b)).toBeGreaterThan(30);
+    expect(errors).toEqual([]);
+  });
+
   test('the video studio has no serious accessibility problems', async ({ page }) => {
     await page.goto('./#/instagram/video');
     await page.locator('.mst-file input[type=file]').first().setInputFiles(SAMPLES.slice(0, 2));

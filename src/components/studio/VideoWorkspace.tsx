@@ -3,7 +3,7 @@ import { drawSelection, layerBox } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, lockedReason, videoAt } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
-import { drawPreview, pausedAt, pausedFrame, poolClip, stageSource, type Picture, type StageFrame } from './previewFrame';
+import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { canStreamToDisk } from '../../lib/fileSink';
@@ -315,9 +315,12 @@ function VideoStage() {
   const last = useRef<StageFrame<VClip> | null>(null);
   /** Paused asks: only the newest one is drawn (latest wins). */
   const asked = useRef(0);
+  /** Does the clip's picture come from the pool? Not without one, nor for a clip it can't decode (noted on the clip). */
   const usesPool = (c: VClip) => {
     const pool = stage().pool;
-    return Boolean(pool && !pool.fallback(c.id));
+    const why = pool?.fallback(c.id);
+    if (why) noteFallback(c.file, why);
+    return Boolean(pool && !why);
   };
 
   /** A picture without waiting (playback): what the pool has ready, or the clip's <video> for a fallback clip. */
@@ -533,6 +536,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
   const i = clips.findIndex((x) => x.id === c.id);
   const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
   const locked = useVideo((s) => lockedReason(s.tracks, c.track));
+  const cantExport = useFallbackNote(c.file);
   const e = c.edit;
   return (
     <div className="lp">
@@ -546,6 +550,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           {c.name} · {c.w}×{c.h}
           {c.kind === 'video' ? ` · ${fmtTime(c.srcDur)}` : ''}
         </p>
+        {cantExport && <p className="hint bad">{cantExport}</p>}
         {c.kind === 'photo' ? (
           <>
             <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip(c.id, { dur })} />

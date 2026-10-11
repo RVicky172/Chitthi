@@ -43,6 +43,10 @@ function trackFrame(f: Omit<PoolFrame, 'close'>, release: () => void): PoolFrame
 
 const nameOf = (b: Blob) => (b instanceof File ? b.name : 'A clip');
 
+/** Self-tests only (204 T040, poolChecks.ts `fallbackOnTheEditor`): files refused here as if their codec couldn't be
+ * decoded, so a check can give the preview and the export a clip the pool can't decode. Empty in the app. */
+export const undecodableForTests = new WeakSet<Blob>();
+
 interface Shared {
   input: Input;
   track: Promise<InputVideoTrack>;
@@ -60,7 +64,7 @@ function share(file: Blob): Shared {
         throw new Error(`${nameOf(file)} couldn’t be read. It may be damaged, or not a video file.`);
       });
       if (!t) throw new Error(`${nameOf(file)} has no video track.`);
-      if (!(await t.canDecode()))
+      if (undecodableForTests.has(file) || !(await t.canDecode()))
         throw new Error(
           `${nameOf(file)} uses a video format this ${isDesktop ? 'computer' : 'browser'} can’t decode (often HEVC from an iPhone).`,
         );

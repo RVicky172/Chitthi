@@ -1,9 +1,11 @@
 // The video stage's paused picture (204 §3, AC-4), outside React so the self-test drives the stage's own path: which
 // clip shows at a time, its picture from a PreviewSource, and the drawing. VideoStage uses exactly these.
+import { useSyncExternalStore } from 'react';
 import { DecodePool, frameTime, poolLimits, type FrameSourceFactory, type PoolClip } from '../../engine/decodePool';
 import { videoAt, type Project, type TimedClip } from '../../engine/timeline';
 import { NO_PICTURE, renderFrame, type FrameClip } from '../../engine/video';
 import type { Layer } from '../../engine/layers';
+import { logError } from '../../lib/errors';
 import { isDesktop } from '../../platform/desktop';
 
 export interface PreviewClip extends FrameClip, TimedClip {
@@ -82,11 +84,16 @@ export function poolSource(pool: DecodePool, fallback: PreviewSource): PreviewSo
   return {
     async frame(c, srcTime) {
       const clip = c as PreviewClip & { file: Blob };
-      if (pool.fallback(c.id)) return fallback.frame(c, srcTime);
+      const why = pool.fallback(c.id);
+      if (why) {
+        noteFallback(clip.file, why);
+        return fallback.frame(c, srcTime);
+      }
       try {
         const f = await pool.frame(poolClip(clip), srcTime);
         return f ? { image: f.image, w: f.width, h: f.height } : null;
-      } catch {
+      } catch (e) {
+        noteFallback(clip.file, pool.fallback(c.id) ?? (e instanceof Error ? e.message : String(e)));
         return fallback.frame(c, srcTime);
       }
     },
@@ -175,3 +182,38 @@ export function stageSource(onFrame: () => void = () => undefined) {
 
 /** The stage sources alive now (the editor's), so self-tests can read their pool's stats (holds, decoders). */
 export const liveStages = new Set<ReturnType<typeof stageSource>>();
+
+/*
+ * Files the pool couldn't decode (204 §7, Q6): such a clip previews from its <video>, but the export can't use it, so
+ * the clip says so (timeline title and accessible name, inspector). Kept per file, so a split or a duplicate of the
+ * clip says it at once; each file is logged once for reports.
+ */
+const cantDecode = new WeakMap<Blob, string>();
+const noteListeners = new Set<() => void>();
+let notesVersion = 0;
+
+/** Records that the pool can't decode `file`, with the reason (which names the file). */
+export function noteFallback(file: Blob, reason: string): void {
+  if (cantDecode.get(file) === reason) return;
+  cantDecode.set(file, reason);
+  logError('handled', new Error(reason));
+  notesVersion++;
+  for (const l of noteListeners) l();
+}
+
+/** The note for a clip on `file`: "This clip can’t be exported here: <reason>", or null. */
+export function fallbackNote(file: Blob): string | null {
+  const why = cantDecode.get(file);
+  return why ? `This clip can’t be exported here: ${why}` : null;
+}
+
+const subscribeNotes = (l: () => void) => {
+  noteListeners.add(l);
+  return () => void noteListeners.delete(l);
+};
+
+/** A clip's note, redrawn when the pool finds it can't decode the file. */
+export function useFallbackNote(file: Blob): string | null {
+  useSyncExternalStore(subscribeNotes, () => notesVersion);
+  return fallbackNote(file);
+}

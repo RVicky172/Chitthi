@@ -198,6 +198,9 @@ export async function poolChecks(check: Check): Promise<string[]> {
   await group(check, 'the editor stage', async () => {
     notes.push(await editorStageShowsVideo(check));
   });
+  await group(check, 'fallback AC-14', async () => {
+    notes.push(await fallbackOnTheEditor(check));
+  });
   return notes;
 }
 
@@ -628,4 +631,152 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
     host.remove();
   }
   return 'pool: the editor stage (StrictMode) shows and plays an added clip';
+}
+
+/** The note a clip the pool can't decode carries (the app writes ’; either apostrophe passes), with its reason. */
+const NOTE = /This clip can[’']t be exported here: \S/;
+
+/**
+ * AC-14 (204 §7, Q6) on the real editor (StrictMode, as `npm run dev`): two copies of a frame-coded clip, one refused
+ * by the decoder's source as if its codec couldn't be decoded (frameSource.ts `undecodableForTests`: what an HEVC
+ * file the browser can play but WebCodecs can't decode meets). The refused clip previews from its <video>, the other
+ * from the pool; the refused one carries the note (timeline title and accessible name, inspector), the preview logs
+ * it, and the export refuses it naming the file.
+ */
+async function fallbackOnTheEditor(check: Check): Promise<string> {
+  const React = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
+  const { liveStages } = await import('../components/studio/previewFrame');
+  const v = await import('../state/video');
+  const { undecodableForTests, openFrames } = await import('../engine/frameSource');
+  const { recentErrors } = await import('../lib/errors');
+  const { encodeVideo, ExportError } = await import('../engine/videoExport');
+  const blob = await makeTestClip(2, 640, 360, 1, false, true);
+  if (!blob) return 'pool: fallback check skipped (no H.264 encoder)';
+  // Two files with the same frames: the source refuses the first, as it would an HEVC file the browser can play.
+  const bad = new File([blob], 'cant-decode-here.mp4', { type: 'video/mp4' });
+  const good = new File([blob], 'decodes-fine.mp4', { type: 'video/mp4' });
+  undecodableForTests.add(bad);
+  const since = new Date().toISOString();
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined }),
+    ),
+  );
+  const centre = () => {
+    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const x = c?.getContext('2d', { willReadFrequently: true });
+    if (!c || !x || !c.width) return null;
+    const d = x.getImageData(Math.floor(c.width / 2) - 4, Math.floor(c.height / 2) - 4, 8, 8).data;
+    const sum = [0, 0, 0];
+    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += d[i + k];
+    return sum.map((s) => s / 64);
+  };
+  // The coded frame on the stage (codeColour, ±10), or -1.
+  const shown = () => {
+    const a = centre();
+    return a
+      ? (Array.from({ length: 60 }, (_, i) => i).find((i) => codeColour(i).every((w, k) => Math.abs(w - a[k]) <= 10)) ?? -1)
+      : -1;
+  };
+  const waitFor = async (ok: () => boolean, ms: number) => {
+    const end = performance.now() + ms;
+    while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 16));
+    return ok();
+  };
+  let ids: string[] = [];
+  try {
+    await new Promise((r) => setTimeout(r, 300));
+    v.setVideoOptions({ fadeOut: false });
+    const before = new Set(v.getVideo().clips.map((c) => c.id));
+    await v.addMedia([bad, good].map((f) => ({ name: f.name, blob: f, type: f.type })));
+    const added = v.getVideo().clips.filter((c) => !before.has(c.id));
+    ids = added.map((c) => c.id);
+    const cb = added.find((c) => c.file === bad),
+      cg = added.find((c) => c.file === good);
+    if (!cb || !cg) throw new Error(`both clips added (${added.map((c) => c.name).join(', ')})`);
+
+    // The refused clip from its <video> (frame 30, mid-frame so a <video> seek can't land a frame off), the other
+    // from the pool (frame 15, with frames decoded by the pool).
+    v.setPlayhead(cb.start + 30.5 / FPS);
+    const badShown = await waitFor(() => shown() === 30, 5000);
+    const pool = [...liveStages][0]?.pool;
+    const reason = pool?.fallback(cb.id) ?? null;
+    check(
+      badShown && !!reason,
+      `pool: a clip the pool can't decode previews from its <video> (frame ${shown()}, want 30; the pool's reason: ${reason}) (AC-14)`,
+    );
+    const made = openFrames().made;
+    v.setPlayhead(cg.start + 15.5 / FPS);
+    const goodShown = await waitFor(() => shown() === 15, 5000);
+    check(
+      goodShown && !!pool && pool.fallback(cg.id) === null && openFrames().made > made,
+      `pool: the other clip still previews from the pool (frame ${shown()}, want 15; ${openFrames().made - made} frames decoded; its fallback: ${pool?.fallback(cg.id)}) (AC-14)`,
+    );
+
+    // The note: on the timeline clip (title and accessible name) and in the inspector; the other clip has none.
+    v.selectClip(cb.id);
+    await waitFor(() => NOTE.test(host.querySelector('aside.mst-inspector')?.textContent ?? ''), 1000);
+    const block = (name: string) =>
+      [...host.querySelectorAll<HTMLElement>('.tl-clip')].find((el) => el.title.startsWith(name));
+    const label = (el?: HTMLElement) => el?.querySelector('button.vh')?.getAttribute('aria-label') ?? '';
+    const bb = block(bad.name),
+      gb = block(good.name);
+    const inspector = host.querySelector('aside.mst-inspector')?.textContent ?? '';
+    check(
+      !!bb && NOTE.test(bb.title) && NOTE.test(label(bb)),
+      `pool: the clip says "This clip can’t be exported here: <reason>" in its timeline title and accessible name (title "${bb?.title}", name "${label(bb)}") (AC-14)`,
+    );
+    check(
+      NOTE.test(inspector),
+      `pool: the inspector says the selected clip can’t be exported here, with the reason ("${inspector.slice(0, 160)}") (AC-14)`,
+    );
+    check(
+      !!gb && !NOTE.test(gb.title) && !NOTE.test(label(gb)),
+      `pool: a clip the pool decodes has no such note (title "${gb?.title}", name "${label(gb)}") (AC-14)`,
+    );
+
+    // Logged for reports by the preview (the export below hasn't run yet).
+    const logged = recentErrors().filter(
+      (e) => e.when >= since && e.source === 'handled' && e.message.includes(bad.name),
+    );
+    check(
+      logged.length > 0,
+      `pool: the preview logs the clip it can't decode with logError('handled') (${logged.length} entries naming ${bad.name}) (AC-14)`,
+    );
+
+    // The export refuses it with today's message, naming the file.
+    let refusal: unknown = null;
+    try {
+      await encodeVideo({
+        ...v.projectOf(v.getVideo()),
+        audio: [],
+        width: 640,
+        height: 360,
+        fps: FPS,
+        bitrate: 2e6,
+        sink: { kind: 'memory' },
+      });
+    } catch (e) {
+      refusal = e;
+    }
+    check(
+      refusal instanceof ExportError && refusal.message.includes(bad.name),
+      `pool: the export refuses the clip, naming the file (${refusal instanceof Error ? `${refusal.constructor.name}: ${refusal.message}` : 'it exported'}) (AC-14)`,
+    );
+  } finally {
+    undecodableForTests.delete(bad);
+    v.setPlaying(false);
+    for (const id of ids) v.removeClip(id);
+    root.unmount();
+    host.remove();
+  }
+  return 'pool: AC-14 on the editor (StrictMode), one clip refused by the decoder';
 }
