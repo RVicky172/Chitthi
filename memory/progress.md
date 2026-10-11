@@ -11,6 +11,17 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-11 — 203 planned, tasked, batch 1 (T001, T002, T010–T013)
+
+**Done:** 203's plan approved (D1–D3, D-031; Q6 = web 3 / desktop 5) and tasks T001–T092 in five agent batches.
+Batch 1: T001 spike (renderIg in a rotated, rounded, 50 % box draws nothing outside it on CPU, WebGL2 and WebGPU;
+direct drawing chosen). T010 / T011 ClipTransform, presets, overlay track functions. T012 / T013 `engine/stack.ts`
+(frameStack, mostVideosAt, snapBox); review found preview / export disagreeing on float-hair frames → one edge rule
+`EDGE_EPS` (D-032). T002 overlay fixtures (AC-6 at 9:16 / 16:9; 2-minute 1080p main + 2 overlays). A usage limit
+stopped three agents once; resumed with SendMessage. check 1,244; npm test 6,160 / 0 (212 s); editors e2e 25 / 25.
+**Next:** batch 2: T014/T015 (edits), T016/T017 (renderStack), T018/T019 (document gate).
+**Blockers:** none.
+
 ## 2026-10-11 — chore: Dependabot PRs #23–#27
 
 **Done:** on `chore/deps-2026-10-11`: actions/upload-artifact 7.0.2, download-artifact 8.0.2, setup-node 7.1.0;
