@@ -16,7 +16,10 @@ import {
   canEncodeAudio,
   canEncodeVideo,
 } from 'mediabunny';
-import { IDENTITY, presetTransform, type ClipTransform, type Project, type Track } from '../engine/timeline';
+import { renderIg } from '../engine/instagram';
+import { drawLayers, newShape, type Layer } from '../engine/layers';
+import { IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project, type Track } from '../engine/timeline';
+import { clipLength, fadeAmount, motionEdit, type FrameClip } from '../engine/video';
 import type { ExportClip } from '../engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;
@@ -940,6 +943,402 @@ export async function overlayFixtureChecks(check: Check): Promise<string[]> {
   );
   notes.push(
     `video: 203 long overlay fixture: 3 sources of 6 s 1920×1080 (${(long.sources.reduce((n, s) => n + s.size, 0) / 1e6).toFixed(1)} MB) encoded in ${(long.made / 1000).toFixed(1)} s, built and checked in ${((performance.now() - t1) / 1000).toFixed(1)} s (${(built / 1000).toFixed(1)} s to build)`,
+  );
+  return notes;
+}
+
+/* ---------- 203: drawing a stack of clips (AC-6, AC-7, AC-10, D2) ---------- */
+
+/**
+ * THE 202 REFERENCE — never edit. engine/video.ts renderFrame as of 284b688 (before 203 made it renderStack with one
+ * item), so AC-10 compares renderStack with the old drawing and not with itself. motionEdit, fadeAmount, renderIg and
+ * drawLayers are shared: 203 doesn't change them.
+ */
+function legacyRenderFrame(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  clip: FrameClip,
+  src: CanvasImageSource | null,
+  sw: number,
+  sh: number,
+  local: number,
+  layers: Layer[],
+  t: number,
+  total: number,
+  fadeOut: boolean,
+): void {
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+  if (src && sw > 0 && sh > 0) {
+    const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
+    renderIg(ctx, src, sw, sh, edit, W, H);
+  }
+  const dark = fadeAmount(local, clip.fade, t, total, fadeOut);
+  drawLayers(ctx, layers, W, H, t);
+  if (dark > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${dark})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+type Backend = 'Canvas 2D' | 'webgpu' | 'webgl2';
+
+/** Switches renderIg to a backend (Canvas 2D = no GPU device). False if this machine doesn't have it. */
+async function switchBackend(b: Backend): Promise<boolean> {
+  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  closeGpu();
+  if (b === 'Canvas 2D') return true;
+  return (await openGpu(b))?.backend === b;
+}
+
+/**
+ * A pixel centre's signed distance (frame pixels) from the edge of a clip's box: its transform's centre, width w·W ×
+ * w·H (the frame's aspect, D1), rotation (clockwise) and corner radius (a share of the shorter side). Negative inside.
+ */
+function boxDistance(tf: ClipTransform, W: number, H: number, px: number, py: number): number {
+  const hw = (tf.w * W) / 2,
+    hh = (tf.w * H) / 2,
+    r = tf.radius * Math.min(2 * hw, 2 * hh);
+  const a = (tf.rot * Math.PI) / 180,
+    c = Math.cos(a),
+    s = Math.sin(a);
+  const dx = px - tf.x * W,
+    dy = py - tf.y * H;
+  // Back through the rotation into the box's own axes.
+  const qx = Math.abs(dx * c + dy * s) - (hw - r),
+    qy = Math.abs(-dx * s + dy * c) - (hh - r);
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+}
+
+/**
+ * Compares a drawn frame with the one its flat-coloured items make: black, then each item's colour inside its box
+ * blended by its opacity (bottom first), then `dark` (a fade). Pixels within `edge` px of a box edge are skipped
+ * (antialiasing); an identity box is the whole frame and has none. Max and mean channel error, pixels compared.
+ */
+function compareWithReference(
+  data: Uint8ClampedArray,
+  W: number,
+  H: number,
+  items: { tf: ClipTransform; rgb: readonly number[] }[],
+  dark = 0,
+  edge = 2,
+): { max: number; mean: number; n: number; where: string } {
+  let max = 0,
+    sum = 0,
+    n = 0,
+    where = '';
+  const want = [0, 0, 0];
+  for (let py = 0; py < H; py++)
+    pixels: for (let px = 0; px < W; px++) {
+      want.fill(0);
+      for (const it of items) {
+        if (it.tf.opacity <= 0) continue;
+        const d = isIdentity(it.tf) ? -Infinity : boxDistance(it.tf, W, H, px + 0.5, py + 0.5);
+        if (Math.abs(d) < edge) continue pixels;
+        if (d < 0) for (let k = 0; k < 3; k++) want[k] = want[k] * (1 - it.tf.opacity) + it.rgb[k] * it.tf.opacity;
+      }
+      const i = (py * W + px) * 4;
+      for (let k = 0; k < 3; k++) {
+        const e = Math.abs(data[i + k] - want[k] * (1 - dark));
+        sum += e;
+        if (e > max) {
+          max = e;
+          where = `${px},${py}: ${[...data.slice(i, i + 3)].join('/')} want ${want.map((v) => Math.round(v * (1 - dark))).join('/')}`;
+        }
+      }
+      n++;
+    }
+  return { max, mean: n ? sum / (n * 3) : 0, n, where };
+}
+
+/** Copies of a video's frames at the given source times, decoded as the export decodes them. */
+async function decodeFrames(file: Blob, times: number[]): Promise<HTMLCanvasElement[]> {
+  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (!track || !(await track.canDecode())) return [];
+    const out: HTMLCanvasElement[] = [];
+    for await (const wc of new CanvasSink(track).canvasesAtTimestamps(times)) {
+      const c = document.createElement('canvas');
+      c.width = wc?.canvas.width ?? 1;
+      c.height = wc?.canvas.height ?? 1;
+      if (wc) c.getContext('2d')!.drawImage(wc.canvas, 0, 0);
+      out.push(c);
+    }
+    return out;
+  } finally {
+    input.dispose();
+  }
+}
+
+const ctx2d = (W: number, H: number) => {
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  return c.getContext('2d', { willReadFrequently: true })!;
+};
+const bytesDiffering = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff++;
+  return diff;
+};
+
+/**
+ * 203's drawing checks, on every backend this machine has (Canvas 2D, WebGPU, WebGL2):
+ * - AC-6 golden frames: renderStack of the overlay fixture (9:16, 16:9) at its 8 times, from decoded source frames,
+ *   matches the reference made from the colour codes (each clip's box, rotation, corners, opacity) within ±8.
+ * - AC-7: a full-frame opaque overlay leaves no pixel of the main clip; an overlay at 0 % and a hidden track draw nothing.
+ * - D2: an overlay's fade-in ramps its own opacity from 0 over V_FADE; the main clip's darkens the whole frame,
+ *   overlays and layers included.
+ * - AC-10: renderStack with one identity item (no transform, or IDENTITY) and with none (a gap) gives the same bytes as
+ *   the 202 renderFrame (legacyRenderFrame) on 201's fixtures at 4 ratios and 10 times.
+ * Returns notes for the report.
+ */
+export async function stackChecks(check: Check): Promise<string[]> {
+  const { renderStack, V_FADE, NO_PICTURE } = await import('../engine/video');
+  const { frameStack } = await import('../engine/stack');
+  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('../engine/timeline');
+  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../engine/timeline.testkit');
+  const { closeGpu, gpu, openGpu } = await import('../engine/gpu/device');
+  const notes: string[] = [];
+  const t0 = performance.now();
+  const before = gpu()?.backend;
+  const backends: Backend[] = [];
+  for (const b of ['Canvas 2D', 'webgpu', 'webgl2'] as const) if (await switchBackend(b)) backends.push(b);
+
+  /* The overlay fixtures and their decoded pictures (the same clips and source frames in both formats). */
+  const fixtures = (await Promise.all((['9:16', '16:9'] as const).map((f) => makeOverlayProject(f)))).filter(
+    (f): f is OverlayFixture => !!f,
+  );
+  const fps = OVERLAY_FPS;
+  const key = (c: OverlayClip, local: number) => `${c.id}@${Math.round((c.in + local) * fps * 2)}`;
+  const pics = new Map<string, HTMLCanvasElement>();
+  if (fixtures.length) {
+    const fx = fixtures[0];
+    const wanted = new Map<OverlayClip, number[]>();
+    for (const t of fx.times)
+      for (const it of frameStack(fx.project, t))
+        if (it.clip.kind === 'video') wanted.set(it.clip, [...(wanted.get(it.clip) ?? []), it.local]);
+    for (const [c, locals] of wanted) {
+      // Half a frame in, so a time on a frame boundary can't land on the frame before.
+      const got = await decodeFrames(c.file, locals.map((l) => c.in + l + 0.5 / fps));
+      locals.forEach((l, k) => got[k] && pics.set(key(c, l), got[k]));
+    }
+  }
+  const picOf = (c: OverlayClip, local: number) => (c.kind === 'photo' ? c.still : pics.get(key(c, local)));
+  type Item = Parameters<typeof renderStack>[3][number];
+  const itemOf = (c: OverlayClip, local: number, patch: Partial<OverlayClip> = {}): Item => {
+    const src = picOf(c, local) ?? null;
+    return { clip: { ...c, ...patch, overlay: c.track !== MAIN_VIDEO }, src, sw: src?.width ?? 0, sh: src?.height ?? 0, local };
+  };
+
+  for (const backend of backends) {
+    await switchBackend(backend);
+    /* AC-6: golden frames. */
+    for (const fx of fixtures) {
+      const { width: W, height: H } = fx;
+      const x = ctx2d(W, H);
+      let max = 0,
+        sum = 0,
+        n = 0,
+        where = '';
+      const bad: string[] = [];
+      for (const t of fx.times) {
+        const stack = frameStack(fx.project, t);
+        if (stack.some((it) => !picOf(it.clip, it.local))) bad.push(`no picture at ${t.toFixed(3)} s`);
+        renderStack(x, W, H, stack.map((it) => itemOf(it.clip, it.local)), [], t, projectLength(fx.project), false);
+        const ref = stack.map((it) => ({ tf: fx.clips.find((c) => c.id === it.clip.id)!.tf, rgb: fx.colourAt(it.clip.id, t)! }));
+        const r = compareWithReference(x.getImageData(0, 0, W, H).data, W, H, ref);
+        if (r.max > max) [max, where] = [r.max, `frame ${Math.round(t * fps)} ${r.where}`];
+        sum += r.mean * r.n;
+        n += r.n;
+        if (r.n < W * H * 0.8) bad.push(`only ${r.n} pixels compared at ${t.toFixed(3)} s`);
+      }
+      const mean = n ? sum / n : 0;
+      check(
+        !bad.length && max <= 8 && mean <= 2,
+        `video (${backend}): 203 golden frames at ${fx.format} (main + 2 overlays, 8 times) match the colour-code reference (worst ${max.toFixed(0)} at ${where}, mean ${mean.toFixed(2)})${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+      );
+      notes.push(`video (${backend}): 203 golden frames ${fx.format}: worst ${max.toFixed(0)}, mean ${mean.toFixed(2)} levels over ${n} pixels`);
+    }
+
+    const fx = fixtures.find((f) => f.format === '9:16');
+    if (!fx) continue;
+    const { width: W, height: H, project } = fx;
+    const total = projectLength(project);
+    const clip = (id: string) => project.clips.find((c) => c.id === id)!;
+    // Frame 37: m1 under the B-roll and the face-cam.
+    const t = 37 / fps;
+    const [m1, broll, face] = ['m1', 'broll', 'face'].map(clip);
+    const at = (c: OverlayClip) => t - c.start;
+    const draw = (items: Item[], layers: Layer[] = []) => {
+      const x = ctx2d(W, H);
+      renderStack(x, W, H, items, layers, t, total, false);
+      return x.getImageData(0, 0, W, H).data;
+    };
+    const main = itemOf(m1, at(m1));
+    const mainOnly = draw([main]);
+    const m1rgb = fx.colourAt('m1', t)!;
+
+    /* AC-7: a full-frame opaque overlay covers the main clip; 0 % and hidden draw nothing. */
+    const cov = draw([main, itemOf(broll, at(broll))]);
+    const covered = compareWithReference(cov, W, H, [{ tf: IDENTITY, rgb: fx.colourAt('broll', t)! }]);
+    let mainPixels = 0;
+    for (let i = 0; i < cov.length; i += 4) if (m1rgb.every((v, k) => Math.abs(v - cov[i + k]) <= 8)) mainPixels++;
+    check(
+      covered.max <= 8 && covered.n === W * H && mainPixels === 0,
+      `video (${backend}): a full-frame opaque overlay leaves no pixel of the main clip (worst ${covered.max} from the overlay's colour, ${mainPixels} main-clip pixels)`,
+    );
+    const zero = bytesDiffering(draw([main, itemOf(face, at(face), { tf: { ...face.tf!, opacity: 0 } })]), mainOnly);
+    const hiddenProject = { ...project, tracks: project.tracks.map((tr) => (tr.id === MAIN_VIDEO ? tr : { ...tr, hidden: true })) };
+    const hiddenStack = frameStack(hiddenProject, t);
+    const hidden = bytesDiffering(draw(hiddenStack.map((it) => itemOf(it.clip, it.local))), mainOnly);
+    check(
+      zero === 0 && hidden === 0 && hiddenStack.length === 1,
+      `video (${backend}): an overlay at 0 % opacity and hidden overlay tracks draw nothing (${zero} and ${hidden} bytes differ; ${hiddenStack.length} clip drawn)`,
+    );
+
+    /* D2: an overlay's fade-in is its opacity; the main clip's darkens everything. The face-cam's picture is the one
+     * for frame 37 whatever local time it's given here (picOf by the clip's own time would have none decoded). */
+    const facePic = itemOf(face, at(face));
+    const faceAt = (local: number): Item => ({ ...facePic, clip: { ...facePic.clip, tf: { ...face.tf!, opacity: 1 }, fade: true }, local });
+    const faceRgb = fx.colourAt('face', t)!;
+    const atStart = bytesDiffering(draw([main, faceAt(0)]), mainOnly);
+    const ramp = compareWithReference(draw([main, faceAt(V_FADE / 2)]), W, H, [
+      { tf: IDENTITY, rgb: m1rgb },
+      { tf: { ...face.tf!, opacity: 0.5 }, rgb: faceRgb },
+    ]);
+    const done = compareWithReference(draw([main, faceAt(V_FADE)]), W, H, [
+      { tf: IDENTITY, rgb: m1rgb },
+      { tf: { ...face.tf!, opacity: 1 }, rgb: faceRgb },
+    ]);
+    check(
+      atStart === 0 && ramp.max <= 8 && done.max <= 8,
+      `video (${backend}): an overlay's fade-in ramps its own opacity from 0 over ${V_FADE} s (start: ${atStart} bytes differ from no overlay; half way worst ${ramp.max}; done worst ${done.max})`,
+    );
+    const fading: Item = { ...main, clip: { ...main.clip, fade: true }, local: V_FADE / 2 };
+    const darkened = compareWithReference(
+      draw([fading, facePic]),
+      W,
+      H,
+      [
+        { tf: IDENTITY, rgb: m1rgb },
+        { tf: face.tf!, rgb: faceRgb },
+      ],
+      0.5,
+    );
+    // A see-through clip lays its finished picture down once: the whole photo on a white background at 50 % shows the
+    // main clip half through the photo and half through the white, never the white through the photo.
+    const photo = clip('photo');
+    const fitted = itemOf(photo, 0, { edit: { ...photo.edit, fit: 'fit', bg: '#ffffff' }, tf: { ...face.tf!, opacity: 0.5 } });
+    const seen = draw([main, fitted]);
+    const box = face.tf!;
+    const px = (fx: number, fy: number) => {
+      const i = (Math.floor(fy) * W + Math.floor(fx)) * 4;
+      return [seen[i], seen[i + 1], seen[i + 2]];
+    };
+    const photoRgb = codeColour(0, 3);
+    const inPhoto = px(box.x * W, box.y * H),
+      inBand = px(box.x * W, box.y * H - 0.4 * box.w * H);
+    const half = (a: readonly number[], b: readonly number[]) => a.map((v, k) => (v + b[k]) / 2);
+    const nearTo = (a: number[], b: number[]) => a.every((v, k) => Math.abs(v - b[k]) <= 8);
+    check(
+      nearTo(inPhoto, half(m1rgb, photoRgb)) && nearTo(inBand, half(m1rgb, [255, 255, 255])),
+      `video (${backend}): a see-through clip's background doesn't show through its photo (photo ${inPhoto.join('/')}, want ${half(m1rgb, photoRgb).map(Math.round).join('/')}; background ${inBand.join('/')}, want ${half(m1rgb, [255, 255, 255]).map(Math.round).join('/')})`,
+    );
+    const red: Layer = { ...newShape('rect'), fill: '#ff0000', x: 0.5, y: 0.5, w: 0.3, h: 0.3 };
+    const withLayer = draw([fading, facePic], [red]);
+    const mid = ((H >> 1) * W + (W >> 1)) * 4;
+    const layer = [...withLayer.slice(mid, mid + 3)];
+    check(
+      darkened.max <= 8 && Math.abs(layer[0] - 128) <= 8 && layer[1] <= 8 && layer[2] <= 8,
+      `video (${backend}): the main clip's fade-in darkens the whole frame, overlays and layers included (worst ${darkened.max}; red layer at half fade ${layer.join('/')})`,
+    );
+  }
+
+  /* AC-10: one identity item (or none, in a gap) draws exactly as the 202 renderFrame. */
+  const photos = await Promise.all([0, 1, 2].map((i) => testPhoto(i, 640, 427)));
+  const film = document.createElement('canvas');
+  film.width = 320;
+  film.height = 240;
+  const fl = film.getContext('2d')!;
+  fl.fillStyle = '#3a7bd5';
+  fl.fillRect(0, 0, 320, 240);
+  fl.fillStyle = '#ffd166';
+  fl.fillRect(40, 60, 120, 90);
+  const srcOf = (c: { kind: string; id: string }) =>
+    c.kind === 'video' ? film : photos[[...c.id].reduce((a, ch) => a + ch.charCodeAt(0), 0) % photos.length].still;
+  const lf = legacyFixtures();
+  const shapes = {
+    photoOnly: lf.photoOnly,
+    videoOnly: lf.videoOnly,
+    mixed: lf.mixed,
+    musicOffset: lf.musicOffset,
+    timedLayers: lf.timedLayers,
+    noFadeOut: lf.noFadeOut,
+  };
+  const formats: [string, number, number][] = [
+    ['9:16', 270, 480],
+    ['4:5', 270, 338],
+    ['1:1', 270, 270],
+    ['16:9', 480, 270],
+  ];
+  let frames = 0;
+  for (const backend of backends) {
+    await switchBackend(backend);
+    const bad: string[] = [];
+    for (const [ratio, W, H] of formats) {
+      const a = ctx2d(W, H),
+        b = ctx2d(W, H);
+      for (const [name, lp] of Object.entries(shapes)) {
+        const tl = legacyTimeline(lp.clips),
+          total = legacyTotal(lp.clips);
+        const project = {
+          tracks: defaultTracks(),
+          clips: pack(lp.clips.map((c) => ({ ...c, track: MAIN_VIDEO, start: 0 }))),
+          audio: [],
+          layers: lp.layers,
+          fadeOut: lp.fadeOut,
+        };
+        const len = projectLength(project);
+        // 10 times: the cuts (and just before them), then evenly through the video.
+        const cuts = tl.slice(1).flatMap((q) => [q.start, q.start - 1e-4]);
+        const times = [...cuts.slice(0, 4), ...Array.from({ length: 10 }, (_, k) => (k / 9) * (total - 1e-3))].slice(0, 10);
+        for (const t of times) {
+          const l = legacyClipAt(tl, t)!;
+          const s = srcOf(l.clip);
+          legacyRenderFrame(a, W, H, l.clip, s, s.width, s.height, t - l.start, lp.layers, t, total, lp.fadeOut);
+          const want = a.getImageData(0, 0, W, H).data;
+          const p = videoAt(project, t)!;
+          const s2 = srcOf(p.clip);
+          for (const [variant, clip] of [
+            ['no transform', { ...p.clip, overlay: false }],
+            ['IDENTITY', { ...p.clip, tf: { ...IDENTITY }, overlay: false }],
+          ] as const) {
+            renderStack(b, W, H, [{ clip, src: s2, sw: s2.width, sh: s2.height, local: p.local }], project.layers, t, len, project.fadeOut);
+            const diff = bytesDiffering(want, b.getImageData(0, 0, W, H).data);
+            if (diff) bad.push(`${ratio} ${name} (${variant}) at ${t.toFixed(4)} s: ${diff} bytes`);
+            frames++;
+          }
+          // A gap (or the hidden video track): nothing under the layers.
+          legacyRenderFrame(a, W, H, NO_PICTURE, null, 0, 0, t, lp.layers, t, total, lp.fadeOut);
+          renderStack(b, W, H, [], project.layers, t, len, project.fadeOut);
+          const diff = bytesDiffering(a.getImageData(0, 0, W, H).data, b.getImageData(0, 0, W, H).data);
+          if (diff) bad.push(`${ratio} ${name} (gap) at ${t.toFixed(4)} s: ${diff} bytes`);
+          frames++;
+        }
+      }
+    }
+    check(
+      !bad.length,
+      `video (${backend}): renderStack with one identity item or none is pixel-identical to the 202 renderFrame (6 projects × 4 ratios × 10 times)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+    );
+  }
+  closeGpu();
+  if (before) await openGpu(before);
+  notes.push(
+    `video: 203 stack drawing checked on ${backends.join(', ')} (${frames} AC-10 frames against the 202 renderFrame) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   );
   return notes;
 }

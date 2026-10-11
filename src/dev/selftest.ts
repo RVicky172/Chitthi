@@ -16,7 +16,7 @@ import { samplePhoto } from '../engine/sample';
 import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '../lib/credits';
 import type { Design, ProductId } from '../types';
 import { poolChecks } from './poolChecks';
-import { overlayFixtureChecks, videoChecks } from './videoChecks';
+import { overlayFixtureChecks, stackChecks, videoChecks } from './videoChecks';
 
 interface Result {
   passed: number;
@@ -215,6 +215,12 @@ async function poolSection(check: (ok: unknown, what: string) => void, r: Result
     r.notes.push(...(await overlayFixtureChecks(check)));
   } catch (e) {
     check(false, `overlay fixture checks threw: ${e instanceof Error ? e.message : e}`);
+  }
+  // 203's drawing (T016): golden frames of the stack, covering, hiding, fades, and identity = the 202 drawing.
+  try {
+    r.notes.push(...(await stackChecks(check)));
+  } catch (e) {
+    check(false, `stack drawing checks threw: ${e instanceof Error ? e.message : e}`);
   }
 }
 
