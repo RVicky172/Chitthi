@@ -13,6 +13,7 @@ anything surprising or deferred.
 Batch 1 runs T001–T013 (the spike inline, the three test-first pairs as agents).
 
 - [ ] **T001** — Spike (plan Risks, §4): `renderIg` under a transformed, clipped context. A throwaway check draws a clip into a 35 % box rotated 20° with a 12 % corner radius at 50 % opacity, with each framing mode (fill; whole picture with the blurred background), zoom and position, a photo look and a mask, and compares it with the same picture drawn into an offscreen canvas of the box's size and placed (the fallback design), on every GPU backend the machine has, in the preview path and the export path. Records: does the blurred background respect the clip and transform; do GPU-drawn looks; time per item. Decides §4's technique (direct or offscreen). · files: `(throwaway)` · test: the spike's numbers in its result note
+  - **In progress** since 2026-10-11
 - [ ] **T002** [P] — Fixtures (`src/dev/videoChecks.ts`): `makeOverlayProject(format)` for AC-6, a main track (two video clips with a cut) and two overlay tracks: a full-frame B-roll video, a corner face-cam video at 50 % opacity, a photo rotated 15° with a 10 % corner radius, and a clip partly outside the frame, at 9:16 and 16:9, with each clip's first and last frame among 8 sample times; `makeLongOverlayProject()` (2 minutes 1080p, main + 2 overlay videos, AC-13). Colour-coded frames as `makeTestClip` so a pixel names its clip and frame. · files: `src/dev/videoChecks.ts` · test: `CHITTHI_TEST_ONLY=pool npm test`: the fixtures build (a check per fixture)
 
 ## Tests first: the model
