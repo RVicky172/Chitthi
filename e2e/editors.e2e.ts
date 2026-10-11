@@ -294,7 +294,8 @@ test.describe('video editor', () => {
     await page.waitForTimeout(1000);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.locator('.tl-time b')).not.toHaveText('0:00.0');
-    expect((await middle()).reduce((a, b) => a + b)).toBeGreaterThan(30);
+    // Paused, the <video> seeks to the export's frame and the stage draws it once seeked.
+    await expect.poll(async () => (await middle()).reduce((a, b) => a + b)).toBeGreaterThan(30);
     expect(errors).toEqual([]);
   });
 
