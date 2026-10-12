@@ -25,7 +25,10 @@ clip's end too, opening a small gap; seen in the seeded test, step 956.
 **Then (T030, T040, T041):** `itemTransform` in `renderStack`, `layersAt` in `drawLayers` (photo editor passes no time);
 volume keys in `audioPlan` (`gain`), `gainCurve` → one `setValueCurveAtTime` per source per window, preview element
 volume from `volumeAt` each tick. 1,523 tests green. T014–T021 committed (`78afef6`).
-**Next:** T050 (store actions' failing tests in `state/video.test.ts`).
+T030–T041 committed (`0c447b7`). **T050–T051:** store actions in `state/video.ts` (`toggleKey`, `removeAnimation`,
+`moveKeys`, `setKeyEase`, `deleteKeys`, routers `setClipTransformAt` / `setClipVolume` / `updateLayerAt`,
+`setLayerTimes`, split keys); 1,534 tests green.
+**Next:** T060 (inspector keyframe buttons), T061 (stage), T062 (timeline lane): the UI.
 **Blockers:** none
 
 ## 2026-10-12 — 205 T010–T013 (the keyframe model and its pure edits)

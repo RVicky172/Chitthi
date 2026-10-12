@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_EDIT } from '../engine/instagram';
-import { MAIN_VIDEO, defaultTracks, presetTransform, tooManyTracks, type Track } from '../engine/timeline';
+import type { Ease, Keyframe } from '../engine/keyframes';
+import { newSticker, type Layer } from '../engine/layers';
+import { IDENTITY, MAIN_VIDEO, defaultTracks, presetTransform, tooManyTracks, type Track } from '../engine/timeline';
 import {
   NEW_TRACK,
   addMedia,
@@ -43,6 +45,15 @@ import {
   updateClip,
   updateClipWhy,
   videoLength,
+  deleteKeys,
+  moveKeys,
+  removeAnimation,
+  setClipTransformAt,
+  setClipVolume,
+  setKeyEase,
+  setLayerTimes,
+  toggleKey,
+  updateLayerAt,
   type VClip,
   type VMusic,
 } from './video';
@@ -669,5 +680,159 @@ describe('203: the inspector shows why a clip change was refused (T054)', () => 
   it('is null when the change is made', () => {
     expect(updateClipWhy('a', { dur: 3 })).toBeNull();
     expect(getVideo().clips[0].dur).toBe(3);
+  });
+});
+
+/* ---------- 205 T050: keyframes in the store (AC-3, AC-5) ---------- */
+
+describe('205: keyframes in the store (AC-3, AC-5)', () => {
+  const k = (t: number, v: number, ease: Ease = 'linear'): Keyframe => ({ t, v, ease });
+  const sticker = (id: string, start: number, end: number, keys?: Layer['keys']): Layer =>
+    ({ ...newSticker('⭐'), id, start, end, ...(keys ? { keys } : {}) }) as Layer;
+  const getClip = (id: string) => getVideo().clips.find((c) => c.id === id)!;
+  const getLayer = (id: string) => getVideo().layers.find((l) => l.id === id)!;
+  /** a: photo 0–4 on the main track with x keys (0.25 → 0.75); x: photo 1–3 on O1 without keys; v: video 4–8, volume 1. */
+  const load = () =>
+    loadVideoProject({
+      clips: [{ ...clip('a', 0, 4), keys: { x: [k(0, 0.25), k(4, 0.75)] } }, clip('x', 1, 2, 'O1'), vid('v', 4, 4)],
+      tracks: withOverlays('O1'),
+      layers: [sticker('L', 1, 5, { opacity: [k(0, 1), k(2, 0)] }), sticker('M', 0, 3)],
+    });
+  beforeEach(load);
+
+  it('split gives each part its keys, with one at the cut holding the value there', () => {
+    selectClip('a');
+    setPlayhead(1);
+    expect(splitAtPlayheadWhy()).toBeNull();
+    const [left, right] = getVideo().clips.filter((c) => c.track === MAIN_VIDEO);
+    expect(left.keys).toEqual({ x: [k(0, 0.25), k(1, 0.375)] });
+    expect(right.keys).toEqual({ x: [k(0, 0.375), k(3, 0.75)] });
+    expect(undos()).toBe(1);
+  });
+
+  it('duplicate copies the keys', () => {
+    expect(duplicateClipWhy('a')).toBeNull();
+    const copy = getVideo().clips.find((c) => c.id !== 'a' && c.track === MAIN_VIDEO && c.kind === 'photo')!;
+    expect(copy.keys).toEqual(getClip('a').keys);
+  });
+
+  it('setLayerTimes shifts the keys when the start edge moves, and not when the layer moves whole', () => {
+    expect(setLayerTimes('L', { start: 1.5 }, 'drag:L')).toBeNull();
+    expect(getLayer('L').keys).toEqual({ opacity: [k(-0.5, 1), k(1.5, 0)] });
+    expect(setLayerTimes('L', { start: 2, end: 6 }, '')).toBeNull();
+    expect([getLayer('L').start, getLayer('L').end]).toEqual([2, 6]);
+    expect(getLayer('L').keys).toEqual({ opacity: [k(-0.5, 1), k(1.5, 0)] });
+    // A layer without keys just moves.
+    expect(setLayerTimes('M', { start: 1 }, '')).toBeNull();
+    expect('keys' in getLayer('M')).toBe(false);
+    expect(undos()).toBe(3);
+  });
+
+  it('toggleKey: starts animating at the playhead, adds at the animated value, and removes', () => {
+    setPlayhead(2);
+    expect(toggleKey({ clip: 'x' }, 'w')).toBeNull();
+    expect(getClip('x').keys).toEqual({ w: [k(1, 1, 'ease-in-out')] });
+    expect(toggleKey({ clip: 'a' }, 'x')).toBeNull();
+    expect(getClip('a').keys!.x).toEqual([k(0, 0.25), k(2, 0.5, 'ease-in-out'), k(4, 0.75)]);
+    // At a key: removed.
+    expect(toggleKey({ clip: 'a' }, 'x')).toBeNull();
+    expect(getClip('a').keys!.x).toEqual([k(0, 0.25), k(4, 0.75)]);
+    // Removing a value's last key keeps its value there as the stored one: nothing jumps.
+    setPlayhead(1.5);
+    expect(toggleKey({ layer: 'M' }, 'rot')).toBeNull();
+    expect(getLayer('M').keys).toEqual({ rot: [k(1.5, 0, 'ease-in-out')] });
+    expect(toggleKey({ layer: 'M' }, 'rot')).toBeNull();
+    expect(getLayer('M').keys).toBeUndefined();
+    expect(getLayer('M').rot).toBe(0);
+    expect(undos()).toBe(5);
+  });
+
+  it('removeAnimation keeps the value at the playhead as the stored one', () => {
+    setPlayhead(1);
+    expect(removeAnimation({ clip: 'a' }, 'x')).toBeNull();
+    expect(getClip('a').keys).toBeUndefined();
+    expect(getClip('a').tf).toEqual({ ...IDENTITY, x: 0.375 });
+    setPlayhead(2);
+    expect(removeAnimation({ layer: 'L' }, 'opacity')).toBeNull();
+    expect(getLayer('L').opacity).toBeCloseTo(0.5, 12);
+    expect(getLayer('L').keys).toBeUndefined();
+    expect(undos()).toBe(2);
+  });
+
+  it('moveKeys: a drag is one undo step; moving onto a key replaces it', () => {
+    for (let i = 1; i <= 10; i++) expect(moveKeys({ clip: 'a' }, 'x', 4 - (i - 1) * 0.1, 4 - i * 0.1, 'drag:key')).toBeNull();
+    expect(getClip('a').keys!.x!.map((key) => +key.t.toFixed(9))).toEqual([0, 3]);
+    endVStep();
+    expect(moveKeys({ clip: 'a' }, 'all', 3, 0, '')).toBeNull();
+    expect(getClip('a').keys!.x).toEqual([k(0, 0.75)]);
+    expect(undos()).toBe(2);
+  });
+
+  it('setKeyEase and deleteKeys, for one value or all at a time', () => {
+    toggleKey({ layer: 'L' }, 'x');
+    expect(getLayer('L').keys!.x).toEqual([k(-1, 0.5, 'ease-in-out')]);
+    setPlayhead(1);
+    expect(setKeyEase({ layer: 'L' }, 'all', 0, 'hold')).toBeNull();
+    expect(getLayer('L').keys!.opacity![0].ease).toBe('hold');
+    expect(deleteKeys({ layer: 'L' }, 'opacity', 2)).toBeNull();
+    expect(getLayer('L').keys!.opacity).toEqual([k(0, 1, 'hold')]);
+    expect(deleteKeys({ layer: 'L' }, 'all', -1)).toBeNull();
+    expect(getLayer('L').keys).toEqual({ opacity: [k(0, 1, 'hold')] });
+    expect(undos()).toBe(4);
+  });
+
+  it('setClipTransformAt writes keys for animated values and the box for the rest, in one undo step', () => {
+    setPlayhead(2);
+    expect(setClipTransformAt('a', { x: 0.6, y: 0.3 }, 'drag:a')).toBeNull();
+    expect(setClipTransformAt('a', { x: 0.65, y: 0.35 }, 'drag:a')).toBeNull();
+    expect(getClip('a').keys!.x).toEqual([k(0, 0.25), k(2, 0.65, 'ease-in-out'), k(4, 0.75)]);
+    expect(getClip('a').tf).toEqual({ ...IDENTITY, y: 0.35 });
+    // Not animated: as setClipTransform.
+    expect(setClipTransformAt('x', { w: 0.4 }, '')).toBeNull();
+    expect(getClip('x').tf).toEqual({ ...IDENTITY, w: 0.4 });
+    expect(getClip('x').keys).toBeUndefined();
+    expect(undos()).toBe(2);
+  });
+
+  it('updateLayerAt routes a patch or a function on the layer as shown at the playhead', () => {
+    setPlayhead(2);
+    updateLayerAt('L', { opacity: 0.25, x: 0.1 }, 'drag:L');
+    expect(getLayer('L').keys!.opacity).toEqual([k(0, 1), k(1, 0.25, 'ease-in-out'), k(2, 0)]);
+    expect(getLayer('L').x).toBe(0.1);
+    expect(getLayer('L').opacity).toBe(1);
+    setPlayhead(3);
+    // The function sees the layer as drawn (opacity 0 at 3 s) and its changes are routed the same way.
+    updateLayerAt('L', (shown) => ({ ...shown, opacity: shown.opacity + 0.5, y: 0.9 }), '');
+    expect(getLayer('L').keys!.opacity!.at(-1)).toEqual(k(2, 0.5));
+    expect(getLayer('L').y).toBe(0.9);
+    expect(undos()).toBe(2);
+  });
+
+  it('setClipVolume keys an animated volume and stores an unanimated one', () => {
+    setPlayhead(5);
+    expect(setClipVolume('v', 0.5, '')).toBeNull();
+    expect(getClip('v').volume).toBe(0.5);
+    expect(toggleKey({ clip: 'v' }, 'volume')).toBeNull();
+    setPlayhead(7);
+    expect(setClipVolume('v', 0, 'slider:v')).toBeNull();
+    expect(getClip('v').keys!.volume).toEqual([k(1, 0.5, 'ease-in-out'), k(3, 0, 'ease-in-out')]);
+    expect(getClip('v').volume).toBe(0.5);
+    expect(undos()).toBe(3);
+  });
+
+  it('refuses on a locked track and over the limits, with the reason, recording nothing', () => {
+    setTrack('O1', { locked: true });
+    endVStep();
+    const before = getVideo().clips;
+    expect(toggleKey({ clip: 'x' }, 'x')).toMatch(/locked/);
+    expect(setClipTransformAt('x', { x: 0.1 }, '')).toMatch(/locked/);
+    expect(moveKeys({ clip: 'x' }, 'all', 0, 1, '')).toMatch(/locked/);
+    expect(getVideo().clips).toBe(before);
+    loadVideoProject({ clips: [{ ...clip('a', 0, 4), keys: { x: Array.from({ length: 100 }, (_, i) => k(i / 100, 0.5)) } }] });
+    setPlayhead(3);
+    expect(toggleKey({ clip: 'a' }, 'x')).toMatch(/at most 100/);
+    expect(setClipTransformAt('a', { x: 0.3 }, '')).toMatch(/at most 100/);
+    expect(getVideo().canUndo).toBe(false);
+    expect(toggleKey({ clip: 'nope' }, 'x')).toMatch(/isn’t on the timeline/);
   });
 });

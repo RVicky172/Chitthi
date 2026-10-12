@@ -755,7 +755,7 @@
         "T050": {
           "text": "Failing tests (`src/state/video.test.ts`): split gives each part its keys (`splitKeys`), duplicate copies them, `setLayerTimes` shifts a layer's keys when its start edge moves and not when it moves whole; `toggleKey`, `removeAnimation`, `moveKeys` (a drag under one key: one undo step), `setKeyEase`, `deleteKeys`; the routers `setClipTransformAt`, `updateLayerAt`, `setClipVolume` write a keyframe at the playhead for an animated value and the stored value otherwise; each is one undo step and returns its refusal (locked track, limits).",
           "section": "Store actions",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -769,12 +769,16 @@
           ],
           "test": "`npx vitest run src/state/video.test.ts`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** state/video.test.ts '205 keyframes in the store': split (keys per part, one at the cut), duplicate (copies), setLayerTimes (start edge shifts, a whole move doesn't), toggleKey (start, add at the animated value, remove; the last key's removal stores its value), removeAnimation, moveKeys (10-step drag = one undo; landing replaces), setKeyEase / deleteKeys (one value and all), the routers setClipTransformAt / updateLayerAt (patch and function on the shown layer) / setClipVolume, refusals (locked track, 100 per value, missing clip) recording nothing; undo-step counts in each. 10 failed before T051 (duplicate passed already)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T051": {
           "text": "Implement plan §6 in `src/state/video.ts`.",
           "section": "Store actions",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -788,7 +792,11 @@
           ],
           "test": "T050",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** state/video.ts: VClip.keys; split gives each part splitKeys' keys (only when the clip had keys); KeyTarget { clip } | { layer }; toggleKey, removeAnimation, moveKeys (drag key), setKeyEase, deleteKeys (a value's last key stores its value, nothing jumps); routers setClipTransformAt (no keys: setClipTransform as before), setClipVolume (unanimated: updateClipWhy), updateLayerAt (patch or a function of the layer as shown; no keys: updateVLayer); setLayerTimes (start alone = start edge, keys shift; start + end = whole move); refusals (locked track, limits with the project count) record nothing. loadVideoProject takes optional layers (tests). 62/62 store tests; break-tests (whole moves shifting keys; the router storing animated values) caught; npm run check green, 1,534 tests."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T060": {
           "text": "Implement plan §7: `KeyframeButton` (three states, `aria-pressed`, a name with the value and time; menu: Remove animation) beside 203's Position and size fields, the Clip sound slider and the layers' position, size, rotation and opacity controls; fields show the value at the playhead and write through the routers; previous / next keyframe buttons. Pure helpers `keyState(keys, local)` and `adjacentKey(item, local, direction)` with unit tests (`keyframes.test.ts`).",
