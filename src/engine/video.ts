@@ -239,11 +239,15 @@ export function renderStack(
     const sx = alpha < 1 ? scratchFor(ctx, W, H) : null;
     const x = sx ?? ctx;
     x.save();
-    // No scratch canvas (alpha 1, or none could be made): drawn in place, at its alpha.
-    if (!sx) x.globalAlpha = alpha;
-    intoBox(x, tf, W, H);
-    renderIg(x, src, sw, sh, edit, W, H);
-    x.restore();
+    // Restored even when drawing throws (a closed video frame), so the box's transform and clip don't stay behind.
+    try {
+      // No scratch canvas (alpha 1, or none could be made): drawn in place, at its alpha.
+      if (!sx) x.globalAlpha = alpha;
+      intoBox(x, tf, W, H);
+      renderIg(x, src, sw, sh, edit, W, H);
+    } finally {
+      x.restore();
+    }
     if (sx) {
       ctx.save();
       ctx.globalAlpha = alpha;

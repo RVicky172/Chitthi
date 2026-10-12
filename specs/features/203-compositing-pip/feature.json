@@ -1028,7 +1028,7 @@
         "T034": {
           "text": "The stage's sound for several clips (§7): `VideoStage`'s `sync` passes the list from `soundPlan` to `previewSound`; a muted overlay track is silent, a hidden one heard; AC-8 export sound sources for the fixture checked in the self-test. From the T021 review: drive the fallback <video> pictures from what is on screen (frameStack minus hidden tracks, with local = t − start), not from the sound plan: a fallback clip on a muted overlay track is in `held`, not `current`, and today's interim adapter in sync() would pause (freeze) its picture.",
           "section": "Preview and export",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1041,7 +1041,11 @@
           ],
           "test": "`npm test`; video e2e (the mute test)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** fallback <video> pictures follow frameStack (on screen), not the sound plan, so a fallback clip on a muted overlay track keeps following the playhead (sync already passed soundPlan's list to previewSound since T021). Found and fixed on the way: drawing a closed video frame threw between save() and restore() in photoDrawer (instagram.ts) and renderStack's boxed path, leaving the stage canvas translated so later frames landed in its bottom-right quarter; both now restore in finally. New self-checks: fallback on an overlay track (muted and not), a closed frame leaves the canvas unchanged (both fail with the fix removed), AC-8 overlay sound in the export (heard / muted / hidden). npm test 6,203/0; check 1,390; editors e2e 25 passed / 15 skipped."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T035": {
           "text": "AC-12 timing (§13, `src/dev/playbackChecks.ts`, `CHITTHI_TEST_ONLY=pooltiming`): main + 2 overlay 1080p30 videos playing at once in a Reel and a YouTube project, 300 frames, median and p95 frame time (≤ 33 ms median on desktop); a project without overlays within 5 % of `main` (fastest of 3, run back to back). If the bar fails, lower the limit by Q2's rule and record it in the spec.",

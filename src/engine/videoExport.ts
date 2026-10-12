@@ -204,72 +204,77 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
     // Each clip's picture: a photo's image (decoded once, with its object URL), a video's last frame (held past the
     // end of a source shorter than its trim, as before). Released once the clip has left the stack: a clip shows in
     // one stretch of frames, so it has passed.
-    const pics = new Map<string, { image: CanvasImageSource; w: number; h: number; url?: string }>();
-    const release = (id: string) => {
-      const p = pics.get(id);
-      if (p?.url) URL.revokeObjectURL(p.url);
-      pics.delete(id);
-      pool.forget(id);
+    const pictures = new Map<string, { image: CanvasImageSource; width: number; height: number; objectUrl?: string }>();
+    /** Gives back a clip's picture (and a photo's object URL) and its decoder lane. */
+    const releaseClip = (clipId: string) => {
+      const objectUrl = pictures.get(clipId)?.objectUrl;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      pictures.delete(clipId);
+      pool.forget(clipId);
     };
-    const pictureOf = async (c: ExportClip, local: number) => {
-      if (c.kind === 'photo') {
-        if (!pics.has(c.id)) {
-          const url = URL.createObjectURL(c.file);
-          const img = await loadImage(url).catch((e: unknown) => {
-            URL.revokeObjectURL(url);
-            throw e;
+    /**
+     * A clip's picture for this frame: a photo's image (loaded on its first frame), or the video frame at `local`
+     * seconds into the clip from the pool (the last one it gave, when it has no newer frame).
+     */
+    const pictureFor = async (clip: ExportClip, local: number) => {
+      if (clip.kind === 'photo') {
+        if (!pictures.has(clip.id)) {
+          const objectUrl = URL.createObjectURL(clip.file);
+          const image = await loadImage(objectUrl).catch((error: unknown) => {
+            URL.revokeObjectURL(objectUrl);
+            throw error;
           });
-          pics.set(c.id, { image: img, w: img.naturalWidth, h: img.naturalHeight, url });
+          pictures.set(clip.id, { image, width: image.naturalWidth, height: image.naturalHeight, objectUrl });
         }
       } else {
-        const f = await pool.frame(lane(c), c.in + local).catch((e: unknown) => {
-          throw new ExportError(e instanceof Error ? e.message : String(e));
+        const poolFrame = await pool.frame(lane(clip), clip.in + local).catch((error: unknown) => {
+          throw new ExportError(error instanceof Error ? error.message : String(error));
         });
-        if (f) pics.set(c.id, { image: f.image, w: f.width, h: f.height });
+        if (poolFrame) pictures.set(clip.id, { image: poolFrame.image, width: poolFrame.width, height: poolFrame.height });
       }
-      return pics.get(c.id) ?? null;
+      return pictures.get(clip.id) ?? null;
     };
-    let shown: string[] = [];
+    let previousIds: string[] = [];
     try {
-      for (let i = 0; i < frames; i++) {
-        const t = i / fps;
-        const stack = frameStack(job, t);
-        const ids = stack.map((it) => it.clip.id);
-        for (const id of shown) if (!ids.includes(id)) release(id);
+      for (let frameIndex = 0; frameIndex < frames; frameIndex++) {
+        const time = frameIndex / fps;
+        const stack = frameStack(job, time);
+        const stackIds = stack.map((stackItem) => stackItem.clip.id);
+        for (const clipId of previousIds) if (!stackIds.includes(clipId)) releaseClip(clipId);
         // The lanes to keep: the videos on screen and the next on each track within 2 s (Q10), checked when the
         // stack changes and each second.
-        if (i % fps === 0 || ids.join() !== shown.join()) {
-          const plan = lanePlan(job, t, 2);
-          pool.want([...plan.visible, ...plan.next].map((c) => c.id));
-          for (const c of plan.next) pool.prepare(lane(c));
+        if (frameIndex % fps === 0 || stackIds.join() !== previousIds.join()) {
+          const lanes = lanePlan(job, time, 2);
+          pool.want([...lanes.visible, ...lanes.next].map((clip) => clip.id));
+          for (const clip of lanes.next) pool.prepare(lane(clip));
         }
-        shown = ids;
+        previousIds = stackIds;
         // Every picture of the frame awaited together, so the videos on screen decode side by side.
-        const drawn = await Promise.all(stack.map((it) => pictureOf(it.clip, it.local)));
+        const framePictures = await Promise.all(stack.map((stackItem) => pictureFor(stackItem.clip, stackItem.local)));
         job.trace?.(
-          i,
-          stack.map((it) => ({ id: it.clip.id, at: it.clip.kind === 'video' ? it.clip.in + it.local : null })),
+          frameIndex,
+          stack.map(({ clip, local }) => ({ id: clip.id, at: clip.kind === 'video' ? clip.in + local : null })),
         );
         renderStack(
           ctx,
           W,
           H,
-          stack.map((it, k) => ({
-            clip: { ...it.clip, overlay: it.track !== MAIN_VIDEO },
-            src: drawn[k]?.image ?? null,
-            sw: drawn[k]?.w ?? 0,
-            sh: drawn[k]?.h ?? 0,
-            local: it.local,
+          stack.map((stackItem, index) => ({
+            clip: { ...stackItem.clip, overlay: stackItem.track !== MAIN_VIDEO },
+            src: framePictures[index]?.image ?? null,
+            sw: framePictures[index]?.width ?? 0,
+            sh: framePictures[index]?.height ?? 0,
+            local: stackItem.local,
           })),
           job.layers,
-          t,
+          time,
           total,
           job.fadeOut,
         );
-        await step(t);
+        await step(time);
       }
     } finally {
-      for (const id of [...pics.keys()]) release(id);
+      for (const clipId of [...pictures.keys()]) releaseClip(clipId);
     }
     await feedSound(total);
     video.close();

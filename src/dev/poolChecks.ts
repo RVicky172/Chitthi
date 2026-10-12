@@ -201,6 +201,12 @@ export async function poolChecks(check: Check): Promise<string[]> {
   await group(check, 'fallback AC-14', async () => {
     notes.push(await fallbackOnTheEditor(check));
   });
+  await group(check, 'drawing a closed frame (203)', async () => {
+    notes.push(await closedFrameKeepsCanvas(check));
+  });
+  await group(check, 'fallback on a muted overlay (203)', async () => {
+    notes.push(await fallbackOnMutedOverlay(check));
+  });
   await group(check, 'stage stacks (203)', async () => {
     notes.push(await stageDrawsStacks(check));
   });
@@ -213,74 +219,241 @@ export async function poolChecks(check: Check): Promise<string[]> {
 /**
  * 203 §5 on the stage's own paused path (previewFrame.ts: pausedFrame with the stage's source, then drawPreview), on
  * the AC-6 overlay fixture at 9:16 and 16:9 at its 8 times:
- * - every item of a paused stack has its picture when the frame resolves (they resolve together), and the drawn frame
+ * - every clip of a paused stack has its picture when the frame resolves (they resolve together), and the drawn frame
  *   matches the colour-code reference (each clip's box, rotation, corners, opacity) as renderStack's golden frames do;
  * - two asks in a row: the newer one is complete (latest wins per lane) and the older one still resolves;
- * - the held picture is per clip (withHeld): an overlay arriving keeps the main clip's picture, the new clips wait.
+ * - the held picture is per clip (heldStageFrame): an overlay arriving keeps the main clip's picture, the new clips wait.
  */
 async function stageDrawsStacks(check: Check): Promise<string> {
   const { compareWithReference, makeOverlayProject } = await import('./videoChecks');
-  const { drawPreview, pausedAt, pausedFrame, stageSource, withHeld } = await import('../components/studio/previewFrame');
+  const { drawPreview, heldStageFrame, pausedAt, pausedFrame, stageSource } = await import('../components/studio/previewFrame');
   const { projectLength } = await import('../engine/timeline');
-  let compared = 0;
+  let framesCompared = 0;
   for (const format of ['9:16', '16:9'] as const) {
-    const fx = await makeOverlayProject(format);
-    if (!fx) return 'pool: 203 stage stacks skipped (no H.264 encoder)';
-    const { width: W, height: H, fps } = fx;
-    const urls: string[] = [];
+    const fixture = await makeOverlayProject(format);
+    if (!fixture) return 'pool: 203 stage stacks skipped (no H.264 encoder)';
+    const { width, height, fps } = fixture;
+    const objectUrls: string[] = [];
     const project = {
-      ...fx.project,
-      clips: fx.project.clips.map((c) => {
-        const url = URL.createObjectURL(c.file);
-        urls.push(url);
-        return { ...c, url };
+      ...fixture.project,
+      clips: fixture.project.clips.map((clip) => {
+        const url = URL.createObjectURL(clip.file);
+        objectUrls.push(url);
+        return { ...clip, url };
       }),
     };
     const total = projectLength(project);
-    const x = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
-    x.canvas.width = W;
-    x.canvas.height = H;
+    const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+    context.canvas.width = width;
+    context.canvas.height = height;
     const stage = stageSource();
-    const bad: string[] = [];
+    const problems: string[] = [];
     try {
-      for (const t of fx.times) {
-        const frame = await within(pausedFrame(project, t, fps, stage.source), `203 stage at ${t.toFixed(3)} s`);
-        const missing = frame.items.filter((it) => !it.pic).map((it) => it.clip.id);
-        if (missing.length) bad.push(`no picture for ${missing.join(', ')} at frame ${Math.round(t * fps)}`);
-        drawPreview(x, W, H, { layers: [], total, fadeOut: false }, frame);
-        const ref = frame.items.map((it) => ({ tf: fx.clips.find((c) => c.id === it.clip.id)!.tf, rgb: fx.colourAt(it.clip.id, frame.at)! }));
-        const r = compareWithReference(x.getImageData(0, 0, W, H).data, W, H, ref);
-        compared++;
-        if (r.max > 8 || r.mean > 2 || r.n < W * H * 0.95)
-          bad.push(`frame ${Math.round(t * fps)}: worst ${r.max.toFixed(0)} at ${r.where}, mean ${r.mean.toFixed(2)}`);
+      for (const time of fixture.times) {
+        const frameNumber = Math.round(time * fps);
+        const frame = await within(pausedFrame(project, time, fps, stage.source), `203 stage at ${time.toFixed(3)} s`);
+        const withoutPicture = frame.items.filter((stackItem) => !stackItem.pic).map((stackItem) => stackItem.clip.id);
+        if (withoutPicture.length) problems.push(`no picture for ${withoutPicture.join(', ')} at frame ${frameNumber}`);
+        drawPreview(context, width, height, { layers: [], total, fadeOut: false }, frame);
+        const reference = frame.items.map((stackItem) => ({
+          tf: fixture.clips.find((expected) => expected.id === stackItem.clip.id)!.tf,
+          rgb: fixture.colourAt(stackItem.clip.id, frame.at)!,
+        }));
+        const result = compareWithReference(context.getImageData(0, 0, width, height).data, width, height, reference);
+        framesCompared++;
+        if (result.max > 8 || result.mean > 2 || result.n < width * height * 0.95)
+          problems.push(`frame ${frameNumber}: worst ${result.max.toFixed(0)} at ${result.where}, mean ${result.mean.toFixed(2)}`);
       }
-      check(!bad.length, `pool: the paused stage draws the ${format} overlay stack as the golden reference at 8 times${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`);
+      check(
+        !problems.length,
+        `pool: the paused stage draws the ${format} overlay stack as the golden reference at 8 times${problems.length ? `: ${problems.slice(0, 3).join('; ')}` : ''}`,
+      );
 
       // Latest wins: frame 37 (m1, B-roll, face-cam) then frame 59 at once; the newer has every picture.
-      const [older, newer] = await within(
-        Promise.all([37, 59].map((k) => pausedFrame(project, k / fps, fps, stage.source))),
+      const [olderFrame, newerFrame] = await within(
+        Promise.all([37, 59].map((frameNumber) => pausedFrame(project, frameNumber / fps, fps, stage.source))),
         '203 two asks in a row',
       );
+      const newerPictures = newerFrame.items.filter((stackItem) => stackItem.pic).length;
       check(
-        newer.items.length === 3 && newer.items.every((it) => it.pic) && older.items.length === 3,
-        `pool: of two paused asks in a row (${format}) the newer has all 3 pictures and the older resolves (newer ${newer.items.filter((it) => it.pic).length} of ${newer.items.length})`,
+        newerFrame.items.length === 3 && newerPictures === 3 && olderFrame.items.length === 3,
+        `pool: of two paused asks in a row (${format}) the newer has all 3 pictures and the older resolves (newer ${newerPictures} of ${newerFrame.items.length})`,
       );
 
       // Held per clip: frame 12 shows m1 alone; at frame 37 the B-roll and face-cam arrive, m1 keeps its picture.
-      const before = await within(pausedFrame(project, 12 / fps, fps, stage.source), '203 frame 12');
-      const { at, items } = pausedAt(project, 37 / fps, fps);
-      const held = withHeld(at, items, before, () => null, (c) => c.kind === 'video');
-      const m1 = held.items.find((it) => it.clip.id === 'm1');
+      const frameBefore = await within(pausedFrame(project, 12 / fps, fps, stage.source), '203 frame 12');
+      const { at, items: stack } = pausedAt(project, 37 / fps, fps);
+      const held = heldStageFrame(at, stack, frameBefore, () => null, (clip) => clip.kind === 'video');
+      const mainItem = held.items.find((stackItem) => stackItem.clip.id === 'm1');
       check(
-        held.items.length === 3 && !!m1?.pic && m1.pic === before.items[0]?.pic && held.items.filter((it) => it.pic).length === 1,
+        held.items.length === 3 &&
+          !!mainItem?.pic &&
+          mainItem.pic === frameBefore.items[0]?.pic &&
+          held.items.filter((stackItem) => stackItem.pic).length === 1,
         `pool: the held picture is per clip: an overlay arriving keeps the main clip's picture (${format})`,
       );
     } finally {
       stage.dispose();
-      urls.forEach((u) => URL.revokeObjectURL(u));
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
     }
   }
-  return `pool: 203 stage compared ${compared} paused stacks with the golden reference`;
+  return `pool: 203 stage compared ${framesCompared} paused stacks with the golden reference`;
+}
+
+/**
+ * Drawing a video frame that was closed after it was handed out (a held picture the pool has since released) throws;
+ * the canvas must come back unchanged: no transform, clip or alpha left behind, so the stage's next draw lands where it
+ * should. Tried full frame and in a rotated see-through box (renderStack's two drawing paths).
+ */
+async function closedFrameKeepsCanvas(check: Check): Promise<string> {
+  if (typeof VideoFrame === 'undefined') return 'pool: closed-frame check skipped (no VideoFrame)';
+  const { renderStack } = await import('../engine/video');
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const width = 320,
+    height = 180;
+  const source = document.createElement('canvas');
+  source.width = width;
+  source.height = height;
+  source.getContext('2d')!.fillRect(0, 0, width, height);
+  const results: string[] = [];
+  let allRestored = true;
+  for (const [name, transform] of [
+    ['full frame', undefined],
+    ['rotated see-through box', { x: 0.5, y: 0.5, w: 0.5, rot: 20, opacity: 0.5, radius: 0.1 }],
+  ] as const) {
+    const closedFrame = new VideoFrame(source, { timestamp: 0 });
+    closedFrame.close();
+    const context = document.createElement('canvas').getContext('2d')!;
+    context.canvas.width = width;
+    context.canvas.height = height;
+    let threw = false;
+    try {
+      renderStack(
+        context,
+        width,
+        height,
+        [
+          {
+            clip: { kind: 'video', dur: 0, in: 0, out: 1, edit: { ...DEFAULT_EDIT }, motion: 'none', fade: false, overlay: true, tf: transform },
+            src: closedFrame,
+            sw: width,
+            sh: height,
+            local: 0,
+          },
+        ],
+        [],
+        0,
+        1,
+        false,
+      );
+    } catch {
+      threw = true;
+    }
+    const restored = context.getTransform().isIdentity && context.globalAlpha === 1;
+    allRestored &&= restored;
+    results.push(`${name}: ${threw ? 'threw' : 'did not throw'}, canvas ${restored ? 'unchanged' : `left at ${context.getTransform().toString()} alpha ${context.globalAlpha}`}`);
+  }
+  check(allRestored, `pool: drawing a closed video frame leaves the canvas unchanged (${results.join('; ')})`);
+  return 'pool: a closed frame leaves the canvas as it was';
+}
+
+/**
+ * 203 T034 on the real editor (StrictMode): a clip the pool can't decode, full frame on an overlay track over a main
+ * clip with another colour code. Its picture comes from its <video>, which must follow the playhead whether the track
+ * is muted or not: Mute is about sound, so a muted track's clip is still drawn. (Before T034 the <video> was driven
+ * from the sound plan, which leaves a muted track's clips out, so the picture stayed put; and drawing a released frame
+ * left the stage canvas moved to the picture's centre, so later frames were drawn in its bottom-right quarter.)
+ * A <video> seek can land one frame early, so the frame shown may be one before the one asked for (as in 204 AC-14).
+ */
+async function fallbackOnMutedOverlay(check: Check): Promise<string> {
+  const React = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
+  const video = await import('../state/video');
+  const { undecodableForTests } = await import('../engine/frameSource');
+  const [mainBlob, overlayBlob] = await Promise.all([
+    makeTestClip(3, 640, 360, 1, false, 2),
+    makeTestClip(3, 640, 360, 1, false, true),
+  ]);
+  if (!mainBlob || !overlayBlob) return 'pool: muted-overlay fallback check skipped (no H.264 encoder)';
+  const undecodable = new File([overlayBlob], 'overlay-cant-decode.mp4', { type: 'video/mp4' });
+  undecodableForTests.add(undecodable);
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(
+    React.createElement(React.StrictMode, null, React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined })),
+  );
+
+  /** The overlay's frame number named by the colour at the stage's centre (codeColour without a clip code, ±10), or -1. */
+  const frameAtCentre = (): number => {
+    const stageCanvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const context = stageCanvas?.getContext('2d', { willReadFrequently: true });
+    if (!stageCanvas || !context || !stageCanvas.width) return -1;
+    const pixels = context.getImageData(Math.floor(stageCanvas.width / 2) - 4, Math.floor(stageCanvas.height / 2) - 4, 8, 8).data;
+    const mean = [0, 0, 0];
+    for (let offset = 0; offset < pixels.length; offset += 4)
+      for (let channel = 0; channel < 3; channel++) mean[channel] += pixels[offset + channel] / 64;
+    const frames = Array.from({ length: 90 }, (_, frame) => frame);
+    return frames.find((frame) => codeColour(frame).every((want, channel) => Math.abs(want - mean[channel]) <= 10)) ?? -1;
+  };
+  /** Polls `isDone` every 16 ms until it holds or `timeoutMs` passes; returns its last answer. */
+  const waitFor = async (isDone: () => boolean, timeoutMs: number): Promise<boolean> => {
+    const deadline = performance.now() + timeoutMs;
+    while (!isDone() && performance.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 16));
+    return isDone();
+  };
+
+  const tracksBefore = new Set(video.getVideo().tracks.map((track) => track.id));
+  let addedIds: string[] = [];
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const clipsBefore = new Set(video.getVideo().clips.map((clip) => clip.id));
+    await video.addMedia([{ name: 'main.mp4', blob: mainBlob, type: 'video/mp4' }]);
+    const mainClip = video.getVideo().clips.find((clip) => !clipsBefore.has(clip.id));
+    if (!mainClip) throw new Error('the main clip was not added');
+    await video.addMedia([{ name: undecodable.name, blob: undecodable, type: undecodable.type }], {
+      track: video.NEW_TRACK,
+      at: mainClip.start,
+    });
+    addedIds = video
+      .getVideo()
+      .clips.filter((clip) => !clipsBefore.has(clip.id))
+      .map((clip) => clip.id);
+    const overlayClip = video.getVideo().clips.find((clip) => addedIds.includes(clip.id) && clip.id !== mainClip.id);
+    if (!overlayClip) throw new Error('the overlay clip was not added');
+    // No fades, so the stage shows the overlay's exact colour.
+    video.setVideoOptions({ fadeOut: false });
+    for (const id of addedIds) video.updateClip(id, { fade: false });
+
+    const results: string[] = [];
+    let allShown = true;
+    for (const [muted, wantedFrame] of [
+      [false, 20],
+      [false, 50],
+      [true, 20],
+      [true, 50],
+    ] as const) {
+      video.setTrack(overlayClip.track, { muted });
+      video.setPlayhead(overlayClip.start + (wantedFrame + 0.5) / FPS);
+      const isShown = () => frameAtCentre() === wantedFrame || frameAtCentre() === wantedFrame - 1;
+      allShown = (await waitFor(isShown, 5000)) && allShown;
+      results.push(`${muted ? 'muted' : 'unmuted'} frame ${frameAtCentre()} (want ${wantedFrame})`);
+    }
+    check(
+      allShown,
+      `pool: a fallback clip on an overlay track shows its frame where the playhead is, muted or not: ${results.join(', ')}`,
+    );
+  } finally {
+    undecodableForTests.delete(undecodable);
+    video.setPlaying(false);
+    for (const id of addedIds) video.removeClip(id);
+    for (const track of video.getVideo().tracks) if (!tracksBefore.has(track.id)) video.deleteTrack(track.id);
+    root.unmount();
+    host.remove();
+  }
+  return 'pool: a fallback clip on a muted overlay track follows the playhead';
 }
 
 /**
@@ -292,63 +465,82 @@ async function editorStageShowsOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
-  const v = await import('../state/video');
-  const [mainBlob, overBlob] = await Promise.all([makeTestClip(4, 640, 360, 1, false, true), makeTestClip(4, 320, 240, 1, false, 3)]);
-  if (!mainBlob || !overBlob) return 'pool: overlay stage check skipped (no H.264 encoder)';
+  const video = await import('../state/video');
+  const [mainBlob, overlayBlob] = await Promise.all([
+    makeTestClip(4, 640, 360, 1, false, true),
+    makeTestClip(4, 320, 240, 1, false, 3),
+  ]);
+  if (!mainBlob || !overlayBlob) return 'pool: overlay stage check skipped (no H.264 encoder)';
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
   document.body.append(host);
   const root = createRoot(host);
-  root.render(React.createElement(React.StrictMode, null, React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined })));
-  /** The mean colour of an 8 × 8 patch at (fx, fy), shares of the stage canvas. */
-  const at = (fx: number, fy: number) => {
-    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
-    const x = c?.getContext('2d');
-    if (!c || !x || !c.width) return null;
-    const d = x.getImageData(Math.floor(c.width * fx) - 4, Math.floor(c.height * fy) - 4, 8, 8).data;
-    const s = [0, 0, 0];
-    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k];
-    return s.map((n) => n / 64);
+  root.render(
+    React.createElement(React.StrictMode, null, React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined })),
+  );
+
+  /**
+   * The stage's mean colour in an 8 × 8 patch.
+   * @param shareX the patch centre across the stage, 0–1
+   * @param shareY the patch centre down the stage, 0–1
+   * @returns the mean red, green and blue, or null before the stage canvas is drawn
+   */
+  const colourAt = (shareX: number, shareY: number): number[] | null => {
+    const stageCanvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const context = stageCanvas?.getContext('2d');
+    if (!stageCanvas || !context || !stageCanvas.width) return null;
+    const pixels = context.getImageData(Math.floor(stageCanvas.width * shareX) - 4, Math.floor(stageCanvas.height * shareY) - 4, 8, 8).data;
+    const sums = [0, 0, 0];
+    for (let offset = 0; offset < pixels.length; offset += 4)
+      for (let channel = 0; channel < 3; channel++) sums[channel] += pixels[offset + channel];
+    return sums.map((sum) => sum / 64);
   };
-  const near = (a: number[] | null, want: readonly number[]) => !!a && want.every((w, k) => Math.abs(w - a[k]) <= 8);
-  const waitFor = async (ok: () => boolean, ms: number) => {
-    const end = performance.now() + ms;
-    while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 50));
-    return ok();
+  /** Whether every channel of `colour` is within 8 levels of `wanted`. */
+  const isNear = (colour: number[] | null, wanted: readonly number[]) =>
+    !!colour && wanted.every((value, channel) => Math.abs(value - colour[channel]) <= 8);
+  /** Polls `isDone` every 50 ms until it holds or `timeoutMs` passes; returns its last answer. */
+  const waitFor = async (isDone: () => boolean, timeoutMs: number): Promise<boolean> => {
+    const deadline = performance.now() + timeoutMs;
+    while (!isDone() && performance.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
+    return isDone();
   };
-  const tracksBefore = new Set(v.getVideo().tracks.map((t) => t.id));
-  let ids: string[] = [];
+  /** A colour as "r/g/b" for the report. */
+  const describe = (colour: readonly number[] | null) => colour?.map(Math.round).join('/');
+
+  const tracksBefore = new Set(video.getVideo().tracks.map((track) => track.id));
+  let addedIds: string[] = [];
   try {
-    await new Promise((r) => setTimeout(r, 300));
-    const before = new Set(v.getVideo().clips.map((c) => c.id));
-    await v.addMedia([{ name: 'main.mp4', blob: mainBlob, type: 'video/mp4' }]);
-    const main = v.getVideo().clips.find((c) => !before.has(c.id));
-    if (!main) throw new Error('the main clip was not added');
-    await v.addMedia([{ name: 'over.mp4', blob: overBlob, type: 'video/mp4' }], { track: v.NEW_TRACK, at: main.start });
-    ids = v
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const clipsBefore = new Set(video.getVideo().clips.map((clip) => clip.id));
+    await video.addMedia([{ name: 'main.mp4', blob: mainBlob, type: 'video/mp4' }]);
+    const mainClip = video.getVideo().clips.find((clip) => !clipsBefore.has(clip.id));
+    if (!mainClip) throw new Error('the main clip was not added');
+    await video.addMedia([{ name: 'overlay.mp4', blob: overlayBlob, type: 'video/mp4' }], {
+      track: video.NEW_TRACK,
+      at: mainClip.start,
+    });
+    addedIds = video
       .getVideo()
-      .clips.filter((c) => !before.has(c.id))
-      .map((c) => c.id);
-    const over = v.getVideo().clips.find((c) => ids.includes(c.id) && c.id !== main.id);
-    if (!over) throw new Error('the overlay clip was not added');
-    const why = v.applyPreset(over.id, 'top-right');
-    if (why) throw new Error(why);
-    const tf = v.getVideo().clips.find((c) => c.id === over.id)!.tf!;
-    const t = main.start + 0.5;
-    v.setPlayhead(t);
-    const wantMain = codeColour(Math.floor((t - main.start + main.in) * FPS + 1e-6));
-    const wantOver = codeColour(Math.floor((t - over.start + over.in) * FPS + 1e-6), 3);
-    const ok = await waitFor(() => near(at(tf.x, tf.y), wantOver) && near(at(0.25, 0.8), wantMain), 5000);
+      .clips.filter((clip) => !clipsBefore.has(clip.id))
+      .map((clip) => clip.id);
+    const overlayClip = video.getVideo().clips.find((clip) => addedIds.includes(clip.id) && clip.id !== mainClip.id);
+    if (!overlayClip) throw new Error('the overlay clip was not added');
+    const refusal = video.applyPreset(overlayClip.id, 'top-right');
+    if (refusal) throw new Error(refusal);
+    const box = video.getVideo().clips.find((clip) => clip.id === overlayClip.id)!.tf!;
+    const playhead = mainClip.start + 0.5;
+    video.setPlayhead(playhead);
+    const wantedMain = codeColour(Math.floor((playhead - mainClip.start + mainClip.in) * FPS + 1e-6));
+    const wantedOverlay = codeColour(Math.floor((playhead - overlayClip.start + overlayClip.in) * FPS + 1e-6), 3);
+    const isShown = () => isNear(colourAt(box.x, box.y), wantedOverlay) && isNear(colourAt(0.25, 0.8), wantedMain);
     check(
-      ok,
-      `pool: the editor (StrictMode) shows an overlay clip in its top-right box over the main clip (box ${at(tf.x, tf.y)
-        ?.map(Math.round)
-        .join('/')}, want ${wantOver.join('/')}; outside ${at(0.25, 0.8)?.map(Math.round).join('/')}, want ${wantMain.join('/')})`,
+      await waitFor(isShown, 5000),
+      `pool: the editor (StrictMode) shows an overlay clip in its top-right box over the main clip (box ${describe(colourAt(box.x, box.y))}, want ${describe(wantedOverlay)}; outside ${describe(colourAt(0.25, 0.8))}, want ${describe(wantedMain)})`,
     );
   } finally {
-    v.setPlaying(false);
-    for (const id of ids) v.removeClip(id);
-    for (const tr of v.getVideo().tracks) if (!tracksBefore.has(tr.id)) v.deleteTrack(tr.id);
+    video.setPlaying(false);
+    for (const id of addedIds) video.removeClip(id);
+    for (const track of video.getVideo().tracks) if (!tracksBefore.has(track.id)) video.deleteTrack(track.id);
     root.unmount();
     host.remove();
   }

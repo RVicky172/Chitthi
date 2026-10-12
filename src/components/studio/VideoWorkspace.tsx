@@ -4,7 +4,7 @@ import { frameStack } from '../../engine/stack';
 import { MUSIC, lockedReason } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
-import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, stillOf, useFallbackNote, withHeld, type Picture, type StageFrame } from './previewFrame';
+import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
@@ -338,16 +338,21 @@ function VideoStage() {
     return Boolean(pool && !why);
   };
 
-  /** A picture without waiting (playback): what the pool has ready, or the clip's <video> for a fallback clip. */
-  const pictureNow = (shown: { clip: VClip; local: number }): Picture | null => {
-    const c = shown.clip;
-    if (c.kind === 'photo') return stillOf(c);
-    if (usesPool(c)) {
-      const f = stage().pool!.peek(poolClip(c), c.in + shown.local);
-      return f ? { image: f.image, w: f.width, h: f.height } : null;
+  /**
+   * A clip's picture without waiting (playback, and the paused stage until its exact frame lands).
+   * @param stackItem a clip showing now and the seconds into it
+   * @returns a photo's still, the frame the pool has ready for a video, or a fallback clip's <video> once it has data;
+   *   null when none is ready
+   */
+  const pictureNow = (stackItem: { clip: VClip; local: number }): Picture | null => {
+    const clip = stackItem.clip;
+    if (clip.kind === 'photo') return photoPicture(clip);
+    if (usesPool(clip)) {
+      const poolFrame = stage().pool!.peek(poolClip(clip), clip.in + stackItem.local);
+      return poolFrame ? { image: poolFrame.image, w: poolFrame.width, h: poolFrame.height } : null;
     }
-    const v = videoFor(c);
-    return v.readyState >= 2 ? { image: v, w: v.videoWidth, h: v.videoHeight } : null;
+    const videoElement = videoFor(clip);
+    return videoElement.readyState >= 2 ? { image: videoElement, w: videoElement.videoWidth, h: videoElement.videoHeight } : null;
   };
 
   draw.current = (frame) => {
@@ -362,26 +367,26 @@ function VideoStage() {
       cv.height = H;
     }
     const s = getVideo();
-    let f = frame;
-    if (!f) {
+    let frameToDraw = frame;
+    if (!frameToDraw) {
       if (s.playing) {
         // Every visible clip's picture as the pool has it now (each video peeked: holds counted per lane).
-        const items = frameStack(projectOf(s), s.t);
-        f = { at: s.t, items: items.map((it) => ({ ...it, pic: pictureNow(it) })) };
+        const stack = frameStack(projectOf(s), s.t);
+        frameToDraw = { at: s.t, items: stack.map((stackItem) => ({ ...stackItem, pic: pictureNow(stackItem) })) };
       } else {
         // Paused, until the exact frame lands: photos at once; each video's held picture while it's the same clip.
-        const { at, items } = pausedAt(projectOf(s), s.t, s.fps);
-        f = withHeld(at, items, last.current, pictureNow, usesPool);
+        const { at, items: stack } = pausedAt(projectOf(s), s.t, s.fps);
+        frameToDraw = heldStageFrame(at, stack, last.current, pictureNow, usesPool);
       }
     }
-    if (!f.items.length && !s.clips.length) return;
-    last.current = f;
+    if (!frameToDraw.items.length && !s.clips.length) return;
+    last.current = frameToDraw;
     const view = { layers: s.layers, total: videoLength(s), fadeOut: s.fadeOut };
     try {
-      drawPreview(x, W, H, view, f);
+      drawPreview(x, W, H, view, frameToDraw);
     } catch {
-      // A held frame the pool has since released (a clip removed): draw without them until the next frame.
-      last.current = { ...f, items: f.items.map((it) => ({ ...it, pic: null })) };
+      // A held frame the pool has since released (a clip removed): draw without pictures until the next frame.
+      last.current = { ...frameToDraw, items: frameToDraw.items.map((stackItem) => ({ ...stackItem, pic: null })) };
       drawPreview(x, W, H, view, last.current);
     }
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
@@ -411,21 +416,24 @@ function VideoStage() {
         plan = soundPlan(projectOf(s), s.t);
       sound().update(plan, play, s.fps);
       const pool = stage().pool;
-      for (const c of s.clips) {
-        if (c.kind !== 'video' || (pool && !pool.fallback(c.id))) continue;
-        const v = videoFor(c);
-        v.muted = true;
-        const p = plan.current.find((x) => x.clip.id === c.id);
-        if (p) {
-          const want = c.in + p.local;
+      // Fallback pictures follow what's on screen (frameStack: hidden tracks left out), not the sound plan: a clip on a
+      // muted overlay track is still drawn (203 T034).
+      const onScreen = frameStack(projectOf(s), s.t);
+      for (const clip of s.clips) {
+        if (clip.kind !== 'video' || (pool && !pool.fallback(clip.id))) continue;
+        const videoElement = videoFor(clip);
+        videoElement.muted = true;
+        const shown = onScreen.find((stackItem) => stackItem.clip.id === clip.id);
+        if (shown) {
+          const sourceTime = clip.in + shown.local;
           if (play) {
-            if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;
-            if (v.paused) void v.play().catch(() => undefined);
+            if (Math.abs(videoElement.currentTime - sourceTime) > 0.3) videoElement.currentTime = sourceTime;
+            if (videoElement.paused) void videoElement.play().catch(() => undefined);
           } else {
-            v.pause();
-            if (Math.abs(v.currentTime - want) > 0.02) v.currentTime = want;
+            videoElement.pause();
+            if (Math.abs(videoElement.currentTime - sourceTime) > 0.02) videoElement.currentTime = sourceTime;
           }
-        } else if (!v.paused) v.pause();
+        } else if (!videoElement.paused) videoElement.pause();
       }
     },
     [videoFor, stage, sound],

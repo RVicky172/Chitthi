@@ -121,3 +121,11 @@ them ("Invalid argument") and only unregisters; deleting the folder afterwards w
 `node_modules` (`.bin`, `@anthropic-ai` gone) even after the top-level link was removed with `rmdir`. Remove the
 folders with `cmd /c rmdir /s /q` (doesn't follow junctions), or leave them; then `npm ci` (dashboard and dev server
 stopped) and `node node_modules/electron/install.js` repair it.
+
+## 2026-10-12 — A failed draw must not leave the canvas transformed
+
+A held `VideoFrame` can be closed by the pool before the stage draws it; `drawImage` then throws. In `photoDrawer`
+(instagram.ts) that happened between `save()`/`translate(centre)` and `restore()`, so the stage canvas stayed moved by
+half the frame and every later draw landed in its bottom-right quarter (looked like a dim or missing clip). Any
+`save()` around a draw that can throw needs `try { … } finally { restore() }` (now in photoDrawer and renderStack's
+boxed path; guarded by the pool check "drawing a closed video frame leaves the canvas unchanged").
