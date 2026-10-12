@@ -671,10 +671,23 @@ export const limitText = fmtLimit;
 
 /** Changes a clip; refused (false) if its track is locked or it would make the video longer than this project allows. */
 export function updateClip(id: string, patch: Partial<VClip>, key = `clip:${id}:${Object.keys(patch).sort().join(',')}`): boolean {
-  if (clipLocked(id)) return false;
+  return updateClipWhy(id, patch, key) === null;
+}
+/**
+ * Changes a clip as updateClip does, saying why when it can't.
+ * @param id the clip
+ * @param patch the fields to change
+ * @param key groups changes into one undo step (a slider's drag)
+ * @returns null once changed; else why not: its track is locked, the video would be longer than this platform's
+ *   limit, or the change would put more videos on screen at once than allowed
+ */
+export function updateClipWhy(id: string, patch: Partial<VClip>, key = `clip:${id}:${Object.keys(patch).sort().join(',')}`): string | null {
+  const locked = clipLocked(id);
+  if (locked) return locked;
   const clips = state.clips.map((c) => (c.id === id ? { ...c, ...patch } : c));
-  if (lengthOf(clips) - limits().seconds > 0.01) return false;
-  return commit(key, { clips }) === null;
+  const maxSeconds = limits().seconds;
+  if (lengthOf(clips) - maxSeconds > 0.01) return `A video can be up to ${fmtLimit(maxSeconds)} long here.`;
+  return commit(key, { clips });
 }
 export const editClip = (id: string, patch: Partial<IgEdit>) => {
   const c = state.clips.find((x) => x.id === id);

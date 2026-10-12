@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
 import { frameStack } from '../../engine/stack';
-import { MUSIC, lockedReason } from '../../engine/timeline';
+import { IDENTITY, MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
 import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
+import { clipLabel } from './timelineRows';
+import { useClipTransform } from './useClipTransform';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { canStreamToDisk } from '../../lib/fileSink';
@@ -17,6 +19,8 @@ import {
   addVLayer,
   cancelExport,
   adjustClip,
+  applyPreset,
+  clipPlace,
   editClip,
   endVStep,
   exportVideo,
@@ -31,12 +35,13 @@ import {
   setKind,
   setMusicFile,
   setPlayhead,
+  setClipTransform,
   setPlaying,
   setVideoOptions,
   setVLayers,
   setVTools,
   undoV,
-  updateClip,
+  updateClipWhy,
   updateMusic,
   updateVLayer,
   useVideo,
@@ -287,6 +292,8 @@ function VideoStage() {
   const clips = useVideo((s) => s.clips),
     layers = useVideo((s) => s.layers),
     layerSel = useVideo((s) => s.layerSel),
+    selectedClip = useVideo((s) => s.selected),
+    snapping = useVideo((s) => s.snapping),
     tools = useVideo((s) => s.tools),
     format = useVideo((s) => s.format),
     fadeOut = useVideo((s) => s.fadeOut),
@@ -300,6 +307,8 @@ function VideoStage() {
   const tick = useFontsTick(layers);
   const audio = useRef<HTMLAudioElement | null>(null);
   const draw = useRef<(frame?: StageFrame<VClip>) => void>(() => undefined);
+  // The selected clip's box on the stage (203 §11): presses that miss every layer, arrow keys, and its drawing.
+  const clipBox = useClipTransform(ref, () => draw.current());
   // Pictures: the decoder pool (204), with <video> elements for clips it can't decode (sound: below).
   // Created on first use and again after a cleanup: StrictMode runs effects twice in development, and a source kept in
   // useMemo would stay disposed (the stage drew nothing).
@@ -391,6 +400,7 @@ function VideoStage() {
     }
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
+    else clipBox.drawBox(x, W, H);
   };
 
   /** The clips the pool keeps open at playhead t: those showing and the next to start within 2 s (Q10). */
@@ -460,7 +470,7 @@ function VideoStage() {
       })
       .catch((e: unknown) => logError('handled', e));
     lookAhead(s.t);
-  }, [clips, tracks, layers, layerSel, format, fadeOut, t, tick, playing, width, height, sync, stage, lookAhead]);
+  }, [clips, tracks, layers, layerSel, selectedClip, snapping, format, fadeOut, t, tick, playing, width, height, sync, stage, lookAhead]);
 
   // Playback: advance the playhead with the wall clock, keep the clip videos and the music in step.
   useEffect(() => {
@@ -517,6 +527,7 @@ function VideoStage() {
     onSetLayers: (ls, key, sel) => setVLayers(ls, key, sel),
     onRemove: removeVLayer,
     onEndStep: endVStep,
+    onBackground: clipBox.background,
   });
 
   return (
@@ -526,11 +537,11 @@ function VideoStage() {
         tabIndex={0}
         className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}`}
         style={{ width, height }}
-        aria-label={`Video frame at ${fmtTime(t)}, ${f.ratio}. Drag a layer to move it, its corner handle to resize, its top handle to turn it. Delete removes the selected layer. Space plays and pauses.`}
+        aria-label={`Video frame at ${fmtTime(t)}, ${f.ratio}. Drag a layer or an overlay clip to move it, its corner handle to resize, its top handle to turn it; arrow keys move the selected one. Delete removes the selected layer. Space plays and pauses.`}
         onDoubleClick={() => document.getElementById('layer-text')?.focus()}
         {...handlers}
       />
-      <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the frame' : 'Drag a layer to move it · Space plays'}</p>
+      <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the frame' : 'Drag a layer or an overlay clip to move it · Space plays'}</p>
     </div>
   );
 }
@@ -547,8 +558,13 @@ function Range({ id, label, value, min, max, step = 0.1, show, onChange }: { id:
 }
 
 function ClipPanel({ clip: c }: { clip: VClip }) {
-  const clips = useVideo((s) => s.clips);
-  const i = clips.findIndex((x) => x.id === c.id);
+  // "Clip 2", or "Overlay 1, clip 2": counted on the clip's own track (203).
+  const place = useVideo((s) => clipPlace(c.id, s));
+  /** Changes the clip, showing why when it can't be (the length or videos-at-once limit, a locked track). */
+  const updateClip = (patch: Partial<VClip>, key?: string) => {
+    const refusal = updateClipWhy(c.id, patch, key);
+    if (refusal) toast(refusal);
+  };
   const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
   const locked = useVideo((s) => lockedReason(s.tracks, c.track));
   const cantExport = useFallbackNote(c.file);
@@ -559,7 +575,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
       <fieldset className="lp-fs" disabled={!!locked}>
       <div className="ig-group">
         <h3>
-          Clip {i + 1} · {c.kind === 'video' ? 'video' : 'photo'}
+          {place ? clipLabel(place.track, place.n) : 'Clip'} · {c.kind === 'video' ? 'video' : 'photo'}
         </h3>
         <p className="hint ig-name" title={c.name}>
           {c.name} · {c.w}×{c.h}
@@ -568,11 +584,11 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
         {cantExport && <p className="hint bad" role="status">{cantExport}</p>}
         {c.kind === 'photo' ? (
           <>
-            <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip(c.id, { dur })} />
+            <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip({ dur })} />
             <span className="lp-label">Movement</span>
             <div className="chips" role="radiogroup" aria-label="Movement">
               {MOTIONS.map(([id, label]) => (
-                <button key={id} type="button" role="radio" className="chip" aria-checked={c.motion === id} onClick={() => updateClip(c.id, { motion: id as Motion }, '')}>
+                <button key={id} type="button" role="radio" className="chip" aria-checked={c.motion === id} onClick={() => updateClip({ motion: id as Motion }, '')}>
                   {label}
                 </button>
               ))}
@@ -580,15 +596,16 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           </>
         ) : (
           <>
-            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip(c.id, { in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
-            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip(c.id, { out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
-            <Range id="v-vol" label="Clip sound" value={c.volume} min={0} max={1} step={0.05} show={c.volume ? `${Math.round(c.volume * 100)}%` : 'muted'} onChange={(volume) => updateClip(c.id, { volume })} />
+            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip({ in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
+            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip({ out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
+            <Range id="v-vol" label="Clip sound" value={c.volume} min={0} max={1} step={0.05} show={c.volume ? `${Math.round(c.volume * 100)}%` : 'muted'} onChange={(volume) => updateClip({ volume })} />
           </>
         )}
-        <Check checked={c.fade} onChange={(fade) => updateClip(c.id, { fade }, '')}>
+        <Check checked={c.fade} onChange={(fade) => updateClip({ fade }, '')}>
           Fade in from black
         </Check>
       </div>
+      <PositionGroup clip={c} />
       <div className="ig-group">
         <h3>Frame</h3>
         <Seg<'fill' | 'fit'>
@@ -619,6 +636,84 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
       </div>
       </fieldset>
     </div>
+  );
+}
+
+/** The inspector's position-and-size fields: a label, a number in the field's units, and its range. */
+const POSITION_FIELDS: { field: keyof ClipTransform; label: string; unit: string; min: number; max: number; scale: number }[] = [
+  { field: 'x', label: 'X', unit: '%', min: -50, max: 150, scale: 100 },
+  { field: 'y', label: 'Y', unit: '%', min: -50, max: 150, scale: 100 },
+  { field: 'w', label: 'Size', unit: '%', min: 5, max: 400, scale: 100 },
+  { field: 'rot', label: 'Rotation', unit: '°', min: -180, max: 180, scale: 1 },
+  { field: 'opacity', label: 'Opacity', unit: '%', min: 0, max: 100, scale: 100 },
+  { field: 'radius', label: 'Corners', unit: '%', min: 0, max: 50, scale: 100 },
+];
+
+/**
+ * A clip's box in the frame (203 §11, AC-5): Full frame and the four corner presets, and number fields for its centre
+ * (X, Y), size, rotation, opacity and corner radius. Typing in a field is one undo step per field until another field
+ * changes; the stage shows the same box, with handles, for dragging.
+ */
+function PositionGroup({ clip }: { clip: VClip }) {
+  const transform = clip.tf ?? IDENTITY;
+  /** Shows a refusal (a locked track) instead of dropping it. */
+  const tell = (refusal: string | null) => refusal && toast(refusal);
+  return (
+    <div className="ig-group">
+      <h3>Position and size</h3>
+      <div className="chips" role="group" aria-label="Place the clip">
+        {PRESETS.map(([preset, label]) => (
+          <button key={preset} type="button" className="chip" onClick={() => tell(applyPreset(clip.id, preset))}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="v-position">
+        {POSITION_FIELDS.map(({ field, label, unit, min, max, scale }) => (
+          <NumberField
+            key={field}
+            label={label}
+            unit={unit}
+            min={min}
+            max={max}
+            value={Math.round(transform[field] * scale * 10) / 10}
+            onChange={(value) => tell(setClipTransform(clip.id, { [field]: value / scale }, `tf-field:${clip.id}:${field}`))}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A number field that keeps what is being typed until it is a number within range, then reports it.
+ * @param label the field's name
+ * @param unit shown after the field
+ * @param value the value shown when not typing
+ * @param onChange gets each valid number typed or stepped
+ */
+function NumberField({ label, unit, min, max, value, onChange }: { label: string; unit: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  return (
+    <label className="v-number">
+      <span>{label}</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={1}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          const typed = Number(event.target.value);
+          if (event.target.value.trim() !== '' && Number.isFinite(typed) && typed >= min && typed <= max) onChange(typed);
+        }}
+        onBlur={() => setDraft(String(value))}
+      />
+      <span aria-hidden="true">{unit}</span>
+    </label>
   );
 }
 

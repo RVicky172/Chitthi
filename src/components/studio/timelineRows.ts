@@ -1,6 +1,7 @@
 // The timeline's picture rows (203 §10), free of React and the DOM so they can be unit-tested: which rows show and in
 // what order, which row a pointer is over while dragging, how a clip is named, and what to announce after a change.
-import { MAIN_VIDEO, type TimedClip, type Track } from '../../engine/timeline';
+import { describeTransform } from '../../engine/clipBox';
+import { IDENTITY, MAIN_VIDEO, type TimedClip, type Track } from '../../engine/timeline';
 import { clipLength } from '../../engine/video';
 
 /** A picture row's vertical extent on screen, in client pixels. */
@@ -57,8 +58,9 @@ export function clipLabel(track: Track, numberOnTrack: number, inSentence = fals
  * @param after the clips after it
  * @param tracks the project's tracks (for the clips' track names)
  * @param selectedId the selected clip, announced first when it changed
- * @returns the changed clip (the selected one, else the first) with its track, number, times and source start; else
- *   how many clips were removed and from which track; '' when no picture clip changed
+ * @returns the changed clip (the selected one, else the first) with its track, number, times and source start (or,
+ *   when only its box changed, its new position and size); else how many clips were removed and from which track; ''
+ *   when no picture clip changed
  */
 export function describeClipChange(before: TimedClip[], after: TimedClip[], tracks: Track[], selectedId: string | null): string {
   const pictureTrackIds = new Set(tracks.filter(isPictureTrack).map((track) => track.id));
@@ -66,12 +68,14 @@ export function describeClipChange(before: TimedClip[], after: TimedClip[], trac
   const changed = after.filter((clip) => {
     if (!pictureTrackIds.has(clip.track)) return false;
     const old = previous.get(clip.id);
-    return !old || old.track !== clip.track || old.start !== clip.start || clipLength(old) !== clipLength(clip) || old.in !== clip.in;
+    return !old || movedInTime(old, clip) || old.tf !== clip.tf;
   });
   const announced = changed.find((clip) => clip.id === selectedId) ?? changed[0];
   if (announced) {
     const track = tracks.find((candidate) => candidate.id === announced.track)!;
     const numberOnTrack = after.filter((clip) => clip.track === announced.track).indexOf(announced) + 1;
+    const old = previous.get(announced.id);
+    if (old && !movedInTime(old, announced)) return describeTransform(clipLabel(track, numberOnTrack), announced.tf ?? IDENTITY);
     const end = announced.start + clipLength(announced);
     const span = `${clipLabel(track, numberOnTrack)}, ${announced.start.toFixed(1)} s to ${end.toFixed(1)} s`;
     return announced.kind === 'video' ? `${span}, playing its source from ${announced.in.toFixed(1)} s` : span;
@@ -83,4 +87,9 @@ export function describeClipChange(before: TimedClip[], after: TimedClip[], trac
   const left = after.filter((clip) => clip.track === track.id).length;
   const what = removed.length === 1 ? 'Clip' : `${removed.length} clips`;
   return track.id === MAIN_VIDEO ? `${what} removed, ${left} left` : `${what} removed from ${track.name}, ${left} left`;
+}
+
+/** Whether a clip changed track, start, length or source start (anything but its box). */
+function movedInTime(before: TimedClip, after: TimedClip): boolean {
+  return before.track !== after.track || before.start !== after.start || clipLength(before) !== clipLength(after) || before.in !== after.in;
 }

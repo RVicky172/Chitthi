@@ -41,6 +41,7 @@ import {
   setTool,
   undoV,
   updateClip,
+  updateClipWhy,
   videoLength,
   type VClip,
   type VMusic,
@@ -651,5 +652,22 @@ describe('203: a clip’s place in the frame (AC-4, AC-5)', () => {
     expect(setClipTransform('x', { w: 0.5 })).toMatch(/locked/);
     expect(applyPreset('x', 'top-left')).toMatch(/locked/);
     expect(setClipTransform('nope', { w: 0.5 })).toMatch(/isn’t on the timeline/);
+  });
+});
+
+describe('203: the inspector shows why a clip change was refused (T054)', () => {
+  beforeEach(() => loadVideoProject({ clips: [clip('a', 0, 2)] }));
+  it('says the track is locked', () => {
+    setTrack(MAIN_VIDEO, { locked: true });
+    expect(updateClipWhy('a', { dur: 3 })).toMatch(/locked/);
+    expect(updateClip('a', { dur: 3 })).toBe(false);
+  });
+  it('says the project would be too long', () => {
+    expect(updateClipWhy('a', { dur: 100_000 })).toMatch(/up to/);
+    expect(getVideo().clips[0].dur).toBe(2);
+  });
+  it('is null when the change is made', () => {
+    expect(updateClipWhy('a', { dur: 3 })).toBeNull();
+    expect(getVideo().clips[0].dur).toBe(3);
   });
 });

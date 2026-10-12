@@ -1077,7 +1077,7 @@
         "T054": {
           "text": "Implement §11: `src/components/studio/useClipTransform.ts` (pointer and keys on the clip box with the layers' geometry; layers hit first), the stage's box drawing, and the inspector's **Position and size** group in `ClipPanel`; announcements in 202's live region. From the T040 review: the inspector's \"Clip N\" (ClipPanel) counts per track via `clipPlace(id)` (e.g. \"Overlay 1 · Clip 2\"); show `updateClip` / `setClipTransform` refusals instead of ignoring them.",
           "section": "Tracks and the stage",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1092,7 +1092,9 @@
           ],
           "test": "unit tests (vitest) for useClipTransform's maths (move, corner resize keeping the aspect, rotate, snapping, arrow-key steps); its e2e (was T053) is written in 290",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-12",
+          "doneOn": null
         },
         "T090": {
           "text": "Docs (AC-15): `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits; the videos-at-once row now in use), `specs/lld.md` (frameStack, renderStack, the transform, the document fields), `docs/PERFORMANCE.md` (decoders = limit + 2 in use; AC-12 / AC-13 numbers), `CHANGELOG.md` Unreleased, the in-app docs' keys.",

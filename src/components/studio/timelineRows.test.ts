@@ -93,6 +93,11 @@ describe('describeClipChange', () => {
     expect(describeClipChange(was, now, TRACKS, null)).toBe('2 clips removed from Overlay 1, 0 left');
     expect(describeClipChange([clip('a', 'V1', 0, 4)], [], TRACKS, null)).toBe('Clip removed, 0 left');
   });
+  it('says a clip\'s new box when only its transform changed (a stage drag, an arrow key, the inspector)', () => {
+    const was = [{ ...clip('o', 'V2', 1, 2), tf: { x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 } }];
+    const now = [{ ...clip('o', 'V2', 1, 2), tf: { x: 0.72, y: 0.2, w: 0.35, rot: 0, opacity: 1, radius: 0 } }];
+    expect(describeClipChange(was, now, TRACKS, 'o')).toBe('Overlay 1, clip 1: x 72 %, y 20 %, size 35 %');
+  });
   it('says nothing when no picture clip changed', () => {
     const clips = [clip('a', 'V1', 0, 4)];
     expect(describeClipChange(clips, clips, TRACKS, 'a')).toBe('');

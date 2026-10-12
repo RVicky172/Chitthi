@@ -1204,3 +1204,33 @@
 .tl-ruler.tl-new-track {
   background: var(--accent-soft);
 }
+
+/* 203 §11: the inspector's Position and size fields, two to a row. */
+.v-position {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.v-number {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px auto;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.v-number input {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: right;
+}
+.v-number input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
