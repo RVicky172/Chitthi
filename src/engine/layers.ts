@@ -1,4 +1,5 @@
 import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
+import type { Keyframes, LayerKeyProp } from './keyframes';
 import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
 
 /*
@@ -77,6 +78,8 @@ interface LayerBase {
   /** Video only: seconds on the timeline when the layer appears and disappears. */
   start?: number;
   end?: number;
+  /** Video only, keyframes (205): animated position, size, rotation and opacity, times from the layer's start. */
+  keys?: Keyframes<LayerKeyProp>;
 }
 
 export interface TextLayer extends LayerBase {

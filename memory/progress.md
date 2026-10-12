@@ -11,6 +11,18 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-12 — 205 T010–T013 (the keyframe model and its pure edits)
+
+**Done:** `src/engine/keyframes.ts`: the model (`Keyframe`, `Ease`, clip / layer value names, ranges, limits),
+`valueAt` (binary search; CSS cubic-bezier by Newton with a bisection fallback, each within 0.001 of the browser's
+curves), `transformAt` / `volumeAt` / `layerAt` (the same object when nothing is animated), and the pure edits
+(`setKey`, `removeKey`, `moveKey`, `setEase`, `animate`, `stopAnimating`, `shiftKeys`, `splitKeys`, `countKeys`);
+`keys?` on `TimedClip` and layers. 32 tests in `keyframes.test.ts`; break-tests caught; `npm run check` green
+(1,456 tests). Small plan differences noted in the results: `clampValue` takes `'clip' | 'layer'`, `splitKeys`
+works out the value at the cut itself.
+**Next:** T014 (the document gate's failing tests, ≥ 25 malformed keyframe documents) → T015.
+**Blockers:** none
+
 ## 2026-10-12 — 203 Implemented (T030–T034, T040, T052, T054, T090–T092); D-033
 
 **Done:** one task at a time in the main session (no agent batches, maintainer's choice). T040 merged from its agent

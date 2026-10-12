@@ -12,7 +12,9 @@ something cost more than ~10 minutes or the fix was non-obvious. Delete entries 
 - The Edit tool can also turn a CRLF working copy into LF (`specs/constitution.md`, 402 T080). Count the endings
   before and after editing a CRLF file, and put them back if they changed.
 - Scripted edits through a Bash heredoc on this machine can mangle `…`, `’` and backslash escapes (`\b` became a
-  backspace). Write the edit script to a file with the Write tool, or use the Edit tool.
+  backspace). Write the edit script to a file with the Write tool, or use the Edit tool. Long quoted heredocs
+  (`<<'EOF'`, ~120–200 lines of TypeScript) can also fail outright with "unexpected EOF while looking for matching
+  `''" and write nothing (205 T012): append code with the Edit tool.
 - Git Bash's `sed -i` rewrites a whole CRLF file as LF, even for a one-line change (201 T013, `layers.ts`). Use the
   Edit tool or a Python script with `newline=''` on CRLF files, or restore the endings afterwards.
 - A Python patch script with multi-line patterns finds nothing in a CRLF file read with `newline=''` (most of `src/`

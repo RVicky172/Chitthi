@@ -485,7 +485,7 @@
         "T010": {
           "text": "Failing tests (`src/engine/keyframes.test.ts`): `valueAt` exact at keys, the first value before and the last after, linear midpoint, `ease-in` / `ease-out` / `ease-in-out` against sampled CSS cubic-bezier values (±0.001), hold; `clampValue` for every property's range (203's box, layers', volume 0–1); `transformAt` / `volumeAt` / `layerAt` replace only animated fields and return the same object when there are no keys; `isAnimated`.",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -498,12 +498,16 @@
           ],
           "test": "`npx vitest run src/engine/keyframes.test.ts`: fails (no module)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** src/engine/keyframes.test.ts: 18 cases (valueAt at keys / before / after / linear / hold / 3 CSS eases vs bisection-sampled cubic-bezier at 5 points ±0.001 / monotonic / binary search over 100 keys; clampValue for the 7 clip and 5 layer values; transformAt / volumeAt / layerAt same object without keys, only animated fields replaced; isAnimated). Fails: no module."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T011": {
           "text": "Implement plan §1 in `src/engine/keyframes.ts`: `Keyframe`, `Ease`, `ClipKeyProp`, `LayerKeyProp`, `Keyframes`, `valueAt` (binary search; cubic-bezier by Newton with bisection fallback), `clampValue`, `transformAt`, `volumeAt`, `layerAt`, `isAnimated`; `keys?` on `TimedClip` and `LayerBase`.",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -518,12 +522,16 @@
           ],
           "test": "T010",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** src/engine/keyframes.ts: Keyframe / Ease / ClipKeyProp / LayerKeyProp / Keyframes, KEY_LIMITS, CLIP_RANGES (203's box + volume 0–1) and LAYER_RANGES (mergeLayers' clamps), clampValue(prop, v, 'clip' | 'layer'), valueAt (binary search; CSS cubic-bezier by 8 Newton steps, 40-step bisection fallback, each alone within 0.001), transformAt / volumeAt / layerAt (same object when nothing is animated), isAnimated; keys? on TimedClip and LayerBase (type imports only, no cycle). 19/19 keyframes tests; break-tests (hold interpolating, solver cut short) caught; npm run check 1,443 tests green."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T012": {
           "text": "Failing tests (`keyframes.test.ts`): `setKey` (adds; replaces within half a frame; new keys Ease in and out; clamps), `removeKey`, `moveKey` (one value or all at a time; landing on a key replaces it), `setEase`, `animate` / `stopAnimating` (Remove animation keeps the value at the playhead), the limits (100 per value, 5,000 per project, with the message); `shiftKeys`; `splitKeys` (left: keys before the cut + one holding the value at it; right: keys after, shifted, + one at 0).",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -537,12 +545,16 @@
           ],
           "test": "`npx vitest run src/engine/keyframes.test.ts`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** 13 cases in keyframes.test.ts for setKey (adds sorted with Ease in and out; replaces within half a frame at 30 / 60 fps keeping time and ease; clamps per clip / layer; 100 per value and 5,000 per project refused with a message), removeKey, moveKey (one value / all; landing replaces), setEase, animate, stopAnimating, countKeys, shiftKeys, splitKeys (continuity checked every 0.125 s; cut on a key). Written before T013's code (the imports were missing); not run on their own before it."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T013": {
           "text": "Implement plan §2 in `keyframes.ts` (pure edits, limits, `shiftKeys`, `splitKeys`).",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -556,7 +568,11 @@
           ],
           "test": "T012",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** keyframes.ts §2: KeyEdit { on, fps, projectKeys }, setKey, removeKey, moveKey, setEase (each returns undefined when nothing is left animated), countKeys, shiftKeys, splitKeys(keys, at) (works out the value at the cut itself, so the plan's valueAtCut callback isn't needed), valueOf, animate and stopAnimating (overloads for clips and layers; stopAnimating returns the changed fields: keys plus tf / volume / the layer field). 32/32 keyframes tests; break-test (left part keeping the key at the cut) caught; npm run check green, 1,456 tests."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T014": {
           "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): ≥ 25 malformed keyframe documents (wrong types, NaN, unsorted, equal times, unknown ease, unknown value names, too many per value and per project, on clips and on layers) never throw and give the expected keys and reasons; a project with keys round-trips document → gate → document equal; 201 / 202 / 203 documents without keys stay byte-identical.",

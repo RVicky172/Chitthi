@@ -1,4 +1,5 @@
 import { mergeEdit, type IgEdit } from './instagram';
+import type { ClipKeyProp, Keyframes } from './keyframes';
 import { mergeLayers, type Layer } from './layers';
 import {
   IDENTITY,
@@ -243,6 +244,8 @@ export interface TimedClip extends ClipTiming {
   start: number;
   /** Where its box sits in the frame (203); missing = the whole frame (IDENTITY). */
   tf?: ClipTransform;
+  /** Keyframes (205): animated box values and volume, times from the clip's start; missing = nothing animated. */
+  keys?: Keyframes<ClipKeyProp>;
 }
 
 /** A sound on an audio track: the music. `toEnd` plays it to the end of the video whatever its length (2.x music). */
