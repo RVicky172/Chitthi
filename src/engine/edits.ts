@@ -1,3 +1,4 @@
+import { shiftKeys } from './keyframes';
 import type { Layer } from './layers';
 import { mostVideosAt } from './stack';
 import { MAIN_VIDEO, pack, type TimedClip, type Track } from './timeline';
@@ -216,7 +217,7 @@ export function trim<C extends EditClip>(
       id,
     );
   else {
-    const moved = side === 'start' ? { ...next, start: endOf(c) - clipLength(next) } : next;
+    const moved = side === 'start' ? keepKeys(c, { ...next, start: endOf(c) - clipLength(next) }) : next;
     out = clips.map((x) => (x.id === id ? moved : x));
   }
   if (by > 0 && lengthOf(out) > ctx.maxLength + 0.01) return { error: TOO_LONG };
@@ -336,6 +337,14 @@ const moveStart = <C extends EditClip>(c: C, d: number): C =>
   c.kind === 'photo'
     ? { ...c, start: Math.max(0, c.start + d), dur: c.dur - d }
     : { ...c, start: Math.max(0, c.start + d), in: Math.max(0, c.in + d) };
+/**
+ * `after`, the same clip with its start edge moved, with its keyframes shifted back by the move, so they stay at their
+ * place on the timeline (205 Q2). Whole-clip moves don't call it: keyframe times count from the clip's start.
+ */
+function keepKeys<C extends TimedClip>(before: C, after: C): C {
+  const moved = after.start - before.start;
+  return after.keys && moved !== 0 ? { ...after, keys: shiftKeys(after.keys, -moved) } : after;
+}
 const clamp = (d: number, [lo, hi]: [number, number]) => Math.max(Math.min(lo, 0), Math.min(Math.max(hi, 0), d));
 
 /** The clips of c's track just before and after it, and whether each touches it (no gap between). */
@@ -366,7 +375,7 @@ export function roll<C extends EditClip>(clips: C[], leftId: string, delta: numb
   const by = clamp(delta, [Math.max(a, c), Math.min(b, d)]);
   if (by === 0) return { clips };
   const left = moveEnd(f.c, by);
-  const right = { ...moveStart(next, by), start: endOf(left) };
+  const right = keepKeys(next, { ...moveStart(next, by), start: endOf(left) });
   return limitVideos(
     clips,
     { clips: clips.map((x) => (x.id === left.id ? left : x.id === right.id ? right : x)) },
@@ -425,7 +434,7 @@ export function slide<C extends EditClip>(
           : prevTouches && x.id === prev!.id
             ? moveEnd(x, by)
             : nextTouches && x.id === next.id
-              ? moveStart(x, by)
+              ? keepKeys(x, moveStart(x, by))
               : x,
       ),
     },

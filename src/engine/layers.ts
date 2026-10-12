@@ -1,5 +1,5 @@
 import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
-import type { Keyframes, LayerKeyProp } from './keyframes';
+import { LAYER_KEY_PROPS, keyBudget, mergeKeys, type KeyBudget, type Keyframes, type LayerKeyProp } from './keyframes';
 import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
 
 /*
@@ -787,9 +787,14 @@ function mergeStrokes(raw: unknown): Stroke[] {
 /**
  * The single gate for layers from outside the running app (project files): valid layers, or none. Unknown kinds are
  * dropped, numbers clamped, bad values replaced by defaults, text and drawings capped, ids kept unique. Image layers
- * are kept only when `images` holds their picture's id (the project's media). Never throws.
+ * are kept only when `images` holds their picture's id (the project's media). Keyframes go through `mergeKeys`
+ * against the project's `budget` (205). Never throws.
  */
-export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set()): Layer[] {
+export function mergeLayers(
+  raw: unknown,
+  images: ReadonlySet<string> = new Set(),
+  budget: KeyBudget = keyBudget(),
+): Layer[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const out: Layer[] = [];
@@ -801,6 +806,7 @@ export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set(
     while (seen.has(id)) id = layerId();
     const start = time(o.start);
     const endT = time(o.end);
+    const keys = mergeKeys(o.keys, LAYER_KEY_PROPS, 'layer', budget);
     const base = {
       id,
       x: num(o.x, -0.5, 1.5, 0.5),
@@ -812,6 +818,7 @@ export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set(
       ...(o.hidden === true ? { hidden: true } : {}),
       ...(start !== undefined ? { start } : {}),
       ...(endT !== undefined && endT > (start ?? 0) ? { end: endT } : {}),
+      ...(keys ? { keys } : {}),
     };
     const m = o.mask && typeof o.mask === 'object' ? (o.mask as Record<string, unknown>) : null;
     const parts = (Array.isArray(m?.parts) ? m.parts.slice(0, MASK_LIMITS.parts) : [])

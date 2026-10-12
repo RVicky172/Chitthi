@@ -11,6 +11,20 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-12 — 205 T014–T016, T020–T021 (document gate, AC-8 / AC-12, start-edge edits)
+
+**Done:** T010–T013 committed (`788b0d7`). `mergeKeys` gate (unknown names and `__proto__` dropped, finite times
+within a day, clamped, unknown eases → Ease in and out, last of equal times kept, 100 per value, one `KeyBudget` of
+5,000 shared by clips then layers); `toDocument` writes keys only when some are left; `mergeLayers(raw, images,
+budget)`. 30 malformed documents, round trip, byte-identical without keys. AC-8 fixture at every frame (30 / 60 fps)
+against an independent reference (the solver's stop went 1e-7 → 1e-12); AC-12 median 0.016 ms (budget 0.05).
+`edits.ts` `keepKeys`: start trim without ripple, Roll's right clip and Slide's next clip shift keys; a 1,000-step
+property test. `npm run check` green, 1,512 tests.
+**Found (202, not changed):** a Roll from a video clip under 0.1 s (shown 0.1 s long by `clipLength`) moves the next
+clip's end too, opening a small gap; seen in the seeded test, step 956.
+**Next:** T030 (renderStack / drawLayers draw the evaluated values).
+**Blockers:** none
+
 ## 2026-10-12 — 205 T010–T013 (the keyframe model and its pure edits)
 
 **Done:** `src/engine/keyframes.ts`: the model (`Keyframe`, `Ease`, clip / layer value names, ranges, limits),

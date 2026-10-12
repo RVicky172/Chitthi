@@ -23,6 +23,7 @@ import {
 } from './keyframes';
 import { newSticker } from './layers';
 import { IDENTITY, type ClipTransform, type TimedClip } from './timeline';
+import { frameRange } from './video';
 
 /** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */
 const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & { volume: number } => ({
@@ -354,5 +355,172 @@ describe('pure edits', () => {
     expect(l2!.x).toEqual([k(0, 0, 'linear'), k(2, 1, 'hold')]);
     expect(r2!.x).toEqual([k(0, 1, 'hold'), k(2, 0)]);
     expect(splitKeys(undefined, 1)).toEqual([undefined, undefined]);
+  });
+});
+
+/* ---------- 205 T016: AC-8 (every frame of the export's grid) and AC-12 (timing) ---------- */
+
+/** The CSS curves solved by plain bisection (60 halvings): a reference independent of the module's solver. */
+function referenceEase(ease: Ease, progress: number): number {
+  if (ease === 'linear') return progress;
+  if (ease === 'hold') return 0;
+  const [x1, y1, x2, y2] = { 'ease-in': [0.42, 0, 1, 1], 'ease-out': [0, 0, 0.58, 1], 'ease-in-out': [0.42, 0, 0.58, 1] }[
+    ease
+  ];
+  const bezier = (first: number, second: number, u: number) =>
+    3 * first * u * (1 - u) ** 2 + 3 * second * u * u * (1 - u) + u ** 3;
+  let low = 0,
+    high = 1;
+  for (let step = 0; step < 60; step++) {
+    const mid = (low + high) / 2;
+    if (bezier(x1, x2, mid) < progress) low = mid;
+    else high = mid;
+  }
+  return bezier(y1, y2, (low + high) / 2);
+}
+
+/** A change from `from` to `to` over [start, end] eased by `ease`, held before and after. */
+const segment = (from: number, to: number, start: number, end: number, ease: Ease) => (t: number) =>
+  t <= start ? from : t >= end ? to : from + (to - from) * referenceEase(ease, (t - start) / (end - start));
+
+describe('AC-8: the fixture’s values at every frame of the export’s grid', () => {
+  // A clip on the timeline from 1 s to 4 s that moves from the top-left corner to the bottom-right one with Ease in
+  // and out over its first 2 s while it turns 90°, and fades from 100 % to 0 (linearly) over its whole length.
+  const movingClip = clip({
+    start: 1,
+    in: 0,
+    out: 3,
+    tf: { ...IDENTITY, w: 0.35 },
+    keys: {
+      x: [
+        { t: 0, v: 0.2, ease: 'ease-in-out' },
+        { t: 2, v: 0.8, ease: 'ease-in-out' },
+      ],
+      y: [
+        { t: 0, v: 0.2, ease: 'ease-in-out' },
+        { t: 2, v: 0.8, ease: 'ease-in-out' },
+      ],
+      rot: [
+        { t: 0, v: 0, ease: 'ease-in-out' },
+        { t: 2, v: 90, ease: 'ease-in-out' },
+      ],
+      opacity: [
+        { t: 0, v: 1, ease: 'linear' },
+        { t: 3, v: 0, ease: 'linear' },
+      ],
+    },
+  });
+  // A title from 0.5 s to 4.5 s that flies in from the left (Ease out, 0.5 s), holds, and fades out over its last
+  // second (held at 100 % until then).
+  const title = {
+    ...newSticker('⭐'),
+    start: 0.5,
+    end: 4.5,
+    keys: {
+      x: [
+        { t: 0, v: -0.3, ease: 'ease-out' as const },
+        { t: 0.5, v: 0.5, ease: 'ease-in-out' as const },
+      ],
+      opacity: [
+        { t: 0, v: 1, ease: 'hold' as const },
+        { t: 3, v: 1, ease: 'linear' as const },
+        { t: 4, v: 0, ease: 'linear' as const },
+      ],
+    },
+  };
+  const expectedClip = {
+    x: segment(0.2, 0.8, 0, 2, 'ease-in-out'),
+    y: segment(0.2, 0.8, 0, 2, 'ease-in-out'),
+    rot: segment(0, 90, 0, 2, 'ease-in-out'),
+    opacity: segment(1, 0, 0, 3, 'linear'),
+  };
+  const expectedTitle = {
+    x: segment(-0.3, 0.5, 0, 0.5, 'ease-out'),
+    opacity: (t: number) => (t < 3 ? 1 : segment(1, 0, 3, 4, 'linear')(t)),
+  };
+
+  for (const fps of [30, 60]) {
+    it(`at ${fps} fps every frame the clip and the title show equals the expected list`, () => {
+      const [first, last] = frameRange(0, 5, fps);
+      let frames = 0;
+      for (let n = first; n < last; n++) {
+        const time = n / fps;
+        if (time >= movingClip.start && time < movingClip.start + 3) {
+          const local = time - movingClip.start;
+          const box = transformAt(movingClip, local);
+          for (const prop of ['x', 'y', 'rot', 'opacity'] as const)
+            expect(box[prop], `clip ${prop} at frame ${n}`).toBeCloseTo(expectedClip[prop](local), 9);
+          expect([box.w, box.radius]).toEqual([0.35, 0]);
+          // The same evaluation every time it is asked (the preview's and the export's are one).
+          expect(transformAt(movingClip, local)).toEqual(box);
+          frames++;
+        }
+        if (time >= title.start && time < title.end) {
+          const shown = layerAt(title, time);
+          expect(shown.x, `title x at frame ${n}`).toBeCloseTo(expectedTitle.x(time - title.start), 9);
+          expect(shown.opacity, `title opacity at frame ${n}`).toBeCloseTo(expectedTitle.opacity(time - title.start), 9);
+          expect([shown.y, shown.w, shown.rot]).toEqual([title.y, title.w, title.rot]);
+        }
+      }
+      expect(frames).toBe(3 * fps);
+    });
+  }
+
+  it('the keyframes’ own frames land exactly on their values', () => {
+    expect(transformAt(movingClip, 0)).toEqual({ ...IDENTITY, w: 0.35, x: 0.2, y: 0.2, rot: 0, opacity: 1 });
+    expect(transformAt(movingClip, 2)).toMatchObject({ x: 0.8, y: 0.8, rot: 90 });
+    expect(layerAt(title, 1).x).toBe(0.5);
+    expect(layerAt(title, 3.5).opacity).toBe(1);
+  });
+});
+
+describe('AC-12: working out a frame’s animated values', () => {
+  /** 500 clips on four tracks, 0.5 s apart, 10 keys each (5,000 keys). */
+  const project = (withKeys: boolean) =>
+    Array.from({ length: 500 }, (_, i) =>
+      clip({
+        id: `c${i}`,
+        track: `v${i % 4}`,
+        start: i * 0.5,
+        in: 0,
+        out: 2,
+        tf: { ...IDENTITY, w: 0.5 },
+        ...(withKeys
+          ? {
+              keys: {
+                x: [0, 0.5, 1, 1.5].map((t, n) => ({ t, v: 0.2 + n * 0.2, ease: 'ease-in-out' as const })),
+                opacity: [0, 1, 2].map((t, n) => ({ t, v: 1 - n * 0.4, ease: 'linear' as const })),
+                volume: [0, 1, 2].map((t, n) => ({ t, v: 1 - n * 0.3, ease: 'ease-out' as const })),
+              },
+            }
+          : {}),
+      }),
+    );
+
+  it('takes at most 0.05 ms (median of 200 frames) with 500 clips and 5,000 keys', () => {
+    const clips = project(true);
+    expect(clips.reduce((n, c) => n + countKeys(c.keys), 0)).toBe(5000);
+    const runs: number[] = [];
+    let sink = 0;
+    for (let run = 0; run < 200; run++) {
+      const time = 3 + (run * 7.31) % 240;
+      const started = performance.now();
+      for (const c of clips) {
+        const local = time - c.start;
+        if (local < 0 || local >= 2) continue;
+        sink += transformAt(c, local).x + volumeAt(c, local);
+      }
+      runs.push(performance.now() - started);
+    }
+    runs.sort((a, b) => a - b);
+    expect(sink).toBeGreaterThan(0);
+    expect(runs[100]).toBeLessThanOrEqual(0.05);
+  });
+
+  it('a project without keys gives back each clip’s own box and volume (nothing allocated)', () => {
+    for (const c of project(false)) {
+      expect(transformAt(c, 0.7)).toBe(c.tf);
+      expect(volumeAt(c, 0.7)).toBe(c.volume);
+    }
   });
 });

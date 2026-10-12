@@ -34,7 +34,7 @@
   (2026-10-11). Tasks run one at a time in the main session, no agent batches (maintainer's choice).
 - **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
 - **205:** `205-keyframes` 🚧 on `feat/205-keyframes`: spec and plan Approved 2026-10-12 (Q1–Q8, D1–D3; D-034); tasks T010–T092 (unit tests only, D-033); deferred checks listed in 290.
-- **Next (roadmap):** 205 T014 (document gate tests) → T015 (T010–T013 done 2026-10-12, not committed); 290 collects the deferred checks.
+- **Next (roadmap):** 205 T030 (drawing); T010–T021 done 2026-10-12 (T010–T013 in `788b0d7`); 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

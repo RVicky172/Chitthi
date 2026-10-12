@@ -39,6 +39,8 @@ import {
   type LegacyClip,
   type LegacyProject,
 } from './timeline.testkit';
+import { countKeys, type Ease, type Keyframe } from './keyframes';
+import { mergeLayers, newSticker, type Layer } from './layers';
 import { clipLength, limitsFor } from './video';
 import * as V from './video';
 
@@ -1491,5 +1493,227 @@ describe('overlay clips’ sound in the export (203 AC-8, Q7)', () => {
       ],
     };
     expect(audioPlan(silent)).toEqual(legacyAudioPlan(p));
+  });
+});
+
+/* ---------- 205 T014: keyframes in the document and its gate (AC-4) ---------- */
+
+describe('keyframes in the document (205 AC-4)', () => {
+  const k = (t: number, v: number, ease: Ease = 'ease-in-out'): Keyframe => ({ t, v, ease });
+  const layer = (id: string, keys?: unknown): Layer =>
+    ({ ...newSticker('⭐'), id, start: 1, end: 4, ...(keys !== undefined ? { keys } : {}) }) as Layer;
+  /** The mixed 2.x project with its first video clip and a sticker layer animated. */
+  const fixture = () => {
+    const d = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
+    const clips = d.clips.map((c) =>
+      c.kind === 'video' && c.id === d.clips.find((x) => x.kind === 'video')!.id
+        ? {
+            ...c,
+            keys: {
+              x: [k(0, 0.2, 'linear'), k(1.5, 0.8)],
+              opacity: [k(0, 1), k(2, 0, 'hold')],
+              volume: [k(0.5, 1), k(1, 0.25, 'ease-out')],
+            },
+          }
+        : c,
+    );
+    // Through the layers' gate, so its fields are in the order the gate writes them.
+    const layers = mergeLayers([layer('L1', { y: [k(0, 1.2), k(0.5, 0.5, 'ease-in')], rot: [k(0, -90)] })]);
+    return toDocument({ ...d, clips, layers });
+  };
+  type Doc = ReturnType<typeof fixture>;
+  type Gated = ReturnType<typeof mergeProject>;
+  const animatedId = (d: Doc) => d.clips.find((c) => c.keys)!.id;
+  const keysOf = (r: Gated, d: Doc) => r.doc.clips.find((c) => c.id === animatedId(d))!.keys;
+  const layerKeys = (r: Gated) => r.doc.layers.find((l) => l.id === 'L1')?.keys;
+  const why = (r: Gated) => r.dropped.join(' ');
+  const UNREAD = /Some keyframes couldn’t be read and were left out/;
+  const ADJUSTED = /Some keyframe values were out of range and were adjusted/;
+  const EASE = /Some keyframes had an unknown interpolation and now ease in and out/;
+  const SAME = /Some keyframes were at the same time; the last of each was kept/;
+  const PER_VALUE = /A value can have at most 100 keyframes; the rest were left out/;
+  const PER_PROJECT = /A project can have at most 5,000 keyframes; the rest were left out/;
+
+  /** The animated clip's keys replaced by `keys`. */
+  const clipKeys = (keys: unknown) => (d: Doc) => ({
+    ...d,
+    clips: d.clips.map((c) => (c.id === animatedId(d) ? { ...c, keys } : c)),
+  });
+  /** The animated clip's x keys replaced by `list`. */
+  const xKeys = (list: unknown) => (d: Doc) => clipKeys({ ...d.clips.find((c) => c.keys)!.keys, x: list })(d);
+  const layerWith = (keys: unknown) => (d: Doc) => ({ ...d, layers: [layer('L1', keys)] });
+
+  /** The clip has no keys and the reason says they couldn't be read. */
+  const noKeys = (r: Gated, d: Doc) => {
+    expect('keys' in r.doc.clips.find((c) => c.id === animatedId(d))!).toBe(false);
+    expect(why(r)).toMatch(UNREAD);
+  };
+  /** The clip's x keys are `list`, its other keys as written, and the only reasons match `reasons`. */
+  const xIs =
+    (list: Keyframe[] | undefined, ...reasons: RegExp[]) =>
+    (r: Gated, d: Doc) => {
+      const keys = keysOf(r, d)!;
+      expect(keys.x).toEqual(list);
+      expect(keys.opacity).toEqual([k(0, 1), k(2, 0, 'hold')]);
+      expect(r.dropped).toEqual(reasons.map((re) => expect.stringMatching(re)));
+    };
+
+  const bad: [string, (d: Doc) => unknown, (r: Gated, d: Doc) => void][] = [
+    ['keys that are text', clipKeys('x'), noKeys],
+    ['keys that are an array', clipKeys([k(0, 1)]), noKeys],
+    ['keys that are null', clipKeys(null), noKeys],
+    ['keys that are a number', clipKeys(7), noKeys],
+    [
+      'empty keys',
+      clipKeys({}),
+      (r, d) => {
+        expect('keys' in r.doc.clips.find((c) => c.id === animatedId(d))!).toBe(false);
+        expect(r.dropped).toEqual([]);
+      },
+    ],
+    ['a value whose keys are a number', xKeys(3), xIs(undefined, UNREAD)],
+    ['a value whose keys are an object', xKeys({ t: 0, v: 1 }), xIs(undefined, UNREAD)],
+    ['every key of a value unreadable', xKeys([1, 'a', null]), xIs(undefined, UNREAD)],
+    ['a key that is a number', xKeys([3, k(1, 0.4)]), xIs([k(1, 0.4)], UNREAD)],
+    ['a time as text', xKeys([{ t: '0', v: 0.2, ease: 'linear' }, k(1, 0.4)]), xIs([k(1, 0.4)], UNREAD)],
+    // JSON writes NaN and ±Infinity as null.
+    ['a value that was NaN', xKeys([{ t: 0, v: null, ease: 'linear' }, k(1, 0.4)]), xIs([k(1, 0.4)], UNREAD)],
+    ['a time that was infinite', xKeys([{ t: null, v: 0.2, ease: 'linear' }, k(1, 0.4)]), xIs([k(1, 0.4)], UNREAD)],
+    ['a key without a value', xKeys([{ t: 0, ease: 'linear' }, k(1, 0.4)]), xIs([k(1, 0.4)], UNREAD)],
+    ['a time beyond a day', xKeys([k(1e9, 0.2), k(1, 0.4)]), xIs([k(1, 0.4)], UNREAD)],
+    // Before the clip's start: kept (a start trim leaves keys outside the clip, AC-3).
+    ['a key before the start', xKeys([k(-2, 0.2), k(1, 0.4)]), xIs([k(-2, 0.2), k(1, 0.4)])],
+    ['a value out of range', xKeys([k(0, 9), k(1, -9)]), xIs([k(0, 1.5), k(1, -0.5)], ADJUSTED)],
+    [
+      'an opacity of 3 and a volume of −1',
+      clipKeys({ opacity: [k(0, 3)], volume: [k(0, -1)] }),
+      (r, d) => {
+        expect(keysOf(r, d)).toEqual({ opacity: [k(0, 1)], volume: [k(0, 0)] });
+        expect(r.dropped).toEqual([expect.stringMatching(ADJUSTED)]);
+      },
+    ],
+    ['an unknown interpolation', xKeys([k(0, 0.2, 'bounce' as Ease), k(1, 0.4)]), xIs([k(0, 0.2), k(1, 0.4)], EASE)],
+    ['a missing interpolation', xKeys([{ t: 0, v: 0.2 }, k(1, 0.4)]), xIs([k(0, 0.2), k(1, 0.4)], EASE)],
+    ['an interpolation of the wrong type', xKeys([{ t: 0, v: 0.2, ease: 3 }]), xIs([k(0, 0.2)], EASE)],
+    ['keys out of order are sorted', xKeys([k(2, 0.6), k(0, 0.2), k(1, 0.4)]), xIs([k(0, 0.2), k(1, 0.4), k(2, 0.6)])],
+    [
+      'equal times keep the last',
+      xKeys([k(1, 0.4), k(0, 0.2), k(1, 0.9, 'hold')]),
+      xIs([k(0, 0.2), k(1, 0.9, 'hold')], SAME),
+    ],
+    [
+      'extra fields in a key are not kept',
+      xKeys([{ t: 0, v: 0.2, ease: 'linear', href: 'javascript:x', tangent: 3 }]),
+      xIs([k(0, 0.2, 'linear')]),
+    ],
+    [
+      'an unknown value name',
+      clipKeys({ skew: [k(0, 1)], x: [k(0, 0.2)] }),
+      (r, d) => {
+        expect(keysOf(r, d)).toEqual({ x: [k(0, 0.2)] });
+        expect(why(r)).toMatch(UNREAD);
+      },
+    ],
+    [
+      'a __proto__ value name',
+      (d) => JSON.parse(JSON.stringify(clipKeys({ MARK: [], x: [k(0, 0.2)] })(d)).replace('"MARK"', '"__proto__"')),
+      (r, d) => {
+        const keys = keysOf(r, d)!;
+        expect(Object.keys(keys)).toEqual(['x']);
+        expect(Object.getPrototypeOf(keys)).toBe(Object.prototype);
+        expect(why(r)).toMatch(UNREAD);
+      },
+    ],
+    [
+      '150 keys on one value',
+      xKeys(Array.from({ length: 150 }, (_, i) => k(149 - i, 0.5))),
+      xIs(
+        Array.from({ length: 100 }, (_, i) => k(i, 0.5)),
+        PER_VALUE,
+      ),
+    ],
+    [
+      'more than 5,000 keys in the project',
+      (d) => {
+        const full = (props: string[]) =>
+          Object.fromEntries(props.map((p) => [p, Array.from({ length: 100 }, (_, i) => k(i, 0.5))]));
+        const clipProps = ['x', 'y', 'w', 'rot', 'opacity', 'radius', 'volume'];
+        return {
+          ...d,
+          // 4 clips × 700 + 30 layers × 500 = 17,800 keys.
+          clips: d.clips.map((c) => ({ ...c, keys: full(clipProps) })),
+          layers: Array.from({ length: 30 }, (_, i) => layer(`L${i}`, full(['x', 'y', 'w', 'rot', 'opacity']))),
+        };
+      },
+      (r) => {
+        const total =
+          r.doc.clips.reduce((n, c) => n + countKeys(c.keys), 0) + r.doc.layers.reduce((n, l) => n + countKeys(l.keys), 0);
+        expect(total).toBe(5000);
+        expect(r.doc.layers).toHaveLength(30);
+        expect(r.dropped.filter((s) => PER_PROJECT.test(s))).toHaveLength(1);
+      },
+    ],
+    [
+      'layer keys that are text',
+      layerWith('fly-in'),
+      (r) => {
+        expect(r.doc.layers.map((l) => l.id)).toEqual(['L1']);
+        expect(layerKeys(r)).toBeUndefined();
+        expect(why(r)).toMatch(UNREAD);
+      },
+    ],
+    [
+      'volume and radius on a layer',
+      layerWith({ volume: [k(0, 1)], radius: [k(0, 0.2)], x: [k(0, 0.3)] }),
+      (r) => {
+        expect(layerKeys(r)).toEqual({ x: [k(0, 0.3)] });
+        expect(why(r)).toMatch(UNREAD);
+      },
+    ],
+    [
+      'layer values out of the layers’ ranges',
+      layerWith({ w: [k(0, 0)], rot: [k(0, 400)] }),
+      (r) => {
+        expect(layerKeys(r)).toEqual({ w: [k(0, 0.01)], rot: [k(0, 360)] });
+        expect(r.dropped).toEqual([expect.stringMatching(ADJUSTED)]);
+      },
+    ],
+  ];
+
+  it('has at least 25 malformed documents', () => expect(bad.length).toBeGreaterThanOrEqual(25));
+
+  it.each(bad)('%s: never throws, keeps what it can and says why', (_, make, check) => {
+    const d = fixture();
+    let r: Gated | undefined;
+    expect(() => (r = mergeProject(JSON.parse(JSON.stringify(make(d))), true))).not.toThrow();
+    check(r!, d);
+  });
+
+  it('writes keys only where there are some, and round-trips document → gate → document equal', () => {
+    const doc = fixture();
+    expect(doc.clips.map((c) => 'keys' in c)).toEqual(doc.clips.map((c) => c.id === animatedId(doc)));
+    const text = JSON.stringify(doc);
+    const once = mergeProject(JSON.parse(text), true);
+    expect(once.dropped).toEqual([]);
+    expect(keysOf(once, doc)).toEqual(doc.clips.find((c) => c.keys)!.keys);
+    expect(layerKeys(once)).toEqual({ y: [k(0, 1.2), k(0.5, 0.5, 'ease-in')], rot: [k(0, -90)] });
+    expect(toDocument(once.doc)).toEqual(doc);
+    expect(JSON.stringify(toDocument(once.doc))).toBe(text);
+  });
+
+  it('does not write empty or missing keys', () => {
+    const d = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
+    const text = JSON.stringify(toDocument(d));
+    expect(JSON.stringify(toDocument({ ...d, clips: d.clips.map((c) => ({ ...c, keys: {} })) }))).toBe(text);
+    expect(JSON.stringify(toDocument({ ...d, clips: d.clips.map((c) => ({ ...c, keys: undefined })) }))).toBe(text);
+  });
+
+  it.each(fixtures)('%s: a 201 / 202 document without keys stays byte-identical', (_, p) => {
+    const first = mergeProject(legacyDoc(p), true).doc;
+    const text = JSON.stringify(toDocument(first));
+    expect(text).not.toMatch(/"keys"/);
+    const back = mergeProject(JSON.parse(text), true);
+    expect(back.dropped).toEqual([]);
+    expect(JSON.stringify(toDocument(back.doc))).toBe(text);
   });
 });

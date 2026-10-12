@@ -80,7 +80,7 @@ function cubicBezier(curve: readonly [number, number, number, number], progress:
   let u = progress;
   for (let step = 0; step < 8; step++) {
     const error = bezierAt(x1, x2, u) - progress;
-    if (Math.abs(error) < 1e-7) return bezierAt(y1, y2, u);
+    if (Math.abs(error) < 1e-12) return bezierAt(y1, y2, u);
     const slope = bezierSlope(x1, x2, u);
     if (Math.abs(slope) < 1e-6) break;
     u -= error / slope;
@@ -90,7 +90,7 @@ function cubicBezier(curve: readonly [number, number, number, number], progress:
   u = progress;
   for (let step = 0; step < 40; step++) {
     const x = bezierAt(x1, x2, u);
-    if (Math.abs(x - progress) < 1e-7) break;
+    if (Math.abs(x - progress) < 1e-12) break;
     if (x < progress) low = u;
     else high = u;
     u = (low + high) / 2;
@@ -185,7 +185,7 @@ export interface KeyEdit {
 const near = (a: number, b: number, fps: number = V_FPS): boolean => Math.abs(a - b) < 0.5 / fps;
 
 /** Keys with empty lists dropped; undefined when none is left. */
-function tidy<P extends string>(keys: Keyframes<P>): Keyframes<P> | undefined {
+export function tidyKeys<P extends string>(keys: Keyframes<P>): Keyframes<P> | undefined {
   const out: Keyframes<P> = {};
   let any = false;
   for (const prop of Object.keys(keys) as P[]) {
@@ -237,7 +237,7 @@ export function removeKey<P extends string>(
 ): Keyframes<P> | undefined {
   const list = keys[prop];
   if (!list?.some((key) => near(key.t, t, fps))) return keys;
-  return tidy({ ...keys, [prop]: list.filter((key) => !near(key.t, t, fps)) } as Keyframes<P>);
+  return tidyKeys({ ...keys, [prop]: list.filter((key) => !near(key.t, t, fps)) } as Keyframes<P>);
 }
 
 /** Applies `change` to the list of `prop`, or of every value for 'all'; the same keys when nothing changed. */
@@ -255,7 +255,7 @@ function eachList<P extends string>(
     out ??= { ...keys };
     out[name] = next;
   }
-  return out ? tidy(out) : keys;
+  return out ? tidyKeys(out) : keys;
 }
 
 /** Moves the key at `from` (one value's, or every value's for 'all') to `to`; a key already at `to` is replaced. */
@@ -324,7 +324,7 @@ export function splitKeys<P extends string>(
     left[prop] = [...list.filter((key) => key.t < at), { t: at, ...cut }];
     right[prop] = [{ t: 0, ...cut }, ...list.filter((key) => key.t > at).map((key) => ({ ...key, t: key.t - at }))];
   }
-  return [tidy(left), tidy(right)];
+  return [tidyKeys(left), tidyKeys(right)];
 }
 
 /** A clip as keyframes see it: its box and, for a video, its volume. */
@@ -379,8 +379,104 @@ export function stopAnimating(
   const value = valueOf(item, prop, local);
   const rest: Keyframes<string> = { ...item.keys };
   delete rest[prop];
-  const keys = tidy(rest);
+  const keys = tidyKeys(rest);
   if (!isClip(item)) return { [prop]: value, keys } as Partial<Layer>;
   if (prop === 'volume') return { volume: value, keys };
   return { tf: { ...(item.tf ?? IDENTITY), [prop]: value }, keys } as Partial<KeyedClip>;
+}
+
+/* ---------- The document gate (§10) ---------- */
+
+/** What the gate has left of the project's 5,000 keys, and where its reasons go (each reason once). */
+export interface KeyBudget {
+  left: number;
+  dropped: string[];
+}
+
+export const keyBudget = (dropped: string[] = []): KeyBudget => ({ left: KEY_LIMITS.perProject, dropped });
+
+/** The longest key time the gate accepts either side of an item's start, seconds (a day, as clip times). */
+const MAX_KEY_TIME = 86400;
+
+const KEY_REASONS = {
+  unread: 'Some keyframes couldn’t be read and were left out.',
+  adjusted: 'Some keyframe values were out of range and were adjusted.',
+  ease: 'Some keyframes had an unknown interpolation and now ease in and out.',
+  same: 'Some keyframes were at the same time; the last of each was kept.',
+  perValue: `A value can have at most ${KEY_LIMITS.perValue} keyframes; the rest were left out.`,
+  perProject: `A project can have at most ${KEY_LIMITS.perProject.toLocaleString('en')} keyframes; the rest were left out.`,
+} as const;
+
+/**
+ * The gate for an item's keyframes from a document: only `props` are read; keys need a finite time (within a day of the
+ * item's start) and value; values are clamped, unknown eases become Ease in and out, lists are sorted (the last of
+ * equal times kept) and cut to 100 per value and to what is left of the project's 5,000. Undefined when nothing is
+ * left. Never throws.
+ */
+export function mergeKeys<P extends ClipKeyProp | LayerKeyProp>(
+  raw: unknown,
+  props: readonly P[],
+  on: 'clip' | 'layer',
+  budget: KeyBudget,
+): Keyframes<P> | undefined {
+  const note = (reason: string) => {
+    if (!budget.dropped.includes(reason)) budget.dropped.push(reason);
+  };
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    note(KEY_REASONS.unread);
+    return undefined;
+  }
+  const out: Keyframes<P> = {};
+  for (const [name, rawList] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(props as readonly string[]).includes(name) || !Array.isArray(rawList)) {
+      note(KEY_REASONS.unread);
+      continue;
+    }
+    const prop = name as P;
+    const read: Keyframe[] = [];
+    for (const entry of rawList) {
+      const o = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : null;
+      const t = o?.t,
+        v = o?.v;
+      if (
+        typeof t !== 'number' ||
+        typeof v !== 'number' ||
+        !Number.isFinite(t) ||
+        !Number.isFinite(v) ||
+        Math.abs(t) > MAX_KEY_TIME
+      ) {
+        note(KEY_REASONS.unread);
+        continue;
+      }
+      const value = clampValue(prop, v, on);
+      if (value !== v) note(KEY_REASONS.adjusted);
+      let ease = o!.ease as Ease;
+      if (!EASES.includes(ease)) {
+        note(KEY_REASONS.ease);
+        ease = 'ease-in-out';
+      }
+      read.push({ t, v: value, ease });
+    }
+    // A stable sort keeps the document's order among equal times, so the last of them is the one written last.
+    read.sort((a, b) => a.t - b.t);
+    let list: Keyframe[] = [];
+    for (const key of read) {
+      if (list.length > 0 && list[list.length - 1].t === key.t) {
+        note(KEY_REASONS.same);
+        list[list.length - 1] = key;
+      } else list.push(key);
+    }
+    if (list.length > KEY_LIMITS.perValue) {
+      note(KEY_REASONS.perValue);
+      list = list.slice(0, KEY_LIMITS.perValue);
+    }
+    if (list.length > budget.left) {
+      note(KEY_REASONS.perProject);
+      list = list.slice(0, budget.left);
+    }
+    budget.left -= list.length;
+    if (list.length > 0) out[prop] = list;
+  }
+  return tidyKeys(out);
 }

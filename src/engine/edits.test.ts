@@ -23,6 +23,7 @@ import {
   type EditCtx,
   type Tool,
 } from './edits';
+import type { Keyframe } from './keyframes';
 import type { Layer } from './layers';
 import { MAIN_VIDEO, defaultTracks, mergeProject, pack, toDocument, type ProjectDoc } from './timeline';
 import { legacyFixtures, type LegacyClip } from './timeline.testkit';
@@ -809,5 +810,112 @@ describe('AC-12: every operation on 500 clips in under 2 ms (median of 100)', ()
     const median = times[50];
     console.log(`AC-12 ${name}: median ${median.toFixed(3)} ms`);
     expect(median).toBeLessThan(2);
+  });
+});
+
+/* ---------- 205 T020: edits keep keyframes in place (AC-3) ---------- */
+
+describe('205: keyframes follow their clip; start-edge edits keep them at their timeline place (AC-3)', () => {
+  const key = (t: number, v: number): Keyframe => ({ t, v, ease: 'ease-in-out' });
+  /** Keys on every clip: x at 0.5 s and 1 s from its start. */
+  const keyed = (cs: C[]): C[] => cs.map((c) => ({ ...c, keys: { x: [key(0.5, 0.3), key(1, 0.6)] } }));
+  const keyTimes = (cs: C[], id: string) => get(cs, id).keys!.x!.map((k) => +k.t.toFixed(9));
+  // a: photo 0–2; v: video 2–5 (source 1–4 of 6); c: photo 5–6.
+  const cs = keyed([...photos([0, 2]), vid('v', 2, 1, 4, 6), { ...photos([5, 1])[0], id: 'c' }]);
+
+  it('a start trim without ripple shifts the keys by minus the start’s move (photo and video)', () => {
+    const r = ok(trim(cs, 'v', 'start', 0.5, { ripple: false }, ctx));
+    expect(get(r, 'v').start).toBe(2.5);
+    expect(keyTimes(r, 'v')).toEqual([0, 0.5]);
+    // a touches v: nothing to lengthen into, nothing changes.
+    expect(ok(trim(cs, 'v', 'start', -0.5, { ripple: false }, ctx))).toBe(cs);
+    const gap = ok(lift(cs, 'a', ctx));
+    const grown = ok(trim(gap, 'v', 'start', -0.75, { ripple: false }, ctx));
+    expect(get(grown, 'v').start).toBe(1.25);
+    expect(keyTimes(grown, 'v')).toEqual([1.25, 1.75]);
+    const photo = ok(trim(cs, 'c', 'start', 0.25, { ripple: false }, ctx));
+    expect(keyTimes(photo, 'c')).toEqual([0.25, 0.75]);
+    // The other clips' keys are untouched.
+    expect(get(r, 'a').keys).toBe(get(cs, 'a').keys);
+  });
+
+  it('a ripple start trim, an end trim and Slip leave the keys alone', () => {
+    for (const r of [
+      ok(trim(cs, 'v', 'start', 0.5, { ripple: true }, ctx)),
+      ok(trim(cs, 'v', 'end', -0.5, { ripple: true }, ctx)),
+      ok(trim(cs, 'v', 'end', -0.5, { ripple: false }, ctx)),
+      ok(slip(cs, 'v', 0.5, ctx)),
+    ])
+      for (const c of r) expect(c.keys).toBe(get(cs, c.id).keys);
+  });
+
+  it('moves, nudges, reorders and track changes carry the keys (times from the clip’s start)', () => {
+    const gap = ok(lift(cs, 'a', ctx));
+    for (const r of [
+      ok(moveTo(gap, 'v', 0.5, ctx)),
+      ok(nudge(gap, 'v', 'select', -3, 30, false, ctx)),
+      ok(nudge(cs, 'v', 'select', 3, 30, true, ctx)),
+      ok(reorder(cs, 'c', 0, ctx)),
+      ok(moveToTrack(cs, 'v', O1, 0, { ...ctx, magnetic: false })),
+    ])
+      for (const c of r) expect(c.keys).toBe(get(cs, c.id).keys);
+  });
+
+  it('Roll shifts the right clip’s keys, Slide the next clip’s', () => {
+    const rolled = ok(roll(cs, 'a', 0.5, ctx));
+    expect(get(rolled, 'a').keys).toBe(get(cs, 'a').keys);
+    expect(keyTimes(rolled, 'v')).toEqual([0, 0.5]);
+    const back = ok(roll(cs, 'v', -1, ctx));
+    expect(keyTimes(back, 'c')).toEqual([1.5, 2]);
+    // a: 0–2 photo; v: 2–4 video; b: 4–7 video; c: 7–8 photo.
+    const four = keyed([...photos([0, 2]), vid('v', 2, 1, 3, 6), vid('b', 4, 1, 4, 6), { ...photos([7, 1])[0], id: 'c' }]);
+    const slid = ok(slide(four, 'v', 0.5, ctx));
+    expect(get(slid, 'v').keys).toBe(get(four, 'v').keys);
+    expect(get(slid, 'a').keys).toBe(get(four, 'a').keys);
+    expect(keyTimes(slid, 'b')).toEqual([0, 0.5]);
+  });
+
+  it('clips without keys get none', () => {
+    const plain = [...photos([0, 2]), vid('v', 2, 1, 4, 6)];
+    for (const r of [ok(trim(plain, 'v', 'start', 0.5, { ripple: false }, ctx)), ok(roll(plain, 'a', 0.5, ctx))])
+      for (const c of r) expect('keys' in c).toBe(false);
+  });
+
+  it('1,000 seeded random edits: start-edge edits keep each key’s timeline time, every other edit carries it', () => {
+    const rnd = mulberry32(205);
+    const starts = fixtures.map(([, f]) => keyed(f));
+    let current = starts[0],
+      round = 0,
+      startEdges = 0,
+      carried = 0;
+    const names = ['trim', 'moveTo', 'reorder', 'roll', 'slip', 'slide', 'nudge', 'lift', 'rippleDelete'];
+    for (let i = 0; i < 1000; i++) {
+      if (current.length < 2 || (i % 100 === 0 && i)) current = starts[++round % starts.length];
+      const before = current;
+      const name = names[Math.floor(rnd() * names.length)];
+      const r = OPS[name](before, before[Math.floor(rnd() * before.length)].id, rnd, ctx);
+      if ('error' in r) continue;
+      for (const after of r.clips) {
+        const was = before.find((c) => c.id === after.id)!;
+        const moved = after.start - was.start;
+        // A start edge moved: the clip starts elsewhere and its length changed (photo) or its content stayed put
+        // (video). Whole-clip moves keep both. (Not "its end stayed": a Roll from a video under 0.1 s, which the
+        // timeline shows 0.1 s long, moves the next clip's end too.)
+        const edge =
+          Math.abs(moved) > 1e-9 &&
+          (was.kind === 'photo' ? Math.abs(after.dur - was.dur) > 1e-9 : Math.abs(after.in - was.in - moved) < 1e-9);
+        const shift = after.keys!.x![0].t - was.keys!.x![0].t;
+        if (edge) {
+          startEdges++;
+          expect(shift, `${name} step ${i}: ${after.id}`).toBeCloseTo(-moved, 9);
+        } else {
+          if (Math.abs(moved) > 1e-9) carried++;
+          expect(shift, `${name} step ${i}: ${after.id}`).toBe(0);
+        }
+      }
+      current = r.clips;
+    }
+    expect(startEdges).toBeGreaterThan(50);
+    expect(carried).toBeGreaterThan(50);
   });
 });

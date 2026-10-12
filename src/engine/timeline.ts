@@ -1,5 +1,5 @@
 import { mergeEdit, type IgEdit } from './instagram';
-import type { ClipKeyProp, Keyframes } from './keyframes';
+import { CLIP_KEY_PROPS, keyBudget, mergeKeys, tidyKeys, type ClipKeyProp, type Keyframes } from './keyframes';
 import { mergeLayers, type Layer } from './layers';
 import {
   IDENTITY,
@@ -490,7 +490,8 @@ export function fromSequence<
 
 /**
  * The JSON form of a project: only the fields a project is made of (no files, URLs, thumbnails or view state). A
- * clip's `tf` is written as `transform`, and only when it isn't the identity, so 201 / 202 documents stay as they were.
+ * clip's `tf` is written as `transform`, and only when it isn't the identity; its keyframes (205) only when it has
+ * some. So 201 / 202 documents stay as they were.
  */
 export function toDocument(p: ProjectDoc): ProjectDoc {
   return {
@@ -503,8 +504,9 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     magnetic: p.magnetic !== false,
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
     clips: p.clips.map(
-      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform }) => {
+      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys }) => {
         const t = clampTransform(tf ?? transform);
+        const kept = keys && tidyKeys(keys);
         return {
           id,
           track,
@@ -519,6 +521,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
           fade,
           volume,
           ...(isIdentity(t) ? {} : { transform: t }),
+          ...(kept ? { keys: kept } : {}),
         };
       },
     ),
@@ -793,6 +796,8 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
       ids.add(id);
       return id;
     };
+    // Keyframes: 5,000 in the whole project, clips first, then layers (205 Q5).
+    const budget = keyBudget(dropped);
     const clips: DocClip[] = [];
     const rawClips = arr(o.clips);
     if (rawClips.length > L.clips)
@@ -827,6 +832,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         }
       }
       const tf = readTransform(c.transform, dropped);
+      const keys = mergeKeys(c.keys, CLIP_KEY_PROPS, 'clip', budget);
       clips.push({
         id: unique(c.id, 'v'),
         track: tr.id,
@@ -841,6 +847,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         fade: c.fade === true,
         volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
         ...(tf ? { tf } : {}),
+        ...(keys ? { keys } : {}),
       });
     }
 
@@ -867,7 +874,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
     }
 
     const images = new Set(media.filter((m) => m.kind === 'image').map((m) => m.id));
-    const layers = mergeLayers(o.layers, images);
+    const layers = mergeLayers(o.layers, images, budget);
     if (arr(o.layers).length > layers.length)
       dropped.push(`${arr(o.layers).length - layers.length} layer(s) couldn’t be read and were left out.`);
 
