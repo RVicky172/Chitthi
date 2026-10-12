@@ -17,6 +17,7 @@ import {
 import { isDesktop } from '../platform/desktop';
 import { DecodePool, lanePlan, poolLimits, type PoolClip } from './decodePool';
 import { mediabunnySource } from './frameSource';
+import { gainCurve } from './keyframes';
 import { loadImage } from './photo';
 import { frameStack } from './stack';
 import { MAIN_VIDEO, audioPlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
@@ -127,8 +128,12 @@ async function mixWindow(sources: AudioSource[], t0: number, len: number): Promi
       if (s.fadeOut > 0 && t > s.end - s.fadeOut) v *= Math.max(0, (s.end - t) / s.fadeOut);
       return v;
     };
-    gain.gain.setValueAtTime(at(a), a - t0);
-    for (const edge of [s.start + s.fadeIn, s.end - s.fadeOut, b]) if (edge > a && edge <= b) gain.gain.linearRampToValueAtTime(at(edge), edge - t0);
+    // Volume keyframes (205): one curve over [a, b], the only automation on this gain node, so events never overlap.
+    if (s.gain) gain.gain.setValueCurveAtTime(gainCurve(s, a, b - a), a - t0, b - a);
+    else {
+      gain.gain.setValueAtTime(at(a), a - t0);
+      for (const edge of [s.start + s.fadeIn, s.end - s.fadeOut, b]) if (edge > a && edge <= b) gain.gain.linearRampToValueAtTime(at(edge), edge - t0);
+    }
     // Source seconds covering [a, b).
     const srcA = s.from + (a - s.start),
       srcB = s.from + (b - s.start);

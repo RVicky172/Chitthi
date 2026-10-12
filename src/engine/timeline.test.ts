@@ -1717,3 +1717,38 @@ describe('keyframes in the document (205 AC-4)', () => {
     expect(JSON.stringify(toDocument(back.doc))).toBe(text);
   });
 });
+
+/* ---------- 205 T040: volume keyframes in the sound plan (AC-10) ---------- */
+
+describe('volume keyframes in the sound plan (205 AC-10)', () => {
+  type SC = TimedClip & { volume: number };
+  const key = (t: number, v: number, ease: Ease = 'linear'): Keyframe => ({ t, v, ease });
+  const video = (id: string, start: number, volume: number, keys?: SC['keys']): SC => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind: 'video',
+    in: 1,
+    out: 5,
+    dur: 0,
+    volume,
+    ...(keys ? { keys } : {}),
+  });
+  const project = (clips: SC[]): Project => ({ tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false });
+
+  it('a clip with volume keys above 0 is mixed even at a stored volume of 0, with its keys as gain (clip time)', () => {
+    const gain = [key(0, 0), key(2, 1, 'ease-in-out')];
+    expect(audioPlan(project([video('a', 0, 0, { volume: gain }), video('b', 4, 0.5)]))).toEqual([
+      { ref: 'a', start: 0, end: 4, from: 1, volume: 0, gain, fadeIn: 0.03, fadeOut: 0.03 },
+      { ref: 'b', start: 4, end: 8, from: 1, volume: 0.5, fadeIn: 0.03, fadeOut: 0.03 },
+    ]);
+  });
+
+  it('a clip whose volume keys are all 0 is silent (left out); box keys alone change nothing', () => {
+    const silent = video('a', 0, 1, { volume: [key(0, 0), key(1, 0)] });
+    const boxOnly = video('b', 4, 0.5, { x: [key(0, 0.2), key(1, 0.8)] });
+    expect(audioPlan(project([silent, boxOnly]))).toEqual([
+      { ref: 'b', start: 4, end: 8, from: 1, volume: 0.5, fadeIn: 0.03, fadeOut: 0.03 },
+    ]);
+  });
+});

@@ -154,7 +154,14 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const asSound = (x: C): SoundClip => ({ id: x.id, url: `blob:${x.id}`, in: x.in, out: x.out, volume: x.volume });
+  const asSound = (x: C): SoundClip => ({
+    id: x.id,
+    url: `blob:${x.id}`,
+    in: x.in,
+    out: x.out,
+    volume: x.volume,
+    ...(x.keys ? { keys: x.keys } : {}),
+  });
   const tick = (s: ReturnType<typeof previewSound>, p: Project<C>, t: number, play: boolean) => {
     const plan = soundPlan(p, t);
     s.update(
@@ -241,7 +248,43 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
       made.length = 0;
     }
   });
+  it('205: a clip with volume keys sounds at its keyed volume on every tick, and is muted at 0 % (AC-10)', () => {
+    const s = previewSound();
+    const fadeIn = {
+      ...project(),
+      clips: project().clips.map((x) =>
+        x.id === 'a'
+          ? {
+              ...x,
+              volume: 0,
+              keys: {
+                volume: [
+                  { t: 0, v: 0, ease: 'linear' as const },
+                  { t: 2, v: 1, ease: 'linear' as const },
+                ],
+              },
+            }
+          : x,
+      ),
+    };
+    tick(s, fadeIn, 0, true);
+    expect([el(s, 'a')!.volume, el(s, 'a')!.muted]).toEqual([0, true]);
+    for (const [t, want] of [
+      [0.5, 0.25],
+      [1, 0.5],
+      [3, 1],
+    ] as const) {
+      tick(s, fadeIn, t, true);
+      expect(el(s, 'a')!.volume, `at ${t}`).toBeCloseTo(want, 9);
+      expect(el(s, 'a')!.muted, `at ${t}`).toBe(false);
+    }
+    // A clip without keys keeps its stored volume.
+    tick(s, fadeIn, 2.5, true);
+    expect(el(s, 'ov')!.volume).toBe(fadeIn.clips.find((x) => x.id === 'ov')!.volume);
+    s.dispose();
+  });
 });
+
 
 describe('preview sound drift correction (204 §4)', () => {
   it('leaves the rate at 1 within a frame', () => {

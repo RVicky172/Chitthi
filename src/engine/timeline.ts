@@ -1,5 +1,13 @@
 import { mergeEdit, type IgEdit } from './instagram';
-import { CLIP_KEY_PROPS, keyBudget, mergeKeys, tidyKeys, type ClipKeyProp, type Keyframes } from './keyframes';
+import {
+  CLIP_KEY_PROPS,
+  keyBudget,
+  mergeKeys,
+  tidyKeys,
+  type ClipKeyProp,
+  type Keyframe,
+  type Keyframes,
+} from './keyframes';
 import { mergeLayers, type Layer } from './layers';
 import {
   IDENTITY,
@@ -375,6 +383,8 @@ export interface SoundSource {
   /** Source seconds at `start`. */
   from: number;
   volume: number;
+  /** Volume keyframes (205), seconds from `start`: when present they set the volume instead of `volume`. */
+  gain?: Keyframe[];
   /** Volume ramps at its ends, seconds. */
   fadeIn: number;
   fadeOut: number;
@@ -394,8 +404,19 @@ export function audioPlan(p: Project): SoundSource[] {
     for (const c of p.clips) {
       if (c.track !== track || c.kind !== 'video') continue;
       const volume = (c as TimedClip & { volume?: number }).volume ?? 0;
-      if (volume <= 0) continue;
-      out.push({ ref: c.id, start: c.start, end: endOf(c), from: c.in, volume, fadeIn: 0.03, fadeOut: 0.03 });
+      // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
+      const gain = c.keys?.volume?.length ? c.keys.volume : undefined;
+      if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) continue;
+      out.push({
+        ref: c.id,
+        start: c.start,
+        end: endOf(c),
+        from: c.in,
+        volume,
+        ...(gain ? { gain } : {}),
+        fadeIn: 0.03,
+        fadeOut: 0.03,
+      });
     }
   };
   own(MAIN_VIDEO);

@@ -1,5 +1,5 @@
 import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
-import { LAYER_KEY_PROPS, keyBudget, mergeKeys, type KeyBudget, type Keyframes, type LayerKeyProp } from './keyframes';
+import { LAYER_KEY_PROPS, keyBudget, layersAt, mergeKeys, type KeyBudget, type Keyframes, type LayerKeyProp } from './keyframes';
 import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
 
 /*
@@ -573,7 +573,8 @@ let scratch: HTMLCanvasElement | null = null;
  * on with its opacity and blend.
  */
 export function drawLayers(ctx: CanvasRenderingContext2D, layers: Layer[], W: number, H: number, t?: number): void {
-  for (const l of layers) {
+  // With a time (the video editor) keyed layers are drawn at it (205); the photo editor passes none.
+  for (const l of layersAt(layers, t)) {
     if (!activeAt(l, t)) continue;
     const blend: GlobalCompositeOperation = l.blend && l.blend !== 'normal' ? l.blend : 'source-over',
       alpha = Math.max(0, Math.min(1, l.opacity));

@@ -3,7 +3,7 @@
  * them for the preview, the export, the stage and the inspector, so what is seen is what is exported.
  */
 import type { Layer } from './layers';
-import type { ClipTransform, TimedClip } from './timeline';
+import type { ClipTransform, SoundSource, TimedClip } from './timeline';
 import { IDENTITY, V_FPS } from './video';
 
 /** How the change that starts at a keyframe eases into the next one (Q3). */
@@ -134,7 +134,10 @@ export function isAnimated(item: { keys?: Keyframes<string> }, prop: string): bo
 }
 
 /** A clip's box at `local` seconds from its start: its `tf` (or the identity) with the animated fields replaced. */
-export function transformAt(clip: TimedClip, local: number): ClipTransform {
+export function transformAt(
+  clip: { tf?: ClipTransform; keys?: Keyframes<ClipKeyProp> },
+  local: number,
+): ClipTransform {
   const base = clip.tf ?? IDENTITY;
   const keys = clip.keys;
   if (!keys) return base;
@@ -149,7 +152,7 @@ export function transformAt(clip: TimedClip, local: number): ClipTransform {
 }
 
 /** A clip's volume at `local` seconds from its start. */
-export function volumeAt(clip: TimedClip & { volume: number }, local: number): number {
+export function volumeAt(clip: { volume: number; keys?: Keyframes<ClipKeyProp> }, local: number): number {
   const list = clip.keys?.volume;
   if (!list || list.length === 0) return clip.volume;
   return clampValue('volume', valueAt(list, local), 'clip');
@@ -168,6 +171,35 @@ export function layerAt<L extends Layer>(layer: L, t: number): L {
     out[prop] = clampValue(prop, valueAt(list, local), 'layer');
   }
   return out ?? layer;
+}
+
+/**
+ * The layers as drawn at timeline time `t`: each keyed layer evaluated (`layerAt`). The same array without a time (the
+ * photo editor) or when no layer is animated, so nothing is allocated per frame then.
+ */
+export function layersAt(layers: Layer[], t?: number): Layer[] {
+  if (t === undefined || !layers.some((layer) => layer.keys)) return layers;
+  return layers.map((layer) => layerAt(layer, t));
+}
+
+/** A sound source's volume at timeline time `t`: its volume keys (or its volume) times its end ramps. */
+export function sourceGainAt(source: SoundSource, t: number): number {
+  let volume = source.gain ? clampValue('volume', valueAt(source.gain, t - source.start), 'clip') : source.volume;
+  if (source.fadeIn > 0 && t < source.start + source.fadeIn) volume *= Math.max(0, (t - source.start) / source.fadeIn);
+  if (source.fadeOut > 0 && t > source.end - source.fadeOut) volume *= Math.max(0, (source.end - t) / source.fadeOut);
+  return volume;
+}
+
+/**
+ * The export's gain curve for a source over timeline seconds [from, from + length] (§5): `sourceGainAt` at evenly
+ * spread points at most `step` apart, both ends included, for `AudioParam.setValueCurveAtTime`, which plays it linearly
+ * between points (within 0.5 dB of the exact curve). Windows meet on the same value, so nothing clicks at their joins.
+ */
+export function gainCurve(source: SoundSource, from: number, length: number, step = 0.005): Float32Array {
+  const count = Math.max(2, Math.ceil(length / step - 1e-9) + 1);
+  const curve = new Float32Array(count);
+  for (let i = 0; i < count; i++) curve[i] = sourceGainAt(source, from + (i * length) / (count - 1));
+  return curve;
 }
 
 /* ---------- Pure edits (§2): each returns new keys (undefined when nothing is left animated) ---------- */

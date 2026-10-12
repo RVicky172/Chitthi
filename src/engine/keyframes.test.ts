@@ -4,8 +4,10 @@ import {
   animate,
   clampValue,
   countKeys,
+  gainCurve,
   isAnimated,
   layerAt,
+  layersAt,
   moveKey,
   removeKey,
   setEase,
@@ -22,8 +24,8 @@ import {
   type Keyframes,
 } from './keyframes';
 import { newSticker } from './layers';
-import { IDENTITY, type ClipTransform, type TimedClip } from './timeline';
-import { frameRange } from './video';
+import { IDENTITY, type ClipTransform, type SoundSource, type TimedClip } from './timeline';
+import { frameRange, itemTransform, type StackDraw } from './video';
 
 /** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */
 const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & { volume: number } => ({
@@ -522,5 +524,134 @@ describe('AC-12: working out a frame’s animated values', () => {
       expect(transformAt(c, 0.7)).toBe(c.tf);
       expect(volumeAt(c, 0.7)).toBe(c.volume);
     }
+  });
+});
+
+/* ---------- 205 T030: what renderStack and drawLayers draw ---------- */
+
+describe('itemTransform and layersAt: one evaluation for the preview and the export (AC-8, AC-11)', () => {
+  /** A stack item as the preview and the export build it: the whole clip spread in, with `overlay`. */
+  const item = (c: TimedClip & { volume: number }, local: number): StackDraw => ({
+    clip: { ...c, edit: {} as StackDraw['clip']['edit'], motion: 'none', fade: false, overlay: true },
+    src: null,
+    sw: 0,
+    sh: 0,
+    local,
+  });
+
+  it('gives back the stored box itself when nothing is animated', () => {
+    const tf: ClipTransform = { x: 0.2, y: 0.3, w: 0.4, rot: 10, opacity: 0.9, radius: 0.1 };
+    const stored = item(clip({ tf }), 1);
+    expect(itemTransform(stored)).toBe(stored.clip.tf);
+    expect(itemTransform(item(clip(), 1))).toBe(IDENTITY);
+  });
+
+  it('gives the keyed values at the item’s own time', () => {
+    const keyed = clip({ tf: { ...IDENTITY, w: 0.5 }, keys: { x: pair(0, 1, 'linear'), opacity: pair(1, 0, 'hold') } });
+    expect(itemTransform(item(keyed, 0.25))).toEqual({ ...IDENTITY, w: 0.5, x: 0.25, opacity: 1 });
+    expect(itemTransform(item(keyed, 1))).toEqual({ ...IDENTITY, w: 0.5, x: 1, opacity: 0 });
+  });
+
+  it('layersAt gives back the same layers without a time (the photo editor) or without keys', () => {
+    const plain = [newSticker('⭐'), newSticker('🌙')];
+    expect(layersAt(plain, 2)).toBe(plain);
+    const keyed = [plain[0], { ...newSticker('⭐'), start: 1, keys: { opacity: pair(1, 0, 'linear') } }];
+    expect(layersAt(keyed)).toBe(keyed);
+  });
+
+  it('layersAt evaluates only the keyed layers at timeline time', () => {
+    const plain = newSticker('⭐');
+    const keyed = { ...newSticker('🌙'), start: 1, keys: { opacity: pair(1, 0, 'linear') } };
+    const shown = layersAt([plain, keyed], 1.5);
+    expect(shown[0]).toBe(plain);
+    expect(shown[1].opacity).toBeCloseTo(0.5, 12);
+    expect(keyed.opacity).toBe(1);
+  });
+});
+
+/* ---------- 205 T040: the export's gain curve (AC-10) ---------- */
+
+describe('gainCurve: the volume the export sets for a source in one window (AC-10)', () => {
+  const source = (extra: Partial<SoundSource> = {}): SoundSource => ({
+    ref: 'c1',
+    start: 2,
+    end: 14,
+    from: 0,
+    volume: 0.8,
+    fadeIn: 0.03,
+    fadeOut: 0.03,
+    ...extra,
+  });
+  /** The exact volume at timeline time t: the keys (or the stored volume) times the end ramps, worked out here. */
+  const exact = (s: SoundSource, t: number) => {
+    let v = s.gain ? valueAt(s.gain, t - s.start) : s.volume;
+    if (t < s.start + s.fadeIn) v *= Math.max(0, (t - s.start) / s.fadeIn);
+    if (t > s.end - s.fadeOut) v *= Math.max(0, (s.end - t) / s.fadeOut);
+    return v;
+  };
+  /** The curve as setValueCurveAtTime plays it: its points spread evenly over [from, from + length], linear between. */
+  const played = (curve: Float32Array, from: number, length: number, t: number) => {
+    const at = ((t - from) / length) * (curve.length - 1);
+    const i = Math.min(curve.length - 2, Math.floor(at));
+    return curve[i] + (curve[i + 1] - curve[i]) * (at - i);
+  };
+  /** Played vs exact every 0.5 ms: within 0.5 dB where the sound is above −40 dB, within 0.001 below. */
+  const within = (s: SoundSource, from: number, length: number) => {
+    const curve = gainCurve(s, from, length);
+    expect(length / (curve.length - 1)).toBeLessThanOrEqual(0.005 + 1e-12);
+    let worst = 0;
+    for (let t = from; t <= from + length; t += 0.0005) {
+      const want = exact(s, t),
+        got = played(curve, from, length, t);
+      if (want >= 0.01) worst = Math.max(worst, Math.abs(20 * Math.log10(got / want)));
+      else expect(Math.abs(got - want)).toBeLessThan(0.001);
+    }
+    expect(worst).toBeLessThanOrEqual(0.5);
+    return worst;
+  };
+
+  it('a source without keys gives today’s ramp values at every point', () => {
+    const s = source();
+    const curve = gainCurve(s, 2, 10);
+    curve.forEach((v, i) => expect(v).toBeCloseTo(exact(s, 2 + (i * 10) / (curve.length - 1)), 6));
+    expect(curve[0]).toBe(0);
+    within(s, 2, 10);
+    within(s, 10, 4);
+  });
+
+  it('volume keys (linear and eased, a dip to 0 and back) stay within 0.5 dB, ramps included', () => {
+    const s = source({
+      volume: 0,
+      gain: [
+        { t: 0, v: 1, ease: 'ease-in-out' },
+        { t: 1.5, v: 0.2, ease: 'linear' },
+        { t: 3, v: 0.2, ease: 'ease-in' },
+        { t: 3.4, v: 0, ease: 'ease-out' },
+        { t: 5, v: 1, ease: 'ease-in-out' },
+        { t: 11.98, v: 0.5, ease: 'linear' },
+      ],
+    });
+    within(s, 2, 10);
+    within(s, 12, 2);
+  });
+
+  it('two adjacent windows meet with equal values', () => {
+    const s = source({ gain: [{ t: 0, v: 0, ease: 'ease-in-out' }, { t: 12, v: 1, ease: 'linear' }] });
+    for (const edge of [5, 10, 12.345]) {
+      const left = gainCurve(s, 2, edge - 2),
+        right = gainCurve(s, edge, 14 - edge);
+      expect(left[left.length - 1]).toBeCloseTo(right[0], 6);
+      expect(right[0]).toBeCloseTo(exact(s, edge), 6);
+    }
+  });
+
+  it('a Hold jump becomes one step’s ramp, not a click', () => {
+    const s = source({ gain: [{ t: 0, v: 1, ease: 'hold' }, { t: 3, v: 0.25, ease: 'linear' }] });
+    const curve = gainCurve(s, 2, 10);
+    const step = 10 / (curve.length - 1);
+    const changes = [...curve].map((v, i) => (i ? Math.abs(v - curve[i - 1]) : 0)).filter((d) => d > 1e-6);
+    // Only the fade-in's points and the one step across the jump change the value.
+    expect(changes.filter((d) => d > 0.2)).toHaveLength(1);
+    expect(step).toBeLessThanOrEqual(0.005 + 1e-12);
   });
 });

@@ -685,7 +685,7 @@
         "T030": {
           "text": "Implement plan §4 with unit tests: `renderStack` takes each item's box from `transformAt(clip, local)` through a pure exported helper (`itemTransform`), and `drawLayers` draws `layerAt(layer, t)` when given a time (the photo editor passes none). Tests (`keyframes.test.ts`): `itemTransform` returns the stored box (same object) without keys and the keyed values with them; `layersAt` without a time or keys returns the same layers.",
           "section": "Drawing and sound",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -700,12 +700,16 @@
           ],
           "test": "`npm run check` (the photo editor's and 203's unit tests unchanged)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** video.ts itemTransform(item) = transformAt(item.clip, item.local); renderStack takes each box from it (StackDraw's clip carries keys; the preview and the export already spread the whole clip in). keyframes.ts layersAt(layers, t?) (the same array without a time or keys); drawLayers draws layersAt(layers, t), the photo editor passes no time. transformAt / volumeAt take any { tf?, keys? } / { volume, keys? }. 4 new tests (failed first); npm run check green, 1,516 tests, photo editor and 203 tests unchanged. The canvas path itself is checked by 290's golden frames (AC-9, AC-11)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T040": {
           "text": "Failing tests: `audioPlan` keeps a clip whose stored volume is 0 but has volume keys above 0, with `gain` in clip time (`timeline.test.ts`); a pure `gainCurve(source, windowStart, windowLength, step = 0.005)` (`keyframes.test.ts`): linear interpolation between its points stays within 0.5 dB of the exact curve (ramps included), two adjacent windows meet with equal values, and a source without keys gives today's ramp values.",
           "section": "Drawing and sound",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -718,12 +722,16 @@
           ],
           "test": "`npx vitest run src/engine`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** timeline.test.ts: audioPlan mixes a clip with volume keys above 0 at a stored volume of 0 with gain = its keys (clip time); all-zero volume keys leave it out; box keys change nothing. keyframes.test.ts: gainCurve (5 ms points, played back linearly as setValueCurveAtTime does) within 0.5 dB of the exact curve every 0.5 ms (−40 dB floor, 0.001 below), ramps and eased dips included; today's ramp values without keys; adjacent windows meet equal; a Hold jump is one step's ramp. 6 cases failed before T041."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T041": {
           "text": "Implement plan §5: `audioPlan` with `gain`; `gainCurve`; `mixWindow` sets one `setValueCurveAtTime` per source per window for keyed sources (unkeyed ones keep today's ramps); `previewSound` sets each element's volume from `volumeAt` on every sync.",
           "section": "Drawing and sound",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -738,7 +746,11 @@
           ],
           "test": "T040",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** SoundSource.gain (volume keys, seconds from start); audioPlan mixes a clip when any volume key is above 0 (else its stored volume as before). keyframes.ts sourceGainAt and gainCurve (points ≤ 5 ms apart, both ends included). mixWindow sets one setValueCurveAtTime over the source's part of the window for keyed sources (the only automation on that gain node); unkeyed sources keep the 203 ramps. previewSound: SoundClip.keys, each current element's volume from volumeAt on every tick (muted at 0). New preview test (failed first). Break-tests (curve without its end point; preview ignoring keys) caught; npm run check green, 1,523 tests. The exported sound itself is measured in 290 (AC-10)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T050": {
           "text": "Failing tests (`src/state/video.test.ts`): split gives each part its keys (`splitKeys`), duplicate copies them, `setLayerTimes` shifts a layer's keys when its start edge moves and not when it moves whole; `toggleKey`, `removeAnimation`, `moveKeys` (a drag under one key: one undo step), `setKeyEase`, `deleteKeys`; the routers `setClipTransformAt`, `updateLayerAt`, `setClipVolume` write a keyframe at the playhead for an animated value and the stored value otherwise; each is one undo step and returns its refusal (locked track, limits).",
