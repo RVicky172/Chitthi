@@ -1050,7 +1050,7 @@
         "T052": {
           "text": "Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's \"Move to track…\"; styles in `36-media-studio.css`. From the T050 review: lift the per-row drag / reorder state into Timeline (or a context) so a drag can cross rows with the target row drawing the drop marker; snap targets from every picture track's clips (Timeline uses only the main track's today); decide whether overlay rows show gap buttons (overlays lift, never ripple, Q8) and word them for overlays; clip labels name their track so two rows don't both announce \"Clip 1\"; pass the row's track id to drop and add-media targets. From the T040 review: Timeline's split key shows \"Put the playhead inside a clip…\" for any refusal; use `splitAtPlayheadWhy()` / `duplicateClipWhy()` and show their message (the videos-at-once refusal); show `setMagnetic`'s returned reason when Magnetic on is refused.",
           "section": "Tracks and the stage",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1066,7 +1066,9 @@
           ],
           "test": "unit tests (vitest) for the logic it adds (drop targets, cross-row drag state, per-track clip labels); its e2e (was T051) is written in 290",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-12",
+          "doneOn": null
         },
         "T054": {
           "text": "Implement §11: `src/components/studio/useClipTransform.ts` (pointer and keys on the clip box with the layers' geometry; layers hit first), the stage's box drawing, and the inspector's **Position and size** group in `ClipPanel`; announcements in 202's live region. From the T040 review: the inspector's \"Clip N\" (ClipPanel) counts per track via `clipPlace(id)` (e.g. \"Overlay 1 · Clip 2\"); show `updateClip` / `setClipTransform` refusals instead of ignoring them.",

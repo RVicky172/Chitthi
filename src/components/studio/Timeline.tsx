@@ -1,20 +1,28 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { snapTargets, snapTime, type Tool } from '../../engine/edits';
 import { layerName, type Layer } from '../../engine/layers';
-import { MAIN_VIDEO, MUSIC, lockedReason, type Track } from '../../engine/timeline';
+import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/timeline';
 import { clipLength, fmtTime } from '../../engine/video';
 import { toast } from '../../lib/toast';
+import { isDesktop } from '../../platform/desktop';
 import {
+  NEW_TRACK,
+  addMedia,
+  addTrack,
   clipLocked,
   deleteGap,
-  duplicateClip,
+  deleteTrack,
+  duplicateClipWhy,
   endVStep,
   getVideo,
   moveClipTo,
   moveClipToTime,
+  moveClipToTrack,
+  moveTrack,
   nudgeClip,
   removeClip,
+  renameTrack,
   removeVLayer,
   rippleDeleteClip,
   rippleTrimToPlayhead,
@@ -32,7 +40,7 @@ import {
   slideClip,
   slipClip,
   slipMusic,
-  splitAtPlayhead,
+  splitAtPlayheadWhy,
   trimClip,
   updateMusic,
   updateVLayer,
@@ -42,12 +50,17 @@ import {
   videoLength,
 } from '../../state/video';
 import { typingIn } from '../ig/LayerPanel';
+import { MoreMenu } from '../MoreMenu';
 import { useFallbackNote } from './previewFrame';
-import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
+import { clipLabel, describeClipChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds, type RowTarget } from './timelineRows';
+import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, PlusIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 
 /*
- * The video editor's timeline: a time ruler, the clips (with filmstrips) on the video track, one row per layer, and
- * the music with its waveform. Everything is direct: what a drag on a clip does depends on the edit tool (202): Select
+ * The video editor's timeline: a time ruler, one row per picture track (overlay tracks above the main video track, 203
+ * §10) with their clips and filmstrips, one row per layer, and the music with its waveform. Add track (the + by the
+ * ruler) adds an overlay track; files dropped on a row land there at the drop time, on the ruler in a new track; a
+ * clip dragged onto another picture row moves to that track ("Move to" in the toolbar does it by keyboard). Everything
+ * is direct: what a drag on a clip does depends on the edit tool (202): Select
  * reorders it (Magnetic on) or puts it at a time (off) and trims at its edges (ripple with Magnetic on or Shift), Roll
  * moves the cut at an edge, Slip changes what a video plays, Slide moves a clip between its neighbours. Drag a layer's
  * bar to move it in time or its ends to change when it shows, drag the music to slide the song, drag the playhead or
@@ -108,27 +121,64 @@ export function Timeline() {
     trackView = useVideo((s) => s.trackView),
     tool = useVideo((s) => s.tool);
   const px = (id: string) => TRACK_PX[trackView[id] ?? 'medium'];
-  const videoTrack = tracks.find((tr) => tr.id === MAIN_VIDEO)!,
-    musicTrack = tracks.find((tr) => tr.id === MUSIC)!;
+  const musicTrack = tracks.find((tr) => tr.id === MUSIC)!;
+  // The picture tracks as rows, the top overlay first and the main track last (203 §10).
+  const pictureTracks = pictureTracksTopFirst(tracks);
+  const pictureTrackIds = new Set(pictureTracks.map((track) => track.id));
+  const pictureClips = clips.filter((clip) => pictureTrackIds.has(clip.track));
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState(600);
   const total = useVideo(videoLength);
-  const mainClips = clips.filter((c) => c.track === MAIN_VIDEO);
   const width = Math.max(view - 2, total * zoom + 160);
 
-  // Each change to the video track is announced (politely, once a drag settles): the clip and its new times.
+  // Each change to a picture track is announced (politely, once a drag settles): the clip, its track and new times.
   const [said, setSaid] = useState('');
   const before = useRef(clips);
   useEffect(() => {
     const was = before.current;
     before.current = clips;
     if (was === clips) return;
-    const msg = describeChange(was, clips, getVideo().selected);
-    if (!msg) return;
-    const timer = setTimeout(() => setSaid(msg), 250);
+    const state = getVideo();
+    const message = describeClipChange(was, clips, state.tracks, state.selected);
+    if (!message) return;
+    const timer = setTimeout(() => setSaid(message), 250);
     return () => clearTimeout(timer);
   }, [clips]);
+
+  // The picture rows' elements, so a drag or a file drop can tell which row the pointer is over.
+  const rowElements = useRef(new Map<string, HTMLDivElement>());
+  /** The picture rows' bounds on screen, top row first. */
+  const rowBounds = (): RowBounds[] =>
+    pictureTracksTopFirst(getVideo().tracks).flatMap((track) => {
+      const rect = rowElements.current.get(track.id)?.getBoundingClientRect();
+      return rect ? [{ trackId: track.id, top: rect.top, bottom: rect.bottom }] : [];
+    });
+  /** The picture row (or the new-track strip: the ruler above the top row) under a pointer, or null. */
+  const rowTargetAt = (clientY: number): RowTarget | null => rowUnderPointer(rowBounds(), clientY, RULER_PX);
+  // Where a clip dragged onto another row, or files dragged over the timeline, would land: drawn as a marker there.
+  const [dropMarker, setDropMarker] = useState<{ target: RowTarget; at: number } | null>(null);
+
+  /** Files dragged over the timeline: a marker on the row (or above the top row: a new track) at the pointer's time. */
+  const onFilesOver = (event: ReactDragEvent) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    const target = rowTargetAt(event.clientY);
+    if (!target) return setDropMarker(null);
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDropMarker({ target, at: toFrame(timeAt(event.clientX)) });
+  };
+  /** Files dropped on a row land there at the drop time; above the top row, on a new overlay track. */
+  const onFilesDrop = (event: ReactDragEvent) => {
+    const target = rowTargetAt(event.clientY);
+    setDropMarker(null);
+    if (!target || !event.dataTransfer.files.length) return;
+    event.preventDefault();
+    const files = [...event.dataTransfer.files].map((file) => ({ name: file.name, blob: file, type: file.type }));
+    void addMedia(files, { track: target === 'new' ? NEW_TRACK : target, at: toFrame(timeAt(event.clientX)) }).then((messages) =>
+      messages.forEach((message) => toast(message)),
+    );
+  };
 
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -175,7 +225,7 @@ export function Timeline() {
    */
   const snap = (v: number, skip: { clip?: string; layer?: string } = {}, ev?: { altKey: boolean }) => {
     const s = getVideo();
-    const to = s.snapping && !ev?.altKey ? snapTime(v, snapTargets(mainClips, layers, s.t, total, skip), SNAP_PX / zoom) : v;
+    const to = s.snapping && !ev?.altKey ? snapTime(v, snapTargets(pictureClips, layers, s.t, total, skip), SNAP_PX / zoom) : v;
     return to === v ? toFrame(v) : to;
   };
   /** Snaps a clip moved to start at `s`: by its start, else by its end. */
@@ -242,8 +292,12 @@ export function Timeline() {
   return (
     <div className={`tl tl-tool-${tool}`} onKeyDown={onKey}>
       <div className="tl-heads">
-        <div className="tl-h tl-h-ruler" aria-hidden="true" />
-        <TrackHead track={videoTrack} height={trackView[MAIN_VIDEO] ?? 'medium'} />
+        <div className="tl-h tl-h-ruler">
+          <AddTrackButton tracks={tracks} />
+        </div>
+        {pictureTracks.map((track) => (
+          <TrackHead key={track.id} track={track} height={trackView[track.id] ?? 'medium'} clipCount={clips.filter((clip) => clip.track === track.id).length} />
+        ))}
         {(layers.length ? layers : [null]).map((l, i) => (
           <div key={l?.id ?? 'none'} className="tl-h tl-h-layer" aria-hidden="true">
             {i === 0 ? 'Layers' : ''}
@@ -255,16 +309,34 @@ export function Timeline() {
         {said}
       </div>
       <div className="tl-scroll" ref={scroller} tabIndex={0} role="group" aria-label={`Timeline, ${fmtTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead, V R Y U pick the edit tool, Alt + arrow keys nudge the selected clip, Q and W trim it to the playhead.`}>
-        <div className="tl-canvas" ref={canvas} style={{ width }}>
-          <div className="tl-ruler" onPointerDown={seekFrom}>
+        <div className="tl-canvas" ref={canvas} style={{ width }} onDragOver={onFilesOver} onDragLeave={() => setDropMarker(null)} onDrop={onFilesDrop}>
+          <div className={`tl-ruler${dropMarker?.target === 'new' ? ' tl-new-track' : ''}`} onPointerDown={seekFrom}>
             {ticks.map((s) => (
               <span key={s} className="tl-tick" style={{ left: s * zoom }}>
                 {label(s)}
               </span>
             ))}
+            {dropMarker?.target === 'new' && <span className="tl-drop" style={{ left: dropMarker.at * zoom }} />}
           </div>
 
-          <PictureRow track={videoTrack} clips={mainClips} height={px(MAIN_VIDEO)} zoom={zoom} tool={tool} selected={layerSel ? null : selected} snap={snap} snapSpan={snapSpan} seekFrom={seekFrom} />
+          {pictureTracks.map((track) => (
+            <PictureRow
+              key={track.id}
+              track={track}
+              clips={clips.filter((clip) => clip.track === track.id)}
+              height={px(track.id)}
+              zoom={zoom}
+              tool={tool}
+              selected={layerSel ? null : selected}
+              snap={snap}
+              snapSpan={snapSpan}
+              seekFrom={seekFrom}
+              rowRef={(element) => (element ? rowElements.current.set(track.id, element) : rowElements.current.delete(track.id))}
+              rowTargetAt={rowTargetAt}
+              dropMarkerAt={dropMarker?.target === track.id ? dropMarker.at : null}
+              setDropMarker={setDropMarker}
+            />
+          ))}
 
           {layers.length === 0 && (
             <div className="tl-row tl-layer tl-empty" onPointerDown={seekFrom}>
@@ -352,8 +424,9 @@ export function Timeline() {
 
 /**
  * One picture track's row: its clips (with filmstrips), their trims and drags with the edit tool, the gaps between
- * them, and the drop marker of a clip being moved. `clips` are the track's clips in order; `snap` and `snapSpan` are
- * the timeline's, so moves catch edges on every row. Only the main track has a row so far (203 §10).
+ * them (main track only: an overlay's gaps are see-through, and overlay clips are lifted, never rippled, 203 Q8), and
+ * the drop markers of a clip being moved or files being dropped. A clip dragged with Select onto another picture row
+ * moves to that track at the time it is dropped (`moveClipToTrack`); the target row draws the marker.
  */
 function PictureRow({
   track,
@@ -365,26 +438,44 @@ function PictureRow({
   snap,
   snapSpan,
   seekFrom,
+  rowRef,
+  rowTargetAt,
+  dropMarkerAt,
+  setDropMarker,
 }: {
   track: Track;
+  /** The track's clips in order. */
   clips: VClip[];
   height: number;
   zoom: number;
   tool: Tool;
   /** The selected clip, or null (none, or a layer is selected). */
   selected: string | null;
+  /** The timeline's snapping, so moves catch edges on every row. */
   snap: (v: number, skip?: { clip?: string; layer?: string }, ev?: { altKey: boolean }) => number;
   snapSpan: (s: number, len: number, id: string, ev: PointerEvent) => number;
   seekFrom: (e: ReactPointerEvent) => void;
+  /** Registers the row's element, so drags can tell which row the pointer is over. */
+  rowRef: (element: HTMLDivElement | null) => void;
+  /** The picture row (or `'new'`, above the top row) under a pointer, or null. */
+  rowTargetAt: (clientY: number) => RowTarget | null;
+  /** Where a clip from another row or a dropped file would land on this row, in seconds; null when nothing is. */
+  dropMarkerAt: number | null;
+  /** Shows (or, with null, hides) the drop marker on a row: the timeline draws it. */
+  setDropMarker: (marker: { target: RowTarget; at: number } | null) => void;
 }) {
-  // A clip being dragged by its body: `to` is its place in the order (Magnetic on), `at` the time it goes to (off).
-  const [reorder, setReorder] = useState<{ id: string; dx: number; to: number; at?: number } | null>(null);
+  const isMainTrack = track.id === MAIN_VIDEO;
+  // A clip being dragged by its body: `to` is its place in the order (Magnetic on), `at` the time it goes to (off),
+  // `elsewhere` while it is over another row (that row draws the marker).
+  const [reorder, setReorder] = useState<{ id: string; dx: number; to: number; at?: number; elsewhere?: boolean } | null>(null);
   const placed = clips.map((clip, index) => ({ clip, index, start: clip.start, end: clip.start + clipLength(clip) }));
-  // The gaps on the track (Magnetic off): before the first clip and between clips.
-  const holes = placed.flatMap((p, i) => {
-    const from = i ? placed[i - 1].end : 0;
-    return p.start - from > 1e-6 ? [{ start: from, end: p.start }] : [];
-  });
+  // The gaps on the main track (Magnetic off): before the first clip and between clips.
+  const holes = isMainTrack
+    ? placed.flatMap((p, i) => {
+        const from = i ? placed[i - 1].end : 0;
+        return p.start - from > 1e-6 ? [{ start: from, end: p.start }] : [];
+      })
+    : [];
   // Where a dragged clip would land: before the first other clip whose middle is right of the dragged clip's centre.
   const others = (id: string) => placed.filter((q) => q.clip.id !== id);
   const reorderTarget = (id: string, centreX: number) => {
@@ -400,12 +491,13 @@ function PictureRow({
   };
 
   return (
-    <div className={`tl-row tl-video${track.hidden ? ' tl-off' : ''}`} style={{ height }} onPointerDown={seekFrom}>
+    <div ref={rowRef} className={`tl-row tl-video${isMainTrack ? '' : ' tl-overlay'}${track.hidden ? ' tl-off' : ''}`} style={{ height }} onPointerDown={seekFrom}>
       {placed.map((p) => (
         <ClipBlock
           key={p.clip.id}
           clip={p.clip}
-          index={p.index}
+          label={clipLabel(track, p.index + 1)}
+          labelInSentence={clipLabel(track, p.index + 1, true)}
           left={p.start * zoom}
           width={(p.end - p.start) * zoom}
           selected={p.clip.id === selected}
@@ -437,32 +529,44 @@ function PictureRow({
                 },
                 clicked,
               );
-            } else if (tool === 'roll') drag(e, () => undefined, clicked);
-            else if (getVideo().magnetic)
-              drag(
-                e,
-                (dx) => setReorder({ id, dx, to: reorderTarget(id, p.start * zoom + dx + (len * zoom) / 2) }),
-                (moved) => {
-                  setReorder((r) => {
-                    if (moved && r) moveClipTo(r.id, r.to);
-                    return null;
-                  });
-                  clicked(moved);
-                },
-              );
-            else
-              // Magnetic off: the block follows the pointer, a marker shows where it lands, and it moves on release.
-              drag(
-                e,
-                (dx, ev) => setReorder({ id, dx, to: 0, at: Math.max(0, snapSpan(p.start + dx / zoom, len, id, ev)) }),
-                (moved) => {
-                  setReorder((r) => {
-                    if (moved && r?.at !== undefined) say(moveClipToTime(r.id, r.at, key));
-                    return null;
-                  });
-                  clicked(moved);
-                },
-              );
+              return;
+            }
+            if (tool === 'roll') {
+              drag(e, () => undefined, clicked);
+              return;
+            }
+            // Select: over another picture row the clip goes to that track at the drop time; on its own row it is
+            // reordered (the main track with Magnetic on) or put at a time (Magnetic off, and every overlay track).
+            const reordering = isMainTrack && getVideo().magnetic;
+            let otherRow: { trackId: string; at: number } | null = null;
+            drag(
+              e,
+              (dx, ev) => {
+                const at = Math.max(0, snapSpan(p.start + dx / zoom, len, id, ev));
+                const target = rowTargetAt(ev.clientY);
+                if (target && target !== 'new' && target !== track.id) {
+                  otherRow = { trackId: target, at };
+                  setDropMarker({ target, at });
+                  setReorder({ id, dx, to: 0, elsewhere: true });
+                  return;
+                }
+                otherRow = null;
+                setDropMarker(null);
+                if (reordering) setReorder({ id, dx, to: reorderTarget(id, p.start * zoom + dx + (len * zoom) / 2) });
+                else setReorder({ id, dx, to: 0, at });
+              },
+              (moved) => {
+                setDropMarker(null);
+                const landing = otherRow;
+                setReorder((r) => {
+                  if (moved && landing) say(moveClipToTrack(id, landing.trackId, landing.at, key));
+                  else if (moved && r && reordering) moveClipTo(r.id, r.to);
+                  else if (moved && r?.at !== undefined) say(moveClipToTime(r.id, r.at, key));
+                  return null;
+                });
+                clicked(moved);
+              },
+            );
           }}
           onEdge={(e, side) => {
             // Slip and Slide act on the whole clip: the edge passes the press on to the body.
@@ -517,14 +621,18 @@ function PictureRow({
           onPointerDown={(e) => e.stopPropagation()}
         />
       ))}
-      {reorder && <span className="tl-drop" style={{ left: reorder.at !== undefined ? reorder.at * zoom : markerAt(reorder.id, reorder.to) }} />}
+      {reorder && !reorder.elsewhere && <span className="tl-drop" style={{ left: reorder.at !== undefined ? reorder.at * zoom : markerAt(reorder.id, reorder.to) }} />}
+      {dropMarkerAt !== null && <span className="tl-drop" style={{ left: dropMarkerAt * zoom }} />}
     </div>
   );
 }
 
 function ClipBlock(p: {
   clip: VClip;
-  index: number;
+  /** The clip's name for screen readers: "Clip 2", or "Overlay 1, clip 2" (timelineRows.ts clipLabel). */
+  label: string;
+  /** The same name inside a sentence ("Trim the start of clip 2"). */
+  labelInSentence: string;
   left: number;
   width: number;
   selected: boolean;
@@ -562,9 +670,9 @@ function ClipBlock(p: {
         {c.kind === 'video' ? '▶ ' : ''}
         {clipLength(c).toFixed(1)}s{c.fade ? ' · fade' : ''}
       </span>
-      <button type="button" className="tl-edge tl-edge-start" aria-label={`Trim the start of clip ${p.index + 1}`} onPointerDown={(e) => p.onEdge(e, 'start')} />
-      <button type="button" className="tl-edge tl-edge-end" aria-label={`Trim the end of clip ${p.index + 1}`} onPointerDown={(e) => p.onEdge(e, 'end')} />
-      <button type="button" className="vh" aria-label={`Clip ${p.index + 1}: ${c.name}, ${c.kind}, ${clipLength(c).toFixed(1)} seconds${cantExport ? `. ${cantExport}` : ''}`} aria-pressed={p.selected} onClick={() => selectClip(c.id)} />
+      <button type="button" className="tl-edge tl-edge-start" aria-label={`Trim the start of ${p.labelInSentence}`} onPointerDown={(e) => p.onEdge(e, 'start')} />
+      <button type="button" className="tl-edge tl-edge-end" aria-label={`Trim the end of ${p.labelInSentence}`} onPointerDown={(e) => p.onEdge(e, 'end')} />
+      <button type="button" className="vh" aria-label={`${p.label}: ${c.name}, ${c.kind}, ${clipLength(c).toFixed(1)} seconds${cantExport ? `. ${cantExport}` : ''}`} aria-pressed={p.selected} onClick={() => selectClip(c.id)} />
     </div>
   );
 }
@@ -623,23 +731,6 @@ function MusicBar({ total, zoom, height, onDrag }: { total: number; zoom: number
 /** Shows a refusal's reason, if any. */
 const tell = (why: string | null) => why && toast(why);
 
-/** What changed on the video track, for screen readers: the selected (else first) changed clip and its times. */
-function describeChange(was: VClip[], now: VClip[], selected: string | null): string {
-  const main = now.filter((c) => c.track === MAIN_VIDEO);
-  const old = new Map(was.map((c) => [c.id, c]));
-  const changed = main.filter((c) => {
-    const o = old.get(c.id);
-    return !o || o.start !== c.start || clipLength(o) !== clipLength(c) || o.in !== c.in;
-  });
-  const c = changed.find((x) => x.id === selected) ?? changed[0];
-  if (c) {
-    const span = `Clip ${main.indexOf(c) + 1}, ${c.start.toFixed(1)} s to ${(c.start + clipLength(c)).toFixed(1)} s`;
-    return c.kind === 'video' ? `${span}, playing its source from ${c.in.toFixed(1)} s` : span;
-  }
-  const gone = was.filter((x) => x.track === MAIN_VIDEO).length - main.length;
-  return gone > 0 ? `${gone === 1 ? 'Clip' : `${gone} clips`} removed, ${main.length} left` : '';
-}
-
 /** A clip as it is now (a drag edits from the store's current state, step by step). */
 const current = (id: string) => getVideo().clips.find((c) => c.id === id);
 /** A time rounded to the project's frames. */
@@ -664,42 +755,118 @@ function refusedMusic(): boolean {
   if (why) toast(why);
   return !!why;
 }
-/** Splits the clip under the playhead (S, the Split button), or says why not. */
+/** Splits the clip under the playhead (S, the Split button), or says why not (locked, outside a clip, or over the
+ * videos-at-once limit). */
 function split(): void {
-  const why = lockedReason(getVideo().tracks, MAIN_VIDEO);
-  if (why) toast(why);
-  else if (!splitAtPlayhead()) toast('Put the playhead inside a clip, away from its ends, to split it.');
+  tell(splitAtPlayheadWhy());
 }
 
 /** Track heights in pixels (Q5; D-008: Medium for every track by default). */
 const TRACK_PX: Record<TrackHeight, number> = { small: 40, medium: 64, large: 96 };
+/** The ruler's height in pixels: files dropped on it go to a new overlay track above the top row. */
+const RULER_PX = 24;
 const HEIGHTS: [TrackHeight, string][] = [
   ['small', 'Small'],
   ['medium', 'Medium'],
   ['large', 'Large'],
 ];
 
-/** A track's header: its name, Hide (picture tracks) or Mute (sound tracks), Lock, and its height. */
-function TrackHead({ track, height }: { track: Track; height: TrackHeight }) {
-  const visual = track.kind !== 'audio';
-  const off = visual ? track.hidden : track.muted;
-  const verb = visual ? 'Hide' : 'Mute';
+/**
+ * Adds an overlay track at the top of the picture tracks (203 Q12). At the track limit it is disabled and its title
+ * says why.
+ */
+function AddTrackButton({ tracks }: { tracks: Track[] }) {
+  const result = withNewTrack(tracks, isDesktop);
+  const refusal = 'error' in result ? result.error : null;
   return (
-    <div className={`tl-h tl-h-track tl-h-${height}`} style={{ height: TRACK_PX[height] }} role="group" aria-label={`${track.name} track`}>
-      <span className="tl-h-name" aria-hidden="true">
-        {!visual && <MusicIcon />} {track.name}
-      </span>
-      <span className="tl-h-tools">
-        <button
-          type="button"
-          className="tl-tbtn"
-          aria-pressed={off}
-          aria-label={`${verb} ${track.name}`}
-          title={visual ? (off ? 'Hidden: not drawn in the preview or the export' : 'Hide this track in the preview and the export') : off ? 'Muted: silent in the preview and the export' : 'Mute this track in the preview and the export'}
-          onClick={() => setTrack(track.id, visual ? { hidden: !off } : { muted: !off })}
-        >
-          {visual ? <HideIcon on={off} /> : <MuteIcon on={off} />}
+    <button
+      type="button"
+      className="tl-tbtn tl-add-track"
+      aria-label="Add an overlay track"
+      title={refusal ?? 'Add an overlay track above the others, for picture-in-picture and B-roll'}
+      aria-disabled={!!refusal}
+      onClick={() => tell(refusal ?? addTrack())}
+    >
+      <PlusIcon />
+    </button>
+  );
+}
+
+/**
+ * A track's header: its name, Hide (picture tracks) and Mute (overlay and sound tracks), Lock and its height. An
+ * overlay track's header also renames it (the name is a button that becomes a text field: Enter keeps, Escape
+ * cancels), and its menu (the height button) moves it up or down among the overlays and deletes it (asking first when
+ * it holds clips).
+ */
+function TrackHead({ track, height, clipCount = 0 }: { track: Track; height: TrackHeight; clipCount?: number }) {
+  const isPicture = track.kind !== 'audio';
+  const isOverlay = track.kind === 'overlay';
+  const [renaming, setRenaming] = useState(false);
+
+  /** Keeps a new name (or says why it can't be used) and leaves the text field. */
+  const finishRename = (name: string) => {
+    tell(renameTrack(track.id, name));
+    setRenaming(false);
+  };
+  /** Deletes the track, asking first when it holds clips. */
+  const confirmDelete = () => {
+    const question = `Delete ${track.name} and its ${clipCount === 1 ? 'clip' : `${clipCount} clips`}? Undo brings them back.`;
+    if (clipCount === 0 || confirm(question)) tell(deleteTrack(track.id));
+  };
+
+  const hideButton = isPicture && (
+    <button
+      type="button"
+      className="tl-tbtn"
+      aria-pressed={track.hidden}
+      aria-label={`Hide ${track.name}`}
+      title={track.hidden ? 'Hidden: not drawn in the preview or the export (its sound still plays)' : 'Hide this track in the preview and the export'}
+      onClick={() => setTrack(track.id, { hidden: !track.hidden })}
+    >
+      <HideIcon on={track.hidden} />
+    </button>
+  );
+  // The main video track has no Mute: its clips' sound is set per clip (201 D2).
+  const muteButton = (isOverlay || !isPicture) && (
+    <button
+      type="button"
+      className="tl-tbtn"
+      aria-pressed={track.muted}
+      aria-label={`Mute ${track.name}`}
+      title={track.muted ? 'Muted: silent in the preview and the export' : 'Mute this track in the preview and the export'}
+      onClick={() => setTrack(track.id, { muted: !track.muted })}
+    >
+      <MuteIcon on={track.muted} />
+    </button>
+  );
+
+  return (
+    <div className={`tl-h tl-h-track tl-h-${height}${isOverlay ? ' tl-h-overlay' : ''}`} style={{ height: TRACK_PX[height] }} role="group" aria-label={`${track.name} track`}>
+      {renaming ? (
+        <input
+          className="tl-h-rename"
+          aria-label={`Rename ${track.name}`}
+          defaultValue={track.name}
+          maxLength={40}
+          autoFocus
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') finishRename(event.currentTarget.value);
+            else if (event.key === 'Escape') setRenaming(false);
+          }}
+          onBlur={(event) => finishRename(event.currentTarget.value)}
+        />
+      ) : isOverlay ? (
+        <button type="button" className="tl-h-name tl-h-name-button" aria-label={`Rename ${track.name}`} title="Rename this track" onClick={() => setRenaming(true)}>
+          {track.name}
         </button>
+      ) : (
+        <span className="tl-h-name" aria-hidden="true">
+          {!isPicture && <MusicIcon />} {track.name}
+        </span>
+      )}
+      <span className="tl-h-tools">
+        {hideButton}
+        {muteButton}
         <button
           type="button"
           className="tl-tbtn"
@@ -710,19 +877,40 @@ function TrackHead({ track, height }: { track: Track; height: TrackHeight }) {
         >
           <LockIcon on={track.locked} />
         </button>
-        <HeightMenu track={track} height={height} />
+        <HeightMenu
+          track={track}
+          height={height}
+          actions={
+            isOverlay
+              ? [
+                  { label: 'Move up (drawn over the track above)', onSelect: () => tell(moveTrack(track.id, 1)) },
+                  { label: 'Move down', onSelect: () => tell(moveTrack(track.id, -1)) },
+                  { label: `Delete ${track.name}`, onSelect: confirmDelete },
+                ]
+              : []
+          }
+        />
       </span>
     </div>
   );
 }
 
-/** The track height button and its menu (Small / Medium / Large): arrows, Home / End, Enter, Escape. */
-function HeightMenu({ track, height }: { track: Track; height: TrackHeight }) {
+/** An extra row in a track's menu (an overlay track's Move up, Move down, Delete). */
+interface TrackMenuAction {
+  label: string;
+  onSelect: () => void;
+}
+
+/**
+ * The track height button and its menu (Small / Medium / Large, then any `actions`): arrows, Home / End, Enter,
+ * Escape. An overlay track's menu also moves it up or down and deletes it (203 §10), so its header stays one row.
+ */
+function HeightMenu({ track, height, actions = [] }: { track: Track; height: TrackHeight; actions?: TrackMenuAction[] }) {
   const [at, setAt] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null),
     list = useRef<HTMLUListElement>(null),
     id = useId();
-  const label = `${track.name} track height`;
+  const label = actions.length ? `${track.name} track: height and more` : `${track.name} track height`;
   const close = (focus: boolean) => {
     setAt(null);
     if (focus) btn.current?.focus();
@@ -741,9 +929,10 @@ function HeightMenu({ track, height }: { track: Track; height: TrackHeight }) {
   }, [at]);
   const open = () => {
     const r = btn.current!.getBoundingClientRect();
+    const menuHeight = 120 + actions.length * 32;
     // A fixed menu in a portal: inside the timeline it would be clipped by its scrolling and painted under the clips.
     // Opens upwards near the bottom of the window.
-    setAt(r.bottom + 120 > window.innerHeight ? { left: r.left, bottom: window.innerHeight - r.top + 2 } : { left: r.left, top: r.bottom + 2 });
+    setAt(r.bottom + menuHeight > window.innerHeight ? { left: r.left, bottom: window.innerHeight - r.top + 2 } : { left: r.left, top: r.bottom + 2 });
   };
   const onListKey = (e: ReactKeyboardEvent) => {
     // React events bubble out of a portal to the timeline, whose keys (Space, S, Delete, arrows) mustn't act here.
@@ -766,7 +955,7 @@ function HeightMenu({ track, height }: { track: Track; height: TrackHeight }) {
         type="button"
         className="tl-tbtn"
         aria-label={label}
-        title={`Track height: ${HEIGHTS.find(([h]) => h === height)?.[1]}`}
+        title={`Track height: ${HEIGHTS.find(([h]) => h === height)?.[1]}${actions.length ? '; move or delete the track' : ''}`}
         aria-haspopup="menu"
         aria-expanded={!!at}
         aria-controls={at ? id : undefined}
@@ -789,6 +978,21 @@ function HeightMenu({ track, height }: { track: Track; height: TrackHeight }) {
                 }}
               >
                 {name}
+              </button>
+            </li>
+          ))}
+          {actions.length > 0 && <li role="separator" className="tl-hmenu-sep" />}
+          {actions.map((action) => (
+            <li key={action.label} role="none">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  close(true);
+                  action.onSelect();
+                }}
+              >
+                {action.label}
               </button>
             </li>
           ))}
@@ -816,7 +1020,8 @@ export function Transport() {
     zoom = useVideo((s) => s.zoom),
     tool = useVideo((s) => s.tool),
     magnetic = useVideo((s) => s.magnetic),
-    snapping = useVideo((s) => s.snapping);
+    snapping = useVideo((s) => s.snapping),
+    tracks = useVideo((s) => s.tracks);
   const total = useVideo(videoLength);
   const group = useId();
   return (
@@ -838,10 +1043,11 @@ export function Transport() {
         <ScissorsIcon />
         <span className="mst-l">Split</span>
       </button>
-      <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && !refused(selected) && duplicateClip(selected)} title="Duplicate the clip" aria-label="Duplicate">
+      <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && !refused(selected) && tell(duplicateClipWhy(selected))} title="Duplicate the clip" aria-label="Duplicate">
         <CopyIcon />
         <span className="mst-l">Duplicate</span>
       </button>
+      <MoveToTrackMenu selectedId={selected} tracks={tracks} clips={clips} />
       <button type="button" className="sbtn" disabled={!selected} onClick={() => selected && !refused(selected) && removeClip(selected)} title="Remove the clip (Delete)" aria-label="Delete">
         <TrashIcon />
         <span className="mst-l">Delete</span>
@@ -861,7 +1067,7 @@ export function Transport() {
         aria-pressed={magnetic}
         aria-label="Magnetic"
         title={magnetic ? 'Magnetic: clips stay end to end, edits ripple (switch off to leave gaps)' : 'Magnetic off: edits leave gaps; Shift ripples (switch on to close every gap)'}
-        onClick={() => setMagnetic(!magnetic)}
+        onClick={() => tell(setMagnetic(!magnetic))}
       >
         <MagneticIcon />
         <span className="mst-l">Magnetic</span>
@@ -897,4 +1103,21 @@ export function Transport() {
       </button>
     </div>
   );
+}
+
+/**
+ * "Move to track": moves the selected clip to another picture track at the same time (or the nearest free spot
+ * there), so a clip changes track without a mouse (203 §10). Lists the other picture tracks, top first.
+ */
+function MoveToTrackMenu({ selectedId, tracks, clips }: { selectedId: string | null; tracks: Track[]; clips: VClip[] }) {
+  const selectedClip = clips.find((clip) => clip.id === selectedId);
+  const otherTracks = pictureTracksTopFirst(tracks).filter((track) => track.id !== selectedClip?.track);
+  const items = otherTracks.map((track) => ({
+    key: track.id,
+    label: track.name,
+    disabled: !selectedClip,
+    onSelect: () => selectedClip && !refused(selectedClip.id) && tell(moveClipToTrack(selectedClip.id, track.id)),
+  }));
+  if (!items.length) items.push({ key: 'none', label: 'Add an overlay track first', disabled: true, onSelect: () => undefined });
+  return <MoreMenu items={items} label="Move the clip to another track" text="Move to" className="tl-move-menu" align="left" />;
 }
