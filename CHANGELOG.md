@@ -7,6 +7,17 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Video editor: **overlay tracks** for picture-in-picture and B-roll. Add a track with **+** at the top left of the
+  timeline (up to 4 picture tracks in the browser, 8 in the desktop app); drop photos or videos on a track's row, or on
+  the time ruler for a new track; drag a clip up or down to another track, or use **Move to**. Higher tracks are drawn
+  on top; each overlay track can be renamed, moved up or down, deleted, hidden, muted and locked.
+- Video editor: place a clip on the preview: drag its box to move it (snapping to the centre lines and edges), its
+  corner to resize, its top handle to turn it; arrow keys move it 1 % (Shift: 10 %). The inspector's **Position and
+  size** has Full frame, four corner presets, and X, Y, size, rotation, opacity and corner radius fields. The export
+  draws exactly what the preview shows.
+- Video editor: the number of videos on screen at once is limited (3 in the browser, 5 in the desktop app); an edit
+  that would show more says so.
+
 - Roadmap dashboard (development tool): copyable task briefs, phase filtering, prerequisite and dependent links,
   feature outcome summaries, the recorded update date and clearer next-task states.
 - Video editor: **edit tools** on the timeline. **Roll** moves a cut between two clips without changing the video's

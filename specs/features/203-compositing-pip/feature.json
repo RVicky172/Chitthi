@@ -4,13 +4,13 @@
   "id": "203",
   "title": "Compositing many tracks, picture-in-picture (P2.3)",
   "workItem": "P2.3",
-  "status": "approved",
+  "status": "implemented",
   "owner": "RVicky172",
   "dates": {
     "created": "2026-10-08",
     "approved": "2026-10-09",
-    "started": null,
-    "done": null
+    "started": "2026-10-11",
+    "done": "2026-10-12"
   },
   "git": {
     "branch": "spec/203-204"
@@ -89,7 +89,7 @@
           "text": "Each clip on a picture track has a **transform**: position (the clip's centre as a share of the frame, from −0.5 to 1.5 on each axis so a clip can sit partly outside), size (its width as a share of the frame width, 0.05 to 4), rotation (−180° to 180°) and opacity (0–100 %), with Q2's corner radius. The clip keeps its own aspect ratio inside its box. A new overlay clip starts full frame (B-roll) (Q4); the inspector offers **Full frame** and the four **corner** presets (35 % of the frame width, 4 % margin). Main-track clips start and stay at the identity transform unless the user changes it.",
           "proof": "unit",
           "group": "Overlay clips",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "text": "On the preview, a selected overlay clip shows a box with handles: drag to move, corner handles to resize keeping the aspect ratio, a rotate handle; moves snap to the frame's centre lines and edges within 8 px (off with the Snap switch or Alt, as `202` Q4). The inspector has number fields for X, Y, size, rotation, opacity and corner radius. With an overlay clip selected and the preview focused, arrow keys move it by 1 % of the frame (10 % with Shift). A drag is one undo step however long; each change is announced to screen readers (the clip and its new values).",
@@ -101,13 +101,13 @@
           "text": "At every frame time `t`, the frame is: the main video track's clip at `t` (black in a gap or past its end), then each visible overlay track's clip at `t` from the lowest track to the highest, each with its transform and opacity, then the timed layers on top of all tracks (Q1). Gaps on an overlay track draw nothing (the tracks below show through). Golden frames: a fixture with the main track and 2 overlay tracks (a full-frame B-roll video, a corner face-cam video with 50 % opacity, a rotated photo with rounded corners, a clip partly outside the frame), at 9:16 and 16:9, at 8 sample times including each clip's first and last frame, matches its reference within the self-test's tolerance on every GPU backend, and the export renders the same frames from the same inputs.",
           "proof": "self-test",
           "group": "Compositing",
-          "done": false
+          "done": true
         },
         "AC-7": {
           "text": "Timing is frame-exact: an overlay clip starting at 2.0 s at 30 fps appears first in frame 60 and is gone in the frame after its last; hidden tracks and clips at 0 % opacity draw nothing; a full-frame opaque overlay clip covers the frame completely (no pixel of the main clip shows).",
           "proof": "unit + self-test",
           "group": "Compositing",
-          "done": false
+          "done": true
         },
         "AC-8": {
           "text": "Sound: each overlay video clip's own sound plays at its clip volume, mixed with the main track's clips and the music, in the preview and the export; a muted overlay track adds nothing. The export's sound sources (start, end, source time, volume, ramps) for a fixture with overlays equal the expected list exactly.",
@@ -119,7 +119,7 @@
           "text": "The video's length is the end of the last clip on any picture track (Q9); the per-platform length and clip limits (`limitsFor()`) apply to the whole project, counting clips on every track (Q6), and refusals use the existing messages. At most Q6's number of video clips are visible at the same moment; an edit that would exceed it is refused with a message that says the limit and why.",
           "proof": "unit + e2e",
           "group": "Compositing",
-          "done": false
+          "done": true
         },
         "AC-10": {
           "text": "Projects with no overlay clips (`201`'s fixtures: photo-only, video-only, mixed, music with offset, timed layers, fade-out, at 9:16, 4:5, 1:1 and 16:9; and `202`'s with gaps) give pixel-identical preview frames at 10 sample times each and identical export inputs (frames, clips, times and sound sources) to `202`. All existing video e2e tests pass unchanged.",
@@ -131,7 +131,7 @@
           "text": "The project document reads every existing document unchanged (Q11): the new fields are optional and their defaults are the identity transform and no overlay clips. The validator clamps out-of-range transform values, drops clips on a missing track with a reason, moves a clip that overlaps another on an overlay track to the end of the one it overlaps (as `202` D3, never dropping it), enforces the track and clip limits, and never throws: at least 30 new malformed documents. Round trips document → validator → document are equal for the AC-6 fixture.",
           "proof": "unit",
           "group": "Nothing changes for existing projects",
-          "done": false
+          "done": true
         },
         "AC-12": {
           "text": "Preview: with the main track and 2 overlay tracks each playing a 1080p 30 fps video at the same moment (a 1080 × 1920 Reel and a 1920 × 1080 YouTube project), the median preview frame time over 300 frames is ≤ 33 ms in the desktop app and, with main + 1 overlay, ≤ 33 ms in Chrome on the development machine (Q13). A project without overlays stays within 5 % of `202` (fastest of 3 runs, as `201` AC-5).",
@@ -155,7 +155,7 @@
           "text": "`docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits), `specs/lld.md` (the drawing order, the transform, the document fields) and `CHANGELOG.md` describe the change; the in-app docs list the keys.",
           "proof": "manual check",
           "group": "Docs",
-          "done": false
+          "done": true
         }
       }
     },
@@ -243,6 +243,34 @@
       {
         "date": "2026-10-09",
         "text": "Q1–Q14 resolved (all proposals accepted by the maintainer); Approved."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "Q6's limits set from 204's measurements (AC-15): 3 videos at once on the web, 5 on the desktop app (not the proposed 6). Plan drafted (§1–§14, D1–D3 for the maintainer)."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "Plan approved (D1–D3 as recommended, D-031)."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "Tasks written (T001–T092). Two placements differ from the plan's Files so parallel agents don't share files: `frameStack`, `mostVideosAt` and `snapBox` in a new `src/engine/stack.ts`; the new e2e tests in `e2e/tracks.e2e.ts` and `e2e/overlays.e2e.ts`; store tests in `src/state/video.test.ts`."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "T013 review: one edge rule `EDGE_EPS` (1e-9 s) for `videoAt`, `frameStack` and `mostVideosAt`, so a frame whose start sits a floating-point hair off the frame grid shows the same clip in the paused preview as in the export (`framePlan`); before, 201 / 202 preview and export disagreed on such frames (tinyClips 1, clips500 42 at 30 fps). `snapBox` returns `{ axis, at }` guides and lives in `engine/stack.ts`."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "T019 review: the document gate also leaves out picture clips that start at or past the platform's length limit after packing or overlap moves (one reason with the count), like the clip-count limit it already enforced; a desktop project opened on the web loses what lies beyond the web limit. The main track's `muted` is always false (Hide only); the main and music tracks never count against the track limits."
+      },
+      {
+        "date": "2026-10-11",
+        "text": "T017: a see-through clip is drawn into its box on a per-target scratch canvas and laid down once at its alpha (plan §4 updated); renderIg's passes would otherwise show its background through its photo."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "D-033: e2e, self-test, timing and manual checks are written and run at the end of the phase. T035 (AC-12 timing), T051 (tracks e2e), T053 (overlays e2e) and T060 (manual checks) moved to 290; T052 / T054 are proven by unit tests; T091 runs `check` and `build`. The ACs those tests prove (AC-1–AC-3, AC-5, AC-12, AC-14) are ticked in 290."
       }
     ],
     "sections": [
@@ -278,6 +306,860 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-11, D1–D3 as recommended, D-031) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/timeline.ts`",
+        "change": "modify",
+        "purpose": "§1 ClipTransform, presets, clamp; §2 track functions; §3 frameStack, mostVideosAt, snapBox; §7 audioPlan overlays; §12 document field and gate"
+      },
+      {
+        "file": "`src/engine/video.ts`",
+        "change": "modify",
+        "purpose": "§4 renderStack (renderFrame = one item), overlay fade as opacity (D2)"
+      },
+      {
+        "file": "`src/engine/edits.ts`",
+        "change": "modify",
+        "purpose": "§8 moveToTrack, maxVideos in EditCtx, tooManyVideos"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`",
+        "change": "modify",
+        "purpose": "§6 per-frame stack, pool at videosAtOnce, photos per clip"
+      },
+      {
+        "file": "`src/state/video.ts`",
+        "change": "modify",
+        "purpose": "§9 track and transform actions, addMedia to a track, the limit in apply"
+      },
+      {
+        "file": "`src/components/studio/previewFrame.ts`",
+        "change": "modify",
+        "purpose": "§5 StageFrame items, pausedFrame for a stack, stage pool at videosAtOnce"
+      },
+      {
+        "file": "`src/components/studio/previewSound.ts`",
+        "change": "modify",
+        "purpose": "§7 several current clips"
+      },
+      {
+        "file": "`src/components/studio/VideoWorkspace.tsx`",
+        "change": "modify",
+        "purpose": "§5 stage draws stacks; §11 box on the stage, Position and size in the inspector"
+      },
+      {
+        "file": "`src/components/studio/useClipTransform.ts`",
+        "change": "new",
+        "purpose": "§11 pointer and keys for a clip box (layers' geometry)"
+      },
+      {
+        "file": "`src/components/studio/Timeline.tsx`",
+        "change": "modify",
+        "purpose": "§10 PictureRow per picture track, overlay TrackHead, Add track, drops, drags between rows"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "§10 / §11 overlay rows, header buttons, stage box"
+      },
+      {
+        "file": "`src/engine/timeline.test.ts`, `src/engine/edits.test.ts`, `src/engine/timeline.testkit.test.ts`, `src/components/studio/previewSound.test.ts`",
+        "change": "modify",
+        "purpose": "unit tests (AC-1, AC-3, AC-4, AC-7–AC-11)"
+      },
+      {
+        "file": "`src/dev/videoChecks.ts`, `src/dev/playbackChecks.ts`, `src/dev/poolChecks.ts`",
+        "change": "modify",
+        "purpose": "golden frames (AC-6, AC-7, AC-10), timing (AC-12), export (AC-13)"
+      },
+      {
+        "file": "`e2e/editors.e2e.ts`",
+        "change": "modify",
+        "purpose": "AC-1–AC-3, AC-5, AC-9, AC-14"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `docs/PERFORMANCE.md`, `CHANGELOG.md`, in-app docs",
+        "change": "modify",
+        "purpose": "AC-15; PERFORMANCE: decoders = limit + 2 now in use"
+      },
+      {
+        "file": "`src/engine/stack.ts`, `src/engine/stack.test.ts`",
+        "change": "new",
+        "purpose": "§3 frameStack, mostVideosAt, snapBox (own module so parallel tasks share no file)"
+      },
+      {
+        "file": "`e2e/tracks.e2e.ts`, `e2e/overlays.e2e.ts`, `src/state/video.test.ts`",
+        "change": "new / modify",
+        "purpose": "AC-1–AC-3, AC-5, AC-9, AC-14 e2e; store actions"
+      }
+    ],
+    "risks": [
+      {
+        "text": "`renderIg` under a transformed, clipped context: the whole-picture framing's blurred background (`filter`) and GPU-drawn looks may ignore the transform or the clip, or cost more. → Spike T001 first: a rotated, rounded, 35 % box with each framing mode and a look, preview and export, on every backend; if one fails, draw that item into an offscreen canvas of the box's size and place that (still one path)."
+      },
+      {
+        "text": "AC-10 regressions while the main row, the stage frame and the export loop are rewritten. → Identity fast path; the testkit oracles (`videoAt`, `framePlan`, `audioPlan` of 201 / 202) compared on every fixture before any UI work; all existing video e2e tests run unchanged after each UI task."
+      },
+      {
+        "text": "Several 1080p videos at once on the web (3) within 33 ms. 204 measured the pool far under the bar (p95 ≤ 5.7 ms for 6), but drawing transformed, clipped frames adds GPU work. → AC-12 timing early (right after the preview task); if over, lower the web limit by Q2's rule, recorded in the spec."
+      },
+      {
+        "text": "Memory: the stage pool at videosAtOnce + 2 decoders (7 on desktop) with 4K sources: 5 × 4K × 5 frames ≈ 830 MB, under the 1 GB budget; `makeRoom` drops read-ahead first (204). → AC-13 records peak bytes; 4K proxies are `211`."
+      },
+      {
+        "text": "Timeline complexity: drag between rows, drops above the top row and the overlay header add pointer paths to a large component. → `PictureRow` extracted first behaviour-neutral (main track only, all e2e green), then overlays."
+      },
+      {
+        "text": "Hit-testing on the stage: layers and clip boxes overlap. → Layers first (drawn on top), then the selected clip, then the topmost clip under the pointer (a click selects it); e2e covers each."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Approved spec; Q6's desktop number updated to 204's measurement (5) in the spec's changelog with this plan."
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "Test-first for every pure function (§1–§4, §7, §8, §12); self-test for drawing; e2e for UI; a test per AC."
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "No new dependency."
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "Decisions D1–D3 to decisions.md on approval; progress per session."
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Same features on web and desktop; fewer tracks / videos on the web for memory only, said in the editor."
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "Nothing leaves the device."
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "No new component."
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "`renderStack` for preview and export; the document gate clamps transforms; edits non-destructive."
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No IPC change."
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "No entry-chunk growth expected (the studio is lazy); AC-14; memory within 204's pool budgets."
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "⚠️",
+        "notes": "No tools in 203 (Q14); plain actions and pure functions so `212` exposes them. The gap stays recorded."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "What the code is today (read for this plan on `main` after 204, `5ff8fab`):\n\n- **Model** (`engine/timeline.ts`): tracks of kind video / overlay / audio already exist (201); only `V1` (main video)\n  and `A1` (music) are ever made. `videoAt(p, t)` returns the single topmost visible clip; `framePlan` walks the main\n  track's clips; `audioPlan` mixes main-track clip sound and the music. `patchTrack` lets only audio tracks mute.\n- **Drawing** (`engine/video.ts`): `renderFrame` fills black, draws one clip with `renderIg` into the whole frame\n  (its framing: fill / whole picture, zoom, position; a photo's motion), the layers, then the darkness of the clip's\n  fade-in and the video's fade-out.\n- **Edits** (`engine/edits.ts`, 202): pure, per track; Magnetic packs only the main track (`pack`).\n- **Preview** (`previewFrame.ts`, `VideoStage`): one shown clip and one picture; the pool (204) with\n  `poolLimits(1)`; `lanePlan` already plans every visible picture track. Sound: `previewSound.ts`, one current clip.\n- **Export** (`videoExport.ts`): `framePlan` spans, one clip at a time through the export's pool.\n- **Timeline** (`Timeline.tsx`): rows hard-wired as main video, layers, music; `TrackHead` has Hide or Mute, Lock and\n  the height menu.\n- **Limits**: `limitsFor().videosAtOnce` is 3 on the web and 5 on the desktop app (1 without `VideoDecoder`), set by\n  204's measurements by Q2 / Q6's rule (Q6's \"6 on the desktop app\" was a proposal; 204 measured 5).\n\n**§1 The clip transform (engine/timeline.ts, AC-4).** Every picture clip may carry `tf?: ClipTransform` = `{ x, y, w,\nrot, opacity, radius }`: the box's centre as a share of the frame (−0.5…1.5), its width as a share of the frame width\n(0.05…4), rotation in degrees (−180…180), opacity (0…1) and corner radius (0…0.5 of the box's shorter side, Q2). The\nnames and meanings are the layers' (`engine/layers.ts`: x, y, w, rot, opacity), so the stage reuses the layers' box\ngeometry and handles. Missing = `IDENTITY` (`{0.5, 0.5, 1, 0, 1, 0}`). The box has the frame's aspect ratio (D1): at\nidentity it is the frame, so a clip without a transform draws exactly as today, and the clip's own framing (fill /\nwhole picture with blurred background, zoom, position) works inside the box unchanged; nothing is ever stretched.\n`clampTransform` clamps every field; `PRESETS` = Full frame and the four corners (w 0.35, 4 % margin of the frame\nwidth from the two nearest edges, Q4). A new overlay clip gets no `tf` (full frame); main-track clips likewise.\n\n**§2 Tracks (engine/timeline.ts, AC-1, AC-2).** Pure functions on the track list, each returning the new list or a\nreason: `addTrack(tracks, desktop)` (an empty overlay track at the top, named \"Overlay N\" with the lowest free N, Q12;\nrefused at `TRACK_LIMITS` with the message the button shows), `renameTrack` (1–40 characters), `moveTrack(id, ±1)`\n(only among overlay tracks: the main track stays the bottom picture track, Q10), `deleteTrack(tracks, clips, id)`\n(overlay only, with its clips). `patchTrack` lets overlay tracks mute too (Q7); the main track keeps Hide only (201 D2).\nTrack order in `tracks` is drawing order (bottom first), as today.\n\n**§3 What shows at a time (engine/timeline.ts, AC-6, AC-7, AC-9).** `frameStack(p, t)` is the picture clips drawn at\n`t`, bottom to top: the visible main track's clip at `t`, then each visible overlay track's clip at `t`. The main\ntrack keeps `videoAt`'s clamp only where 201 / 202 had it (before 0; at or past the **video's** end its last clip), so\nafter the main track ends but before an overlay clip does, its area is black (Q9). Frame-exactness is `frameRange`'s\n(a clip starting at 2.0 s first shows in frame 60). `videoAt` stays (the topmost item of the stack) for its callers.\n`mostVideosAt(clips, tracks)` is the most video clips on screen at once (a sweep over clip intervals on every picture\ntrack, hidden tracks included so unhiding can't break the limit, D3); photos don't count.\n\n**§4 Drawing (engine/video.ts, AC-6, AC-7, AC-10).** `renderStack(ctx, W, H, items, layers, t, total, fadeOut)`, items\n= `{ clip, src, sw, sh, local }[]` bottom first: black; each item with its picture; the layers; the darkness. An item\nat identity draws through exactly today's call (`renderIg(ctx, src, sw, sh, edit, W, H)`), so a project without\ntransforms is pixel-identical (AC-10). Otherwise one geometry, `intoBox`: `translate(x·W, y·H)`, `rotate`, a rounded-rectangle\nclip (`roundRect`, `arcTo` where missing), `scale(w)`, `translate(−W/2, −H/2)`, then `renderIg(…, W, H)`. An opaque\nclip draws straight into the frame (T001). A see-through clip (opacity × fade ramp < 1) is drawn the same way into a\nscratch canvas of the frame's size, one per target canvas (a `WeakMap` by `ctx.canvas`, cleared per item), then laid\ndown once at its alpha: `renderIg` draws in passes (background, photo, vignette), so `globalAlpha` on the frame would\nlet a clip's own background show through its photo (T017 review). `IDENTITY` / `isIdentity` live in `video.ts`. Fades (D2): the main track clip's fade-in darkens the whole frame as today (layers included, 2.x's look);\nan overlay clip's fade-in ramps its own opacity from 0 over `V_FADE`; the video's fade-out darkens everything as\ntoday. `renderFrame` becomes `renderStack` with one item (its callers unchanged until §5 / §6 move them).\n\n**§5 Preview (previewFrame.ts, VideoWorkspace.tsx).** `StageFrame` carries `items: { clip, local, pic }[]` instead of\none `shown` / `pic`. `pausedAt` / `pausedFrame` use `frameStack` on the export's grid and resolve every item's\npicture together (photos' stills at once, videos from the pool, latest wins per lane). Playing, each tick `peek`s\nevery visible video (holds counted per lane as in 204). `drawPreview` calls `renderStack`. The stage's pool becomes\n`poolLimits(limitsFor().videosAtOnce)` (decoders = limit + 2; the byte budget unchanged: 3 × 1080p × 5 frames ≈\n124 MB of 256 MB). The paused \"held picture\" is kept per clip, so an overlay arriving doesn't blank the main clip.\n\n**§6 Export (videoExport.ts, AC-6, AC-10, AC-13).** The frame loop walks frames 0…N and draws `frameStack(p, i / fps)`:\nvideos through the export's pool (`poolLimits(videosAtOnce)`, `maxWidth` as 204 D5), every visible video's frame\nawaited together; photos decoded once per clip and released after its last frame; `want` = `lanePlan(t, 2)` (visible\nand next), `prepare` for the next, `forget` once a clip has passed. A video's last frame is held past a short\nsource's end, per clip, as today. `framePlan` stays (tests, and AC-10's oracle: the new loop's (frame, clip, source\ntime) list for a project without overlays must equal what `framePlan` gives).\n\n**§7 Sound (timeline.ts audioPlan, previewSound.ts, AC-8).** `audioPlan` adds each video clip of an overlay track that\nisn't muted (hidden keeps the sound: Hide is pictures, Q7) with the same 0.03 s ramps as main-track clips; the main\ntrack's entries and their order don't change (AC-10's identical sound sources). `soundPlan` returns `current` as a\nlist (every clip sounding at `t`: the main clip and each unmuted overlay clip) and `previewSound` keeps one element per\ncurrent clip; D1's bound becomes current + next + held (the clips under the playhead on muted overlay tracks, loaded and muted so Unmute plays at once), still bounded by the visible-video limit.\n\n**§8 Limits and edits (engine/edits.ts, state/video.ts, AC-3, AC-9).** `EditCtx` gains `maxVideos`; the store's\n`apply` refuses an edit whose result has `mostVideosAt > maxVideos` (and more than before) with \"At most N videos can\nshow at the same time here (the desktop app allows M)\": the message names the limit and why (memory and decoding).\nNew pure edit `moveToTrack(clips, id, track, start, ctx)`: onto an overlay track as `moveTo` places (nearest free\nspot, never overlapping); onto the main track with Magnetic on, inserted at its time's index and packed; locks checked\non both tracks. Overlay tracks are never packed (`pack` already touches only the main track, Q8). Every 202 operation\nalready works per track. Clip limits count every track's clips (already `state.clips.length`); the length is\n`projectLength` (already every picture track, Q9).\n\n**§9 Store actions (state/video.ts).** `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for\noverlays), `addMedia(files, { track?, at? })` (overlay: at the playhead or the drop time, after the clips already there\nif it doesn't fit; dropping above the top track first adds a track), `moveClipToTrack`, `setClipTransform(id, patch,\nkey)` (one undo step per drag via the 800 ms key coalescing), `applyPreset(id, preset)`. Each is one undo step.\n\n**§10 Timeline UI (Timeline.tsx, AC-1–AC-3, AC-14).** The main row's clip rendering, trims, tools and drags move into a\n`PictureRow` used for every picture track; rows are listed top track first (overlays above the main track), then the\nlayers and music rows as today. `TrackHead` for overlays: the name as a button that turns into a text field (Enter /\nEscape), ↑ / ↓ buttons, Delete (a confirmation when it holds clips), Hide, Mute, Lock and the height menu. **Add track**\nsits under the track headers (disabled with the reason at the limit). A clip dragged up or down onto another picture\nrow moves there (`moveClipToTrack`); files dropped on a row land at the drop time, above the top row in a new track.\nKeyboard: the clip menu gets \"Move to track…\" (the picture tracks), so nothing needs a mouse.\n\n**§11 Stage UI (VideoWorkspace.tsx, new `studio/useClipTransform.ts`, AC-5, AC-14).** A selected overlay clip (or a\nmain clip with a transform) shows its box with the layers' handles (`drawSelection`, `handleAt`, `rotationFor` from\n`engine/layers.ts`). Layers are drawn on top, so a press goes to a layer first, then to the selected clip's box.\nMove snaps the box's centre and edges to the frame's centre lines and edges within 8 screen px (`snapBox`, pure,\nin engine/timeline.ts; off with the Snap switch or Alt as 202 Q4); corner handles resize keeping the aspect; the rotate\nhandle turns (Shift: 15° steps). Arrow keys with the stage focused move it 1 % (Shift 10 %). Each change is announced\nin 202's live region (\"Overlay 1 clip: x 72 %, y 20 %, size 35 %\"). The inspector (ClipPanel) gets a **Position and\nsize** group: Full frame and the four corner presets, number fields for X, Y, size, rotation, opacity and corner\nradius. Locked tracks: no box, fields disabled with the reason. Reduced motion: no animated outlines.\n\n**§12 Project document (engine/timeline.ts, AC-11).** `DocClip.transform?: ClipTransform`, written by `toDocument` only\nwhen not identity (so 201 / 202 documents round-trip byte-identical); `mergeProject` clamps it, keeps overlay tracks\nand their clips, and the overlap rule of 202 D3 applies to every picture track (`unpacked` generalised: a clip that\noverlaps another on its track moves to that clip's end, never dropped). Version stays 1 (Q11): a 2.10 reader drops the\nunknown `transform` field and shows overlay clips full frame, a degraded but not misread picture.\n\n**§13 Measurements (AC-12, AC-13).** `playbackChecks` gains the AC-12 timing (main + 2 overlay 1080p30 videos, Reel\nand YouTube projects, 300 frames, median and p95; and a no-overlay project against `main`, fastest of 3) in\n`CHITTHI_TEST_ONLY=pooltiming`; the Chrome figure (main + 1) is a manual run (`?selftest&only=pooltiming`). AC-13's\n2-minute export with main + 2 overlays runs in the self-test with `openFrames()` 0 after it and its time recorded.\n\n**§14 Agent tools.** None in 203 (Q14): tracks, overlay clips and transforms are plain store actions and pure functions,\nwhich `212` exposes. Constitution XI's gap stays recorded."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/timeline.ts\nexport interface ClipTransform {\n  x: number; y: number;      // box centre, share of the frame (−0.5…1.5)\n  w: number;                 // box width, share of the frame width (0.05…4); the box has the frame's aspect (D1)\n  rot: number;               // degrees, clockwise (−180…180)\n  opacity: number;           // 0…1\n  radius: number;            // 0…0.5 of the box's shorter side (Q2)\n}\nexport const IDENTITY: ClipTransform;                          // { x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 }\nexport type Preset = 'full' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';\nexport function presetTransform(p: Preset, W: number, H: number): ClipTransform;   // corners: w 0.35, 4 % margin\nexport function clampTransform(t: Partial<ClipTransform> | undefined): ClipTransform;\nexport const isIdentity: (t?: ClipTransform) => boolean;\nexport interface TimedClip extends ClipTiming { id: string; track: string; start: number; tf?: ClipTransform }\n\nexport function addTrack(tracks: Track[], desktop: boolean): { tracks: Track[]; id: string } | { error: string };\nexport function renameTrack(tracks: Track[], id: string, name: string): Track[] | { error: string };\nexport function moveTrack(tracks: Track[], id: string, by: 1 | -1): Track[] | { error: string };\nexport function deleteTrack<C extends TimedClip>(tracks: Track[], clips: C[], id: string): { tracks: Track[]; clips: C[] } | { error: string };\n\nexport interface StackItem<C extends TimedClip> { clip: C; local: number; track: string }\nexport const EDGE_EPS = 1e-9;   // one edge rule for videoAt, frameStack, mostVideosAt (= framePlan's frames)\n\n// engine/stack.ts (T013: its own module)\nexport function frameStack<C extends TimedClip>(p: Project<C>, t: number): StackItem<C>[];   // bottom first\nexport function mostVideosAt(clips: TimedClip[], tracks: Track[]): number;\nexport interface SnapGuide { axis: 'x' | 'y'; at: number }   // frame pixels\nexport function snapBox(box: Box, W: number, H: number, tolerance: number): { x: number; y: number; guides: SnapGuide[] };\nexport interface DocClip extends TimedClip { /* … */ transform?: ClipTransform }\n\n// engine/video.ts\nexport interface StackDraw { clip: FrameClip & { tf?: ClipTransform; overlay: boolean }; src: CanvasImageSource | null; sw: number; sh: number; local: number }\nexport function renderStack(ctx: CanvasRenderingContext2D, W: number, H: number, items: StackDraw[],\n  layers: Layer[], t: number, total: number, fadeOut: boolean): void;   // renderFrame = renderStack with one item\n\n// engine/edits.ts\nexport interface EditCtx { maxLength: number; locked(track: string): string | null; maxVideos: number }\nexport function moveToTrack<C extends EditClip>(clips: C[], id: string, track: string, start: number, ctx: EditCtx & { magnetic: boolean }): Edit<C>;\nexport const tooManyVideos: (n: number, desktop: boolean) => string;\n\n// components/studio/previewFrame.ts\nexport interface StageFrame<C extends FrameClip = FrameClip> { at: number; items: { clip: C; local: number; pic: Picture | null }[] }\n\n// components/studio/previewSound.ts\nexport function soundPlan<C extends TimedClip>(p: Project<C>, t: number, ahead?: number):\n  { current: { clip: C; local: number }[]; next: C[]; held: C[] };\n\n// state/video.ts (each one undo step; errors returned as the message to show)\naddTrack(): string | null; renameTrack(id, name): string | null; moveTrack(id, by): string | null; deleteTrack(id): string | null;\naddMedia(files, o?: { track?: string; at?: number }): Promise<string[]>;\nmoveClipToTrack(id, track, start?): string | null;\nsetClipTransform(id, patch: Partial<ClipTransform>, key?): string | null; applyPreset(id, preset: Preset): string | null;\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Canvas transforms around the existing draw.** `renderIg` draws into the context it is given at (0, 0, W, H), so\n  the transform is a `save` / `translate` / `rotate` / `scale` / clip / `restore` around today's call: no second\n  renderer, one path for preview and export (Constitution VIII). Whether the whole-picture framing's blurred\n  background (a canvas `filter`) and the GPU-drawn looks behave under a transformed, clipped context is checked first\n  (spike T001).\n- **Identity is a fast path, not a special case of maths.** An item without `tf` (or at identity) calls exactly\n  today's code, so AC-10's pixel equality is structural, then proven on 201's fixtures.\n- **`roundRect`** (Chromium 99, Safari 16, Firefox 112) with an `arcTo` path where missing; radius 0 skips the clip.\n- **A sweep for the videos-at-once limit:** sort the video clips' start / end events, count, keep the maximum (O(n log\n  n), cheap at 500 clips); run on every edit's result.\n- **Reuse the layers' geometry** (`Box`, `handleAt`, `rotationFor`, `drawSelection`) so overlay boxes handle like\n  layers; snapping is a pure function so it is unit-tested.\n- **Every visible video awaited together** in the export (`Promise.all` on the pool's lanes), so two videos decode in\n  parallel; the pool's latest-wins and byte budget hold as in 204.\n- **Performance:** one extra `save`/`restore` and clip per overlay item; a project with no overlays runs the same code\n  as today (AC-12's 5 % check)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `src/engine/timeline.test.ts` (addTrack names and limits, renameTrack, moveTrack among overlays only, deleteTrack with clips; main track fixed); `e2e/editors.e2e.ts` (add, rename, move, delete with confirmation, the limit message; each an undo step) | unit + e2e |\n| AC-2 | `e2e/editors.e2e.ts` (overlay header: Hide not drawn, Mute silent, Lock refuses timeline and stage edits, height) | e2e |\n| AC-3 | `src/engine/edits.test.ts` (moveToTrack both ways, never overlapping, locks; every 202 op on an overlay track, never packed); `e2e/editors.e2e.ts` (add at playhead, drop on a row, drop above the top row, drag between rows) | unit + e2e |\n| AC-4 | `src/engine/timeline.test.ts` (IDENTITY, clampTransform ranges, presets at 9:16 and 16:9, new clips untransformed) | unit |\n| AC-5 | `e2e/editors.e2e.ts` (drag, resize, rotate on the stage; snap on / off / Alt; number fields; arrows ±1 % / ±10 %; one undo step per drag; the announcement) + `snapBox` unit tests | e2e + unit |\n| AC-6 | `src/dev/videoChecks.ts` (golden frames: main + 2 overlays fixture at 9:16 and 16:9, 8 times, against references on every backend; export frames equal preview frames from the same inputs) | self-test |\n| AC-7 | `src/engine/timeline.test.ts` (frameStack: first frame 60, gone after the last; hidden and 0 % draw nothing); self-test (a full-frame opaque overlay leaves no main-clip pixel) | unit + self-test |\n| AC-8 | `src/engine/timeline.test.ts` (audioPlan with overlays equals the expected list; muted adds nothing; hidden keeps sound); `previewSound.test.ts` (several current clips); self-test (export sound sources) | unit + self-test |\n| AC-9 | `src/engine/timeline.test.ts` (projectLength across tracks; mostVideosAt); `edits.test.ts` (an edit over the limit refused, message); `e2e/editors.e2e.ts` (the refusal shown) | unit + e2e |\n| AC-10 | `src/engine/timeline.testkit.test.ts` (201 / 202 fixtures: frameStack = videoAt, export inputs = framePlan's, sound sources unchanged); self-test (pixel-identical preview frames at 10 times on every 201 fixture); every existing video e2e unchanged | unit + self-test + e2e |\n| AC-11 | `src/engine/timeline.test.ts` (30+ malformed documents: transform clamping, missing tracks, overlaps moved, limits, never throws; round trip of the AC-6 fixture; 202 documents byte-identical) | unit |\n| AC-12 | `src/dev/playbackChecks.ts` (`CHITTHI_TEST_ONLY=pooltiming`: main + 2 overlays, Reel and YouTube, median ≤ 33 ms; no overlays within 5 % of `main`); Chrome main + 1 by hand (T0xx 👤) | self-test timing |\n| AC-13 | `src/dev/poolChecks.ts` or `videoChecks.ts` (2-minute 1080p main + 2 overlays export, desktop; `openFrames()` 0; time recorded); web by hand | self-test |\n| AC-14 | `e2e/editors.e2e.ts` (keyboard-only: tracks, overlay clip, every transform field; axe on timeline + inspector; 360 px no sideways scroll; reduced motion) | e2e + axe |\n| AC-15 | Docs review (MEDIA-STUDIO, lld, CHANGELOG, in-app keys) | manual |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-11: D1–D3 as recommended)",
+        "markdown": "- **D1 — The box's shape.** _Recommended:_ the box has the **frame's** aspect ratio; the clip's own framing (fill,\n  or whole picture with blurred background) decides what shows inside, as it does today for the full frame. Identity =\n  today's look (AC-10 by construction), one model for main and overlay clips. _Alternative:_ the box takes the clip's\n  own aspect (a 16:9 face-cam in a 9:16 Reel is a 16:9 box, nothing cropped), but Full frame then needs its own fill\n  rule and main clips change model. With D1, a 16:9 face-cam in a corner shows cropped until its framing is set to\n  \"whole picture\"; the corner preset could set that for videos whose aspect differs from the frame's.\n- **D2 — Fade-in on an overlay clip.** _Recommended:_ it fades the clip in (opacity 0 → its opacity over 0.5 s); the\n  main clip's fade-in keeps darkening the whole frame from black as today.\n- **D3 — What the videos-at-once limit counts.** _Recommended:_ video clips on every picture track, hidden tracks\n  included, so unhiding a track can never exceed it; photos don't count (Q6).\n- **Q6's number.** The desktop limit is **5** (204's measurement by Q2's rule), not the proposed 6; the web stays 3."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Batches of parallel agents (D-030) are named in the section notes; pairs go to one agent whole.\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done`: what was done, numbers measured,\nanything surprising or deferred.",
+    "sections": [
+      {
+        "title": "Setup",
+        "intro": "Batch 1 runs T001–T013 (the spike inline, the three test-first pairs as agents)."
+      },
+      {
+        "title": "Tests first: the model",
+        "intro": null
+      },
+      {
+        "title": "Drawing, document and sound",
+        "intro": "Batch 2: T014/T015, T016/T017 and T018/T019 touch different files."
+      },
+      {
+        "title": "Store and timeline rows",
+        "intro": "Batch 3: T020/T021, T040 and T050."
+      },
+      {
+        "title": "Preview and export",
+        "intro": "T030/T031, T032/T033, then T034 (it shares VideoWorkspace.tsx with T031)."
+      },
+      {
+        "title": "Tracks and the stage",
+        "intro": "T052 and T054, each with unit tests; their e2e is written in 290 (D-033)."
+      },
+      {
+        "title": "Manual checks",
+        "intro": "Moved to 290 (D-033)."
+      },
+      {
+        "title": "Verify",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T002",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T040",
+        "T050",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T052",
+        "T054",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (plan Risks, §4): `renderIg` under a transformed, clipped context. A throwaway check draws a clip into a 35 % box rotated 20° with a 12 % corner radius at 50 % opacity, with each framing mode (fill; whole picture with the blurred background), zoom and position, a photo look and a mask, and compares it with the same picture drawn into an offscreen canvas of the box's size and placed (the fallback design), on every GPU backend the machine has, in the preview path and the export path. Records: does the blurred background respect the clip and transform; do GPU-drawn looks; time per item. Decides §4's technique (direct or offscreen).",
+          "section": "Setup",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "(throwaway)"
+          ],
+          "test": "the spike's numbers in its result note",
+          "commits": [],
+          "notes": [
+            "2026-10-11: throwaway spike (src/dev/spike203.ts, not committed): renderIg drawn into a 35 % box, rotated 20°, 12 % corner radius, 50 % opacity, directly vs into an offscreen W×H canvas placed with the same transform, 1080×1920, on CPU, WebGL2 and WebGPU, for fill, whole picture + blurred background, whole picture + colour, zoom + position, look + vignette, and a radial mask: 18 / 18 drew nothing outside the box (transform and clip respected by drawBackground, the CPU layer path and gpuColour). Direct vs offscreen differ only by resampling: mean 0.02 levels (fill, zoom), 0.47 (look), 2.9 (whole picture: offscreen scales twice), max 16–81 at antialiased edges. Time: equal on GPU (fill 1.5 ms; look 5.4 ms WebGPU), direct faster on the CPU path for masks. Decision for §4: draw directly in the transformed, clipped context (one step, no extra canvas per item); the golden references (T016) are computed from colour codes with the self-test's tolerance."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T002": {
+          "text": "Fixtures (`src/dev/videoChecks.ts`): `makeOverlayProject(format)` for AC-6, a main track (two video clips with a cut) and two overlay tracks: a full-frame B-roll video, a corner face-cam video at 50 % opacity, a photo rotated 15° with a 10 % corner radius, and a clip partly outside the frame, at 9:16 and 16:9, with each clip's first and last frame among 8 sample times; `makeLongOverlayProject()` (2 minutes 1080p, main + 2 overlay videos, AC-13). Colour-coded frames as `makeTestClip` so a pixel names its clip and frame.",
+          "section": "Setup",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/dev/videoChecks.ts"
+          ],
+          "test": "`CHITTHI_TEST_ONLY=pool npm test`: the fixtures build (a check per fixture)",
+          "commits": [],
+          "notes": [
+            "2026-10-11: src/dev/videoChecks.ts: makeOverlayProject('9:16' | '16:9') (270×480 / 480×270, 30 fps, 4 s: main m1 0–2 s, m2 2–4 s; Overlay 1 full-frame B-roll 0.5–2 s, a photo 2–3 s rotated 15° radius 0.1, a clip partly outside 3–4 s; Overlay 2 face-cam 0.5–4 s, presetTransform top-right at 50 %); samples frames 0, 15, 37, 59, 60, 89, 90, 119 (every clip's first and last); makeLongOverlayProject() (2 min 1080p, main 24×5 s, Overlay 1 20×5 s, Overlay 2 24×4 s, at most 3 videos at once; sources 3.1 s to make; memoised for T032). codeColour(i, clip) puts clip (blue, 25 apart) and frame in one pixel; nameCode reads it (reliable within ±6). Build checks in the pool section (+5.5 s). Reviewed: APPROVE; fixes at merge (real ClipTransform / presets, memoised long fixture, the photo check decodes the file). npm test 6,160 / 0 (212 s)."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T010": {
+          "text": "Failing tests (`src/engine/timeline.test.ts`): `IDENTITY`, `isIdentity`, `clampTransform` (every field's range, NaN and missing fields), `presetTransform` (full and the four corners at 9:16 and 16:9: w 0.35, 4 % margin); `addTrack` (top of the overlays, \"Overlay N\" with the lowest free N, refused at `TRACK_LIMITS` web 4 / desktop 8 with the button's message), `renameTrack` (1–40 characters, trimmed), `moveTrack` (only among overlays, main stays bottom), `deleteTrack` (overlay only, with its clips; main and music refused); `patchTrack` mutes overlay tracks but not the main track.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/timeline.test.ts`: fails (nothing exported yet)",
+          "commits": [],
+          "notes": [
+            "2026-10-11: 13 failing tests in timeline.test.ts (functions missing), then green with T011."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T011": {
+          "text": "Implement §1 and §2 in `src/engine/timeline.ts`: `ClipTransform`, `IDENTITY`, `isIdentity`, `clampTransform`, `Preset`, `presetTransform`, `tf?` on `TimedClip`; `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`; `patchTrack`'s Mute for overlay tracks.",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/timeline.ts"
+          ],
+          "test": "T010",
+          "commits": [],
+          "notes": [
+            "2026-10-11: engine/timeline.ts: ClipTransform, IDENTITY {0.5,0.5,1,0,1,0}, isIdentity, clampTransform (x, y −0.5…1.5; w 0.05…4; rot ±180; opacity 0…1; radius 0…0.5; NaN / missing → identity), Preset, PRESETS, presetTransform (corners w 0.35, margin 0.04·W on both axes: x 0.215 / 0.785; y 0.1975 / 0.8025 at 9:16, 0.2461 / 0.7539 at 16:9), tf? on TimedClip; addTrack (O<n>, 'Overlay N', above the last picture track; limit message names the browser's memory), renameTrack (any track; the UI offers overlays only), moveTrack (overlays only), deleteTrack (overlay only, with its clips; a LOCKED track is refused: the UI disables Delete on it with that reason), tooManyTracks; patchTrack mutes overlays. timeline.test.ts 146 / 146; src/engine 1,002 tests. Reviewed: APPROVE (nits fixed inline; the gate's video-kind / order rule moved to T018)."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T012": {
+          "text": "Failing tests (`src/engine/stack.test.ts`, new): `frameStack` bottom first; the main track's clamp only before 0 and at or past the video's end, black between the main track's end and a later overlay clip's end (Q9); an overlay clip starting at 2.0 s first in frame 60 at 30 fps and gone in the frame after its last (AC-7); hidden tracks left out; gaps leave the tracks below; for 201 / 202 fixtures (`timeline.testkit.ts`) the stack is exactly `[videoAt]` at every frame time (AC-10). `mostVideosAt` (overlaps across tracks, hidden tracks counted, photos not, touching clips not overlapping). `snapBox` (centre lines and edges within the tolerance, the nearest wins, none outside it).",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-7",
+            "AC-9",
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/stack.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/stack.test.ts`: fails",
+          "commits": [],
+          "notes": [
+            "2026-10-11: src/engine/stack.test.ts (failing first: no module): frameStack, mostVideosAt, snapBox; framePlan oracle on all 12 testkit fixtures at 30 / 60 fps; AC-7 frame 60 / 105; Q9; the touching pair."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T013": {
+          "text": "Implement §3 in `src/engine/stack.ts` (new, pure): `frameStack`, `StackItem`, `mostVideosAt` (an event sweep), `snapBox` (uses `Box` from `engine/layers.ts`). The plan placed these in timeline.ts; a module of their own keeps batch 1's agents apart (changelog).",
+          "section": "Tests first: the model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-7",
+            "AC-9"
+          ],
+          "files": [
+            "src/engine/stack.ts"
+          ],
+          "test": "T012",
+          "commits": [],
+          "notes": [
+            "2026-10-11: src/engine/stack.ts: frameStack (bottom first; main clamps only before 0 and at the video's end), mostVideosAt (event sweep, hidden counted), snapBox ({ axis, at } guides, frame pixels, rot radians). Review CHANGES once: one edge rule EDGE_EPS = 1e-9 s in timeline.ts for videoAt, frameStack and mostVideosAt, so preview and export agree on frames a float hair off the grid (tinyClips 1, clips500 42 at 30 fps disagreed before; D-032). src/engine 1,059 tests then; break-test EDGE_EPS = 0 fails 6. npm test 6,160 / 0; editors e2e 25 / 25."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T014": {
+          "text": "Failing tests (`src/engine/edits.test.ts`): `moveToTrack` (main → overlay at the nearest free spot, overlay → main with Magnetic on inserted at its time and packed, with Magnetic off as `moveTo`; locked source or target refused; never overlapping); every 202 operation (trim, ripple trim and delete, roll, slip, slide, split, duplicate, snapping targets) on an overlay track, never packed (Q8); an edit whose result has more videos at once than `maxVideos` (and more than before) refused with `tooManyVideos`' message naming the limit; one that doesn't raise the count allowed.",
+          "section": "Drawing, document and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-9"
+          ],
+          "files": [
+            "src/engine/edits.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/edits.test.ts`: fails",
+          "commits": [],
+          "notes": [
+            "2026-10-11: 16 failing tests in edits.test.ts (exports missing; two real: slide capped by Magnetic on an overlay, nudge reordering overlays), then green with T015."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T015": {
+          "text": "Implement §8 in `src/engine/edits.ts`: `maxVideos` in `EditCtx`, the limit check after each edit (`mostVideosAt`), `tooManyVideos(n, desktop)`, `moveToTrack`.",
+          "section": "Drawing, document and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-9"
+          ],
+          "files": [
+            "src/engine/edits.ts"
+          ],
+          "test": "T014; `npx vitest run src/engine`",
+          "commits": [],
+          "notes": [
+            "2026-10-11: engine/edits.ts: EditCtx.maxVideos and desktop; limitVideos(before, result, ctx) after every edit (mostVideosAt; refused only when over the limit AND above before's peak, so an older over-limit project stays editable); tooManyVideos (the limit and why; the browser adds what the desktop app allows; without WebCodecs: one video at a time because the browser can't decode frames); moveToTrack (overlay / Magnetic off: nearest free spot; onto main with Magnetic on: inserted where its centre falls, packed; locks both ends); Q8 fixes: slide and nudge apply Magnetic only on the main track; reorder refuses overlay clips. edits.test.ts 89 / 89 (300 seeded cross-track moves via checkTrack); two break-tests. Reviewed: APPROVE; the explicit desktop flag and the no-WebCodecs message added at merge; the store's remaining duties moved into T040."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T016": {
+          "text": "Failing self-test checks (`src/dev/videoChecks.ts`): AC-6 golden frames, `renderStack` of the T002 fixture at 9:16 and 16:9 at its 8 times against per-pixel references computed from the colour codes (each clip's box, rotation, opacity and corners) within the self-test's tolerance, on every GPU backend; AC-7 a full-frame opaque overlay leaves no main-clip pixel, 0 % opacity and hidden draw nothing; AC-10 `renderStack` with one identity item equals `renderFrame` pixel for pixel on 201's fixtures at 10 times; D2 an overlay's fade-in ramps its opacity, the main clip's darkens the frame.",
+          "section": "Drawing, document and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-10"
+          ],
+          "files": [
+            "src/dev/videoChecks.ts"
+          ],
+          "test": "`npm test`: fails (no renderStack)",
+          "commits": [],
+          "notes": [
+            "2026-10-11: stackChecks in videoChecks.ts (pool section), on Canvas 2D, WebGPU and WebGL2; failed first (no renderStack). AC-6 golden frames 9:16 / 16:9 × 8 times vs colour-code references (inverse box transform, rounded corners, blend): worst 1 level, mean 0.31, 98 % of pixels compared (bar 95 %). AC-7: a full-frame overlay leaves 0 main pixels; 0 % and hidden byte-identical. D2 ramp; layers above overlays; main fade darkens overlays and layers; see-through background not through its photo. AC-10: 2,160 frames identical to a frozen 284b688 legacyRenderFrame, fade-out included. Break-tests: ramp→1, direct globalAlpha, no rotate each fail their check; fast path off → identical frames (it is a shortcut)."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T017": {
+          "text": "Implement §4 in `src/engine/video.ts`: `renderStack` (identity fast path through today's call; the transform, rounded clip and opacity as T001 decided; D2's fades), `renderFrame` as `renderStack` with one item.",
+          "section": "Drawing, document and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/video.ts"
+          ],
+          "test": "T016",
+          "commits": [],
+          "notes": [
+            "2026-10-11: renderStack in engine/video.ts: identity items through today's renderIg call; others through intoBox (translate, rotate, rounded clip with arcTo fallback, scale); see-through items drawn into their box on a per-target scratch canvas (WeakMap by ctx.canvas) and laid down once at alpha (renderIg's passes; plan §4 updated); overlay fade-in ramps opacity (D2); renderFrame = renderStack with one item; IDENTITY / isIdentity defined once in video.ts. Reviewed: CHANGES once (resolution, scratch per target, one identity, fade-out times, bar, layer check), then APPROVE. npm test 6,187 / 0 (211 s); editors e2e 25 / 25."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T018": {
+          "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): at least 30 malformed documents (transform fields out of range, of the wrong type, missing; overlay tracks beyond the limit; clips on a missing track with a reason; overlapping clips on an overlay track moved to the end of the one they overlap, never dropped; too many clips across tracks) and none throws; the AC-6 fixture round-trips document → gate → document equal; 201 / 202 documents round-trip byte-identical (no `transform` written at identity). Also (T011 review): a non-main track of kind `video` in a document becomes an `overlay`, and the main track is always put first among the picture tracks (a document listing [O1, V1] keeps nothing under the main track).",
+          "section": "Drawing, document and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/timeline.test.ts`: fails",
+          "commits": [],
+          "notes": [
+            "2026-10-11: 15 failing tests first, then 45 malformed documents each with its own assertions plus shared checks (never throws, valid project, second pass equal, starts within the limit); AC-6-like fixture round-trips byte-equal; 13 2.x fixtures byte-identical with Magnetic on and off."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T019": {
+          "text": "Implement §12 in `src/engine/timeline.ts`: `DocClip.transform`, `toDocument` (written only when not identity), `mergeProject` (clamp, overlay tracks kept, the overlap rule on every picture track).",
+          "section": "Drawing, document and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/timeline.ts"
+          ],
+          "test": "T018",
+          "commits": [],
+          "notes": [
+            "2026-10-11: engine/timeline.ts: DocClip.transform ↔ tf (toDocument writes clampTransform only when not identity); mergeProject clamps (no readable number → 'couldn't be read', fills the frame), non-main video tracks → overlay, main first among picture tracks with muted false, main and music never count against TRACK_LIMITS (no silent removal), the overlap rule on every picture track (main only with Magnetic off), clips starting past the length limit left out (one counted reason). Version 1. Reviewed: CHANGES once (track slots, muted, per-case asserts, length, clamped writes), then APPROVE; message merged at merge. src/engine 1,127 tests."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T020": {
+          "text": "Failing tests (`src/engine/timeline.test.ts`, `src/components/studio/previewSound.test.ts`): `audioPlan` with overlays equals the expected list exactly (start, end, from, volume, ramps), a muted overlay track adds nothing, a hidden one keeps its sound; 201 / 202 fixtures' sound sources unchanged (testkit); `soundPlan` returns every clip sounding at `t` (main + unmuted overlays), and `previewSound` keeps one element per current clip within D1's bound.",
+          "section": "Store and timeline rows",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8",
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts",
+            "src/components/studio/previewSound.test.ts"
+          ],
+          "test": "vitest: fails",
+          "commits": [],
+          "notes": [
+            "2026-10-11: 9 failing tests first (timeline.test.ts, previewSound.test.ts), then green with T021."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T021": {
+          "text": "Implement §7 in the engine and the sound module: `audioPlan` (overlay clips), `soundPlan` (`current` as a list), `previewSound.update` for several current clips (the stage's call site moves in T034).",
+          "section": "Store and timeline rows",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/engine/timeline.ts",
+            "src/components/studio/previewSound.ts"
+          ],
+          "test": "T020",
+          "commits": [],
+          "notes": [
+            "2026-10-11: audioPlan adds overlay video clips on unmuted overlay tracks (hidden still sound, Q7) after the main entries, 0.03 s ramps; 12 201 fixtures' sources equal legacyAudioPlan (AC-10). soundPlan: current = every video clip under the playhead on main + unmuted overlays (frameStack edges, hidden tracks sound); held = clips on muted overlay tracks (loaded, muted, Unmute instant); previewSound keeps one element per current clip (per-element drift via follow); a 121-time sweep keeps elements = current + next + held within mostVideosAt. Three break-tests fail 17 tests. Reviewed: APPROVE; at merge: held elements muted (not only paused), doc wording, tighter bound, plan §7 wording; the fallback-picture freeze moved into T034."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T040": {
+          "text": "Store actions (§9, `src/state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for overlays), `addMedia(files, { track, at })` (at the playhead or drop time, after the clips there if it doesn't fit; a track added first when dropped above the top track), `moveClipToTrack`, `setClipTransform` (key coalescing: one undo step per drag), `applyPreset`; `editCtx()` passes `maxVideos` from `limitsFor`. Each one undo step, returning the message to show. Unit tests for the pure parts already exist (T010–T019); here `src/state/video.test.ts` drives each action without DOM (one undo step, the messages, the limit). From the T015 / T019 reviews, the store must also: wrap with `limitVideos` the results it builds itself (split, now on overlay clips too; duplicate; addMedia onto a track; Magnetic on via `closeGaps`; its own main-track moves), checked on what it stores (after `apply`'s pack); refuse a `moveClipToTrack` target that isn't a picture track; remove an overlay clip with `lift` (never ripple) even with Magnetic on (Q8); key `moveClip` and the inspector's \"Clip N\" per track (the gate returns clips grouped by track, main first).",
+          "section": "Store and timeline rows",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3",
+            "AC-4",
+            "AC-9"
+          ],
+          "files": [
+            "src/state/video.ts",
+            "src/state/video.test.ts"
+          ],
+          "test": "`npx vitest run src/state/video.test.ts`; `npm run check`",
+          "commits": [
+            "02ef407"
+          ],
+          "notes": [
+            "2026-10-12: store actions merged from the agent worktree (reviewed 2026-10-11); video.test.ts 48 passed; npm run check 1,390 tests green."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-12"
+        },
+        "T050": {
+          "text": "Behaviour-neutral refactor (§10, plan Risks): the main row's clip blocks, trims, tools and drags move into a `PictureRow` component in `Timeline.tsx` used for the main track only; nothing a user sees changes.",
+          "section": "Store and timeline rows",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/Timeline.tsx"
+          ],
+          "test": "`npx playwright test e2e/editors.e2e.ts` unchanged (desktop + phone)",
+          "commits": [],
+          "notes": [
+            "2026-10-11: PictureRow in Timeline.tsx (track, its clips, height, zoom, tool, selected, snap, snapSpan, seekFrom) holds the main row's clip blocks, trims, edit-tool drags, gaps and drop marker; rendered for the main track only; DOM, classes, aria and events unchanged. editors e2e 25 passed / 15 phone skips (desktop + phone); break-test (one gap button dropped) fails the Magnetic-off test. Reviewed: APPROVE; notes for T052 added to its text."
+          ],
+          "startedOn": "2026-10-11",
+          "doneOn": "2026-10-11"
+        },
+        "T030": {
+          "text": "Failing self-test checks (`src/dev/poolChecks.ts`): the stage draws stacks, `drawPreview` of the T002 fixture at its 8 times (paused, through `pausedFrame` and the pool) equals `renderStack` from the same pictures; all of a paused stack's pictures resolve together (latest wins per lane); the held picture is per clip (an overlay arriving doesn't blank the main clip); 201 fixtures' paused frames unchanged (AC-10); the real editor (StrictMode) shows an overlay clip.",
+          "section": "Preview and export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-10"
+          ],
+          "files": [
+            "src/dev/poolChecks.ts"
+          ],
+          "test": "`CHITTHI_TEST_ONLY=pool npm test`: fails",
+          "commits": [],
+          "notes": [
+            "2026-10-12: poolChecks stageDrawsStacks (golden reference on the stage path, latest wins, per-clip hold) and editorStageShowsOverlay; CHITTHI_TEST_ONLY=pool: 60 passed, 2 failed as expected."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T031": {
+          "text": "Implement §5: `StageFrame.items`, `pausedAt` / `pausedFrame` on `frameStack`, `drawPreview` through `renderStack`, the stage pool at `poolLimits(limitsFor().videosAtOnce)`; `VideoStage` peeks every visible video while playing and keeps a held picture per clip.",
+          "section": "Preview and export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/previewFrame.ts",
+            "src/components/studio/VideoWorkspace.tsx"
+          ],
+          "test": "T030; video e2e unchanged",
+          "commits": [],
+          "notes": [
+            "2026-10-12: StageFrame.items; pausedAt/pausedFrame on frameStack (pictures resolved together); withHeld keeps the held picture per clip; drawPreview through renderStack; stage pool at poolLimits(videosAtOnce). Pool checks 67/0; npm test 6,194/0; check 1,390; editors e2e 25 passed / 15 skipped."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T032": {
+          "text": "Failing self-test checks (`src/dev/videoChecks.ts`): the export of the T002 fixture renders the same frames as the preview from the same inputs (AC-6); for 201 / 202 fixtures the export's (frame, clip, source time) list equals `framePlan`'s and its sound sources are unchanged (AC-10); AC-13: the 2-minute main + 2 overlays export finishes with `openFrames()` 0 after it, its time and peak bytes recorded.",
+          "section": "Preview and export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-10",
+            "AC-13"
+          ],
+          "files": [
+            "src/dev/videoChecks.ts"
+          ],
+          "test": "`npm test`: fails (the export draws one clip)",
+          "commits": [],
+          "notes": [
+            "2026-10-12: videoChecks overlayExportChecks (export trace = frameStack at every frame and golden frames for the AC-6 fixture; 201/202 trace = framePlan; AC-13 long export) and ExportJob.trace; CHITTHI_TEST_ONLY=pool: 5 failed as expected (no trace, overlays not drawn)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T033": {
+          "text": "Implement §6 in `src/engine/videoExport.ts`: frames 0…N through `frameStack`, every visible video's frame awaited together from a pool at `videosAtOnce`, photos decoded once per clip and released after, `want` / `prepare` from `lanePlan`, `forget` once passed, a short source's last frame held per clip; overlay sound via `audioPlan`.",
+          "section": "Preview and export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/videoExport.ts"
+          ],
+          "test": "T032",
+          "commits": [],
+          "notes": [
+            "2026-10-12: export frame loop on frameStack (every picture of a frame awaited together, pool at videosAtOnce, lanePlan want/prepare on stack change and each second, photos once per clip, release once passed, per-clip held frame); ExportJob.trace for self-tests. Pool checks 73/0 (overlay export golden mean 0.34 / worst 4; 1,252 legacy frames = framePlan; AC-13 2-min 1080p 12.4 s, peak 40 MB frames, nothing open after); npm test 6,200/0; check 1,390; editors e2e 25 passed; test:mcp passed."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T034": {
+          "text": "The stage's sound for several clips (§7): `VideoStage`'s `sync` passes the list from `soundPlan` to `previewSound`; a muted overlay track is silent, a hidden one heard; AC-8 export sound sources for the fixture checked in the self-test. From the T021 review: drive the fallback <video> pictures from what is on screen (frameStack minus hidden tracks, with local = t − start), not from the sound plan: a fallback clip on a muted overlay track is in `held`, not `current`, and today's interim adapter in sync() would pause (freeze) its picture.",
+          "section": "Preview and export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/dev/videoChecks.ts"
+          ],
+          "test": "`npm test`; video e2e (the mute test)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** fallback <video> pictures follow frameStack (on screen), not the sound plan, so a fallback clip on a muted overlay track keeps following the playhead (sync already passed soundPlan's list to previewSound since T021). Found and fixed on the way: drawing a closed video frame threw between save() and restore() in photoDrawer (instagram.ts) and renderStack's boxed path, leaving the stage canvas translated so later frames landed in its bottom-right quarter; both now restore in finally. New self-checks: fallback on an overlay track (muted and not), a closed frame leaves the canvas unchanged (both fail with the fix removed), AC-8 overlay sound in the export (heard / muted / hidden). npm test 6,203/0; check 1,390; editors e2e 25 passed / 15 skipped."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T052": {
+          "text": "Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's \"Move to track…\"; styles in `36-media-studio.css`. From the T050 review: lift the per-row drag / reorder state into Timeline (or a context) so a drag can cross rows with the target row drawing the drop marker; snap targets from every picture track's clips (Timeline uses only the main track's today); decide whether overlay rows show gap buttons (overlays lift, never ripple, Q8) and word them for overlays; clip labels name their track so two rows don't both announce \"Clip 1\"; pass the row's track id to drop and add-media targets. From the T040 review: Timeline's split key shows \"Put the playhead inside a clip…\" for any refusal; use `splitAtPlayheadWhy()` / `duplicateClipWhy()` and show their message (the videos-at-once refusal); show `setMagnetic`'s returned reason when Magnetic on is refused.",
+          "section": "Tracks and the stage",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-14"
+          ],
+          "files": [
+            "src/components/studio/Timeline.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "unit tests (vitest) for the logic it adds (drop targets, cross-row drag state, per-track clip labels); its e2e (was T051) is written in 290",
+          "commits": [
+            "dec1b2d"
+          ],
+          "notes": [
+            "**Result (2026-10-12):** Timeline.tsx: a PictureRow per picture track (top first); overlay TrackHead (rename field, Hide, Mute, Lock, and the height menu with Move up / Move down / Delete, confirming when the track has clips: the 84 px header column could not hold seven buttons, so it is 112 px and the three actions are menu items); Add track in the ruler's header cell (disabled with the limit's reason); file drops on rows and on the ruler (new track); cross-row clip drags (moveClipToTrack) with the target row's marker; 'Move to' menu in the toolbar for keyboard use; snap targets from every picture track; per-track clip labels and announcements; gaps only on the main row; split / duplicate / Magnetic refusals shown. timelineRows.ts + 14 unit tests; npm run check 1,404 passed. Not run in a browser (D-033: its e2e is written in 290)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T054": {
+          "text": "Implement §11: `src/components/studio/useClipTransform.ts` (pointer and keys on the clip box with the layers' geometry; layers hit first), the stage's box drawing, and the inspector's **Position and size** group in `ClipPanel`; announcements in 202's live region. From the T040 review: the inspector's \"Clip N\" (ClipPanel) counts per track via `clipPlace(id)` (e.g. \"Overlay 1 · Clip 2\"); show `updateClip` / `setClipTransform` refusals instead of ignoring them.",
+          "section": "Tracks and the stage",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-14"
+          ],
+          "files": [
+            "src/components/studio/useClipTransform.ts",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "unit tests (vitest) for useClipTransform's maths (move, corner resize keeping the aspect, rotate, snapping, arrow-key steps); its e2e (was T053) is written in 290",
+          "commits": [
+            "5c4f637"
+          ],
+          "notes": [
+            "**Result (2026-10-12):** engine/clipBox.ts (box in pixels, part under a press, move with snapBox, corner resize, turn with Shift steps, arrow nudges, the announcement text) with 16 unit tests; useClipTransform.ts plugs into useLayerPointer's background handlers (layers first; a press on an overlay clip selects it; guides drawn while snapping; locked tracks: no box); the stage redraws on clip selection; ClipPanel's Position and size group (presets, X / Y / size / rotation / opacity / corners fields), per-track header via clipPlace + clipLabel, refusals shown through the new updateClipWhy (3 unit tests); describeClipChange announces box changes (1 unit test). npm run check 1,424 passed. Not run in a browser (D-033: its e2e is written in 290)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T090": {
+          "text": "Docs (AC-15): `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits; the videos-at-once row now in use), `specs/lld.md` (frameStack, renderStack, the transform, the document fields), `docs/PERFORMANCE.md` (decoders = limit + 2 in use; AC-12 / AC-13 numbers), `CHANGELOG.md` Unreleased, the in-app docs' keys.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "specs/lld.md",
+            "docs/PERFORMANCE.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "relative links resolve",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** docs/MEDIA-STUDIO.md (track headers for overlays, a new 'Overlay tracks and picture-in-picture' section, the limits table), specs/lld.md (Compositing (203): the stack, the transform, renderStack, the document, the store, the timeline, the stage; the preview's StageFrame and held pictures; the export loop; pool limits), docs/PERFORMANCE.md (pools at the limit + 2; the AC-13 export: 40 MB peak, nothing open; AC-12 measured in 290), CHANGELOG Unreleased (3 entries), in-app docs (timeline keys and overlay tracks; limits row). Relative links: 0 broken."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T091": {
+          "text": "`npm run check` and `npm run build` green; entry chunk unchanged; record the numbers. The other gates (`test:e2e`, `npm test`, `test:mcp`, `check:licenses`, timing) run once in the Phase 2 test pass (290, D-033).",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "`npm run check`; `npm run build`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** npm run check: typecheck, lint (0 errors, the 5 known warnings), specs:check, 1,424 unit tests passed; npm run build: entry 327 KB (unchanged, budget 350 KB), no AI code in the entry. The other gates run in 290 (D-033)."
+          ],
+          "doneOn": "2026-10-12",
+          "startedOn": "2026-10-12"
+        },
+        "T092": {
+          "text": "Tick ACs (Status `Implemented`), roadmap 203 ✔️, `editor-implementation.md` P2.3 Done, `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Verify",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** AC-4, AC-6, AC-7, AC-9, AC-11, AC-15 ticked (unit tests and the self-test runs of T016/T017, T030–T034); AC-1–AC-3, AC-5, AC-8, AC-10, AC-12–AC-14 listed in 290 for the Phase 2 test pass (D-033). Status Implemented, roadmap ✔️, editor-implementation.md P2.3 Done, memory updated."
+          ],
+          "doneOn": "2026-10-12",
+          "startedOn": "2026-10-12"
+        }
+      }
+    }
+  }
 }

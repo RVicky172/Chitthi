@@ -2,7 +2,7 @@
   "$schema": "./schema/roadmap.schema.json",
   "schema": 1,
   "title": "Chitthi Studio — Roadmap",
-  "updated": "2026-10-11",
+  "updated": "2026-10-12",
   "lead": "Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.",
   "intro": "The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work\nitems (files, tests, notes and measurements for Phases 0–1) are in\n[vision/editor-implementation.md](vision/editor-implementation.md). From Phase 2 on, each work item is a feature\nfolder here and this file holds its status. Numbers follow the work-item IDs: **P2.1 → 201**, **P3.4 → 304**.",
   "currentPhase": "phase-2",
@@ -86,7 +86,8 @@
           "209",
           "210",
           "211",
-          "212"
+          "212",
+          "290"
         ]
       },
       "phase-3": {
@@ -144,7 +145,7 @@
       "203": {
         "title": "Compositing many tracks, picture-in-picture",
         "workItem": "P2.3",
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/203-compositing-pip",
         "needs": [
@@ -245,6 +246,27 @@
           "203",
           "205",
           "206"
+        ]
+      },
+      "290": {
+        "title": "Phase 2 test pass and 3.0.0 release",
+        "workItem": null,
+        "status": "spec-drafted",
+        "note": "The phase's deferred e2e, self-test, timing and manual checks, every gate, release (D-033)",
+        "folder": "features/290-phase2-test-pass-release",
+        "needs": [
+          "201",
+          "202",
+          "203",
+          "204",
+          "205",
+          "206",
+          "207",
+          "208",
+          "209",
+          "210",
+          "211",
+          "212"
         ]
       },
       "301": {

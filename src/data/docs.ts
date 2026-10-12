@@ -334,6 +334,8 @@ export const DOC_PAGES: DocPage[] = [
               'Per clip: duration or trim, volume, movement on photos (zoom and pan), fade from black, looks and adjustments.',
               'Text, shapes, stickers and drawings with **Appears at** and **Disappears at**; music with its waveform.',
               'Track headers: **Hide** the video (black with the layers), **Mute** the music, **Lock** a track against edits, and set its height. Hide, Mute and Lock can be undone.',
+              '**Overlay tracks** (picture-in-picture, B-roll): **+** at the top left adds one; drop files on its row, or on the time ruler for a new track; drag a clip to another row or use **Move to**. Click a track’s name to rename it; its height menu moves it up or down or deletes it.',
+              'On the preview, drag an overlay clip to move it (it snaps to the centre lines and edges), its corner to resize, its top handle to turn it (Shift: 15° steps); arrow keys move it 1 % (Shift: 10 %). **Position and size** in the inspector has presets and exact fields.',
               'Export: H.264 and AAC in an MP4 with its index at the front (fast start), using the graphics card where it can.',
             ],
           },
@@ -349,6 +351,7 @@ export const DOC_PAGES: DocPage[] = [
               rows: [
                 ['Reels & Shorts', 'Up to 90 s, 20 clips, 300 MB per file, 30 fps', 'Up to 3 min, 50 clips, 4 GB files, 30 or 60 fps'],
                 ['YouTube video', 'Up to 15 min, 60 clips, 4 GB files, 1080p, 30 fps', 'Up to 3 hours, 500 clips, 50 GB files, up to 4K, 30 or 60 fps'],
+                ['Picture tracks, videos on screen at once', 'Up to 4 tracks, 3 videos at once', 'Up to 8 tracks, 5 videos at once'],
               ],
             },
           },

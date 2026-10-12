@@ -23,17 +23,20 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 
 - Never write feature code without an **Approved** `spec.md`. If none exists, draft one and stop for review.
 - Never plan from a spec that still has `[NEEDS CLARIFICATION]` markers — ask the user.
-- Work one task at a time: `npm run specs -- start NNN Txxx`, then `done` (with a dated `--result` note) once its
-  tests pass, or `block` it with a reason when it needs the user.
-- Independent tasks run in parallel batches: up to 3 `implementer` agents in their own worktrees plus a `reviewer`
-  (`.claude/agents/`); the main session alone edits `feature.json` and `memory/`, merges, and runs heavy checks one at
-  a time (`specs/workflow.md` "Parallel tasks with agents", D-030).
+- Work one task at a time in the main session: `npm run specs -- start NNN Txxx`, then `done` (with a dated
+  `--result` note) once `npm run check` passes, or `block` it with a reason when it needs the user. No agent batches
+  unless the maintainer asks (D-030 is off by default).
+- **Testing per phase (D-033):** while a phase is being built, tasks write and run unit tests only (`npm run check`;
+  `npm run build` when a feature is finished). E2e tests, self-test checks, timing runs and manual checks are written
+  and run once, at the end of the phase, in its test-pass feature (`x90`, e.g. `290`), which ends in the phase's
+  release. Features list the checks they defer there.
 - A feature is one `specs/features/NNN-*/feature.json` (spec, plan, tasks); `specs/roadmap.json` is the roadmap.
   `spec.md`, `plan.md`, `tasks.md` and `roadmap.md` are generated from them: never edit those (a hook refuses it and
   regenerates them after JSON edits). See `specs/workflow.md` "One JSON per feature".
 - If code must diverge from the spec, update the spec (and its Changelog) first.
 - Bug fixes and behaviour-neutral refactors may skip the spec; log them in `memory/progress.md`.
-- Numbering: `000–099` baseline, `2xx` / `3xx` = editor work items P2.x / P3.x (P2.1 → `201`), `401+` other.
+- Numbering: `000–099` baseline, `2xx` / `3xx` = editor work items P2.x / P3.x (P2.1 → `201`), `x90` = a phase's
+  test pass and release (`290`), `401+` other.
 - Slash commands: `/spec-new`, `/spec-plan`, `/spec-tasks`, `/spec-implement`, `/spec-verify`.
 
 ## Key Docs

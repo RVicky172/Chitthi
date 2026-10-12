@@ -1,10 +1,32 @@
 import { useSyncExternalStore } from 'react';
 import type { Adjustments } from '../engine/adjust';
-import { closeGap, closeGaps, lift, moveTo, nudge, reorder, rippleDelete, roll, slide, slip, trim, type Edit, type EditCtx, type Tool } from '../engine/edits';
+import { NOT_FOUND, TOO_LONG, closeGap, closeGaps, lift, limitVideos, moveTo, moveToTrack, nudge, reorder, rippleDelete, roll, slide, slip, trim, type Edit, type EditCtx, type Tool } from '../engine/edits';
 import { DEFAULT_EDIT, type IgEdit } from '../engine/instagram';
 import type { Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
-import { MAIN_VIDEO, MUSIC, defaultTracks, gaps, lockedReason, pack, patchTrack, projectLength, type AudioClip, type Project, type Track } from '../engine/timeline';
+import {
+  IDENTITY,
+  MAIN_VIDEO,
+  MUSIC,
+  addTrack as withNewTrack,
+  clampTransform,
+  defaultTracks,
+  deleteTrack as withoutTrack,
+  gaps,
+  isIdentity,
+  lockedReason,
+  moveTrack as withTrackMoved,
+  pack,
+  patchTrack,
+  presetTransform,
+  projectLength,
+  renameTrack as withTrackRenamed,
+  type AudioClip,
+  type ClipTransform,
+  type Preset,
+  type Project,
+  type Track,
+} from '../engine/timeline';
 import { V_PHOTO_SECONDS, bitrateFor, clipLength, formatsFor, limitsFor, vFormat, type Motion, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/video';
 import { logError } from '../lib/errors';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
@@ -12,8 +34,9 @@ import { isDesktop } from '../platform/desktop';
 import type { LayerTools } from './instagram';
 
 /*
- * The video editor's state: tracks (engine/timeline.ts), clips (photos and video files) in start order on the main
- * video track, layers over the whole timeline, music on the music track, the playhead and the export. With Magnetic on
+ * The video editor's state: tracks (engine/timeline.ts), clips (photos and video files) grouped by picture track in
+ * the tracks' order (the main video track first, then the overlay tracks, 203), each track in start order, layers over
+ * the whole timeline, music on the music track, the playhead and the export. With Magnetic on
  * (the default) every change to the clips packs them end to end (`pack`), so each clip's `start` is where 2.x placed
  * it; with it off clips keep their times and gaps (202). Edits go through engine/edits.ts. One project at a time, made as
  * a Reel / Short (vertical) or a YouTube video (16:9); switching between them keeps the clips and changes the frame.
@@ -28,8 +51,10 @@ const STRIP_FRAMES = 8;
 export interface VClip {
   id: string;
   kind: 'photo' | 'video';
-  /** The track it is on (201: always the main video track). */
+  /** The picture track it is on: the main video track or an overlay track (203). */
   track: string;
+  /** Where its box sits in the frame (203); missing = the whole frame. */
+  tf?: ClipTransform;
   /** Seconds from the start of the video; kept packed end to end while Magnetic is on. */
   start: number;
   name: string;
@@ -171,7 +196,7 @@ export const limits = (kind: VKind = state.kind): VLimits => limitsFor(kind, isD
 const lengthOf = (clips: VClip[], tracks: Track[] = state.tracks, magnetic = state.magnetic) =>
   projectLength({ tracks, clips: magnetic ? pack(clips) : clips, audio: [], layers: [], fadeOut: false });
 /** What the edit operations need to know (engine/edits.ts). */
-const editCtx = (): EditCtx => ({ maxLength: limits().seconds, locked: (track) => lockedReason(state.tracks, track) });
+const editCtx = (): EditCtx => ({ maxLength: limits().seconds, locked: (track) => lockedReason(state.tracks, track), maxVideos: limits().videosAtOnce, desktop: isDesktop });
 /** The state as the track model sees it (engine/timeline.ts): for the preview, the timeline and the export. */
 export const projectOf = (s: VState = state): Project<VClip> => ({ tracks: s.tracks, clips: s.clips, audio: musicClips(s.music), layers: s.layers, fadeOut: s.fadeOut });
 /** The video's length (a selector: `useVideo(videoLength)`). */
@@ -249,13 +274,35 @@ export function redoV(): void {
   past.push(snap());
   restore(s);
 }
+/**
+ * The clips grouped by track in the tracks' order (the main track first, as the document gate returns them), each
+ * track's clips in the order they had; the same array when they already are.
+ */
+function grouped(clips: VClip[], tracks: Track[]): VClip[] {
+  const rank = new Map(tracks.map((t, i) => [t.id, i]));
+  const of = (c: VClip) => rank.get(c.track) ?? tracks.length;
+  if (clips.every((c, i) => i === 0 || of(clips[i - 1]) <= of(c))) return clips;
+  return clips.slice().sort((a, b) => of(a) - of(b));
+}
 /** Every undoable change goes through here; with Magnetic on, changed clips are packed end to end (the one place). */
 function change(key: string, patch: Partial<Snap>, extra: Partial<VState> = {}): void {
   record(key);
   const magnetic = patch.magnetic ?? state.magnetic;
   if (patch.clips && magnetic) patch = { ...patch, clips: pack(patch.clips) };
+  if (patch.clips || patch.tracks) patch = { ...patch, clips: grouped(patch.clips ?? state.clips, patch.tracks ?? state.tracks) };
   const clips = patch.clips ?? state.clips;
   set({ ...patch, ...flags(), ...extra, t: Math.min(extra.t ?? state.t, lengthOf(clips, patch.tracks, magnetic)) });
+}
+/**
+ * `change` for picture clips the store made itself or took from an edit: refused, with the reason, when what would be
+ * stored (packed with Magnetic on) shows more videos at once than this app allows and more than now (203 AC-9).
+ */
+function commit(key: string, patch: Partial<Snap> & { clips: VClip[] }, extra: Partial<VState> = {}): string | null {
+  const clips = (patch.magnetic ?? state.magnetic) ? pack(patch.clips) : patch.clips;
+  const r = limitVideos(state.clips, { clips }, editCtx());
+  if ('error' in r) return r.error;
+  change(key, { ...patch, clips }, extra);
+  return null;
 }
 
 /**
@@ -267,25 +314,74 @@ export function loadVideoProject(p: { clips: VClip[]; tracks?: Track[]; magnetic
   future.length = 0;
   lastKey = '';
   const magnetic = p.magnetic !== false;
-  const clips = magnetic ? pack(p.clips) : p.clips.slice().sort((a, b) => a.start - b.start);
-  set({ clips, tracks: p.tracks ?? defaultTracks(), magnetic, music: p.music ?? null, layers: [], layerSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
+  const tracks = p.tracks ?? defaultTracks();
+  // Grouped by track, each in start order; with Magnetic on the main track keeps its given order (overlay tracks are
+  // never packed, 203 Q8).
+  const rank = (c: VClip) => {
+    const i = tracks.findIndex((t) => t.id === c.track);
+    return i < 0 ? tracks.length : i;
+  };
+  const sorted = p.clips.slice().sort((a, b) => rank(a) - rank(b) || (magnetic && a.track === MAIN_VIDEO ? 0 : a.start - b.start));
+  const clips = magnetic ? pack(sorted) : sorted;
+  set({ clips, tracks, magnetic, music: p.music ?? null, layers: [], layerSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
 }
 
 /**
  * Magnetic (202, D1): switching it on closes every gap on the main track as one undo step; switching it off changes no
- * clip and isn't recorded.
+ * clip and isn't recorded. Refused, with the reason, when closing the gaps would show too many videos at once (203).
  */
-export function setMagnetic(on: boolean): void {
-  if (on === state.magnetic) return;
-  if (on) change('', { clips: closeGaps(state.clips), magnetic: true });
-  else set({ magnetic: false });
+export function setMagnetic(on: boolean): string | null {
+  if (on === state.magnetic) return null;
+  if (on) return commit('', { clips: closeGaps(state.clips), magnetic: true });
+  set({ magnetic: false });
+  return null;
 }
 
 /* ---------- tracks ---------- */
-/** Hides / mutes / locks a track (one undo step each; Hide is for picture tracks, Mute for sound tracks). */
+/**
+ * Hides / mutes / locks a track (one undo step each; Hide is for picture tracks, Mute for sound and overlay tracks:
+ * an overlay clip's own sound, 203 Q7).
+ */
 export function setTrack(id: string, patch: Partial<Pick<Track, 'hidden' | 'muted' | 'locked'>>): void {
   const tracks = patchTrack(state.tracks, id, patch);
   if (tracks !== state.tracks) change('', { tracks });
+}
+/** Adds an empty overlay track at the top of the picture tracks (203 Q12); at the track limit, why not. */
+export function addTrack(): string | null {
+  const r = withNewTrack(state.tracks, isDesktop);
+  if ('error' in r) return r.error;
+  change('', { tracks: r.tracks });
+  return null;
+}
+/** Renames a track (1–40 characters); why not, or null. */
+export function renameTrack(id: string, name: string): string | null {
+  const r = withTrackRenamed(state.tracks, id, name);
+  if ('error' in r) return r.error;
+  if (r !== state.tracks) change('', { tracks: r });
+  return null;
+}
+/** Moves an overlay track one place up (+1, drawn later) or down among the overlay tracks; why not, or null. */
+export function moveTrack(id: string, by: 1 | -1): string | null {
+  const r = withTrackMoved(state.tracks, id, by);
+  if ('error' in r) return r.error;
+  change('', { tracks: r });
+  return null;
+}
+/** Deletes an overlay track with its clips (the UI asks first when it holds any); why not, or null. */
+export function deleteTrack(id: string): string | null {
+  const r = withoutTrack(state.tracks, state.clips, id);
+  if ('error' in r) return r.error;
+  const selected = r.clips.some((c) => c.id === state.selected) ? state.selected : (r.clips[0]?.id ?? null);
+  change('', { tracks: r.tracks, clips: r.clips }, { selected });
+  return null;
+}
+/** The picture tracks a clip can be on, bottom (the main track) first. */
+export const pictureTracks = (s: VState = state): Track[] => s.tracks.filter((t) => t.kind === 'video' || t.kind === 'overlay');
+/** A clip's track and its number on that track from 1 (the inspector's "Clip N" and the timeline's labels), or null. */
+export function clipPlace(id: string, s: VState = state): { track: Track; n: number } | null {
+  const c = s.clips.find((x) => x.id === id);
+  const track = c && s.tracks.find((t) => t.id === c.track);
+  return c && track ? { track, n: s.clips.filter((x) => x.track === c.track).indexOf(c) + 1 } : null;
 }
 export const setTrackHeight = (id: string, height: TrackHeight) => set({ trackView: { ...state.trackView, [id]: height } });
 /** Why a clip can't be changed (its track is locked), or null. */
@@ -427,52 +523,130 @@ async function makeStrip(id: string, url: string, dur: number): Promise<void> {
 const VIDEO_TYPES = /^video\/(mp4|quicktime|webm|x-m4v|x-matroska)$/;
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i;
 
-/** Adds photos and videos at the end of the timeline, within this project's limits. Returns messages. */
-export async function addMedia(files: { name: string; blob: Blob; type?: string }[]): Promise<string[]> {
+/** How addMedia reads files into clips (tests put stand-ins here: Node decodes no media). */
+export const mediaIO = { photo: photoClip, video: videoClip, strip: makeStrip };
+
+/** `addMedia`'s track for "a new overlay track first" (files dropped above the top track, 203 Q12). */
+export const NEW_TRACK = 'new';
+const NOT_PICTURE = 'Photos and videos go on a picture track.';
+const endOn = (clips: VClip[], track: string) => clips.reduce((m, c) => (c.track === track ? Math.max(m, c.start + clipLength(c)) : m), 0);
+/** The clips with c added in its track's start order (after its track's last clip when it starts last). */
+function insertOnTrack(clips: VClip[], c: VClip): VClip[] {
+  let i = clips.findIndex((x) => x.track === c.track && x.start > c.start);
+  if (i < 0) i = clips.findLastIndex((x) => x.track === c.track) + 1 || clips.length;
+  return [...clips.slice(0, i), c, ...clips.slice(i)];
+}
+
+/**
+ * Adds photos and videos within this project's limits; returns messages. Without options they go at the end of the
+ * main track (2.x). On another track (203), or at a time `at`, they go one after another from `at` (default: the
+ * playhead), each after the clips there when it doesn't fit; on the main track with Magnetic on they are inserted
+ * where `at` falls in the order. `track: NEW_TRACK` adds an overlay track first (one undo step with the clips, and
+ * only when a clip is added). A video that would show more videos at once than allowed is left out, with the reason.
+ */
+export async function addMedia(files: { name: string; blob: Blob; type?: string }[], o: { track?: string; at?: number } = {}): Promise<string[]> {
   const L = limits();
   const msgs: string[] = [];
-  const locked = lockedReason(state.tracks, MAIN_VIDEO);
-  if (locked) return [locked];
+  let tracks = state.tracks,
+    track = o.track ?? MAIN_VIDEO;
+  if (track === NEW_TRACK) {
+    const r = withNewTrack(state.tracks, isDesktop);
+    if ('error' in r) return [r.error];
+    tracks = r.tracks;
+    track = r.id;
+  } else {
+    const t = state.tracks.find((x) => x.id === track);
+    if (!t || t.kind === 'audio') return [NOT_PICTURE];
+    const locked = lockedReason(state.tracks, track);
+    if (locked) return [locked];
+  }
+  // How the clips go in: at the end of the main track; inserted into its order (Magnetic); or each at a time.
+  const mode = track === MAIN_VIDEO && (o.at === undefined || state.magnetic) ? (o.at === undefined ? 'append' : 'insert') : 'place';
   set({ busy: 'Adding to the timeline…' });
   const added: VClip[] = [];
-  let length = total();
+  /** The clips with `more` added as `mode` puts them. */
+  const withAdded = (more: VClip[]): VClip[] => {
+    if (mode === 'append') return [...state.clips, ...more];
+    if (mode === 'insert') {
+      const main = state.clips.filter((x) => x.track === MAIN_VIDEO);
+      const k = main.findIndex((x) => o.at! < x.start + clipLength(x) / 2);
+      const i = k < 0 ? state.clips.findLastIndex((x) => x.track === MAIN_VIDEO) + 1 : state.clips.indexOf(main[k]);
+      return [...state.clips.slice(0, i), ...more, ...state.clips.slice(i)];
+    }
+    return more.reduce(insertOnTrack, state.clips);
+  };
+  // Where the next clip starts: the main track's end (append, insert: the main track grows by its length) or `at`.
+  let cursor = mode === 'place' ? Math.max(0, o.at ?? state.t) : endOn(state.clips, MAIN_VIDEO);
+  /** The start for a clip of `len` seconds from the cursor: after any clip of the track it would overlap. */
+  const fit = (len: number) => {
+    let s = cursor;
+    for (let hit = true; hit; ) {
+      hit = false;
+      for (const x of [...state.clips, ...added])
+        if (x.track === track && x.start < s + len - 1e-6 && x.start + clipLength(x) > s + 1e-6) {
+          s = x.start + clipLength(x);
+          hit = true;
+        }
+    }
+    return s;
+  };
+  let tooMany = false;
   const where = isDesktop ? '' : ' in the browser (the desktop app allows more)';
+  const full = () =>
+    mode === 'place'
+      ? `Clips there would end after ${fmtLimit(L.seconds)}, the most${where}; the rest weren’t added.`
+      : `The video is already ${fmtLimit(L.seconds)} long, the most${where}; the rest weren’t added.`;
   for (const f of files) {
     if (state.clips.length + added.length >= L.clips) {
       msgs.push(`A project holds up to ${L.clips} clips${where}; the rest weren’t added.`);
       break;
     }
-    if (length >= L.seconds - 0.5) {
-      msgs.push(`The video is already ${fmtLimit(L.seconds)} long, the most${where}; the rest weren’t added.`);
+    if (cursor >= L.seconds - 0.5) {
+      msgs.push(full());
       break;
     }
     const type = f.type ?? f.blob.type ?? '';
     const isVideo = VIDEO_TYPES.test(type) || VIDEO_EXT.test(f.name);
     try {
+      let c: VClip;
       if (isVideo) {
         if (f.blob.size > L.fileMB * 1048576) {
           msgs.push(`${f.name} is ${(f.blob.size / 1048576).toFixed(0)} MB. Videos up to ${L.fileMB >= 1024 ? `${L.fileMB / 1024} GB` : `${L.fileMB} MB`} can be added${where}.`);
           continue;
         }
-        const c = await videoClip(f.name, f.blob);
-        const room = L.seconds - length;
-        if (c.out - c.in > room) {
-          c.out = c.in + room;
-          msgs.push(`${f.name} was trimmed to ${fmtLimit(room)} to keep the video within ${fmtLimit(L.seconds)}${where}.`);
-        }
-        added.push(c);
-        length += clipLength(c);
+        c = await mediaIO.video(f.name, f.blob);
       } else {
         const why = checkFile(new File([f.blob], f.name, { type }));
         if (why) {
           msgs.push(why);
           continue;
         }
-        const c = await photoClip(f.name, f.blob);
-        c.dur = Math.min(c.dur, Math.max(0.5, L.seconds - length));
-        added.push(c);
-        length += clipLength(c);
+        c = await mediaIO.photo(f.name, f.blob);
       }
+      const start = mode === 'place' ? fit(clipLength(c)) : cursor;
+      if (start >= L.seconds - 0.5) {
+        URL.revokeObjectURL(c.url);
+        msgs.push(full());
+        break;
+      }
+      const room = L.seconds - start;
+      if (c.kind === 'video' && c.out - c.in > room) {
+        c.out = c.in + room;
+        msgs.push(`${f.name} was trimmed to ${fmtLimit(room)} to keep the video within ${fmtLimit(L.seconds)}${where}.`);
+      }
+      if (c.kind === 'photo') c.dur = Math.min(c.dur, Math.max(0.5, room));
+      c.track = track;
+      c.start = start;
+      const clips = withAdded([...added, c]);
+      const r = limitVideos(state.clips, { clips: state.magnetic ? pack(clips) : clips }, editCtx());
+      if ('error' in r) {
+        URL.revokeObjectURL(c.url);
+        if (!tooMany) msgs.push(`${f.name} wasn’t added. ${r.error}`);
+        tooMany = true;
+        continue;
+      }
+      added.push(c);
+      cursor = start + clipLength(c);
     } catch (e) {
       logError('handled', e);
       msgs.push(
@@ -483,8 +657,8 @@ export async function addMedia(files: { name: string; blob: Blob; type?: string 
     }
   }
   if (added.length) {
-    change('', { clips: [...state.clips, ...added] }, { selected: state.selected ?? added[0].id });
-    for (const c of added) if (c.kind === 'video') void makeStrip(c.id, c.url, c.srcDur);
+    change('', { tracks, clips: withAdded(added) }, { selected: state.selected ?? added[0].id });
+    for (const c of added) if (c.kind === 'video') void mediaIO.strip(c.id, c.url, c.srcDur);
   }
   set({ busy: null });
   return msgs;
@@ -497,11 +671,23 @@ export const limitText = fmtLimit;
 
 /** Changes a clip; refused (false) if its track is locked or it would make the video longer than this project allows. */
 export function updateClip(id: string, patch: Partial<VClip>, key = `clip:${id}:${Object.keys(patch).sort().join(',')}`): boolean {
-  if (clipLocked(id)) return false;
+  return updateClipWhy(id, patch, key) === null;
+}
+/**
+ * Changes a clip as updateClip does, saying why when it can't.
+ * @param id the clip
+ * @param patch the fields to change
+ * @param key groups changes into one undo step (a slider's drag)
+ * @returns null once changed; else why not: its track is locked, the video would be longer than this platform's
+ *   limit, or the change would put more videos on screen at once than allowed
+ */
+export function updateClipWhy(id: string, patch: Partial<VClip>, key = `clip:${id}:${Object.keys(patch).sort().join(',')}`): string | null {
+  const locked = clipLocked(id);
+  if (locked) return locked;
   const clips = state.clips.map((c) => (c.id === id ? { ...c, ...patch } : c));
-  if (lengthOf(clips) - limits().seconds > 0.01) return false;
-  change(key, { clips });
-  return true;
+  const maxSeconds = limits().seconds;
+  if (lengthOf(clips) - maxSeconds > 0.01) return `A video can be up to ${fmtLimit(maxSeconds)} long here.`;
+  return commit(key, { clips });
 }
 export const editClip = (id: string, patch: Partial<IgEdit>) => {
   const c = state.clips.find((x) => x.id === id);
@@ -512,84 +698,107 @@ export const adjustClip = (id: string, patch: Partial<Adjustments>) => {
   if (c) updateClip(id, { edit: { ...c.edit, adjust: { ...c.edit.adjust, ...patch } } }, `clipadjust:${id}:${Object.keys(patch).sort().join(',')}`);
 };
 
-/* Clip actions are refused (false) on a locked track; `clipLocked` says why. */
+/*
+ * Clip actions are refused (false) on a locked track; `clipLocked` says why. The `…Why` forms return the message to
+ * show instead (null when done).
+ */
 export function removeClip(id: string): boolean {
   const i = state.clips.findIndex((c) => c.id === id);
   if (i < 0 || clipLocked(id)) return false;
-  // The object URL is kept while the clip can still come back through undo; it goes when the page closes.
-  const r = (state.magnetic ? rippleDelete : lift)(state.clips, id, editCtx());
+  // The object URL is kept while the clip can still come back through undo; it goes when the page closes. Only the
+  // main track is magnetic: an overlay clip is lifted even with Magnetic on (203 Q8).
+  const ripple = state.magnetic && state.clips[i].track === MAIN_VIDEO;
+  const r = (ripple ? rippleDelete : lift)(state.clips, id, editCtx());
   if ('error' in r) return false;
   const clips = r.clips;
-  change('', { clips }, { selected: state.selected === id ? (clips[Math.min(i, clips.length - 1)]?.id ?? null) : state.selected });
-  return true;
+  return commit('', { clips }, { selected: state.selected === id ? (clips[Math.min(i, clips.length - 1)]?.id ?? null) : state.selected }) === null;
 }
 
+/** Moves a clip one place earlier or later among its track's clips (the main track with Magnetic on). */
 export function moveClip(id: string, by: -1 | 1): boolean {
-  const i = state.clips.findIndex((c) => c.id === id);
+  const c = state.clips.find((x) => x.id === id);
+  const i = state.clips.filter((x) => x.track === c?.track).findIndex((x) => x.id === id);
   return moveClipTo(id, i + by);
 }
-/** Moves a clip to a new place in the order (dragging on the timeline). */
+/** Moves a main-track clip to a new place in its track's order (dragging on the timeline). */
 export function moveClipTo(id: string, index: number): boolean {
   if (clipLocked(id)) return false;
   const r = reorder(state.clips, id, index, editCtx());
   if ('error' in r || r.clips === state.clips) return false;
-  change('', { clips: r.clips });
-  return true;
+  return commit('', { clips: r.clips }) === null;
 }
 
-export function duplicateClip(id: string): boolean {
+export const duplicateClip = (id: string): boolean => duplicateClipWhy(id) === null;
+/**
+ * A copy of a clip right after it (Magnetic on, the main track), else (D2; overlay tracks always) into the first gap
+ * after the original that fits, or after its track's last clip; nothing else moves.
+ */
+export function duplicateClipWhy(id: string): string | null {
   const i = state.clips.findIndex((c) => c.id === id);
   const c = state.clips[i];
-  if (!c || clipLocked(id) || total() + clipLength(c) > limits().seconds || state.clips.length >= limits().clips) return false;
+  if (!c) return NOT_FOUND;
+  const L = limits();
+  const locked = clipLocked(id);
+  if (locked) return locked;
+  if (state.clips.length >= L.clips) return `A project holds up to ${L.clips} clips${isDesktop ? '' : ' in the browser (the desktop app allows more)'}.`;
   const copy: VClip = { ...c, id: newId(), fade: false, start: c.start + clipLength(c) };
-  if (!state.magnetic) {
-    // D2: into the first gap after the original that fits, else after the last clip; nothing else moves.
+  let clips: VClip[];
+  if (state.magnetic && c.track === MAIN_VIDEO) {
+    if (total() + clipLength(c) > L.seconds) return TOO_LONG;
+    clips = state.clips.slice();
+    clips.splice(i + 1, 0, copy);
+  } else {
     const len = clipLength(c);
-    const end = state.clips.reduce((m, x) => (x.track === c.track ? Math.max(m, x.start + clipLength(x)) : m), 0);
+    const end = endOn(state.clips, c.track);
     const room = gaps(projectOf(), c.track).find((g) => g.start >= copy.start - 1e-9 && g.end - g.start >= len - 1e-6);
     copy.start = room ? room.start : end;
-    const clips = [...state.clips, copy].sort((a, b) => (a.track === b.track ? a.start - b.start : 0));
-    change('', { clips }, { selected: copy.id });
-    return true;
+    // The main track keeps 202's check (the video grows by the copy at most); elsewhere the copy's own end counts.
+    if (c.track === MAIN_VIDEO ? total() + len > L.seconds : Math.max(total(), copy.start + len) > L.seconds + 0.01) return TOO_LONG;
+    clips = insertOnTrack(state.clips, copy);
   }
-  const clips = state.clips.slice();
-  clips.splice(i + 1, 0, copy);
-  change('', { clips }, { selected: copy.id });
-  return true;
+  return commit('', { clips }, { selected: copy.id });
 }
 
-/** Splits the clip under the playhead into two clips (not on a locked track). */
-export function splitAtPlayhead(): boolean {
-  for (const [i, c] of state.clips.entries()) {
-    const len = clipLength(c),
-      t0 = c.start;
-    if (c.track === MAIN_VIDEO && state.t > t0 + 0.2 && state.t < t0 + len - 0.2) {
-      if (clipLocked(c.id)) return false;
-      const local = state.t - t0;
-      const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local } : { ...c, dur: local };
-      const b: VClip = c.kind === 'video' ? { ...c, id: newId(), start: t0 + local, in: c.in + local, fade: false } : { ...c, id: newId(), start: t0 + local, dur: len - local, fade: false };
-      const clips = state.clips.slice();
-      clips.splice(i, 1, a, b);
-      change('', { clips }, { selected: b.id });
-      return true;
-    }
-  }
-  return false;
+export const splitAtPlayhead = (): boolean => splitAtPlayheadWhy() === null;
+/**
+ * Splits the clip under the playhead into two clips (not on a locked track): the selected clip when the playhead is
+ * inside it (an overlay clip, 203), else the main track's clip there, else the topmost overlay clip there.
+ */
+export function splitAtPlayheadWhy(): string | null {
+  const inside = (c: VClip) => state.t > c.start + 0.2 && state.t < c.start + clipLength(c) - 0.2;
+  const sel = state.clips.find((c) => c.id === state.selected && inside(c));
+  const c = sel ?? state.clips.filter(inside).sort((a, b) => trackRank(a) - trackRank(b))[0];
+  if (!c) return 'Put the playhead inside a clip, away from its ends, to split it.';
+  const locked = clipLocked(c.id);
+  if (locked) return locked;
+  const len = clipLength(c),
+    t0 = c.start,
+    local = state.t - t0;
+  const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local } : { ...c, dur: local };
+  const b: VClip = c.kind === 'video' ? { ...c, id: newId(), start: t0 + local, in: c.in + local, fade: false } : { ...c, id: newId(), start: t0 + local, dur: len - local, fade: false };
+  const clips = state.clips.slice();
+  clips.splice(state.clips.indexOf(c), 1, a, b);
+  return commit('', { clips }, { selected: b.id });
 }
+/** The main track first (0), then the overlay tracks from the top one down: which clip a split takes. */
+const trackRank = (c: VClip) => (c.track === MAIN_VIDEO ? 0 : state.tracks.length - state.tracks.findIndex((t) => t.id === c.track));
 
 /* ---------- edit tools (202): each returns null, or why it was refused ---------- */
 
-/** Applies an edit's result as one undo step (`key` coalesces a drag); nothing is recorded when nothing changed. */
+/**
+ * Applies an edit's result as one undo step (`key` coalesces a drag); nothing is recorded when nothing changed.
+ * Checked again on what is stored (packed with Magnetic on) against the videos-at-once limit.
+ */
 function apply(r: Edit<VClip>, key = '', extra: Partial<VState> = {}): string | null {
   if ('error' in r) return r.error;
-  if (r.clips !== state.clips) change(key, { clips: r.clips }, extra);
-  return null;
+  return r.clips === state.clips ? null : commit(key, { clips: r.clips }, extra);
 }
-/** Shift + Delete: removes a clip and pulls the later ones back, with Magnetic on or off. */
+/** Shift + Delete: removes a clip and pulls the later ones on its track back, with Magnetic on or off. */
 export function rippleDeleteClip(id: string): string | null {
-  const i = state.clips.findIndex((c) => c.id === id);
+  const track = state.clips.find((c) => c.id === id)?.track;
+  const i = state.clips.filter((c) => c.track === track).findIndex((c) => c.id === id);
   const r = rippleDelete(state.clips, id, editCtx());
-  const left = 'clips' in r ? r.clips.filter((c) => c.track === MAIN_VIDEO) : [];
+  const left = 'clips' in r ? r.clips.filter((c) => c.track === track) : [];
   const next = left[Math.min(i, left.length - 1)]?.id ?? null;
   return apply(r, '', { selected: state.selected === id ? next : state.selected });
 }
@@ -615,6 +824,44 @@ export function rippleTrimToPlayhead(side: 'start' | 'end'): string | null {
 }
 /** Closes the gap at a time on the main track (a selected gap's Delete). */
 export const deleteGap = (at: number): string | null => apply(closeGap(state.clips, at, editCtx()));
+/**
+ * Moves a clip to another picture track (or along its own) at `start` (default: where it is), as moveToTrack does
+ * (203 AC-3): never over another clip; onto the main track with Magnetic on, inserted where it falls.
+ */
+export function moveClipToTrack(id: string, track: string, start?: number, key = ''): string | null {
+  const c = state.clips.find((x) => x.id === id);
+  if (!c) return NOT_FOUND;
+  const t = state.tracks.find((x) => x.id === track);
+  if (!t || (t.kind !== 'video' && t.kind !== 'overlay')) return 'A clip can only move to a picture track.';
+  return apply(moveToTrack(state.clips, id, track, start ?? c.start, { ...editCtx(), magnetic: state.magnetic }), key, { selected: id });
+}
+
+/* ---------- a clip's place in the frame (203) ---------- */
+/**
+ * Changes a clip's box (position, size, rotation, opacity, corner radius), clamped to their ranges; one undo step
+ * per `key` within 800 ms, so a drag passing the same key is one step. The whole frame is stored as no transform.
+ */
+export function setClipTransform(id: string, patch: Partial<ClipTransform>, key = `tf:${id}:${Object.keys(patch).sort().join(',')}`): string | null {
+  const c = state.clips.find((x) => x.id === id);
+  if (!c) return NOT_FOUND;
+  const locked = clipLocked(id);
+  if (locked) return locked;
+  const tf = clampTransform({ ...(c.tf ?? IDENTITY), ...patch });
+  const next = isIdentity(tf) ? undefined : tf;
+  const same = isIdentity(c.tf) ? !next : !!next && (Object.keys(tf) as (keyof ClipTransform)[]).every((k) => c.tf![k] === tf[k]);
+  if (same) return null;
+  change(key, { clips: state.clips.map((x) => (x.id === id ? { ...x, tf: next } : x)) });
+  return null;
+}
+/**
+ * Puts a clip's box full frame or in a corner (35 % of the frame width, 4 % margin; Q4) of this project's frame,
+ * upright; its opacity and corner radius stay (one undo step).
+ */
+export function applyPreset(id: string, preset: Preset): string | null {
+  const f = vFormat(state.format);
+  const { x, y, w, rot } = presetTransform(preset, f.w, f.h);
+  return setClipTransform(id, { x, y, w, rot }, '');
+}
 /** The Slip keys on the music (Q8): moves where in the song the video's sound starts. */
 export function slipMusic(delta: number): string | null {
   const m = state.music;

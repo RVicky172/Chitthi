@@ -582,7 +582,7 @@
 /* Timeline */
 .tl {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: 112px minmax(0, 1fr);
   max-height: 34vh;
   overflow-y: auto;
   user-select: none;
@@ -1145,4 +1145,92 @@
 }
 .mst-brush[hidden] {
   display: none;
+}
+
+/* 203 §10: overlay tracks on the timeline. Overlay rows sit above the main track, a shade apart; an overlay header
+   renames its track from the name (a button that becomes a field) and moves / deletes it from the height menu. */
+.tl-overlay {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.tl-h-name-button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: text;
+}
+.tl-h-name-button:hover {
+  background: var(--sunk);
+  color: var(--text);
+}
+.tl-h-name-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.tl-h-rename {
+  min-width: 0;
+  margin: 0 2px;
+  padding: 2px 4px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+}
+.tl-hmenu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
+/* Add track sits in the ruler's header cell, above the track headers. */
+.tl-h-ruler {
+  justify-content: flex-end;
+  padding: 0 4px;
+}
+.tl-add-track {
+  width: 22px;
+  height: 22px;
+}
+.tl-add-track[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Files dragged over the ruler go to a new overlay track above the top row. */
+.tl-ruler.tl-new-track {
+  background: var(--accent-soft);
+}
+
+/* 203 §11: the inspector's Position and size fields, two to a row. */
+.v-position {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.v-number {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px auto;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.v-number input {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: right;
+}
+.v-number input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

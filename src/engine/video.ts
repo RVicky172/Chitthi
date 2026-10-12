@@ -1,5 +1,6 @@
 import { DEFAULT_EDIT, renderIg, type IgEdit } from './instagram';
 import { drawLayers, type Layer } from './layers';
+import type { ClipTransform } from './timeline';
 
 /*
  * The video editor's timeline maths and frame drawing, free of UI code. One function draws a frame at any time t, for
@@ -142,9 +143,130 @@ export interface FrameClip extends ClipTiming {
 /** What renderFrame draws where no clip shows (the video track hidden): black, the layers, the video's fade-out. */
 export const NO_PICTURE: FrameClip = { kind: 'photo', dur: 0, in: 0, out: 0, edit: DEFAULT_EDIT, motion: 'none', fade: false };
 
+/** One clip of a frame's stack (203): its picture at that moment (sw × sh), local = seconds into the clip. */
+export interface StackDraw {
+  clip: FrameClip & { tf?: ClipTransform; overlay: boolean };
+  src: CanvasImageSource | null;
+  sw: number;
+  sh: number;
+  local: number;
+}
+
+/** The whole frame: a clip without a transform draws exactly as before 203 (timeline.ts re-exports it). */
+export const IDENTITY: ClipTransform = Object.freeze({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
+
+/** True for no transform or one equal to the identity (the fast path that draws as before 203). */
+export const isIdentity = (t?: ClipTransform): boolean =>
+  !t || (Object.keys(IDENTITY) as (keyof ClipTransform)[]).every((k) => t[k] === IDENTITY[k]);
+
+/** Each target canvas's own frame-size canvas for its see-through clips (made on first use, gone with the target), so
+ * the preview and the export, of different sizes and interleaved, don't remake it every frame. */
+const scratches = new WeakMap<HTMLCanvasElement | OffscreenCanvas, HTMLCanvasElement>();
+
+function scratchFor(ctx: CanvasRenderingContext2D, W: number, H: number): CanvasRenderingContext2D | null {
+  let c = scratches.get(ctx.canvas);
+  if (!c) scratches.set(ctx.canvas, (c = document.createElement('canvas')));
+  if (c.width !== W || c.height !== H) [c.width, c.height] = [W, H];
+  const x = c.getContext('2d');
+  if (!x) return null;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.clearRect(0, 0, W, H);
+  return x;
+}
+
+/** Sets x up to draw a whole frame (W × H) into a clip's box: moved, turned, its corners rounded, scaled by w. */
+function intoBox(x: CanvasRenderingContext2D, tf: ClipTransform, W: number, H: number): void {
+  const bw = tf.w * W,
+    bh = tf.w * H;
+  x.translate(tf.x * W, tf.y * H);
+  x.rotate((tf.rot * Math.PI) / 180);
+  roundedBox(x, -bw / 2, -bh / 2, bw, bh, tf.radius * Math.min(bw, bh));
+  x.clip();
+  x.scale(tf.w, tf.w);
+  x.translate(-W / 2, -H / 2);
+}
+
+/** The rounded rectangle x, y, w × h with corner radius r as the current path (arcTo where roundRect is missing). */
+function roundedBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath();
+  if (r <= 0) ctx.rect(x, y, w, h);
+  else if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r);
+  else {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+}
+
 /**
- * Draws the frame at time t: src is the clip's picture at that moment (the photo, or the video frame), sw × sh its
- * size. local = seconds into the clip.
+ * Draws the frame at time t from its stack of clips (203 plan §4), bottom first: black, each clip's picture (the main
+ * track's, then the overlays'), the layers, then the darkness of the main clip's fade-in and the video's fade-out.
+ * A clip without a transform (or at the identity) draws exactly as before 203, over the whole frame. Otherwise its
+ * picture, framed for the whole frame, is drawn into its box: moved, turned, scaled by w (the box has the frame's
+ * aspect, D1), its corners rounded, at its opacity. An overlay's fade-in ramps its own opacity from 0 over V_FADE
+ * (D2); the main clip's darkens the whole frame, layers included, as before.
+ */
+export function renderStack(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  items: StackDraw[],
+  layers: Layer[],
+  t: number,
+  total: number,
+  fadeOut: boolean,
+): void {
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+  let mainLocal = 0,
+    mainFade = false;
+  for (const { clip, src, sw, sh, local } of items) {
+    if (!clip.overlay) [mainLocal, mainFade] = [local, clip.fade];
+    if (!src || sw <= 0 || sh <= 0) continue;
+    const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
+    const tf = clip.tf ?? IDENTITY;
+    const alpha = tf.opacity * (clip.overlay && clip.fade ? Math.min(1, Math.max(0, local / V_FADE)) : 1);
+    if (alpha <= 0) continue;
+    if (alpha >= 1 && isIdentity(tf)) {
+      renderIg(ctx, src, sw, sh, edit, W, H);
+      continue;
+    }
+    // See-through: the finished picture (its background, colour and vignette) is drawn into its box on a canvas of
+    // its own first and laid down once, so its own passes don't show through one another. The same geometry either way.
+    const sx = alpha < 1 ? scratchFor(ctx, W, H) : null;
+    const x = sx ?? ctx;
+    x.save();
+    // Restored even when drawing throws (a closed video frame), so the box's transform and clip don't stay behind.
+    try {
+      // No scratch canvas (alpha 1, or none could be made): drawn in place, at its alpha.
+      if (!sx) x.globalAlpha = alpha;
+      intoBox(x, tf, W, H);
+      renderIg(x, src, sw, sh, edit, W, H);
+    } finally {
+      x.restore();
+    }
+    if (sx) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(sx.canvas, 0, 0);
+      ctx.restore();
+    }
+  }
+  const dark = fadeAmount(mainLocal, mainFade, t, total, fadeOut);
+  // Layers fade with the picture, so a title can fade in with the first photo.
+  drawLayers(ctx, layers, W, H, t);
+  if (dark > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${dark})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/**
+ * Draws the frame at time t with one clip: src is the clip's picture at that moment (the photo, or the video frame),
+ * sw × sh its size. local = seconds into the clip. renderStack with one item at the identity.
  */
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
@@ -160,19 +282,7 @@ export function renderFrame(
   total: number,
   fadeOut: boolean,
 ): void {
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, W, H);
-  if (src && sw > 0 && sh > 0) {
-    const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
-    renderIg(ctx, src, sw, sh, edit, W, H);
-  }
-  const dark = fadeAmount(local, clip.fade, t, total, fadeOut);
-  // Layers fade with the picture, so a title can fade in with the first photo.
-  drawLayers(ctx, layers, W, H, t);
-  if (dark > 0) {
-    ctx.fillStyle = `rgba(0,0,0,${dark})`;
-    ctx.fillRect(0, 0, W, H);
-  }
+  renderStack(ctx, W, H, [{ clip: { ...clip, overlay: false }, src, sw, sh, local }], layers, t, total, fadeOut);
 }
 
 /** m:ss.s */

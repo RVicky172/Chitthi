@@ -2,8 +2,9 @@
 // clip shows at a time, its picture from a PreviewSource, and the drawing. VideoStage uses exactly these.
 import { useSyncExternalStore } from 'react';
 import { DecodePool, frameTime, poolLimits, type FrameSourceFactory, type PoolClip } from '../../engine/decodePool';
-import { videoAt, type Project, type TimedClip } from '../../engine/timeline';
-import { NO_PICTURE, renderFrame, type FrameClip } from '../../engine/video';
+import { frameStack } from '../../engine/stack';
+import { MAIN_VIDEO, type Project, type TimedClip } from '../../engine/timeline';
+import { limitsFor, renderStack, type FrameClip } from '../../engine/video';
 import type { Layer } from '../../engine/layers';
 import { logError } from '../../lib/errors';
 import { isDesktop } from '../../platform/desktop';
@@ -17,11 +18,16 @@ export interface Picture {
   w: number;
   h: number;
 }
-/** What the stage draws: the time on the frame grid, the clip showing then (and its local time) and its picture. */
+/** A clip the stage draws: the clip, seconds into it, and its picture (null until it has one). */
+export interface StageItem<C extends FrameClip = FrameClip> {
+  clip: C;
+  local: number;
+  pic: Picture | null;
+}
+/** What the stage draws (203 §5): the time on the frame grid and the clips showing then, bottom first. */
 export interface StageFrame<C extends FrameClip = FrameClip> {
   at: number;
-  shown: { clip: C; local: number } | null;
-  pic: Picture | null;
+  items: StageItem<C>[];
 }
 /** Where a video clip's pictures come from: the frame showing at a source time (resolves when it can be drawn). */
 export interface PreviewSource {
@@ -104,49 +110,112 @@ export function poolSource(pool: DecodePool, fallback: PreviewSource): PreviewSo
 }
 
 /**
- * What the paused stage shows at playhead `t`: the frame the export encodes for it (D3: the time on the frame grid,
- * `frameTime`), the clip showing then and its local time. The time the editor shows stays the playhead's.
+ * What the paused stage shows at a playhead time: the frame the export encodes for it (D3: the time on the frame grid,
+ * `frameTime`). The time the editor shows stays the playhead's.
+ * @param project the video project
+ * @param playhead the playhead time, seconds
+ * @param fps the project's frame rate
+ * @returns the frame's grid time and the clips showing then, bottom first (frameStack), each with seconds into it
  */
 export function pausedAt<C extends PreviewClip>(
   project: Project<C>,
-  t: number,
+  playhead: number,
   fps: number,
-): { at: number; shown: { clip: C; local: number } | null } {
-  const at = frameTime(t, fps);
-  return { at, shown: videoAt(project, at) };
+): { at: number; items: { clip: C; local: number }[] } {
+  const at = frameTime(playhead, fps);
+  return { at, items: frameStack(project, at) };
 }
 
-/** The paused stage's picture at `t`: the clip that shows and its frame (a photo's still, a video's frame). */
-export async function pausedFrame<C extends PreviewClip>(project: Project<C>, t: number, fps: number, source: PreviewSource) {
-  const { at, shown } = pausedAt(project, t, fps);
-  let pic: Picture | null = null;
-  if (shown?.clip.kind === 'photo' && shown.clip.still)
-    pic = { image: shown.clip.still, w: shown.clip.still.width, h: shown.clip.still.height };
-  else if (shown?.clip.kind === 'video') pic = await source.frame(shown.clip, shown.clip.in + shown.local);
-  return { at, shown, pic };
+/**
+ * A photo clip's still as a picture.
+ * @param clip a photo clip
+ * @returns its still and size, or null before the still is made
+ */
+export function photoPicture(clip: PreviewClip): Picture | null {
+  const still = clip.still;
+  return still ? { image: still, w: still.width, h: still.height } : null;
 }
 
-/** Draws the stage: the clip's picture with its edit and motion, the layers, the fades (renderFrame, as the export). */
-export function drawPreview(
-  x: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  view: { layers: Layer[]; total: number; fadeOut: boolean },
-  frame: StageFrame,
-) {
-  const { at, shown, pic } = frame;
-  // No clip shows when the video track is hidden: black with the layers, as the export draws it.
-  renderFrame(
-    x,
-    W,
-    H,
-    shown?.clip ?? NO_PICTURE,
-    pic?.image ?? null,
-    pic?.w ?? 0,
-    pic?.h ?? 0,
-    shown ? shown.local : at,
-    view.layers,
+/**
+ * The paused stage's pictures at a playhead time: every clip of the frame's stack with its picture (a photo's still, a
+ * video's frame from `source`), all awaited together so the frame is drawn whole.
+ * @param project the video project
+ * @param playhead the playhead time, seconds (moved to the export's frame grid)
+ * @param fps the project's frame rate
+ * @param source where video frames come from (the decoder pool, or <video> elements)
+ * @returns the frame: its grid time and its clips bottom first; a video whose ask a newer one superseded (latest wins
+ *   per lane) has a null picture
+ */
+export async function pausedFrame<C extends PreviewClip>(
+  project: Project<C>,
+  playhead: number,
+  fps: number,
+  source: PreviewSource,
+): Promise<StageFrame<C>> {
+  const { at, items: stack } = pausedAt(project, playhead, fps);
+  const pictures = await Promise.all(
+    stack.map(({ clip, local }) => (clip.kind === 'video' ? source.frame(clip, clip.in + local) : photoPicture(clip))),
+  );
+  return { at, items: stack.map((stackItem, index) => ({ clip: stackItem.clip, local: stackItem.local, pic: pictures[index] })) };
+}
+
+/**
+ * The paused stage while its exact frame decodes: each clip keeps a picture of its own, so an overlay arriving doesn't
+ * blank the main clip.
+ * @param at the frame's time on the grid
+ * @param stack the clips showing then, bottom first (pausedAt)
+ * @param lastFrame the frame drawn last, whose pictures are held per clip
+ * @param pictureNow a picture available without waiting (a photo's still, a fallback clip's <video>)
+ * @param decodesInPool whether a clip's pictures come from the decoder pool (false for photos' and fallback clips')
+ * @returns the frame to draw now: a photo or fallback clip with `pictureNow`, a pool clip with the picture `lastFrame`
+ *   had for the same clip, else none
+ */
+export function heldStageFrame<C extends PreviewClip>(
+  at: number,
+  stack: { clip: C; local: number }[],
+  lastFrame: StageFrame<C> | null,
+  pictureNow: (stackItem: { clip: C; local: number }) => Picture | null,
+  decodesInPool: (clip: C) => boolean,
+): StageFrame<C> {
+  const heldPicture = (clip: C) => lastFrame?.items.find((held) => held.clip.id === clip.id)?.pic ?? null;
+  return {
     at,
+    items: stack.map((stackItem) => ({
+      ...stackItem,
+      pic: stackItem.clip.kind === 'photo' || !decodesInPool(stackItem.clip) ? pictureNow(stackItem) : heldPicture(stackItem.clip),
+    })),
+  };
+}
+
+/**
+ * Draws the stage: the stack's pictures with their edits, motion and boxes, the layers and the fades (renderStack, as
+ * the export draws). A frame with no clips (a hidden or empty main track at a gap) is black with the layers on top.
+ * @param context the stage canvas's 2D context
+ * @param width the canvas width in pixels
+ * @param height the canvas height in pixels
+ * @param view the project's layers, its length (seconds) and whether it fades out at the end
+ * @param frame the frame to draw (pausedFrame, heldStageFrame, or the playing stack)
+ */
+export function drawPreview(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  view: { layers: Layer[]; total: number; fadeOut: boolean },
+  frame: StageFrame<PreviewClip>,
+) {
+  renderStack(
+    context,
+    width,
+    height,
+    frame.items.map(({ clip, local, pic }) => ({
+      clip: { ...clip, overlay: clip.track !== MAIN_VIDEO },
+      src: pic?.image ?? null,
+      sw: pic?.w ?? 0,
+      sh: pic?.h ?? 0,
+      local,
+    })),
+    view.layers,
+    frame.at,
     view.total,
     view.fadeOut,
   );
@@ -162,7 +231,8 @@ const lazyMediabunny: FrameSourceFactory = async (file, opts) => (await import('
  */
 export function stageSource(onFrame: () => void = () => undefined) {
   const elements = videoElementSource(onFrame);
-  const limits = poolLimits(1, isDesktop);
+  // Room for the videos a frame may show at once (203 §5; decoders = that limit + 2).
+  const limits = poolLimits(limitsFor('reel', isDesktop).videosAtOnce, isDesktop);
   const pool = typeof VideoDecoder === 'undefined' ? null : new DecodePool(lazyMediabunny, limits);
   const source: PreviewSource = pool ? poolSource(pool, elements) : elements;
   const stage = {

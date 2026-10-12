@@ -11,11 +11,54 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-12 — 203 Implemented (T030–T034, T040, T052, T054, T090–T092); D-033
+
+**Done:** one task at a time in the main session (no agent batches, maintainer's choice). T040 merged from its agent
+worktree. T030/T031: the stage draws stacks (StageFrame.items, pictures resolved together, held picture per clip,
+pool at videosAtOnce). T032/T033: the export walks frames through frameStack (ExportJob.trace for the self-test;
+golden mean 0.34 / worst 4; 1,252 legacy frames = framePlan; 2-min 1080p main + 2 overlays 12.4 s, 40 MB peak).
+T034: fallback <video> follows the screen; fixed a canvas left translated when drawing a closed frame threw
+(photoDrawer, renderStack: restore in finally). D-033 (constitution 2.0.0): unit tests only during a phase; e2e,
+self-test, timing and manual checks written and run in the phase's test pass (290 for Phase 2), which ends in the
+release. T052: overlay rows, headers (rename, Hide / Mute / Lock, menu: move / delete), Add track, file drops, cross-row
+drags, Move to. T054: the clip box on the stage (move with snapping, resize, turn, arrows) and Position and size in the
+inspector; updateClipWhy. Docs (MEDIA-STUDIO, lld, PERFORMANCE, CHANGELOG, in-app). check 1,424; build entry 327 KB.
+New code uses descriptive names and JSDoc (maintainer's request). AC-4/6/7/9/11/15 ticked; the rest listed in 290.
+Gotchas logged: agent worktree removal gutted node_modules; a failed draw must restore the canvas.
+**Next:** 205 (keyframes) or another Phase 2 feature; 203 and 204 UI not yet seen in a browser (checks in 290).
+**Blockers:** none
+
+## 2026-10-11 — 203 batch 2 (T014–T019)
+
+**Done:** T014 / T015 edits across tracks: `moveToTrack`, the videos-at-once limit after every edit (`limitVideos`,
+only refused when over the limit and above before; explicit `EditCtx.desktop`; a no-WebCodecs reason), Q8 fixes
+(slide / nudge Magnetic only on main; reorder refuses overlays). T018 / T019 the document gate: `transform` ↔ `tf`,
+overlays and their overlaps, track-limit slots for main and music (no silent removals), main never muted, clips past
+the length limit left out with one counted reason. T016 / T017 `renderStack`: one box geometry (`intoBox`); a
+see-through clip drawn into its box on a per-target scratch canvas (renderIg's passes would show its background
+through its photo); golden frames worst 1 level on CPU, WebGL2, WebGPU; 2,160 frames identical to the frozen pre-203
+renderFrame. Every pair reviewed (CHANGES once for T016/T017 and T018/T019). check 1,334; npm test 6,187 / 0 (211 s);
+editors e2e 25 / 25. The store's remaining duties (limit on split, duplicate, add, Magnetic on) are in T040's text.
+**Next:** batch 3: T020/T021 (sound), T040 (store), T050 (PictureRow refactor).
+**Blockers:** none.
+
 ## 2026-10-11 — 406 roadmap workflow implementation
 
 **Done:** Approved and implemented T001/T002/T010/T011/T020/T030/T040; all AC-1–AC-6 proven and feature marked Implemented. Added compact task briefs, phase/search/status filtering with URL persistence, update/Pace trust cues, dependency links, feature outcome fallback, and clear hero states. Updated dashboard README and changelog. `npm run check`: 44 files, 1,361 tests; `npm run test:roadmap`: 25/25; `npm run test:e2e -- --workers=1`: 84 passed, 16 skipped (12-worker runs hit transient input/server failures); `npm run build`: passed, entry 327 KB; `npm test`: 6,187 checks, 0 failed; `npm run test:mcp`: passed; `npm run check:licenses`: 168 packages passed.
 **Next:** Continue the active feature work after branch synchronization.
 **Blockers:** none.
+
+## 2026-10-11 — 203 planned, tasked, batch 1 (T001, T002, T010–T013)
+
+**Done:** 203's plan approved (D1–D3, D-031; Q6 = web 3 / desktop 5) and tasks T001–T092 in five agent batches.
+Batch 1: T001 spike (renderIg in a rotated, rounded, 50 % box draws nothing outside it on CPU, WebGL2 and WebGPU;
+direct drawing chosen). T010 / T011 ClipTransform, presets, overlay track functions. T012 / T013 `engine/stack.ts`
+(frameStack, mostVideosAt, snapBox); review found preview / export disagreeing on float-hair frames → one edge rule
+`EDGE_EPS` (D-032). T002 overlay fixtures (AC-6 at 9:16 / 16:9; 2-minute 1080p main + 2 overlays). A usage limit
+stopped three agents once; resumed with SendMessage. check 1,244; npm test 6,160 / 0 (212 s); editors e2e 25 / 25.
+**Next:** batch 2: T014/T015 (edits), T016/T017 (renderStack), T018/T019 (document gate).
+**Blockers:** none.
+
 ## 2026-10-11 — chore: Dependabot PRs #23–#27
 
 **Done:** on `chore/deps-2026-10-11`: actions/upload-artifact 7.0.2, download-artifact 8.0.2, setup-node 7.1.0;

@@ -2,7 +2,7 @@
 
 # 203 — Compositing many tracks, picture-in-picture (P2.3)
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** 2 — Multi-track timeline · **Created:** 2026-10-08 · **Owner:** RVicky172
 
 ## Summary
@@ -36,20 +36,20 @@ It needs the decoder pool (`204`) to decode several videos at the same moment.
 ### Overlay clips
 
 - [ ] **AC-3:** Video and photo files can be added to an overlay track at the playhead (button, and by dropping files onto the track; dropping onto the empty area above the top track creates a new overlay track, Q12). Clips can be dragged in time on their track and between picture tracks (main ↔ overlay), with the clip keeping its start time unless snapping moves it. `202`'s operations (trim, ripple trim and delete, roll, slip, slide, split, duplicate, snapping) work on overlay tracks, which are never magnetic (Q8): clips there never overlap and gaps are allowed. _(unit + e2e)_
-- [ ] **AC-4:** Each clip on a picture track has a **transform**: position (the clip's centre as a share of the frame, from −0.5 to 1.5 on each axis so a clip can sit partly outside), size (its width as a share of the frame width, 0.05 to 4), rotation (−180° to 180°) and opacity (0–100 %), with Q2's corner radius. The clip keeps its own aspect ratio inside its box. A new overlay clip starts full frame (B-roll) (Q4); the inspector offers **Full frame** and the four **corner** presets (35 % of the frame width, 4 % margin). Main-track clips start and stay at the identity transform unless the user changes it. _(unit)_
+- [x] **AC-4:** Each clip on a picture track has a **transform**: position (the clip's centre as a share of the frame, from −0.5 to 1.5 on each axis so a clip can sit partly outside), size (its width as a share of the frame width, 0.05 to 4), rotation (−180° to 180°) and opacity (0–100 %), with Q2's corner radius. The clip keeps its own aspect ratio inside its box. A new overlay clip starts full frame (B-roll) (Q4); the inspector offers **Full frame** and the four **corner** presets (35 % of the frame width, 4 % margin). Main-track clips start and stay at the identity transform unless the user changes it. _(unit)_
 - [ ] **AC-5:** On the preview, a selected overlay clip shows a box with handles: drag to move, corner handles to resize keeping the aspect ratio, a rotate handle; moves snap to the frame's centre lines and edges within 8 px (off with the Snap switch or Alt, as `202` Q4). The inspector has number fields for X, Y, size, rotation, opacity and corner radius. With an overlay clip selected and the preview focused, arrow keys move it by 1 % of the frame (10 % with Shift). A drag is one undo step however long; each change is announced to screen readers (the clip and its new values). _(e2e)_
 
 ### Compositing
 
-- [ ] **AC-6:** At every frame time `t`, the frame is: the main video track's clip at `t` (black in a gap or past its end), then each visible overlay track's clip at `t` from the lowest track to the highest, each with its transform and opacity, then the timed layers on top of all tracks (Q1). Gaps on an overlay track draw nothing (the tracks below show through). Golden frames: a fixture with the main track and 2 overlay tracks (a full-frame B-roll video, a corner face-cam video with 50 % opacity, a rotated photo with rounded corners, a clip partly outside the frame), at 9:16 and 16:9, at 8 sample times including each clip's first and last frame, matches its reference within the self-test's tolerance on every GPU backend, and the export renders the same frames from the same inputs. _(self-test)_
-- [ ] **AC-7:** Timing is frame-exact: an overlay clip starting at 2.0 s at 30 fps appears first in frame 60 and is gone in the frame after its last; hidden tracks and clips at 0 % opacity draw nothing; a full-frame opaque overlay clip covers the frame completely (no pixel of the main clip shows). _(unit + self-test)_
+- [x] **AC-6:** At every frame time `t`, the frame is: the main video track's clip at `t` (black in a gap or past its end), then each visible overlay track's clip at `t` from the lowest track to the highest, each with its transform and opacity, then the timed layers on top of all tracks (Q1). Gaps on an overlay track draw nothing (the tracks below show through). Golden frames: a fixture with the main track and 2 overlay tracks (a full-frame B-roll video, a corner face-cam video with 50 % opacity, a rotated photo with rounded corners, a clip partly outside the frame), at 9:16 and 16:9, at 8 sample times including each clip's first and last frame, matches its reference within the self-test's tolerance on every GPU backend, and the export renders the same frames from the same inputs. _(self-test)_
+- [x] **AC-7:** Timing is frame-exact: an overlay clip starting at 2.0 s at 30 fps appears first in frame 60 and is gone in the frame after its last; hidden tracks and clips at 0 % opacity draw nothing; a full-frame opaque overlay clip covers the frame completely (no pixel of the main clip shows). _(unit + self-test)_
 - [ ] **AC-8:** Sound: each overlay video clip's own sound plays at its clip volume, mixed with the main track's clips and the music, in the preview and the export; a muted overlay track adds nothing. The export's sound sources (start, end, source time, volume, ramps) for a fixture with overlays equal the expected list exactly. _(unit + self-test)_
-- [ ] **AC-9:** The video's length is the end of the last clip on any picture track (Q9); the per-platform length and clip limits (`limitsFor()`) apply to the whole project, counting clips on every track (Q6), and refusals use the existing messages. At most Q6's number of video clips are visible at the same moment; an edit that would exceed it is refused with a message that says the limit and why. _(unit + e2e)_
+- [x] **AC-9:** The video's length is the end of the last clip on any picture track (Q9); the per-platform length and clip limits (`limitsFor()`) apply to the whole project, counting clips on every track (Q6), and refusals use the existing messages. At most Q6's number of video clips are visible at the same moment; an edit that would exceed it is refused with a message that says the limit and why. _(unit + e2e)_
 
 ### Nothing changes for existing projects
 
 - [ ] **AC-10:** Projects with no overlay clips (`201`'s fixtures: photo-only, video-only, mixed, music with offset, timed layers, fade-out, at 9:16, 4:5, 1:1 and 16:9; and `202`'s with gaps) give pixel-identical preview frames at 10 sample times each and identical export inputs (frames, clips, times and sound sources) to `202`. All existing video e2e tests pass unchanged. _(unit + self-test + e2e)_
-- [ ] **AC-11:** The project document reads every existing document unchanged (Q11): the new fields are optional and their defaults are the identity transform and no overlay clips. The validator clamps out-of-range transform values, drops clips on a missing track with a reason, moves a clip that overlaps another on an overlay track to the end of the one it overlaps (as `202` D3, never dropping it), enforces the track and clip limits, and never throws: at least 30 new malformed documents. Round trips document → validator → document are equal for the AC-6 fixture. _(unit)_
+- [x] **AC-11:** The project document reads every existing document unchanged (Q11): the new fields are optional and their defaults are the identity transform and no overlay clips. The validator clamps out-of-range transform values, drops clips on a missing track with a reason, moves a clip that overlaps another on an overlay track to the end of the one it overlaps (as `202` D3, never dropping it), enforces the track and clip limits, and never throws: at least 30 new malformed documents. Round trips document → validator → document are equal for the AC-6 fixture. _(unit)_
 
 ### Performance and memory
 
@@ -62,7 +62,7 @@ It needs the decoder pool (`204`) to decode several videos at the same moment.
 
 ### Docs
 
-- [ ] **AC-15:** `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits), `specs/lld.md` (the drawing order, the transform, the document fields) and `CHANGELOG.md` describe the change; the in-app docs list the keys. _(manual check)_
+- [x] **AC-15:** `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits), `specs/lld.md` (the drawing order, the transform, the document fields) and `CHANGELOG.md` describe the change; the in-app docs list the keys. _(manual check)_
 
 ## Non-Functional Requirements
 
@@ -110,3 +110,10 @@ It needs the decoder pool (`204`) to decode several videos at the same moment.
 
 - 2026-10-08 — Created (Draft).
 - 2026-10-09 — Q1–Q14 resolved (all proposals accepted by the maintainer); Approved.
+- 2026-10-11 — Q6's limits set from 204's measurements (AC-15): 3 videos at once on the web, 5 on the desktop app (not the proposed 6). Plan drafted (§1–§14, D1–D3 for the maintainer).
+- 2026-10-11 — Plan approved (D1–D3 as recommended, D-031).
+- 2026-10-11 — Tasks written (T001–T092). Two placements differ from the plan's Files so parallel agents don't share files: `frameStack`, `mostVideosAt` and `snapBox` in a new `src/engine/stack.ts`; the new e2e tests in `e2e/tracks.e2e.ts` and `e2e/overlays.e2e.ts`; store tests in `src/state/video.test.ts`.
+- 2026-10-11 — T013 review: one edge rule `EDGE_EPS` (1e-9 s) for `videoAt`, `frameStack` and `mostVideosAt`, so a frame whose start sits a floating-point hair off the frame grid shows the same clip in the paused preview as in the export (`framePlan`); before, 201 / 202 preview and export disagreed on such frames (tinyClips 1, clips500 42 at 30 fps). `snapBox` returns `{ axis, at }` guides and lives in `engine/stack.ts`.
+- 2026-10-11 — T019 review: the document gate also leaves out picture clips that start at or past the platform's length limit after packing or overlap moves (one reason with the count), like the clip-count limit it already enforced; a desktop project opened on the web loses what lies beyond the web limit. The main track's `muted` is always false (Hide only); the main and music tracks never count against the track limits.
+- 2026-10-11 — T017: a see-through clip is drawn into its box on a per-target scratch canvas and laid down once at its alpha (plan §4 updated); renderIg's passes would otherwise show its background through its photo.
+- 2026-10-12 — D-033: e2e, self-test, timing and manual checks are written and run at the end of the phase. T035 (AC-12 timing), T051 (tracks e2e), T053 (overlays e2e) and T060 (manual checks) moved to 290; T052 / T054 are proven by unit tests; T091 runs `check` and `build`. The ACs those tests prove (AC-1–AC-3, AC-5, AC-12, AC-14) are ticked in 290.

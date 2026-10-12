@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
-import { MUSIC, lockedReason, videoAt } from '../../engine/timeline';
+import { frameStack } from '../../engine/stack';
+import { IDENTITY, MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
-import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
+import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
+import { clipLabel } from './timelineRows';
+import { useClipTransform } from './useClipTransform';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { canStreamToDisk } from '../../lib/fileSink';
@@ -16,6 +19,8 @@ import {
   addVLayer,
   cancelExport,
   adjustClip,
+  applyPreset,
+  clipPlace,
   editClip,
   endVStep,
   exportVideo,
@@ -30,12 +35,13 @@ import {
   setKind,
   setMusicFile,
   setPlayhead,
+  setClipTransform,
   setPlaying,
   setVideoOptions,
   setVLayers,
   setVTools,
   undoV,
-  updateClip,
+  updateClipWhy,
   updateMusic,
   updateVLayer,
   useVideo,
@@ -286,6 +292,8 @@ function VideoStage() {
   const clips = useVideo((s) => s.clips),
     layers = useVideo((s) => s.layers),
     layerSel = useVideo((s) => s.layerSel),
+    selectedClip = useVideo((s) => s.selected),
+    snapping = useVideo((s) => s.snapping),
     tools = useVideo((s) => s.tools),
     format = useVideo((s) => s.format),
     fadeOut = useVideo((s) => s.fadeOut),
@@ -299,6 +307,8 @@ function VideoStage() {
   const tick = useFontsTick(layers);
   const audio = useRef<HTMLAudioElement | null>(null);
   const draw = useRef<(frame?: StageFrame<VClip>) => void>(() => undefined);
+  // The selected clip's box on the stage (203 §11): presses that miss every layer, arrow keys, and its drawing.
+  const clipBox = useClipTransform(ref, () => draw.current());
   // Pictures: the decoder pool (204), with <video> elements for clips it can't decode (sound: below).
   // Created on first use and again after a cleanup: StrictMode runs effects twice in development, and a source kept in
   // useMemo would stay disposed (the stage drew nothing).
@@ -337,17 +347,21 @@ function VideoStage() {
     return Boolean(pool && !why);
   };
 
-  /** A picture without waiting (playback): what the pool has ready, or the clip's <video> for a fallback clip. */
-  const pictureNow = (shown: { clip: VClip; local: number } | null): Picture | null => {
-    if (!shown) return null;
-    const c = shown.clip;
-    if (c.kind === 'photo') return c.still ? { image: c.still, w: c.still.width, h: c.still.height } : null;
-    if (usesPool(c)) {
-      const f = stage().pool!.peek(poolClip(c), c.in + shown.local);
-      return f ? { image: f.image, w: f.width, h: f.height } : null;
+  /**
+   * A clip's picture without waiting (playback, and the paused stage until its exact frame lands).
+   * @param stackItem a clip showing now and the seconds into it
+   * @returns a photo's still, the frame the pool has ready for a video, or a fallback clip's <video> once it has data;
+   *   null when none is ready
+   */
+  const pictureNow = (stackItem: { clip: VClip; local: number }): Picture | null => {
+    const clip = stackItem.clip;
+    if (clip.kind === 'photo') return photoPicture(clip);
+    if (usesPool(clip)) {
+      const poolFrame = stage().pool!.peek(poolClip(clip), clip.in + stackItem.local);
+      return poolFrame ? { image: poolFrame.image, w: poolFrame.width, h: poolFrame.height } : null;
     }
-    const v = videoFor(c);
-    return v.readyState >= 2 ? { image: v, w: v.videoWidth, h: v.videoHeight } : null;
+    const videoElement = videoFor(clip);
+    return videoElement.readyState >= 2 ? { image: videoElement, w: videoElement.videoWidth, h: videoElement.videoHeight } : null;
   };
 
   draw.current = (frame) => {
@@ -362,36 +376,31 @@ function VideoStage() {
       cv.height = H;
     }
     const s = getVideo();
-    let f = frame;
-    if (!f) {
+    let frameToDraw = frame;
+    if (!frameToDraw) {
       if (s.playing) {
-        const shown = videoAt(projectOf(s), s.t);
-        f = { at: s.t, shown, pic: pictureNow(shown) };
+        // Every visible clip's picture as the pool has it now (each video peeked: holds counted per lane).
+        const stack = frameStack(projectOf(s), s.t);
+        frameToDraw = { at: s.t, items: stack.map((stackItem) => ({ ...stackItem, pic: pictureNow(stackItem) })) };
       } else {
-        // Paused, until the exact frame lands: a photo at once; a video's held picture while it's the same clip.
-        const { at, shown } = pausedAt(projectOf(s), s.t, s.fps);
-        const held = last.current;
-        const pic =
-          shown?.clip.kind === 'photo' || (shown && !usesPool(shown.clip))
-            ? pictureNow(shown)
-            : held && held.shown?.clip.id === shown?.clip.id
-              ? held.pic
-              : null;
-        f = { at, shown, pic };
+        // Paused, until the exact frame lands: photos at once; each video's held picture while it's the same clip.
+        const { at, items: stack } = pausedAt(projectOf(s), s.t, s.fps);
+        frameToDraw = heldStageFrame(at, stack, last.current, pictureNow, usesPool);
       }
     }
-    if (!f.shown && !s.clips.length) return;
-    last.current = f;
+    if (!frameToDraw.items.length && !s.clips.length) return;
+    last.current = frameToDraw;
     const view = { layers: s.layers, total: videoLength(s), fadeOut: s.fadeOut };
     try {
-      drawPreview(x, W, H, view, f);
+      drawPreview(x, W, H, view, frameToDraw);
     } catch {
-      // A held frame the pool has since released (a clip removed): draw without it until the next frame.
-      last.current = { ...f, pic: null };
+      // A held frame the pool has since released (a clip removed): draw without pictures until the next frame.
+      last.current = { ...frameToDraw, items: frameToDraw.items.map((stackItem) => ({ ...stackItem, pic: null })) };
       drawPreview(x, W, H, view, last.current);
     }
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
     if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
+    else clipBox.drawBox(x, W, H);
   };
 
   /** The clips the pool keeps open at playhead t: those showing and the next to start within 2 s (Q10). */
@@ -416,22 +425,25 @@ function VideoStage() {
       const s = getVideo(),
         plan = soundPlan(projectOf(s), s.t);
       sound().update(plan, play, s.fps);
-      const p = plan.current,
-        pool = stage().pool;
-      for (const c of s.clips) {
-        if (c.kind !== 'video' || (pool && !pool.fallback(c.id))) continue;
-        const v = videoFor(c);
-        v.muted = true;
-        if (p && c.id === p.clip.id) {
-          const want = c.in + p.local;
+      const pool = stage().pool;
+      // Fallback pictures follow what's on screen (frameStack: hidden tracks left out), not the sound plan: a clip on a
+      // muted overlay track is still drawn (203 T034).
+      const onScreen = frameStack(projectOf(s), s.t);
+      for (const clip of s.clips) {
+        if (clip.kind !== 'video' || (pool && !pool.fallback(clip.id))) continue;
+        const videoElement = videoFor(clip);
+        videoElement.muted = true;
+        const shown = onScreen.find((stackItem) => stackItem.clip.id === clip.id);
+        if (shown) {
+          const sourceTime = clip.in + shown.local;
           if (play) {
-            if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;
-            if (v.paused) void v.play().catch(() => undefined);
+            if (Math.abs(videoElement.currentTime - sourceTime) > 0.3) videoElement.currentTime = sourceTime;
+            if (videoElement.paused) void videoElement.play().catch(() => undefined);
           } else {
-            v.pause();
-            if (Math.abs(v.currentTime - want) > 0.02) v.currentTime = want;
+            videoElement.pause();
+            if (Math.abs(videoElement.currentTime - sourceTime) > 0.02) videoElement.currentTime = sourceTime;
           }
-        } else if (!v.paused) v.pause();
+        } else if (!videoElement.paused) videoElement.pause();
       }
     },
     [videoFor, stage, sound],
@@ -458,7 +470,7 @@ function VideoStage() {
       })
       .catch((e: unknown) => logError('handled', e));
     lookAhead(s.t);
-  }, [clips, tracks, layers, layerSel, format, fadeOut, t, tick, playing, width, height, sync, stage, lookAhead]);
+  }, [clips, tracks, layers, layerSel, selectedClip, snapping, format, fadeOut, t, tick, playing, width, height, sync, stage, lookAhead]);
 
   // Playback: advance the playhead with the wall clock, keep the clip videos and the music in step.
   useEffect(() => {
@@ -515,6 +527,7 @@ function VideoStage() {
     onSetLayers: (ls, key, sel) => setVLayers(ls, key, sel),
     onRemove: removeVLayer,
     onEndStep: endVStep,
+    onBackground: clipBox.background,
   });
 
   return (
@@ -524,11 +537,11 @@ function VideoStage() {
         tabIndex={0}
         className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}`}
         style={{ width, height }}
-        aria-label={`Video frame at ${fmtTime(t)}, ${f.ratio}. Drag a layer to move it, its corner handle to resize, its top handle to turn it. Delete removes the selected layer. Space plays and pauses.`}
+        aria-label={`Video frame at ${fmtTime(t)}, ${f.ratio}. Drag a layer or an overlay clip to move it, its corner handle to resize, its top handle to turn it; arrow keys move the selected one. Delete removes the selected layer. Space plays and pauses.`}
         onDoubleClick={() => document.getElementById('layer-text')?.focus()}
         {...handlers}
       />
-      <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the frame' : 'Drag a layer to move it · Space plays'}</p>
+      <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the frame' : 'Drag a layer or an overlay clip to move it · Space plays'}</p>
     </div>
   );
 }
@@ -545,8 +558,13 @@ function Range({ id, label, value, min, max, step = 0.1, show, onChange }: { id:
 }
 
 function ClipPanel({ clip: c }: { clip: VClip }) {
-  const clips = useVideo((s) => s.clips);
-  const i = clips.findIndex((x) => x.id === c.id);
+  // "Clip 2", or "Overlay 1, clip 2": counted on the clip's own track (203).
+  const place = useVideo((s) => clipPlace(c.id, s));
+  /** Changes the clip, showing why when it can't be (the length or videos-at-once limit, a locked track). */
+  const updateClip = (patch: Partial<VClip>, key?: string) => {
+    const refusal = updateClipWhy(c.id, patch, key);
+    if (refusal) toast(refusal);
+  };
   const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
   const locked = useVideo((s) => lockedReason(s.tracks, c.track));
   const cantExport = useFallbackNote(c.file);
@@ -557,7 +575,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
       <fieldset className="lp-fs" disabled={!!locked}>
       <div className="ig-group">
         <h3>
-          Clip {i + 1} · {c.kind === 'video' ? 'video' : 'photo'}
+          {place ? clipLabel(place.track, place.n) : 'Clip'} · {c.kind === 'video' ? 'video' : 'photo'}
         </h3>
         <p className="hint ig-name" title={c.name}>
           {c.name} · {c.w}×{c.h}
@@ -566,11 +584,11 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
         {cantExport && <p className="hint bad" role="status">{cantExport}</p>}
         {c.kind === 'photo' ? (
           <>
-            <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip(c.id, { dur })} />
+            <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip({ dur })} />
             <span className="lp-label">Movement</span>
             <div className="chips" role="radiogroup" aria-label="Movement">
               {MOTIONS.map(([id, label]) => (
-                <button key={id} type="button" role="radio" className="chip" aria-checked={c.motion === id} onClick={() => updateClip(c.id, { motion: id as Motion }, '')}>
+                <button key={id} type="button" role="radio" className="chip" aria-checked={c.motion === id} onClick={() => updateClip({ motion: id as Motion }, '')}>
                   {label}
                 </button>
               ))}
@@ -578,15 +596,16 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           </>
         ) : (
           <>
-            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip(c.id, { in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
-            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip(c.id, { out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
-            <Range id="v-vol" label="Clip sound" value={c.volume} min={0} max={1} step={0.05} show={c.volume ? `${Math.round(c.volume * 100)}%` : 'muted'} onChange={(volume) => updateClip(c.id, { volume })} />
+            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip({ in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
+            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip({ out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
+            <Range id="v-vol" label="Clip sound" value={c.volume} min={0} max={1} step={0.05} show={c.volume ? `${Math.round(c.volume * 100)}%` : 'muted'} onChange={(volume) => updateClip({ volume })} />
           </>
         )}
-        <Check checked={c.fade} onChange={(fade) => updateClip(c.id, { fade }, '')}>
+        <Check checked={c.fade} onChange={(fade) => updateClip({ fade }, '')}>
           Fade in from black
         </Check>
       </div>
+      <PositionGroup clip={c} />
       <div className="ig-group">
         <h3>Frame</h3>
         <Seg<'fill' | 'fit'>
@@ -617,6 +636,84 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
       </div>
       </fieldset>
     </div>
+  );
+}
+
+/** The inspector's position-and-size fields: a label, a number in the field's units, and its range. */
+const POSITION_FIELDS: { field: keyof ClipTransform; label: string; unit: string; min: number; max: number; scale: number }[] = [
+  { field: 'x', label: 'X', unit: '%', min: -50, max: 150, scale: 100 },
+  { field: 'y', label: 'Y', unit: '%', min: -50, max: 150, scale: 100 },
+  { field: 'w', label: 'Size', unit: '%', min: 5, max: 400, scale: 100 },
+  { field: 'rot', label: 'Rotation', unit: '°', min: -180, max: 180, scale: 1 },
+  { field: 'opacity', label: 'Opacity', unit: '%', min: 0, max: 100, scale: 100 },
+  { field: 'radius', label: 'Corners', unit: '%', min: 0, max: 50, scale: 100 },
+];
+
+/**
+ * A clip's box in the frame (203 §11, AC-5): Full frame and the four corner presets, and number fields for its centre
+ * (X, Y), size, rotation, opacity and corner radius. Typing in a field is one undo step per field until another field
+ * changes; the stage shows the same box, with handles, for dragging.
+ */
+function PositionGroup({ clip }: { clip: VClip }) {
+  const transform = clip.tf ?? IDENTITY;
+  /** Shows a refusal (a locked track) instead of dropping it. */
+  const tell = (refusal: string | null) => refusal && toast(refusal);
+  return (
+    <div className="ig-group">
+      <h3>Position and size</h3>
+      <div className="chips" role="group" aria-label="Place the clip">
+        {PRESETS.map(([preset, label]) => (
+          <button key={preset} type="button" className="chip" onClick={() => tell(applyPreset(clip.id, preset))}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="v-position">
+        {POSITION_FIELDS.map(({ field, label, unit, min, max, scale }) => (
+          <NumberField
+            key={field}
+            label={label}
+            unit={unit}
+            min={min}
+            max={max}
+            value={Math.round(transform[field] * scale * 10) / 10}
+            onChange={(value) => tell(setClipTransform(clip.id, { [field]: value / scale }, `tf-field:${clip.id}:${field}`))}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A number field that keeps what is being typed until it is a number within range, then reports it.
+ * @param label the field's name
+ * @param unit shown after the field
+ * @param value the value shown when not typing
+ * @param onChange gets each valid number typed or stepped
+ */
+function NumberField({ label, unit, min, max, value, onChange }: { label: string; unit: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  return (
+    <label className="v-number">
+      <span>{label}</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={1}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          const typed = Number(event.target.value);
+          if (event.target.value.trim() !== '' && Number.isFinite(typed) && typed >= min && typed <= max) onChange(typed);
+        }}
+        onBlur={() => setDraft(String(value))}
+      />
+      <span aria-hidden="true">{unit}</span>
+    </label>
   );
 }
 

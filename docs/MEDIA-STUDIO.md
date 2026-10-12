@@ -361,15 +361,17 @@ what changed ("Clip 2, 2.0 s to 4.0 s").
 
 ### Tracks
 
-The timeline has a **Video** track (the clips) and a **Music** track; text, shapes, stickers and drawings keep a row
-each, timed by **Appears at** and **Disappears at**. Each track's header, at the left of the timeline, has:
+The timeline has a **Video** track (the main clips), any **overlay tracks** above it, and a **Music** track; text,
+shapes, stickers and drawings keep a row each, timed by **Appears at** and **Disappears at**. Each track's header, at
+the left of the timeline, has:
 
 | Control | What it does |
 | --- | --- |
-| **Hide** (Video) | The clips aren't drawn in the preview or the export: black frames with the layers on top. Their own sound still plays (lower a clip's volume to silence it). |
-| **Mute** (Music) | The music is silent in the preview and the export; the clips' own sound stays. |
+| **Hide** (Video, overlays) | The clips aren't drawn in the preview or the export (the Video track: black frames with the layers on top; an overlay: the tracks below show). Their own sound still plays (lower a clip's volume to silence it). |
+| **Mute** (overlays, Music) | The track is silent in the preview and the export; its pictures still show. The Video track's sound is set per clip. |
 | **Lock** | The track's clips can't be selected, dragged, trimmed, split, duplicated or deleted, and the inspector shows them read-only; the editor says why. A locked track still plays and exports. |
-| **Height** | Small (40 px), Medium (64 px) or Large (96 px), from a menu (arrow keys, Home / End, Enter, Escape). |
+| **Height** | Small (40 px), Medium (64 px) or Large (96 px), from a menu (arrow keys, Home / End, Enter, Escape). An overlay track's menu also has **Move up**, **Move down** and **Delete** (asking first when the track holds clips). |
+| **Name** (overlays) | Click it to rename the track (1–40 characters): Enter keeps the name, Escape cancels. |
 
 Hide, Mute and Lock are undo steps; the height is a view setting that lasts for the session. Each control is a button
 with a name for screen readers, usable from the keyboard; hidden and muted rows are dimmed, locked clips show a lock.
@@ -380,7 +382,33 @@ with it off it keeps gaps. A project also has a document form (JSON, version 1, 
 `mergeProject()`, which reads any document (a 2.x project without a version is converted; with Magnetic off, a clip
 overlapping the one before is moved after it) and is the single way in for project data, ready for saving projects
 later. The edits themselves are pure functions on the clips (`src/engine/edits.ts`), so agent tools can reuse them.
-Adding tracks and overlay clips come with the next Phase 2 features.
+
+### Overlay tracks and picture-in-picture
+
+Overlay tracks put clips **over** the Video track: B-roll over a talking clip, a face-cam in a corner, a logo, a photo.
+Tracks higher in the timeline are drawn on top.
+
+- **Add a track** with **+** at the top left of the timeline (above the track headers). A project holds up to 4 picture
+  tracks in the browser and 8 in the desktop app, counting the Video track; at the limit the button says why.
+- **Add clips to a track** by dropping photos or videos on its row (they land at the drop time) or on the time ruler
+  (a new overlay track is made for them). A clip dragged up or down onto another row moves to that track; **Move to**
+  in the toolbar does the same from the keyboard.
+- **Place a clip** on the preview: select it (click it on the preview or the timeline), then drag its box to move it,
+  the corner handle to resize it (it keeps its shape), the top handle to turn it (Shift: 15° steps). Moves snap to
+  the frame's centre lines and edges (Snap off, or Alt held: no snapping). With the preview focused, the arrow keys
+  move it 1 % of the frame, 10 % with Shift. Each drag is one undo step, and each change is announced to screen
+  readers.
+- **Position and size**, in the inspector: **Full frame** and four corner presets (35 % of the frame width, 4 % from
+  the edges), and fields for X and Y (the box's centre, % of the frame), size (% of the frame width), rotation,
+  opacity and corner radius.
+- Overlay clips never ripple or close gaps (Magnetic applies to the Video track only): an overlay's gaps are
+  see-through. A clip's **Fade in from black** fades an overlay clip in from see-through.
+- **Videos on screen at once** are limited (3 in the browser, 5 in the desktop app, photos don't count): an edit that
+  would show more is refused with the limit, so playback stays smooth.
+
+The preview and the export draw the same stack of clips (`frameStack`, `src/engine/stack.ts`; `renderStack`,
+`src/engine/video.ts`), so the file matches the preview. Each clip's box is saved with the project; a project without
+overlays is drawn and exported exactly as before.
 
 Per clip, in the inspector: duration (photos) or trim and sound volume (videos), movement for photos (still, zoom in
 or out, pan four ways), fade in from black, framing (fill or whole picture with a blurred background, zoom, position)
@@ -419,11 +447,12 @@ app tells users so and sends long or demanding projects to the desktop app:
 | YouTube video | Up to 15 min, 60 clips, 4 GB files, 1080p, 30 fps | Up to 3 hours, 500 clips, 50 GB files, 1080p / 1440p / 4K, 30 or 60 fps |
 | Saving long videos | Streamed to a file in Chrome and Edge (File System Access API); built in memory elsewhere | Streamed to a file through the main process |
 | Encoding | WebCodecs, hardware-accelerated where the browser allows | WebCodecs in Electron, using the graphics card's encoder |
-| Videos on screen at once (with overlay video clips, coming in `203`) | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
+| Videos on screen at once (main + overlay video clips) | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
 
 Limits live in `limitsFor()` (`src/engine/video.ts`); the notes in the editor read from it. Videos on screen at once
-is measured (see [PERFORMANCE.md](PERFORMANCE.md#videos-on-screen-at-once)) and matters once overlay video clips arrive
-with the multi-track timeline; today's projects show one video at a time. Photos don't count.
+is measured (see [PERFORMANCE.md](PERFORMANCE.md#videos-on-screen-at-once)) and counts the main track's and the
+overlay tracks' video clips showing at the same moment, hidden tracks included (so showing a track can't break it).
+Photos don't count.
 
 ### How exports stay small in memory
 

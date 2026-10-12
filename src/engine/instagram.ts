@@ -165,13 +165,18 @@ function photoDrawer(src: CanvasImageSource, e: IgEdit) {
   const turned = e.rot % 180 !== 0;
   return (x: CanvasRenderingContext2D, cx: number, cy: number, dw: number, dh: number) => {
     x.save();
-    x.translate(cx, cy);
-    x.rotate((e.rot * Math.PI) / 180);
-    if (e.flip) x.scale(-1, 1);
-    const w = turned ? dh : dw,
-      h = turned ? dw : dh;
-    x.drawImage(src, -w / 2, -h / 2, w, h);
-    x.restore();
+    // Restored even when drawImage throws (a video frame closed since it was handed out), so the canvas isn't left
+    // moved to the photo's centre for every later draw.
+    try {
+      x.translate(cx, cy);
+      x.rotate((e.rot * Math.PI) / 180);
+      if (e.flip) x.scale(-1, 1);
+      const w = turned ? dh : dw,
+        h = turned ? dw : dh;
+      x.drawImage(src, -w / 2, -h / 2, w, h);
+    } finally {
+      x.restore();
+    }
   };
 }
 

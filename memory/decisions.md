@@ -366,3 +366,44 @@ parallel; a headless runner script (the D-024 factory).
 **Consequences:** more tokens per task; merge work for the orchestrator; heavy suites stay serial. Custom agent types
 load with a new session; until then the orchestrator starts general-purpose agents with the definition's text.
 
+## D-031 — 203's plan: a stack of picture tracks with a per-clip transform (2026-10-11)
+
+**Context:** 203's plan (`specs/features/203-compositing-pip`) left three choices to the maintainer, and Q6's desktop
+limit waited on 204's measurements.
+**Decision:** accepted as recommended. D1: a clip's box has the frame's aspect ratio; the clip's own framing (fill or
+whole picture) decides what shows inside, so identity is today's look. D2: an overlay clip's fade-in ramps its own
+opacity; a main clip's fade-in still darkens the whole frame. D3: the videos-at-once limit counts video clips on every
+picture track, hidden ones included; photos don't count. Q6: 3 videos at once on the web, 5 on the desktop app (204).
+**Alternatives:** a box with the clip's own aspect ratio; fade overlays from black; count only shown tracks.
+**Consequences:** projects without transforms draw exactly as before (AC-10 by construction); a 16:9 clip in a corner
+of a 9:16 Reel shows cropped until set to "whole picture".
+
+## D-032 — One edge rule for which clip a time shows (2026-10-11)
+
+**Context:** 203 T013's review found that `videoAt` (paused preview) decided coverage exactly while the export's
+`framePlan` (via `frameRange`) put a frame lying a floating-point hair before a cut into the later clip; starts summed by
+`pack()` sit ~1e-13 s off the grid, so 201 / 202 preview and export disagreed on a few frames (tinyClips 1, clips500 42
+at 30 fps).
+**Decision:** `EDGE_EPS` = 1e-9 s in `engine/timeline.ts`, used by `videoAt`, `frameStack` and `mostVideosAt`: a time
+within EPS before a boundary belongs to the later clip, as the export already drew it.
+**Alternatives:** keep the exact rule and make the export follow it (changes exported files); fps-dependent tolerance.
+**Consequences:** preview and export agree on every frame; `local` can be about −1e-13 at such frames (already so in the
+export; fades and motion clamp it).
+
+
+## D-033 — Heavy tests run once per phase, before its release (2026-10-12)
+
+**Context:** e2e runs, the Electron self-test, MCP and timing runs after each task took much of each session, and
+writing e2e / self-test checks per task slowed product work (maintainer, 2026-10-12).
+**Decision:** while a phase is being built, tasks write and run **unit tests only** (`npm run check`; `npm run build`
+when a feature is finished). E2e tests, self-test checks, timing runs and manual checks are **written and run at the
+end of the phase**, in its test-pass feature (`x90`: `290` for Phase 2), then every Definition-of-Done gate runs and
+the phase is released: every phase ends in a release. A feature lists the checks it defers in `x90`; the ACs they
+prove are ticked there. Tasks run one at a time in the main session (D-030's agent batches off by default).
+Constitution 2.0.0 (II and the Definition of Done), `workflow.md` Stages 3–5, `/spec-tasks`, `/spec-implement`,
+`/spec-verify`, CLAUDE.md. 203: T035, T051, T053, T060 moved to 290; T052 / T054 proven by unit tests.
+**Alternatives:** keep per-task area e2e (D-007 as it was); write heavy checks with the code but run them at phase end
+(still costs the writing time during the phase).
+**Consequences:** faster feature work; regressions in UI, rendering or the desktop app surface later, at the test
+pass, so it can be longer and may send fixes back into finished features. Features reach `Implemented` with some ACs
+still open (listed in `x90`).

@@ -15,11 +15,12 @@ import {
   type StreamTargetChunk,
 } from 'mediabunny';
 import { isDesktop } from '../platform/desktop';
-import { DecodePool, poolLimits, type PoolClip } from './decodePool';
+import { DecodePool, lanePlan, poolLimits, type PoolClip } from './decodePool';
 import { mediabunnySource } from './frameSource';
 import { loadImage } from './photo';
-import { audioPlan, framePlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
-import { NO_PICTURE, renderFrame, type FrameClip } from './video';
+import { frameStack } from './stack';
+import { MAIN_VIDEO, audioPlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
+import { limitsFor, renderStack, type FrameClip } from './video';
 
 /*
  * Encodes the video editor's project (tracks, engine/timeline.ts) into an MP4: H.264 video and AAC sound at 48 kHz, with the index (`moov`) at the
@@ -27,10 +28,11 @@ import { NO_PICTURE, renderFrame, type FrameClip } from './video';
  * browser's WebCodecs through Mediabunny (MPL-2.0, THIRD_PARTY_NOTICES.md); this module loads only on export.
  *
  * Memory stays flat however long the video is:
- *   - frames are drawn one at a time (`framePlan`) and handed to the encoder; video clips are decoded frame by frame at
- *     exactly the times needed, through the decoder pool (decodePool.ts, as the preview), which opens the next video
- *     clip while the current one encodes and releases every frame once replaced; a hidden video track gives black
- *     frames with the layers on top;
+ *   - frames are drawn one at a time, each the stack of clips showing then (`frameStack`, as the preview: the main
+ *     track, then each visible overlay track) and handed to the encoder; video clips are decoded frame by frame at
+ *     exactly the times needed, through the decoder pool (decodePool.ts, as the preview), one lane per video on
+ *     screen, which opens the next clips while the current ones encode and releases every frame once replaced; photos
+ *     are decoded once per clip and released once it has passed; no clip at a time gives black with the layers on top;
  *   - sound (`audioPlan`: clips' own sound plus music, unless its track is muted) is decoded and mixed in 10-second
  *     windows, interleaved with the frames;
  *   - long videos stream to a file (desktop: through the main process; Chrome and Edge: the File System Access API),
@@ -61,6 +63,8 @@ export interface ExportJob extends Project<ExportClip> {
   sink: ExportSink;
   onProgress?: (fraction: number, phase: string) => void;
   signal?: AbortSignal;
+  /** Self-tests: each frame's clips as drawn, bottom first, with the source time asked of a video (null: a photo). */
+  trace?: (frame: number, drawn: { id: string; at: number | null }[]) => void;
 }
 
 export class ExportError extends Error {}
@@ -163,9 +167,11 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   if (!ctx) throw new ExportError('Canvas unavailable.');
 
   const frames = Math.max(1, Math.round(total * fps));
-  // Video clips decode through a pool: the clip being encoded and the next one (look-ahead), frames no wider than
+  // Video clips decode through a pool: the videos on screen and the next ones (look-ahead), frames no wider than
   // needed for this frame size at up to 1.8× zoom (D5).
-  const pool = new DecodePool(mediabunnySource, poolLimits(1, isDesktop), { maxWidth: Math.round(Math.max(W, H) * 1.8) });
+  const pool = new DecodePool(mediabunnySource, poolLimits(limitsFor('reel', isDesktop).videosAtOnce, isDesktop), {
+    maxWidth: Math.round(Math.max(W, H) * 1.8),
+  });
   const lane = (c: ExportClip): PoolClip => ({ id: c.id, file: c.file, in: c.in, out: c.out, start: c.start, track: c.track });
   const memory = job.sink.kind === 'memory';
   const target = job.sink.kind === 'memory' ? new BufferTarget() : new StreamTarget(job.sink.writable, { chunked: true });
@@ -195,58 +201,80 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
       if (done % 10 === 0) job.onProgress?.(done / frames, `Encoding frame ${done.toLocaleString()} of ${frames.toLocaleString()}…`);
       aborted(job.signal);
     };
-    const plan = framePlan(job, fps);
-    // The next video clip after each span, for look-ahead (one pass from the end).
-    const nextVideo: (ExportClip | undefined)[] = [];
-    for (let k = plan.length - 1, n: ExportClip | undefined; k >= 0; k--) {
-      nextVideo[k] = n;
-      const c = plan[k].clip;
-      if (c?.kind === 'video') n = c;
-    }
-    for (const [k, { clip: c, f0, f1: last, start }] of plan.entries()) {
-      if (!c) {
-        // The video track is hidden: black frames, the layers still on top.
-        for (let i = f0; i < last; i++) {
-          const t = i / fps;
-          renderFrame(ctx, W, H, NO_PICTURE, null, 0, 0, t - start, job.layers, t, total, job.fadeOut);
-          await step(t);
-        }
-      } else if (c.kind === 'photo') {
-        const url = URL.createObjectURL(c.file);
-        try {
-          const img = await loadImage(url);
-          for (let i = f0; i < last; i++) {
-            const t = i / fps;
-            renderFrame(ctx, W, H, c, img, img.naturalWidth, img.naturalHeight, t - start, job.layers, t, total, job.fadeOut);
-            await step(t);
-          }
-        } finally {
-          URL.revokeObjectURL(url);
+    // Each clip's picture: a photo's image (decoded once, with its object URL), a video's last frame (held past the
+    // end of a source shorter than its trim, as before). Released once the clip has left the stack: a clip shows in
+    // one stretch of frames, so it has passed.
+    const pictures = new Map<string, { image: CanvasImageSource; width: number; height: number; objectUrl?: string }>();
+    /** Gives back a clip's picture (and a photo's object URL) and its decoder lane. */
+    const releaseClip = (clipId: string) => {
+      const objectUrl = pictures.get(clipId)?.objectUrl;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      pictures.delete(clipId);
+      pool.forget(clipId);
+    };
+    /**
+     * A clip's picture for this frame: a photo's image (loaded on its first frame), or the video frame at `local`
+     * seconds into the clip from the pool (the last one it gave, when it has no newer frame).
+     */
+    const pictureFor = async (clip: ExportClip, local: number) => {
+      if (clip.kind === 'photo') {
+        if (!pictures.has(clip.id)) {
+          const objectUrl = URL.createObjectURL(clip.file);
+          const image = await loadImage(objectUrl).catch((error: unknown) => {
+            URL.revokeObjectURL(objectUrl);
+            throw error;
+          });
+          pictures.set(clip.id, { image, width: image.naturalWidth, height: image.naturalHeight, objectUrl });
         }
       } else {
-        const now = lane(c);
-        const next = nextVideo[k];
-        pool.want(next ? [c.id, next.id] : [c.id]);
-        if (next) pool.prepare(lane(next));
-        // Past the end of a source shorter than its trim the pool gives its last frame (held, as before).
-        let prev: CanvasImageSource | null = null,
-          pw = 0,
-          ph = 0;
-        for (let i = f0; i < last; i++) {
-          const t = i / fps;
-          const f = await pool.frame(now, c.in + t - start).catch((e: unknown) => {
-            throw new ExportError(e instanceof Error ? e.message : String(e));
-          });
-          if (f) {
-            prev = f.image;
-            pw = f.width;
-            ph = f.height;
-          }
-          renderFrame(ctx, W, H, c, prev, pw, ph, t - start, job.layers, t, total, job.fadeOut);
-          await step(t);
-        }
-        pool.forget(c.id);
+        const poolFrame = await pool.frame(lane(clip), clip.in + local).catch((error: unknown) => {
+          throw new ExportError(error instanceof Error ? error.message : String(error));
+        });
+        if (poolFrame) pictures.set(clip.id, { image: poolFrame.image, width: poolFrame.width, height: poolFrame.height });
       }
+      return pictures.get(clip.id) ?? null;
+    };
+    let previousIds: string[] = [];
+    try {
+      for (let frameIndex = 0; frameIndex < frames; frameIndex++) {
+        const time = frameIndex / fps;
+        const stack = frameStack(job, time);
+        const stackIds = stack.map((stackItem) => stackItem.clip.id);
+        for (const clipId of previousIds) if (!stackIds.includes(clipId)) releaseClip(clipId);
+        // The lanes to keep: the videos on screen and the next on each track within 2 s (Q10), checked when the
+        // stack changes and each second.
+        if (frameIndex % fps === 0 || stackIds.join() !== previousIds.join()) {
+          const lanes = lanePlan(job, time, 2);
+          pool.want([...lanes.visible, ...lanes.next].map((clip) => clip.id));
+          for (const clip of lanes.next) pool.prepare(lane(clip));
+        }
+        previousIds = stackIds;
+        // Every picture of the frame awaited together, so the videos on screen decode side by side.
+        const framePictures = await Promise.all(stack.map((stackItem) => pictureFor(stackItem.clip, stackItem.local)));
+        job.trace?.(
+          frameIndex,
+          stack.map(({ clip, local }) => ({ id: clip.id, at: clip.kind === 'video' ? clip.in + local : null })),
+        );
+        renderStack(
+          ctx,
+          W,
+          H,
+          stack.map((stackItem, index) => ({
+            clip: { ...stackItem.clip, overlay: stackItem.track !== MAIN_VIDEO },
+            src: framePictures[index]?.image ?? null,
+            sw: framePictures[index]?.width ?? 0,
+            sh: framePictures[index]?.height ?? 0,
+            local: stackItem.local,
+          })),
+          job.layers,
+          time,
+          total,
+          job.fadeOut,
+        );
+        await step(time);
+      }
+    } finally {
+      for (const clipId of [...pictures.keys()]) releaseClip(clipId);
     }
     await feedSound(total);
     video.close();
