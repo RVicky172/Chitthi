@@ -16,7 +16,7 @@ import { samplePhoto } from '../engine/sample';
 import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '../lib/credits';
 import type { Design, ProductId } from '../types';
 import { poolChecks } from './poolChecks';
-import { overlayFixtureChecks, stackChecks, videoChecks } from './videoChecks';
+import { overlayExportChecks, overlayFixtureChecks, stackChecks, videoChecks } from './videoChecks';
 
 interface Result {
   passed: number;
@@ -221,6 +221,12 @@ async function poolSection(check: (ok: unknown, what: string) => void, r: Result
     r.notes.push(...(await stackChecks(check)));
   } catch (e) {
     check(false, `stack drawing checks threw: ${e instanceof Error ? e.message : e}`);
+  }
+  // 203's export (T032): the preview's stack at every frame, golden frames, framePlan for 201 / 202, the long export.
+  try {
+    r.notes.push(...(await overlayExportChecks(check)));
+  } catch (e) {
+    check(false, `overlay export checks threw: ${e instanceof Error ? e.message : e}`);
   }
 }
 

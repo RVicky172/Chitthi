@@ -982,7 +982,7 @@
         "T032": {
           "text": "Failing self-test checks (`src/dev/videoChecks.ts`): the export of the T002 fixture renders the same frames as the preview from the same inputs (AC-6); for 201 / 202 fixtures the export's (frame, clip, source time) list equals `framePlan`'s and its sound sources are unchanged (AC-10); AC-13: the 2-minute main + 2 overlays export finishes with `openFrames()` 0 after it, its time and peak bytes recorded.",
           "section": "Preview and export",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -996,12 +996,16 @@
           ],
           "test": "`npm test`: fails (the export draws one clip)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-12: videoChecks overlayExportChecks (export trace = frameStack at every frame and golden frames for the AC-6 fixture; 201/202 trace = framePlan; AC-13 long export) and ExportJob.trace; CHITTHI_TEST_ONLY=pool: 5 failed as expected (no trace, overlays not drawn)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T033": {
           "text": "Implement §6 in `src/engine/videoExport.ts`: frames 0…N through `frameStack`, every visible video's frame awaited together from a pool at `videosAtOnce`, photos decoded once per clip and released after, `want` / `prepare` from `lanePlan`, `forget` once passed, a short source's last frame held per clip; overlay sound via `audioPlan`.",
           "section": "Preview and export",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1015,7 +1019,11 @@
           ],
           "test": "T032",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-12: export frame loop on frameStack (every picture of a frame awaited together, pool at videosAtOnce, lanePlan want/prepare on stack change and each second, photos once per clip, release once passed, per-clip held frame); ExportJob.trace for self-tests. Pool checks 73/0 (overlay export golden mean 0.34 / worst 4; 1,252 legacy frames = framePlan; AC-13 2-min 1080p 12.4 s, peak 40 MB frames, nothing open after); npm test 6,200/0; check 1,390; editors e2e 25 passed; test:mcp passed."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T034": {
           "text": "The stage's sound for several clips (§7): `VideoStage`'s `sync` passes the list from `soundPlan` to `previewSound`; a muted overlay track is silent, a hidden one heard; AC-8 export sound sources for the fixture checked in the self-test. From the T021 review: drive the fallback <video> pictures from what is on screen (frameStack minus hidden tracks, with local = t − start), not from the sound plan: a fallback clip on a muted overlay track is in `held`, not `current`, and today's interim adapter in sync() would pause (freeze) its picture.",

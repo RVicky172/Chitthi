@@ -113,3 +113,11 @@ only install scripts allowed by `allowScripts`, and Electron 44 has no install s
 `node node_modules/electron/install.js` (unset `ELECTRON_RUN_AS_NODE`) or `npm test` has no Electron binary.
 `electron-winstaller`'s install script (picks 7-Zip's architecture) is also skipped: check `npm run desktop:dist`
 before a release.
+
+## 2026-10-12 — Removing agent worktrees
+
+Agent worktrees under `.claude/worktrees/` link `node_modules` to the main checkout's. `git worktree remove` fails on
+them ("Invalid argument") and only unregisters; deleting the folder afterwards with `rm -rf` (Git Bash) gutted the main
+`node_modules` (`.bin`, `@anthropic-ai` gone) even after the top-level link was removed with `rmdir`. Remove the
+folders with `cmd /c rmdir /s /q` (doesn't follow junctions), or leave them; then `npm ci` (dashboard and dev server
+stopped) and `node node_modules/electron/install.js` repair it.

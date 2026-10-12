@@ -1349,3 +1349,156 @@ export async function stackChecks(check: Check): Promise<string[]> {
   );
   return notes;
 }
+
+/**
+ * 203's export (T032), on the real encoder:
+ * - AC-6: the overlay fixture's export (9:16, 16:9) draws at every frame exactly the stack the preview draws
+ *   (frameStack: the same clips, bottom first, the same source times), and its decoded frames at the 8 times match the
+ *   colour-code reference (each clip's box, rotation, corners, opacity) within the encoder's loss.
+ * - AC-10: for 201 / 202 projects (the testkit's shapes on the main track alone, and a gap) the export's (frame, clip,
+ *   source time) list equals framePlan's.
+ * - AC-13: the 2-minute 1080p main + 2 overlays export finishes with no frame or decoder open after it; its time and
+ *   peak frame bytes recorded.
+ * Returns notes for the report.
+ */
+export async function overlayExportChecks(check: Check): Promise<string[]> {
+  const { encodeVideo } = await import('../engine/videoExport');
+  const { frameStack } = await import('../engine/stack');
+  const { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength } = await import('../engine/timeline');
+  const { legacyFixtures } = await import('../engine/timeline.testkit');
+  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { openFrames } = await import('../engine/frameSource');
+  const notes: string[] = [];
+  type Drawn = { id: string; at: number | null }[];
+  const same = (a: Drawn, b: Drawn) =>
+    a.length === b.length && a.every((d, k) => d.id === b[k].id && (d.at === null ? b[k].at === null : b[k].at !== null && Math.abs(d.at - b[k].at!) < 1e-6));
+  const show = (d: Drawn | undefined) => (d ? `[${d.map((x) => `${x.id}${x.at === null ? '' : `@${x.at.toFixed(3)}`}`).join(' ')}]` : 'nothing');
+
+  /* AC-6: the overlay fixture. */
+  for (const format of ['9:16', '16:9'] as const) {
+    const fx = await makeOverlayProject(format);
+    if (!fx) {
+      notes.push('video: 203 export checks skipped (no H.264 encoder)');
+      return notes;
+    }
+    const { width: W, height: H, fps, project } = fx;
+    const traced: Drawn[] = [];
+    const mp4 = await encodeVideo({
+      ...project,
+      audio: [],
+      width: W,
+      height: H,
+      fps,
+      bitrate: 4e6,
+      sink: { kind: 'memory' },
+      trace: (i, d) => (traced[i] = d),
+    });
+    if (!mp4) throw new Error('no export');
+    const frames = Math.max(1, Math.round(projectLength(project) * fps));
+    const wrong: string[] = [];
+    for (let i = 0; i < frames; i++) {
+      const want = frameStack(project, i / fps).map((it) => ({ id: it.clip.id, at: it.clip.kind === 'video' ? it.clip.in + it.local : null }));
+      if (!traced[i] || !same(traced[i], want)) wrong.push(`frame ${i}: drew ${show(traced[i])}, preview ${show(want)}`);
+    }
+    check(
+      !wrong.length,
+      `video: the ${format} overlay export draws the preview's stack at all ${frames} frames${wrong.length ? ` (${wrong.length} differ: ${wrong.slice(0, 3).join('; ')})` : ''}`,
+    );
+    const got = await decodeFrames(mp4, fx.frames.map((k) => (k + 0.5) / fps));
+    let max = 0,
+      sum = 0,
+      n = 0,
+      where = '';
+    for (const [k, t] of fx.times.entries()) {
+      const c = got[k];
+      if (!c || c.width !== W) continue;
+      const ref = frameStack(project, t).map((it) => ({ tf: fx.clips.find((e) => e.id === it.clip.id)!.tf, rgb: fx.colourAt(it.clip.id, t)! }));
+      const r = compareWithReference(c.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data, W, H, ref, 0, 4);
+      if (r.max > max) [max, where] = [r.max, `frame ${fx.frames[k]} ${r.where}`];
+      sum += r.mean * r.n;
+      n += r.n;
+    }
+    const mean = n ? sum / n : Infinity;
+    check(
+      got.length === fx.times.length && n >= fx.times.length * W * H * 0.9 && mean <= 3 && max <= 12,
+      `video: the ${format} overlay export's frames match the colour-code reference at 8 times (mean ${mean.toFixed(2)}, worst ${max.toFixed(0)} at ${where})`,
+    );
+    notes.push(`video: 203 ${format} overlay export: mean ${mean.toFixed(2)}, worst ${max.toFixed(0)} levels at ${where}`);
+  }
+
+  /* AC-10: 201 / 202 projects export as framePlan says. */
+  const [A, B] = await Promise.all([makeTestClip(10, 320, 240, 2), makeTestClip(10, 320, 240, 2)]);
+  if (A && B) {
+    const photos = await Promise.all([0, 1, 2].map((i) => testPhoto(i, 400, 267)));
+    const lf = legacyFixtures();
+    const projects: [string, Project<ExportClip>][] = (['videoOnly', 'mixed', 'tinyClips', 'clips20'] as const).map((name) => {
+      let k = 0;
+      const clips = pack(
+        lf[name].clips.map((c): ExportClip => ({ ...c, track: MAIN_VIDEO, start: 0, file: c.kind === 'video' ? (k++ % 2 ? B : A) : photos[k++ % 3].blob })),
+      );
+      return [name, { tracks: defaultTracks(), clips, audio: [], layers: lf[name].layers, fadeOut: lf[name].fadeOut }];
+    });
+    const photo = (i: number, start: number): ExportClip => ({
+      id: `g${i}`,
+      track: MAIN_VIDEO,
+      start,
+      kind: 'photo',
+      dur: 1,
+      in: 0,
+      out: 0,
+      edit: { ...DEFAULT_EDIT },
+      motion: 'none',
+      fade: false,
+      file: photos[i].blob,
+      volume: 0,
+    });
+    projects.push(['gap', { tracks: defaultTracks(), clips: [photo(0, 0), photo(1, 2.5)], audio: [], layers: [], fadeOut: false }]);
+    const bad: string[] = [];
+    let compared = 0;
+    for (const [name, p] of projects) {
+      const traced: Drawn[] = [];
+      await encodeVideo({ ...p, audio: [], width: 320, height: 180, fps: 30, bitrate: 1e6, sink: { kind: 'memory' }, trace: (i, d) => (traced[i] = d) });
+      for (const span of framePlan(p, 30))
+        for (let i = span.f0; i < span.f1; i++) {
+          const c = span.clip;
+          const want: Drawn = c ? [{ id: c.id, at: c.kind === 'video' ? c.in + i / 30 - span.start : null }] : [];
+          compared++;
+          if (!traced[i] || !same(traced[i], want)) bad.push(`${name} frame ${i}: drew ${show(traced[i])}, framePlan ${show(want)}`);
+        }
+    }
+    check(
+      !bad.length && compared > 0,
+      `video: 201 / 202 projects export the frames framePlan lists (${compared - bad.length} of ${compared} frames)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+    );
+  }
+
+  /* AC-13: the long 1080p export. */
+  const long = await makeLongOverlayProject();
+  if (long) {
+    let peak = 0;
+    const t0 = performance.now();
+    const mp4 = await encodeVideo({
+      ...long.project,
+      audio: [],
+      width: long.width,
+      height: long.height,
+      fps: long.fps,
+      bitrate: 2e6,
+      sink: { kind: 'memory' },
+      onProgress: () => void (peak = Math.max(peak, openFrames().bytes)),
+    });
+    const secs = (performance.now() - t0) / 1000;
+    const end = performance.now() + 2000;
+    let o = openFrames();
+    while ((o.decoders || o.frames || o.bytes) && performance.now() < end) {
+      await new Promise((r) => setTimeout(r, 20));
+      o = openFrames();
+    }
+    check(
+      !!mp4 && !o.decoders && !o.frames && !o.bytes,
+      `video: the 2-minute 1080p main + 2 overlays export finishes with nothing open after it (${o.decoders} decoders, ${o.frames} frames)`,
+    );
+    notes.push(`video: 203 AC-13 export (2 min 1080p, main + 2 overlays) in ${secs.toFixed(1)} s, peak ${(peak / 2 ** 20).toFixed(0)} MB of frames, ${((mp4?.size ?? 0) / 2 ** 20).toFixed(1)} MB file`);
+  }
+  return notes;
+}
