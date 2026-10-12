@@ -408,8 +408,9 @@ precision); the music is an `AudioClip` on `A1` with `in` = its offset and `toEn
 - `projectLength`, `videoAt(p, t)` (the clip and local time on the topmost visible picture track; null inside a gap;
   clamps like 2.x before 0 and at the end), `framePlan(p, fps)` (the export's frame ranges; a gap is a `{ clip: null }`
   span of black frames, so frames run 0 → total; one black span when `V1` is hidden) and `audioPlan(p)` (clips' sound
-  with 0.03 s ramps, the music unless `A1` is muted, fading out over min(1.5 s, a third)). Preview and export both
-  read them; `renderFrame` is unchanged and draws `NO_PICTURE` (black, layers, fade-out) where no clip shows.
+  with 0.03 s ramps, the music unless `A1` is muted, fading out over min(1.5 s, a third); since 203 also every video
+  clip of an overlay track that isn't muted). `framePlan` stays as the 2.x oracle; preview and export draw
+  `frameStack` (below).
 - `patchTrack` (Hide only on picture tracks, Mute only on sound tracks) and `lockedReason`, used by the store's
   `setTrack` (an undo step), `clipLocked` / `musicLocked` and the refusals of every clip and music action.
 - `toDocument` / `mergeProject(raw, desktop)` → `{ doc, dropped }`: the JSON form (version 1; media described, never
@@ -444,10 +445,44 @@ action per tool (plan §4): Select reorders (Magnetic on) or follows the pointer
 Drags edit from the store's current clip step by step under one undo key and say a refusal once. `snap()` leaves out
 the dragged clip or layer, is skipped with Snap off or Alt held, and otherwise rounds to the frame. Gaps are focusable
 `.tl-gap` buttons (Delete → `deleteGap`). Keys: Alt + ← / → `nudgeClip` (Shift: a second; with Slip and nothing
-selected, `slipMusic`), Q / W `rippleTrimToPlayhead`, Shift + Delete `rippleDeleteClip`. `describeChange` puts the
-changed clip's times in the polite `.tl-live` region 250 ms after a change settles.
+selected, `slipMusic`), Q / W `rippleTrimToPlayhead`, Shift + Delete `rippleDeleteClip`. `describeClipChange`
+(`timelineRows.ts`) puts the changed clip's times in the polite `.tl-live` region 250 ms after a change settles.
 
 Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: not undone, not saved.
+
+**Compositing (203).** Picture tracks are drawn bottom first: `V1`, then the overlay tracks in their order in `tracks`.
+
+- **The stack** (`engine/stack.ts`): `frameStack(p, t)` is the clips drawn at `t`, one per visible picture track
+  (a gap draws nothing; the main track keeps `videoAt`'s clamps; edges `EDGE_EPS` early, D-032). With only `V1` it is
+  exactly `[videoAt(p, t)]`. `mostVideosAt(clips, tracks)` (an event sweep; hidden tracks counted, photos not) is the
+  videos-at-once count the edits check (`EditCtx.maxVideos`, `tooManyVideos`); `snapBox` snaps a moved box's centre
+  or edges to the frame's centre lines and edges.
+- **The transform**: a picture clip may carry `tf?: ClipTransform` = `{ x, y, w, rot, opacity, radius }` (centre and
+  width as shares of the frame, degrees, 0–1, corner radius as a share of the shorter side); missing = `IDENTITY`
+  (the whole frame). `clampTransform` is its gate, `presetTransform` the inspector's presets (35 % wide, 4 % margin).
+- **Drawing** (`engine/video.ts`): `renderStack(ctx, W, H, items, layers, t, total, fadeOut)`: black, each item, the
+  layers, the darkness. An item at the identity draws through 2.x's `renderIg` call, so a project without overlays
+  is pixel-identical (AC-10); otherwise `intoBox` (translate, rotate, rounded clip, scale `w`), and a see-through
+  item (opacity × an overlay's fade-in ramp < 1) is drawn on a scratch canvas and laid down once. `save()` /
+  `restore()` pairs restore in `finally` (a closed frame must not leave the canvas moved). `renderFrame` is
+  `renderStack` with one item.
+- **The document**: `DocClip.transform` (written only when not the identity), overlay tracks kept, the overlap rule
+  on every picture track; 201 / 202 documents round-trip byte-identical.
+- **The store** (`state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for
+  overlays), `addMedia(files, { track, at })` (`NEW_TRACK` makes one), `moveClipToTrack`, `setClipTransform` (a
+  key per drag), `applyPreset`, `updateClipWhy` (the inspector shows refusals); every result is checked with
+  `limitVideos`; overlay clips are lifted, never rippled (Q8).
+- **The timeline** (`Timeline.tsx`, `timelineRows.ts`): a `PictureRow` per picture track, top first
+  (`pictureTracksTopFirst`); an overlay `TrackHead` renames (the name becomes a field) and its height menu moves and
+  deletes the track; `AddTrackButton` by the ruler; files dropped on a row (`rowUnderPointer`) land there, on the
+  ruler in a new track; a Select drag over another row calls `moveClipToTrack`; "Move to" in the transport does it by
+  keyboard. Snap targets come from every picture track; `clipLabel` names clips per track and `describeClipChange`
+  announces changes (box changes through `describeTransform`).
+- **The stage** (`useClipTransform.ts`, `engine/clipBox.ts`): `useLayerPointer`'s background handlers, so layers get
+  presses first. `partAt` picks the corner (resize: `resizedTransform`, aspect kept), the top handle (turn:
+  `rotatedTransform`, Shift 15°) or the body (move: `movedTransform` with `snapBox` at 8 screen px, guides drawn);
+  arrow keys `nudgedTransform` (1 %, Shift 10 %); a press on an overlay clip selects it. ClipPanel's Position and size
+  group sets the same transform.
 
 ### 4.10 Decoder pool (`decodePool.ts`, `frameSource.ts`)
 
@@ -514,9 +549,11 @@ first lane, not with the editor) wrapped by `poolSource`, which draws a clip in 
 through `renderFrame` as the export does; the stage and the AC-4 self-test call the same functions. `noteFallback` /
 `useFallbackNote` keep per file "This clip can't be exported here: <reason>" (logged once with `logError`), shown in the
 clip's timeline title and accessible name and in the inspector. `VideoStage` creates the stage on first use and disposes
-it when the editor closes. Playing, each tick draws `peek()` (what is ready, else the held frame); paused, it draws the
-held picture at once (if it is the same clip), then the exact `pausedFrame` when it lands (only the newest ask is
-drawn). Each tick and each paused change calls `want()` with `lanePlan(…, 2)` and `prepare()` for the next clips; a clip
+it when the editor closes. A frame is a `StageFrame`: its grid time and its stack (`items`: clip, local time, picture). Playing, each tick draws
+the stack with every video `peek()`-ed (what is ready, else its held frame); paused, it draws `heldStageFrame` at once
+(each clip keeps its own last picture, so an overlay arriving doesn't blank the main clip), then the exact
+`pausedFrame` when it lands (every picture of the stack awaited together; only the newest ask is drawn). A fallback
+clip's `<video>` follows the clips on screen (`frameStack`), not the sound plan, so a muted overlay's still moves. Each tick and each paused change calls `want()` with `lanePlan(…, 2)` and `prepare()` for the next clips; a clip
 removed from the project is `forget`-ed.
 
 **Preview sound (`components/studio/previewSound.ts`, D1).** `soundPlan(project, t)` is whose sound plays: the video
@@ -527,17 +564,20 @@ exactly those and releases the rest, so elements don't grow with the clip count;
 it seeks; over one frame (or, while still nudging, over 10 ms) `playbackRate` moves by up to ±3 % in 0.5 % steps;
 otherwise it is 1. The music keeps its own element in `VideoStage`.
 
-**Export (`engine/videoExport.ts`).** Video clips decode through a pool of the export's own, with `poolLimits(1, …)`
-and `maxWidth` = 1.8 × the frame's long side (D5). For each video span of `framePlan` it calls `want([clip, next])`
-and `prepare(next)` (look-ahead one clip), awaits `frame()` for every frame time (the export waits, never skips; past
-the end of a source shorter than its trim the last frame is held), then `forget`s the clip. `dispose()` runs in
+**Export (`engine/videoExport.ts`).** Video clips decode through a pool of the export's own, with
+`poolLimits(videosAtOnce, …)` and `maxWidth` = 1.8 × the frame's long side (D5). Frames 0…N each draw
+`frameStack(p, i / fps)` through `renderStack`: every picture of a frame awaited together (videos from the pool, the
+export waits and never skips; past the end of a source shorter than its trim the last frame is held per clip; photos
+decoded once per clip); `want` / `prepare` follow `lanePlan(t, 2)` when the stack changes and each second; a clip is
+released (`forget`, its photo URL revoked) once it has left the stack. `ExportJob.trace` reports each frame's clips
+for the self-test. `dispose()` runs in
 `finally`, so after a cancel or an error no frame or decoder is left. A clip the pool can't decode is refused with its
 reason, which usually names the file.
 
 **Limits.** `limitsFor()` (`engine/video.ts`) gives `videosAtOnce`: 3 on the web, 5 on the desktop app, 1 without
 `VideoDecoder`, set from the AC-15 measurements by Q2's rule (the numbers:
-[PERFORMANCE.md](../docs/PERFORMANCE.md#videos-on-screen-at-once)); `203` enforces it. The preview's and the export's
-pools use `poolLimits(1, …)` (3 decoders) today.
+[PERFORMANCE.md](../docs/PERFORMANCE.md#videos-on-screen-at-once)); `203` enforces it in the edits. The preview's and
+the export's pools use `poolLimits(videosAtOnce, …)` (the limit + 2 decoders).
 
 **Checks.** `decodePool.test.ts` (unit: holds, latest wins, bounds, fallback, reopening); `src/dev/poolChecks.ts` in
 the default `npm test` (AC-1–AC-4, AC-9, AC-11, AC-14), with `playbackChecks`' quick checks (AC-12's release, AC-13);

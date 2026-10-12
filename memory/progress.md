@@ -11,6 +11,23 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-12 — 203 Implemented (T030–T034, T040, T052, T054, T090–T092); D-033
+
+**Done:** one task at a time in the main session (no agent batches, maintainer's choice). T040 merged from its agent
+worktree. T030/T031: the stage draws stacks (StageFrame.items, pictures resolved together, held picture per clip,
+pool at videosAtOnce). T032/T033: the export walks frames through frameStack (ExportJob.trace for the self-test;
+golden mean 0.34 / worst 4; 1,252 legacy frames = framePlan; 2-min 1080p main + 2 overlays 12.4 s, 40 MB peak).
+T034: fallback <video> follows the screen; fixed a canvas left translated when drawing a closed frame threw
+(photoDrawer, renderStack: restore in finally). D-033 (constitution 2.0.0): unit tests only during a phase; e2e,
+self-test, timing and manual checks written and run in the phase's test pass (290 for Phase 2), which ends in the
+release. T052: overlay rows, headers (rename, Hide / Mute / Lock, menu: move / delete), Add track, file drops, cross-row
+drags, Move to. T054: the clip box on the stage (move with snapping, resize, turn, arrows) and Position and size in the
+inspector; updateClipWhy. Docs (MEDIA-STUDIO, lld, PERFORMANCE, CHANGELOG, in-app). check 1,424; build entry 327 KB.
+New code uses descriptive names and JSDoc (maintainer's request). AC-4/6/7/9/11/15 ticked; the rest listed in 290.
+Gotchas logged: agent worktree removal gutted node_modules; a failed draw must restore the canvas.
+**Next:** 205 (keyframes) or another Phase 2 feature; 203 and 204 UI not yet seen in a browser (checks in 290).
+**Blockers:** none
+
 ## 2026-10-11 — 203 batch 2 (T014–T019)
 
 **Done:** T014 / T015 edits across tracks: `moveToTrack`, the videos-at-once limit after every edit (`limitVideos`,

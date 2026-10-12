@@ -4,13 +4,13 @@
   "id": "203",
   "title": "Compositing many tracks, picture-in-picture (P2.3)",
   "workItem": "P2.3",
-  "status": "in-progress",
+  "status": "implemented",
   "owner": "RVicky172",
   "dates": {
     "created": "2026-10-08",
     "approved": "2026-10-09",
     "started": "2026-10-11",
-    "done": null
+    "done": "2026-10-12"
   },
   "git": {
     "branch": "spec/203-204"
@@ -89,7 +89,7 @@
           "text": "Each clip on a picture track has a **transform**: position (the clip's centre as a share of the frame, from −0.5 to 1.5 on each axis so a clip can sit partly outside), size (its width as a share of the frame width, 0.05 to 4), rotation (−180° to 180°) and opacity (0–100 %), with Q2's corner radius. The clip keeps its own aspect ratio inside its box. A new overlay clip starts full frame (B-roll) (Q4); the inspector offers **Full frame** and the four **corner** presets (35 % of the frame width, 4 % margin). Main-track clips start and stay at the identity transform unless the user changes it.",
           "proof": "unit",
           "group": "Overlay clips",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "text": "On the preview, a selected overlay clip shows a box with handles: drag to move, corner handles to resize keeping the aspect ratio, a rotate handle; moves snap to the frame's centre lines and edges within 8 px (off with the Snap switch or Alt, as `202` Q4). The inspector has number fields for X, Y, size, rotation, opacity and corner radius. With an overlay clip selected and the preview focused, arrow keys move it by 1 % of the frame (10 % with Shift). A drag is one undo step however long; each change is announced to screen readers (the clip and its new values).",
@@ -101,13 +101,13 @@
           "text": "At every frame time `t`, the frame is: the main video track's clip at `t` (black in a gap or past its end), then each visible overlay track's clip at `t` from the lowest track to the highest, each with its transform and opacity, then the timed layers on top of all tracks (Q1). Gaps on an overlay track draw nothing (the tracks below show through). Golden frames: a fixture with the main track and 2 overlay tracks (a full-frame B-roll video, a corner face-cam video with 50 % opacity, a rotated photo with rounded corners, a clip partly outside the frame), at 9:16 and 16:9, at 8 sample times including each clip's first and last frame, matches its reference within the self-test's tolerance on every GPU backend, and the export renders the same frames from the same inputs.",
           "proof": "self-test",
           "group": "Compositing",
-          "done": false
+          "done": true
         },
         "AC-7": {
           "text": "Timing is frame-exact: an overlay clip starting at 2.0 s at 30 fps appears first in frame 60 and is gone in the frame after its last; hidden tracks and clips at 0 % opacity draw nothing; a full-frame opaque overlay clip covers the frame completely (no pixel of the main clip shows).",
           "proof": "unit + self-test",
           "group": "Compositing",
-          "done": false
+          "done": true
         },
         "AC-8": {
           "text": "Sound: each overlay video clip's own sound plays at its clip volume, mixed with the main track's clips and the music, in the preview and the export; a muted overlay track adds nothing. The export's sound sources (start, end, source time, volume, ramps) for a fixture with overlays equal the expected list exactly.",
@@ -119,7 +119,7 @@
           "text": "The video's length is the end of the last clip on any picture track (Q9); the per-platform length and clip limits (`limitsFor()`) apply to the whole project, counting clips on every track (Q6), and refusals use the existing messages. At most Q6's number of video clips are visible at the same moment; an edit that would exceed it is refused with a message that says the limit and why.",
           "proof": "unit + e2e",
           "group": "Compositing",
-          "done": false
+          "done": true
         },
         "AC-10": {
           "text": "Projects with no overlay clips (`201`'s fixtures: photo-only, video-only, mixed, music with offset, timed layers, fade-out, at 9:16, 4:5, 1:1 and 16:9; and `202`'s with gaps) give pixel-identical preview frames at 10 sample times each and identical export inputs (frames, clips, times and sound sources) to `202`. All existing video e2e tests pass unchanged.",
@@ -131,7 +131,7 @@
           "text": "The project document reads every existing document unchanged (Q11): the new fields are optional and their defaults are the identity transform and no overlay clips. The validator clamps out-of-range transform values, drops clips on a missing track with a reason, moves a clip that overlaps another on an overlay track to the end of the one it overlaps (as `202` D3, never dropping it), enforces the track and clip limits, and never throws: at least 30 new malformed documents. Round trips document → validator → document are equal for the AC-6 fixture.",
           "proof": "unit",
           "group": "Nothing changes for existing projects",
-          "done": false
+          "done": true
         },
         "AC-12": {
           "text": "Preview: with the main track and 2 overlay tracks each playing a 1080p 30 fps video at the same moment (a 1080 × 1920 Reel and a 1920 × 1080 YouTube project), the median preview frame time over 300 frames is ≤ 33 ms in the desktop app and, with main + 1 overlay, ≤ 33 ms in Chrome on the development machine (Q13). A project without overlays stays within 5 % of `202` (fastest of 3 runs, as `201` AC-5).",
@@ -155,7 +155,7 @@
           "text": "`docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits), `specs/lld.md` (the drawing order, the transform, the document fields) and `CHANGELOG.md` describe the change; the in-app docs list the keys.",
           "proof": "manual check",
           "group": "Docs",
-          "done": false
+          "done": true
         }
       }
     },
@@ -1103,7 +1103,7 @@
         "T090": {
           "text": "Docs (AC-15): `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits; the videos-at-once row now in use), `specs/lld.md` (frameStack, renderStack, the transform, the document fields), `docs/PERFORMANCE.md` (decoders = limit + 2 in use; AC-12 / AC-13 numbers), `CHANGELOG.md` Unreleased, the in-app docs' keys.",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1119,12 +1119,16 @@
           ],
           "test": "relative links resolve",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** docs/MEDIA-STUDIO.md (track headers for overlays, a new 'Overlay tracks and picture-in-picture' section, the limits table), specs/lld.md (Compositing (203): the stack, the transform, renderStack, the document, the store, the timeline, the stage; the preview's StageFrame and held pictures; the export loop; pool limits), docs/PERFORMANCE.md (pools at the limit + 2; the AC-13 export: 40 MB peak, nothing open; AC-12 measured in 290), CHANGELOG Unreleased (3 entries), in-app docs (timeline keys and overlay tracks; limits row). Relative links: 0 broken."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T091": {
           "text": "`npm run check` and `npm run build` green; entry chunk unchanged; record the numbers. The other gates (`test:e2e`, `npm test`, `test:mcp`, `check:licenses`, timing) run once in the Phase 2 test pass (290, D-033).",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1132,12 +1136,16 @@
           "files": [],
           "test": "`npm run check`; `npm run build`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** npm run check: typecheck, lint (0 errors, the 5 known warnings), specs:check, 1,424 unit tests passed; npm run build: entry 327 KB (unchanged, budget 350 KB), no AI code in the entry. The other gates run in 290 (D-033)."
+          ],
+          "doneOn": "2026-10-12",
+          "startedOn": "2026-10-12"
         },
         "T092": {
           "text": "Tick ACs (Status `Implemented`), roadmap 203 ✔️, `editor-implementation.md` P2.3 Done, `memory/progress.md`, `memory/MEMORY.md`.",
           "section": "Verify",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1145,7 +1153,11 @@
           "files": [],
           "test": null,
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-12):** AC-4, AC-6, AC-7, AC-9, AC-11, AC-15 ticked (unit tests and the self-test runs of T016/T017, T030–T034); AC-1–AC-3, AC-5, AC-8, AC-10, AC-12–AC-14 listed in 290 for the Phase 2 test pass (D-033). Status Implemented, roadmap ✔️, editor-implementation.md P2.3 Done, memory updated."
+          ],
+          "doneOn": "2026-10-12",
+          "startedOn": "2026-10-12"
         }
       }
     }

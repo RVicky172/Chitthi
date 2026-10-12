@@ -90,9 +90,12 @@ _No tasks yet._
 
 ## Verify
 
-- [ ] **T090** — Docs (AC-15): `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits; the videos-at-once row now in use), `specs/lld.md` (frameStack, renderStack, the transform, the document fields), `docs/PERFORMANCE.md` (decoders = limit + 2 in use; AC-12 / AC-13 numbers), `CHANGELOG.md` Unreleased, the in-app docs' keys. · files: `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `docs/PERFORMANCE.md`, `CHANGELOG.md`, `src/data/docs.ts` · test: relative links resolve
-- [ ] **T091** — `npm run check` and `npm run build` green; entry chunk unchanged; record the numbers. The other gates (`test:e2e`, `npm test`, `test:mcp`, `check:licenses`, timing) run once in the Phase 2 test pass (290, D-033). · test: `npm run check`; `npm run build`
-- [ ] **T092** — Tick ACs (Status `Implemented`), roadmap 203 ✔️, `editor-implementation.md` P2.3 Done, `memory/progress.md`, `memory/MEMORY.md`.
+- [x] **T090** — Docs (AC-15): `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits; the videos-at-once row now in use), `specs/lld.md` (frameStack, renderStack, the transform, the document fields), `docs/PERFORMANCE.md` (decoders = limit + 2 in use; AC-12 / AC-13 numbers), `CHANGELOG.md` Unreleased, the in-app docs' keys. · files: `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `docs/PERFORMANCE.md`, `CHANGELOG.md`, `src/data/docs.ts` · test: relative links resolve
+  - **Result (2026-10-12):** docs/MEDIA-STUDIO.md (track headers for overlays, a new 'Overlay tracks and picture-in-picture' section, the limits table), specs/lld.md (Compositing (203): the stack, the transform, renderStack, the document, the store, the timeline, the stage; the preview's StageFrame and held pictures; the export loop; pool limits), docs/PERFORMANCE.md (pools at the limit + 2; the AC-13 export: 40 MB peak, nothing open; AC-12 measured in 290), CHANGELOG Unreleased (3 entries), in-app docs (timeline keys and overlay tracks; limits row). Relative links: 0 broken.
+- [x] **T091** — `npm run check` and `npm run build` green; entry chunk unchanged; record the numbers. The other gates (`test:e2e`, `npm test`, `test:mcp`, `check:licenses`, timing) run once in the Phase 2 test pass (290, D-033). · test: `npm run check`; `npm run build`
+  - **Result (2026-10-12):** npm run check: typecheck, lint (0 errors, the 5 known warnings), specs:check, 1,424 unit tests passed; npm run build: entry 327 KB (unchanged, budget 350 KB), no AI code in the entry. The other gates run in 290 (D-033).
+- [x] **T092** — Tick ACs (Status `Implemented`), roadmap 203 ✔️, `editor-implementation.md` P2.3 Done, `memory/progress.md`, `memory/MEMORY.md`.
+  - **Result (2026-10-12):** AC-4, AC-6, AC-7, AC-9, AC-11, AC-15 ticked (unit tests and the self-test runs of T016/T017, T030–T034); AC-1–AC-3, AC-5, AC-8, AC-10, AC-12–AC-14 listed in 290 for the Phase 2 test pass (D-033). Status Implemented, roadmap ✔️, editor-implementation.md P2.3 Done, memory updated.
 
 ## AC coverage
 

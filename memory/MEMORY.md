@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-11)
+## Current State (2026-10-12)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -28,12 +28,12 @@
   DoD gate green; maintainer's manual checks (T060) passed in Chrome and the desktop app.
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
 - **406 ✔️ Implemented 2026-10-11:** roadmap-actionable-workflow; AC-1–AC-6 proven, all tasks done; README/changelog updated. DoD gates pass; production e2e 84 passed / 16 skipped serially.
-- **203:** `203-compositing-pip` 🚧: plan approved 2026-10-11 (D1–D3, D-031; Q6 = web 3 / desktop 5), tasks
-  T001–T092; branch `feat/203-compositing-pip`. **204** merged into `main` and pushed
-  (2026-10-11, with Dependabot #23–#27). Done to 2026-10-12: T001–T021, T030–T034 (stage and export draw stacks; overlay sound), T040, T050.
-  From 2026-10-12 tasks run one at a time in the main session, no agent batches (maintainer's choice).
+- **203:** `203-compositing-pip` ✔️ Implemented 2026-10-12 on `feat/203-compositing-pip` (not merged into `main`, not
+  pushed): overlay tracks on the timeline, the clip box on the stage and in the inspector, preview and export draw the
+  same stack. AC-1–3, 5, 8, 10, 12–14 wait for 290 (D-033). Plan D1–D3, D-031. **204** merged into `main` and pushed
+  (2026-10-11). Tasks run one at a time in the main session, no agent batches (maintainer's choice).
 - **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
-- **Next (roadmap):** 203 T052 (timeline rows) and T054 (stage box + inspector) with unit tests, then T090–T092; T035, T051, T053, T060 moved to 290.
+- **Next (roadmap):** the next Phase 2 feature (205 keyframes, 206 transitions, 207 speed …: spec first); 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
