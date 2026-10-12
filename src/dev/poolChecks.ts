@@ -201,7 +201,158 @@ export async function poolChecks(check: Check): Promise<string[]> {
   await group(check, 'fallback AC-14', async () => {
     notes.push(await fallbackOnTheEditor(check));
   });
+  await group(check, 'stage stacks (203)', async () => {
+    notes.push(await stageDrawsStacks(check));
+  });
+  await group(check, 'the editor stage overlay (203)', async () => {
+    notes.push(await editorStageShowsOverlay(check));
+  });
   return notes;
+}
+
+/**
+ * 203 §5 on the stage's own paused path (previewFrame.ts: pausedFrame with the stage's source, then drawPreview), on
+ * the AC-6 overlay fixture at 9:16 and 16:9 at its 8 times:
+ * - every item of a paused stack has its picture when the frame resolves (they resolve together), and the drawn frame
+ *   matches the colour-code reference (each clip's box, rotation, corners, opacity) as renderStack's golden frames do;
+ * - two asks in a row: the newer one is complete (latest wins per lane) and the older one still resolves;
+ * - the held picture is per clip (withHeld): an overlay arriving keeps the main clip's picture, the new clips wait.
+ */
+async function stageDrawsStacks(check: Check): Promise<string> {
+  const { compareWithReference, makeOverlayProject } = await import('./videoChecks');
+  const { drawPreview, pausedAt, pausedFrame, stageSource, withHeld } = await import('../components/studio/previewFrame');
+  const { projectLength } = await import('../engine/timeline');
+  let compared = 0;
+  for (const format of ['9:16', '16:9'] as const) {
+    const fx = await makeOverlayProject(format);
+    if (!fx) return 'pool: 203 stage stacks skipped (no H.264 encoder)';
+    const { width: W, height: H, fps } = fx;
+    const urls: string[] = [];
+    const project = {
+      ...fx.project,
+      clips: fx.project.clips.map((c) => {
+        const url = URL.createObjectURL(c.file);
+        urls.push(url);
+        return { ...c, url };
+      }),
+    };
+    const total = projectLength(project);
+    const x = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+    x.canvas.width = W;
+    x.canvas.height = H;
+    const stage = stageSource();
+    const bad: string[] = [];
+    try {
+      for (const t of fx.times) {
+        const frame = await within(pausedFrame(project, t, fps, stage.source), `203 stage at ${t.toFixed(3)} s`);
+        const missing = frame.items.filter((it) => !it.pic).map((it) => it.clip.id);
+        if (missing.length) bad.push(`no picture for ${missing.join(', ')} at frame ${Math.round(t * fps)}`);
+        drawPreview(x, W, H, { layers: [], total, fadeOut: false }, frame);
+        const ref = frame.items.map((it) => ({ tf: fx.clips.find((c) => c.id === it.clip.id)!.tf, rgb: fx.colourAt(it.clip.id, frame.at)! }));
+        const r = compareWithReference(x.getImageData(0, 0, W, H).data, W, H, ref);
+        compared++;
+        if (r.max > 8 || r.mean > 2 || r.n < W * H * 0.95)
+          bad.push(`frame ${Math.round(t * fps)}: worst ${r.max.toFixed(0)} at ${r.where}, mean ${r.mean.toFixed(2)}`);
+      }
+      check(!bad.length, `pool: the paused stage draws the ${format} overlay stack as the golden reference at 8 times${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`);
+
+      // Latest wins: frame 37 (m1, B-roll, face-cam) then frame 59 at once; the newer has every picture.
+      const [older, newer] = await within(
+        Promise.all([37, 59].map((k) => pausedFrame(project, k / fps, fps, stage.source))),
+        '203 two asks in a row',
+      );
+      check(
+        newer.items.length === 3 && newer.items.every((it) => it.pic) && older.items.length === 3,
+        `pool: of two paused asks in a row (${format}) the newer has all 3 pictures and the older resolves (newer ${newer.items.filter((it) => it.pic).length} of ${newer.items.length})`,
+      );
+
+      // Held per clip: frame 12 shows m1 alone; at frame 37 the B-roll and face-cam arrive, m1 keeps its picture.
+      const before = await within(pausedFrame(project, 12 / fps, fps, stage.source), '203 frame 12');
+      const { at, items } = pausedAt(project, 37 / fps, fps);
+      const held = withHeld(at, items, before, () => null, (c) => c.kind === 'video');
+      const m1 = held.items.find((it) => it.clip.id === 'm1');
+      check(
+        held.items.length === 3 && !!m1?.pic && m1.pic === before.items[0]?.pic && held.items.filter((it) => it.pic).length === 1,
+        `pool: the held picture is per clip: an overlay arriving keeps the main clip's picture (${format})`,
+      );
+    } finally {
+      stage.dispose();
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    }
+  }
+  return `pool: 203 stage compared ${compared} paused stacks with the golden reference`;
+}
+
+/**
+ * 203 on the real editor (StrictMode, as `npm run dev`): a frame-coded main clip and, on a new overlay track, a clip
+ * with its own code placed top-right by the preset. Paused, the stage shows the overlay inside its box and the main
+ * clip outside it.
+ */
+async function editorStageShowsOverlay(check: Check): Promise<string> {
+  const React = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
+  const v = await import('../state/video');
+  const [mainBlob, overBlob] = await Promise.all([makeTestClip(4, 640, 360, 1, false, true), makeTestClip(4, 320, 240, 1, false, 3)]);
+  if (!mainBlob || !overBlob) return 'pool: overlay stage check skipped (no H.264 encoder)';
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(React.createElement(React.StrictMode, null, React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined })));
+  /** The mean colour of an 8 × 8 patch at (fx, fy), shares of the stage canvas. */
+  const at = (fx: number, fy: number) => {
+    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const x = c?.getContext('2d');
+    if (!c || !x || !c.width) return null;
+    const d = x.getImageData(Math.floor(c.width * fx) - 4, Math.floor(c.height * fy) - 4, 8, 8).data;
+    const s = [0, 0, 0];
+    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k];
+    return s.map((n) => n / 64);
+  };
+  const near = (a: number[] | null, want: readonly number[]) => !!a && want.every((w, k) => Math.abs(w - a[k]) <= 8);
+  const waitFor = async (ok: () => boolean, ms: number) => {
+    const end = performance.now() + ms;
+    while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 50));
+    return ok();
+  };
+  const tracksBefore = new Set(v.getVideo().tracks.map((t) => t.id));
+  let ids: string[] = [];
+  try {
+    await new Promise((r) => setTimeout(r, 300));
+    const before = new Set(v.getVideo().clips.map((c) => c.id));
+    await v.addMedia([{ name: 'main.mp4', blob: mainBlob, type: 'video/mp4' }]);
+    const main = v.getVideo().clips.find((c) => !before.has(c.id));
+    if (!main) throw new Error('the main clip was not added');
+    await v.addMedia([{ name: 'over.mp4', blob: overBlob, type: 'video/mp4' }], { track: v.NEW_TRACK, at: main.start });
+    ids = v
+      .getVideo()
+      .clips.filter((c) => !before.has(c.id))
+      .map((c) => c.id);
+    const over = v.getVideo().clips.find((c) => ids.includes(c.id) && c.id !== main.id);
+    if (!over) throw new Error('the overlay clip was not added');
+    const why = v.applyPreset(over.id, 'top-right');
+    if (why) throw new Error(why);
+    const tf = v.getVideo().clips.find((c) => c.id === over.id)!.tf!;
+    const t = main.start + 0.5;
+    v.setPlayhead(t);
+    const wantMain = codeColour(Math.floor((t - main.start + main.in) * FPS + 1e-6));
+    const wantOver = codeColour(Math.floor((t - over.start + over.in) * FPS + 1e-6), 3);
+    const ok = await waitFor(() => near(at(tf.x, tf.y), wantOver) && near(at(0.25, 0.8), wantMain), 5000);
+    check(
+      ok,
+      `pool: the editor (StrictMode) shows an overlay clip in its top-right box over the main clip (box ${at(tf.x, tf.y)
+        ?.map(Math.round)
+        .join('/')}, want ${wantOver.join('/')}; outside ${at(0.25, 0.8)?.map(Math.round).join('/')}, want ${wantMain.join('/')})`,
+    );
+  } finally {
+    v.setPlaying(false);
+    for (const id of ids) v.removeClip(id);
+    for (const tr of v.getVideo().tracks) if (!tracksBefore.has(tr.id)) v.deleteTrack(tr.id);
+    root.unmount();
+    host.remove();
+  }
+  return 'pool: the editor stage (StrictMode) shows an overlay clip';
 }
 
 /** The mean colour of the 16 × 16 patch in the middle of a W × H canvas. */

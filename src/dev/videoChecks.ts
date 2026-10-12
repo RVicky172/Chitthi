@@ -1016,7 +1016,7 @@ function boxDistance(tf: ClipTransform, W: number, H: number, px: number, py: nu
  * blended by its opacity (bottom first), then `dark` (a fade). Pixels within `edge` px of a box edge are skipped
  * (antialiasing); an identity box is the whole frame and has none. Max and mean channel error, pixels compared.
  */
-function compareWithReference(
+export function compareWithReference(
   data: Uint8ClampedArray,
   W: number,
   H: number,

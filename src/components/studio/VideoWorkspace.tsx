@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
-import { MUSIC, lockedReason, videoAt } from '../../engine/timeline';
+import { frameStack } from '../../engine/stack';
+import { MUSIC, lockedReason } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
-import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
+import { drawPreview, noteFallback, pausedAt, pausedFrame, poolClip, stageSource, stillOf, useFallbackNote, withHeld, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
@@ -338,10 +339,9 @@ function VideoStage() {
   };
 
   /** A picture without waiting (playback): what the pool has ready, or the clip's <video> for a fallback clip. */
-  const pictureNow = (shown: { clip: VClip; local: number } | null): Picture | null => {
-    if (!shown) return null;
+  const pictureNow = (shown: { clip: VClip; local: number }): Picture | null => {
     const c = shown.clip;
-    if (c.kind === 'photo') return c.still ? { image: c.still, w: c.still.width, h: c.still.height } : null;
+    if (c.kind === 'photo') return stillOf(c);
     if (usesPool(c)) {
       const f = stage().pool!.peek(poolClip(c), c.in + shown.local);
       return f ? { image: f.image, w: f.width, h: f.height } : null;
@@ -365,29 +365,23 @@ function VideoStage() {
     let f = frame;
     if (!f) {
       if (s.playing) {
-        const shown = videoAt(projectOf(s), s.t);
-        f = { at: s.t, shown, pic: pictureNow(shown) };
+        // Every visible clip's picture as the pool has it now (each video peeked: holds counted per lane).
+        const items = frameStack(projectOf(s), s.t);
+        f = { at: s.t, items: items.map((it) => ({ ...it, pic: pictureNow(it) })) };
       } else {
-        // Paused, until the exact frame lands: a photo at once; a video's held picture while it's the same clip.
-        const { at, shown } = pausedAt(projectOf(s), s.t, s.fps);
-        const held = last.current;
-        const pic =
-          shown?.clip.kind === 'photo' || (shown && !usesPool(shown.clip))
-            ? pictureNow(shown)
-            : held && held.shown?.clip.id === shown?.clip.id
-              ? held.pic
-              : null;
-        f = { at, shown, pic };
+        // Paused, until the exact frame lands: photos at once; each video's held picture while it's the same clip.
+        const { at, items } = pausedAt(projectOf(s), s.t, s.fps);
+        f = withHeld(at, items, last.current, pictureNow, usesPool);
       }
     }
-    if (!f.shown && !s.clips.length) return;
+    if (!f.items.length && !s.clips.length) return;
     last.current = f;
     const view = { layers: s.layers, total: videoLength(s), fadeOut: s.fadeOut };
     try {
       drawPreview(x, W, H, view, f);
     } catch {
-      // A held frame the pool has since released (a clip removed): draw without it until the next frame.
-      last.current = { ...f, pic: null };
+      // A held frame the pool has since released (a clip removed): draw without them until the next frame.
+      last.current = { ...f, items: f.items.map((it) => ({ ...it, pic: null })) };
       drawPreview(x, W, H, view, last.current);
     }
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));

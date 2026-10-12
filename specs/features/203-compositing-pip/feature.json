@@ -889,7 +889,7 @@
         "T040": {
           "text": "Store actions (§9, `src/state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for overlays), `addMedia(files, { track, at })` (at the playhead or drop time, after the clips there if it doesn't fit; a track added first when dropped above the top track), `moveClipToTrack`, `setClipTransform` (key coalescing: one undo step per drag), `applyPreset`; `editCtx()` passes `maxVideos` from `limitsFor`. Each one undo step, returning the message to show. Unit tests for the pure parts already exist (T010–T019); here `src/state/video.test.ts` drives each action without DOM (one undo step, the messages, the limit). From the T015 / T019 reviews, the store must also: wrap with `limitVideos` the results it builds itself (split, now on overlay clips too; duplicate; addMedia onto a track; Magnetic on via `closeGaps`; its own main-track moves), checked on what it stores (after `apply`'s pack); refuse a `moveClipToTrack` target that isn't a picture track; remove an overlay clip with `lift` (never ripple) even with Magnetic on (Q8); key `moveClip` and the inspector's \"Clip N\" per track (the gate returns clips grouped by track, main first).",
           "section": "Store and timeline rows",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -904,10 +904,14 @@
             "src/state/video.test.ts"
           ],
           "test": "`npx vitest run src/state/video.test.ts`; `npm run check`",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "02ef407"
+          ],
+          "notes": [
+            "2026-10-12: store actions merged from the agent worktree (reviewed 2026-10-11); video.test.ts 48 passed; npm run check 1,390 tests green."
+          ],
           "startedOn": "2026-10-11",
-          "doneOn": null
+          "doneOn": "2026-10-12"
         },
         "T050": {
           "text": "Behaviour-neutral refactor (§10, plan Risks): the main row's clip blocks, trims, tools and drags move into a `PictureRow` component in `Timeline.tsx` used for the main track only; nothing a user sees changes.",
@@ -933,7 +937,7 @@
         "T030": {
           "text": "Failing self-test checks (`src/dev/poolChecks.ts`): the stage draws stacks, `drawPreview` of the T002 fixture at its 8 times (paused, through `pausedFrame` and the pool) equals `renderStack` from the same pictures; all of a paused stack's pictures resolve together (latest wins per lane); the held picture is per clip (an overlay arriving doesn't blank the main clip); 201 fixtures' paused frames unchanged (AC-10); the real editor (StrictMode) shows an overlay clip.",
           "section": "Preview and export",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -946,12 +950,16 @@
           ],
           "test": "`CHITTHI_TEST_ONLY=pool npm test`: fails",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-12: poolChecks stageDrawsStacks (golden reference on the stage path, latest wins, per-clip hold) and editorStageShowsOverlay; CHITTHI_TEST_ONLY=pool: 60 passed, 2 failed as expected."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T031": {
           "text": "Implement §5: `StageFrame.items`, `pausedAt` / `pausedFrame` on `frameStack`, `drawPreview` through `renderStack`, the stage pool at `poolLimits(limitsFor().videosAtOnce)`; `VideoStage` peeks every visible video while playing and keeps a held picture per clip.",
           "section": "Preview and export",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -965,7 +973,11 @@
           ],
           "test": "T030; video e2e unchanged",
           "commits": [],
-          "notes": []
+          "notes": [
+            "2026-10-12: StageFrame.items; pausedAt/pausedFrame on frameStack (pictures resolved together); withHeld keeps the held picture per clip; drawPreview through renderStack; stage pool at poolLimits(videosAtOnce). Pool checks 67/0; npm test 6,194/0; check 1,390; editors e2e 25 passed / 15 skipped."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
         },
         "T032": {
           "text": "Failing self-test checks (`src/dev/videoChecks.ts`): the export of the T002 fixture renders the same frames as the preview from the same inputs (AC-6); for 201 / 202 fixtures the export's (frame, clip, source time) list equals `framePlan`'s and its sound sources are unchanged (AC-10); AC-13: the 2-minute main + 2 overlays export finishes with `openFrames()` 0 after it, its time and peak bytes recorded.",

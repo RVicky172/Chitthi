@@ -29,9 +29,10 @@
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
 - **406 ✔️ Implemented 2026-10-11:** roadmap-actionable-workflow; AC-1–AC-6 proven, all tasks done; README/changelog updated. DoD gates pass; production e2e 84 passed / 16 skipped serially.
 - **203:** `203-compositing-pip` 🚧: plan approved 2026-10-11 (D1–D3, D-031; Q6 = web 3 / desktop 5), tasks
-  T001–T092 in 5 agent batches; branch `feat/203-compositing-pip`. **204** merged into `main` and pushed
-  (2026-10-11, with Dependabot #23–#27).
-- **Next (roadmap):** 203 batch 3: T020/T021 (sound), T040 (store), T050 (PictureRow refactor). Batches 1–2 done 2026-10-11.
+  T001–T092; branch `feat/203-compositing-pip`. **204** merged into `main` and pushed
+  (2026-10-11, with Dependabot #23–#27). Done to 2026-10-12: T001–T021, T030, T031 (stage draws stacks), T040, T050.
+  From 2026-10-12 tasks run one at a time in the main session, no agent batches (maintainer's choice).
+- **Next (roadmap):** 203 T032/T033 (export draws stacks), then T034, T035, T051–T054.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
