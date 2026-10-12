@@ -166,7 +166,7 @@
       "205": {
         "title": "Keyframes: `Animated<T>`, keyframe lane",
         "workItem": "P2.5",
-        "status": "spec-approved",
+        "status": "in-progress",
         "note": "",
         "folder": "features/205-keyframes",
         "needs": [

@@ -407,3 +407,15 @@ Constitution 2.0.0 (II and the Definition of Done), `workflow.md` Stages 3–5, 
 **Consequences:** faster feature work; regressions in UI, rendering or the desktop app surface later, at the test
 pass, so it can be longer and may send fixes back into finished features. Features reach `Implemented` with some ACs
 still open (listed in `x90`).
+
+## D-034 — 205's plan: one keyframe evaluation, keys relative to their item (2026-10-12)
+
+**Context:** 205 (keyframes) plan review; spec Q1–Q8 accepted the same day.
+**Decision:** keyframes live on their clip or layer (`keys`, times from its start) and one pure module
+(`engine/keyframes.ts`) evaluates them for the preview, the export, the stage and the inspector; only start-edge edits
+shift them; the store routes edits of animated values into keyframes at the playhead (auto-key). D1: the timeline lane
+is one row of diamonds under the selection, expandable per value; D2: K toggles keyframes at the playhead, Alt + [ / ]
+jump between them; D3: the diamond's shape shows its easing. The audio risk is handled by a unit-tested pure gain curve
+(no self-test spike during the phase, D-033).
+**Alternatives:** keys in source time (a slip would move animations); one lane row per value always; buttons only.
+**Consequences:** projects without keys take today's code paths; 205's UI and sound are checked in 290.

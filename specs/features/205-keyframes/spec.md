@@ -2,7 +2,7 @@
 
 # 205 — Keyframes: animate a clip's box, its volume and layers over time
 
-**Status:** Approved
+**Status:** In Progress
 **Roadmap phase:** Phase 2 — Multi-track timeline (release 3.0.0) · **Created:** 2026-10-12
 
 ## Summary
@@ -77,3 +77,4 @@ Keyframes let a value change over time: a picture-in-picture clip that slides in
 - 2026-10-12 — Created: draft spec with 14 acceptance criteria and 8 open questions with proposed answers.
 - 2026-10-12 — Q1–Q8: every proposed answer accepted by the maintainer; Approved.
 - 2026-10-12 — Plan drafted (§1–§11, D1–D3 for the maintainer).
+- 2026-10-12 — Plan approved (D1–D3 as recommended, D-034); tasks T010–T092; deferred checks listed in 290.

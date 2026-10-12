@@ -2,7 +2,7 @@
 
 # 205 — Keyframes: animate a clip's box, its volume and layers over time · Implementation Plan
 
-**Spec:** `./spec.md` · **Status:** Draft <!-- Draft | Approved -->
+**Spec:** `./spec.md` · **Status:** Approved (2026-10-12, D1–D3 as recommended, D-034) <!-- Draft | Approved -->
 
 ## Approach
 
@@ -171,7 +171,7 @@ export function mergeKeys<P extends string>(raw: unknown, props: readonly P[]): 
 
 ## Risks & Mitigations
 
-- **Audio automation** (§5): overlapping AudioParam events throw, and a curve split across 10 s windows could click. Mitigation: one `setValueCurveAtTime` per source per window and nothing else on that gain node; **T001 spike** measures the curve against the expected gain (±0.5 dB) and the joins between windows before the mixer is changed.
+- **Audio automation** (§5): overlapping AudioParam events throw, and a curve split across 10 s windows could click. Mitigation: one `setValueCurveAtTime` per source per window and nothing else on that gain node; the curve is a pure function (`gainCurve`, T040) unit-tested for accuracy (±0.5 dB against the exact curve, as `setValueCurveAtTime` interpolates linearly between its points) and for continuity at window joins. The exported sound itself is measured in 290 (AC-10; no self-test spike during the phase, D-033).
 - **Auto-key surprises** (§6, Q4): once a value is animated, a drag sets a keyframe rather than moving the whole animation. Mitigation: the diamond shows the state everywhere the value is edited, the change is announced with "keyframe at …", and **Remove animation** is one step away.
 - **Shared layer code with the photo editor** (§4, §8): `drawLayers` and `useLayerPointer` serve both editors. Mitigation: keyframes act only when a time is passed (the video editor); the photo editor's calls don't change and its tests must stay green.
 - **Start-edge edits** (§3): a missed edit path would make animations jump after a trim. Mitigation: shift keys in the two helpers every start-edge edit uses (`trim` start without ripple, `moveStart`), and a seeded property test (1,000 random edits) that a key's timeline time is kept by start-edge edits and carried by moves.
@@ -192,7 +192,7 @@ export function mergeKeys<P extends string>(raw: unknown, props: readonly P[]): 
 | X. Budgets and Accessibility | ✅ | AC-12 budget (0.05 ms per frame); keyboard, names, announcements, reduced motion (AC-13); no entry-chunk growth beyond a few KB. |
 | XI. Agents Use the Same Code | ⚠️ | No agent tool in 205 (Q6, accepted): the actions are pure functions and store actions that 212's tools will call. |
 
-## Decisions for the maintainer
+## Decisions for the maintainer (accepted 2026-10-12: D1–D3 as recommended)
 
 - **D1 — The lane's layout.** _Recommended:_ one row of diamonds (every animated value's keyframe times) under the
   selected clip or layer, with an expand button for one row per value. _Alternative:_ always one row per value (clearer,
