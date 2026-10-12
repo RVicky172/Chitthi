@@ -3,7 +3,8 @@
 > The non-negotiable principles of this project. Every spec, plan, task, and line of code must comply.
 > If a change needs to break a principle, amend this document first (see "Governance & Amendments").
 
-**Version:** 1.0.0 · **Ratified:** 2026-10-06
+**Version:** 2.0.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-12 (II and the Definition of Done: heavy checks at
+the end of a phase, D-033)
 
 ---
 
@@ -26,10 +27,12 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 ### II. Test-Gated Delivery
 
-- No task is "done" until its tests pass: `npm run check` (and that area's e2e tests,
-  `npx playwright test e2e/<file>.e2e.ts`, if the change affects UI or integration; never the full suite, D-007;
-  `npm test` if it renders, exports or adds an agent tool).
+- No task is "done" until `npm run check` passes (typecheck, lint, unit tests). That is the only test run while a
+  phase is being built (D-033).
 - Pure logic is unit-tested, test-first: write the failing test, then the code.
+- E2e tests, self-test checks, timing runs and manual checks are **written and run at the end of the phase**, in its
+  test-pass feature (`x90`, e.g. 290 for Phase 2), before the phase's release. A feature lists there the checks it
+  defers; the acceptance criteria they prove are ticked then. Every phase ends in a release.
 - Tests wait on real signals, never fixed sleeps; anything time-dependent takes time as an input so tests are
   deterministic.
 
@@ -99,10 +102,11 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 ## Quality Gates (Definition of Done)
 
-A feature is **Done** when all are true:
+A feature is **Implemented** when 1, 2, 4, 8, 9 and 10 are true; its deferred checks (3, 5, 6, 7) are listed in the
+phase's test-pass feature. A phase is **Done**, and released, when all are true for every feature in it (D-033):
 
 1. Spec status is `Implemented` and every acceptance criterion is checked — each one proven by a test or a
-   recorded measurement.
+   recorded measurement (criteria proven by deferred checks are ticked in the phase's test pass).
 2. `npm run check` passes (the fast gate: typecheck, lint, unit tests).
 3. `npm run test:e2e` passes (Playwright + axe, desktop and phone; fails on any console error, incl. CSP).
 4. `npm run build` succeeds (includes the 350 KB / no-AI-code entry budget).

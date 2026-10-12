@@ -267,6 +267,10 @@
       {
         "date": "2026-10-11",
         "text": "T017: a see-through clip is drawn into its box on a per-target scratch canvas and laid down once at its alpha (plan §4 updated); renderIg's passes would otherwise show its background through its photo."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "D-033: e2e, self-test, timing and manual checks are written and run at the end of the phase. T035 (AC-12 timing), T051 (tracks e2e), T053 (overlays e2e) and T060 (manual checks) moved to 290; T052 / T054 are proven by unit tests; T091 runs `check` and `build`. The ACs those tests prove (AC-1–AC-3, AC-5, AC-12, AC-14) are ticked in 290."
       }
     ],
     "sections": [
@@ -529,15 +533,15 @@
       },
       {
         "title": "Preview and export",
-        "intro": "Batch 4: T030/T031 and T032/T033; then T034 (it shares VideoWorkspace.tsx with T031) and T035."
+        "intro": "T030/T031, T032/T033, then T034 (it shares VideoWorkspace.tsx with T031)."
       },
       {
         "title": "Tracks and the stage",
-        "intro": "Batch 5: T051/T052 and T053/T054 (new e2e files each)."
+        "intro": "T052 and T054, each with unit tests; their e2e is written in 290 (D-033)."
       },
       {
         "title": "Manual checks",
-        "intro": null
+        "intro": "Moved to 290 (D-033)."
       },
       {
         "title": "Verify",
@@ -567,12 +571,8 @@
         "T032",
         "T033",
         "T034",
-        "T035",
-        "T051",
         "T052",
-        "T053",
         "T054",
-        "T060",
         "T090",
         "T091",
         "T092"
@@ -1047,44 +1047,6 @@
           "startedOn": "2026-10-12",
           "doneOn": "2026-10-12"
         },
-        "T035": {
-          "text": "AC-12 timing (§13, `src/dev/playbackChecks.ts`, `CHITTHI_TEST_ONLY=pooltiming`): main + 2 overlay 1080p30 videos playing at once in a Reel and a YouTube project, 300 frames, median and p95 frame time (≤ 33 ms median on desktop); a project without overlays within 5 % of `main` (fastest of 3, run back to back). If the bar fails, lower the limit by Q2's rule and record it in the spec.",
-          "section": "Preview and export",
-          "status": "todo",
-          "blockedReason": null,
-          "parallel": false,
-          "manual": false,
-          "covers": [
-            "AC-12"
-          ],
-          "files": [
-            "src/dev/playbackChecks.ts"
-          ],
-          "test": "`CHITTHI_TEST_ONLY=pooltiming npm test`: the numbers recorded here",
-          "commits": [],
-          "notes": []
-        },
-        "T051": {
-          "text": "Failing e2e (`e2e/tracks.e2e.ts`, new): add, rename, move up / down and delete (confirmation when it has clips) an overlay track, each one undo step; the limit disables Add track with the reason; the overlay header's Hide (not drawn), Mute (silent: the mute test's sound log), Lock (timeline and stage edits refused) and height; add files at the playhead and by dropping on a row and above the top row; drag a clip between rows and with \"Move to track…\"; an edit over the videos-at-once limit refused with its message; keyboard only; axe on the timeline; 360 px with no sideways scroll.",
-          "section": "Tracks and the stage",
-          "status": "todo",
-          "blockedReason": null,
-          "parallel": false,
-          "manual": false,
-          "covers": [
-            "AC-1",
-            "AC-2",
-            "AC-3",
-            "AC-9",
-            "AC-14"
-          ],
-          "files": [
-            "e2e/tracks.e2e.ts"
-          ],
-          "test": "`npx playwright test e2e/tracks.e2e.ts`: fails",
-          "commits": [],
-          "notes": []
-        },
         "T052": {
           "text": "Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's \"Move to track…\"; styles in `36-media-studio.css`. From the T050 review: lift the per-row drag / reorder state into Timeline (or a context) so a drag can cross rows with the target row drawing the drop marker; snap targets from every picture track's clips (Timeline uses only the main track's today); decide whether overlay rows show gap buttons (overlays lift, never ripple, Q8) and word them for overlays; clip labels name their track so two rows don't both announce \"Clip 1\"; pass the row's track id to drop and add-media targets. From the T040 review: Timeline's split key shows \"Put the playhead inside a clip…\" for any refusal; use `splitAtPlayheadWhy()` / `duplicateClipWhy()` and show their message (the videos-at-once refusal); show `setMagnetic`'s returned reason when Magnetic on is refused.",
           "section": "Tracks and the stage",
@@ -1102,25 +1064,7 @@
             "src/components/studio/Timeline.tsx",
             "src/styles/36-media-studio.css"
           ],
-          "test": "T051; `e2e/editors.e2e.ts` unchanged",
-          "commits": [],
-          "notes": []
-        },
-        "T053": {
-          "text": "Failing e2e (`e2e/overlays.e2e.ts`, new): a selected overlay clip's box on the stage: drag moves, a corner resizes keeping the aspect, the handle rotates; snapping to centre lines and edges within 8 px, off with the Snap switch and with Alt; the inspector's presets and number fields (X, Y, size, rotation, opacity, corner radius); arrows 1 % and Shift 10 % with the stage focused; a drag is one undo step; the announcement text; a locked track shows no box and disabled fields; axe on the inspector; reduced motion (no animated outline).",
-          "section": "Tracks and the stage",
-          "status": "todo",
-          "blockedReason": null,
-          "parallel": true,
-          "manual": false,
-          "covers": [
-            "AC-5",
-            "AC-14"
-          ],
-          "files": [
-            "e2e/overlays.e2e.ts"
-          ],
-          "test": "`npx playwright test e2e/overlays.e2e.ts`: fails",
+          "test": "unit tests (vitest) for the logic it adds (drop targets, cross-row drag state, per-track clip labels); its e2e (was T051) is written in 290",
           "commits": [],
           "notes": []
         },
@@ -1140,25 +1084,7 @@
             "src/components/studio/VideoWorkspace.tsx",
             "src/styles/36-media-studio.css"
           ],
-          "test": "T053; `e2e/editors.e2e.ts` unchanged",
-          "commits": [],
-          "notes": []
-        },
-        "T060": {
-          "text": "Manual checks in Chrome (`npm run dev`) and the desktop app: B-roll over a talking clip and a corner face-cam play smoothly and export as previewed; the Chrome AC-12 figure (main + 1 overlay, `?selftest&only=pooltiming`); the AC-13 export in Chrome (web).",
-          "section": "Manual checks",
-          "status": "todo",
-          "blockedReason": null,
-          "parallel": false,
-          "manual": true,
-          "covers": [
-            "AC-12",
-            "AC-13"
-          ],
-          "files": [
-            "none"
-          ],
-          "test": "the maintainer's results recorded here",
+          "test": "unit tests (vitest) for useClipTransform's maths (move, corner resize keeping the aspect, rotate, snapping, arrow-key steps); its e2e (was T053) is written in 290",
           "commits": [],
           "notes": []
         },
@@ -1184,7 +1110,7 @@
           "notes": []
         },
         "T091": {
-          "text": "Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; record the numbers.",
+          "text": "`npm run check` and `npm run build` green; entry chunk unchanged; record the numbers. The other gates (`test:e2e`, `npm test`, `test:mcp`, `check:licenses`, timing) run once in the Phase 2 test pass (290, D-033).",
           "section": "Verify",
           "status": "todo",
           "blockedReason": null,
@@ -1192,7 +1118,7 @@
           "manual": false,
           "covers": [],
           "files": [],
-          "test": "all gates",
+          "test": "`npm run check`; `npm run build`",
           "commits": [],
           "notes": []
         },

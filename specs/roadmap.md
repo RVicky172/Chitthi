@@ -5,7 +5,7 @@
 > Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.
 > Status legend: ⬜ Not started · 📝 Spec drafted · ✅ Spec approved · 🚧 In progress · ✔️ Done
 
-**Last updated:** 2026-10-11
+**Last updated:** 2026-10-12
 
 The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work
 items (files, tests, notes and measurements for Phases 0–1) are in
@@ -46,6 +46,7 @@ _Release:_ 3.0.0
 | 210 | Markers, in/out, range export, text animations, compound clips (P2.10) | — | ⬜ | 201 |
 | 211 | Proxies and frame cache, desktop first (P2.11) | — | ⬜ | 201 |
 | 212 | Agent tools and docs for the timeline (P2.12) | — | ⬜ | 202, 203, 205, 206 |
+| 290 | Phase 2 test pass and 3.0.0 release | [spec](features/290-phase2-test-pass-release/spec.md) | 📝 The phase's deferred e2e, self-test, timing and manual checks, every gate, release (D-033) | 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212 |
 
 **Exit criteria:** a 4K multi-track timeline (3 video and 2 audio tracks, transitions) plays smoothly on desktop;
 every 2.x project opens unchanged.

@@ -390,3 +390,20 @@ within EPS before a boundary belongs to the later clip, as the export already dr
 **Consequences:** preview and export agree on every frame; `local` can be about −1e-13 at such frames (already so in the
 export; fades and motion clamp it).
 
+
+## D-033 — Heavy tests run once per phase, before its release (2026-10-12)
+
+**Context:** e2e runs, the Electron self-test, MCP and timing runs after each task took much of each session, and
+writing e2e / self-test checks per task slowed product work (maintainer, 2026-10-12).
+**Decision:** while a phase is being built, tasks write and run **unit tests only** (`npm run check`; `npm run build`
+when a feature is finished). E2e tests, self-test checks, timing runs and manual checks are **written and run at the
+end of the phase**, in its test-pass feature (`x90`: `290` for Phase 2), then every Definition-of-Done gate runs and
+the phase is released: every phase ends in a release. A feature lists the checks it defers in `x90`; the ACs they
+prove are ticked there. Tasks run one at a time in the main session (D-030's agent batches off by default).
+Constitution 2.0.0 (II and the Definition of Done), `workflow.md` Stages 3–5, `/spec-tasks`, `/spec-implement`,
+`/spec-verify`, CLAUDE.md. 203: T035, T051, T053, T060 moved to 290; T052 / T054 proven by unit tests.
+**Alternatives:** keep per-task area e2e (D-007 as it was); write heavy checks with the code but run them at phase end
+(still costs the writing time during the phase).
+**Consequences:** faster feature work; regressions in UI, rendering or the desktop app surface later, at the test
+pass, so it can be longer and may send fixes back into finished features. Features reach `Implemented` with some ACs
+still open (listed in `x90`).

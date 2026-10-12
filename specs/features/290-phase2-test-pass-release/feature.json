@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "290",
+  "title": "Phase 2 test pass and 3.0.0 release",
+  "workItem": null,
+  "status": "draft",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-12",
+    "approved": null,
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/290-phase2-test-pass-release"
+  },
+  "spec": {
+    "phase": "Phase 2 — Multi-track timeline (release 3.0.0)",
+    "summary": "The end of Phase 2 (D-033): during the phase, features are built with unit tests only (`npm run check`, plus `npm run build` when a feature is finished). Here, once 201–212 are built, the e2e, self-test, timing and manual checks deferred by each feature are written and run, every Definition-of-Done gate passes, the acceptance criteria those checks prove are ticked in their features, and 3.0.0 is released.",
+    "stories": {
+      "order": [],
+      "byId": {}
+    },
+    "criteria": {
+      "order": [],
+      "byId": {}
+    },
+    "questions": {
+      "order": [],
+      "byId": {}
+    },
+    "changelog": [
+      {
+        "date": "2026-10-12",
+        "text": "Created."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "markdown",
+        "title": "Deferred checks collected from the phase",
+        "markdown": "Each Phase 2 feature lists here the checks it defers (D-033), with their text as planned; the tasks are written when 290 is planned.\n\n- **203 T035** — AC-12 timing (§13, `src/dev/playbackChecks.ts`, `CHITTHI_TEST_ONLY=pooltiming`): main + 2 overlay 1080p30 videos playing at once in a Reel and a YouTube project, 300 frames, median and p95 frame time (≤ 33 ms median on desktop); a project without overlays within 5 % of `main` (fastest of 3, run back to back). If the bar fails, lower the limit by Q2's rule and record it in the spec. · files: src/dev/playbackChecks.ts · test: `CHITTHI_TEST_ONLY=pooltiming npm test`: the numbers recorded here\n- **203 T051** — Failing e2e (`e2e/tracks.e2e.ts`, new): add, rename, move up / down and delete (confirmation when it has clips) an overlay track, each one undo step; the limit disables Add track with the reason; the overlay header's Hide (not drawn), Mute (silent: the mute test's sound log), Lock (timeline and stage edits refused) and height; add files at the playhead and by dropping on a row and above the top row; drag a clip between rows and with \"Move to track…\"; an edit over the videos-at-once limit refused with its message; keyboard only; axe on the timeline; 360 px with no sideways scroll. · files: e2e/tracks.e2e.ts · test: `npx playwright test e2e/tracks.e2e.ts`: fails\n- **203 T053** — Failing e2e (`e2e/overlays.e2e.ts`, new): a selected overlay clip's box on the stage: drag moves, a corner resizes keeping the aspect, the handle rotates; snapping to centre lines and edges within 8 px, off with the Snap switch and with Alt; the inspector's presets and number fields (X, Y, size, rotation, opacity, corner radius); arrows 1 % and Shift 10 % with the stage focused; a drag is one undo step; the announcement text; a locked track shows no box and disabled fields; axe on the inspector; reduced motion (no animated outline). · files: e2e/overlays.e2e.ts · test: `npx playwright test e2e/overlays.e2e.ts`: fails\n- **203 T060** — Manual checks in Chrome (`npm run dev`) and the desktop app: B-roll over a talking clip and a corner face-cam play smoothly and export as previewed; the Chrome AC-12 figure (main + 1 overlay, `?selftest&only=pooltiming`); the AC-13 export in Chrome (web). · files: none · test: the maintainer's results recorded here\n- **Every Phase 2 feature** — the full Definition of Done: `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`, the docs gates; the ACs proven by these checks ticked in each feature.\n- **Release** — `specs/release.md`: version 3.0.0, CHANGELOG, tag."
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- Performance: …\n- Accessibility / security / compatibility: …"
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- …"
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

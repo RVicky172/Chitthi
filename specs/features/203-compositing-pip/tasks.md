@@ -60,7 +60,7 @@ Batch 3: T020/T021, T040 and T050.
 
 ## Preview and export
 
-Batch 4: T030/T031 and T032/T033; then T034 (it shares VideoWorkspace.tsx with T031) and T035.
+T030/T031, T032/T033, then T034 (it shares VideoWorkspace.tsx with T031).
 
 - [x] **T030** — Failing self-test checks (`src/dev/poolChecks.ts`): the stage draws stacks, `drawPreview` of the T002 fixture at its 8 times (paused, through `pausedFrame` and the pool) equals `renderStack` from the same pictures; all of a paused stack's pictures resolve together (latest wins per lane); the held picture is per clip (an overlay arriving doesn't blank the main clip); 201 fixtures' paused frames unchanged (AC-10); the real editor (StrictMode) shows an overlay clip. · files: `src/dev/poolChecks.ts` · test: `CHITTHI_TEST_ONLY=pool npm test`: fails
   - 2026-10-12: poolChecks stageDrawsStacks (golden reference on the stage path, latest wins, per-clip hold) and editorStageShowsOverlay; CHITTHI_TEST_ONLY=pool: 60 passed, 2 failed as expected.
@@ -72,43 +72,42 @@ Batch 4: T030/T031 and T032/T033; then T034 (it shares VideoWorkspace.tsx with T
   - 2026-10-12: export frame loop on frameStack (every picture of a frame awaited together, pool at videosAtOnce, lanePlan want/prepare on stack change and each second, photos once per clip, release once passed, per-clip held frame); ExportJob.trace for self-tests. Pool checks 73/0 (overlay export golden mean 0.34 / worst 4; 1,252 legacy frames = framePlan; AC-13 2-min 1080p 12.4 s, peak 40 MB frames, nothing open after); npm test 6,200/0; check 1,390; editors e2e 25 passed; test:mcp passed.
 - [x] **T034** — The stage's sound for several clips (§7): `VideoStage`'s `sync` passes the list from `soundPlan` to `previewSound`; a muted overlay track is silent, a hidden one heard; AC-8 export sound sources for the fixture checked in the self-test. From the T021 review: drive the fallback <video> pictures from what is on screen (frameStack minus hidden tracks, with local = t − start), not from the sound plan: a fallback clip on a muted overlay track is in `held`, not `current`, and today's interim adapter in sync() would pause (freeze) its picture. · files: `src/components/studio/VideoWorkspace.tsx`, `src/dev/videoChecks.ts` · test: `npm test`; video e2e (the mute test)
   - **Result (2026-10-12):** fallback <video> pictures follow frameStack (on screen), not the sound plan, so a fallback clip on a muted overlay track keeps following the playhead (sync already passed soundPlan's list to previewSound since T021). Found and fixed on the way: drawing a closed video frame threw between save() and restore() in photoDrawer (instagram.ts) and renderStack's boxed path, leaving the stage canvas translated so later frames landed in its bottom-right quarter; both now restore in finally. New self-checks: fallback on an overlay track (muted and not), a closed frame leaves the canvas unchanged (both fail with the fix removed), AC-8 overlay sound in the export (heard / muted / hidden). npm test 6,203/0; check 1,390; editors e2e 25 passed / 15 skipped.
-- [ ] **T035** — AC-12 timing (§13, `src/dev/playbackChecks.ts`, `CHITTHI_TEST_ONLY=pooltiming`): main + 2 overlay 1080p30 videos playing at once in a Reel and a YouTube project, 300 frames, median and p95 frame time (≤ 33 ms median on desktop); a project without overlays within 5 % of `main` (fastest of 3, run back to back). If the bar fails, lower the limit by Q2's rule and record it in the spec. · files: `src/dev/playbackChecks.ts` · test: `CHITTHI_TEST_ONLY=pooltiming npm test`: the numbers recorded here
 
 ## Tracks and the stage
 
-Batch 5: T051/T052 and T053/T054 (new e2e files each).
+T052 and T054, each with unit tests; their e2e is written in 290 (D-033).
 
-- [ ] **T051** — Failing e2e (`e2e/tracks.e2e.ts`, new): add, rename, move up / down and delete (confirmation when it has clips) an overlay track, each one undo step; the limit disables Add track with the reason; the overlay header's Hide (not drawn), Mute (silent: the mute test's sound log), Lock (timeline and stage edits refused) and height; add files at the playhead and by dropping on a row and above the top row; drag a clip between rows and with "Move to track…"; an edit over the videos-at-once limit refused with its message; keyboard only; axe on the timeline; 360 px with no sideways scroll. · files: `e2e/tracks.e2e.ts` · test: `npx playwright test e2e/tracks.e2e.ts`: fails
-- [ ] **T052** — Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's "Move to track…"; styles in `36-media-studio.css`. From the T050 review: lift the per-row drag / reorder state into Timeline (or a context) so a drag can cross rows with the target row drawing the drop marker; snap targets from every picture track's clips (Timeline uses only the main track's today); decide whether overlay rows show gap buttons (overlays lift, never ripple, Q8) and word them for overlays; clip labels name their track so two rows don't both announce "Clip 1"; pass the row's track id to drop and add-media targets. From the T040 review: Timeline's split key shows "Put the playhead inside a clip…" for any refusal; use `splitAtPlayheadWhy()` / `duplicateClipWhy()` and show their message (the videos-at-once refusal); show `setMagnetic`'s returned reason when Magnetic on is refused. · files: `src/components/studio/Timeline.tsx`, `src/styles/36-media-studio.css` · test: T051; `e2e/editors.e2e.ts` unchanged
-- [ ] **T053** [P] — Failing e2e (`e2e/overlays.e2e.ts`, new): a selected overlay clip's box on the stage: drag moves, a corner resizes keeping the aspect, the handle rotates; snapping to centre lines and edges within 8 px, off with the Snap switch and with Alt; the inspector's presets and number fields (X, Y, size, rotation, opacity, corner radius); arrows 1 % and Shift 10 % with the stage focused; a drag is one undo step; the announcement text; a locked track shows no box and disabled fields; axe on the inspector; reduced motion (no animated outline). · files: `e2e/overlays.e2e.ts` · test: `npx playwright test e2e/overlays.e2e.ts`: fails
-- [ ] **T054** — Implement §11: `src/components/studio/useClipTransform.ts` (pointer and keys on the clip box with the layers' geometry; layers hit first), the stage's box drawing, and the inspector's **Position and size** group in `ClipPanel`; announcements in 202's live region. From the T040 review: the inspector's "Clip N" (ClipPanel) counts per track via `clipPlace(id)` (e.g. "Overlay 1 · Clip 2"); show `updateClip` / `setClipTransform` refusals instead of ignoring them. · files: `src/components/studio/useClipTransform.ts`, `src/components/studio/VideoWorkspace.tsx`, `src/styles/36-media-studio.css` · test: T053; `e2e/editors.e2e.ts` unchanged
+- [ ] **T052** — Implement §10 in `Timeline.tsx`: a `PictureRow` per picture track (top track first), the overlay `TrackHead` (rename field, ↑ / ↓, Delete, Hide, Mute, Lock, height), Add track under the headers, drops on rows and above the top row, drags between rows, the clip menu's "Move to track…"; styles in `36-media-studio.css`. From the T050 review: lift the per-row drag / reorder state into Timeline (or a context) so a drag can cross rows with the target row drawing the drop marker; snap targets from every picture track's clips (Timeline uses only the main track's today); decide whether overlay rows show gap buttons (overlays lift, never ripple, Q8) and word them for overlays; clip labels name their track so two rows don't both announce "Clip 1"; pass the row's track id to drop and add-media targets. From the T040 review: Timeline's split key shows "Put the playhead inside a clip…" for any refusal; use `splitAtPlayheadWhy()` / `duplicateClipWhy()` and show their message (the videos-at-once refusal); show `setMagnetic`'s returned reason when Magnetic on is refused. · files: `src/components/studio/Timeline.tsx`, `src/styles/36-media-studio.css` · test: unit tests (vitest) for the logic it adds (drop targets, cross-row drag state, per-track clip labels); its e2e (was T051) is written in 290
+- [ ] **T054** — Implement §11: `src/components/studio/useClipTransform.ts` (pointer and keys on the clip box with the layers' geometry; layers hit first), the stage's box drawing, and the inspector's **Position and size** group in `ClipPanel`; announcements in 202's live region. From the T040 review: the inspector's "Clip N" (ClipPanel) counts per track via `clipPlace(id)` (e.g. "Overlay 1 · Clip 2"); show `updateClip` / `setClipTransform` refusals instead of ignoring them. · files: `src/components/studio/useClipTransform.ts`, `src/components/studio/VideoWorkspace.tsx`, `src/styles/36-media-studio.css` · test: unit tests (vitest) for useClipTransform's maths (move, corner resize keeping the aspect, rotate, snapping, arrow-key steps); its e2e (was T053) is written in 290
 
 ## Manual checks
 
-- [ ] **T060** 👤 — Manual checks in Chrome (`npm run dev`) and the desktop app: B-roll over a talking clip and a corner face-cam play smoothly and export as previewed; the Chrome AC-12 figure (main + 1 overlay, `?selftest&only=pooltiming`); the AC-13 export in Chrome (web). · files: `none` · test: the maintainer's results recorded here
+Moved to 290 (D-033).
+
+_No tasks yet._
 
 ## Verify
 
 - [ ] **T090** — Docs (AC-15): `docs/MEDIA-STUDIO.md` (overlay tracks, picture-in-picture, presets, keys, limits; the videos-at-once row now in use), `specs/lld.md` (frameStack, renderStack, the transform, the document fields), `docs/PERFORMANCE.md` (decoders = limit + 2 in use; AC-12 / AC-13 numbers), `CHANGELOG.md` Unreleased, the in-app docs' keys. · files: `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `docs/PERFORMANCE.md`, `CHANGELOG.md`, `src/data/docs.ts` · test: relative links resolve
-- [ ] **T091** — Every Definition-of-Done gate green (`check`, `build`, `test:e2e`, `test`, `test:mcp`, `check:licenses`); entry chunk unchanged; record the numbers. · test: all gates
+- [ ] **T091** — `npm run check` and `npm run build` green; entry chunk unchanged; record the numbers. The other gates (`test:e2e`, `npm test`, `test:mcp`, `check:licenses`, timing) run once in the Phase 2 test pass (290, D-033). · test: `npm run check`; `npm run build`
 - [ ] **T092** — Tick ACs (Status `Implemented`), roadmap 203 ✔️, `editor-implementation.md` P2.3 Done, `memory/progress.md`, `memory/MEMORY.md`.
 
 ## AC coverage
 
 | AC | Tasks |
 | --- | --- |
-| AC-1 | T010, T011, T040, T051, T052 |
-| AC-2 | T010, T011, T051, T052 |
-| AC-3 | T014, T015, T040, T051, T052 |
+| AC-1 | T010, T011, T040, T052 |
+| AC-2 | T010, T011, T052 |
+| AC-3 | T014, T015, T040, T052 |
 | AC-4 | T010, T011, T040 |
-| AC-5 | T012, T013, T053, T054 |
+| AC-5 | T012, T013, T054 |
 | AC-6 | T016, T017, T030, T031, T032, T033 |
 | AC-7 | T012, T013, T016, T017 |
 | AC-8 | T020, T021, T033, T034 |
-| AC-9 | T012, T013, T014, T015, T040, T051 |
+| AC-9 | T012, T013, T014, T015, T040 |
 | AC-10 | T012, T016, T017, T020, T050, T030, T031, T032 |
 | AC-11 | T018, T019 |
-| AC-12 | T035, T060 |
-| AC-13 | T032, T033, T060 |
-| AC-14 | T051, T052, T053, T054 |
+| AC-12 | — |
+| AC-13 | T032, T033 |
+| AC-14 | T052, T054 |
 | AC-15 | T090 |

@@ -64,13 +64,16 @@ Write the `tasks` part of `feature.json` (wording as in `templates/tasks-templat
 it touches and the test that proves it. Tests are written **before or with** the code they cover. Mark tasks that
 can run in parallel with `[P]`. Every AC is covered by at least one task (AC coverage table).
 
+Tasks prove themselves with **unit tests** only (D-033). An AC that needs an e2e test, a self-test check, a timing
+run or a manual check is not a task here: list that check in the phase's test-pass feature (`x90`, e.g. 290) under
+"Deferred checks collected from the phase", and say so in the AC coverage table.
+
 ## Stage 4 — Implement
 
 Work one task at a time. After each task:
 
-1. Run `npm run check` (and that area's e2e tests, `npx playwright test e2e/<file>.e2e.ts`, if the change affects
-   UI or integration; never the full suite, which runs once in Stage 5, D-007; `npm test` if it renders,
-   exports or touches an agent tool; `npm run test:mcp` if it touches IPC or the MCP server). Fix until green.
+1. Run `npm run check` (typecheck, lint, unit tests). Fix until green. Nothing heavier runs while the phase is being
+   built: no e2e, `npm test`, `test:mcp` or timing runs (D-033); they run in the phase's test pass.
 2. Finish the task with `npm run specs -- done NNN Txxx --result "**Result (date):** …"` (what was done, what was
    measured, anything surprising); `start` it when you begin, `block` it with a reason when it needs someone. These
    notes are the evidence Stage 5 checks.
@@ -79,6 +82,9 @@ Work one task at a time. After each task:
 For an important test, prove it can fail: break the code briefly, see the test fail, restore.
 
 ### Parallel tasks with agents (D-030)
+
+_Off by default since 2026-10-12 (D-033): tasks run one at a time in the main session; use agent batches only when
+the maintainer asks._
 
 Independent tasks run in **batches** of up to **3 implementer agents** (`.claude/agents/implementer.md`), each in its
 own git worktree, with a **reviewer agent** (`.claude/agents/reviewer.md`) checking each result before it is merged.
@@ -94,8 +100,7 @@ The main session is the **orchestrator**: it alone changes `feature.json`, `memo
 3. As each finishes, a reviewer checks its commit. CHANGES go back to the same implementer once (SendMessage); a
    second CHANGES is fixed inline by the orchestrator.
 4. **Merge** the approved commits into the feature branch one by one (cherry-pick), resolving conflicts.
-5. Run `npm run check` once, then the heavy checks the batch needs, **one at a time** (`npm test`, the area's e2e,
-   `test:roadmap`, `test:mcp`, timing runs): they share ports and caches and timings skew when they overlap.
+5. Run `npm run check` once (heavy checks wait for the phase's test pass, D-033).
 6. `npm run specs -- done NNN Txxx --result "…"` for each (from the implementer's result note and the orchestrator's
    checks), commit, and remove the worktrees (`cmd /c rmdir <worktree>\node_modules` first: it is a junction, then
    `git worktree remove`).
@@ -104,13 +109,19 @@ The main session is the **orchestrator**: it alone changes `feature.json`, `memo
 
 ## Stage 5 — Verify
 
-Run every gate in the Definition of Done (`constitution.md`): `npm run check`, `npm run test:e2e`, `npm run build`,
-`npm test`, `npm run test:mcp`, `npm run check:licenses`. Then:
+**A feature:** run `npm run check` and `npm run build`, update the docs, then:
 
-- Check each AC against its test or measurement; tick only the proven ones (`npm run specs -- done NNN AC-n`).
-  Then `npm run specs -- status NNN implemented` (spec, roadmap and dates follow).
+- Check each AC against its unit test; tick only the proven ones (`npm run specs -- done NNN AC-n`). ACs proven by
+  deferred checks stay open, listed in the phase's test-pass feature. Then `npm run specs -- status NNN implemented`
+  (spec, roadmap and dates follow).
 - Add a `memory/progress.md` entry, refresh "Current State" in `memory/MEMORY.md`.
 - Report honestly anything that failed, was flaky, or was skipped.
+
+**A phase (its test-pass feature, `x90`):** once every feature of the phase is Implemented, write the deferred e2e
+tests, self-test checks and timing runs, then run every gate in the Definition of Done (`constitution.md`) one at a
+time: `npm run check`, `npm run test:e2e`, `npm run build`, `npm test`, `npm run test:mcp`, `npm run check:licenses`;
+then the manual checks. Tick the remaining ACs in each feature, then release (`release.md`). Every phase ends in a
+release (D-033).
 
 ## Vision documents and plans spanning releases
 

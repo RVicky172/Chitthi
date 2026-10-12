@@ -32,7 +32,8 @@
   T001–T092; branch `feat/203-compositing-pip`. **204** merged into `main` and pushed
   (2026-10-11, with Dependabot #23–#27). Done to 2026-10-12: T001–T021, T030–T034 (stage and export draw stacks; overlay sound), T040, T050.
   From 2026-10-12 tasks run one at a time in the main session, no agent batches (maintainer's choice).
-- **Next (roadmap):** 203 T035 (AC-12 timing), then T051–T054 (timeline and stage UI).
+- **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
+- **Next (roadmap):** 203 T052 (timeline rows) and T054 (stage box + inspector) with unit tests, then T090–T092; T035, T051, T053, T060 moved to 290.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
