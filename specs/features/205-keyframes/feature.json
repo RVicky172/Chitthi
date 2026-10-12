@@ -4,11 +4,11 @@
   "id": "205",
   "title": "Keyframes: animate a clip's box, its volume and layers over time",
   "workItem": "P2.5",
-  "status": "draft",
+  "status": "approved",
   "owner": null,
   "dates": {
     "created": "2026-10-12",
-    "approved": null,
+    "approved": "2026-10-12",
     "started": null,
     "done": null
   },
@@ -161,36 +161,36 @@
       ],
       "byId": {
         "Q1": {
-          "open": true,
-          "text": "Which values can be animated in 205? _Proposed:_ a picture clip's box (X, Y, size, rotation, opacity, corner radius, from 203), a video clip's volume, and a layer's X, Y, size, rotation and opacity: what motion, picture-in-picture and titles need. Not in 205: colour adjustments and masks (the colour work of Phase 3), the music's volume (with ducking in 208), text style (colour, size of the font) and the photo movement presets, which stay as they are (Q7)."
+          "open": false,
+          "text": "Which values can be animated in 205? _Answer (accepted 2026-10-12):_ a picture clip's box (X, Y, size, rotation, opacity, corner radius, from 203), a video clip's volume, and a layer's X, Y, size, rotation and opacity: what motion, picture-in-picture and titles need. Not in 205: colour adjustments and masks (the colour work of Phase 3), the music's volume (with ducking in 208), text style (colour, size of the font) and the photo movement presets, which stay as they are (Q7)."
         },
         "Q2": {
-          "open": true,
-          "text": "What are keyframe times measured from? _Proposed:_ the clip's (or layer's) start on the timeline, so moving it moves its animation. Trimming the start keeps keyframes where they are on the timeline (the motion doesn't jump); keyframes outside the clip are kept but don't act. Slip changes what a video shows, not when its box moves, so it leaves keyframes alone. (The alternative, times in the video's own source, would make a slip move the animation.)"
+          "open": false,
+          "text": "What are keyframe times measured from? _Answer (accepted 2026-10-12):_ the clip's (or layer's) start on the timeline, so moving it moves its animation. Trimming the start keeps keyframes where they are on the timeline (the motion doesn't jump); keyframes outside the clip are kept but don't act. Slip changes what a video shows, not when its box moves, so it leaves keyframes alone. (The alternative, times in the video's own source, would make a slip move the animation.)"
         },
         "Q3": {
-          "open": true,
-          "text": "Which interpolations, and which one do new keyframes get? _Proposed:_ Linear, Ease in, Ease out, Ease in and out, and Hold; a keyframe's interpolation applies to the change that starts at it. New keyframes get **Ease in and out**, which looks natural for motion and fades; the menu changes it. Custom curves (Bézier handles, a graph editor) are out of scope."
+          "open": false,
+          "text": "Which interpolations, and which one do new keyframes get? _Answer (accepted 2026-10-12):_ Linear, Ease in, Ease out, Ease in and out, and Hold; a keyframe's interpolation applies to the change that starts at it. New keyframes get **Ease in and out**, which looks natural for motion and fades; the menu changes it. Custom curves (Bézier handles, a graph editor) are out of scope."
         },
         "Q4": {
-          "open": true,
-          "text": "How does a user start animating a value? _Proposed:_ as in most editors, a keyframe button next to each value in the inspector (a diamond: empty when not animated, filled at a keyframe, half when between keyframes). Once a value is animated, any change at the playhead (field, stage drag, arrow keys) sets a keyframe there; to change the whole animation at once the user removes its keyframes (the button's menu: **Remove animation**). The timeline's lane shows and edits the keyframes of the selected clip or layer only, to keep the timeline readable."
+          "open": false,
+          "text": "How does a user start animating a value? _Answer (accepted 2026-10-12):_ as in most editors, a keyframe button next to each value in the inspector (a diamond: empty when not animated, filled at a keyframe, half when between keyframes). Once a value is animated, any change at the playhead (field, stage drag, arrow keys) sets a keyframe there; to change the whole animation at once the user removes its keyframes (the button's menu: **Remove animation**). The timeline's lane shows and edits the keyframes of the selected clip or layer only, to keep the timeline readable."
         },
         "Q5": {
-          "open": true,
-          "text": "Limits? _Proposed:_ 100 keyframes per value and 5,000 per project, on the web and the desktop app alike: far beyond hand-made animation, and they bound the document and the per-frame work (AC-12)."
+          "open": false,
+          "text": "Limits? _Answer (accepted 2026-10-12):_ 100 keyframes per value and 5,000 per project, on the web and the desktop app alike: far beyond hand-made animation, and they bound the document and the per-frame work (AC-12)."
         },
         "Q6": {
-          "open": true,
-          "text": "Agent tools (Constitution XI)? _Proposed:_ none in 205, as 203 (Q14): keyframes are store actions and pure functions, and the timeline's agent tools, keyframes included, come together in 212."
+          "open": false,
+          "text": "Agent tools (Constitution XI)? _Answer (accepted 2026-10-12):_ none in 205, as 203 (Q14): keyframes are store actions and pure functions, and the timeline's agent tools, keyframes included, come together in 212."
         },
         "Q7": {
-          "open": true,
-          "text": "How do keyframes and a photo's movement preset (zoom in, pan left …) combine? _Proposed:_ both apply: the preset moves the picture inside its box (as today), keyframes move the box. Turning presets into editable keyframes is left for later; nothing about existing projects changes."
+          "open": false,
+          "text": "How do keyframes and a photo's movement preset (zoom in, pan left …) combine? _Answer (accepted 2026-10-12):_ both apply: the preset moves the picture inside its box (as today), keyframes move the box. Turning presets into editable keyframes is left for later; nothing about existing projects changes."
         },
         "Q8": {
-          "open": true,
-          "text": "Volume range for keyframes? _Proposed:_ 0–100 %, the clip volume's range today (no boost above the file's own level); a boost, with a limiter, comes with the audio work in 208."
+          "open": false,
+          "text": "Volume range for keyframes? _Answer (accepted 2026-10-12):_ 0–100 %, the clip volume's range today (no boost above the file's own level); a boost, with a limiter, comes with the audio work in 208."
         }
       }
     },
@@ -198,6 +198,14 @@
       {
         "date": "2026-10-12",
         "text": "Created: draft spec with 14 acceptance criteria and 8 open questions with proposed answers."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "Q1–Q8: every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "Plan drafted (§1–§11, D1–D3 for the maintainer)."
       }
     ],
     "sections": [
@@ -233,6 +241,190 @@
       }
     ]
   },
-  "plan": null,
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Draft <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/keyframes.ts`, `src/engine/keyframes.test.ts`",
+        "change": "new",
+        "purpose": "§1, §2: the model, evaluation, pure edits, the gate"
+      },
+      {
+        "file": "`src/engine/timeline.ts`, `src/engine/timeline.test.ts`",
+        "change": "modify",
+        "purpose": "§5, §10: `keys` on clips and in the document, `gain` in the sound plan"
+      },
+      {
+        "file": "`src/engine/edits.ts`, `src/engine/edits.test.ts`",
+        "change": "modify",
+        "purpose": "§3: start-edge edits shift keys"
+      },
+      {
+        "file": "`src/engine/video.ts`",
+        "change": "modify",
+        "purpose": "§4: `renderStack` draws `transformAt`"
+      },
+      {
+        "file": "`src/engine/layers.ts`",
+        "change": "modify",
+        "purpose": "§4, §10: `drawLayers` draws `layerAt` with a time; `mergeLayers` reads keys"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`",
+        "change": "modify",
+        "purpose": "§5: the gain curve in `mixWindow`"
+      },
+      {
+        "file": "`src/components/studio/previewSound.ts`",
+        "change": "modify",
+        "purpose": "§5: element volume from `volumeAt`"
+      },
+      {
+        "file": "`src/state/video.ts`, `src/state/video.test.ts`",
+        "change": "modify",
+        "purpose": "§3, §6: split keys, the keyframe actions, the routers, `setLayerTimes`"
+      },
+      {
+        "file": "`src/components/studio/VideoWorkspace.tsx`, `src/components/ig/LayerPanel.tsx`",
+        "change": "modify",
+        "purpose": "§7, §8: keyframe buttons, animated values in fields, the stage evaluates first"
+      },
+      {
+        "file": "`src/components/studio/useClipTransform.ts`, `src/components/ig/useLayerPointer.ts`",
+        "change": "modify",
+        "purpose": "§8: edit the animated box / layer through the routers"
+      },
+      {
+        "file": "`src/components/studio/KeyframeLane.tsx`, `src/components/studio/Timeline.tsx`, `src/components/studio/timelineRows.ts`",
+        "change": "new / modify",
+        "purpose": "§9: the lane, its keys and announcements"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "§7, §9: diamonds, the lane"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`",
+        "change": "modify",
+        "purpose": "AC-14"
+      },
+      {
+        "file": "`specs/features/290-phase2-test-pass-release/feature.json`",
+        "change": "modify",
+        "purpose": "the deferred checks for AC-6, AC-7, AC-9–AC-11, AC-13 (D-033)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Audio automation** (§5): overlapping AudioParam events throw, and a curve split across 10 s windows could click. Mitigation: one `setValueCurveAtTime` per source per window and nothing else on that gain node; **T001 spike** measures the curve against the expected gain (±0.5 dB) and the joins between windows before the mixer is changed."
+      },
+      {
+        "text": "**Auto-key surprises** (§6, Q4): once a value is animated, a drag sets a keyframe rather than moving the whole animation. Mitigation: the diamond shows the state everywhere the value is edited, the change is announced with \"keyframe at …\", and **Remove animation** is one step away."
+      },
+      {
+        "text": "**Shared layer code with the photo editor** (§4, §8): `drawLayers` and `useLayerPointer` serve both editors. Mitigation: keyframes act only when a time is passed (the video editor); the photo editor's calls don't change and its tests must stay green."
+      },
+      {
+        "text": "**Start-edge edits** (§3): a missed edit path would make animations jump after a trim. Mitigation: shift keys in the two helpers every start-edge edit uses (`trim` start without ripple, `moveStart`), and a seeded property test (1,000 random edits) that a key's timeline time is kept by start-edge edits and carried by moves."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-12 (Q1–Q8 accepted)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Unit tests first for every task (D-033); the e2e, golden-frame and sound checks are listed in 290."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency: easing, search and audio automation are a few small functions and the Web Audio API."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "Decisions and gotchas logged as they come; progress at the end."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Keyframes for everyone, web and desktop alike."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "All evaluation and mixing happen locally."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new to license."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "One evaluation (`keyframes.ts`) for the preview, the export and the editors (§4, §5)."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No IPC or Electron change."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "AC-12 budget (0.05 ms per frame); keyboard, names, announcements, reduced motion (AC-13); no entry-chunk growth beyond a few KB."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "⚠️",
+        "notes": "No agent tool in 205 (Q6, accepted): the actions are pure functions and store actions that 212's tools will call."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Keyframes are data on the clip or layer they animate, evaluated by one pure module that the preview, the export,\nthe stage editing and the inspector all call, so what the user sees is what is exported (Constitution VIII). Under\nD-033 every task is proven by unit tests; the e2e, golden-frame and sound checks are listed in 290.\n\n**§1 The model (new `engine/keyframes.ts`, AC-1, AC-2, AC-12).** A keyframe is `{ t, v, ease }`: seconds from the start\nof its clip or layer (Q2), the value, and how the change that starts at it eases (Q3). An item's keyframes are a map\nfrom an animatable value to a sorted list: clips animate `x`, `y`, `w`, `rot`, `opacity`, `radius` (203's box) and\n`volume`; layers `x`, `y`, `w`, `rot`, `opacity` (Q1). `valueAt(keys, t)` finds the segment by binary search and\ninterpolates: linear; ease-in / ease-out / ease-in-out as CSS's cubic-bezier curves (0.42, 0, 1, 1), (0, 0, 0.58, 1),\n(0.42, 0, 0.58, 1), solved for x by Newton's method with a bisection fallback; hold. Before the first key: the first\nvalue; after the last: the last. `clampValue(prop, v)` keeps values in range (203's `TF_RANGE`, layers', volume 0–1,\nQ8). Higher-level helpers: `transformAt(clip, local)` (the clip's `tf` with its animated fields replaced),\n`volumeAt(clip, local)`, `layerAt(layer, t)` (the layer with its animated fields at timeline time `t`), and\n`isAnimated(item, prop)`. Items without keyframes return their stored values untouched (no allocation per frame).\n\n**§2 Editing keyframes, pure (keyframes.ts, AC-1, AC-5).** `setKey(keys, prop, t, v)` (adds, or replaces the value at a\ntime within half a frame; new keys get Ease in and out), `removeKey`, `moveKey(prop | all, from, to)` (a key landing on\nanother replaces it), `setEase`, `animate(item, prop, t)` (the first key, at the current value) and\n`stopAnimating(item, prop, t)` (**Remove animation**: the value at `t` becomes the stored one). Limits (Q5): 100 keys\nper value, 5,000 per project, refused with a message.\n\n**§3 Keyframes follow their clip (edits.ts, the store, AC-3).** Times are from the item's start, so moves, ripples,\nreorders, track changes, nudges and Magnetic packing carry keyframes for free. Only edits that move a start **edge**\nshift them, by minus how far the start moved, so they stay at their timeline place: `trim` of a start edge without\nripple, and `moveStart` (the right clip of a Roll, the next clip of a Slide). A ripple start trim keeps the clip's start,\nso nothing shifts. Slip never touches them. `splitKeys(keys, at, valuesAtCut)` gives the left part the keys before\n`at` plus one at `at` holding the value there, and the right part the keys after `at` shifted by `-at` plus one at 0\n(the store's split uses it). Duplicate copies them (the object spread already does). A layer's start edge\n(the timeline's layer bar) goes through a new store action `setLayerTimes`, which shifts its keys the same way.\n\n**§4 Drawing (video.ts, layers.ts, AC-8, AC-11).** `renderStack` takes each item's box from `transformAt(clip,\nlocal)` instead of `clip.tf`, so the preview and the export, which both call it, get the same values at every frame.\n`drawLayers(ctx, layers, W, H, t)` draws `layerAt(layer, t)` when a time is given (the video editor); the photo editor\npasses none and is unchanged. Items without keyframes take the exact code path of today, so 203's projects stay\npixel-identical.\n\n**§5 Sound (timeline.ts audioPlan, videoExport.ts, previewSound.ts, AC-10).** A clip with volume keyframes is in the\nsound plan even when its stored volume is 0, and its `SoundSource` carries `gain` (its keys, in clip time). The\nexport's `mixWindow` then builds one gain curve for the window: the volume curve times the 0.03 s end ramps, sampled\nevery 5 ms, set with `setValueCurveAtTime` (the only automation on that gain node, so events never overlap); windows\nmeet exactly, so a curve crossing a 10 s window edge is continuous. The preview's `previewSound` sets each element's\n`volume` from `volumeAt` on every sync tick (within one frame). A spike (T001) checks the curve's accuracy (0.5 dB) and\nthat nothing clicks at window edges before the rest is built.\n\n**§6 Store actions (state/video.ts, AC-5, AC-6).** `toggleKey(item, prop)` (the diamond: animate / add / remove the\nkey at the playhead), `removeAnimation(item, prop)`, `moveKeys(item, prop | 'all', from, to, key)` (a drag: one undo\nstep), `setKeyEase(item, prop | 'all', t, ease)`, `deleteKeys(item, prop | 'all', t)`, and two routers that make the\nexisting editing keyframe-aware: `setClipTransformAt` (used by the stage box, the arrow keys and the inspector's\nfields) and `updateLayerAt` (the layers' pointer and fields). A router writes an animated value as a keyframe at the\nplayhead (Q4: auto-key) and a not-animated one as today. `setClipVolume` does the same for volume. Every action is one\nundo step returning its refusal (locked track, a limit).\n\n**§7 Inspector (VideoWorkspace.tsx ClipPanel, LayerPanel's fields, AC-6).** A `KeyframeButton` (a diamond with three\nstates: not animated, at a key, between keys; `aria-pressed` and a name such as \"X: keyframe at 1.20 s\") beside each\nanimatable field: the 203 Position and size fields, the clip's Clip sound slider, and the layers' position, size,\nrotation and opacity controls; its menu has **Remove animation**. The fields show the animated value at the playhead.\nPrevious / next keyframe buttons in each group's heading.\n\n**§8 Stage (useClipTransform.ts, useLayerPointer.ts, VideoWorkspace.tsx).** The stage evaluates before it edits: the\nclip box from `transformAt`, the layers passed to `useLayerPointer` as `layerAt(layer, t)`, so hit tests and handles\nmatch what is drawn; their updates go through the §6 routers, so dragging an animated clip or layer sets a keyframe at\nthe playhead.\n\n**§9 Timeline keyframe lane (Timeline.tsx, new `studio/KeyframeLane.tsx`, AC-7, AC-13).** Under the selected clip's row\n(or the selected layer's row) a thin lane shows one diamond per keyframe time (the union of its animated values); an\nexpand button shows one row per value. A diamond is a button: click selects, drag moves (snapping to frames, the\nplayhead and the item's ends with 202's `snap`, Alt to skip), Delete removes, its menu (a portal menu like the track\nheight menu) sets the interpolation; its shape shows it (diamond: ease, square: hold, triangle-ish: linear). Keys with\nthe timeline focused: K toggles keys at the playhead for every animated value of the selection, Alt + [ / ] jump to the\nprevious / next key, ← / → (Shift: a second) move the focused diamond. Changes are announced through the timeline's live\nregion (`describeKeyChange`, timelineRows.ts). Reduced motion: no transitions on diamonds.\n\n**§10 Project document (timeline.ts, layers.ts, AC-4).** `DocClip.keys?` and `Layer.keys?`, written only when present,\nso documents without keyframes are byte-identical. The gate (`mergeKeys(raw, props)`) sorts by time, keeps the last of\nequal times, clamps values, checks `ease` (unknown → Ease in and out), drops non-finite entries, enforces the limits with\na reason, and never throws; `mergeProject` and `mergeLayers` call it.\n\n**§11 Agent tools.** None in 205 (Q6): 212 adds the timeline's agent tools, keyframes included."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/keyframes.ts\nexport type Ease = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'hold';\nexport interface Keyframe {\n  /** Seconds from the start of its clip or layer. */\n  t: number;\n  /** The value from here (in its property's units: shares of the frame, degrees, 0–1). */\n  v: number;\n  /** How the change from this keyframe to the next eases. */\n  ease: Ease;\n}\nexport type ClipKeyProp = 'x' | 'y' | 'w' | 'rot' | 'opacity' | 'radius' | 'volume';\nexport type LayerKeyProp = 'x' | 'y' | 'w' | 'rot' | 'opacity';\nexport type Keyframes<P extends string> = Partial<Record<P, Keyframe[]>>;\nexport const KEY_LIMITS = { perValue: 100, perProject: 5000 } as const;\n\nexport function valueAt(keys: readonly Keyframe[], t: number): number;\nexport function transformAt(clip: TimedClip, local: number): ClipTransform;\nexport function volumeAt(clip: TimedClip & { volume: number }, local: number): number;\nexport function layerAt<L extends Layer>(layer: L, t: number): L;\nexport function setKey<P extends string>(keys: Keyframes<P>, prop: P, t: number, v: number): Keyframes<P> | { error: string };\nexport function shiftKeys<P extends string>(keys: Keyframes<P>, by: number): Keyframes<P>;\nexport function splitKeys<P extends string>(keys: Keyframes<P>, at: number, valueAtCut: (prop: P) => number): [Keyframes<P>, Keyframes<P>];\nexport function mergeKeys<P extends string>(raw: unknown, props: readonly P[]): { keys: Keyframes<P> | undefined; dropped: string[] };\n\n// engine/timeline.ts: TimedClip gains   keys?: Keyframes<ClipKeyProp>\n// engine/layers.ts:   LayerBase gains   keys?: Keyframes<LayerKeyProp>\n// engine/timeline.ts: SoundSource gains gain?: Keyframe[]  (volume keys, clip time; the source's volume is the base)\n// engine/timeline.ts: DocClip gains     keys?: Keyframes<ClipKeyProp>\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Cubic-bezier easing:** x(u) and y(u) for control points (x1, y1, x2, y2); for a progress p find u with x(u) = p by\n  Newton's method (8 steps, derivative guard) with bisection fallback, then y(u). Matches the browser's CSS curves to\n  1e-4 (unit-tested against sampled `cubic-bezier` values).\n- **Binary search** over each value's keys per evaluation: O(log n) per value; a stack of ≤ 8 clips and the layers\n  showing at a frame is well under AC-12's 0.05 ms.\n- **Gain automation:** `AudioParam.setValueCurveAtTime(curve, start, duration)` with one curve per source per window\n  (linear interpolation between 5 ms points: under 0.1 dB from an ease curve), so the mixer's sample-exact gain matches\n  the preview's per-tick `volume`.\n- **Auto-key routing:** the store, not the components, decides whether a change is a keyframe, so the stage, the arrow\n  keys and the fields stay as they are apart from calling the router."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | Where |\n| --- | --- | --- |\n| AC-1 | unit | `keyframes.test.ts`: which values animate; a value without keys is unchanged |\n| AC-2 | unit | `keyframes.test.ts`: exact at keys, before / after, linear midpoint, the three eases against sampled CSS curves (±0.001), hold, ranges |\n| AC-3 | unit | `edits.test.ts` (start trim with / without ripple, roll, slide, slip, nudge, move to track carry or keep keys), `video.test.ts` (split, duplicate, layer start edge) |\n| AC-4 | unit | `timeline.test.ts`: ≥ 25 malformed keyframe documents, limits, round trip, byte-identical without keys |\n| AC-5 | unit | `video.test.ts`: each keyframe action and a drag are one undo step |\n| AC-6 | e2e (290) | the inspector's diamonds, auto-key from fields, the stage and arrows, previous / next |\n| AC-7 | e2e (290) | the lane: select, drag with snapping, Delete, interpolation menu, K, Alt + [ / ], arrows, announcements |\n| AC-8 | unit | `keyframes.test.ts`: the fixture's values at every frame on the export grid equal the expected list; `renderStack` and the export both take them from `transformAt` (a unit test on the item list the export builds) |\n| AC-9 | self-test (290) | golden frames of the fixture at 9:16 and 16:9 on every backend; the paused preview; the export |\n| AC-10 | unit + self-test (290) | unit: `audioPlan` with `gain`, the window curve's values (±0.5 dB, continuous across windows) as a pure function; 290: the export's sound measured; the preview within a frame |\n| AC-11 | self-test (290) | 201 / 202 / 203 fixtures pixel-identical, identical export inputs; existing video e2e unchanged |\n| AC-12 | unit | a timed evaluation (median of 200 runs) on 500 clips and 5,000 keys ≤ 0.05 ms; no keys = no allocation |\n| AC-13 | e2e (290) | keyboard only, names, axe, 360 px, reduced motion |\n| AC-14 | review | the docs in T090 |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer",
+        "markdown": "- **D1 — The lane's layout.** _Recommended:_ one row of diamonds (every animated value's keyframe times) under the\n  selected clip or layer, with an expand button for one row per value. _Alternative:_ always one row per value (clearer,\n  but tall: up to 7 rows under a clip).\n- **D2 — Keyboard shortcut.** _Recommended:_ **K** toggles keyframes at the playhead for the selection's animated values;\n  **Alt + [ / ]** jump between keyframes (Alt avoids the browser's and screen readers' own [ ] shortcuts). _Alternative:_\n  no single-key shortcut, only the buttons.\n- **D3 — Ease shown on the diamond.** _Recommended:_ the shape shows it (rounded diamond: an ease, square: hold, pointed\n  diamond: linear), with the name in its accessible label and tooltip. _Alternative:_ one shape, the ease only in the\n  menu and label."
+      }
+    ]
+  },
   "tasks": null
 }

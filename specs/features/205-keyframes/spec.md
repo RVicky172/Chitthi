@@ -2,7 +2,7 @@
 
 # 205 — Keyframes: animate a clip's box, its volume and layers over time
 
-**Status:** Draft
+**Status:** Approved
 **Roadmap phase:** Phase 2 — Multi-track timeline (release 3.0.0) · **Created:** 2026-10-12
 
 ## Summary
@@ -63,15 +63,17 @@ Keyframes let a value change over time: a picture-in-picture clip that slides in
 
 ## Open Questions
 
-- **Q1** [NEEDS CLARIFICATION] Which values can be animated in 205? _Proposed:_ a picture clip's box (X, Y, size, rotation, opacity, corner radius, from 203), a video clip's volume, and a layer's X, Y, size, rotation and opacity: what motion, picture-in-picture and titles need. Not in 205: colour adjustments and masks (the colour work of Phase 3), the music's volume (with ducking in 208), text style (colour, size of the font) and the photo movement presets, which stay as they are (Q7).
-- **Q2** [NEEDS CLARIFICATION] What are keyframe times measured from? _Proposed:_ the clip's (or layer's) start on the timeline, so moving it moves its animation. Trimming the start keeps keyframes where they are on the timeline (the motion doesn't jump); keyframes outside the clip are kept but don't act. Slip changes what a video shows, not when its box moves, so it leaves keyframes alone. (The alternative, times in the video's own source, would make a slip move the animation.)
-- **Q3** [NEEDS CLARIFICATION] Which interpolations, and which one do new keyframes get? _Proposed:_ Linear, Ease in, Ease out, Ease in and out, and Hold; a keyframe's interpolation applies to the change that starts at it. New keyframes get **Ease in and out**, which looks natural for motion and fades; the menu changes it. Custom curves (Bézier handles, a graph editor) are out of scope.
-- **Q4** [NEEDS CLARIFICATION] How does a user start animating a value? _Proposed:_ as in most editors, a keyframe button next to each value in the inspector (a diamond: empty when not animated, filled at a keyframe, half when between keyframes). Once a value is animated, any change at the playhead (field, stage drag, arrow keys) sets a keyframe there; to change the whole animation at once the user removes its keyframes (the button's menu: **Remove animation**). The timeline's lane shows and edits the keyframes of the selected clip or layer only, to keep the timeline readable.
-- **Q5** [NEEDS CLARIFICATION] Limits? _Proposed:_ 100 keyframes per value and 5,000 per project, on the web and the desktop app alike: far beyond hand-made animation, and they bound the document and the per-frame work (AC-12).
-- **Q6** [NEEDS CLARIFICATION] Agent tools (Constitution XI)? _Proposed:_ none in 205, as 203 (Q14): keyframes are store actions and pure functions, and the timeline's agent tools, keyframes included, come together in 212.
-- **Q7** [NEEDS CLARIFICATION] How do keyframes and a photo's movement preset (zoom in, pan left …) combine? _Proposed:_ both apply: the preset moves the picture inside its box (as today), keyframes move the box. Turning presets into editable keyframes is left for later; nothing about existing projects changes.
-- **Q8** [NEEDS CLARIFICATION] Volume range for keyframes? _Proposed:_ 0–100 %, the clip volume's range today (no boost above the file's own level); a boost, with a limiter, comes with the audio work in 208.
+- **Q1** _(resolved)_ Which values can be animated in 205? _Answer (accepted 2026-10-12):_ a picture clip's box (X, Y, size, rotation, opacity, corner radius, from 203), a video clip's volume, and a layer's X, Y, size, rotation and opacity: what motion, picture-in-picture and titles need. Not in 205: colour adjustments and masks (the colour work of Phase 3), the music's volume (with ducking in 208), text style (colour, size of the font) and the photo movement presets, which stay as they are (Q7).
+- **Q2** _(resolved)_ What are keyframe times measured from? _Answer (accepted 2026-10-12):_ the clip's (or layer's) start on the timeline, so moving it moves its animation. Trimming the start keeps keyframes where they are on the timeline (the motion doesn't jump); keyframes outside the clip are kept but don't act. Slip changes what a video shows, not when its box moves, so it leaves keyframes alone. (The alternative, times in the video's own source, would make a slip move the animation.)
+- **Q3** _(resolved)_ Which interpolations, and which one do new keyframes get? _Answer (accepted 2026-10-12):_ Linear, Ease in, Ease out, Ease in and out, and Hold; a keyframe's interpolation applies to the change that starts at it. New keyframes get **Ease in and out**, which looks natural for motion and fades; the menu changes it. Custom curves (Bézier handles, a graph editor) are out of scope.
+- **Q4** _(resolved)_ How does a user start animating a value? _Answer (accepted 2026-10-12):_ as in most editors, a keyframe button next to each value in the inspector (a diamond: empty when not animated, filled at a keyframe, half when between keyframes). Once a value is animated, any change at the playhead (field, stage drag, arrow keys) sets a keyframe there; to change the whole animation at once the user removes its keyframes (the button's menu: **Remove animation**). The timeline's lane shows and edits the keyframes of the selected clip or layer only, to keep the timeline readable.
+- **Q5** _(resolved)_ Limits? _Answer (accepted 2026-10-12):_ 100 keyframes per value and 5,000 per project, on the web and the desktop app alike: far beyond hand-made animation, and they bound the document and the per-frame work (AC-12).
+- **Q6** _(resolved)_ Agent tools (Constitution XI)? _Answer (accepted 2026-10-12):_ none in 205, as 203 (Q14): keyframes are store actions and pure functions, and the timeline's agent tools, keyframes included, come together in 212.
+- **Q7** _(resolved)_ How do keyframes and a photo's movement preset (zoom in, pan left …) combine? _Answer (accepted 2026-10-12):_ both apply: the preset moves the picture inside its box (as today), keyframes move the box. Turning presets into editable keyframes is left for later; nothing about existing projects changes.
+- **Q8** _(resolved)_ Volume range for keyframes? _Answer (accepted 2026-10-12):_ 0–100 %, the clip volume's range today (no boost above the file's own level); a boost, with a limiter, comes with the audio work in 208.
 
 ## Changelog
 
 - 2026-10-12 — Created: draft spec with 14 acceptance criteria and 8 open questions with proposed answers.
+- 2026-10-12 — Q1–Q8: every proposed answer accepted by the maintainer; Approved.
+- 2026-10-12 — Plan drafted (§1–§11, D1–D3 for the maintainer).

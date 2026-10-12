@@ -33,8 +33,8 @@
   same stack. AC-1–3, 5, 8, 10, 12–14 wait for 290 (D-033). Plan D1–D3, D-031. **204** merged into `main` and pushed
   (2026-10-11). Tasks run one at a time in the main session, no agent batches (maintainer's choice).
 - **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
-- **205:** `205-keyframes` 📝 draft spec 2026-10-12 on `feat/205-keyframes`: 14 ACs, 8 open questions (Q1–Q8) with proposed answers, waiting for the maintainer.
-- **Next (roadmap):** answers to 205 Q1–Q8 → Approved → plan; 290 collects the deferred checks.
+- **205:** `205-keyframes` ✅ spec Approved 2026-10-12 (Q1–Q8 accepted) on `feat/205-keyframes`; plan drafted (§1–§11), waiting for the maintainer on D1–D3.
+- **Next (roadmap):** D1–D3 → plan Approved → `/spec-tasks 205`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
