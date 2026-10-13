@@ -4,8 +4,8 @@
  */
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
 import { clipColour, codeColour, decodedColours, makeTestClip, testPhoto } from './videoChecks';
-import type { PoolClip, PoolFrame } from '../engine/decodePool';
-import type { ExportClip, ExportJob } from '../engine/videoExport';
+import type { PoolClip, PoolFrame } from '@/engine/decodePool';
+import type { ExportClip, ExportJob } from '@/engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;
 
@@ -86,8 +86,8 @@ async function drained(open: () => { decoders: number; frames: number; bytes: nu
 
 /** AC-1, AC-2 and AC-3 (204) through a pool on Mediabunny. Returns notes for the report. */
 export async function poolChecks(check: Check): Promise<string[]> {
-  const { DecodePool, poolLimits } = await import('../engine/decodePool');
-  const { mediabunnySource, openFrames } = await import('../engine/frameSource');
+  const { DecodePool, poolLimits } = await import('@/engine/decodePool');
+  const { mediabunnySource, openFrames } = await import('@/engine/frameSource');
   const DUR = 10;
   const [A, B] = await Promise.all([makeTestClip(DUR, 640, 360, 2), makeTestClip(DUR, 640, 360, 2)]);
   if (!A || !B) return ['pool: this engine cannot encode H.264; pool checks skipped'];
@@ -226,8 +226,8 @@ export async function poolChecks(check: Check): Promise<string[]> {
  */
 async function stageDrawsStacks(check: Check): Promise<string> {
   const { compareWithReference, makeOverlayProject } = await import('./videoChecks');
-  const { drawPreview, heldStageFrame, pausedAt, pausedFrame, stageSource } = await import('../components/studio/previewFrame');
-  const { projectLength } = await import('../engine/timeline');
+  const { drawPreview, heldStageFrame, pausedAt, pausedFrame, stageSource } = await import('@/components/studio/previewFrame');
+  const { projectLength } = await import('@/engine/timeline');
   let framesCompared = 0;
   for (const format of ['9:16', '16:9'] as const) {
     const fixture = await makeOverlayProject(format);
@@ -307,8 +307,8 @@ async function stageDrawsStacks(check: Check): Promise<string> {
  */
 async function closedFrameKeepsCanvas(check: Check): Promise<string> {
   if (typeof VideoFrame === 'undefined') return 'pool: closed-frame check skipped (no VideoFrame)';
-  const { renderStack } = await import('../engine/video');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { renderStack } = await import('@/engine/video');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const width = 320,
     height = 180;
   const source = document.createElement('canvas');
@@ -368,9 +368,9 @@ async function closedFrameKeepsCanvas(check: Check): Promise<string> {
 async function fallbackOnMutedOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
-  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
-  const video = await import('../state/video');
-  const { undecodableForTests } = await import('../engine/frameSource');
+  const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
+  const video = await import('@/state/video');
+  const { undecodableForTests } = await import('@/engine/frameSource');
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(3, 640, 360, 1, false, 2),
     makeTestClip(3, 640, 360, 1, false, true),
@@ -464,8 +464,8 @@ async function fallbackOnMutedOverlay(check: Check): Promise<string> {
 async function editorStageShowsOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
-  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
-  const video = await import('../state/video');
+  const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
+  const video = await import('@/state/video');
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(4, 640, 360, 1, false, true),
     makeTestClip(4, 320, 240, 1, false, 3),
@@ -568,12 +568,12 @@ function mean16(x: CanvasRenderingContext2D, W: number, H: number): [number, num
  * export decoded before the pool): an oracle that holds on today's code and after.
  */
 async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string> {
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { renderFrame, NO_PICTURE } = await import('../engine/video');
-  const { legacyFixtures } = await import('../../tests/support/timeline.testkit');
-  const { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength } = await import('../engine/timeline');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
-  const { loadImage } = await import('../engine/photo');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { renderFrame, NO_PICTURE } = await import('@/engine/video');
+  const { legacyFixtures } = await import('../support/timeline.testkit');
+  const { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength } = await import('@/engine/timeline');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
+  const { loadImage } = await import('@/engine/photo');
   const W = 480,
     H = 270;
   const photos = await Promise.all([0, 1, 2].map((i) => testPhoto(i, 640, 427)));
@@ -711,10 +711,10 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
  * at 50 % and after a clip that can't be read at about 1 minute.
  */
 async function exportNoLeaks(check: Check): Promise<string> {
-  const { encodeVideo, ExportError } = await import('../engine/videoExport');
-  const { openFrames } = await import('../engine/frameSource');
-  const { MAIN_VIDEO, defaultTracks } = await import('../engine/timeline');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { encodeVideo, ExportError } = await import('@/engine/videoExport');
+  const { openFrames } = await import('@/engine/frameSource');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/timeline');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const t0 = performance.now();
   const srcs = await Promise.all([0, 1, 2].map(() => makeTestClip(10, 1920, 1080, 2)));
   const files = srcs.filter((s): s is Blob => !!s);
@@ -809,10 +809,10 @@ async function exportNoLeaks(check: Check): Promise<string> {
  * for that time (frame floor(t * fps)) must match within ±8 in the middle.
  */
 async function pausedPreviewIsExport(check: Check): Promise<string> {
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { MAIN_VIDEO, defaultTracks, pack, projectLength } = await import('../engine/timeline');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
-  const { drawPreview, pausedFrame, stageSource } = await import('../components/studio/previewFrame');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { MAIN_VIDEO, defaultTracks, pack, projectLength } = await import('@/engine/timeline');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
+  const { drawPreview, pausedFrame, stageSource } = await import('@/components/studio/previewFrame');
   const files = (await Promise.all([0, 1].map(() => makeTestClip(4, 640, 360, 2, false, true)))).filter(
     (f): f is Blob => !!f,
   );
@@ -901,8 +901,8 @@ async function pausedPreviewIsExport(check: Check): Promise<string> {
 async function editorStageShowsVideo(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
-  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
-  const v = await import('../state/video');
+  const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
+  const v = await import('@/state/video');
   // 6 s, so playback is still running after a few of the hidden window's slow ticks (below).
   const clip = await makeTestClip(6, 640, 360, 1, false, true);
   if (!clip) return 'pool: stage check skipped (no H.264 encoder)';
@@ -965,7 +965,7 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
     // apart always find the pool's reader a second behind, so the picture would stay put. Between ticks this asks the
     // pool for the playing time at 30 fps, as a shown window's ticks do (AC-5 in CHITTHI_TEST_ONLY=pooltiming plays in
     // one). Until 204 T034 the clip's <video>, playing for its sound, redrew the stage on its seek events, which hid this.
-    const { liveStages, poolClip } = await import('../components/studio/previewFrame');
+    const { liveStages, poolClip } = await import('@/components/studio/previewFrame');
     const pool = [...liveStages][0]?.pool;
     const startWall = performance.now();
     let feeding = true;
@@ -1007,12 +1007,12 @@ const NOTE = /This clip can[’']t be exported here: \S/;
 async function fallbackOnTheEditor(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
-  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
-  const { liveStages } = await import('../components/studio/previewFrame');
-  const v = await import('../state/video');
-  const { undecodableForTests, openFrames } = await import('../engine/frameSource');
-  const { recentErrors } = await import('../lib/errors');
-  const { encodeVideo, ExportError } = await import('../engine/videoExport');
+  const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
+  const { liveStages } = await import('@/components/studio/previewFrame');
+  const v = await import('@/state/video');
+  const { undecodableForTests, openFrames } = await import('@/engine/frameSource');
+  const { recentErrors } = await import('@/lib/errors');
+  const { encodeVideo, ExportError } = await import('@/engine/videoExport');
   const blob = await makeTestClip(2, 640, 360, 1, false, true);
   if (!blob) return 'pool: fallback check skipped (no H.264 encoder)';
   // Two files with the same frames: the source refuses the first, as it would an HEVC file the browser can play.

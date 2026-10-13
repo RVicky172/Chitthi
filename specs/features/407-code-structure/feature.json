@@ -637,7 +637,7 @@
         "T014": {
           "text": "Move the in-app self-test (`src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts`) to `tests/selftest/` (Q2), loaded by `main.tsx` in development only; `tsconfig.app.json` includes it; run `npm test` (Q9).",
           "section": "Tests into tests/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -652,7 +652,11 @@
           ],
           "test": "`npm test`: the baseline’s check count, 0 failed",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** The in-app self-test moved from src/dev/ to tests/selftest/ (git mv): selftest, videoChecks, poolChecks, playbackChecks and exportTiming (the timing run’s code); imports of the app as `@/…`, of the test kit as ../support/; main.tsx loads it in development only (import.meta.env.DEV, as before); tsconfig.app.json includes tests/selftest and tests/support; scripts/test.cjs and CLAUDE.md name the new path. showcase and printSamples (development pages) stay in src/dev. npm test: 6,203 checks, 0 failed (= baseline); 0 self-test strings in dist/; check and build green, entry 327 KB."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T015": {
           "text": "Guards (AC-1, AC-3): `scripts/check-structure.mjs` in `npm run check` (a test or test helper under `src/`, or `src/` importing `tests/` other than `main.tsx`’s development import, fails it) with unit tests in `tests/unit/scripts/`; a build-only Vite plugin failing `npm run build` when a chunk holds a module from `tests/`. Proved by planting a test file and a bad import, then removing them.",

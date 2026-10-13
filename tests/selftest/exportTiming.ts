@@ -11,9 +11,9 @@ const secs = (ms: number) => (ms / 1000).toFixed(2);
 /** AC-10: 201's 60-clip 1080p project and 30 video clips of 4 s at 1080p (textured sources, 2 s key frames), each
  * exported in memory 3 times; the fastest run is the number to compare. */
 export async function exportTiming(): Promise<string[]> {
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
-  const { MAIN_VIDEO, defaultTracks, pack } = await import('../engine/timeline');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
+  const { MAIN_VIDEO, defaultTracks, pack } = await import('@/engine/timeline');
   const W = 1920,
     H = 1080;
   const out: string[] = [];

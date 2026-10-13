@@ -65,7 +65,7 @@ npm run check:licenses # every shipped package has an allowed licence (specs/lic
 npm run typecheck      # TypeScript 7 (typescript-native) tsc -b; 6.0 stays as `typescript` only for typescript-eslint
 npm run build          # typecheck + vite build + scripts/check-bundle.mjs (fails if the entry chunk > 350 KB or contains AI code)
 npm run test:unit      # Vitest: tests/unit (one module) and tests/integration (several together); no DOM/canvas
-npm test               # Electron self-test (src/dev/selftest.ts, ~6,100 checks: every product × size × layout, print packs, agent tools)
+npm test               # Electron self-test (tests/selftest/selftest.ts, ~6,100 checks: every product × size × layout, print packs, agent tools)
 npm run test:mcp       # MCP server end to end (scripts/mcp-smoke.mjs); CHITTHI_MCP_APP=<exe> tests a packaged app
 npm run fetch:libraw   # once: LibRaw's RAW developer into electron/resources/libraw (test:mcp develops a DNG with it)
 npm run test:e2e       # Playwright on the production build (tests/e2e/*.e2e.ts), desktop + phone projects, axe checks

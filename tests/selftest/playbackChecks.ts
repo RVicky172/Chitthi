@@ -35,10 +35,10 @@ function frameOf(c: number[] | null): number {
 async function mountEditor() {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
-  const { VideoWorkspace } = await import('../components/studio/VideoWorkspace');
-  const v = await import('../state/video');
-  const pf = await import('../components/studio/previewFrame');
-  const { openFrames } = await import('../engine/frameSource');
+  const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
+  const v = await import('@/state/video');
+  const pf = await import('@/components/studio/previewFrame');
+  const { openFrames } = await import('@/engine/frameSource');
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
   document.body.append(host);
@@ -106,7 +106,7 @@ async function mountEditor() {
 /** AC-12 (release) and AC-13, in npm test. */
 export async function playbackChecks(check: Check): Promise<string[]> {
   const notes: string[] = [];
-  const { liveSounds } = await import('../components/studio/previewSound');
+  const { liveSounds } = await import('@/components/studio/previewSound');
   const liveSoundCount = () => liveSounds.size;
   const clip = await makeTestClip(4, 1920, 1080, 2, false, true);
   if (!clip) return ['playback: skipped (no H.264 encoder)'];
@@ -121,7 +121,7 @@ export async function playbackChecks(check: Check): Promise<string[]> {
         // npm test's window is hidden, where Chromium runs animation frames about once a second: do what the stage's
         // playback ticks do (peek at the playing time) so the pool really plays before the pause.
         const pool = ed.stage()?.pool;
-        const { poolClip } = await import('../components/studio/previewFrame');
+        const { poolClip } = await import('@/components/studio/previewFrame');
         for (let k = 0; k < 24 && pool; k++) {
           pool.peek(poolClip(c), c.in + 0.5 + k / FPS);
           await sleep(33);
@@ -162,8 +162,8 @@ export async function playbackChecks(check: Check): Promise<string[]> {
   }
   // AC-12: leaving the editor (while playing) frees everything within 1 s.
   const end = performance.now() + 1000;
-  const { openFrames } = await import('../engine/frameSource');
-  const { liveStages } = await import('../components/studio/previewFrame');
+  const { openFrames } = await import('@/engine/frameSource');
+  const { liveStages } = await import('@/components/studio/previewFrame');
   const busy = () => openFrames().frames || openFrames().decoders || liveStages.size || liveSoundCount();
   while (busy() && performance.now() < end) await sleep(20);
   check(
@@ -189,8 +189,8 @@ export async function playbackTiming(check: Check): Promise<string[]> {
     const clips = await ed.add(Array.from({ length: 20 }, (_, i) => (i % 2 ? b : a)));
     const cuts = clips.slice(1).map((c) => c.start);
     // D1: clip sound elements stay within the clips under the playhead and those starting within 2 s.
-    const { liveSounds } = await import('../components/studio/previewSound');
-    const { lanePlan } = await import('../engine/decodePool');
+    const { liveSounds } = await import('@/components/studio/previewSound');
+    const { lanePlan } = await import('@/engine/decodePool');
     const lanes = (t: number) => {
       const l = lanePlan(ed.v.projectOf(), t, 2);
       return l.visible.length + l.next.length;
@@ -386,13 +386,13 @@ const meetsBar = (med: number, p95: number) => med <= 33 && p95 <= 50;
  */
 export async function poolTiming(check: Check): Promise<string[]> {
   const notes: string[] = [];
-  const { isDesktop } = await import('../platform/desktop');
+  const { isDesktop } = await import('@/platform/desktop');
   // The Electron self-test has no preload, so isDesktop is false there; it measures the desktop app's case.
   const desktopRun = isDesktop || navigator.userAgent.includes('Electron');
-  const { DecodePool, poolLimits } = await import('../engine/decodePool');
-  const { mediabunnySource, openFrames } = await import('../engine/frameSource');
-  type PoolClip = import('../engine/decodePool').PoolClip;
-  type PoolFrame = import('../engine/decodePool').PoolFrame;
+  const { DecodePool, poolLimits } = await import('@/engine/decodePool');
+  const { mediabunnySource, openFrames } = await import('@/engine/frameSource');
+  type PoolClip = import('@/engine/decodePool').PoolClip;
+  type PoolFrame = import('@/engine/decodePool').PoolFrame;
   const STEPS = 300,
     WARM = 5,
     DUR = 10,
@@ -567,7 +567,7 @@ export async function poolTiming(check: Check): Promise<string[]> {
  * tick sets the playhead to its wall-clock time and draws, so its playhead dates it). Sound − picture, in ms.
  */
 async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: { id: string }[], from: number) {
-  const { liveSounds } = await import('../components/studio/previewSound');
+  const { liveSounds } = await import('@/components/studio/previewSound');
   const ctx = new AudioContext();
   await ctx.resume();
   const N = 8192,

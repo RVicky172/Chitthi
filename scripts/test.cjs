@@ -1,5 +1,5 @@
 /*
- * Runs the self-test suite (src/dev/selftest.ts) in Electron against the dev server started by scripts/test.mjs, and
+ * Runs the self-test suite (tests/selftest/selftest.ts) in Electron against the dev server started by scripts/test.mjs, and
  * exits with 1 when any check fails. Run through `npm test`.
  */
 const { app, BrowserWindow, powerSaveBlocker } = require('electron');

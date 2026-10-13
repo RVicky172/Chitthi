@@ -3,18 +3,18 @@
  * http://localhost:<port>/?selftest, which calls window.__chitthiSelfTest() and fails the run on any failure.
  * They run in a real browser engine (Electron), because rendering and export need canvas, fonts and Blob.
  */
-import { hasFestivals, marksFor } from '../data/holidays';
-import { layoutsFor } from '../data/layouts';
-import { PRODUCTS, sizesFor } from '../data/products';
-import { cardMM, mergeDesign, postmarkYear, productDesign } from '../engine/design';
-import { renderEnvelope, renderEnvelopeTemplate } from '../engine/envelope';
-import { buildPack, buildPDF, nup } from '../engine/export';
-import { computeLayout } from '../engine/layout';
-import { softProof } from '../engine/proof';
-import { renderCard } from '../engine/render';
-import { samplePhoto } from '../engine/sample';
-import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '../lib/credits';
-import type { Design, ProductId } from '../types';
+import { hasFestivals, marksFor } from '@/data/holidays';
+import { layoutsFor } from '@/data/layouts';
+import { PRODUCTS, sizesFor } from '@/data/products';
+import { cardMM, mergeDesign, postmarkYear, productDesign } from '@/engine/design';
+import { renderEnvelope, renderEnvelopeTemplate } from '@/engine/envelope';
+import { buildPack, buildPDF, nup } from '@/engine/export';
+import { computeLayout } from '@/engine/layout';
+import { softProof } from '@/engine/proof';
+import { renderCard } from '@/engine/render';
+import { samplePhoto } from '@/engine/sample';
+import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '@/lib/credits';
+import type { Design, ProductId } from '@/types';
 import { poolChecks } from './poolChecks';
 import { overlayExportChecks, overlayFixtureChecks, stackChecks, videoChecks } from './videoChecks';
 
@@ -180,7 +180,7 @@ async function run(): Promise<Result> {
   check(sat(s0, s1, s2) > 0.85 * (0xe0 - 0x90), 'print colours: soft tones should stay close');
 
   /* Order sheet for several designs. */
-  const { orderSheetCSV } = await import('../engine/quote');
+  const { orderSheetCSV } = await import('@/engine/quote');
   const csv = orderSheetCSV([
     { label: 'Card A', d: { ...productDesign('postcard'), env: { ...productDesign('postcard').env, on: true } } },
     { label: 'Calendar B', d: productDesign('calendar') },
@@ -233,9 +233,9 @@ async function poolSection(check: (ok: unknown, what: string) => void, r: Result
 /* ---------- GPU device layer (P0.2): every backend this machine offers ---------- */
 
 async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
-  const { openWebGPU } = await import('../engine/gpu/webgpu');
-  const { openWebGL2 } = await import('../engine/gpu/webgl2');
-  const { COPY_PROGRAM } = await import('../engine/gpu/types');
+  const { openWebGPU } = await import('@/engine/gpu/webgpu');
+  const { openWebGL2 } = await import('@/engine/gpu/webgl2');
+  const { COPY_PROGRAM } = await import('@/engine/gpu/types');
   // A 4×3 pattern: every pixel different, the top-left one red, and one half-transparent pixel.
   const W = 4,
     H = 3,
@@ -317,7 +317,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   await layerLooks(check);
   {
     // P1.11: the export types this engine writes (JPEG and PNG always; WebP and AVIF where it can).
-    const { encodableTypes } = await import('../engine/photoExport');
+    const { encodableTypes } = await import('@/engine/photoExport');
     const types = await encodableTypes();
     check(types.includes('jpeg') && types.includes('png'), 'export: JPEG and PNG can always be written');
     r.notes.push(`Photo export types this engine writes: ${types.join(', ')}`);
@@ -337,7 +337,7 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
     check(dp.levels[0] >= 3 * dp.levels[1], `gpu ${name}: 16 bits keep the tones 8 bits lose (${dp.levels[0]} against ${dp.levels[1]} in a pushed shadow ramp)`);
     r.notes.push(`${name} 16-bit render: worst ${dp.max.toFixed(1)}, mean ${dp.mean.toFixed(3)} levels over ${dp.frames} frames; a shadow ramp pushed 3 stops keeps ${dp.levels[0]} tones (8 bits: ${dp.levels[1]})`);
   }
-  const { openGpu, gpu, closeGpu } = await import('../engine/gpu/device');
+  const { openGpu, gpu, closeGpu } = await import('@/engine/gpu/device');
   const d = await openGpu();
   check(ran.length === 0 ? d === null : d?.backend === ran[0], 'gpu: openGpu() picks WebGPU first, then WebGL2');
   check(gpu() === d && (await openGpu()) === d, 'gpu: the device is opened once and reused');
@@ -353,12 +353,12 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
  * more distinct tones than the same ramp in 8 bits.
  */
 async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; frames: number; levels: [number, number]; where: string }> {
-  const { closeGpu, openGpu } = await import('../engine/gpu/device');
-  const { renderDeepPost } = await import('../engine/deep');
-  const { DEFAULT_EDIT, photoPlace, renderIg } = await import('../engine/instagram');
-  const { DEFAULT_ADJUST } = await import('../engine/adjust');
-  const L = await import('../engine/layers');
-  const { frameToPhoto, newPart } = await import('../engine/masks');
+  const { closeGpu, openGpu } = await import('@/engine/gpu/device');
+  const { renderDeepPost } = await import('@/engine/deep');
+  const { DEFAULT_EDIT, photoPlace, renderIg } = await import('@/engine/instagram');
+  const { DEFAULT_ADJUST } = await import('@/engine/adjust');
+  const L = await import('@/engine/layers');
+  const { frameToPhoto, newPart } = await import('@/engine/masks');
   await openGpu(backend);
   // Photos softened a little and about frame size: how two methods shrink fine detail differs (that's resampling, not
   // what this compares), so both paths start from pictures they sample alike.
@@ -383,7 +383,7 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
     H = 675;
   const radial = { ...newPart('radial'), x: 0.5, y: 0.5, rx: 0.25, ry: 0.25 };
   const label = { ...L.newShape('rect'), x: 0.5, y: 0.85, w: 0.6, h: 0.12, fill: '#ffffff', stroke: '', text: '', opacity: 0.8, blend: 'multiply' as const };
-  const cases: { e: import('../engine/instagram').IgEdit; layers: import('../engine/layers').Layer[] }[] = [
+  const cases: { e: import('@/engine/instagram').IgEdit; layers: import('@/engine/layers').Layer[] }[] = [
     { e: { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, look: 'warm', exposure: 0.3, shadows: 30, curve: { ...DEFAULT_ADJUST.curve, rgb: [[0, 0], [0.3, 0.25], [0.7, 0.78], [1, 1]] } } }, layers: [] },
     {
       e: {
@@ -445,7 +445,7 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
   rc.height = 4;
   const rx = rc.getContext('2d', { willReadFrequently: true })!;
   const id = rx.createImageData(N, 4);
-  const { encodeSrgb } = await import('../engine/raw');
+  const { encodeSrgb } = await import('@/engine/raw');
   for (let i = 0; i < N * 4; i++) {
     id.data.fill(Math.round(encodeSrgb(ramp[i * 3]) * 255), i * 4, i * 4 + 3);
     id.data[i * 4 + 3] = 255;
@@ -470,10 +470,10 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
  * its picture where it is placed.
  */
 async function layerLooks(check: (ok: unknown, what: string) => void): Promise<void> {
-  const L = await import('../engine/layers');
-  const { newPart } = await import('../engine/masks');
+  const L = await import('@/engine/layers');
+  const { newPart } = await import('@/engine/masks');
   const N = 200;
-  const frame = (bg: string, layers: import('../engine/layers').Layer[]) => {
+  const frame = (bg: string, layers: import('@/engine/layers').Layer[]) => {
     const c = document.createElement('canvas');
     c.width = c.height = N;
     const x = c.getContext('2d', { willReadFrequently: true })!;
@@ -489,7 +489,7 @@ async function layerLooks(check: (ok: unknown, what: string) => void): Promise<v
   const scr = frame('rgb(200,100,50)', [{ ...box, blend: 'screen' }])(100, 100);
   check(near(scr, [228, 178, 153]), `layers: screen gives 1 − (1 − a)(1 − b) (${scr})`);
   // A white box faded downwards over black: full at the top, nothing at the bottom, half way in the middle.
-  const fade = { invert: false, parts: [{ ...newPart('linear'), x: 0.5, y: 0.5, angle: 90, width: 1 }] } as import('../engine/layers').LayerMask;
+  const fade = { invert: false, parts: [{ ...newPart('linear'), x: 0.5, y: 0.5, angle: 90, width: 1 }] } as import('@/engine/layers').LayerMask;
   const white = { ...box, w: 1, h: 1, fill: '#ffffff', mask: fade };
   const f = frame('#000000', [white]);
   check(f(100, 2)[0] > 250 && f(100, 197)[0] < 5 && Math.abs(f(100, 100)[0] - 128) < 12, `layers: a fade mask goes from full to none (${f(100, 2)[0]}, ${f(100, 100)[0]}, ${f(100, 197)[0]})`);
@@ -509,10 +509,10 @@ async function layerLooks(check: (ok: unknown, what: string) => void): Promise<v
 }
 
 async function knownMask(check: (ok: unknown, what: string) => void): Promise<void> {
-  const { newMask, newBrushPart, frameMask } = await import('../engine/masks');
-  const { DEFAULT_EDIT, photoPlace } = await import('../engine/instagram');
+  const { newMask, newBrushPart, frameMask } = await import('@/engine/masks');
+  const { DEFAULT_EDIT, photoPlace } = await import('@/engine/instagram');
   const mask = { ...newMask('Known'), parts: [{ ...newBrushPart(), strokes: [{ pts: [0, 0.5, 1, 0.5], size: 0.1, feather: 0, flow: 100, erase: false }] }] };
-  const alpha = (f: import('../engine/masks').FrameMask, x: number, y: number) => f.data[y * f.width + x];
+  const alpha = (f: import('@/engine/masks').FrameMask, x: number, y: number) => f.data[y * f.width + x];
   // A 400 × 200 photo whole in a 400 × 400 frame: it fills rows 100–300, the stroke runs along row 200, 40 px tall.
   const flat = frameMask(mask, 400, 200, photoPlace(400, 200, { ...DEFAULT_EDIT, fit: 'fit' }, 400, 400), 400, 400)!;
   check(alpha(flat, 200, 200) === 255 && alpha(flat, 50, 210) === 255, 'masks: a brush stroke is full along its line');
@@ -533,14 +533,14 @@ async function knownMask(check: (ok: unknown, what: string) => void): Promise<vo
 async function maskParity(
   backend: 'webgpu' | 'webgl2',
 ): Promise<{ max: number; detailMax: number; mean: number; where: string; frames: number; timing: string }> {
-  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
-  const { DEFAULT_ADJUST } = await import('../engine/adjust');
-  const { detailNeutral } = await import('../engine/detail');
-  const { newMask, newBrushPart, newPart } = await import('../engine/masks');
-  type Mask = import('../engine/masks').Mask;
-  type Part = import('../engine/masks').MaskPart;
-  type Stroke = import('../engine/masks').BrushStroke;
-  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const { DEFAULT_EDIT, renderIg } = await import('@/engine/instagram');
+  const { DEFAULT_ADJUST } = await import('@/engine/adjust');
+  const { detailNeutral } = await import('@/engine/detail');
+  const { newMask, newBrushPart, newPart } = await import('@/engine/masks');
+  type Mask = import('@/engine/masks').Mask;
+  type Part = import('@/engine/masks').MaskPart;
+  type Stroke = import('@/engine/masks').BrushStroke;
+  const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const photos = await Promise.all(
     ['diwali.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
       const img = new Image();
@@ -550,7 +550,7 @@ async function maskParity(
     }),
   );
   const st = (pts: number[], o: Partial<Stroke> = {}): Stroke => ({ pts, size: 0.25, feather: 60, flow: 100, erase: false, ...o });
-  const brush = (strokes: Stroke[], o: Partial<import('../engine/masks').BrushPart> = {}) => ({ ...newBrushPart(), strokes, ...o });
+  const brush = (strokes: Stroke[], o: Partial<import('@/engine/masks').BrushPart> = {}) => ({ ...newBrushPart(), strokes, ...o });
   const mk = (adjust: object, parts: Part[], o: Partial<Mask> = {}): Mask => ({ ...newMask('T'), parts, adjust: { ...DEFAULT_ADJUST, ...adjust }, ...o });
   const sky = brush([st([0, 0.2, 0.5, 0.25, 1, 0.15], { size: 0.4 })]),
     centre = brush([st([0.5, 0.5], { size: 0.5, feather: 100, flow: 70 }), st([0.5, 0.5, 0.6, 0.6], { erase: true, flow: 50, size: 0.1 })]);
@@ -656,7 +656,7 @@ async function maskParity(
  * with an S-curve, strongly non-linear so the interpolation is exercised. Loaded for the renderers; returns its id.
  */
 async function testLut(size: number): Promise<string> {
-  const { addLut, parseCube } = await import('../engine/lut');
+  const { addLut, parseCube } = await import('@/engine/lut');
   const lines = [`TITLE "Self-test ${size}"`, `LUT_3D_SIZE ${size}`];
   for (let b = 0; b < size; b++)
     for (let g = 0; g < size; g++)
@@ -679,12 +679,12 @@ async function testLut(size: number): Promise<string> {
 async function goldenParity(
   backend: 'webgpu' | 'webgl2',
 ): Promise<{ max: number; mean: number; where: string; frames: number; detailMax: number; detailWhere: string }> {
-  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
-  const { LOOK_IDS } = await import('../engine/adjust');
-  const { detailNeutral } = await import('../engine/detail');
-  const { FLAT_CURVE } = await import('../engine/curve');
-  const { FLAT_MIXER } = await import('../engine/hsl');
-  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const { DEFAULT_EDIT, renderIg } = await import('@/engine/instagram');
+  const { LOOK_IDS } = await import('@/engine/adjust');
+  const { detailNeutral } = await import('@/engine/detail');
+  const { FLAT_CURVE } = await import('@/engine/curve');
+  const { FLAT_MIXER } = await import('@/engine/hsl');
+  const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const lut = await testLut(33);
   const photos = await Promise.all(
     ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
@@ -696,7 +696,7 @@ async function goldenParity(
   );
   const W = 540,
     H = 675;
-  const edits: Partial<import('../engine/adjust').Adjustments>[] = [
+  const edits: Partial<import('@/engine/adjust').Adjustments>[] = [
     {},
     { brightness: 35, contrast: 20 },
     { saturation: -60, warmth: 40, vignette: 50 },
@@ -763,8 +763,8 @@ async function goldenParity(
 
 /** Time per Instagram-size frame with a look and sliders, Canvas 2D against a GPU backend. A note, not a check. */
 async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
-  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
-  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const { DEFAULT_EDIT, renderIg } = await import('@/engine/instagram');
+  const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const img = new Image();
   img.src = '/samples/marigold.jpg';
   await img.decode();
@@ -797,13 +797,13 @@ async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
  * P0.4: the GPU colour programs give the same pixels as the Canvas 2D path (adjustPixels), for every look and a spread
  * of slider settings, within 2 levels per channel. Returns the largest difference seen.
  */
-async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check: (ok: unknown, what: string) => void, name: string): Promise<string> {
-  const { adjustPixels } = await import('../engine/instagram');
-  const { DEFAULT_ADJUST, LOOK_IDS } = await import('../engine/adjust');
-  const { FLAT_CURVE } = await import('../engine/curve');
-  const { FLAT_MIXER } = await import('../engine/hsl');
-  const { colourNodes } = await import('../engine/gpu/colour');
-  const { runNodes, TexturePool } = await import('../engine/gpu/graph');
+async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: (ok: unknown, what: string) => void, name: string): Promise<string> {
+  const { adjustPixels } = await import('@/engine/instagram');
+  const { DEFAULT_ADJUST, LOOK_IDS } = await import('@/engine/adjust');
+  const { FLAT_CURVE } = await import('@/engine/curve');
+  const { FLAT_MIXER } = await import('@/engine/hsl');
+  const { colourNodes } = await import('@/engine/gpu/colour');
+  const { runNodes, TexturePool } = await import('@/engine/gpu/graph');
   // 64×64: hue across, brightness down, with a band of greys and a few half-transparent pixels.
   const N = 64,
     src = new Uint8ClampedArray(N * N * 4);
@@ -827,11 +827,11 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
   const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
   const input = dev.upload(bmp, N, N),
     pool = new TexturePool(dev);
-  const { identityLut, addLut } = await import('../engine/lut');
+  const { identityLut, addLut } = await import('@/engine/lut');
   const identity = identityLut(17);
   addLut(identity);
   const [lut17, lut65] = [await testLut(17), await testLut(65)];
-  const sliders: Partial<import('../engine/adjust').Adjustments>[] = [
+  const sliders: Partial<import('@/engine/adjust').Adjustments>[] = [
     {},
     { brightness: 40 },
     { contrast: -60 },
@@ -896,8 +896,8 @@ async function colourParity(dev: import('../engine/gpu/types').GpuDevice, check:
 /* ---------- performance monitor sampler and the undo history's memory guard ---------- */
 
 async function perfChecks(check: (ok: unknown, what: string) => void): Promise<void> {
-  const { watchPerf, perfReport } = await import('../lib/perf');
-  const got = await new Promise<import('../lib/perf').PerfSample | undefined>((done) => {
+  const { watchPerf, perfReport } = await import('@/lib/perf');
+  const got = await new Promise<import('@/lib/perf').PerfSample | undefined>((done) => {
     const stop = watchPerf((s) => {
       if (!s.length) return;
       stop();
@@ -909,8 +909,8 @@ async function perfChecks(check: (ok: unknown, what: string) => void): Promise<v
   const rep = JSON.parse(perfReport()) as { app: string; summary: { seconds: number } };
   check(rep.app === 'Chitthi' && typeof rep.summary.seconds === 'number', 'perf: the report is JSON with a summary');
 
-  const { commit, historyStats, setPhotos } = await import('../state/store');
-  const { updatePhoto } = await import('../engine/photo');
+  const { commit, historyStats, setPhotos } = await import('@/state/store');
+  const { updatePhoto } = await import('@/engine/photo');
   const a = samplePhoto(0, 800, 600),
     cropped = updatePhoto(a, { crop: { x: 0, y: 0, w: 0.5, h: 0.5 } }),
     recropped = updatePhoto(a, { crop: { x: 0.5, y: 0.5, w: 0.5, h: 0.5 } });
@@ -927,13 +927,13 @@ async function perfChecks(check: (ok: unknown, what: string) => void): Promise<v
 /* ---------- AI: a fake provider drives the real service, prompts, credits and limits (no network) ---------- */
 
 async function aiChecks(check: (ok: unknown, what: string) => void): Promise<void> {
-  const { registerTestProvider } = await import('../ai/registry');
-  const svc = await import('../ai/service');
-  const settings = await import('../ai/settings');
-  const { keyAllowed, isResultHost } = await import('../ai/transport');
-  const { nearestAspect } = await import('../ai/types');
-  const { providerDef } = await import('../data/aiProviders');
-  const { aiCreditOf, creditsText: credits } = await import('../lib/credits');
+  const { registerTestProvider } = await import('@/ai/registry');
+  const svc = await import('@/ai/service');
+  const settings = await import('@/ai/settings');
+  const { keyAllowed, isResultHost } = await import('@/ai/transport');
+  const { nearestAspect } = await import('@/ai/types');
+  const { providerDef } = await import('@/data/aiProviders');
+  const { aiCreditOf, creditsText: credits } = await import('@/lib/credits');
 
   const saved = localStorage.getItem('chitthi-ai');
   const prompts: string[] = [];
@@ -999,8 +999,8 @@ async function aiChecks(check: (ok: unknown, what: string) => void): Promise<voi
 /* ---------- agent tools: schemas are valid and read-only tools run ---------- */
 
 async function agentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
-  const { TOOLS } = await import('../agent/tools');
-  const { PROMPTS, RESOURCES } = await import('../agent/prompts');
+  const { TOOLS } = await import('@/agent/tools');
+  const { PROMPTS, RESOURCES } = await import('@/agent/prompts');
   const names = new Set<string>();
   for (const t of TOOLS) {
     check(/^[a-z][a-z0-9_]{2,40}$/.test(t.name) && !names.has(t.name), `tool ${t.name}: unique snake_case name`);
@@ -1025,10 +1025,10 @@ async function agentChecks(check: (ok: unknown, what: string) => void, r: Result
 /* ---------- AI masks (P1.8): a stand-in segmentation drawn as a mask, then the real subject model in its worker ---------- */
 
 async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
-  const { setSegment } = await import('../engine/segments');
-  const { DEFAULT_EDIT, renderIg } = await import('../engine/instagram');
-  const { DEFAULT_ADJUST } = await import('../engine/adjust');
-  const { newMask, newPart } = await import('../engine/masks');
+  const { setSegment } = await import('@/engine/segments');
+  const { DEFAULT_EDIT, renderIg } = await import('@/engine/instagram');
+  const { DEFAULT_ADJUST } = await import('@/engine/adjust');
+  const { newMask, newPart } = await import('@/engine/masks');
   // A grey picture with a red disc in the middle: what any subject model should find.
   const src = document.createElement('canvas');
   src.width = src.height = 320;
@@ -1058,11 +1058,11 @@ async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Resul
 
   // The real subject model (bundled), in its worker with ONNX Runtime Web.
   try {
-    const seg = await import('../ai/segment');
+    const seg = await import('@/ai/segment');
     const t0 = performance.now();
     await seg.segmentPhoto(src, 'subject');
     const ms = performance.now() - t0;
-    const { segmentOf, segmentAt } = await import('../engine/segments');
+    const { segmentOf, segmentAt } = await import('@/engine/segments');
     const m = segmentOf(src, 'subject')!;
     const centre = segmentAt(m, 0.5, 0.5),
       corner = segmentAt(m, 0.05, 0.05);
@@ -1084,10 +1084,10 @@ async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Resul
 /* ---------- agent tools for the photo studio (P1.12): adjustments, masks, presets and LUTs end to end ---------- */
 
 async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
-  const { TOOLS_BY_NAME: T } = await import('../agent/tools');
-  const ig = await import('../state/instagram');
-  const { DEFAULT_ADJUST } = await import('../engine/adjust');
-  const { forgetLut } = await import('../lib/userLuts');
+  const { TOOLS_BY_NAME: T } = await import('@/agent/tools');
+  const ig = await import('@/state/instagram');
+  const { DEFAULT_ADJUST } = await import('@/engine/adjust');
+  const { forgetLut } = await import('@/lib/userLuts');
   const call = async (name: string, args: Record<string, unknown> = {}) => T[name].run(args, {});
   const fails = async (name: string, args: Record<string, unknown>) => call(name, args).then(() => false, () => true);
   /** Mean RGB of a region of a tool's preview image, by shares of its size. */
@@ -1176,10 +1176,10 @@ async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: R
     check(await fails('edit_mask', { mask: 'nope' }), 'photo tools: an unknown mask is a tool error');
 
     // AI masks: the subject is found before the tool returns; the sky asks for the user's agreement first.
-    const { segmentOf } = await import('../engine/segments');
+    const { segmentOf } = await import('@/engine/segments');
     const ai = (await call('add_mask', { kind: 'ai', name: 'Subject', adjust: { exposure: 1 } })).json as { id: string; parts: { kind: string; target: string }[] };
     check(ai.parts[0].kind === 'ai' && ai.parts[0].target === 'subject' && !!segmentOf(item().preview, 'subject'), 'photo tools: an AI mask finds the subject');
-    const { modelOnDevice } = await import('../ai/segment');
+    const { modelOnDevice } = await import('@/ai/segment');
     if (!(await modelOnDevice('sky'))) {
       const sky = await call('set_mask_part', { mask: ai.id, kind: 'ai', settings: { target: 'sky' } });
       check(/download/.test(sky.text) && /allowDownload/.test(sky.text), 'photo tools: the sky model needs the user’s agreement');

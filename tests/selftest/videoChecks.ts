@@ -17,11 +17,11 @@ import {
   canEncodeAudio,
   canEncodeVideo,
 } from 'mediabunny';
-import { renderIg } from '../engine/instagram';
-import { drawLayers, newShape, type Layer } from '../engine/layers';
-import { IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project, type Track } from '../engine/timeline';
-import { clipLength, fadeAmount, motionEdit, type FrameClip } from '../engine/video';
-import type { ExportClip } from '../engine/videoExport';
+import { renderIg } from '@/engine/instagram';
+import { drawLayers, newShape, type Layer } from '@/engine/layers';
+import { IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project, type Track } from '@/engine/timeline';
+import { clipLength, fadeAmount, motionEdit, type FrameClip } from '@/engine/video';
+import type { ExportClip } from '@/engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;
 
@@ -337,7 +337,7 @@ function overlayFiles() {
 export async function makeOverlayProject(format: '9:16' | '16:9'): Promise<OverlayFixture | null> {
   const files = await overlayFiles();
   if (!files) return null;
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const [W, H] = OVERLAY_SIZES[format];
   const fps = OVERLAY_FPS;
   const tfs: Record<string, ClipTransform | undefined> = {
@@ -417,7 +417,7 @@ let longOverlay: Promise<LongOverlayFixture | null> | null = null;
 /** Made once per run: the build check and the export checks (T032) share it. */
 export const makeLongOverlayProject = (): Promise<LongOverlayFixture | null> => (longOverlay ??= buildLongOverlayProject());
 async function buildLongOverlayProject(): Promise<LongOverlayFixture | null> {
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const W = 1920,
     H = 1080,
     fps = OVERLAY_FPS;
@@ -493,12 +493,12 @@ const hasSound = async (mp4: Blob) => new TextDecoder('latin1').decode(await mp4
  * the preview's renderFrame and in a decoded export) and the muted music track (no sound in the export).
  */
 async function trackChecks(check: Check): Promise<string[]> {
-  const { renderFrame, NO_PICTURE } = await import('../engine/video');
-  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../../tests/support/timeline.testkit');
+  const { renderFrame, NO_PICTURE } = await import('@/engine/video');
+  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../support/timeline.testkit');
   const { MAIN_VIDEO, MUSIC, audioPlan, defaultTracks, framePlan, pack, projectLength, videoAt } =
-    await import('../engine/timeline');
-  const { newShape } = await import('../engine/layers');
-  const { encodeVideo } = await import('../engine/videoExport');
+    await import('@/engine/timeline');
+  const { newShape } = await import('@/engine/layers');
+  const { encodeVideo } = await import('@/engine/videoExport');
   const notes: string[] = [];
   const photos = await Promise.all([0, 1, 2].map((i) => testPhoto(i, 640, 427)));
   const film = document.createElement('canvas');
@@ -614,7 +614,7 @@ async function trackChecks(check: Check): Promise<string[]> {
   );
 
   // The export: hidden → black frames with the layers; muted music → no sound track; shown and heard otherwise.
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const shownEdit = { ...DEFAULT_EDIT };
   const job = (tracks: ReturnType<typeof defaultTracks>, music: boolean) => ({
     tracks,
@@ -696,11 +696,11 @@ const median = (xs: number[]) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.
  * renderFrame); the export: the whole video encoded in memory. Median of 3 each.
  */
 async function videoTiming(clip: Blob): Promise<string> {
-  const { renderFrame } = await import('../engine/video');
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
-  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('../engine/timeline');
-  const { openGpu, gpu } = await import('../engine/gpu/device');
+  const { renderFrame } = await import('@/engine/video');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
+  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('@/engine/timeline');
+  const { openGpu, gpu } = await import('@/engine/gpu/device');
   await openGpu();
   const W = 1920,
     H = 1080;
@@ -987,7 +987,7 @@ type Backend = 'Canvas 2D' | 'webgpu' | 'webgl2';
 
 /** Switches renderIg to a backend (Canvas 2D = no GPU device). False if this machine doesn't have it. */
 async function switchBackend(b: Backend): Promise<boolean> {
-  const { closeGpu, openGpu } = await import('../engine/gpu/device');
+  const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   closeGpu();
   if (b === 'Canvas 2D') return true;
   return (await openGpu(b))?.backend === b;
@@ -1097,11 +1097,11 @@ const bytesDiffering = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
  * Returns notes for the report.
  */
 export async function stackChecks(check: Check): Promise<string[]> {
-  const { renderStack, V_FADE, NO_PICTURE } = await import('../engine/video');
-  const { frameStack } = await import('../engine/stack');
-  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('../engine/timeline');
-  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../../tests/support/timeline.testkit');
-  const { closeGpu, gpu, openGpu } = await import('../engine/gpu/device');
+  const { renderStack, V_FADE, NO_PICTURE } = await import('@/engine/video');
+  const { frameStack } = await import('@/engine/stack');
+  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('@/engine/timeline');
+  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../support/timeline.testkit');
+  const { closeGpu, gpu, openGpu } = await import('@/engine/gpu/device');
   const notes: string[] = [];
   const t0 = performance.now();
   const before = gpu()?.backend;
@@ -1401,9 +1401,9 @@ export async function overlayExportChecks(check: Check): Promise<string[]> {
  * @returns a note with the error measured, or null when this engine can't encode H.264
  */
 async function exportDrawsPreviewStack(check: Check, format: '9:16' | '16:9'): Promise<string | null> {
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { frameStack } = await import('../engine/stack');
-  const { projectLength } = await import('../engine/timeline');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { frameStack } = await import('@/engine/stack');
+  const { projectLength } = await import('@/engine/timeline');
   const fixture = await makeOverlayProject(format);
   if (!fixture) return null;
   const { width, height, fps, project } = fixture;
@@ -1470,7 +1470,7 @@ async function exportDrawsPreviewStack(check: Check, format: '9:16' | '16:9'): P
  * track muted (not heard) and with it hidden (heard: Hide is about pictures, Q7).
  */
 async function exportsOverlaySound(check: Check): Promise<void> {
-  const { encodeVideo } = await import('../engine/videoExport');
+  const { encodeVideo } = await import('@/engine/videoExport');
   const fixture = await makeOverlayProject('9:16');
   const beepingClip = await makeSyncClip(4);
   if (!fixture || !beepingClip) return;
@@ -1514,10 +1514,10 @@ async function exportsOverlaySound(check: Check): Promise<void> {
  * every frame, the clip and source time framePlan lists (the 2.x export's frames).
  */
 async function legacyExportFollowsFramePlan(check: Check): Promise<void> {
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { MAIN_VIDEO, defaultTracks, framePlan, pack } = await import('../engine/timeline');
-  const { legacyFixtures } = await import('../../tests/support/timeline.testkit');
-  const { DEFAULT_EDIT } = await import('../engine/instagram');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { MAIN_VIDEO, defaultTracks, framePlan, pack } = await import('@/engine/timeline');
+  const { legacyFixtures } = await import('../support/timeline.testkit');
+  const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const fps = 30;
   const [videoA, videoB] = await Promise.all([makeTestClip(10, 320, 240, 2), makeTestClip(10, 320, 240, 2)]);
   if (!videoA || !videoB) return;
@@ -1590,8 +1590,8 @@ async function legacyExportFollowsFramePlan(check: Check): Promise<void> {
  * @returns a note with its time, the most frame bytes open at once and the file size; null without the fixture
  */
 async function longOverlayExportReleasesEverything(check: Check): Promise<string | null> {
-  const { encodeVideo } = await import('../engine/videoExport');
-  const { openFrames } = await import('../engine/frameSource');
+  const { encodeVideo } = await import('@/engine/videoExport');
+  const { openFrames } = await import('@/engine/frameSource');
   const fixture = await makeLongOverlayProject();
   if (!fixture) return null;
   let peakBytes = 0;
