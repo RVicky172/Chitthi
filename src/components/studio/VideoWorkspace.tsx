@@ -9,6 +9,7 @@ import { lanePlan } from '../../engine/decodePool';
 import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
 import { KeyframeButton, KeyframeNav } from './KeyframeButton';
+import { TransitionInspector, TransitionPanel } from './TransitionPanel';
 import { clipLabel } from './timelineRows';
 import { useClipTransform } from './useClipTransform';
 import { saveFile } from '../../lib/download';
@@ -63,7 +64,7 @@ import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { LookPicker } from '../ig/LookPicker';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
-import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, InstagramIcon, LayersIcon, MusicIcon, RedoIcon, ReelIcon, ShapesIcon, ShareIcon, TrashIcon, TypeIcon, UndoIcon, YouTubeIcon } from '../icons';
+import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, InstagramIcon, LayersIcon, MusicIcon, RedoIcon, ReelIcon, ShapesIcon, ShareIcon, TransitionIcon, TrashIcon, TypeIcon, UndoIcon, YouTubeIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { StudioDialog } from './Dialog';
 import { DesktopNote, StudioShell, useFit, type RailItem, type StudioMode } from './Shell';
@@ -76,12 +77,13 @@ import { Timeline, Transport } from './Timeline';
  * engine/videoExport.ts (loaded on export).
  */
 
-type Tool = 'media' | 'text' | 'elements' | 'draw' | 'audio' | 'layers';
+type Tool = 'media' | 'text' | 'elements' | 'draw' | 'transitions' | 'audio' | 'layers';
 const RAIL: RailItem<Tool>[] = [
   { id: 'media', label: 'Media', icon: <ImageIcon /> },
   { id: 'text', label: 'Text', icon: <TypeIcon /> },
   { id: 'elements', label: 'Elements', icon: <ShapesIcon /> },
   { id: 'draw', label: 'Draw', icon: <BrushIcon /> },
+  { id: 'transitions', label: 'Transitions', icon: <TransitionIcon /> },
   { id: 'audio', label: 'Audio', icon: <MusicIcon /> },
   { id: 'layers', label: 'Layers', icon: <LayersIcon /> },
 ];
@@ -96,6 +98,7 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
     layers = useVideo((s) => s.layers),
     layerSel = useVideo((s) => s.layerSel),
     selected = useVideo((s) => s.selected),
+    transitionSel = useVideo((s) => s.transitionSel),
     t = useVideo((s) => s.t),
     format = useVideo((s) => s.format),
     canUndo = useVideo((s) => s.canUndo),
@@ -173,10 +176,14 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
       <AddElements {...lp} />
     ) : tool === 'draw' ? (
       <DrawPanel tools={tools} onTools={setVTools} onNewDrawing={() => selectVLayer(null)} />
+    ) : tool === 'transitions' ? (
+      <TransitionPanel />
     ) : (
       <LayerList {...lp} />
     );
   const clip = clips.find((c) => c.id === selected);
+  // The selected cut (206): its transition in the inspector.
+  const cut = clips.find((c) => c.id === transitionSel);
 
   return (
     <StudioShell
@@ -212,7 +219,7 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
         </>
       }
       panel={panel}
-      inspector={layerSel ? <LayerProps {...lp} /> : clip ? <ClipPanel clip={clip} /> : <ProjectPanel />}
+      inspector={layerSel ? <LayerProps {...lp} /> : cut ? <TransitionInspector clip={cut} /> : clip ? <ClipPanel clip={clip} /> : <ProjectPanel />}
       stage={clips.length ? <VideoStage /> : <EmptyStage kind={kind} />}
       dock={
         <>

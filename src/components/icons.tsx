@@ -2,6 +2,7 @@ import {
   BookOpen,
   Activity,
   Blend,
+  BetweenHorizontalStart,
   ArrowRight,
   Box,
   Brush,
@@ -146,6 +147,8 @@ export const TypeIcon = () => <Type {...base} />;
 export const ShapesIcon = () => <Shapes {...base} />;
 export const BrushIcon = () => <Brush {...base} />;
 export const MaskIcon = () => <Blend {...base} />;
+/** Transitions between clips (206): two clips meeting at a cut. */
+export const TransitionIcon = () => <BetweenHorizontalStart {...base} />;
 export const MusicIcon = () => <Music {...base} />;
 /** Track headers: the icon shows the state (pressed = hidden, muted, locked). */
 export const HideIcon = ({ on }: { on: boolean }) => (on ? <EyeOff {...base} /> : <Eye {...base} />);

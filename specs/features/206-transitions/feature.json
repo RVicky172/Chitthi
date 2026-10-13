@@ -820,7 +820,7 @@
         "T060": {
           "text": "Implement plan §6: `TransitionPanel` (the five kinds with looping previews drawn by `transitionOps`, still with reduced motion; applies to the selected cut, else the cut at the selected clip's end (the start for the last clip); Apply to every cut; a note with no cut) as a tool-rail item, and the inspector for a selected transition (kind, direction or colour, length in whole frames, Remove transition). Pure helper `panelCut(state)` (which cut the panel acts on, or why none) with unit tests.",
           "section": "Panel, inspector and timeline",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -837,7 +837,11 @@
           ],
           "test": "the helper's unit tests; `npm run check`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** TransitionPanel.tsx: a Transitions rail item (TransitionIcon) with the five kinds, each with a 64 × 40 looping preview drawn by transitionOps on two cards (a still at 0.5 with reduced motion); choosing one sets it on the panel’s cut and selects it; Apply … to every cut (the cut’s kind, else a cross-dissolve); the reason when there is no cut. TransitionInspector for the selected cut: kind (select), direction or colour (Seg), length slider in whole frames up to its room, Remove transition; a hard cut says how to add one. Store: transitionSel and selectTransition (view state; selecting a clip or layer clears it; kept by undo while its clip exists). timelineRows.ts panelCut (selected cut, else the selected clip’s end cut, else its start cut; or why: no selection, no touching clip, locked): 3 tests (failed first); break-test caught; npm run check green, 1,669 tests. The panel itself is checked in 290 (AC-8, AC-10)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T061": {
           "text": "Implement plan §7 (D2): cut targets (`tl-cut`, Enter opens the panel for the cut) and transition blocks (`tl-trans`: select, Delete, edge drags in whole frames up to the room, ← / → a frame, Shift 0.5 s) in each picture row; announcements. Pure helpers in `timelineRows.ts` with unit tests: `transitionBlock` (left and width from cut, length, zoom), `describeTransitionChange` (added, changed, removed, dropped by an edit).",

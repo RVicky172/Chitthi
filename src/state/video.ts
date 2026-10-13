@@ -146,6 +146,9 @@ export interface VState {
   fps: VFps;
   layers: Layer[];
   layerSel: string | null;
+  /** The selected cut (206): the id of the clip before it, whose transition (if any) the inspector shows. A view
+   * setting: not undone, not saved. */
+  transitionSel: string | null;
   tools: LayerTools;
   music: VMusic | null;
   /** Fade to black over the last half second. */
@@ -183,6 +186,7 @@ let state: VState = {
   fps: 30,
   layers: [],
   layerSel: null,
+  transitionSel: null,
   tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
   music: null,
   fadeOut: true,
@@ -236,8 +240,10 @@ export const projectOf = (s: VState = state): Project<VClip> => ({ tracks: s.tra
 export const videoLength = (s: VState) => projectLength(projectOf(s));
 export const total = () => videoLength(state);
 export const setPlayhead = (t: number) => set({ t: Math.max(0, Math.min(t, total())) });
-export const selectClip = (id: string | null) => set({ selected: id });
-export const selectVLayer = (id: string | null) => set({ layerSel: id });
+export const selectClip = (id: string | null) => set({ selected: id, transitionSel: null });
+export const selectVLayer = (id: string | null) => set({ layerSel: id, transitionSel: null });
+/** Selects the cut after clip `id` (206), for the Transitions panel and the inspector; a layer selection gives way. */
+export const selectTransition = (id: string | null) => set({ transitionSel: id, ...(id ? { layerSel: null } : {}) });
 export const setVTools = (patch: Partial<LayerTools>) => set({ tools: { ...state.tools, ...patch } });
 export const setPlaying = (playing: boolean) => set({ playing: playing && state.clips.length > 0 });
 export const setZoom = (zoom: number) => set({ zoom: Math.max(4, Math.min(400, zoom)) });
@@ -291,6 +297,7 @@ function restore(s: Snap): void {
     magnetic: s.magnetic,
     selected: s.clips.some((c) => c.id === state.selected) ? state.selected : (s.clips[0]?.id ?? null),
     layerSel: s.layers.some((l) => l.id === state.layerSel) ? state.layerSel : null,
+    transitionSel: s.clips.some((c) => c.id === state.transitionSel) ? state.transitionSel : null,
     t: Math.min(state.t, lengthOf(s.clips, s.tracks, s.magnetic)),
     ...flags(),
   });
@@ -360,7 +367,7 @@ export function loadVideoProject(p: { clips: VClip[]; tracks?: Track[]; magnetic
   };
   const sorted = p.clips.slice().sort((a, b) => rank(a) - rank(b) || (magnetic && a.track === MAIN_VIDEO ? 0 : a.start - b.start));
   const clips = magnetic ? pack(sorted) : sorted;
-  set({ clips, tracks, magnetic, music: p.music ?? null, layers: p.layers ?? [], layerSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
+  set({ clips, tracks, magnetic, music: p.music ?? null, layers: p.layers ?? [], layerSel: null, transitionSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
 }
 
 /**

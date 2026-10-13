@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Ease, Keyframe } from '../../engine/keyframes';
 import type { Track } from '../../engine/timeline';
-import { clipLabel, describeClipChange, describeKeyChange, easeName, easeShape, keyPropName, keyTimes, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
+import { clipLabel, describeClipChange, describeKeyChange, easeName, easeShape, keyPropName, keyTimes, panelCut, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
 
 /** A track with every switch off. */
 const track = (id: string, kind: Track['kind'], name: string): Track => ({ id, kind, name, hidden: false, muted: false, locked: false });
@@ -183,5 +183,34 @@ describe('describeKeyChange: the live region after a keyframe change (AC-7, AC-1
     expect(describeKeyChange(before, { x: [key(1, 0.5), key(3, 1)] }, 'Clip 1', 0)).toBe(
       'Clip 1: keyframe at 1.00 s changed',
     );
+  });
+});
+
+/* ---------- 206 T060: which cut the Transitions panel acts on (AC-8) ---------- */
+
+describe('panelCut: the cut the Transitions panel acts on (AC-8)', () => {
+  const at = (id: string, start: number, len: number, trackId = 'V1') => ({ id, track: trackId, start, kind: 'photo' as const, dur: len, in: 0, out: 0 });
+  // V1: a 0–2, b 2–4 (touching), c 6–7 after a gap. V2: o 1–3 alone.
+  const clips = [at('a', 0, 2), at('b', 2, 2), at('c', 6, 1), at('o', 1, 2, 'V2')];
+  const tracks = [MAIN, OVERLAY_1];
+  const state = (selected: string | null, transitionSel: string | null = null, locked = false) => ({
+    clips,
+    tracks: locked ? tracks.map((t) => ({ ...t, locked: true })) : tracks,
+    selected,
+    transitionSel,
+  });
+
+  it('a selected cut first', () => {
+    expect(panelCut(state('c', 'a'))).toEqual({ clip: 'a', track: 'V1' });
+  });
+  it('else the cut at the selected clip’s end, or its start when nothing touches its end', () => {
+    expect(panelCut(state('a'))).toEqual({ clip: 'a', track: 'V1' });
+    expect(panelCut(state('b'))).toEqual({ clip: 'a', track: 'V1' });
+  });
+  it('says why when there is no cut to use', () => {
+    expect(panelCut(state(null))).toEqual({ why: 'Select a clip, or a cut between two clips on the timeline.' });
+    expect(panelCut(state('c'))).toEqual({ why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.' });
+    expect(panelCut(state('o'))).toEqual({ why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.' });
+    expect(panelCut(state('a', null, true))).toEqual({ why: 'The Video track is locked. Unlock it to change its clips.' });
   });
 });

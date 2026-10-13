@@ -1381,3 +1381,45 @@
     transition: none;
   }
 }
+
+/* 206 §6: the Transitions panel (each kind with a small looping preview) and its inspector. */
+.tr-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+.tr-kind {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.tr-kind:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.tr-kind[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.tr-kind:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tr-kind:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.tr-preview {
+  width: 64px;
+  height: 40px;
+  border-radius: 4px;
+  background: #000;
+}
