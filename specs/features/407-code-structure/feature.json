@@ -4,11 +4,11 @@
   "id": "407",
   "title": "Code structure: a tests folder, coding standards, readable names and JSDoc",
   "workItem": null,
-  "status": "draft",
+  "status": "approved",
   "owner": null,
   "dates": {
     "created": "2026-10-13",
-    "approved": null,
+    "approved": "2026-10-13",
     "started": null,
     "done": null
   },
@@ -159,56 +159,56 @@
       ],
       "byId": {
         "Q1": {
-          "open": true,
-          "text": "The `tests/` layout? _Proposed:_ `tests/unit/` mirrors `src/` (one test file per module it tests); `tests/integration/` holds tests that drive several modules together (today: `state/*.test.ts`, `decodePool.test.ts` with its fake decoder, `previewSound.test.ts`); `tests/e2e/` takes `e2e/`; `tests/support/` the shared fixtures and fakes (`timeline.testkit.ts`, the fake decoder, the recording canvas). The roadmap dashboard’s own tests stay with that tool (`tools/`, a separate app) until Q6’s follow-up."
+          "open": false,
+          "text": "The `tests/` layout? _Answer (accepted 2026-10-13):_ `tests/unit/` mirrors `src/` (one test file per module it tests); `tests/integration/` holds tests that drive several modules together (today: `state/*.test.ts`, `decodePool.test.ts` with its fake decoder, `previewSound.test.ts`); `tests/e2e/` takes `e2e/`; `tests/support/` the shared fixtures and fakes (`timeline.testkit.ts`, the fake decoder, the recording canvas). The roadmap dashboard’s own tests stay with that tool (`tools/`, a separate app) until Q6’s follow-up."
         },
         "Q2": {
-          "open": true,
-          "text": "The in-app self-test (`src/dev/selftest.ts`, `videoChecks.ts`, `poolChecks.ts`, `playbackChecks.ts`, ~5,000 lines) runs inside the Electron app, in the page. Where does it go? _Proposed:_ `tests/selftest/`, loaded by `main.tsx` only in development builds (as today, behind `import.meta.env.DEV`), with AC-3’s check proving it never reaches the production build. `src/dev/showcase` and `printSamples` (development pages, not tests) stay in `src/dev/`."
+          "open": false,
+          "text": "The in-app self-test (`src/dev/selftest.ts`, `videoChecks.ts`, `poolChecks.ts`, `playbackChecks.ts`, ~5,000 lines) runs inside the Electron app, in the page. Where does it go? _Answer (accepted 2026-10-13):_ `tests/selftest/`, loaded by `main.tsx` only in development builds (as today, behind `import.meta.env.DEV`), with AC-3’s check proving it never reaches the production build. `src/dev/showcase` and `printSamples` (development pages, not tests) stay in `src/dev/`."
         },
         "Q3": {
-          "open": true,
-          "text": "Which one-letter names, if any, are allowed? _Proposed:_ only `_` for a value that is deliberately unused, and `x` / `y` for a point’s coordinates (they are the axes’ real names); everything else is descriptive: `index` not `i`, `clip` not `c`, `context` not `ctx` or `x`, `width` / `height` not `W` / `H`, `error` not `e`, `event` not `e`. The lint rule (`id-length` with these exceptions) applies to variables, parameters, functions and properties we declare."
+          "open": false,
+          "text": "Which one-letter names, if any, are allowed? _Answer (accepted 2026-10-13):_ only `_` for a value that is deliberately unused, and `x` / `y` for a point’s coordinates (they are the axes’ real names); everything else is descriptive: `index` not `i`, `clip` not `c`, `context` not `ctx` or `x`, `width` / `height` not `W` / `H`, `error` not `e`, `event` not `e`. The lint rule (`id-length` with these exceptions) applies to variables, parameters, functions and properties we declare."
         },
         "Q4": {
-          "open": true,
-          "text": "Size limits: is a 500-line file limit needed? _Proposed (revised):_ no hard file limit. Line count is only a proxy; what keeps code maintainable is one job per module (AC-8, Q7), short functions and low cognitive complexity. So: functions at most 80 lines and cognitive complexity at most 15 (errors); React components at most 250 lines (error); a file over 800 lines is a lint **warning** that asks for a review (split if it mixes jobs, keep if it is one cohesive job, e.g. one renderer). Data-only files (`src/data/`, `docs.ts`) and tests are exempt."
+          "open": false,
+          "text": "Size limits: is a 500-line file limit needed? _Answer (accepted 2026-10-13):_ no hard file limit. Line count is only a proxy; what keeps code maintainable is one job per module (AC-8, Q7), short functions and low cognitive complexity. So: functions at most 80 lines and cognitive complexity at most 15 (errors); React components at most 250 lines (error); a file over 800 lines is a lint **warning** that asks for a review (split if it mixes jobs, keep if it is one cohesive job, e.g. one renderer). Data-only files (`src/data/`, `docs.ts`) and tests are exempt."
         },
         "Q5": {
-          "open": true,
-          "text": "All at once or step by step? _Proposed:_ step by step, one folder per task, each its own commit with every test green, in this order: the tests move first (smallest risk, AC-1–AC-3), then the standards and lint rules as warnings (AC-4, AC-5), then `engine/`, `state/`, `agent/` + `ai/` + `lib/` + `platform/`, `components/`, `dev/` → `tests/selftest/`, `electron/`; each folder’s rules become errors when it is done. Estimated at 3–5 working days of tasks; Phase 2 work (207) waits for it."
+          "open": false,
+          "text": "All at once or step by step? _Answer (accepted 2026-10-13):_ step by step, one folder per task, each its own commit with every test green, in this order: the tests move first (smallest risk, AC-1–AC-3), then the standards and lint rules as warnings (AC-4, AC-5), then `engine/`, `state/`, `agent/` + `ai/` + `lib/` + `platform/`, `components/`, `dev/` → `tests/selftest/`, `electron/`; each folder’s rules become errors when it is done. Estimated at 3–5 working days of tasks; Phase 2 work (207) waits for it."
         },
         "Q6": {
-          "open": true,
-          "text": "Scope: what is cleaned up? _Proposed:_ the shipped code: `src/` and `electron/`. The development tools (`scripts/`, `tools/specs-index`, `tools/roadmap-dashboard`) follow the same standards for new code but are cleaned up later in their own feature (408), so 407 stays reviewable."
+          "open": false,
+          "text": "Scope: what is cleaned up? _Answer (accepted 2026-10-13):_ the shipped code: `src/` and `electron/`. The development tools (`scripts/`, `tools/specs-index`, `tools/roadmap-dashboard`) follow the same standards for new code but are cleaned up later in their own feature (408), so 407 stays reviewable."
         },
         "Q7": {
-          "open": true,
-          "text": "What does SOLID mean here, concretely? _Proposed:_ **S**: one job per module (e.g. `state/video.ts` becomes the store core and history, clip edits, keyframe actions, transition actions and export; `render.ts` and `Timeline.tsx` split the same way). **O**: products, sizes, layouts, kinds stay data-driven (add a table entry, not a branch), as `src/data/` already does. **L**: few classes here; where an interface has several implementations (frame sources, AI providers, file sinks) each honours it fully. **I**: small props and options interfaces, not one large shared one. **D**: layers depend downwards only (`data` → `engine` → `state` → `components`), enforced by lint; platform differences behind `platform/` and `lib/`. No class hierarchies added for their own sake."
+          "open": false,
+          "text": "What does SOLID mean here, concretely? _Answer (accepted 2026-10-13):_ **S**: one job per module (e.g. `state/video.ts` becomes the store core and history, clip edits, keyframe actions, transition actions and export; `render.ts` and `Timeline.tsx` split the same way). **O**: products, sizes, layouts, kinds stay data-driven (add a table entry, not a branch), as `src/data/` already does. **L**: few classes here; where an interface has several implementations (frame sources, AI providers, file sinks) each honours it fully. **I**: small props and options interfaces, not one large shared one. **D**: layers depend downwards only (`data` → `engine` → `state` → `components`), enforced by lint; platform differences behind `platform/` and `lib/`. No class hierarchies added for their own sake."
         },
         "Q8": {
-          "open": true,
-          "text": "How is “optimized” judged? _Proposed:_ by measurement, not by eye: the existing timing checks (preview frame time, export speed, the pool’s decode timings, the print renderer’s time per page) before and after; a change goes in only with at least 10 % gain on its path and no loss elsewhere. Readability changes (renames, splits) must not slow anything (checked by the same timings)."
+          "open": false,
+          "text": "How is “optimized” judged? _Answer (accepted 2026-10-13):_ by measurement, not by eye: the existing timing checks (preview frame time, export speed, the pool’s decode timings, the print renderer’s time per page) before and after; a change goes in only with at least 10 % gain on its path and no loss elsewhere. Readability changes (renames, splits) must not slow anything (checked by the same timings)."
         },
         "Q9": {
-          "open": true,
-          "text": "Heavy tests (D-033 puts them in a phase’s test pass)? _Proposed:_ 407 is not a phase feature and touches every file, so it runs the full Definition of Done itself at its end (e2e, self-test, MCP, licences, build) and after each large folder (components, dev), not deferred to 290."
+          "open": false,
+          "text": "Heavy tests (D-033 puts them in a phase’s test pass)? _Answer (accepted 2026-10-13):_ 407 is not a phase feature and touches every file, so it runs the full Definition of Done itself at its end (e2e, self-test, MCP, licences, build) and after each large folder (components, dev), not deferred to 290."
         },
         "Q10": {
-          "open": true,
-          "text": "Order with Phase 2? _Proposed:_ 407 first (branched from `main`, merged into `main` when done), then 207 branched from the updated `main`, written to the standards from its first line."
+          "open": false,
+          "text": "Order with Phase 2? _Answer (accepted 2026-10-13):_ 407 first (branched from `main`, merged into `main` when done), then 207 branched from the updated `main`, written to the standards from its first line."
         },
         "Q11": {
-          "open": true,
-          "text": "The React Compiler? _Proposed:_ yes, after AC-12, as the last step of 407: `babel-plugin-react-compiler` 1.0 (MIT, a build-time development dependency, nothing new shipped) through the Vite React plugin, for the whole app; then remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22 today). It is worth less here than in most apps (the heavy work is canvas drawing and decoding, outside React, and screens are already lazy-loaded), so it goes in only if the e2e and timing checks show no regression; the gain is mostly simpler components. If the plugin can’t be wired into this Vite version, it waits and AC-12 still applies."
+          "open": false,
+          "text": "The React Compiler? _Answer (accepted 2026-10-13):_ yes, after AC-12, as the last step of 407: `babel-plugin-react-compiler` 1.0 (MIT, a build-time development dependency, nothing new shipped) through the Vite React plugin, for the whole app; then remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22 today). It is worth less here than in most apps (the heavy work is canvas drawing and decoding, outside React, and screens are already lazy-loaded), so it goes in only if the e2e and timing checks show no regression; the gain is mostly simpler components. If the plugin can’t be wired into this Vite version, it waits and AC-12 still applies."
         },
         "Q12": {
-          "open": true,
-          "text": "Cognitive complexity (as SonarQube measures it)? The usual ESLint rule is in `eslint-plugin-sonarjs`, which is LGPL-3.0-only; our licence policy allows weak copyleft only with an approved exception (`specs/licensing.md`). (`eslint-plugin-cognitive-complexity` on npm is a security placeholder for a removed malicious package: never install it.) _Proposed:_ approve an exception for `eslint-plugin-sonarjs` as a **development-only lint tool**: never shipped, never bundled, not modified, so LGPL’s obligations (which apply when distributing it) don’t arise; recorded in `specs/licensing.md` and `memory/decisions.md`. It also brings Sonar’s other maintainability rules (duplicate strings, identical branches, nested ternaries). _Alternative:_ ESLint’s built-in `complexity` (cyclomatic, MIT) only, and SonarQube for IDE in the editor."
+          "open": false,
+          "text": "Cognitive complexity (as SonarQube measures it)? The usual ESLint rule is in `eslint-plugin-sonarjs`, which is LGPL-3.0-only; our licence policy allows weak copyleft only with an approved exception (`specs/licensing.md`). (`eslint-plugin-cognitive-complexity` on npm is a security placeholder for a removed malicious package: never install it.) _Answer (accepted 2026-10-13):_ approve an exception for `eslint-plugin-sonarjs` as a **development-only lint tool**: never shipped, never bundled, not modified, so LGPL’s obligations (which apply when distributing it) don’t arise; recorded in `specs/licensing.md` and `memory/decisions.md`. It also brings Sonar’s other maintainability rules (duplicate strings, identical branches, nested ternaries). _Alternative:_ ESLint’s built-in `complexity` (cyclomatic, MIT) only, and SonarQube for IDE in the editor. The maintainer chose `eslint-plugin-sonarjs` (2026-10-13)."
         },
         "Q13": {
-          "open": true,
-          "text": "Stricter TypeScript compiler options? `noUncheckedIndexedAccess` (an array or record read may be undefined) catches real bugs but reports 1,400 errors today; `noImplicitReturns` and `noImplicitOverride` report 3. _Proposed:_ turn on `noImplicitReturns` and `noImplicitOverride` in 407; `noUncheckedIndexedAccess` folder by folder with the clean-up (it touches the same lines), on for the whole of `src/` by 407’s end. `exactOptionalPropertyTypes` waits (it changes how optional fields are written across the document gates)."
+          "open": false,
+          "text": "Stricter TypeScript compiler options? `noUncheckedIndexedAccess` (an array or record read may be undefined) catches real bugs but reports 1,400 errors today; `noImplicitReturns` and `noImplicitOverride` report 3. _Answer (accepted 2026-10-13):_ turn on `noImplicitReturns` and `noImplicitOverride` in 407; `noUncheckedIndexedAccess` folder by folder with the clean-up (it touches the same lines), on for the whole of `src/` by 407’s end. `exactOptionalPropertyTypes` waits (it changes how optional fields are written across the document gates)."
         }
       }
     },
@@ -220,6 +220,14 @@
       {
         "date": "2026-10-13",
         "text": "Second pass: no hard file-length limit (Q4: function length and cognitive complexity instead); AC-12 React rules, AC-13 types; Q11 React Compiler, Q12 cognitive complexity (sonarjs is LGPL), Q13 stricter compiler options; measured baselines."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Q1–Q13 accepted as proposed (Q12: `eslint-plugin-sonarjs` under a development-only LGPL exception; Q13 as proposed, D-037); Approved."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Plan written and approved with the spec (§1–§8, D1–D3, D-037)."
       }
     ],
     "sections": [
@@ -255,6 +263,176 @@
       }
     ]
   },
-  "plan": null,
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-13; D1–D3 as chosen, D-037; the maintainer asked to approve the spec and the plan together) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`tests/` (new: unit, integration, support, e2e, selftest)",
+        "change": "new (moves)",
+        "purpose": "§2: every test and test helper, moved with `git mv`"
+      },
+      {
+        "file": "`src/**/*.test.ts`, `src/engine/timeline.testkit.ts`, `e2e/`, `src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts`",
+        "change": "move",
+        "purpose": "§2: into `tests/`"
+      },
+      {
+        "file": "`vite.config.ts`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.tests.json` (new), `playwright.config.ts`",
+        "change": "modify / new",
+        "purpose": "§2, §4, §6: alias, test globs, test type-checking, stricter options, the build guard, the React Compiler"
+      },
+      {
+        "file": "`scripts/check-structure.mjs`, `scripts/standards-report.mjs` (new), `package.json`",
+        "change": "new / modify",
+        "purpose": "§1, §2: guards and the per-folder report; dev dependencies (`eslint-plugin-jsdoc`, `eslint-plugin-sonarjs`, `oxc-transform-react`)"
+      },
+      {
+        "file": "`eslint.config.js`",
+        "change": "modify",
+        "purpose": "§4: the rules, warnings first, errors per finished folder"
+      },
+      {
+        "file": "`specs/coding-standards.md` (new), `specs/constitution.md`, `CLAUDE.md`, `specs/licensing.md`",
+        "change": "new / modify",
+        "purpose": "§3, §4: the standards; the Definition of Done; the sonarjs exception"
+      },
+      {
+        "file": "`src/**`, `electron/**`",
+        "change": "modify (renames, JSDoc, splits, type and React fixes)",
+        "purpose": "§5: the clean-up, folder by folder"
+      },
+      {
+        "file": "`src/main.tsx`",
+        "change": "modify",
+        "purpose": "§2: the self-test loaded from `tests/selftest/` in development"
+      },
+      {
+        "file": "`specs/features/407-code-structure/performance.md` (new)",
+        "change": "new",
+        "purpose": "§7: measurements and decisions"
+      },
+      {
+        "file": "`specs/testing-strategy.md`, `specs/architecture.md`, `specs/lld.md`, `specs/build.md`, `memory/`",
+        "change": "modify",
+        "purpose": "§8: AC-11"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Renames or splits change behaviour by mistake** (thousands of edits). Mitigation: the type checker, 1,672 unit tests and lint after every task; the full e2e and self-test after `components/` and `tests/selftest/` and at the close; small commits, one folder each, easy to bisect."
+      },
+      {
+        "text": "**Saved projects or agent tools change shape** if a persisted field is renamed. Mitigation: fields in documents (`toDocument`, `mergeProject`, `mergeLayers`, `mergeDesign`) and agent tool schemas keep their names (`id-length` doesn’t check properties); the document tests’ byte-identical round trips and the MCP test catch a slip."
+      },
+      {
+        "text": "**Type-aware lint is slow** on ~50,000 lines. Mitigation: measured when the rules land (§4); ESLint cache; if too slow, type-aware rules on changed files in `npm run check` and a full run at the close."
+      },
+      {
+        "text": "**A licence problem with the new development tools.** `eslint-plugin-sonarjs` is LGPL-3.0: approved as development-only (D-037), recorded in `specs/licensing.md`, never shipped; `oxc-transform-react` and `eslint-plugin-jsdoc` are MIT / BSD-3; versions pinned; `npm run check:licenses` unaffected (they aren’t shipped). Typosquats avoided (`eslint-plugin-cognitive-complexity` is a security placeholder)."
+      },
+      {
+        "text": "**The React Compiler changes rendering** (Q11). Mitigation: it comes last, after the rules pass; diagnostics reviewed; e2e, self-test and timing compared; turned off with the reason if anything regresses."
+      },
+      {
+        "text": "**Size of the work** (~3–5 days, Phase 2 waits). Mitigation: tasks per folder, each mergeable on its own; the branch is merged into `main` when 407 closes, 207 starts from it."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-13 (Q1–Q13, D-037)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Behaviour-neutral; every task green on `npm run check` + build; the full suite after the large folders and at the close (Q9)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "Development dependencies only (jsdoc, sonarjs, oxc-transform-react); splits by job, no new abstractions for their own sake (Q7)."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D-037; the standards in `specs/coding-standards.md`; progress per task."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Unchanged."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "Unchanged."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "One approved development-only exception (sonarjs, LGPL-3.0), recorded; nothing shipped changes."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "Preview and export code paths unchanged in behaviour; fixture export inputs compared."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "`electron/` gets names, JSDoc and sizes only; IPC validation unchanged."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "Entry chunk ≤ 327 KB; no timing regressions (AC-10); e2e axe checks unchanged."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "✅",
+        "notes": "Agent tool names and schemas unchanged (MCP test)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Behaviour-neutral throughout: every step is a move, a rename, a split or a type / lint fix, proven by the existing tests, and committed on its own with `npm run check` green. The order follows Q5: tests move first, then the standards and the lint rules (as warnings), then the code folder by folder (each folder's rules become errors when it is done), then the React Compiler and the performance review, with the full Definition of Done at the end (Q9).\n\n**§1 Baselines (AC-9, AC-10).** Before anything moves: the unit test count (1,672), the e2e pass list, the self-test check count and result, `npm run test:mcp`, the export inputs of the 201–206 fixtures (the self-test's video checks compare them), the entry chunk (327 KB), and the timing numbers of the hot paths (§7). Plus a standards report (`scripts/standards-report.mjs`): per folder and rule, the lint findings and the `noUncheckedIndexedAccess` errors, so each task records its numbers going to 0.\n\n**§2 Tests into `tests/` (AC-1–AC-3, Q1, Q2).** `git mv` only (history follows), then import fixes. `tests/unit/<src path>/x.test.ts` for one-module tests; `tests/integration/` for `state/*.test.ts`, `decodePool.test.ts`, `previewSound.test.ts`; `tests/support/` for `timeline.testkit.ts` and the fakes now inside test files (the fake decoder, the recording canvas, the fake audio element), shared instead of copied; `e2e/` → `tests/e2e/`; `src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts` → `tests/selftest/`, loaded by `main.tsx` only in development (`import.meta.env.DEV`, as today). Tests import the app through a path alias, `@/` → `src/` (D1), set in `vite.config.ts` and the tsconfigs. Config: Vitest `include` the `tests/{unit,integration}` and `tools/` test globs; Playwright `testDir: 'tests/e2e'`; `tsconfig.tests.json` (referenced from `tsconfig.json`) type-checks `tests/`; `tsconfig.app.json` also includes `tests/selftest` (imported by the app in development). Guards: `scripts/check-structure.mjs` (in `npm run check`) fails on a test or test helper under `src/`, and on `src/` importing `tests/` other than `main.tsx`'s development import; a build-only Vite plugin fails `npm run build` if any chunk holds a module from `tests/` (AC-3).\n\n**§3 The written standards (AC-4).** `specs/coding-standards.md`, each rule with a short good / bad example from this codebase: names (Q3; persisted document fields such as a keyframe's `t` / `v` or a box's `x` / `w` keep their names, since renaming them would change saved projects; code destructures them into descriptive names), JSDoc (what, `@param`, `@returns`, `@throws`; no types in JSDoc, TypeScript has them), SOLID as in Q7, sizes (Q4), cognitive complexity (Q12), React (AC-12: the Rules of React, effects only to sync with outside systems, components small, props interfaces named), types (AC-13: interfaces for object shapes, guards over casts, utility types for real relations, `readonly`), layers and imports, errors (`logError`), performance (no allocation per frame on the drawing and decoding paths; measure first), comments, tests (where, naming, one behaviour per `it`). The constitution's Definition of Done and CLAUDE.md link to it.\n\n**§4 The lint and compiler rules (AC-5, AC-12, AC-13, Q4, Q12, Q13).** `eslint.config.js` gains: `id-length` (min 2; exceptions `_`, `x`, `y`; properties not checked, §3); `eslint-plugin-jsdoc` (`require-jsdoc` for exported functions, arrow functions, classes, interfaces and types; `require-param`, `require-returns`, `no-types`); `max-lines-per-function` 80 for `.ts` and 250 for `.tsx` (components), blank lines and comments not counted; `max-lines` 800 as a warning; `eslint-plugin-sonarjs` (recommended, `cognitive-complexity` 15); `eslint-plugin-react-hooks` `recommended-latest`; typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` with `projectService` (type-aware), `consistent-type-definitions: interface`; the layers with core `no-restricted-imports` per folder (`src/data` imports nothing of the app; `src/engine` not `state` / `components`; `src/state` not `components`). Data files (`src/data/`) and tests are exempt from the size rules. Every new rule starts as a **warning**; a list of finished folders in the config turns them into errors there (§5). tsconfig: `noImplicitReturns` and `noImplicitOverride` on now (3 errors fixed); `noUncheckedIndexedAccess` tracked per folder by the standards report and turned on for `src/` when its count is 0 (Q13). `eslint-plugin-sonarjs` gets its development-only exception row in `specs/licensing.md` (D-037).\n\n**§5 The clean-up, folder by folder (AC-6–AC-8, AC-12, AC-13).** In this order, each folder one or more tasks, each task one commit with `npm run check` and `npm run build` green: `engine/` (with its gpu subfolder), `state/`, `data/` + `lib/` + `platform/` + `agent/` + `ai/`, `components/` (studio, ig, then the rest), `tests/selftest/`, `electron/` (CommonJS: names, JSDoc, sizes; no type rules). In each: rename one-letter names to what they hold (`clip`, `index`, `context`, `width`, `event`), add JSDoc, fix casts and non-null assertions with guards and better types, fix the React findings, fix `noUncheckedIndexedAccess` errors, and split modules that mix jobs (known: `engine/render.ts`, `engine/timeline.ts` into tracks / sound plan / document gate, `engine/masks.ts`, `engine/layers.ts`, `state/video.ts` into store core and history / clip edits / keyframes / transitions / media and export, `components/studio/Timeline.tsx` into rows / track header / keyframe and cut marks / transport, `VideoWorkspace.tsx` and `PhotoWorkspace.tsx` into their panels, stage and inspector). Importers are updated to the new modules; no barrel files re-exporting old paths (D2). Then the folder's rules become errors. After `components/` and after `tests/selftest/`: the full e2e and self-test (Q9).\n\n**§6 React Compiler (Q11).** After AC-12's rules pass everywhere: `react({ compiler: true })` in `vite.config.ts` with `oxc-transform-react` (MIT, the plugin's built-in, Rust port of the compiler; a development dependency, D3); `logDiagnostics` once to list components it skips, each fixed or noted. Then remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22). Kept only if the e2e, self-test and timing checks show no regression; else turned off with the reason recorded.\n\n**§7 Performance review (AC-10, Q8).** Measured with the existing tools (the pool and playback timing checks, the export timing, `npm run measure:gate`, the print renderer's time per page, the entry and studio chunk sizes): video frame drawing (`renderStack`, `frameStack`, `drawPair`), the decoder pool, the sound mix (`mixWindow`, `gainCurve`), the photo pipeline and the print renderer. Findings in `specs/features/407-code-structure/performance.md`; a change only with ≥ 10 % gain on its path and no loss elsewhere, with before / after numbers.\n\n**§8 Close (AC-9, AC-11).** The full Definition of Done (`npm run check`, `build`, `test:e2e`, `npm test`, `test:mcp`, `check:licenses`), compared with §1's baselines; docs (CLAUDE.md, `specs/testing-strategy.md`, `architecture.md`, `lld.md`, `build.md`, memory); merged into `main`; 207 branches from it."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```text\ntests/\n  unit/<mirror of src>/...test.ts       one module, its pure inputs\n  integration/state/...test.ts          several modules together: stores, pool + fake decoder, preview sound\n  support/                              timeline.testkit.ts, fakeDecoder.ts, recordingCanvas.ts, fakeAudio.ts\n  e2e/...e2e.ts, gate.measure.ts        Playwright (from e2e/)\n  selftest/selftest.ts, videoChecks.ts, poolChecks.ts, playbackChecks.ts   in-app checks, development builds only\n```\n\n```ts\n// vite.config.ts / tsconfig paths (D1)\nresolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } }\n// tsconfig.*.json: \"paths\": { \"@/*\": [\"./src/*\"] }\n\n// eslint.config.js (shape)\nconst FINISHED = ['src/engine/**', /* … added per §5 task … */];\n// standards rules: 'warn' everywhere, 'error' in FINISHED; size rules off for src/data/** and tests/**\n```\n\n```text\nscripts/check-structure.mjs   tests or test helpers under src/; src/ importing tests/ (except main.tsx's DEV import)\nscripts/standards-report.mjs  per folder × rule: lint findings, noUncheckedIndexedAccess errors (JSON + table)\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Moves before edits**: `git mv` in its own commit, then fixes, so `git log --follow` keeps each file's history.\n- **Warnings first, errors per folder**: the rules land as warnings (the existing code doesn't break the build) and become errors folder by folder, so finished folders can't regress while the rest is cleaned.\n- **The standards report** gives every task its before / after numbers (one-letter names, missing JSDoc, long functions, cognitive complexity, casts, React findings, unchecked index errors) for its result note.\n- **Renames by meaning, not mechanically**: a name says what the value is in that place (`clip`, `stackItem`, `frameIndex`); the editor's rename (TypeScript language service) for exported names so every importer follows; the type checker and the tests catch slips.\n- **Persisted names stay**: fields written to saved projects and agent tool schemas keep their names (renaming them is a format change, out of scope); code destructures them into descriptive locals.\n- **Splits by responsibility**: a split moves whole functions with their JSDoc into a module named for its job; no logic changes in the same commit.\n- **Type-aware lint cost** is measured (`projectService`, ESLint cache); if `npm run lint` gets much slower, the type-aware rules run in `npm run check` only on changed files plus a full run in the close."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | How |\n| --- | --- | --- |\n| AC-1 | check | `check-structure.mjs` in `npm run check` (fails on a test under `src/`; a planted file proves it) |\n| AC-2 | check | the same counts as §1's baseline: 1,672 unit + integration tests, the e2e list; single-test commands in CLAUDE.md tried |\n| AC-3 | check | the build plugin fails on a `tests/` module (proved by importing one on purpose, then removing it) |\n| AC-4 | review | `specs/coding-standards.md` read through; linked from the constitution and CLAUDE.md |\n| AC-5 | check | `npm run lint`: 0 errors with every rule an error for `src/` and `electron/` |\n| AC-6, AC-7, AC-8 | check + review | the standards report at 0 for names, JSDoc, function length and cognitive complexity; the 19 long files reviewed, the split ones listed |\n| AC-9 | unit + e2e + self-test + MCP | the full suite against §1's baselines after `components/`, after `tests/selftest/`, and at the close; identical fixture export inputs; entry chunk ≤ 327 KB |\n| AC-10 | timing + review | `performance.md` with before / after numbers |\n| AC-11 | review | docs and memory updated; relative links resolve |\n| AC-12 | check | `react-hooks` `recommended-latest` as errors: 0 findings (27 at the start) |\n| AC-13 | check | `strictTypeChecked` + `stylisticTypeChecked`: 0 errors; casts and `!` counted down in the report; `noUncheckedIndexedAccess` on |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-13 with the plan)",
+        "markdown": "- **D1 — How tests import the app.** _Chosen:_ a path alias, `@/` → `src/` (`import { valueAt } from '@/engine/keyframes'`), set in Vite and the tsconfigs, for tests only at first. _Alternative:_ relative paths (`../../../src/engine/keyframes`), which break whenever a test or module moves.\n- **D2 — After a split.** _Chosen:_ importers are updated to the new modules; no barrel files that re-export the old path. _Alternative:_ keep the old file as a re-export (fewer import changes, but two ways to import the same thing and a module that does nothing).\n- **D3 — React Compiler wiring.** _Chosen:_ the Vite React plugin's built-in `compiler` option with `oxc-transform-react` (MIT, no Babel in the build). _Alternative:_ the Babel route (`@rolldown/plugin-babel`, `@babel/core`, `babel-plugin-react-compiler`): the reference implementation, but three more development dependencies and a slower build."
+      }
+    ]
+  },
   "tasks": null
 }

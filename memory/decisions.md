@@ -448,3 +448,22 @@ the Transitions panel for it. D3: Zoom grows the outgoing clip 1× → 1.3× whi
 no cut targets; a zoom through.
 **Consequences:** the first task is a spike proving the pool decodes past a clip's out point; 206's UI, golden frames,
 sound and timing are checked in 290.
+
+## D-037 — 407: coding standards, a tests folder, lint enforcement (2026-10-13)
+
+**Context:** the maintainer asked for tests outside `src/`, written coding standards, SOLID, JSDoc and no one-letter
+names, before 207. Baseline: 34 % one-letter names, 333 of 880 exports without JSDoc, 103 functions over 80 lines,
+27 React-rule findings, 379 type assertions and 177 non-null assertions.
+**Decision:** spec Q1–Q13 accepted as proposed. Tests move to `tests/{unit,integration,support,e2e,selftest}`
+(imported through an `@/` alias, D1); `specs/coding-standards.md`; ESLint enforces names (`id-length`, exceptions `_`,
+`x`, `y`; properties exempt so saved formats don't change), JSDoc on exports, function length (80; 250 in `.tsx`),
+cognitive complexity 15 (`eslint-plugin-sonarjs`), React's `recommended-latest` rules, typescript-eslint
+`strictTypeChecked` and the layers' import direction; no hard file-length limit (a warning at 800). Rules land as
+warnings and become errors folder by folder. `noImplicitReturns` / `noImplicitOverride` now,
+`noUncheckedIndexedAccess` by the end. The React Compiler last, through the Vite plugin's `oxc-transform-react` (D3),
+kept only without regressions. No barrel re-exports after splits (D2).
+**Licence:** `eslint-plugin-sonarjs` (LGPL-3.0-only) approved as a development-only lint tool: never shipped, never
+bundled, unmodified, so LGPL's distribution terms don't arise; recorded in `specs/licensing.md`.
+**Alternatives:** a 500-line file limit (rejected: length is a proxy); ESLint's cyclomatic `complexity` only; the Babel
+route for the compiler; tests left beside the code (they never reached the build, but mixed code and tests).
+**Consequences:** ~3–5 days of behaviour-neutral clean-up before 207; the full test suite runs inside 407 (Q9).

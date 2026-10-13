@@ -42,12 +42,12 @@
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
 - **206 merged** into `main` and pushed (`797bbf2`, 2026-10-13).
-- **407:** `407-code-structure` 📝 Draft 2026-10-13 on `spec/407-code-structure` (from `main`): tests into
-  `tests/{unit,integration,e2e,support}`, `specs/coding-standards.md`, lint rules, no one-letter names, JSDoc on
-  exports, large files split (SOLID), measured optimizations; Q1–Q10 open. Baseline: 34 % one-letter names (5,593),
-  333 / 880 exports without JSDoc, 19 files > 600 lines, 103 functions > 80 lines.
-- **Next (roadmap):** answer 407's Q1–Q10, plan and do 407; then 207 (speed) from `main`; 290 collects the deferred
-  checks.
+- **407:** `407-code-structure` ✅ spec and plan Approved 2026-10-13 on `spec/407-code-structure` (from `main`;
+  D-037): tests into `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md`, ESLint (names,
+  JSDoc, function length, sonarjs cognitive complexity, React `recommended-latest`, strictTypeChecked, layers), folder
+  by folder; React Compiler last. Baseline: 34 % one-letter names, 333 / 880 exports without JSDoc, 103 functions > 80
+  lines, 27 React findings, 379 `as`, 177 `!`.
+- **Next (roadmap):** `/spec-tasks 407`, then do 407; then 207 (speed) from `main`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
