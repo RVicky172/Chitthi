@@ -66,9 +66,10 @@ Unit tests cover the pure helpers; the UI itself is checked in 290.
 
 - [x] **T090** — Docs (AC-15): `docs/MEDIA-STUDIO.md` (the transitions, options, limits, keys; "Still to do" without cross-fades), `specs/lld.md` (the model, the timing, the drawing, the sound), `CHANGELOG.md` Unreleased, the in-app docs. · files: `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts` · test: relative links resolve
   - **Result (2026-10-13):** docs/MEDIA-STUDIO.md: a Transitions section (the five kinds and options in a table; adding from the panel, the cut buttons and Apply to every cut; the block, the inspector, edge drags and keys; timing centred on the cut with handles; equal-power sound and the dip; how edits keep or remove them; videos at once; one drawing for preview and export), a Transitions row in the timeline table, the Cross-fades row gone from Still to do. specs/lld.md 4.9: Transitions (206) — model, the one rule, the stack, drawing, sound, the document, store and UI. CHANGELOG.md Unreleased and the in-app timeline help. 13 relative links, 0 broken; npm run check green, 1,672 tests.
-- [ ] **T091** — `npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033). · test: `npm run check`; `npm run build`
-  - **In progress** since 2026-10-13
-- [ ] **T092** — Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 206 ✔️, `editor-implementation.md` P2.6 Done, `memory/progress.md`, `memory/MEMORY.md`.
+- [x] **T091** — `npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033). · test: `npm run check`; `npm run build`
+  - **Result (2026-10-13):** On 0bf15c3: npm run check green (typecheck, lint 0 errors / 5 known warnings, specs:check, 1,672 unit tests); npm run build green: entry chunk 327 KB (budget 350 KB; unchanged from 205), no AI code in it; the studio chunk InstagramStudio 187.66 kB (61.07 kB gzip; 177.12 kB at 205), loaded with the studio. The other gates (e2e, self-test, golden frames, sound, timing) run in 290 (D-033).
+- [x] **T092** — Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 206 ✔️, `editor-implementation.md` P2.6 Done, `memory/progress.md`, `memory/MEMORY.md`.
+  - **Result (2026-10-13):** AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-11 (unit tests) and AC-15 (docs, T090) ticked; AC-6 (its self-test half; the unit half passes), AC-8, AC-9, AC-10 (e2e), AC-12, AC-13 (self-test) and AC-14 (timing) are listed in 290’s deferred checks. Status Implemented; roadmap 206 ✔️; editor-implementation.md P2.6 Done (2D canvas, D-035); memory/progress.md and memory/MEMORY.md updated.
 
 ## AC coverage
 

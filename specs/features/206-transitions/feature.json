@@ -4,13 +4,13 @@
   "id": "206",
   "title": "Transitions between clips",
   "workItem": "P2.6",
-  "status": "in-progress",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-13",
     "approved": "2026-10-13",
     "started": "2026-10-13",
-    "done": null
+    "done": "2026-10-13"
   },
   "git": {
     "branch": "feat/206-transitions"
@@ -67,31 +67,31 @@
           "group": "The transitions",
           "proof": "unit",
           "text": "Five transitions can be put on a cut between two touching clips on the same picture track (Q1): **Cross-dissolve**; **Dip to colour** (black or white: the first clip fades to the colour, then the second fades in from it); **Wipe** (left, right, up, down: an edge moves across and reveals the second clip); **Slide** (left, right, up, down: the second clip pushes the first out of the frame); **Zoom** (the first clip grows while it dissolves into the second). Each is a function of its progress from 0 to 1, eased in and out (Q12): at progress 0 the frame is exactly the first clip alone, at 1 exactly the second clip alone, and a cross-dissolve at 0.5 is an even mix of the two (within 1/255 per channel).",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "The transitions",
           "proof": "unit",
           "text": "A transition is centred on its cut (Q2): with a length *d* (default 0.5 s, 0.1 s to 3 s, in whole frames, Q3) it runs from *d*/2 before the cut to *d*/2 after it. The first clip goes on playing past its out point and the second starts *d*/2 before its in point, from their sources; where a video’s source has no frames there, its nearest frame is held (a photo always has a picture). The project’s length and every clip’s start and length are the same with and without the transition.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "The transitions",
           "proof": "unit",
           "text": "Limits, each refused with the reason: a transition only on a cut between two touching clips of one track (not across a gap, not on a locked track); its half-length on each side fits in that clip together with the clip’s other transition (the two halves never overlap, so a clip of length *L* takes at most *L* of transitions); while a transition between two videos plays, both count towards the videos-at-once limit (web 3, desktop 5; Q7).",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "The transitions",
           "proof": "unit",
           "text": "Edits keep transitions where they belong (Q8): after a move, trim, Roll, Slip, Slide, split, delete, ripple, Magnetic switch or move to another track, a transition stays on its cut while its two clips still touch, its length shortened to the new limit if needed; when they no longer touch (a gap opens, one is deleted, moved away or to another track) it is removed and the change says so. Undo brings everything back. A seeded property test of 1,000 random edits never leaves a transition between clips that don’t touch or beyond its limits.",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "group": "The transitions",
           "proof": "unit",
           "text": "Transitions are saved with the project. The document validator reads them with the other fields: unknown kinds, directions and colours become the defaults, lengths are clamped to their limits, transitions on cuts that don’t exist (clips that don’t touch, missing clips) are dropped with a reason; at least 20 malformed documents never make it throw. A project with transitions round-trips document → validator → document equal; documents without transitions stay byte-identical.",
-          "done": false
+          "done": true
         },
         "AC-6": {
           "group": "Sound",
@@ -103,7 +103,7 @@
           "group": "The transitions",
           "proof": "unit",
           "text": "Each change is one undo step: adding a transition, changing its kind, direction, colour or length (a drag is one step however long), removing it, and **Apply to every cut** on a track.",
-          "done": false
+          "done": true
         },
         "AC-8": {
           "group": "Editing",
@@ -127,7 +127,7 @@
           "group": "Rendering",
           "proof": "unit",
           "text": "The preview and the export decide what to draw with one function: at a time inside a transition, the two clips, each one’s local time (from its source, held at its edges) and the progress. For a fixture with each kind between a video and a photo, on the main track and on an overlay track, at 30 and 60 fps, its answer at every frame of the export equals the expected list exactly.",
-          "done": false
+          "done": true
         },
         "AC-12": {
           "group": "Rendering",
@@ -151,7 +151,7 @@
           "group": "Docs",
           "proof": "review",
           "text": "`docs/MEDIA-STUDIO.md` (the transitions, their options, limits and keys), `specs/lld.md` (the model, the timing, the drawing and the sound), `CHANGELOG.md` and the in-app docs describe the change; the media studio’s “Still to do” no longer lists cross-fades.",
-          "done": false
+          "done": true
         }
       }
     },
@@ -895,22 +895,26 @@
         "T091": {
           "text": "`npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033).",
           "section": "Docs and close",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [],
           "files": [],
           "test": "`npm run check`; `npm run build`",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "0bf15c3"
+          ],
+          "notes": [
+            "**Result (2026-10-13):** On 0bf15c3: npm run check green (typecheck, lint 0 errors / 5 known warnings, specs:check, 1,672 unit tests); npm run build green: entry chunk 327 KB (budget 350 KB; unchanged from 205), no AI code in it; the studio chunk InstagramStudio 187.66 kB (61.07 kB gzip; 177.12 kB at 205), loaded with the studio. The other gates (e2e, self-test, golden frames, sound, timing) run in 290 (D-033)."
+          ],
           "startedOn": "2026-10-13",
-          "doneOn": null
+          "doneOn": "2026-10-13"
         },
         "T092": {
           "text": "Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 206 ✔️, `editor-implementation.md` P2.6 Done, `memory/progress.md`, `memory/MEMORY.md`.",
           "section": "Docs and close",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -918,7 +922,11 @@
           "files": [],
           "test": null,
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-11 (unit tests) and AC-15 (docs, T090) ticked; AC-6 (its self-test half; the unit half passes), AC-8, AC-9, AC-10 (e2e), AC-12, AC-13 (self-test) and AC-14 (timing) are listed in 290’s deferred checks. Status Implemented; roadmap 206 ✔️; editor-implementation.md P2.6 Done (2D canvas, D-035); memory/progress.md and memory/MEMORY.md updated."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         }
       }
     }

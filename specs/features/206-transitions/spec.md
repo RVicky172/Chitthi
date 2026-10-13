@@ -2,7 +2,7 @@
 
 # 206 — Transitions between clips
 
-**Status:** In Progress
+**Status:** Implemented
 **Roadmap phase:** Phase 2 — Multi-track timeline (release 3.0.0) · **Created:** 2026-10-13
 
 ## Summary
@@ -21,11 +21,11 @@ Transitions blend one clip into the next: a cross-dissolve between two shots, a 
 
 ### The transitions
 
-- [ ] **AC-1:** Five transitions can be put on a cut between two touching clips on the same picture track (Q1): **Cross-dissolve**; **Dip to colour** (black or white: the first clip fades to the colour, then the second fades in from it); **Wipe** (left, right, up, down: an edge moves across and reveals the second clip); **Slide** (left, right, up, down: the second clip pushes the first out of the frame); **Zoom** (the first clip grows while it dissolves into the second). Each is a function of its progress from 0 to 1, eased in and out (Q12): at progress 0 the frame is exactly the first clip alone, at 1 exactly the second clip alone, and a cross-dissolve at 0.5 is an even mix of the two (within 1/255 per channel). _(unit)_
-- [ ] **AC-2:** A transition is centred on its cut (Q2): with a length *d* (default 0.5 s, 0.1 s to 3 s, in whole frames, Q3) it runs from *d*/2 before the cut to *d*/2 after it. The first clip goes on playing past its out point and the second starts *d*/2 before its in point, from their sources; where a video’s source has no frames there, its nearest frame is held (a photo always has a picture). The project’s length and every clip’s start and length are the same with and without the transition. _(unit)_
-- [ ] **AC-3:** Limits, each refused with the reason: a transition only on a cut between two touching clips of one track (not across a gap, not on a locked track); its half-length on each side fits in that clip together with the clip’s other transition (the two halves never overlap, so a clip of length *L* takes at most *L* of transitions); while a transition between two videos plays, both count towards the videos-at-once limit (web 3, desktop 5; Q7). _(unit)_
-- [ ] **AC-4:** Edits keep transitions where they belong (Q8): after a move, trim, Roll, Slip, Slide, split, delete, ripple, Magnetic switch or move to another track, a transition stays on its cut while its two clips still touch, its length shortened to the new limit if needed; when they no longer touch (a gap opens, one is deleted, moved away or to another track) it is removed and the change says so. Undo brings everything back. A seeded property test of 1,000 random edits never leaves a transition between clips that don’t touch or beyond its limits. _(unit)_
-- [ ] **AC-5:** Transitions are saved with the project. The document validator reads them with the other fields: unknown kinds, directions and colours become the defaults, lengths are clamped to their limits, transitions on cuts that don’t exist (clips that don’t touch, missing clips) are dropped with a reason; at least 20 malformed documents never make it throw. A project with transitions round-trips document → validator → document equal; documents without transitions stay byte-identical. _(unit)_
+- [x] **AC-1:** Five transitions can be put on a cut between two touching clips on the same picture track (Q1): **Cross-dissolve**; **Dip to colour** (black or white: the first clip fades to the colour, then the second fades in from it); **Wipe** (left, right, up, down: an edge moves across and reveals the second clip); **Slide** (left, right, up, down: the second clip pushes the first out of the frame); **Zoom** (the first clip grows while it dissolves into the second). Each is a function of its progress from 0 to 1, eased in and out (Q12): at progress 0 the frame is exactly the first clip alone, at 1 exactly the second clip alone, and a cross-dissolve at 0.5 is an even mix of the two (within 1/255 per channel). _(unit)_
+- [x] **AC-2:** A transition is centred on its cut (Q2): with a length *d* (default 0.5 s, 0.1 s to 3 s, in whole frames, Q3) it runs from *d*/2 before the cut to *d*/2 after it. The first clip goes on playing past its out point and the second starts *d*/2 before its in point, from their sources; where a video’s source has no frames there, its nearest frame is held (a photo always has a picture). The project’s length and every clip’s start and length are the same with and without the transition. _(unit)_
+- [x] **AC-3:** Limits, each refused with the reason: a transition only on a cut between two touching clips of one track (not across a gap, not on a locked track); its half-length on each side fits in that clip together with the clip’s other transition (the two halves never overlap, so a clip of length *L* takes at most *L* of transitions); while a transition between two videos plays, both count towards the videos-at-once limit (web 3, desktop 5; Q7). _(unit)_
+- [x] **AC-4:** Edits keep transitions where they belong (Q8): after a move, trim, Roll, Slip, Slide, split, delete, ripple, Magnetic switch or move to another track, a transition stays on its cut while its two clips still touch, its length shortened to the new limit if needed; when they no longer touch (a gap opens, one is deleted, moved away or to another track) it is removed and the change says so. Undo brings everything back. A seeded property test of 1,000 random edits never leaves a transition between clips that don’t touch or beyond its limits. _(unit)_
+- [x] **AC-5:** Transitions are saved with the project. The document validator reads them with the other fields: unknown kinds, directions and colours become the defaults, lengths are clamped to their limits, transitions on cuts that don’t exist (clips that don’t touch, missing clips) are dropped with a reason; at least 20 malformed documents never make it throw. A project with transitions round-trips document → validator → document equal; documents without transitions stay byte-identical. _(unit)_
 
 ### Sound
 
@@ -33,7 +33,7 @@ Transitions blend one clip into the next: a cross-dissolve between two shots, a 
 
 ### The transitions
 
-- [ ] **AC-7:** Each change is one undo step: adding a transition, changing its kind, direction, colour or length (a drag is one step however long), removing it, and **Apply to every cut** on a track. _(unit)_
+- [x] **AC-7:** Each change is one undo step: adding a transition, changing its kind, direction, colour or length (a drag is one step however long), removing it, and **Apply to every cut** on a track. _(unit)_
 
 ### Editing
 
@@ -43,14 +43,14 @@ Transitions blend one clip into the next: a cross-dissolve between two shots, a 
 
 ### Rendering
 
-- [ ] **AC-11:** The preview and the export decide what to draw with one function: at a time inside a transition, the two clips, each one’s local time (from its source, held at its edges) and the progress. For a fixture with each kind between a video and a photo, on the main track and on an overlay track, at 30 and 60 fps, its answer at every frame of the export equals the expected list exactly. _(unit)_
+- [x] **AC-11:** The preview and the export decide what to draw with one function: at a time inside a transition, the two clips, each one’s local time (from its source, held at its edges) and the progress. For a fixture with each kind between a video and a photo, on the main track and on an overlay track, at 30 and 60 fps, its answer at every frame of the export equals the expected list exactly. _(unit)_
 - [ ] **AC-12:** Golden frames: each kind (and each direction of Wipe and Slide, both Dip colours) at progress 0, 0.25, 0.5, 0.75 and 1, at 9:16 and 16:9, matches its reference within the self-test’s tolerance on every rendering backend; the paused preview shows the same frames and the export renders the same frames from the same inputs. On an overlay track the transition happens inside the clips’ boxes as they are drawn (203’s boxes and 205’s keyframes included, Q5). _(self-test (290))_
 - [ ] **AC-13:** No regressions: projects without transitions are pixel-identical and give identical export inputs (frames, clips, times and sound sources) to 205 for 201’s to 205’s fixtures; every existing video e2e test passes unchanged. _(self-test (290))_
 - [ ] **AC-14:** Speed: on the reference mid-range laptop a cross-dissolve between two 1080p30 videos previews with no more dropped frames than 205’s two-video overlay playback; drawing a transition frame at 1080p takes at most 4 ms (median) more than drawing one clip; exporting a 60-second Reel with 10 transitions takes at most 10 % longer than the same Reel with hard cuts. _(timing (290))_
 
 ### Docs
 
-- [ ] **AC-15:** `docs/MEDIA-STUDIO.md` (the transitions, their options, limits and keys), `specs/lld.md` (the model, the timing, the drawing and the sound), `CHANGELOG.md` and the in-app docs describe the change; the media studio’s “Still to do” no longer lists cross-fades. _(review)_
+- [x] **AC-15:** `docs/MEDIA-STUDIO.md` (the transitions, their options, limits and keys), `specs/lld.md` (the model, the timing, the drawing and the sound), `CHANGELOG.md` and the in-app docs describe the change; the media studio’s “Still to do” no longer lists cross-fades. _(review)_
 
 ## Non-Functional Requirements
 

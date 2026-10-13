@@ -176,7 +176,7 @@
       "206": {
         "title": "Transitions between clips",
         "workItem": "P2.6",
-        "status": "in-progress",
+        "status": "done",
         "note": "",
         "folder": "features/206-transitions",
         "needs": [
