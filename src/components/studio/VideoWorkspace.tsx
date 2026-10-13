@@ -614,8 +614,13 @@ function Range({ id, label, value, min, max, step = 0.1, show, onChange }: { id:
 }
 
 function ClipPanel({ clip: c }: { clip: VClip }) {
-  // "Clip 2", or "Overlay 1, clip 2": counted on the clip's own track (203).
-  const place = useVideo((s) => clipPlace(c.id, s));
+  // "Clip 2", or "Overlay 1, clip 2": counted on the clip's own track (203). The selector returns the label, a string:
+  // a store selector must return the same value for the same state, or React re-renders forever (an object from
+  // clipPlace is new on every read).
+  const placeLabel = useVideo((s) => {
+    const place = clipPlace(c.id, s);
+    return place ? clipLabel(place.track, place.n) : 'Clip';
+  });
   /** Changes the clip, showing why when it can't be (the length or videos-at-once limit, a locked track). */
   const updateClip = (patch: Partial<VClip>, key?: string) => {
     const refusal = updateClipWhy(c.id, patch, key);
@@ -634,7 +639,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
       <fieldset className="lp-fs" disabled={!!locked}>
       <div className="ig-group">
         <h3>
-          {place ? clipLabel(place.track, place.n) : 'Clip'} · {c.kind === 'video' ? 'video' : 'photo'}
+          {placeLabel} · {c.kind === 'video' ? 'video' : 'photo'}
         </h3>
         <p className="hint ig-name" title={c.name}>
           {c.name} · {c.w}×{c.h}
