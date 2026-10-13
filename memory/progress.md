@@ -11,6 +11,17 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-13 — 206 spec, plan, tasks; T010–T014 (the model)
+
+**Done:** 206 spec Approved (Q1–Q12, D-035: 2D canvas, no shaders; roadmap item renamed), plan Approved (D1–D3,
+D-036), tasks T010–T092, deferred checks in 290; pushed `spec/206-transitions`; work on `feat/206-transitions`.
+T010 spike: the pool already serves frames outside a clip's in–out and holds at the source's ends; only `prepare`
+primes at `PoolClip.in`, so T021 widens `in` by the incoming half. T011–T012 `engine/transitions.ts` (model,
+`progressAt`, `roomFor`, `tidyTransitions`); T013–T014 the document gate (`mergeTransition`, tidy after placing).
+`npm run check` green, 1,606 tests.
+**Next:** T020–T021 (`frameStack` pair, `mostVideosAt`, `lanePlan`, pool window).
+**Blockers:** none (205 merged into `main` as `5d7640f`; `main` merged into `feat/206-transitions`).
+
 ## 2026-10-13 — 205 T091–T092 (gates, close): ✔️ Implemented
 
 **Done:** T091 on `8dae911`: check green (1,548 tests), build green, entry 327 KB (budget 350). T092: AC-1–5, 8, 12,

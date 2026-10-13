@@ -33,15 +33,15 @@
   same stack. AC-1–3, 5, 8, 10, 12–14 wait for 290 (D-033). Plan D1–D3, D-031. **204** merged into `main` and pushed
   (2026-10-11). Tasks run one at a time in the main session, no agent batches (maintainer's choice).
 - **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
-- **205:** `205-keyframes` ✔️ Implemented 2026-10-13 on `feat/205-keyframes` (`8dae911`; the close, T091–T092, not committed yet), not
-  merged into `main` yet: keyframes for the clip box, clip volume and layers; inspector diamonds, stage auto-key,
-  timeline lane, K / Alt + [ / ]. AC-6, 7, 9, 10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
-- **206:** `206-transitions` 🚧 spec Approved 2026-10-13 on `spec/206-transitions` (branched from `feat/205-keyframes`):
-  15 ACs, Q1–Q12 accepted as proposed (D-035: 2D canvas, no shaders in 206; roadmap item renamed).
-- **Next (roadmap):** merge 205 into `main` (the agent's merge was blocked by a permission check; the maintainer
-  merges); 206 🚧 plan Approved 2026-10-13 (§1–§9, D1–D3, D-036); tasks T010–T092 (T010 = pool spike), next
-  `/spec-implement 206`; 206's deferred checks listed in 290; 290 collects the
-  deferred checks.
+- **205:** `205-keyframes` ✔️ Implemented 2026-10-13, merged into `main` (`5d7640f`, not pushed): keyframes for the
+  clip box, clip volume and layers; inspector diamonds, stage auto-key, timeline lane, K / Alt + [ / ]. AC-6, 7, 9,
+  10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
+- **206:** `206-transitions` 🚧 on `feat/206-transitions` (`main` merged in): spec Approved (Q1–Q12, D-035: 2D canvas,
+  no shaders; roadmap item renamed), plan Approved (D1–D3, D-036), tasks T010–T092; T010–T014 done 2026-10-13 (model
+  + document gate); deferred checks listed in 290.
+- **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
+  a tag on `main`.
+- **Next (roadmap):** 206 T020 (`frameStack` pair, pool window); 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

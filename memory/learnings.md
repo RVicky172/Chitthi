@@ -156,3 +156,9 @@ heredocs worked; the exact trigger wasn't found. For doc and code edits:
    with a one-line command.
 3. Heredocs only for short plain text (a CSS block, a memory note).
 4. After doc changes: check relative links and run `npm run check`.
+
+## 2026-10-13 — Single-quote `--result` notes
+
+`npm run specs -- done … --result "…"` in double quotes lets the shell run any backticks in the note (`to` became
+"to: command not found" and vanished from 206 T012's result). Pass the note in single quotes (write `’` for an
+apostrophe), or fix a damaged note in `feature.json` with a small script.

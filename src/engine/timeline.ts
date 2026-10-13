@@ -9,6 +9,7 @@ import {
   type Keyframes,
 } from './keyframes';
 import { mergeLayers, type Layer } from './layers';
+import { mergeTransition, tidyTransitions, transitionFields, TRANSITION_REASONS, type Transition } from './transitions';
 import {
   IDENTITY,
   MOTIONS,
@@ -254,6 +255,8 @@ export interface TimedClip extends ClipTiming {
   tf?: ClipTransform;
   /** Keyframes (205): animated box values and volume, times from the clip's start; missing = nothing animated. */
   keys?: Keyframes<ClipKeyProp>;
+  /** The transition on the cut at its end, into the clip that starts there (206, D1); missing = a hard cut. */
+  transition?: Transition;
 }
 
 /** A sound on an audio track: the music. `toEnd` plays it to the end of the video whatever its length (2.x music). */
@@ -525,7 +528,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     magnetic: p.magnetic !== false,
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
     clips: p.clips.map(
-      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys }) => {
+      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys, transition }) => {
         const t = clampTransform(tf ?? transform);
         const kept = keys && tidyKeys(keys);
         return {
@@ -543,6 +546,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
           volume,
           ...(isIdentity(t) ? {} : { transform: t }),
           ...(kept ? { keys: kept } : {}),
+          ...(transition ? { transition: transitionFields(transition) } : {}),
         };
       },
     ),
@@ -854,6 +858,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
       }
       const tf = readTransform(c.transform, dropped);
       const keys = mergeKeys(c.keys, CLIP_KEY_PROPS, 'clip', budget);
+      const transition = mergeTransition(c.transition, dropped);
       clips.push({
         id: unique(c.id, 'v'),
         track: tr.id,
@@ -869,8 +874,12 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
         ...(tf ? { tf } : {}),
         ...(keys ? { keys } : {}),
+        ...(transition ? { transition } : {}),
       });
     }
+    // Transitions only on cuts between touching clips, fitting in them (206 AC-4, AC-5), once the clips are placed.
+    const placed = tidyTransitions(placeClips(clips, tracks, magnetic, L.seconds, dropped), fps);
+    if (placed.dropped.length && !dropped.includes(TRANSITION_REASONS.cut)) dropped.push(TRANSITION_REASONS.cut);
 
     // Sound clips.
     const audio: DocAudio[] = [];
@@ -909,7 +918,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         fadeOut,
         magnetic,
         tracks,
-        clips: placeClips(clips, tracks, magnetic, L.seconds, dropped),
+        clips: placed.clips,
         audio,
         layers,
         media,

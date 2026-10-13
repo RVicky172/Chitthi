@@ -514,7 +514,7 @@
         "T010": {
           "text": "Spike (risk 1): with the fake frame source in `decodePool.test.ts`, prove a lane asked for times before a clip's `in` and after its `out` serves the source's frames there and holds its first / last frame past the source's ends, and that two clips of one track decode side by side. If not, note what `PoolClip` / `poolClip` / the export's `lane` must widen, for T021. Record the finding.",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -526,12 +526,16 @@
           ],
           "test": "`npx vitest run src/engine/decodePool.test.ts`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** Spike in decodePool.test.ts ('206 spike', 4 cases, fake frame source): the pool already serves frames before a clip's in and after its out point (asked by source time; in / out only matter for priming), holds the source's first frame before it and its last after it, and plays two clips of one track side by side through a 1 s transition with no frame behind (2 decoders). Finding for T021: prepare primes a lane at PoolClip.in, so an incoming clip handed over as stored shows its in-point frame (held) at the transition's first frame; handed over with in widened by the half before its start, the first frame is ready with no hold. So T021 widens PoolClip.in by the incoming half (poolClip and the export's lane); out needs no change. npm run check green, 1,552 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T011": {
           "text": "Failing tests (`src/engine/transitions.test.ts`): `progressAt` (null outside [cut − d/2, cut + d/2], 0 and 1 at the ends, eased in and out as 205's curve at 0.25 / 0.5 / 0.75); `roomFor`; `tidyTransitions`: keeps a transition on touching clips, drops one whose `to` doesn't start where its clip ends (a gap, another track, a missing clip), clamps lengths in time order so each clip's two halves fit, rounds down to frames (30 / 60 fps), drops under 0.1 s, returns what it dropped; the defaults (0.5 s, dir left, colour black).",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -546,12 +550,16 @@
           ],
           "test": "`npx vitest run src/engine/transitions.test.ts`: fails (no module)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** src/engine/transitions.test.ts: 13 cases: defaults (0.5 s; wipe / slide left; dip black) and limits; cutsOf (touching within 1e-6, not across a gap or track); halves; progressAt (null outside [cut − d/2, cut + d/2), 0 at the start, 205's Ease in and out at 0.25 / 0.5 / 0.75); roomFor (twice the shorter of what is left of each clip, 3 s cap, the other transition's half); tidyTransitions (same array when nothing changes; drops across a gap, another track, a missing clip, a reorder; clamps in time order; whole frames at 30 / 60 fps; drops under 0.1 s of room; overlay tracks and extra fields). Fails: no module."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T012": {
           "text": "Implement plan §1 in `src/engine/transitions.ts`: `Transition`, `TransitionKind`, `Direction`, `TRANSITION_LIMITS`, `cutsOf`, `halves`, `progressAt` (205's Ease in and out), `roomFor`, `tidyTransitions`; `transition?` on `TimedClip`.",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -567,12 +575,16 @@
           ],
           "test": "T011",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** src/engine/transitions.ts: Transition { kind, dur, to, dir?, colour? }, TransitionKind / Direction / DipColour and their lists, TRANSITION_LIMITS (0.1 / 3 / 0.5), defaultTransition, cutsOf (touching within 1e-6), halves, progressAt (205's Ease in and out through valueAt on two keys), roomFor, tidyTransitions (per track in time order: drops when `to` isn't the clip starting at its end, clamps so each clip's halves fit, whole frames rounding down, 3 s cap, drops under 0.1 s; same array when nothing changes); transition? on TimedClip (type import). 13/13 transition tests; break-test (clamp ignoring the incoming half) caught by 2 cases; npm run check green, 1,565 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T013": {
           "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): ≥ 20 malformed transition documents (wrong types, NaN, unknown kind / dir / colour, lengths out of range or off the frame grid, a `to` that is missing, on another track or not touching, `__proto__`) never throw and give the expected transitions and reasons; a project with transitions round-trips document → gate → document equal; 201–205 documents without transitions stay byte-identical.",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -584,12 +596,16 @@
           ],
           "test": "`npx vitest run src/engine/timeline.test.ts`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** timeline.test.ts \"206 AC-5\": 27 malformed transition documents on the mixed 2.x fixture with a dissolve and a wipe (text / array / number / null transitions; missing, unknown and numeric kinds; missing, text, NaN, 0, negative, over-3 s and off-grid lengths; unknown and numeric directions, a missing direction, an unknown dip colour, options a kind doesn’t have; a missing, numeric, unknown or non-adjacent `to`; a transition on the last clip; extra fields; __proto__; a length longer than its room), a round trip, and every 2.x fixture byte-identical without transitions. 28 cases failed before T014."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T014": {
           "text": "Implement plan §8: `mergeTransition` (in `transitions.ts`), `DocClip.transition`, `toDocument` (written only when present), `mergeProject` runs `tidyTransitions` after placing the clips, each drop with a reason.",
           "section": "The model",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -602,7 +618,11 @@
           ],
           "test": "T013",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** transitions.ts mergeTransition (known fields only; unknown kind → dissolve, unknown dir / colour → the default, length clamped to 0.1–3 s, each with a reason once; missing option = default without one; no `to` → left out), TRANSITION_REASONS, transitionFields (document order); timeline.ts: DocClip carries transition (via TimedClip), toDocument writes it only when present, mergeProject reads it per clip and runs tidyTransitions after placeClips (drops off a cut with one reason; frames and room clamped silently). 330/330 timeline tests (the 28 new ones failed before); break-test (no tidy in the gate) caught by 5 cases; npm run check green, 1,606 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T020": {
           "text": "Failing tests (`src/engine/stack.test.ts`, `src/engine/decodePool.test.ts`): `frameStack` inside a transition gives the pair in the track's place with `mix` (kind, dir, colour, progress, role) and locals past the out point / before the in point; outside it, and for projects without transitions, exactly 205's stack; AC-11's fixture (each kind between a video and a photo, on the main and an overlay track, at 30 and 60 fps): the stack at every export frame equals the expected list; the project's length and the clips' starts are unchanged by transitions; `mostVideosAt` counts both videos over a transition's span; `lanePlan` lists both clips of a playing transition and the incoming one within 2 s.",
