@@ -20,6 +20,10 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   playhead, change the value. Interpolations: Linear, Ease in, Ease out, Ease in and out, Hold. The selected clip or
   layer shows its keyframes in a lane on the timeline (drag, Delete, a menu for the interpolation); K sets keyframes
   at the playhead, Alt + [ / ] jump between them. The export matches the preview frame for frame, sound included.
+- Video editor: **transitions** between clips: Cross-dissolve, Dip to black or white, Wipe and Slide (four
+  directions) and Zoom, from **Transitions** in the tool rail or by clicking a cut on the timeline; **Apply to every
+  cut**; drag a transition's edges to change its length (0.1–3 s). They are centred on the cut and play the clips past
+  their ends, so the video's length never changes; the sound cross-fades with them. The export matches the preview.
 - Video editor: the number of videos on screen at once is limited (3 in the browser, 5 in the desktop app); an edit
   that would show more says so.
 

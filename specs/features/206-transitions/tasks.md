@@ -64,8 +64,10 @@ Unit tests cover the pure helpers; the UI itself is checked in 290.
 
 ## Docs and close
 
-- [ ] **T090** — Docs (AC-15): `docs/MEDIA-STUDIO.md` (the transitions, options, limits, keys; "Still to do" without cross-fades), `specs/lld.md` (the model, the timing, the drawing, the sound), `CHANGELOG.md` Unreleased, the in-app docs. · files: `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts` · test: relative links resolve
+- [x] **T090** — Docs (AC-15): `docs/MEDIA-STUDIO.md` (the transitions, options, limits, keys; "Still to do" without cross-fades), `specs/lld.md` (the model, the timing, the drawing, the sound), `CHANGELOG.md` Unreleased, the in-app docs. · files: `docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts` · test: relative links resolve
+  - **Result (2026-10-13):** docs/MEDIA-STUDIO.md: a Transitions section (the five kinds and options in a table; adding from the panel, the cut buttons and Apply to every cut; the block, the inspector, edge drags and keys; timing centred on the cut with handles; equal-power sound and the dip; how edits keep or remove them; videos at once; one drawing for preview and export), a Transitions row in the timeline table, the Cross-fades row gone from Still to do. specs/lld.md 4.9: Transitions (206) — model, the one rule, the stack, drawing, sound, the document, store and UI. CHANGELOG.md Unreleased and the in-app timeline help. 13 relative links, 0 broken; npm run check green, 1,672 tests.
 - [ ] **T091** — `npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033). · test: `npm run check`; `npm run build`
+  - **In progress** since 2026-10-13
 - [ ] **T092** — Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 206 ✔️, `editor-implementation.md` P2.6 Done, `memory/progress.md`, `memory/MEMORY.md`.
 
 ## AC coverage
