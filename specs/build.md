@@ -26,7 +26,7 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
 | `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |
 | `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [testing-strategy.md](testing-strategy.md) |
-| `npm run test:e2e` | Playwright browser tests with an axe accessibility check against the production build (`e2e/`). First run: `npx playwright install chromium` |
+| `npm run test:e2e` | Playwright browser tests with an axe accessibility check against the production build (`tests/e2e/`). First run: `npx playwright install chromium` |
 | `npm test` | Self-test in Electron against its own dev server (port 5198, separate dependency cache): renders every product × size × orientation × layout, builds a print pack per product, and checks saved designs, festival data, Pexels credits, the print-colours preview, the order sheet, the AI service against a fake provider and every agent tool (`src/dev/selftest.ts`). Exits 1 on any failure |
 | `npm run mcp` | The MCP server from source (headless): its own Vite server on port 5197 and cache (`.vite-mcp`), then `electron . --mcp`. stdout carries only the protocol. See [MCP.md](../docs/MCP.md) |
 | `npm run check:licenses` | Fails if any package the app ships (desktop `dependencies` and the libraries bundled into `dist/`) has a licence outside the policy in [licensing.md](licensing.md), or if app code imports an unlisted package (`scripts/check-licenses.mjs`) |

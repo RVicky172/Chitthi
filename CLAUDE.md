@@ -64,11 +64,11 @@ npm run lint           # ESLint (0 errors required; the 5 react-hooks warnings a
 npm run check:licenses # every shipped package has an allowed licence (specs/licensing.md)
 npm run typecheck      # TypeScript 7 (typescript-native) tsc -b; 6.0 stays as `typescript` only for typescript-eslint
 npm run build          # typecheck + vite build + scripts/check-bundle.mjs (fails if the entry chunk > 350 KB or contains AI code)
-npm run test:unit      # Vitest: src/**/*.test.ts (pure logic, no DOM/canvas)
+npm run test:unit      # Vitest: tests/unit (one module) and tests/integration (several together); no DOM/canvas
 npm test               # Electron self-test (src/dev/selftest.ts, ~6,100 checks: every product × size × layout, print packs, agent tools)
 npm run test:mcp       # MCP server end to end (scripts/mcp-smoke.mjs); CHITTHI_MCP_APP=<exe> tests a packaged app
 npm run fetch:libraw   # once: LibRaw's RAW developer into electron/resources/libraw (test:mcp develops a DNG with it)
-npm run test:e2e       # Playwright on the production build (e2e/*.e2e.ts), desktop + phone projects, axe checks
+npm run test:e2e       # Playwright on the production build (tests/e2e/*.e2e.ts), desktop + phone projects, axe checks
 npm run roadmap        # roadmap dashboard on http://localhost:5180 (tools/roadmap-dashboard; --port, --no-open)
 npm run specs -- help  # feature / roadmap JSON: new, status, start, block, done, undone, check, sync (tools/specs-index)
 ```
@@ -76,8 +76,8 @@ npm run specs -- help  # feature / roadmap JSON: new, status, start, block, done
 Single tests:
 
 ```bash
-npx vitest run src/engine/layers.test.ts -t "video timeline"
-npx playwright test e2e/editors.e2e.ts -g "YouTube" --project=desktop
+npx vitest run tests/unit/engine/layers.test.ts -t "video timeline"
+npx playwright test tests/e2e/editors.e2e.ts -g "YouTube" --project=desktop
 ```
 
 First Playwright run needs `npx playwright install chromium`. `npm test` and `test:mcp` open Electron (hidden windows);

@@ -616,7 +616,7 @@ test('RAW files on the web open their built-in preview; TIFF exports 16 bits whe
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   // A synthetic DNG (no camera, no licence question) carrying a sample photo as its preview, as cameras store theirs.
-  const { syntheticDng } = await import('../src/engine/tiff');
+  const { syntheticDng } = await import('../../src/engine/tiff');
   const dng = Buffer.from(syntheticDng(new Uint8Array(readFileSync(path.join('public', 'samples', 'marigold.jpg')))));
   await page.locator('.mst-drop input[type=file]').setInputFiles([{ name: 'flowers.dng', mimeType: '', buffer: dng }]);
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);

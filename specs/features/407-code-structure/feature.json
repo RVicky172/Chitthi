@@ -612,7 +612,7 @@
         "T013": {
           "text": "Move `e2e/` to `tests/e2e/` (`git mv`), Playwright and ESLint configs and CLAUDE.md’s single-test commands updated; run `npm run test:e2e` (Q9).",
           "section": "Tests into tests/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -628,7 +628,11 @@
           ],
           "test": "`npm run test:e2e`: the baseline’s pass list",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** e2e/ moved to tests/e2e/ (git mv); testDir in playwright.config.ts and playwright.measure.config.ts; the TIFF test’s import of the app made relative to its new place; ESLint glob; paths in CLAUDE.md (test:e2e, single tests; test:unit now names tests/unit and tests/integration), README’s tree, specs/build.md, specs/testing-strategy.md, docs/MEDIA-STUDIO.md. npm run test:e2e: 84 passed, 16 skipped (= baseline); measure:gate lists its test; check and build green."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T014": {
           "text": "Move the in-app self-test (`src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts`) to `tests/selftest/` (Q2), loaded by `main.tsx` in development only; `tsconfig.app.json` includes it; run `npm test` (Q9).",

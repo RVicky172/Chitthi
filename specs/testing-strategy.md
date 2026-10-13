@@ -13,7 +13,7 @@ no CI on feature branches or pull requests.
 | `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
 | `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
 | `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~10 s |
-| `npm run test:e2e` | Browser tests with axe, `e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
+| `npm run test:e2e` | Browser tests with axe, `tests/e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
 
 `npm run build` also guards the bundle: it fails if the start-up script passes 350 KB or contains AI code.
 
@@ -58,9 +58,9 @@ that the home page and studio load without console errors, that every product sw
 survives a reload, and that home, studio and the sizes guide have no serious or critical WCAG 2.2 A/AA problems (axe).
 The photo and video studio files cover the batch, every editing panel (light, curves, detail, presets and LUTs, masks
 with brush, gradients, ranges and the real AI subject model, layers with blend modes and masks), export formats incl.
-16-bit TIFF, RAW files on the web, Reel and YouTube exports; `e2e/docs.e2e.ts` covers the in-app documentation.
-`e2e/instagram.e2e.ts` covers the photo studio: the batch limit, editing and reordering, a ZIP of 1080 px JPEGs,
-the posting flow, the caption counter, and accessibility. `e2e/editors.e2e.ts` covers layers, drawing and undo, and
+16-bit TIFF, RAW files on the web, Reel and YouTube exports; `tests/e2e/docs.e2e.ts` covers the in-app documentation.
+`tests/e2e/instagram.e2e.ts` covers the photo studio: the batch limit, editing and reordering, a ZIP of 1080 px JPEGs,
+the posting flow, the caption counter, and accessibility. `tests/e2e/editors.e2e.ts` covers layers, drawing and undo, and
 exports a Reel with text and generated music, checking the MP4 (`ftyp`, `moov` before `mdat`, H.264, AAC,
 1080 × 1920); edits the timeline by dragging (trim, reorder) and from the keyboard (split); and exports a YouTube video
 into a stand-in for the browser's save picker, checking that it streamed with fast start at 1920 × 1080. `vite preview` sends the production Content Security Policy (from `nginx/security-headers.conf`), and

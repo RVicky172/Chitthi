@@ -275,8 +275,8 @@ clip placement, frames and sound sources for every 2.x shape; hide, mute and loc
 trips and 36 malformed documents), `src/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
 edits, 1,000 seeded random edits per operation through `checkTrack` and `mergeProject`, each operation under 2 ms on
 500 clips) and `src/state/video.test.ts` (the store's edits, undo steps and Magnetic).
-Browser: `e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
-and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
+Browser: `tests/e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
+and `tests/e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
 `moov` before `mdat`, H.264, AAC and 1080 × 1920; timeline trim and reorder by dragging, split and delete; a YouTube
 video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; clips placed end to
 end; the track headers: Hide, Mute, Lock and its refusals, heights by keyboard, undo, axe and 360 px; the edit tools:
@@ -286,7 +286,7 @@ Self-test: 200 preview frames (4 formats × 5 projects × 10 times) drawn throug
 are compared byte for byte; exports with the video track hidden (decoded: black with the layers), the music muted
 (no sound track) and a 1.5 s gap (45 black frames with the layers, the photos either side). Agents:
 the self-test draws an AI mask from a stand-in map, runs the real subject model in its worker and checks the sky model
-is never downloaded without consent; `e2e/instagram.e2e.ts` finds a subject with the real model under the production
+is never downloaded without consent; `tests/e2e/instagram.e2e.ts` finds a subject with the real model under the production
 CSP (desktop project). RAW and 16-bit: Vitest checks the TIFF writer, the embedded-preview reader and a synthetic DNG
 (`syntheticDng()`, made by the tests, so no camera file or licence is involved); the self-test checks float read-back
 and holds the 16-bit render to the 8-bit picture on each backend; `npm run test:mcp` develops the synthetic DNG with
