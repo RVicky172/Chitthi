@@ -11,6 +11,62 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-13 — 205 T091–T092 (gates, close): ✔️ Implemented
+
+**Done:** T091 on `8dae911`: check green (1,548 tests), build green, entry 327 KB (budget 350). T092: AC-1–5, 8, 12,
+14 ticked; AC-6, 7, 9, 10 (self-test half), 11, 13 wait for 290 (listed there); status Implemented, roadmap 205 ✔️,
+editor-implementation P2.5 Done. Not merged into `main` yet.
+**Next:** merge `feat/205-keyframes` into `main` (maintainer's call), then the next Phase 2 item (206 transitions,
+207 speed, 208 audio; 208 builds on 205's volume keys).
+**Blockers:** none
+
+## 2026-10-13 — 205 T060–T062 (inspector keyframe buttons, the stage evaluates first, the keyframe lane)
+
+**Done:** T060: `KeyframeButton` / `KeyframeNav` beside Position and size, Clip sound and the layers' Position, Size,
+Turn, Opacity; fields show values at the playhead and write through the routers; `keyState`, `adjacentKey`;
+`.kf-*` styles; an animated layer Size scales the whole layer (learnings 2026-10-13). T061: `useClipTransform` and the
+video stage's layers edit the shown values through `setClipTransformAt` / `updateLayerAt`. `npm run check` green,
+1,539 tests. T060–T090 committed together.
+**Then T062:** `KeyframeLane.tsx` under the selected animated clip or layer (one row of diamonds, expandable per
+value; select, drag on release, ← / →, Delete, interpolation menu; shapes per D3), K and Alt + [ / ] in the timeline,
+announcements (`describeKeyChange`); the layer bar's start-edge drag now keeps keys in place (`setLayerTimes`).
+1,548 tests green.
+**Then T090:** keyframes in `docs/MEDIA-STUDIO.md`, `specs/lld.md` 4.9, CHANGELOG and the in-app timeline help; 13 links, 0 broken.
+**Next:** T091 (check + build), T092 (close).
+**Blockers:** none
+
+## 2026-10-12 — 205 T014–T016, T020–T021 (document gate, AC-8 / AC-12, start-edge edits)
+
+**Done:** T010–T013 committed (`788b0d7`). `mergeKeys` gate (unknown names and `__proto__` dropped, finite times
+within a day, clamped, unknown eases → Ease in and out, last of equal times kept, 100 per value, one `KeyBudget` of
+5,000 shared by clips then layers); `toDocument` writes keys only when some are left; `mergeLayers(raw, images,
+budget)`. 30 malformed documents, round trip, byte-identical without keys. AC-8 fixture at every frame (30 / 60 fps)
+against an independent reference (the solver's stop went 1e-7 → 1e-12); AC-12 median 0.016 ms (budget 0.05).
+`edits.ts` `keepKeys`: start trim without ripple, Roll's right clip and Slide's next clip shift keys; a 1,000-step
+property test. `npm run check` green, 1,512 tests.
+**Found (202, not changed):** a Roll from a video clip under 0.1 s (shown 0.1 s long by `clipLength`) moves the next
+clip's end too, opening a small gap; seen in the seeded test, step 956.
+**Then (T030, T040, T041):** `itemTransform` in `renderStack`, `layersAt` in `drawLayers` (photo editor passes no time);
+volume keys in `audioPlan` (`gain`), `gainCurve` → one `setValueCurveAtTime` per source per window, preview element
+volume from `volumeAt` each tick. 1,523 tests green. T014–T021 committed (`78afef6`).
+T030–T041 committed (`0c447b7`). **T050–T051:** store actions in `state/video.ts` (`toggleKey`, `removeAnimation`,
+`moveKeys`, `setKeyEase`, `deleteKeys`, routers `setClipTransformAt` / `setClipVolume` / `updateLayerAt`,
+`setLayerTimes`, split keys); 1,534 tests green.
+**Next:** T060 (inspector keyframe buttons), T061 (stage), T062 (timeline lane): the UI.
+**Blockers:** none
+
+## 2026-10-12 — 205 T010–T013 (the keyframe model and its pure edits)
+
+**Done:** `src/engine/keyframes.ts`: the model (`Keyframe`, `Ease`, clip / layer value names, ranges, limits),
+`valueAt` (binary search; CSS cubic-bezier by Newton with a bisection fallback, each within 0.001 of the browser's
+curves), `transformAt` / `volumeAt` / `layerAt` (the same object when nothing is animated), and the pure edits
+(`setKey`, `removeKey`, `moveKey`, `setEase`, `animate`, `stopAnimating`, `shiftKeys`, `splitKeys`, `countKeys`);
+`keys?` on `TimedClip` and layers. 32 tests in `keyframes.test.ts`; break-tests caught; `npm run check` green
+(1,456 tests). Small plan differences noted in the results: `clampValue` takes `'clip' | 'layer'`, `splitKeys`
+works out the value at the cut itself.
+**Next:** T014 (the document gate's failing tests, ≥ 25 malformed keyframe documents) → T015.
+**Blockers:** none
+
 ## 2026-10-12 — 203 Implemented (T030–T034, T040, T052, T054, T090–T092); D-033
 
 **Done:** one task at a time in the main session (no agent batches, maintainer's choice). T040 merged from its agent

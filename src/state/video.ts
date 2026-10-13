@@ -2,7 +2,27 @@ import { useSyncExternalStore } from 'react';
 import type { Adjustments } from '../engine/adjust';
 import { NOT_FOUND, TOO_LONG, closeGap, closeGaps, lift, limitVideos, moveTo, moveToTrack, nudge, reorder, rippleDelete, roll, slide, slip, trim, type Edit, type EditCtx, type Tool } from '../engine/edits';
 import { DEFAULT_EDIT, type IgEdit } from '../engine/instagram';
-import type { Layer } from '../engine/layers';
+import {
+  LAYER_KEY_PROPS,
+  countKeys,
+  isAnimated,
+  layerAt,
+  moveKey,
+  removeKey,
+  setEase,
+  setKey,
+  shiftKeys,
+  splitKeys,
+  stopAnimating,
+  transformAt,
+  valueOf,
+  type ClipKeyProp,
+  type Ease,
+  type KeyEdit,
+  type Keyframes,
+  type LayerKeyProp,
+} from '../engine/keyframes';
+import { scaleLayer, type Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
 import {
   IDENTITY,
@@ -55,6 +75,8 @@ export interface VClip {
   track: string;
   /** Where its box sits in the frame (203); missing = the whole frame. */
   tf?: ClipTransform;
+  /** Keyframes (205): animated box values and volume, seconds from its start; missing = nothing animated. */
+  keys?: Keyframes<ClipKeyProp>;
   /** Seconds from the start of the video; kept packed end to end while Magnetic is on. */
   start: number;
   name: string;
@@ -309,7 +331,7 @@ function commit(key: string, patch: Partial<Snap> & { clips: VClip[] }, extra: P
  * Starts a project from clips already made (tests; opening a saved project goes through mergeProject first): no
  * history, packed when magnetic, else in start order.
  */
-export function loadVideoProject(p: { clips: VClip[]; tracks?: Track[]; magnetic?: boolean; music?: VMusic | null }): void {
+export function loadVideoProject(p: { clips: VClip[]; tracks?: Track[]; magnetic?: boolean; music?: VMusic | null; layers?: Layer[] }): void {
   past.length = 0;
   future.length = 0;
   lastKey = '';
@@ -323,7 +345,7 @@ export function loadVideoProject(p: { clips: VClip[]; tracks?: Track[]; magnetic
   };
   const sorted = p.clips.slice().sort((a, b) => rank(a) - rank(b) || (magnetic && a.track === MAIN_VIDEO ? 0 : a.start - b.start));
   const clips = magnetic ? pack(sorted) : sorted;
-  set({ clips, tracks, magnetic, music: p.music ?? null, layers: [], layerSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
+  set({ clips, tracks, magnetic, music: p.music ?? null, layers: p.layers ?? [], layerSel: null, selected: clips[0]?.id ?? null, t: 0, ...flags() });
 }
 
 /**
@@ -774,8 +796,14 @@ export function splitAtPlayheadWhy(): string | null {
   const len = clipLength(c),
     t0 = c.start,
     local = state.t - t0;
-  const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local } : { ...c, dur: local };
-  const b: VClip = c.kind === 'video' ? { ...c, id: newId(), start: t0 + local, in: c.in + local, fade: false } : { ...c, id: newId(), start: t0 + local, dur: len - local, fade: false };
+  // Each part keeps its keyframes, with one at the cut holding the value there (205 AC-3).
+  const [keysA, keysB] = splitKeys(c.keys, local);
+  const keys = (k: VClip['keys']) => (c.keys ? { keys: k } : {});
+  const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local, ...keys(keysA) } : { ...c, dur: local, ...keys(keysA) };
+  const b: VClip =
+    c.kind === 'video'
+      ? { ...c, id: newId(), start: t0 + local, in: c.in + local, fade: false, ...keys(keysB) }
+      : { ...c, id: newId(), start: t0 + local, dur: len - local, fade: false, ...keys(keysB) };
   const clips = state.clips.slice();
   clips.splice(state.clips.indexOf(c), 1, a, b);
   return commit('', { clips }, { selected: b.id });
@@ -860,7 +888,8 @@ export function setClipTransform(id: string, patch: Partial<ClipTransform>, key 
 export function applyPreset(id: string, preset: Preset): string | null {
   const f = vFormat(state.format);
   const { x, y, w, rot } = presetTransform(preset, f.w, f.h);
-  return setClipTransform(id, { x, y, w, rot }, '');
+  // Through the router: an animated value gets a key at the playhead (205).
+  return setClipTransformAt(id, { x, y, w, rot }, '');
 }
 /** The Slip keys on the music (Q8): moves where in the song the video's sound starts. */
 export function slipMusic(delta: number): string | null {
@@ -893,6 +922,207 @@ export function restackVLayer(id: string, by: 1 | -1): void {
 }
 export function setVLayers(layers: Layer[], key = '', layerSel?: string | null): void {
   change(key, { layers }, layerSel === undefined ? {} : { layerSel });
+}
+
+/* ---------- keyframes (205): each returns null, or why it was refused ---------- */
+
+/** What a keyframe action works on: a clip or a layer, by id. Times are the playhead's, or a key's own (`at`). */
+export type KeyTarget = { clip: string } | { layer: string };
+/** A clip's or a layer's animatable value. */
+export type KeyProp = ClipKeyProp | LayerKeyProp;
+
+const LAYER_GONE = 'That layer isn’t in the video any more.';
+
+/** Every keyframe in the project now (the 5,000 limit, Q5). */
+const projectKeyCount = (): number =>
+  state.clips.reduce((n, c) => n + countKeys(c.keys), 0) + state.layers.reduce((n, l) => n + countKeys(l.keys), 0);
+
+/** A clip's or a layer's keys, typed loosely: actions name values of either. */
+const keysOf = (item: VClip | Layer): Keyframes<KeyProp> | undefined => item.keys as Keyframes<KeyProp> | undefined;
+
+/** How a key edit on `item` is checked: its ranges, the project's frame rate and key count. */
+const keyEdit = (item: VClip | Layer): KeyEdit => ({ on: 'track' in item ? 'clip' : 'layer', fps: state.fps, projectKeys: projectKeyCount() });
+
+/** The item a target names and its time at the playhead (seconds from its start); or why it can't change. */
+function keyItem(target: KeyTarget): { item: VClip | Layer; local: number } | { error: string } {
+  if ('clip' in target) {
+    const clip = state.clips.find((c) => c.id === target.clip);
+    if (!clip) return { error: NOT_FOUND };
+    const locked = clipLocked(clip.id);
+    if (locked) return { error: locked };
+    return { item: clip, local: state.t - clip.start };
+  }
+  const layer = state.layers.find((l) => l.id === target.layer);
+  return layer ? { item: layer, local: state.t - (layer.start ?? 0) } : { error: LAYER_GONE };
+}
+
+/** Stores the target's changed fields as one undo step (`key` coalesces a drag). */
+function storeItem(target: KeyTarget, patch: Partial<VClip> | Partial<Layer>, key: string): null {
+  if ('clip' in target) change(key, { clips: state.clips.map((c) => (c.id === target.clip ? { ...c, ...(patch as Partial<VClip>) } : c)) });
+  else change(key, { layers: state.layers.map((l) => (l.id === target.layer ? ({ ...l, ...patch } as Layer) : l)) });
+  return null;
+}
+
+/** Remove animation's fields for `prop` at `local` (its value there becomes the stored one; the whole frame as no box). */
+function stoppedAt(item: VClip | Layer, prop: KeyProp, local: number): Partial<VClip> | Partial<Layer> {
+  if (!('track' in item)) return stopAnimating(item, prop as LayerKeyProp, local);
+  const patch = stopAnimating(item, prop as ClipKeyProp, local);
+  return 'tf' in patch && isIdentity(patch.tf) ? { ...patch, tf: undefined } : patch;
+}
+
+/** `item` without `prop`'s key at `at`: its last key going stops the animation at that key's value, so nothing jumps. */
+function withoutKey<T extends VClip | Layer>(item: T, prop: KeyProp, at: number): T {
+  const list = keysOf(item)?.[prop] ?? [];
+  const key = list.find((k) => Math.abs(k.t - at) < 0.5 / state.fps);
+  if (!key) return item;
+  if (list.length === 1) return { ...item, ...stoppedAt(item, prop, key.t) };
+  return { ...item, keys: removeKey(keysOf(item)!, prop, at, state.fps) };
+}
+
+/**
+ * The inspector's keyframe button (Q4): starts animating the value(s) with a key at the playhead holding their value
+ * there, adds a key there, or (at a key) removes it. Several values (a layer's position: X and Y) go together, as the
+ * first one is. One undo step.
+ */
+export function toggleKey(target: KeyTarget, props: KeyProp | KeyProp[]): string | null {
+  const found = keyItem(target);
+  if ('error' in found) return found.error;
+  const { item, local } = found;
+  const names = Array.isArray(props) ? props : [props];
+  if (keysOf(item)?.[names[0]]?.some((k) => Math.abs(k.t - local) < 0.5 / state.fps)) {
+    let next = item;
+    for (const name of names) next = withoutKey(next, name, local);
+    return storeItem(target, next, '');
+  }
+  let keys = keysOf(item);
+  for (const name of names) {
+    const added = setKey(keys, name, local, valueOf(item, name, local), { ...keyEdit(item), projectKeys: projectKeyCount() + countKeys(keys) - countKeys(keysOf(item)) });
+    if ('error' in added) return added.error;
+    keys = added;
+  }
+  return storeItem(target, { keys } as Partial<VClip>, '');
+}
+
+/** **Remove animation** (the keyframe button's menu): the values' keys go, their values at the playhead stay. One step. */
+export function removeAnimation(target: KeyTarget, props: KeyProp | KeyProp[]): string | null {
+  const found = keyItem(target);
+  if ('error' in found) return found.error;
+  let item: VClip | Layer = found.item;
+  for (const name of Array.isArray(props) ? props : [props]) if (isAnimated(item, name)) item = { ...item, ...stoppedAt(item, name, found.local) } as VClip | Layer;
+  return item === found.item ? null : storeItem(target, item, '');
+}
+
+/** Moves the key at `from` (one value's, or every value's for 'all') to `to`, item times; a drag passes one `key`. */
+export function moveKeys(target: KeyTarget, prop: KeyProp | 'all', from: number, to: number, key = ''): string | null {
+  const found = keyItem(target);
+  if ('error' in found) return found.error;
+  const keys = keysOf(found.item);
+  const next = keys && moveKey(keys, prop, from, to, state.fps);
+  return next === keys ? null : storeItem(target, { keys: next } as Partial<VClip>, key);
+}
+
+/** Sets the interpolation of the key at `at` (one value's, or every value's for 'all'). One undo step. */
+export function setKeyEase(target: KeyTarget, prop: KeyProp | 'all', at: number, ease: Ease): string | null {
+  const found = keyItem(target);
+  if ('error' in found) return found.error;
+  const keys = keysOf(found.item);
+  const next = keys && setEase(keys, prop, at, ease, state.fps);
+  return next === keys ? null : storeItem(target, { keys: next } as Partial<VClip>, '');
+}
+
+/** Deletes the key at `at` (one value's, or every value's for 'all'); a value's last key keeps its value. One step. */
+export function deleteKeys(target: KeyTarget, prop: KeyProp | 'all', at: number): string | null {
+  const found = keyItem(target);
+  if ('error' in found) return found.error;
+  let item = found.item;
+  for (const name of prop === 'all' ? (Object.keys(keysOf(item) ?? {}) as KeyProp[]) : [prop]) item = withoutKey(item, name, at);
+  return item === found.item ? null : storeItem(target, item, '');
+}
+
+/**
+ * Changes a clip's box as shown at the playhead (the stage's drag and arrows, the inspector's fields): an animated value
+ * gets a key at the playhead (Q4, auto-key), the others change the stored box as `setClipTransform` does. One undo
+ * step per `key`.
+ */
+export function setClipTransformAt(id: string, patch: Partial<ClipTransform>, key = `tf:${id}:${Object.keys(patch).sort().join(',')}`): string | null {
+  const found = keyItem({ clip: id });
+  if ('error' in found) return found.error;
+  const c = found.item as VClip;
+  if (!c.keys) return setClipTransform(id, patch, key);
+  const shown = transformAt(c, found.local);
+  const want = clampTransform({ ...shown, ...patch });
+  let keys: Keyframes<ClipKeyProp> = c.keys;
+  const stored: Partial<ClipTransform> = {};
+  for (const prop of Object.keys(patch) as (keyof ClipTransform)[]) {
+    if (!(prop in want) || want[prop] === shown[prop]) continue;
+    if (!isAnimated(c, prop)) {
+      stored[prop] = want[prop];
+      continue;
+    }
+    const next = setKey(keys, prop, found.local, want[prop], { ...keyEdit(c), projectKeys: projectKeyCount() + countKeys(keys) - countKeys(c.keys) });
+    if ('error' in next) return next.error;
+    keys = next;
+  }
+  if (keys === c.keys && Object.keys(stored).length === 0) return null;
+  const tf = clampTransform({ ...(c.tf ?? IDENTITY), ...stored });
+  change(key, { clips: state.clips.map((x) => (x.id === id ? { ...x, tf: isIdentity(tf) ? undefined : tf, keys } : x)) });
+  return null;
+}
+
+/** A clip's own sound: a key at the playhead when its volume is animated, else the stored volume. One step per `key`. */
+export function setClipVolume(id: string, volume: number, key = `clip:${id}:volume`): string | null {
+  const found = keyItem({ clip: id });
+  if ('error' in found) return found.error;
+  const c = found.item as VClip;
+  if (!isAnimated(c, 'volume')) return updateClipWhy(id, { volume }, key);
+  const keys = setKey(c.keys, 'volume', found.local, volume, keyEdit(c));
+  if ('error' in keys) return keys.error;
+  change(key, { clips: state.clips.map((x) => (x.id === id ? { ...x, keys } : x)) });
+  return null;
+}
+
+/**
+ * Changes a layer as shown at the playhead (`patch`, or a function of the shown layer): animated values get a key at
+ * the playhead, the rest change the layer, as `updateVLayer` does. One undo step per `key`.
+ */
+export function updateLayerAt(id: string, patch: Partial<Layer> | ((shown: Layer) => Layer), key = `layer:${id}`): string | null {
+  const l = state.layers.find((x) => x.id === id);
+  if (!l) return LAYER_GONE;
+  if (!l.keys) {
+    updateVLayer(id, patch, key);
+    return null;
+  }
+  const local = state.t - (l.start ?? 0);
+  const shown = layerAt(l, state.t);
+  const next = typeof patch === 'function' ? patch(shown) : ({ ...shown, ...patch } as Layer);
+  let keys: Keyframes<LayerKeyProp> = l.keys;
+  // An animated size scales the whole layer when drawn (layerAt): scaled back to the stored size, what scales with it
+  // (a title's font size, a shape's height) is stored as it would be at that size, so it doesn't drift.
+  const out = (isAnimated(l, 'w') && next.w !== l.w ? scaleLayer(next, l.w / next.w) : { ...next }) as Layer;
+  for (const prop of LAYER_KEY_PROPS) {
+    if (!isAnimated(l, prop)) continue;
+    out[prop] = l[prop];
+    if (next[prop] === shown[prop]) continue;
+    const r = setKey(keys, prop, local, next[prop], { ...keyEdit(l), projectKeys: projectKeyCount() + countKeys(keys) - countKeys(l.keys) });
+    if ('error' in r) return r.error;
+    keys = r;
+  }
+  out.keys = keys;
+  change(key, { layers: state.layers.map((x) => (x.id === id ? out : x)) });
+  return null;
+}
+
+/**
+ * Sets when a layer shows (the timeline's layer bar). `start` alone is its start edge: its keys shift back by the
+ * move, so they stay at their place on the timeline (AC-3); `start` with `end` moves it whole, keys and all.
+ */
+export function setLayerTimes(id: string, times: { start?: number; end?: number | undefined }, key = ''): string | null {
+  const l = state.layers.find((x) => x.id === id);
+  if (!l) return LAYER_GONE;
+  const edge = times.start !== undefined && !('end' in times) ? times.start - (l.start ?? 0) : 0;
+  const keys = edge ? shiftKeys(l.keys, -edge) : l.keys;
+  change(key, { layers: state.layers.map((x) => (x.id === id ? ({ ...x, ...times, ...(l.keys ? { keys } : {}) } as Layer) : x)) });
+  return null;
 }
 
 /* ---------- music ---------- */

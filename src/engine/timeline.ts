@@ -1,4 +1,13 @@
 import { mergeEdit, type IgEdit } from './instagram';
+import {
+  CLIP_KEY_PROPS,
+  keyBudget,
+  mergeKeys,
+  tidyKeys,
+  type ClipKeyProp,
+  type Keyframe,
+  type Keyframes,
+} from './keyframes';
 import { mergeLayers, type Layer } from './layers';
 import {
   IDENTITY,
@@ -243,6 +252,8 @@ export interface TimedClip extends ClipTiming {
   start: number;
   /** Where its box sits in the frame (203); missing = the whole frame (IDENTITY). */
   tf?: ClipTransform;
+  /** Keyframes (205): animated box values and volume, times from the clip's start; missing = nothing animated. */
+  keys?: Keyframes<ClipKeyProp>;
 }
 
 /** A sound on an audio track: the music. `toEnd` plays it to the end of the video whatever its length (2.x music). */
@@ -372,6 +383,8 @@ export interface SoundSource {
   /** Source seconds at `start`. */
   from: number;
   volume: number;
+  /** Volume keyframes (205), seconds from `start`: when present they set the volume instead of `volume`. */
+  gain?: Keyframe[];
   /** Volume ramps at its ends, seconds. */
   fadeIn: number;
   fadeOut: number;
@@ -391,8 +404,19 @@ export function audioPlan(p: Project): SoundSource[] {
     for (const c of p.clips) {
       if (c.track !== track || c.kind !== 'video') continue;
       const volume = (c as TimedClip & { volume?: number }).volume ?? 0;
-      if (volume <= 0) continue;
-      out.push({ ref: c.id, start: c.start, end: endOf(c), from: c.in, volume, fadeIn: 0.03, fadeOut: 0.03 });
+      // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
+      const gain = c.keys?.volume?.length ? c.keys.volume : undefined;
+      if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) continue;
+      out.push({
+        ref: c.id,
+        start: c.start,
+        end: endOf(c),
+        from: c.in,
+        volume,
+        ...(gain ? { gain } : {}),
+        fadeIn: 0.03,
+        fadeOut: 0.03,
+      });
     }
   };
   own(MAIN_VIDEO);
@@ -487,7 +511,8 @@ export function fromSequence<
 
 /**
  * The JSON form of a project: only the fields a project is made of (no files, URLs, thumbnails or view state). A
- * clip's `tf` is written as `transform`, and only when it isn't the identity, so 201 / 202 documents stay as they were.
+ * clip's `tf` is written as `transform`, and only when it isn't the identity; its keyframes (205) only when it has
+ * some. So 201 / 202 documents stay as they were.
  */
 export function toDocument(p: ProjectDoc): ProjectDoc {
   return {
@@ -500,8 +525,9 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     magnetic: p.magnetic !== false,
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
     clips: p.clips.map(
-      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform }) => {
+      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys }) => {
         const t = clampTransform(tf ?? transform);
+        const kept = keys && tidyKeys(keys);
         return {
           id,
           track,
@@ -516,6 +542,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
           fade,
           volume,
           ...(isIdentity(t) ? {} : { transform: t }),
+          ...(kept ? { keys: kept } : {}),
         };
       },
     ),
@@ -790,6 +817,8 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
       ids.add(id);
       return id;
     };
+    // Keyframes: 5,000 in the whole project, clips first, then layers (205 Q5).
+    const budget = keyBudget(dropped);
     const clips: DocClip[] = [];
     const rawClips = arr(o.clips);
     if (rawClips.length > L.clips)
@@ -824,6 +853,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         }
       }
       const tf = readTransform(c.transform, dropped);
+      const keys = mergeKeys(c.keys, CLIP_KEY_PROPS, 'clip', budget);
       clips.push({
         id: unique(c.id, 'v'),
         track: tr.id,
@@ -838,6 +868,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         fade: c.fade === true,
         volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
         ...(tf ? { tf } : {}),
+        ...(keys ? { keys } : {}),
       });
     }
 
@@ -864,7 +895,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
     }
 
     const images = new Set(media.filter((m) => m.kind === 'image').map((m) => m.id));
-    const layers = mergeLayers(o.layers, images);
+    const layers = mergeLayers(o.layers, images, budget);
     if (arr(o.layers).length > layers.length)
       dropped.push(`${arr(o.layers).length - layers.length} layer(s) couldn’t be read and were left out.`);
 

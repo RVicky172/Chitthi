@@ -28,12 +28,16 @@
   DoD gate green; maintainer's manual checks (T060) passed in Chrome and the desktop app.
 - **405 ✔️ Implemented 2026-10-10**, merged into `main`: the roadmap dashboard as a scrollable road (stops, you-are-here hero, rail, Pace, live changes, reduced motion, airmail theme); `npm run test:roadmap` 17 / 17.
 - **406 ✔️ Implemented 2026-10-11:** roadmap-actionable-workflow; AC-1–AC-6 proven, all tasks done; README/changelog updated. DoD gates pass; production e2e 84 passed / 16 skipped serially.
-- **203:** `203-compositing-pip` ✔️ Implemented 2026-10-12 on `feat/203-compositing-pip` (not merged into `main`, not
+- **203:** `203-compositing-pip` ✔️ Implemented 2026-10-12, merged into `main` (`3e98fc4`, not
   pushed): overlay tracks on the timeline, the clip box on the stage and in the inspector, preview and export draw the
   same stack. AC-1–3, 5, 8, 10, 12–14 wait for 290 (D-033). Plan D1–D3, D-031. **204** merged into `main` and pushed
   (2026-10-11). Tasks run one at a time in the main session, no agent batches (maintainer's choice).
 - **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
-- **Next (roadmap):** the next Phase 2 feature (205 keyframes, 206 transitions, 207 speed …: spec first); 290 collects the deferred checks.
+- **205:** `205-keyframes` ✔️ Implemented 2026-10-13 on `feat/205-keyframes` (`8dae911`; the close, T091–T092, not committed yet), not
+  merged into `main` yet: keyframes for the clip box, clip volume and layers; inspector diamonds, stage auto-key,
+  timeline lane, K / Alt + [ / ]. AC-6, 7, 9, 10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
+- **Next (roadmap):** merge 205 into `main`; then 206 (transitions), 207 (speed) or 208 (audio, uses 205's volume
+  keys); 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

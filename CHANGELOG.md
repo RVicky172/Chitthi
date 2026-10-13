@@ -15,6 +15,11 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   corner to resize, its top handle to turn it; arrow keys move it 1 % (Shift: 10 %). The inspector's **Position and
   size** has Full frame, four corner presets, and X, Y, size, rotation, opacity and corner radius fields. The export
   draws exactly what the preview shows.
+- Video editor: **keyframes**. Animate a clip's position, size, rotation, opacity and corner radius, its sound
+  volume, and a layer's position, size, turn and opacity: press the diamond next to a value in the inspector, move the
+  playhead, change the value. Interpolations: Linear, Ease in, Ease out, Ease in and out, Hold. The selected clip or
+  layer shows its keyframes in a lane on the timeline (drag, Delete, a menu for the interpolation); K sets keyframes
+  at the playhead, Alt + [ / ] jump between them. The export matches the preview frame for frame, sound included.
 - Video editor: the number of videos on screen at once is limited (3 in the browser, 5 in the desktop app); an edit
   that would show more says so.
 

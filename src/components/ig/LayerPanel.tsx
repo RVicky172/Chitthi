@@ -17,6 +17,7 @@ import {
   type TextLayer,
 } from '../../engine/layers';
 import { newPart, type LinearPart, type RadialPart } from '../../engine/masks';
+import type { LayerKeyProp } from '../../engine/keyframes';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import type { LayerTools } from '../../state/instagram';
@@ -43,6 +44,10 @@ export interface LayerPanelProps {
   timing?: { duration: number; now: number };
   /** Extra actions under the list (e.g. "Copy layers to every photo"). */
   extra?: ReactNode;
+  /** Video (205): a keyframe button for the selected layer's value(s), beside its control; the photo editor has none. */
+  keyframes?: (props: LayerKeyProp[], label: string) => ReactNode;
+  /** Video (205): previous / next keyframe buttons for the selected layer, in its heading. */
+  keyNav?: ReactNode;
 }
 
 function Swatches({ value, onChange, none, label }: { value: string; onChange: (c: string) => void; none?: boolean; label: string }) {
@@ -250,11 +255,24 @@ export function LayerPanel(p: LayerPanelProps) {
 
 export { Range as LpRange, Swatches };
 
-function Properties({ sel, onUpdate, onAdd, timing }: LayerPanelProps & { sel: Layer }) {
+function Properties({ sel, onUpdate, onAdd, timing, keyframes, keyNav }: LayerPanelProps & { sel: Layer }) {
   const up = (patch: Partial<Layer>, key = `prop:${sel.id}:${Object.keys(patch).join(',')}`) => onUpdate(sel.id, patch, key);
+  /** A control with its keyframe button beside it (video), or alone (photos). */
+  const keyed = (control: ReactNode, props: LayerKeyProp[], label: string) =>
+    keyframes ? (
+      <div className="kf-row">
+        {control}
+        {keyframes(props, label)}
+      </div>
+    ) : (
+      control
+    );
   return (
     <div className="ig-group lp-props">
-      <h3>{layerName(sel)}</h3>
+      <h3 className={keyNav ? 'kf-head' : undefined}>
+        {layerName(sel)}
+        {keyNav}
+      </h3>
 
       {sel.kind === 'text' && <TextProps l={sel} up={up} />}
       {sel.kind === 'shape' && <ShapeProps l={sel} up={up} />}
@@ -264,17 +282,30 @@ function Properties({ sel, onUpdate, onAdd, timing }: LayerPanelProps & { sel: L
         </p>
       )}
 
-      <Range
-        id="lp-size"
-        label="Size"
-        value={sel.w}
-        min={0.03}
-        max={2}
-        show={`${Math.round(sel.w * 100)}%`}
-        onChange={(w) => onUpdate(sel.id, (l) => scaleLayer(l, w / l.w), `size:${sel.id}`)}
-      />
-      <Range id="lp-rot" label="Turn" value={sel.rot > 180 ? sel.rot - 360 : sel.rot} min={-180} max={180} step={1} show={`${Math.round(sel.rot > 180 ? sel.rot - 360 : sel.rot)}°`} onChange={(r) => up({ rot: (r + 360) % 360 })} />
-      <Range id="lp-op" label="Opacity" value={sel.opacity} min={0.05} max={1} show={`${Math.round(sel.opacity * 100)}%`} onChange={(opacity) => up({ opacity })} />
+      {keyframes && keyed(<span className="lp-label">Position</span>, ['x', 'y'], 'Position')}
+      {keyed(
+        <Range
+          id="lp-size"
+          label="Size"
+          value={sel.w}
+          min={0.03}
+          max={2}
+          show={`${Math.round(sel.w * 100)}%`}
+          onChange={(w) => onUpdate(sel.id, (l) => scaleLayer(l, w / l.w), `size:${sel.id}`)}
+        />,
+        ['w'],
+        'Size',
+      )}
+      {keyed(
+        <Range id="lp-rot" label="Turn" value={sel.rot > 180 ? sel.rot - 360 : sel.rot} min={-180} max={180} step={1} show={`${Math.round(sel.rot > 180 ? sel.rot - 360 : sel.rot)}°`} onChange={(r) => up({ rot: (r + 360) % 360 })} />,
+        ['rot'],
+        'Turn',
+      )}
+      {keyed(
+        <Range id="lp-op" label="Opacity" value={sel.opacity} min={0.05} max={1} show={`${Math.round(sel.opacity * 100)}%`} onChange={(opacity) => up({ opacity })} />,
+        ['opacity'],
+        'Opacity',
+      )}
       <div className="ig-slider">
         <label htmlFor="lp-blend">Blend</label>
         <select id="lp-blend" value={sel.blend ?? 'normal'} onChange={(e) => up({ blend: e.target.value === 'normal' ? undefined : (e.target.value as BlendMode) }, '')}>
@@ -297,7 +328,7 @@ function Properties({ sel, onUpdate, onAdd, timing }: LayerPanelProps & { sel: L
             max={Math.max(0.1, timing.duration - 0.1)}
             step={0.1}
             show={fmt(sel.start ?? 0)}
-            onChange={(start) => up({ start, end: sel.end !== undefined && sel.end <= start ? undefined : sel.end })}
+            onChange={(start) => up(sel.end !== undefined && sel.end <= start ? { start, end: undefined } : { start })}
           />
           <Range
             id="lp-end"

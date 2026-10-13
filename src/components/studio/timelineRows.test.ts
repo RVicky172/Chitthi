@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Ease, Keyframe } from '../../engine/keyframes';
 import type { Track } from '../../engine/timeline';
-import { clipLabel, describeClipChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
+import { clipLabel, describeClipChange, describeKeyChange, easeName, easeShape, keyPropName, keyTimes, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
 
 /** A track with every switch off. */
 const track = (id: string, kind: Track['kind'], name: string): Track => ({ id, kind, name, hidden: false, muted: false, locked: false });
@@ -101,5 +102,86 @@ describe('describeClipChange', () => {
   it('says nothing when no picture clip changed', () => {
     const clips = [clip('a', 'V1', 0, 4)];
     expect(describeClipChange(clips, clips, TRACKS, 'a')).toBe('');
+  });
+});
+
+/* ---------- 205 T062: the keyframe lane ---------- */
+
+const key = (t: number, v: number, ease: Ease = 'ease-in-out'): Keyframe => ({ t, v, ease });
+
+describe('keyTimes: the diamonds of the collapsed lane (AC-7)', () => {
+  it('is the union of every animated value’s key times, sorted, with the values at each and their ease', () => {
+    const item = { keys: { x: [key(0, 0), key(2, 1, 'hold')], opacity: [key(1, 1, 'linear'), key(2, 0, 'hold')] } };
+    expect(keyTimes(item)).toEqual([
+      { t: 0, props: ['x'], ease: 'ease-in-out' },
+      { t: 1, props: ['opacity'], ease: 'linear' },
+      { t: 2, props: ['x', 'opacity'], ease: 'hold' },
+    ]);
+  });
+
+  it('keys within half a frame are one diamond; different eases there show as mixed', () => {
+    const item = { keys: { x: [key(1, 0, 'linear')], y: [key(1 + 0.4 / 30, 0, 'hold')] } };
+    expect(keyTimes(item)).toEqual([{ t: 1, props: ['x', 'y'], ease: 'mixed' }]);
+    expect(keyTimes(item, 1000)).toHaveLength(2);
+  });
+
+  it('no keys: no diamonds', () => {
+    expect(keyTimes({})).toEqual([]);
+    expect(keyTimes({ keys: { x: [] } })).toEqual([]);
+  });
+});
+
+describe('easeShape and names (D3)', () => {
+  it('a rounded diamond for an ease, a square for hold, a pointed diamond for linear', () => {
+    expect(easeShape('ease-in')).toBe('round');
+    expect(easeShape('ease-out')).toBe('round');
+    expect(easeShape('ease-in-out')).toBe('round');
+    expect(easeShape('mixed')).toBe('round');
+    expect(easeShape('hold')).toBe('square');
+    expect(easeShape('linear')).toBe('pointed');
+  });
+
+  it('names eases and values as the inspector does', () => {
+    expect(easeName('ease-in-out')).toBe('Ease in and out');
+    expect(easeName('hold')).toBe('Hold');
+    expect(easeName('mixed')).toBe('Mixed');
+    expect(keyPropName('rot', 'clip')).toBe('Rotation');
+    expect(keyPropName('rot', 'layer')).toBe('Turn');
+    expect(keyPropName('volume', 'clip')).toBe('Clip sound');
+    expect(keyPropName('radius', 'clip')).toBe('Corners');
+  });
+});
+
+describe('describeKeyChange: the live region after a keyframe change (AC-7, AC-13)', () => {
+  const before = { x: [key(1, 0), key(3, 1)] };
+
+  it('says nothing when the keys are the same', () => {
+    expect(describeKeyChange(before, before, 'Clip 1', 0)).toBe('');
+    expect(describeKeyChange(undefined, undefined, 'Clip 1', 0)).toBe('');
+    expect(describeKeyChange(before, { x: [key(1, 0), key(3, 1)] }, 'Clip 1', 0)).toBe('');
+  });
+
+  it('a move, an add, a removal, in timeline seconds', () => {
+    expect(describeKeyChange(before, { x: [key(1.5, 0), key(3, 1)] }, 'Clip 1', 2)).toBe(
+      'Clip 1: keyframe moved from 3.00 s to 3.50 s',
+    );
+    expect(describeKeyChange(before, { x: [key(1, 0), key(2, 0.5), key(3, 1)] }, 'Clip 1', 2)).toBe(
+      'Clip 1: keyframe added at 4.00 s',
+    );
+    expect(describeKeyChange(before, { x: [key(3, 1)] }, 'Clip 1', 2)).toBe('Clip 1: keyframe at 3.00 s removed');
+  });
+
+  it('the start and the end of an animation', () => {
+    expect(describeKeyChange(undefined, { x: [key(1, 0)] }, 'Title', 0)).toBe('Title: animated, keyframe at 1.00 s');
+    expect(describeKeyChange(before, undefined, 'Title', 0)).toBe('Title: animation removed');
+  });
+
+  it('a new interpolation, and a changed value', () => {
+    expect(describeKeyChange(before, { x: [key(1, 0, 'hold'), key(3, 1)] }, 'Clip 1', 0)).toBe(
+      'Clip 1: keyframe at 1.00 s, Hold',
+    );
+    expect(describeKeyChange(before, { x: [key(1, 0.5), key(3, 1)] }, 'Clip 1', 0)).toBe(
+      'Clip 1: keyframe at 1.00 s changed',
+    );
   });
 });

@@ -1234,3 +1234,150 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* 205 §7: keyframe buttons beside animatable values, previous / next in a group's heading. */
+.kf-row,
+.kf-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+}
+.kf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.kf,
+.kf-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.kf-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.kf-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.kf-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.kf-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.kf-btn.kf-key,
+.kf-btn.kf-between {
+  color: var(--accent);
+}
+.kf-menu .mm-btn {
+  width: 20px;
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+}
+
+/* 205 §9: the keyframe lane under the selected clip or layer; a diamond's shape shows its interpolation (D3). */
+.tl-keys {
+  height: 22px;
+  background: var(--sunk);
+}
+.tl-h-keys {
+  height: 22px;
+  border-bottom: 1px solid var(--line);
+  text-transform: none;
+  font-weight: 500;
+}
+.tl-h-keys-value {
+  padding-left: 22px;
+}
+.tl-keys-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.tl-keys-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.tl-key {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  padding: 0;
+  border: 1.5px solid var(--accent);
+  background: var(--panel);
+  transform: rotate(45deg);
+  cursor: grab;
+  transition: background-color 0.12s, box-shadow 0.12s;
+}
+.tl-key-round {
+  border-radius: 3px;
+}
+.tl-key-square {
+  transform: none;
+  border-radius: 1px;
+}
+.tl-key-pointed {
+  border-radius: 0;
+  transform: rotate(45deg) scale(0.8, 1.15);
+}
+.tl-key.on {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent);
+}
+.tl-key.dragging {
+  cursor: grabbing;
+  z-index: 3;
+}
+.tl-key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+/* The diamond beside each interpolation in its menu. */
+.tl-key-icon {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 8px 0 2px;
+  border: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.tl-key-icon.tl-key-round {
+  border-radius: 2px;
+}
+.tl-key-icon.tl-key-square {
+  transform: none;
+}
+.tl-key-icon.tl-key-pointed {
+  transform: rotate(45deg) scale(0.8, 1.15);
+}
+.tl-hmenu .tl-key-icon + * {
+  flex: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-key {
+    transition: none;
+  }
+}

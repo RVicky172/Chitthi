@@ -4,6 +4,7 @@
 // alone decodes pictures. Kept within a frame of the picture by nudging playbackRate (AC-8, Q5). The music keeps its
 // own element in VideoStage.
 import { lanePlan } from '../../engine/decodePool';
+import { volumeAt, type ClipKeyProp, type Keyframes } from '../../engine/keyframes';
 import { frameStack } from '../../engine/stack';
 import { type Project, type TimedClip } from '../../engine/timeline';
 
@@ -62,6 +63,8 @@ export interface SoundClip {
   in: number;
   out: number;
   volume: number;
+  /** Keyframes (205): volume keys set the element's volume at each tick. */
+  keys?: Keyframes<ClipKeyProp>;
 }
 
 /** The clip sound of one stage: one element per current clip, the next ones' (pre-seeked to their `in`) and the held. */
@@ -69,7 +72,7 @@ export function previewSound() {
   const els = new Map<string, HTMLAudioElement>();
   /** Elements whose sound is coming out (after 'playing'): only those are drift-corrected. */
   const started = new WeakSet<HTMLAudioElement>();
-  const element = (c: SoundClip) => {
+  const element = (c: SoundClip, volume = c.volume) => {
     let el = els.get(c.id);
     if (!el) {
       el = document.createElement('audio');
@@ -83,8 +86,8 @@ export function previewSound() {
       a.addEventListener('waiting', () => started.delete(a));
       els.set(c.id, el);
     }
-    el.volume = Math.max(0, Math.min(1, c.volume));
-    el.muted = c.volume <= 0;
+    el.volume = Math.max(0, Math.min(1, volume));
+    el.muted = volume <= 0;
     return el;
   };
   const release = (el: HTMLAudioElement) => {
@@ -98,7 +101,8 @@ export function previewSound() {
   };
   /** One current clip's element at `local` seconds into the clip: playing and kept in step, or waiting there. */
   const follow = (c: SoundClip, local: number, play: boolean, fps: number) => {
-    const el = element(c),
+    // Volume keyframes are followed on every tick (within a frame of the picture, 205 AC-10).
+    const el = element(c, volumeAt(c, local)),
       want = c.in + local;
     if (local < 0 || want >= c.out - 1e-3) return halt(el);
     if (!play) {

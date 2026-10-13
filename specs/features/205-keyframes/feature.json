@@ -1,0 +1,939 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "205",
+  "title": "Keyframes: animate a clip's box, its volume and layers over time",
+  "workItem": "P2.5",
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-12",
+    "approved": "2026-10-12",
+    "started": "2026-10-12",
+    "done": "2026-10-13"
+  },
+  "git": {
+    "branch": "feat/205-keyframes"
+  },
+  "spec": {
+    "phase": "Phase 2 — Multi-track timeline (release 3.0.0)",
+    "summary": "Keyframes let a value change over time: a picture-in-picture clip that slides in from the side and grows, a logo that fades out, a title that flies in and settles, a clip whose sound dips under a voice. Today every clip box, layer and clip volume holds one value for its whole length, so motion is limited to the photo movement presets. 205 lets the user set values at chosen moments (keyframes) and has the preview and the export move smoothly between them, with a choice of how each change eases. It is the base for later work: transitions (206), speed ramps (207), volume ducking (208) and text animations (210).",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a vlogger, I want my face-cam to slide in from the corner and grow when I start talking, so that the video feels edited rather than static."
+        },
+        "US-2": {
+          "text": "As a creator, I want a title to fly in, hold and fade out, so that my Reel opens like the ones I see in my feed."
+        },
+        "US-3": {
+          "text": "As a YouTuber, I want a B-roll clip's own sound to dip while I speak over it and come back after, so that viewers hear both without a jump."
+        },
+        "US-4": {
+          "text": "As an editor, I want to see, move and delete keyframes on the timeline and choose how each change eases, so that I can fine-tune timing without redoing it."
+        },
+        "US-5": {
+          "text": "As a keyboard or screen-reader user, I want to add, find, move and remove keyframes without a mouse and hear what changed."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "The model",
+          "proof": "unit",
+          "text": "These values can be animated (Q1): a picture clip's box (X, Y, size, rotation, opacity, corner radius), a video clip's volume, and a layer's X, Y, size, rotation and opacity. Each animated value is a list of keyframes (a time and a value) in time order; a value without keyframes stays as today.",
+          "done": true
+        },
+        "AC-2": {
+          "group": "The model",
+          "proof": "unit",
+          "text": "Between two keyframes the value follows the first one's interpolation (Q3): **Linear**, **Ease in**, **Ease out**, **Ease in and out** (the standard CSS curves `ease-in`, `ease-out`, `ease-in-out`, within 0.001 of the value) or **Hold** (the value stays until the next keyframe). At a keyframe's time the value is exactly the keyframe's; before the first keyframe it is the first one's value, after the last the last one's. Values never leave their property's range (the ranges of 203's transform, layers and volume).",
+          "done": true
+        },
+        "AC-3": {
+          "group": "The model",
+          "proof": "unit",
+          "text": "Keyframe times are measured from the start of their clip or layer (Q2), so moving a clip or layer (drag, ripple, roll, slide, nudge, a change of track) moves its keyframes with it. Trimming a clip's start keeps every keyframe at the same place on the timeline; keyframes that end up outside the clip are kept (an undo or a re-trim brings them back) but don't act. Splitting gives each part the keyframes in its span plus a keyframe at the cut holding the value there, so nothing jumps; duplicating copies them. Slip doesn't move them.",
+          "done": true
+        },
+        "AC-4": {
+          "group": "The model",
+          "proof": "unit",
+          "text": "The project document stores keyframes as optional fields: every existing document opens unchanged and one without keyframes is written back byte-identical. The validator sorts keyframes by time, keeps the last of several at the same time, clamps values to their range, drops non-numeric ones, and enforces at most 100 keyframes per value and 5,000 per project (Q5) with a reason; at least 25 malformed documents never make it throw. A project with keyframes round-trips document → validator → document equal.",
+          "done": true
+        },
+        "AC-5": {
+          "group": "The model",
+          "proof": "unit",
+          "text": "Every edit to keyframes is one undo step: adding, changing a value, moving, deleting, changing an interpolation; a drag (on the stage or on the timeline) is one step however long.",
+          "done": true
+        },
+        "AC-6": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "In the inspector each animatable value has a keyframe button (Q4) that shows whether the value is not animated, has a keyframe at the playhead, or is animated between keyframes. Pressing it starts animating the value with a keyframe at the playhead (or adds / removes the keyframe at the playhead). While a value is animated, changing it at the playhead (its field, a drag on the stage, the arrow keys) adds a keyframe there or updates the one there. Previous / next keyframe buttons move the playhead to the selected clip's or layer's keyframes.",
+          "done": false
+        },
+        "AC-7": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "Under the selected clip or layer the timeline shows a keyframe lane with a diamond per keyframe time (one row per animated value when expanded). A diamond can be selected, dragged in time (snapping to frames, the playhead and the clip's ends, as 202's Snap), deleted with Delete, and given an interpolation from its menu; the diamond's shape shows its interpolation. Keyboard (with the timeline focused): K adds or removes keyframes at the playhead for every animated value of the selection, Alt + [ / Alt + ] go to the previous / next keyframe, and with a keyframe selected ← / → move it a frame (Shift: a second). Each change is announced to screen readers (the value, its time and its new state).",
+          "done": false
+        },
+        "AC-8": {
+          "group": "Rendering",
+          "proof": "unit",
+          "text": "The preview and the export take every animated value from the same evaluation at each frame's time on the export's frame grid: for a fixture (a clip moving from one corner to the other with Ease in and out while its opacity falls from 100 % to 0 and it turns 90°; a title layer that flies in, holds, and fades), the values at every frame equal the expected list exactly.",
+          "done": true
+        },
+        "AC-9": {
+          "group": "Rendering",
+          "proof": "self-test (290)",
+          "text": "Golden frames: that fixture at 9:16 and 16:9, at 8 sample times including each keyframe's frame, matches its reference within the self-test's tolerance on every GPU backend, the paused preview shows the same frames, and the export renders the same frames from the same inputs.",
+          "done": false
+        },
+        "AC-10": {
+          "group": "Rendering",
+          "proof": "unit + self-test (290)",
+          "text": "Volume keyframes shape a video clip's sound in the export sample by sample (no steps or clicks: within 0.5 dB of the curve) and in the preview within one frame of it; at 0 % the clip is silent. The export's sound sources for a fixture with volume keyframes equal the expected list exactly.",
+          "done": false
+        },
+        "AC-11": {
+          "group": "Rendering",
+          "proof": "self-test (290)",
+          "text": "A project without keyframes is unchanged: pixel-identical preview frames at 10 sample times and identical export inputs (frames, clips, times and sound sources) to 203 for 201's, 202's and 203's fixtures; all existing video e2e tests pass unchanged.",
+          "done": false
+        },
+        "AC-12": {
+          "group": "Quality",
+          "proof": "unit",
+          "text": "Working out every animated value for one frame takes at most 0.05 ms (median) for a project with 500 clips and 5,000 keyframes, so keyframes don't slow playback; a project without keyframes does no extra work per frame.",
+          "done": true
+        },
+        "AC-13": {
+          "group": "Quality",
+          "proof": "e2e (290)",
+          "text": "Everything in AC-6 and AC-7 works from the keyboard; the keyframe buttons, the lane and the interpolation menu have names and states for screen readers; axe finds no serious problems in the inspector and the timeline; at 360 px wide nothing scrolls sideways outside the timeline; with reduced motion the lane and diamonds don't animate.",
+          "done": false
+        },
+        "AC-14": {
+          "group": "Quality",
+          "proof": "review",
+          "text": "`docs/MEDIA-STUDIO.md` (keyframes, interpolations, keys), `specs/lld.md` (the keyframe model, the evaluation, the document fields), `CHANGELOG.md` and the in-app docs (keys) describe the change.",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8"
+      ],
+      "byId": {
+        "Q1": {
+          "open": false,
+          "text": "Which values can be animated in 205? _Answer (accepted 2026-10-12):_ a picture clip's box (X, Y, size, rotation, opacity, corner radius, from 203), a video clip's volume, and a layer's X, Y, size, rotation and opacity: what motion, picture-in-picture and titles need. Not in 205: colour adjustments and masks (the colour work of Phase 3), the music's volume (with ducking in 208), text style (colour, size of the font) and the photo movement presets, which stay as they are (Q7)."
+        },
+        "Q2": {
+          "open": false,
+          "text": "What are keyframe times measured from? _Answer (accepted 2026-10-12):_ the clip's (or layer's) start on the timeline, so moving it moves its animation. Trimming the start keeps keyframes where they are on the timeline (the motion doesn't jump); keyframes outside the clip are kept but don't act. Slip changes what a video shows, not when its box moves, so it leaves keyframes alone. (The alternative, times in the video's own source, would make a slip move the animation.)"
+        },
+        "Q3": {
+          "open": false,
+          "text": "Which interpolations, and which one do new keyframes get? _Answer (accepted 2026-10-12):_ Linear, Ease in, Ease out, Ease in and out, and Hold; a keyframe's interpolation applies to the change that starts at it. New keyframes get **Ease in and out**, which looks natural for motion and fades; the menu changes it. Custom curves (Bézier handles, a graph editor) are out of scope."
+        },
+        "Q4": {
+          "open": false,
+          "text": "How does a user start animating a value? _Answer (accepted 2026-10-12):_ as in most editors, a keyframe button next to each value in the inspector (a diamond: empty when not animated, filled at a keyframe, half when between keyframes). Once a value is animated, any change at the playhead (field, stage drag, arrow keys) sets a keyframe there; to change the whole animation at once the user removes its keyframes (the button's menu: **Remove animation**). The timeline's lane shows and edits the keyframes of the selected clip or layer only, to keep the timeline readable."
+        },
+        "Q5": {
+          "open": false,
+          "text": "Limits? _Answer (accepted 2026-10-12):_ 100 keyframes per value and 5,000 per project, on the web and the desktop app alike: far beyond hand-made animation, and they bound the document and the per-frame work (AC-12)."
+        },
+        "Q6": {
+          "open": false,
+          "text": "Agent tools (Constitution XI)? _Answer (accepted 2026-10-12):_ none in 205, as 203 (Q14): keyframes are store actions and pure functions, and the timeline's agent tools, keyframes included, come together in 212."
+        },
+        "Q7": {
+          "open": false,
+          "text": "How do keyframes and a photo's movement preset (zoom in, pan left …) combine? _Answer (accepted 2026-10-12):_ both apply: the preset moves the picture inside its box (as today), keyframes move the box. Turning presets into editable keyframes is left for later; nothing about existing projects changes."
+        },
+        "Q8": {
+          "open": false,
+          "text": "Volume range for keyframes? _Answer (accepted 2026-10-12):_ 0–100 %, the clip volume's range today (no boost above the file's own level); a boost, with a limiter, comes with the audio work in 208."
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-12",
+        "text": "Created: draft spec with 14 acceptance criteria and 8 open questions with proposed answers."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "Q1–Q8: every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "Plan drafted (§1–§11, D1–D3 for the maintainer)."
+      },
+      {
+        "date": "2026-10-12",
+        "text": "Plan approved (D1–D3 as recommended, D-034); tasks T010–T092; deferred checks listed in 290."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** keyframes add at most 0.05 ms per frame (AC-12); preview playback and export speed stay within 5 % of 203 for projects without keyframes; no new decoding or memory per keyframe.\n- **Accessibility:** every keyframe action works from the keyboard and is announced; names and states for screen readers; reduced motion respected (AC-13).\n- **Compatibility:** web and desktop alike; no new dependency; every existing project opens and exports unchanged (AC-4, AC-11).\n- **Free and open source:** keyframes are for everyone, on the web and the desktop app."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Keyframes on colour adjustments, looks and masks (Phase 3, the colour work).\n- The music's volume, ducking, and boosting a clip above 100 % (208).\n- Speed changes and speed ramps (207); transitions (206).\n- Text style animation and animation presets (slide, pop, typewriter: 210).\n- Custom easing curves, Bézier handles, a graph editor, curved motion paths.\n- Agent tools for keyframes (212, Q6)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-12, D1–D3 as recommended, D-034) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/keyframes.ts`, `src/engine/keyframes.test.ts`",
+        "change": "new",
+        "purpose": "§1, §2: the model, evaluation, pure edits, the gate"
+      },
+      {
+        "file": "`src/engine/timeline.ts`, `src/engine/timeline.test.ts`",
+        "change": "modify",
+        "purpose": "§5, §10: `keys` on clips and in the document, `gain` in the sound plan"
+      },
+      {
+        "file": "`src/engine/edits.ts`, `src/engine/edits.test.ts`",
+        "change": "modify",
+        "purpose": "§3: start-edge edits shift keys"
+      },
+      {
+        "file": "`src/engine/video.ts`",
+        "change": "modify",
+        "purpose": "§4: `renderStack` draws `transformAt`"
+      },
+      {
+        "file": "`src/engine/layers.ts`",
+        "change": "modify",
+        "purpose": "§4, §10: `drawLayers` draws `layerAt` with a time; `mergeLayers` reads keys"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`",
+        "change": "modify",
+        "purpose": "§5: the gain curve in `mixWindow`"
+      },
+      {
+        "file": "`src/components/studio/previewSound.ts`",
+        "change": "modify",
+        "purpose": "§5: element volume from `volumeAt`"
+      },
+      {
+        "file": "`src/state/video.ts`, `src/state/video.test.ts`",
+        "change": "modify",
+        "purpose": "§3, §6: split keys, the keyframe actions, the routers, `setLayerTimes`"
+      },
+      {
+        "file": "`src/components/studio/VideoWorkspace.tsx`, `src/components/ig/LayerPanel.tsx`",
+        "change": "modify",
+        "purpose": "§7, §8: keyframe buttons, animated values in fields, the stage evaluates first"
+      },
+      {
+        "file": "`src/components/studio/useClipTransform.ts`, `src/components/ig/useLayerPointer.ts`",
+        "change": "modify",
+        "purpose": "§8: edit the animated box / layer through the routers"
+      },
+      {
+        "file": "`src/components/studio/KeyframeLane.tsx`, `src/components/studio/Timeline.tsx`, `src/components/studio/timelineRows.ts`",
+        "change": "new / modify",
+        "purpose": "§9: the lane, its keys and announcements"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "§7, §9: diamonds, the lane"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`",
+        "change": "modify",
+        "purpose": "AC-14"
+      },
+      {
+        "file": "`specs/features/290-phase2-test-pass-release/feature.json`",
+        "change": "modify",
+        "purpose": "the deferred checks for AC-6, AC-7, AC-9–AC-11, AC-13 (D-033)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Audio automation** (§5): overlapping AudioParam events throw, and a curve split across 10 s windows could click. Mitigation: one `setValueCurveAtTime` per source per window and nothing else on that gain node; the curve is a pure function (`gainCurve`, T040) unit-tested for accuracy (±0.5 dB against the exact curve, as `setValueCurveAtTime` interpolates linearly between its points) and for continuity at window joins. The exported sound itself is measured in 290 (AC-10; no self-test spike during the phase, D-033)."
+      },
+      {
+        "text": "**Auto-key surprises** (§6, Q4): once a value is animated, a drag sets a keyframe rather than moving the whole animation. Mitigation: the diamond shows the state everywhere the value is edited, the change is announced with \"keyframe at …\", and **Remove animation** is one step away."
+      },
+      {
+        "text": "**Shared layer code with the photo editor** (§4, §8): `drawLayers` and `useLayerPointer` serve both editors. Mitigation: keyframes act only when a time is passed (the video editor); the photo editor's calls don't change and its tests must stay green."
+      },
+      {
+        "text": "**Start-edge edits** (§3): a missed edit path would make animations jump after a trim. Mitigation: shift keys in the two helpers every start-edge edit uses (`trim` start without ripple, `moveStart`), and a seeded property test (1,000 random edits) that a key's timeline time is kept by start-edge edits and carried by moves."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-12 (Q1–Q8 accepted)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Unit tests first for every task (D-033); the e2e, golden-frame and sound checks are listed in 290."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency: easing, search and audio automation are a few small functions and the Web Audio API."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "Decisions and gotchas logged as they come; progress at the end."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Keyframes for everyone, web and desktop alike."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "All evaluation and mixing happen locally."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new to license."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "One evaluation (`keyframes.ts`) for the preview, the export and the editors (§4, §5)."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No IPC or Electron change."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "AC-12 budget (0.05 ms per frame); keyboard, names, announcements, reduced motion (AC-13); no entry-chunk growth beyond a few KB."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "⚠️",
+        "notes": "No agent tool in 205 (Q6, accepted): the actions are pure functions and store actions that 212's tools will call."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Keyframes are data on the clip or layer they animate, evaluated by one pure module that the preview, the export,\nthe stage editing and the inspector all call, so what the user sees is what is exported (Constitution VIII). Under\nD-033 every task is proven by unit tests; the e2e, golden-frame and sound checks are listed in 290.\n\n**§1 The model (new `engine/keyframes.ts`, AC-1, AC-2, AC-12).** A keyframe is `{ t, v, ease }`: seconds from the start\nof its clip or layer (Q2), the value, and how the change that starts at it eases (Q3). An item's keyframes are a map\nfrom an animatable value to a sorted list: clips animate `x`, `y`, `w`, `rot`, `opacity`, `radius` (203's box) and\n`volume`; layers `x`, `y`, `w`, `rot`, `opacity` (Q1). `valueAt(keys, t)` finds the segment by binary search and\ninterpolates: linear; ease-in / ease-out / ease-in-out as CSS's cubic-bezier curves (0.42, 0, 1, 1), (0, 0, 0.58, 1),\n(0.42, 0, 0.58, 1), solved for x by Newton's method with a bisection fallback; hold. Before the first key: the first\nvalue; after the last: the last. `clampValue(prop, v)` keeps values in range (203's `TF_RANGE`, layers', volume 0–1,\nQ8). Higher-level helpers: `transformAt(clip, local)` (the clip's `tf` with its animated fields replaced),\n`volumeAt(clip, local)`, `layerAt(layer, t)` (the layer with its animated fields at timeline time `t`), and\n`isAnimated(item, prop)`. Items without keyframes return their stored values untouched (no allocation per frame).\n\n**§2 Editing keyframes, pure (keyframes.ts, AC-1, AC-5).** `setKey(keys, prop, t, v)` (adds, or replaces the value at a\ntime within half a frame; new keys get Ease in and out), `removeKey`, `moveKey(prop | all, from, to)` (a key landing on\nanother replaces it), `setEase`, `animate(item, prop, t)` (the first key, at the current value) and\n`stopAnimating(item, prop, t)` (**Remove animation**: the value at `t` becomes the stored one). Limits (Q5): 100 keys\nper value, 5,000 per project, refused with a message.\n\n**§3 Keyframes follow their clip (edits.ts, the store, AC-3).** Times are from the item's start, so moves, ripples,\nreorders, track changes, nudges and Magnetic packing carry keyframes for free. Only edits that move a start **edge**\nshift them, by minus how far the start moved, so they stay at their timeline place: `trim` of a start edge without\nripple, and `moveStart` (the right clip of a Roll, the next clip of a Slide). A ripple start trim keeps the clip's start,\nso nothing shifts. Slip never touches them. `splitKeys(keys, at, valuesAtCut)` gives the left part the keys before\n`at` plus one at `at` holding the value there, and the right part the keys after `at` shifted by `-at` plus one at 0\n(the store's split uses it). Duplicate copies them (the object spread already does). A layer's start edge\n(the timeline's layer bar) goes through a new store action `setLayerTimes`, which shifts its keys the same way.\n\n**§4 Drawing (video.ts, layers.ts, AC-8, AC-11).** `renderStack` takes each item's box from `transformAt(clip,\nlocal)` instead of `clip.tf`, so the preview and the export, which both call it, get the same values at every frame.\n`drawLayers(ctx, layers, W, H, t)` draws `layerAt(layer, t)` when a time is given (the video editor); the photo editor\npasses none and is unchanged. Items without keyframes take the exact code path of today, so 203's projects stay\npixel-identical.\n\n**§5 Sound (timeline.ts audioPlan, videoExport.ts, previewSound.ts, AC-10).** A clip with volume keyframes is in the\nsound plan even when its stored volume is 0, and its `SoundSource` carries `gain` (its keys, in clip time). The\nexport's `mixWindow` then builds one gain curve for the window: the volume curve times the 0.03 s end ramps, sampled\nevery 5 ms, set with `setValueCurveAtTime` (the only automation on that gain node, so events never overlap); windows\nmeet exactly, so a curve crossing a 10 s window edge is continuous. The preview's `previewSound` sets each element's\n`volume` from `volumeAt` on every sync tick (within one frame). A spike (T001) checks the curve's accuracy (0.5 dB) and\nthat nothing clicks at window edges before the rest is built.\n\n**§6 Store actions (state/video.ts, AC-5, AC-6).** `toggleKey(item, prop)` (the diamond: animate / add / remove the\nkey at the playhead), `removeAnimation(item, prop)`, `moveKeys(item, prop | 'all', from, to, key)` (a drag: one undo\nstep), `setKeyEase(item, prop | 'all', t, ease)`, `deleteKeys(item, prop | 'all', t)`, and two routers that make the\nexisting editing keyframe-aware: `setClipTransformAt` (used by the stage box, the arrow keys and the inspector's\nfields) and `updateLayerAt` (the layers' pointer and fields). A router writes an animated value as a keyframe at the\nplayhead (Q4: auto-key) and a not-animated one as today. `setClipVolume` does the same for volume. Every action is one\nundo step returning its refusal (locked track, a limit).\n\n**§7 Inspector (VideoWorkspace.tsx ClipPanel, LayerPanel's fields, AC-6).** A `KeyframeButton` (a diamond with three\nstates: not animated, at a key, between keys; `aria-pressed` and a name such as \"X: keyframe at 1.20 s\") beside each\nanimatable field: the 203 Position and size fields, the clip's Clip sound slider, and the layers' position, size,\nrotation and opacity controls; its menu has **Remove animation**. The fields show the animated value at the playhead.\nPrevious / next keyframe buttons in each group's heading.\n\n**§8 Stage (useClipTransform.ts, useLayerPointer.ts, VideoWorkspace.tsx).** The stage evaluates before it edits: the\nclip box from `transformAt`, the layers passed to `useLayerPointer` as `layerAt(layer, t)`, so hit tests and handles\nmatch what is drawn; their updates go through the §6 routers, so dragging an animated clip or layer sets a keyframe at\nthe playhead.\n\n**§9 Timeline keyframe lane (Timeline.tsx, new `studio/KeyframeLane.tsx`, AC-7, AC-13).** Under the selected clip's row\n(or the selected layer's row) a thin lane shows one diamond per keyframe time (the union of its animated values); an\nexpand button shows one row per value. A diamond is a button: click selects, drag moves (snapping to frames, the\nplayhead and the item's ends with 202's `snap`, Alt to skip), Delete removes, its menu (a portal menu like the track\nheight menu) sets the interpolation; its shape shows it (diamond: ease, square: hold, triangle-ish: linear). Keys with\nthe timeline focused: K toggles keys at the playhead for every animated value of the selection, Alt + [ / ] jump to the\nprevious / next key, ← / → (Shift: a second) move the focused diamond. Changes are announced through the timeline's live\nregion (`describeKeyChange`, timelineRows.ts). Reduced motion: no transitions on diamonds.\n\n**§10 Project document (timeline.ts, layers.ts, AC-4).** `DocClip.keys?` and `Layer.keys?`, written only when present,\nso documents without keyframes are byte-identical. The gate (`mergeKeys(raw, props)`) sorts by time, keeps the last of\nequal times, clamps values, checks `ease` (unknown → Ease in and out), drops non-finite entries, enforces the limits with\na reason, and never throws; `mergeProject` and `mergeLayers` call it.\n\n**§11 Agent tools.** None in 205 (Q6): 212 adds the timeline's agent tools, keyframes included."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/keyframes.ts\nexport type Ease = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'hold';\nexport interface Keyframe {\n  /** Seconds from the start of its clip or layer. */\n  t: number;\n  /** The value from here (in its property's units: shares of the frame, degrees, 0–1). */\n  v: number;\n  /** How the change from this keyframe to the next eases. */\n  ease: Ease;\n}\nexport type ClipKeyProp = 'x' | 'y' | 'w' | 'rot' | 'opacity' | 'radius' | 'volume';\nexport type LayerKeyProp = 'x' | 'y' | 'w' | 'rot' | 'opacity';\nexport type Keyframes<P extends string> = Partial<Record<P, Keyframe[]>>;\nexport const KEY_LIMITS = { perValue: 100, perProject: 5000 } as const;\n\nexport function valueAt(keys: readonly Keyframe[], t: number): number;\nexport function transformAt(clip: TimedClip, local: number): ClipTransform;\nexport function volumeAt(clip: TimedClip & { volume: number }, local: number): number;\nexport function layerAt<L extends Layer>(layer: L, t: number): L;\nexport function setKey<P extends string>(keys: Keyframes<P>, prop: P, t: number, v: number): Keyframes<P> | { error: string };\nexport function shiftKeys<P extends string>(keys: Keyframes<P>, by: number): Keyframes<P>;\nexport function splitKeys<P extends string>(keys: Keyframes<P>, at: number, valueAtCut: (prop: P) => number): [Keyframes<P>, Keyframes<P>];\nexport function mergeKeys<P extends string>(raw: unknown, props: readonly P[]): { keys: Keyframes<P> | undefined; dropped: string[] };\n\n// engine/timeline.ts: TimedClip gains   keys?: Keyframes<ClipKeyProp>\n// engine/layers.ts:   LayerBase gains   keys?: Keyframes<LayerKeyProp>\n// engine/timeline.ts: SoundSource gains gain?: Keyframe[]  (volume keys, clip time; the source's volume is the base)\n// engine/timeline.ts: DocClip gains     keys?: Keyframes<ClipKeyProp>\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Cubic-bezier easing:** x(u) and y(u) for control points (x1, y1, x2, y2); for a progress p find u with x(u) = p by\n  Newton's method (8 steps, derivative guard) with bisection fallback, then y(u). Matches the browser's CSS curves to\n  1e-4 (unit-tested against sampled `cubic-bezier` values).\n- **Binary search** over each value's keys per evaluation: O(log n) per value; a stack of ≤ 8 clips and the layers\n  showing at a frame is well under AC-12's 0.05 ms.\n- **Gain automation:** `AudioParam.setValueCurveAtTime(curve, start, duration)` with one curve per source per window\n  (linear interpolation between 5 ms points: under 0.1 dB from an ease curve), so the mixer's sample-exact gain matches\n  the preview's per-tick `volume`.\n- **Auto-key routing:** the store, not the components, decides whether a change is a keyframe, so the stage, the arrow\n  keys and the fields stay as they are apart from calling the router."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | Where |\n| --- | --- | --- |\n| AC-1 | unit | `keyframes.test.ts`: which values animate; a value without keys is unchanged |\n| AC-2 | unit | `keyframes.test.ts`: exact at keys, before / after, linear midpoint, the three eases against sampled CSS curves (±0.001), hold, ranges |\n| AC-3 | unit | `edits.test.ts` (start trim with / without ripple, roll, slide, slip, nudge, move to track carry or keep keys), `video.test.ts` (split, duplicate, layer start edge) |\n| AC-4 | unit | `timeline.test.ts`: ≥ 25 malformed keyframe documents, limits, round trip, byte-identical without keys |\n| AC-5 | unit | `video.test.ts`: each keyframe action and a drag are one undo step |\n| AC-6 | e2e (290) | the inspector's diamonds, auto-key from fields, the stage and arrows, previous / next |\n| AC-7 | e2e (290) | the lane: select, drag with snapping, Delete, interpolation menu, K, Alt + [ / ], arrows, announcements |\n| AC-8 | unit | `keyframes.test.ts`: the fixture's values at every frame on the export grid equal the expected list; `renderStack` and the export both take them from `transformAt` (a unit test on the item list the export builds) |\n| AC-9 | self-test (290) | golden frames of the fixture at 9:16 and 16:9 on every backend; the paused preview; the export |\n| AC-10 | unit + self-test (290) | unit: `audioPlan` with `gain`, the window curve's values (±0.5 dB, continuous across windows) as a pure function; 290: the export's sound measured; the preview within a frame |\n| AC-11 | self-test (290) | 201 / 202 / 203 fixtures pixel-identical, identical export inputs; existing video e2e unchanged |\n| AC-12 | unit | a timed evaluation (median of 200 runs) on 500 clips and 5,000 keys ≤ 0.05 ms; no keys = no allocation |\n| AC-13 | e2e (290) | keyboard only, names, axe, 360 px, reduced motion |\n| AC-14 | review | the docs in T090 |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-12: D1–D3 as recommended)",
+        "markdown": "- **D1 — The lane's layout.** _Recommended:_ one row of diamonds (every animated value's keyframe times) under the\n  selected clip or layer, with an expand button for one row per value. _Alternative:_ always one row per value (clearer,\n  but tall: up to 7 rows under a clip).\n- **D2 — Keyboard shortcut.** _Recommended:_ **K** toggles keyframes at the playhead for the selection's animated values;\n  **Alt + [ / ]** jump between keyframes (Alt avoids the browser's and screen readers' own [ ] shortcuts). _Alternative:_\n  no single-key shortcut, only the buttons.\n- **D3 — Ease shown on the diamond.** _Recommended:_ the shape shows it (rounded diamond: an ease, square: hold, pointed\n  diamond: linear), with the name in its accessible label and tooltip. _Alternative:_ one shape, the ease only in the\n  menu and label."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); the e2e, golden-frame, sound and accessibility checks are listed in `290` (\"Deferred checks collected from the phase\": 205 AC-6, AC-7, AC-9, AC-10, AC-11, AC-13).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 205 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "The model",
+        "intro": "Pure functions in `engine/keyframes.ts` first: everything else calls them."
+      },
+      {
+        "title": "Edits keep keyframes in place",
+        "intro": null
+      },
+      {
+        "title": "Drawing and sound",
+        "intro": "One evaluation for the preview and the export (Constitution VIII)."
+      },
+      {
+        "title": "Store actions",
+        "intro": null
+      },
+      {
+        "title": "Inspector, stage and timeline",
+        "intro": "Unit tests cover the pure helpers; the UI itself is checked in 290."
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T020",
+        "T021",
+        "T030",
+        "T040",
+        "T041",
+        "T050",
+        "T051",
+        "T060",
+        "T061",
+        "T062",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing tests (`src/engine/keyframes.test.ts`): `valueAt` exact at keys, the first value before and the last after, linear midpoint, `ease-in` / `ease-out` / `ease-in-out` against sampled CSS cubic-bezier values (±0.001), hold; `clampValue` for every property's range (203's box, layers', volume 0–1); `transformAt` / `volumeAt` / `layerAt` replace only animated fields and return the same object when there are no keys; `isAnimated`.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "src/engine/keyframes.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/keyframes.test.ts`: fails (no module)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** src/engine/keyframes.test.ts: 18 cases (valueAt at keys / before / after / linear / hold / 3 CSS eases vs bisection-sampled cubic-bezier at 5 points ±0.001 / monotonic / binary search over 100 keys; clampValue for the 7 clip and 5 layer values; transformAt / volumeAt / layerAt same object without keys, only animated fields replaced; isAnimated). Fails: no module."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T011": {
+          "text": "Implement plan §1 in `src/engine/keyframes.ts`: `Keyframe`, `Ease`, `ClipKeyProp`, `LayerKeyProp`, `Keyframes`, `valueAt` (binary search; cubic-bezier by Newton with bisection fallback), `clampValue`, `transformAt`, `volumeAt`, `layerAt`, `isAnimated`; `keys?` on `TimedClip` and `LayerBase`.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "src/engine/keyframes.ts",
+            "src/engine/timeline.ts",
+            "src/engine/layers.ts"
+          ],
+          "test": "T010",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** src/engine/keyframes.ts: Keyframe / Ease / ClipKeyProp / LayerKeyProp / Keyframes, KEY_LIMITS, CLIP_RANGES (203's box + volume 0–1) and LAYER_RANGES (mergeLayers' clamps), clampValue(prop, v, 'clip' | 'layer'), valueAt (binary search; CSS cubic-bezier by 8 Newton steps, 40-step bisection fallback, each alone within 0.001), transformAt / volumeAt / layerAt (same object when nothing is animated), isAnimated; keys? on TimedClip and LayerBase (type imports only, no cycle). 19/19 keyframes tests; break-tests (hold interpolating, solver cut short) caught; npm run check 1,443 tests green."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T012": {
+          "text": "Failing tests (`keyframes.test.ts`): `setKey` (adds; replaces within half a frame; new keys Ease in and out; clamps), `removeKey`, `moveKey` (one value or all at a time; landing on a key replaces it), `setEase`, `animate` / `stopAnimating` (Remove animation keeps the value at the playhead), the limits (100 per value, 5,000 per project, with the message); `shiftKeys`; `splitKeys` (left: keys before the cut + one holding the value at it; right: keys after, shifted, + one at 0).",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3",
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/keyframes.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/keyframes.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** 13 cases in keyframes.test.ts for setKey (adds sorted with Ease in and out; replaces within half a frame at 30 / 60 fps keeping time and ease; clamps per clip / layer; 100 per value and 5,000 per project refused with a message), removeKey, moveKey (one value / all; landing replaces), setEase, animate, stopAnimating, countKeys, shiftKeys, splitKeys (continuity checked every 0.125 s; cut on a key). Written before T013's code (the imports were missing); not run on their own before it."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T013": {
+          "text": "Implement plan §2 in `keyframes.ts` (pure edits, limits, `shiftKeys`, `splitKeys`).",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3",
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/keyframes.ts"
+          ],
+          "test": "T012",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** keyframes.ts §2: KeyEdit { on, fps, projectKeys }, setKey, removeKey, moveKey, setEase (each returns undefined when nothing is left animated), countKeys, shiftKeys, splitKeys(keys, at) (works out the value at the cut itself, so the plan's valueAtCut callback isn't needed), valueOf, animate and stopAnimating (overloads for clips and layers; stopAnimating returns the changed fields: keys plus tf / volume / the layer field). 32/32 keyframes tests; break-test (left part keeping the key at the cut) caught; npm run check green, 1,456 tests."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T014": {
+          "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): ≥ 25 malformed keyframe documents (wrong types, NaN, unsorted, equal times, unknown ease, unknown value names, too many per value and per project, on clips and on layers) never throw and give the expected keys and reasons; a project with keys round-trips document → gate → document equal; 201 / 202 / 203 documents without keys stay byte-identical.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/timeline.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** timeline.test.ts '205 AC-4': 30 malformed keyframe documents (keys of the wrong type, lists that aren't arrays, unreadable keys, NaN / infinite / text / beyond-a-day times, out-of-range values on clips and layers, unknown / missing / wrong-type eases, unsorted, equal times, extra fields, unknown value names, __proto__, 150 on a value, 17,800 in a project, volume and radius on a layer), a round trip with a keyed clip and layer, empty keys not written, every 2.x fixture byte-identical. 31 new cases failed before T015."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T015": {
+          "text": "Implement plan §10: `mergeKeys` in `keyframes.ts`; `DocClip.keys`, `toDocument` (written only when present) and `mergeProject` in `timeline.ts`; `mergeLayers` reads `keys` in `layers.ts`.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/keyframes.ts",
+            "src/engine/timeline.ts",
+            "src/engine/layers.ts"
+          ],
+          "test": "T014",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** mergeKeys(raw, props, 'clip' | 'layer', budget) in keyframes.ts: only known values read (__proto__ and unknown names dropped), finite time within a day either side of the start and finite value, clamped, unknown eases → Ease in and out, stable sort with the last of equal times kept, 100 per value, a KeyBudget shared by clips then layers for the 5,000 per project; each reason once. DocClip keys via TimedClip; toDocument writes tidyKeys only when some are left; mergeProject and mergeLayers(raw, images, budget) call it. 287/287 timeline tests; break-tests (equal times not merged, layers not sharing the budget) caught; npm run check green, 1,501 tests."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T016": {
+          "text": "Tests (`keyframes.test.ts`): AC-8's fixture (a clip moving corner to corner with Ease in and out while its opacity falls 100 → 0 % and it turns 90°; a title layer that flies in, holds and fades) evaluated at every frame of the export's grid equals the expected list; AC-12's timing (median of 200 evaluations of a frame on 500 clips with 5,000 keys ≤ 0.05 ms; no keys: no allocation).",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8",
+            "AC-12"
+          ],
+          "files": [
+            "src/engine/keyframes.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/keyframes.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** keyframes.test.ts AC-8: a clip (1–4 s) moving corner to corner with Ease in and out over 2 s, turning 90° and fading 100 → 0 %, and a title (0.5–4.5 s) flying in (Ease out), holding and fading over its last second, checked at every frame of frameRange(0, 5) at 30 and 60 fps against an independent 60-step bisection reference (within 1e-9); key frames exact. The solver's stop tolerance went from 1e-7 to 1e-12 (1e-7 left 4e-9 in the value). AC-12: 500 clips, 5,000 keys, median of 200 frames 0.016 ms (budget 0.05) including the scan of all 500 clips; without keys transformAt / volumeAt give back the clip's own box and volume. Break-test (layers in timeline time) caught; npm run check green twice, 1,506 tests."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T020": {
+          "text": "Failing tests (`src/engine/edits.test.ts`): a start trim without ripple keeps each key at its timeline time (keys shifted by minus the start's move); a ripple start trim, an end trim, Slip, nudges, moves, `moveToTrack` and reorders leave key times (relative to the clip) unchanged; Roll shifts the right clip's keys, Slide the next clip's; a seeded property test (1,000 random edits) checks both rules.",
+          "section": "Edits keep keyframes in place",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/engine/edits.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/edits.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** edits.test.ts '205 AC-3': start trim without ripple (video shortened and lengthened into a gap, photo), ripple start trim / end trims / Slip leave keys alone, moveTo / nudge (both modes) / reorder / moveToTrack carry them, Roll shifts the right clip's keys and Slide the next clip's, clips without keys get none, and a seeded property test (1,000 random edits: start-edge edits keep each key's timeline time, others carry it). 3 cases failed before T021 (start trim, Roll / Slide, the property test); the carrying cases passed already."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T021": {
+          "text": "Implement plan §3 in `src/engine/edits.ts`: `trim` (start, no ripple) and `moveStart` shift keys with `shiftKeys`.",
+          "section": "Edits keep keyframes in place",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/engine/edits.ts"
+          ],
+          "test": "T020",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** edits.ts keepKeys(before, after): a clip whose start edge moved gets its keys shifted by minus the move; used by trim (start, no ripple), roll (the right clip) and slide (the next clip). Whole-clip moves need nothing. 95/95 edits tests incl. the 1,000-step property test; break-test (Slide without it) caught by the explicit and the property test; npm run check green, 1,512 tests. Found on the way (202, not changed): a Roll from a video clip under 0.1 s (shown 0.1 s long by clipLength) moves the next clip's end too, opening a small gap."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T030": {
+          "text": "Implement plan §4 with unit tests: `renderStack` takes each item's box from `transformAt(clip, local)` through a pure exported helper (`itemTransform`), and `drawLayers` draws `layerAt(layer, t)` when given a time (the photo editor passes none). Tests (`keyframes.test.ts`): `itemTransform` returns the stored box (same object) without keys and the keyed values with them; `layersAt` without a time or keys returns the same layers.",
+          "section": "Drawing and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/video.ts",
+            "src/engine/layers.ts",
+            "src/engine/keyframes.test.ts"
+          ],
+          "test": "`npm run check` (the photo editor's and 203's unit tests unchanged)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** video.ts itemTransform(item) = transformAt(item.clip, item.local); renderStack takes each box from it (StackDraw's clip carries keys; the preview and the export already spread the whole clip in). keyframes.ts layersAt(layers, t?) (the same array without a time or keys); drawLayers draws layersAt(layers, t), the photo editor passes no time. transformAt / volumeAt take any { tf?, keys? } / { volume, keys? }. 4 new tests (failed first); npm run check green, 1,516 tests, photo editor and 203 tests unchanged. The canvas path itself is checked by 290's golden frames (AC-9, AC-11)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T040": {
+          "text": "Failing tests: `audioPlan` keeps a clip whose stored volume is 0 but has volume keys above 0, with `gain` in clip time (`timeline.test.ts`); a pure `gainCurve(source, windowStart, windowLength, step = 0.005)` (`keyframes.test.ts`): linear interpolation between its points stays within 0.5 dB of the exact curve (ramps included), two adjacent windows meet with equal values, and a source without keys gives today's ramp values.",
+          "section": "Drawing and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts",
+            "src/engine/keyframes.test.ts"
+          ],
+          "test": "`npx vitest run src/engine`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** timeline.test.ts: audioPlan mixes a clip with volume keys above 0 at a stored volume of 0 with gain = its keys (clip time); all-zero volume keys leave it out; box keys change nothing. keyframes.test.ts: gainCurve (5 ms points, played back linearly as setValueCurveAtTime does) within 0.5 dB of the exact curve every 0.5 ms (−40 dB floor, 0.001 below), ramps and eased dips included; today's ramp values without keys; adjacent windows meet equal; a Hold jump is one step's ramp. 6 cases failed before T041."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T041": {
+          "text": "Implement plan §5: `audioPlan` with `gain`; `gainCurve`; `mixWindow` sets one `setValueCurveAtTime` per source per window for keyed sources (unkeyed ones keep today's ramps); `previewSound` sets each element's volume from `volumeAt` on every sync.",
+          "section": "Drawing and sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/timeline.ts",
+            "src/engine/keyframes.ts",
+            "src/engine/videoExport.ts",
+            "src/components/studio/previewSound.ts"
+          ],
+          "test": "T040",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** SoundSource.gain (volume keys, seconds from start); audioPlan mixes a clip when any volume key is above 0 (else its stored volume as before). keyframes.ts sourceGainAt and gainCurve (points ≤ 5 ms apart, both ends included). mixWindow sets one setValueCurveAtTime over the source's part of the window for keyed sources (the only automation on that gain node); unkeyed sources keep the 203 ramps. previewSound: SoundClip.keys, each current element's volume from volumeAt on every tick (muted at 0). New preview test (failed first). Break-tests (curve without its end point; preview ignoring keys) caught; npm run check green, 1,523 tests. The exported sound itself is measured in 290 (AC-10)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T050": {
+          "text": "Failing tests (`src/state/video.test.ts`): split gives each part its keys (`splitKeys`), duplicate copies them, `setLayerTimes` shifts a layer's keys when its start edge moves and not when it moves whole; `toggleKey`, `removeAnimation`, `moveKeys` (a drag under one key: one undo step), `setKeyEase`, `deleteKeys`; the routers `setClipTransformAt`, `updateLayerAt`, `setClipVolume` write a keyframe at the playhead for an animated value and the stored value otherwise; each is one undo step and returns its refusal (locked track, limits).",
+          "section": "Store actions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-5",
+            "AC-6"
+          ],
+          "files": [
+            "src/state/video.test.ts"
+          ],
+          "test": "`npx vitest run src/state/video.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** state/video.test.ts '205 keyframes in the store': split (keys per part, one at the cut), duplicate (copies), setLayerTimes (start edge shifts, a whole move doesn't), toggleKey (start, add at the animated value, remove; the last key's removal stores its value), removeAnimation, moveKeys (10-step drag = one undo; landing replaces), setKeyEase / deleteKeys (one value and all), the routers setClipTransformAt / updateLayerAt (patch and function on the shown layer) / setClipVolume, refusals (locked track, 100 per value, missing clip) recording nothing; undo-step counts in each. 10 failed before T051 (duplicate passed already)."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T051": {
+          "text": "Implement plan §6 in `src/state/video.ts`.",
+          "section": "Store actions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-5",
+            "AC-6"
+          ],
+          "files": [
+            "src/state/video.ts"
+          ],
+          "test": "T050",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-12):** state/video.ts: VClip.keys; split gives each part splitKeys' keys (only when the clip had keys); KeyTarget { clip } | { layer }; toggleKey, removeAnimation, moveKeys (drag key), setKeyEase, deleteKeys (a value's last key stores its value, nothing jumps); routers setClipTransformAt (no keys: setClipTransform as before), setClipVolume (unanimated: updateClipWhy), updateLayerAt (patch or a function of the layer as shown; no keys: updateVLayer); setLayerTimes (start alone = start edge, keys shift; start + end = whole move); refusals (locked track, limits with the project count) record nothing. loadVideoProject takes optional layers (tests). 62/62 store tests; break-tests (whole moves shifting keys; the router storing animated values) caught; npm run check green, 1,534 tests."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-12"
+        },
+        "T060": {
+          "text": "Implement plan §7: `KeyframeButton` (three states, `aria-pressed`, a name with the value and time; menu: Remove animation) beside 203's Position and size fields, the Clip sound slider and the layers' position, size, rotation and opacity controls; fields show the value at the playhead and write through the routers; previous / next keyframe buttons. Pure helpers `keyState(keys, local)` and `adjacentKey(item, local, direction)` with unit tests (`keyframes.test.ts`).",
+          "section": "Inspector, stage and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "src/components/studio/KeyframeButton.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/ig/LayerPanel.tsx",
+            "src/engine/keyframes.ts",
+            "src/engine/keyframes.test.ts",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "the helpers' unit tests; `npm run check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** KeyframeButton.tsx: a diamond (empty / half / filled for none / between / key), aria-pressed at a key, a name with the value and the playhead ('X: keyframe at 0:01.2, press to remove'), a Remove animation menu when animated; KeyframeNav (previous / next, disabled at the ends). Beside the six Position and size fields, Clip sound, and the layers' Position (X and Y together), Size, Turn and Opacity; fields show transformAt / volumeAt / layersAt at the playhead and write through setClipTransformAt / setClipVolume / updateLayerAt (applyPreset too); a lone new layer start goes through setLayerTimes. An animated layer size scales the whole layer when drawn (a title's font size too), and updateLayerAt stores it back unscaled. toggleKey / removeAnimation take several values in one step. keyframes.ts keyState and adjacentKey; styles .kf-* in 36-media-studio.css. 5 new tests; break-test (adjacentKey not skipping the key at the playhead) caught; npm run check green, 1,539 tests. The UI itself is checked in 290."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-13"
+        },
+        "T061": {
+          "text": "Implement plan §8: the stage evaluates before editing: `useClipTransform` uses `transformAt` and `setClipTransformAt`; the video stage passes `layerAt(layer, t)` to `useLayerPointer` and routes its updates through `updateLayerAt`; the photo editor unchanged.",
+          "section": "Inspector, stage and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "src/components/studio/useClipTransform.ts",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/ig/useLayerPointer.ts"
+          ],
+          "test": "`npm run check` (the routers are proven by T050)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** useClipTransform: the box, hit tests, handles and nudges use the box as shown (transformAt at the playhead) and write through setClipTransformAt (only changed animated values get a key; a main-track clip with keys but no stored box is editable). The video stage passes layersAt(layers, t) to useLayerPointer, draws the selection from layerAt, and routes updates through updateLayerAt (a refusal shown once per drag); a drawn stroke stores the other layers as saved and sends a keyed drawing through the router. useLayerPointer and the photo editor unchanged. npm run check green, 1,539 tests (the routers are proven by T050); the stage itself is checked in 290."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T062": {
+          "text": "Implement plan §9 (D1–D3): `KeyframeLane` under the selected clip's or layer's row (one row of diamonds, expand to one row per value; select, drag with `snap`, Delete, the interpolation menu; the shape shows the ease), K / Alt + [ / ] / ← → keys, announcements. Pure helpers in `timelineRows.ts` with unit tests: `keyTimes(item)` (the union of times), `describeKeyChange`, `easeShape`.",
+          "section": "Inspector, stage and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/KeyframeLane.tsx",
+            "src/components/studio/Timeline.tsx",
+            "src/components/studio/timelineRows.ts",
+            "src/components/studio/timelineRows.test.ts",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "the helpers' unit tests; `npm run check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** KeyframeLane.tsx: under the selected clip's track row or the selected layer's row, shown when it is animated; one row of diamonds (keyTimes: the union of times, keys within half a frame are one diamond, mixed eases shown as Mixed) and, expanded from the header's Keys button, one row per value (KeyframeLaneHeads gives the matching header cells). A diamond is a button (aria-pressed when selected, a name with its timeline time, values and interpolation): click selects; a drag shows it at the snapped time (the timeline's snap: edges, playhead, the item's ends; Alt: frames) and moves it on release (one moveKeys, one undo step); ← / → move it a frame (Shift: a second; repeats one step); Delete removes it; Enter, the context-menu key, Shift + F10 or a right click open a portal menu (the five interpolations with their shapes, Delete keyframe). Shapes (D3): rounded diamond = an ease, square = Hold, pointed = Linear (easeShape). Timeline: K keys every animated value at the playhead or removes the keys there; Alt + [ / ] (by key code) jump to the previous / next keyframe; changes announced in the live region (describeKeyChange: move, add, removal, start and end of an animation, interpolation, value, in timeline seconds). Also fixed: the timeline's layer bar drags used updateVLayer, so a start-edge drag didn't keep keys in place; they now use setLayerTimes (AC-3). No transition on diamonds with reduced motion. timelineRows.ts keyTimes, easeShape, easeName, keyPropName, describeKeyChange: 9 new tests (failed first); break-test (grouping only equal times) caught; npm run check green, 1,548 tests. The lane itself is checked in 290 (AC-7, AC-13)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T090": {
+          "text": "Docs (AC-14): `docs/MEDIA-STUDIO.md` (keyframes, interpolations, keys), `specs/lld.md` (the model, the evaluation, the document fields, the gain curve), `CHANGELOG.md` Unreleased, the in-app docs' keys.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-14"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "specs/lld.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "relative links resolve",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** docs/MEDIA-STUDIO.md: a Keyframes section (what can be animated, the diamonds and Remove animation, auto-key at the playhead, previous / next, the lane and its keys, the five interpolations and their shapes, keys timed from their item and what each edit does to them, limits, one evaluation for preview / stage / export, the sound curve) and a Keyframes row in the timeline table; the Still to do row now says text animation presets (210). specs/lld.md 4.9: Keyframes (205, D-034) — model, evaluation, pure edits and keepKeys, sound (gain, gainCurve, mixWindow, previewSound), the document gate, store actions and routers, UI. CHANGELOG.md Unreleased: keyframes. src/data/docs.ts timeline topic: keyframes and K / Alt + [ / ]. Relative links in the three Markdown files: 13, 0 broken; npm run check green, 1,548 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T091": {
+          "text": "`npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033).",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "`npm run check`; `npm run build`",
+          "commits": [
+            "8dae911"
+          ],
+          "notes": [
+            "**Result (2026-10-13):** On 8dae911: npm run check green (typecheck, lint 0 errors / 5 known warnings, specs:check, 1,548 unit tests); npm run build green: entry chunk 327 KB (budget 350 KB; 326 KB at 000-baseline), no AI code in it (9 provider chunks on demand); the keyframe code ships in InstagramStudio (177.12 kB, 57.63 kB gzip), loaded with the studio. The other gates (e2e, self-test, MCP, timing, golden frames, sound) run in 290 (D-033)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T092": {
+          "text": "Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 205 ✔️, `editor-implementation.md` P2.5 Done, `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-12 (unit tests) and AC-14 (docs, T090) ticked; AC-6, AC-7, AC-13 (e2e), AC-9, AC-11 (self-test) and AC-10 (its self-test half; the unit half passes) are listed in 290's deferred checks. Status Implemented; roadmap 205 ✔️; specs/vision/editor-implementation.md P2.5 Done; memory/progress.md and memory/MEMORY.md updated."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        }
+      }
+    }
+  }
+}

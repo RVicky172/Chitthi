@@ -1,4 +1,5 @@
 import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
+import { LAYER_KEY_PROPS, keyBudget, layersAt, mergeKeys, type KeyBudget, type Keyframes, type LayerKeyProp } from './keyframes';
 import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
 
 /*
@@ -77,6 +78,8 @@ interface LayerBase {
   /** Video only: seconds on the timeline when the layer appears and disappears. */
   start?: number;
   end?: number;
+  /** Video only, keyframes (205): animated position, size, rotation and opacity, times from the layer's start. */
+  keys?: Keyframes<LayerKeyProp>;
 }
 
 export interface TextLayer extends LayerBase {
@@ -570,7 +573,8 @@ let scratch: HTMLCanvasElement | null = null;
  * on with its opacity and blend.
  */
 export function drawLayers(ctx: CanvasRenderingContext2D, layers: Layer[], W: number, H: number, t?: number): void {
-  for (const l of layers) {
+  // With a time (the video editor) keyed layers are drawn at it (205); the photo editor passes none.
+  for (const l of layersAt(layers, t)) {
     if (!activeAt(l, t)) continue;
     const blend: GlobalCompositeOperation = l.blend && l.blend !== 'normal' ? l.blend : 'source-over',
       alpha = Math.max(0, Math.min(1, l.opacity));
@@ -784,9 +788,14 @@ function mergeStrokes(raw: unknown): Stroke[] {
 /**
  * The single gate for layers from outside the running app (project files): valid layers, or none. Unknown kinds are
  * dropped, numbers clamped, bad values replaced by defaults, text and drawings capped, ids kept unique. Image layers
- * are kept only when `images` holds their picture's id (the project's media). Never throws.
+ * are kept only when `images` holds their picture's id (the project's media). Keyframes go through `mergeKeys`
+ * against the project's `budget` (205). Never throws.
  */
-export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set()): Layer[] {
+export function mergeLayers(
+  raw: unknown,
+  images: ReadonlySet<string> = new Set(),
+  budget: KeyBudget = keyBudget(),
+): Layer[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const out: Layer[] = [];
@@ -798,6 +807,7 @@ export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set(
     while (seen.has(id)) id = layerId();
     const start = time(o.start);
     const endT = time(o.end);
+    const keys = mergeKeys(o.keys, LAYER_KEY_PROPS, 'layer', budget);
     const base = {
       id,
       x: num(o.x, -0.5, 1.5, 0.5),
@@ -809,6 +819,7 @@ export function mergeLayers(raw: unknown, images: ReadonlySet<string> = new Set(
       ...(o.hidden === true ? { hidden: true } : {}),
       ...(start !== undefined ? { start } : {}),
       ...(endT !== undefined && endT > (start ?? 0) ? { end: endT } : {}),
+      ...(keys ? { keys } : {}),
     };
     const m = o.mask && typeof o.mask === 'object' ? (o.mask as Record<string, unknown>) : null;
     const parts = (Array.isArray(m?.parts) ? m.parts.slice(0, MASK_LIMITS.parts) : [])

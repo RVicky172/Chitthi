@@ -1,4 +1,5 @@
 import { DEFAULT_EDIT, renderIg, type IgEdit } from './instagram';
+import { transformAt, type ClipKeyProp, type Keyframes } from './keyframes';
 import { drawLayers, type Layer } from './layers';
 import type { ClipTransform } from './timeline';
 
@@ -145,12 +146,15 @@ export const NO_PICTURE: FrameClip = { kind: 'photo', dur: 0, in: 0, out: 0, edi
 
 /** One clip of a frame's stack (203): its picture at that moment (sw × sh), local = seconds into the clip. */
 export interface StackDraw {
-  clip: FrameClip & { tf?: ClipTransform; overlay: boolean };
+  clip: FrameClip & { tf?: ClipTransform; keys?: Keyframes<ClipKeyProp>; overlay: boolean };
   src: CanvasImageSource | null;
   sw: number;
   sh: number;
   local: number;
 }
+
+/** A stack item's box at its frame: its keyframed values at its local time (205), else its stored box itself. */
+export const itemTransform = (item: StackDraw): ClipTransform => transformAt(item.clip, item.local);
 
 /** The whole frame: a clip without a transform draws exactly as before 203 (timeline.ts re-exports it). */
 export const IDENTITY: ClipTransform = Object.freeze({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
@@ -223,11 +227,12 @@ export function renderStack(
   ctx.fillRect(0, 0, W, H);
   let mainLocal = 0,
     mainFade = false;
-  for (const { clip, src, sw, sh, local } of items) {
+  for (const item of items) {
+    const { clip, src, sw, sh, local } = item;
     if (!clip.overlay) [mainLocal, mainFade] = [local, clip.fade];
     if (!src || sw <= 0 || sh <= 0) continue;
     const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
-    const tf = clip.tf ?? IDENTITY;
+    const tf = itemTransform(item);
     const alpha = tf.opacity * (clip.overlay && clip.fade ? Math.min(1, Math.max(0, local / V_FADE)) : 1);
     if (alpha <= 0) continue;
     if (alpha >= 1 && isIdentity(tf)) {

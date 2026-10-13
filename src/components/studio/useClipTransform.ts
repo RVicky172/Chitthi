@@ -1,10 +1,11 @@
 import { useRef, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { clipBoxPixels, movedTransform, nudgedTransform, partAt, resizedTransform, rotatedTransform, type BoxPart, type Point } from '../../engine/clipBox';
 import { drawSelection, type Box } from '../../engine/layers';
+import { transformAt } from '../../engine/keyframes';
 import { frameStack, type SnapGuide } from '../../engine/stack';
-import { IDENTITY, MAIN_VIDEO, lockedReason, type ClipTransform } from '../../engine/timeline';
+import { MAIN_VIDEO, lockedReason, type ClipTransform } from '../../engine/timeline';
 import { toast } from '../../lib/toast';
-import { getVideo, projectOf, selectClip, setClipTransform, type VClip } from '../../state/video';
+import { getVideo, projectOf, selectClip, setClipTransformAt, type VClip } from '../../state/video';
 import { handleRadius } from '../ig/useLayerPointer';
 
 /*
@@ -15,7 +16,12 @@ import { handleRadius } from '../ig/useLayerPointer';
  * Snap is off or Alt is held), the corner handle (resize, keeping the aspect) or the top handle (turn; Shift: 15°
  * steps). Arrow keys with the stage focused move it 1 % of the frame (Shift: 10 %). One drag is one undo step (its
  * changes share a key). A clip on a locked track shows no box and can't be changed.
+ * The box is the one shown at the playhead (205 §8): an animated clip's box comes from its keyframes, and its changes go
+ * through the router, so dragging it sets a keyframe at the playhead for each animated value it changes.
  */
+
+/** A clip's box as shown at the playhead (its keyframes evaluated). */
+const shownBox = (clip: VClip): ClipTransform => transformAt(clip, getVideo().t - clip.start);
 
 /** A drag in progress on a clip's box. */
 interface BoxDrag {
@@ -47,7 +53,7 @@ function editableClip(): VClip | null {
   if (state.layerSel || !state.selected) return null;
   const clip = state.clips.find((candidate) => candidate.id === state.selected);
   if (!clip || lockedReason(state.tracks, clip.track)) return null;
-  if (clip.track === MAIN_VIDEO && !clip.tf) return null;
+  if (clip.track === MAIN_VIDEO && !clip.tf && !clip.keys) return null;
   const showing = frameStack(projectOf(state), state.t).some((stackItem) => stackItem.clip.id === clip.id);
   return showing ? clip : null;
 }
@@ -63,7 +69,7 @@ function overlayClipAt(point: Point, frameWidth: number, frameHeight: number): V
   for (let index = stack.length - 1; index >= 0; index--) {
     const { clip } = stack[index];
     if (clip.track === MAIN_VIDEO) continue;
-    if (partAt(clipBoxPixels(clip.tf ?? IDENTITY, frameWidth, frameHeight), point.x, point.y, 0) === 'move') return clip;
+    if (partAt(clipBoxPixels(shownBox(clip), frameWidth, frameHeight), point.x, point.y, 0) === 'move') return clip;
   }
   return null;
 }
@@ -80,7 +86,7 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
 
   /** Applies a new transform to the dragged clip, showing a refusal once. */
   const apply = (current: BoxDrag, transform: ClipTransform) => {
-    const refusal = setClipTransform(current.clipId, transform, current.undoKey);
+    const refusal = setClipTransformAt(current.clipId, transform, current.undoKey);
     if (refusal && refusal !== current.lastRefusal) toast(refusal);
     current.lastRefusal = refusal;
   };
@@ -89,7 +95,7 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
     const stage = event.currentTarget;
     const point = canvasPoint(stage, event);
     const selected = editableClip();
-    const partPressed = selected ? partAt(clipBoxPixels(selected.tf ?? IDENTITY, stage.width, stage.height), point.x, point.y, handleRadius(stage)) : null;
+    const partPressed = selected ? partAt(clipBoxPixels(shownBox(selected), stage.width, stage.height), point.x, point.y, handleRadius(stage)) : null;
     let clip: VClip;
     let part: BoxPart;
     if (selected && partPressed) [clip, part] = [selected, partPressed];
@@ -102,7 +108,7 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
       if (!nowEditable) return;
       [clip, part] = [nowEditable, 'move'];
     }
-    const start = clip.tf ?? IDENTITY;
+    const start = shownBox(clip);
     drag.current = {
       clipId: clip.id,
       part,
@@ -146,10 +152,10 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
   /** Arrow keys move the selected clip's box; returns whether the key was used. */
   const key = (event: ReactKeyboardEvent<HTMLCanvasElement>): boolean => {
     const clip = editableClip();
-    const moved = clip && nudgedTransform(clip.tf ?? IDENTITY, event.key, event.shiftKey);
+    const moved = clip && nudgedTransform(shownBox(clip), event.key, event.shiftKey);
     if (!clip || !moved) return false;
     event.preventDefault();
-    const refusal = setClipTransform(clip.id, moved, `nudge:${clip.id}`);
+    const refusal = setClipTransformAt(clip.id, moved, `nudge:${clip.id}`);
     if (refusal) toast(refusal);
     return true;
   };
@@ -164,7 +170,7 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
     const clip = editableClip();
     const stage = canvas.current;
     if (!clip || !stage) return;
-    drawSelection(context, clipBoxPixels(clip.tf ?? IDENTITY, frameWidth, frameHeight), handleRadius(stage));
+    drawSelection(context, clipBoxPixels(shownBox(clip), frameWidth, frameHeight), handleRadius(stage));
     if (!drag.current || !guides.current.length) return;
     context.save();
     context.strokeStyle = '#d97706';
