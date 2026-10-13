@@ -519,7 +519,7 @@
         "T001": {
           "text": "Record the baselines (plan §1) in `specs/features/407-code-structure/baseline.md`: unit test count (1,672) and per-file counts; the e2e pass list (`npm run test:e2e`); `npm test` (self-test checks, 0 failed); `npm run test:mcp`; the 201–206 fixtures’ export inputs (the self-test’s video checks); entry and studio chunk sizes; the hot-path timings of §7 (pool and playback timing checks, export timing, `npm run measure:gate`, the print renderer per page).",
           "section": "Baselines",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -532,7 +532,11 @@
           ],
           "test": "every command run; numbers recorded",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** baseline.md: unit 1,672 / 48 files; e2e 84 passed, 16 skipped; self-test 6,203 checks, 0 failed (216 s); MCP 23 checks; entry 327 KB, studio 187.66 kB, Mediabunny 410.38 kB; timings (preview frame median 11.9 ms, exports 2.69 / 2.90 / 13.46 s, 2-minute exports 12.3–13.0 s, pool AC-5 / AC-7 / AC-8 / AC-12, the Phase 1 gate 16.6 ms median); the code measures (34 % one-letter names, 333 exports without JSDoc, 27 React findings, 379 `as`, 177 `!`, 1,400 unchecked index errors). The first e2e run failed 22 tests: the video editor crashed on selecting a clip (a store selector from 203 T054), 206’s cut buttons took the trim drags, and touch targets were under 24 px; fixed on fix/clip-inspector-render-loop and merged into main (3d08be7) first. The print renderer has no timing check yet (T072)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T010": {
           "text": "Test plumbing before any move (plan §2, D1): the `@/` → `src/` alias in `vite.config.ts` and the tsconfigs; `tsconfig.tests.json` (type-checks `tests/`, referenced from `tsconfig.json`); Vitest `include` for `tests/{unit,integration}/**/*.test.ts` and `tools/**`; Playwright `testDir: tests/e2e`. Nothing moved yet: the same 1,672 tests still run.",
