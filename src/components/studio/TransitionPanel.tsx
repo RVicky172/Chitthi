@@ -7,16 +7,8 @@ import { toast } from '../../lib/toast';
 import { getVideo, removeTransition, selectTransition, setTransition, transitionEveryCut, useVideo, type VClip } from '../../state/video';
 import { Seg } from '../common';
 import { LpRange } from '../ig/LayerPanel';
-import { panelCut } from './timelineRows';
+import { TRANSITION_NAMES, panelCut } from './timelineRows';
 
-/** A transition kind's name, as the panel and the inspector show it. */
-export const TRANSITION_NAMES: Record<TransitionKind, string> = {
-  dissolve: 'Cross-dissolve',
-  dip: 'Dip to colour',
-  wipe: 'Wipe',
-  slide: 'Slide',
-  zoom: 'Zoom',
-};
 const DIRECTION_NAMES: Record<Direction, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down' };
 
 /** Shows a refusal instead of dropping it. */

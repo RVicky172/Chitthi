@@ -68,7 +68,7 @@ import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, Instagram
 import { MoreMenu } from '../MoreMenu';
 import { StudioDialog } from './Dialog';
 import { DesktopNote, StudioShell, useFit, type RailItem, type StudioMode } from './Shell';
-import { Timeline, Transport } from './Timeline';
+import { OPEN_TRANSITIONS, Timeline, Transport } from './Timeline';
 
 /*
  * The video editor in the studio layout, for Reels / Shorts (vertical, short, shared to Instagram) and YouTube videos
@@ -109,6 +109,12 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
   const total = useVideo(videoLength);
   const f = vFormat(format);
 
+  // The timeline's cuts open the Transitions panel (206 D2).
+  useEffect(() => {
+    const open = () => setTool('transitions');
+    document.addEventListener(OPEN_TRANSITIONS, open);
+    return () => document.removeEventListener(OPEN_TRANSITIONS, open);
+  }, []);
   useEffect(() => {
     setVTools({ tool: tool === 'draw' ? 'draw' : 'select' });
     return () => setVTools({ tool: 'select' });

@@ -846,7 +846,7 @@
         "T061": {
           "text": "Implement plan §7 (D2): cut targets (`tl-cut`, Enter opens the panel for the cut) and transition blocks (`tl-trans`: select, Delete, edge drags in whole frames up to the room, ← / → a frame, Shift 0.5 s) in each picture row; announcements. Pure helpers in `timelineRows.ts` with unit tests: `transitionBlock` (left and width from cut, length, zoom), `describeTransitionChange` (added, changed, removed, dropped by an edit).",
           "section": "Panel, inspector and timeline",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -862,7 +862,11 @@
           ],
           "test": "the helpers' unit tests; `npm run check`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** Timeline.tsx CutMarks in each picture row: every cut between touching clips is a button (hidden until the row is hovered, shown when focused or selected; click or Enter selects it and opens the Transitions panel through a document event VideoWorkspace listens to, D2); a transition is a block centred on its cut (click selects it for the inspector; Delete removes; ← / → a frame, Shift 0.5 s; edge drags change both sides in whole frames up to its room, one step). The live region announces clip changes and transition changes together. timelineRows.ts: TRANSITION_NAMES (shared with the panel), transitionName, transitionBlock, draggedLength, describeTransitionChange; 3 tests (failed first); break-test caught; npm run check green, 1,672 tests. The timeline UI is checked in 290 (AC-9, AC-10)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T090": {
           "text": "Docs (AC-15): `docs/MEDIA-STUDIO.md` (the transitions, options, limits, keys; \"Still to do\" without cross-fades), `specs/lld.md` (the model, the timing, the drawing, the sound), `CHANGELOG.md` Unreleased, the in-app docs.",
