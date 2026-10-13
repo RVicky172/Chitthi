@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_EDIT } from '../engine/instagram';
-import { clipLength } from '../engine/video';
-import { TEXT_STYLES } from '../data/layers';
-import { layerAt, type Ease, type Keyframe } from '../engine/keyframes';
-import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '../engine/layers';
-import { IDENTITY, MAIN_VIDEO, defaultTracks, presetTransform, tooManyTracks, type Track } from '../engine/timeline';
+import { DEFAULT_EDIT } from '@/engine/instagram';
+import { clipLength } from '@/engine/video';
+import { TEXT_STYLES } from '@/data/layers';
+import { layerAt, type Ease, type Keyframe } from '@/engine/keyframes';
+import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '@/engine/layers';
+import { IDENTITY, MAIN_VIDEO, defaultTracks, presetTransform, tooManyTracks, type Track } from '@/engine/timeline';
 import {
   NEW_TRACK,
   addMedia,
@@ -62,7 +62,7 @@ import {
   transitionEveryCut,
   type VClip,
   type VMusic,
-} from './video';
+} from '@/state/video';
 
 /*
  * The video store's Magnetic switch, tool and Snap (202 T020). Clips are made by hand (no media decoding in Node):

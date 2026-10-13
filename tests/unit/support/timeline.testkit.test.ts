@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { legacyClipLength, legacyFixtures, legacyFrameRange } from '@/engine/timeline.testkit';
+import { legacyClipLength, legacyFixtures, legacyFrameRange } from '../../support/timeline.testkit';
 import { clipLength, frameRange } from '@/engine/video';
 
 /*

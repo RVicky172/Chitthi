@@ -4,133 +4,14 @@ import {
   frameTime,
   lanePlan,
   poolLimits,
-  type FrameSource,
-  type FrameSourceFactory,
   type PoolClip,
   type PoolFrame,
   type PoolLimits,
-} from './decodePool';
-import { MAIN_VIDEO, MUSIC, defaultTracks, type Project, type TimedClip } from './timeline';
-import { DEFAULT_EDIT } from './instagram';
+} from '@/engine/decodePool';
+import { MAIN_VIDEO, MUSIC, defaultTracks, type Project, type TimedClip } from '@/engine/timeline';
+import { DEFAULT_EDIT } from '@/engine/instagram';
+import { FAKE_FPS as FPS, FRAME_BYTES, fakeDecoder, type FakeFrame } from '../../support/fakeDecoder';
 
-/* ---------- A fake decoder: files of flat frames at 30 fps, with delays and failures ---------- */
-
-const FPS = 30;
-const W = 1920,
-  H = 1080,
-  FRAME_BYTES = W * H * 4;
-
-interface FakeFile {
-  name: string;
-  /** Seconds of video. */
-  dur: number;
-  /** Opening fails with this message. */
-  failOpen?: string;
-  /** Decoding a frame at or after this source time fails. */
-  failAt?: number;
-  /** The first `reclaims` decodes at or after `reclaimAt` fail as Chrome does when it takes back an idle decoder. */
-  reclaimAt?: number;
-  reclaims?: number;
-}
-
-interface FakeFrame extends PoolFrame {
-  file: string;
-  closed: boolean;
-}
-
-/** A fake `FrameSourceFactory` that counts what is open, as `frameSource.ts`'s registry will for the real one. */
-function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
-  const openMs = opts.openMs ?? 5,
-    frameMs = opts.frameMs ?? 2;
-  const files = new Map<Blob, FakeFile>();
-  const live = new Set<FakeFrame>();
-  const counts = { sources: 0, readers: 0, doubleClose: 0 };
-
-  const file = (f: FakeFile): Blob => {
-    const b = new Blob([f.name]);
-    files.set(b, f);
-    return b;
-  };
-
-  const open: FrameSourceFactory = (blob) => {
-    const f = files.get(blob);
-    if (!f) return Promise.reject(new Error('unknown file'));
-    counts.sources++;
-    return new Promise<FrameSource>((resolve, reject) =>
-      setTimeout(() => {
-        if (f.failOpen) {
-          counts.sources--;
-          reject(new Error(f.failOpen));
-          return;
-        }
-        const n = Math.round(f.dur * FPS);
-        let closed = false;
-        resolve({
-          from(t: number): AsyncIterator<PoolFrame> {
-            counts.readers++;
-            let i = Math.min(n - 1, Math.max(0, Math.floor(t * FPS + 1e-6))),
-              done = false;
-            return {
-              next: () =>
-                new Promise((ok, fail) =>
-                  setTimeout(() => {
-                    if (done || closed || i >= n) {
-                      done = true;
-                      ok({ done: true, value: undefined });
-                      return;
-                    }
-                    const time = i / FPS;
-                    if (f.reclaimAt !== undefined && time >= f.reclaimAt - 1e-9 && (f.reclaims ?? 1) > 0) {
-                      f.reclaims = (f.reclaims ?? 1) - 1;
-                      fail(new DOMException('Codec reclaimed due to inactivity.', 'QuotaExceededError'));
-                      return;
-                    }
-                    if (f.failAt !== undefined && time >= f.failAt - 1e-9) {
-                      fail(new Error(`Can't decode ${f.name} at ${time.toFixed(2)} s`));
-                      return;
-                    }
-                    i++;
-                    const fr: FakeFrame = {
-                      file: f.name,
-                      image: {} as CanvasImageSource,
-                      width: W,
-                      height: H,
-                      time,
-                      duration: 1 / FPS,
-                      closed: false,
-                      close() {
-                        if (fr.closed) counts.doubleClose++;
-                        fr.closed = true;
-                        live.delete(fr);
-                      },
-                    };
-                    live.add(fr);
-                    ok({ done: false, value: fr });
-                  }, frameMs),
-                ),
-              return: () => {
-                done = true;
-                return Promise.resolve({ done: true, value: undefined });
-              },
-            };
-          },
-          close() {
-            if (!closed) counts.sources--;
-            closed = true;
-          },
-        });
-      }, openMs),
-    );
-  };
-
-  return {
-    open,
-    file,
-    counts,
-    frames: () => live.size,
-    bytes: () => [...live].reduce((a, fr) => a + fr.width * fr.height * 4, 0),
-  };
-}
 
 const clip = (id: string, file: Blob, inT: number, outT: number, start = 0): PoolClip => ({
   id,

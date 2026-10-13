@@ -494,7 +494,7 @@ const hasSound = async (mp4: Blob) => new TextDecoder('latin1').decode(await mp4
  */
 async function trackChecks(check: Check): Promise<string[]> {
   const { renderFrame, NO_PICTURE } = await import('../engine/video');
-  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../engine/timeline.testkit');
+  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../../tests/support/timeline.testkit');
   const { MAIN_VIDEO, MUSIC, audioPlan, defaultTracks, framePlan, pack, projectLength, videoAt } =
     await import('../engine/timeline');
   const { newShape } = await import('../engine/layers');
@@ -1100,7 +1100,7 @@ export async function stackChecks(check: Check): Promise<string[]> {
   const { renderStack, V_FADE, NO_PICTURE } = await import('../engine/video');
   const { frameStack } = await import('../engine/stack');
   const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('../engine/timeline');
-  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../engine/timeline.testkit');
+  const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../../tests/support/timeline.testkit');
   const { closeGpu, gpu, openGpu } = await import('../engine/gpu/device');
   const notes: string[] = [];
   const t0 = performance.now();
@@ -1516,7 +1516,7 @@ async function exportsOverlaySound(check: Check): Promise<void> {
 async function legacyExportFollowsFramePlan(check: Check): Promise<void> {
   const { encodeVideo } = await import('../engine/videoExport');
   const { MAIN_VIDEO, defaultTracks, framePlan, pack } = await import('../engine/timeline');
-  const { legacyFixtures } = await import('../engine/timeline.testkit');
+  const { legacyFixtures } = await import('../../tests/support/timeline.testkit');
   const { DEFAULT_EDIT } = await import('../engine/instagram');
   const fps = 30;
   const [videoA, videoB] = await Promise.all([makeTestClip(10, 320, 240, 2), makeTestClip(10, 320, 240, 2)]);

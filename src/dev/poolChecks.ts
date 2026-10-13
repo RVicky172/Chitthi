@@ -570,7 +570,7 @@ function mean16(x: CanvasRenderingContext2D, W: number, H: number): [number, num
 async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string> {
   const { encodeVideo } = await import('../engine/videoExport');
   const { renderFrame, NO_PICTURE } = await import('../engine/video');
-  const { legacyFixtures } = await import('../engine/timeline.testkit');
+  const { legacyFixtures } = await import('../../tests/support/timeline.testkit');
   const { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength } = await import('../engine/timeline');
   const { DEFAULT_EDIT } = await import('../engine/instagram');
   const { loadImage } = await import('../engine/photo');

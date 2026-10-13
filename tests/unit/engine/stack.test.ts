@@ -14,7 +14,7 @@ import {
   type TimedClip,
   type Track,
 } from '@/engine/timeline';
-import { legacyFixtures, type LegacyClip, type LegacyProject } from '@/engine/timeline.testkit';
+import { legacyFixtures, type LegacyClip, type LegacyProject } from '../../support/timeline.testkit';
 import type { Transition } from '@/engine/transitions';
 import { frameRange } from '@/engine/video';
 

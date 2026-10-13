@@ -7,9 +7,9 @@
  *    give exactly these answers for every 2.x project, so the preview and the export stay the same.
  * 2. FIXTURES — every shape a 2.x project can take.
  */
-import { DEFAULT_EDIT, type IgEdit } from './instagram';
-import type { Layer } from './layers';
-import type { Motion } from './video';
+import { DEFAULT_EDIT, type IgEdit } from '@/engine/instagram';
+import type { Layer } from '@/engine/layers';
+import type { Motion } from '@/engine/video';
 
 /* ---------- 1. The 2.x reference (frozen) ---------- */
 

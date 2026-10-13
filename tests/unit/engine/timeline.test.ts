@@ -39,7 +39,7 @@ import {
   legacyTotal,
   type LegacyClip,
   type LegacyProject,
-} from '@/engine/timeline.testkit';
+} from '../../support/timeline.testkit';
 import { countKeys, type Ease, type Keyframe } from '@/engine/keyframes';
 import { mergeLayers, newSticker, type Layer } from '@/engine/layers';
 import { clipLength, limitsFor } from '@/engine/video';

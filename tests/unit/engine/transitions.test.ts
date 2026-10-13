@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { valueAt } from '@/engine/keyframes';
 import { renderStack, type StackDraw } from '@/engine/video';
+import { recordingCanvas } from '../../support/recordingCanvas';
 import { MAIN_VIDEO, type TimedClip } from '@/engine/timeline';
 import { DIRECTIONS, TRANSITION_LIMITS, cutsOf, defaultTransition, halves, progressAt, roomFor, tidyTransitions, transitionOps, type DrawOp, type Transition } from '@/engine/transitions';
 
@@ -233,23 +234,6 @@ describe('transitionOps (AC-1, D3)', () => {
 /* ---------- 206 T031: renderStack draws a transition pair (the steps; pixels are 290’s golden frames) ---------- */
 
 describe('renderStack with a transition pair (plan §3)', () => {
-  /** A 2D context that records what is set and called on it (by canvas name), enough for renderStack’s pair path. */
-  function recordingCanvas(name: string, logs: Map<string, string[]>) {
-    const log: string[] = [];
-    logs.set(name, log);
-    const canvas = { name, width: 0, height: 0, getContext: () => context };
-    const show = (value: unknown) => (value && typeof value === 'object' ? ((value as { name?: string }).name ?? 'object') : String(value));
-    const context: CanvasRenderingContext2D = new Proxy({ canvas } as Record<string | symbol, unknown>, {
-      get: (target, prop) => (prop in target ? target[prop] : (...args: unknown[]) => void log.push(`${String(prop)}(${args.map(show).join(',')})`)),
-      set: (target, prop, value) => {
-        log.push(`${String(prop)}=${show(value)}`);
-        target[prop] = value;
-        return true;
-      },
-    }) as unknown as CanvasRenderingContext2D;
-    return { canvas, context };
-  }
-
   const pairItems = (kind: Transition['kind'], progress: number, extra: Partial<Transition> = {}): StackDraw[] =>
     (['from', 'to'] as const).map((role, index) => ({
       clip: { id: `c${index}`, kind: 'photo', dur: 2, in: 0, out: 0, edit: {} as StackDraw['clip']['edit'], motion: 'none', fade: false, overlay: false },

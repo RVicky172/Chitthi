@@ -26,7 +26,7 @@ import {
 import type { Keyframe } from '@/engine/keyframes';
 import type { Layer } from '@/engine/layers';
 import { MAIN_VIDEO, defaultTracks, mergeProject, pack, toDocument, type ProjectDoc } from '@/engine/timeline';
-import { legacyFixtures, type LegacyClip } from '@/engine/timeline.testkit';
+import { legacyFixtures, type LegacyClip } from '../../support/timeline.testkit';
 import { clipLength } from '@/engine/video';
 
 type C = LegacyClip & EditClip;

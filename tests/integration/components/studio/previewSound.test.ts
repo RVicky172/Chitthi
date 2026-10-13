@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mostVideosAt } from '../../engine/stack';
-import { EDGE_EPS, MAIN_VIDEO, MUSIC, defaultTracks, type Project, type TimedClip } from '../../engine/timeline';
-import { edgeGain } from '../../engine/keyframes';
-import { limitsFor } from '../../engine/video';
-import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from './previewSound';
+import { mostVideosAt } from '@/engine/stack';
+import { EDGE_EPS, MAIN_VIDEO, MUSIC, defaultTracks, type Project, type TimedClip } from '@/engine/timeline';
+import { edgeGain } from '@/engine/keyframes';
+import { limitsFor } from '@/engine/video';
+import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from '@/components/studio/previewSound';
+import { FakeAudio } from '../../../support/fakeAudio';
 
 type C = TimedClip & { name: string; volume: number };
 const v = (name: string, track: string, start: number, len: number): C => ({
@@ -117,29 +118,6 @@ describe('preview sound: whose sound plays (204 §4, D1; 203 §7, AC-8, Q7)', ()
   });
 });
 
-/** A stand-in for <audio> (unit tests have no DOM): what previewSound reads and writes. */
-class FakeAudio {
-  paused = true;
-  currentTime = 0;
-  playbackRate = 1;
-  volume = 1;
-  muted = false;
-  preload = '';
-  src = '';
-  dataset: Record<string, string> = {};
-  addEventListener() {}
-  play() {
-    this.paused = false;
-    return Promise.resolve();
-  }
-  pause() {
-    this.paused = true;
-  }
-  removeAttribute() {
-    this.src = '';
-  }
-  load() {}
-}
 
 describe('preview sound elements for several clips at once (203 §7, D1’s bound)', () => {
   const made: FakeAudio[] = [];
