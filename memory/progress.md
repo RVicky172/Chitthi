@@ -11,6 +11,30 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-13 — 206 T030–T092: ✔️ Implemented
+
+**Done:** T030–T031 drawing (`transitionOps` as data; `drawPair` on layer / pair scratch canvases; recording-canvas
+tests), T040–T041 sound (`edgeGain` equal power / dip in `sourceGainAt`; `soundEdges`; `mixWindow` into the handles;
+the preview plays both clips), T050–T051 store (`tidyTransitions` in `change()`; set / remove / every cut; split and
+duplicate; a 1,000-edit property test), T060 the Transitions panel and inspector (`panelCut`, `transitionSel`), T061
+cut buttons and transition blocks on the timeline (`draggedLength`, `describeTransitionChange`), T090 docs, T091 check
++ build (1,672 tests; entry 327 KB), T092 close: AC-1–5, 7, 11, 15 ticked; AC-6 (self-test half), 8–10, 12–14 in 290.
+`main` merged in and pushed earlier; `feat/206-transitions` pushed.
+**Next:** merge 206 into `main` (the standing rule), then the next Phase 2 item from `main` (207 speed or 208 audio).
+**Blockers:** none
+
+## 2026-10-13 — 206 spec, plan, tasks; T010–T014 (the model)
+
+**Done:** 206 spec Approved (Q1–Q12, D-035: 2D canvas, no shaders; roadmap item renamed), plan Approved (D1–D3,
+D-036), tasks T010–T092, deferred checks in 290; pushed `spec/206-transitions`; work on `feat/206-transitions`.
+T010 spike: the pool already serves frames outside a clip's in–out and holds at the source's ends; only `prepare`
+primes at `PoolClip.in`, so T021 widens `in` by the incoming half. T011–T012 `engine/transitions.ts` (model,
+`progressAt`, `roomFor`, `tidyTransitions`); T013–T014 the document gate (`mergeTransition`, tidy after placing).
+`npm run check` green, 1,606 tests.
+**Then T020–T021:** `frameStack` returns both clips with `mix` during a transition (AC-11 reference at every frame, 5 kinds × 30 / 60 fps), `mostVideosAt` and `lanePlan` with halves, pool lanes primed from the handle; 1,625 tests.
+**Next:** T030–T031 (`transitionOps`, the pair drawn in `renderStack`).
+**Blockers:** none (205 merged into `main` as `5d7640f`; `main` merged into `feat/206-transitions`).
+
 ## 2026-10-13 — 205 T091–T092 (gates, close): ✔️ Implemented
 
 **Done:** T091 on `8dae911`: check green (1,548 tests), build green, entry 327 KB (budget 350). T092: AC-1–5, 8, 12,

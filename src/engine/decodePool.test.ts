@@ -688,3 +688,105 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/* ---------- 206 T010 spike: frames outside a clip's in–out (transition handles) ---------- */
+
+describe('206 spike: a transition reads past a clip’s ends', () => {
+  it('gives the frames before a clip’s in point and after its out point', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const c = clip('c', fake.file({ name: 'a.mp4', dur: 10 }), 2, 4);
+    for (const [asked, expected] of [
+      [1.7, at(51)],
+      [4.4, at(132)],
+    ]) {
+      const p = pool.frame(c, asked + 0.001);
+      await settle();
+      expect((await p)?.time).toBeCloseTo(expected, 9);
+    }
+    pool.dispose();
+  });
+
+  it('holds the source’s first frame before it and its last frame after it', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const c = clip('c', fake.file({ name: 'five.mp4', dur: 5 }), 0, 5);
+    const before = pool.frame(c, -0.2);
+    await settle();
+    expect((await before)?.time).toBe(0);
+    const after = pool.frame(c, 5.3);
+    await settle();
+    expect((await after)?.time).toBeCloseTo(at(149), 9);
+    pool.dispose();
+  });
+
+  it('plays two clips of one track side by side through a 1 s transition, each from its handles', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const a = clip('a', fake.file({ name: 'a.mp4', dur: 10 }), 0, 4, 0),
+      b = clip('b', fake.file({ name: 'b.mp4', dur: 10 }), 3, 8, 4);
+    // The transition runs from 3.5 s to 4.5 s on the timeline: a plays 3.5–4.5 of its source, b 2.5–3.5 of its.
+    pool.frame(a, 3.5);
+    pool.frame(b, 2.5);
+    await settle();
+    let behind = 0;
+    for (let i = 0; i < 30; i++) {
+      const t = 3.5 + at(i) + 0.001;
+      const fa = pool.peek(a, t),
+        fb = pool.peek(b, t - 1);
+      if (!fa || !fb || fa.time < at(Math.floor((t + 1e-9) * FPS)) - 1e-9) behind++;
+      await vi.advanceTimersByTimeAsync(1000 / FPS);
+    }
+    expect(behind).toBe(0);
+    expect(pool.stats().decoders).toBe(2);
+    pool.dispose();
+  });
+
+  it('prepare primes a lane at the pool clip’s in point, so an incoming clip is handed over with its handle (T021)', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const file = fake.file({ name: 'b.mp4', dur: 10 });
+    // As stored: primed at in (3 s); the transition's first frame (2.5 s) would show that held frame.
+    const stored = clip('b', file, 3, 8, 4);
+    pool.prepare(stored);
+    await settle();
+    expect(pool.peek(stored, 2.5)?.time).toBeCloseTo(3, 9);
+    pool.forget('b');
+    const holdsBefore = pool.stats().holds;
+    // Widened by the half before its start: primed at 2.5 s, the transition's first frame is ready.
+    const widened = clip('b', file, 2.5, 8, 4);
+    pool.prepare(widened);
+    await settle();
+    expect(pool.peek(widened, 2.5)?.time).toBeCloseTo(2.5, 9);
+    expect(pool.stats().holds).toBe(holdsBefore);
+    pool.dispose();
+  });
+});
+
+describe('206: lanePlan with transitions (AC-2, AC-3)', () => {
+  const v = (id: string, start: number, len: number, transitionTo?: string): TimedClip => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind: 'video',
+    in: 1,
+    out: 1 + len,
+    dur: 0,
+    ...(transitionTo ? { transition: { kind: 'dissolve' as const, dur: 1, to: transitionTo } } : {}),
+  });
+  // a 0–4, a 1 s dissolve into b 4–8 (it plays 3.5–4.5).
+  const p: Project = { tracks: defaultTracks(), clips: [v('a', 0, 4, 'b'), v('b', 4, 4)], audio: [], layers: [], fadeOut: false };
+  const ids = (clips: TimedClip[]) => clips.map((clip) => clip.id);
+
+  it('lists both clips of a playing transition as visible', () => {
+    expect(ids(lanePlan(p, 3.7, 2).visible)).toEqual(['a', 'b']);
+    expect(ids(lanePlan(p, 4.3, 2).visible)).toEqual(['a', 'b']);
+    expect(ids(lanePlan(p, 4.6, 2).visible)).toEqual(['b']);
+  });
+
+  it('gets the incoming clip ready 2 s before its transition starts, not before its own start', () => {
+    // At 1.6 s b starts in 2.4 s, but its transition in 1.9 s.
+    expect(ids(lanePlan(p, 1.6, 2).next)).toEqual(['b']);
+    expect(ids(lanePlan(p, 1.4, 2).next)).toEqual([]);
+  });
+});

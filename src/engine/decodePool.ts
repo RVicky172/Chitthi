@@ -1,3 +1,4 @@
+import { transitionItems } from './stack';
 import { MAIN_VIDEO, type Project, type TimedClip } from './timeline';
 import { clipLength } from './video';
 
@@ -66,8 +67,9 @@ export function poolLimits(videosAtOnce: number, desktop: boolean): PoolLimits {
 
 /**
  * The clips a time needs (Q10): the video clip visible at t on every visible picture track (bottom track first; the
- * main track clamps at its ends as `videoAt` does), and each such track's next video clip starting less than `ahead`
- * seconds after t. Photos need no lane.
+ * main track clamps at its ends as `videoAt` does) and, during a transition, the other clip of it too (206); and each
+ * such track's next video clip whose picture starts (its incoming transition first) less than `ahead` seconds after
+ * t. Photos need no lane.
  */
 export function lanePlan<C extends TimedClip>(p: Project<C>, t: number, ahead: number): { visible: C[]; next: C[] } {
   const visible: C[] = [],
@@ -83,8 +85,11 @@ export function lanePlan<C extends TimedClip>(p: Project<C>, t: number, ahead: n
         last = on[on.length - 1];
       hit = t < 0 && first.start <= 0 ? first : t >= end(last) ? last : undefined;
     }
-    if (hit?.kind === 'video') visible.push(hit);
-    const n = on.find((c) => c !== hit && c.kind === 'video' && c.start > t && c.start - t < ahead);
+    const shown = hit ? (transitionItems(on, tr.id, hit, t)?.map((item) => item.clip) ?? [hit]) : [];
+    for (const clip of shown) if (clip.kind === 'video') visible.push(clip);
+    // A clip's picture starts half its incoming transition before the clip does.
+    const pictureStart = (c: C) => c.start - (on.find((other) => other.transition?.to === c.id)?.transition?.dur ?? 0) / 2;
+    const n = on.find((c) => !shown.includes(c) && c.kind === 'video' && c.start > t && pictureStart(c) - t < ahead);
     if (n) next.push(n);
   }
   return { visible, next };

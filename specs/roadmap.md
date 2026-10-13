@@ -39,7 +39,7 @@ _Release:_ 3.0.0
 | 203 | Compositing many tracks, picture-in-picture (P2.3) | [spec](features/203-compositing-pip/spec.md) | ✔️ | 201, 204 |
 | 204 | Decoder pool with look-ahead (P2.4) | [spec](features/204-decoder-pool/spec.md) | ✔️ | 201 |
 | 205 | Keyframes: `Animated<T>`, keyframe lane (P2.5) | [spec](features/205-keyframes/spec.md) | ✔️ | 201 |
-| 206 | Transitions as shaders (P2.6) | — | ⬜ | 201, 204 |
+| 206 | Transitions between clips (P2.6) | [spec](features/206-transitions/spec.md) | ✔️ | 201, 204 |
 | 207 | Speed: constant, reverse, freeze, ramps (P2.7) | — | ⬜ | 201 |
 | 208 | Audio tracks, waveforms, ducking, loudness (P2.8) | — | ⬜ | 201, 205 |
 | 209 | Voice-over (P2.9) | — | ⬜ | 208 |

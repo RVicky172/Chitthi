@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Box } from './layers';
+import { valueAt } from './keyframes';
 import { frameStack, mostVideosAt, snapBox } from './stack';
 import {
   MAIN_VIDEO,
@@ -14,6 +15,7 @@ import {
   type Track,
 } from './timeline';
 import { legacyFixtures, type LegacyClip, type LegacyProject } from './timeline.testkit';
+import type { Transition } from './transitions';
 import { frameRange } from './video';
 
 /* ---------- helpers ---------- */
@@ -318,5 +320,142 @@ describe('snapBox: a moved box snaps to the frame’s centre lines and edges', (
     expect(snapBox(box(549, 700), W, H, 8)).toEqual({ x: 549 / W, y: 700 / H, guides: [] });
     expect(snapBox(box(548, 700), W, H, 8).x).toBe(0.5);
     expect(snapBox(box(545, 955), W, H, 0)).toEqual({ x: 545 / W, y: 955 / H, guides: [] });
+  });
+});
+
+/* ---------- 206: transitions in the stack (AC-2, AC-3, AC-11, AC-13) ---------- */
+
+/** A clip with a transition of `dur` seconds into clip `to`. */
+const withTransition = (base: TimedClip, to: string, dur: number, kind: Transition['kind'] = 'dissolve', extra: Partial<Transition> = {}): TimedClip => ({
+  ...base,
+  transition: { kind, dur, to, ...extra },
+});
+/** 205's Ease in and out at linear progress p (transitions are eased with it, Q12). */
+const eased = (p: number) => valueAt([{ t: 0, v: 0, ease: 'ease-in-out' }, { t: 1, v: 1, ease: 'ease-in-out' }], p);
+
+describe('frameStack during a transition (206 AC-2)', () => {
+  // A photo 0–2, a 1 s dissolve into a video 2–4 (source from 1 s).
+  const p = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1), clip('b', MAIN_VIDEO, 2, 2, 'video')]);
+
+  it('shows both clips in the track’s place from d/2 before the cut to d/2 after, the outgoing one first', () => {
+    expect(ids(p, 1.49)).toEqual(['a']);
+    expect(ids(p, 1.5)).toEqual(['a', 'b']);
+    expect(ids(p, 2.49)).toEqual(['a', 'b']);
+    expect(ids(p, 2.5)).toEqual(['b']);
+  });
+
+  it('gives each its local time past its ends (the handles) and the eased progress', () => {
+    const [from, to] = frameStack(p, 2.25);
+    expect(from).toEqual({ clip: p.clips[0], local: 2.25, track: MAIN_VIDEO, mix: { kind: 'dissolve', progress: eased(0.75), role: 'from' } });
+    expect(to).toEqual({ clip: p.clips[1], local: 0.25, track: MAIN_VIDEO, mix: { kind: 'dissolve', progress: eased(0.75), role: 'to' } });
+    const [early, incoming] = frameStack(p, 1.5);
+    expect(early.mix!.progress).toBe(0);
+    expect(incoming.local).toBeCloseTo(-0.5, 12);
+  });
+
+  it('carries the direction of a wipe or slide and the colour of a dip', () => {
+    const wipe = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1, 'wipe', { dir: 'up' }), clip('b', MAIN_VIDEO, 2, 2)]);
+    expect(frameStack(wipe, 2).map((item) => item.mix)).toEqual([
+      { kind: 'wipe', dir: 'up', progress: eased(0.5), role: 'from' },
+      { kind: 'wipe', dir: 'up', progress: eased(0.5), role: 'to' },
+    ]);
+    const dip = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1, 'dip', { colour: 'white' }), clip('b', MAIN_VIDEO, 2, 2)]);
+    expect(frameStack(dip, 2)[0].mix).toEqual({ kind: 'dip', colour: 'white', progress: eased(0.5), role: 'from' });
+  });
+
+  it('on an overlay track the pair sits in the overlay’s place, above the main track', () => {
+    const q = project(
+      [clip('m', MAIN_VIDEO, 0, 10), withTransition(clip('c', 'V2', 1, 3), 'd', 1), clip('d', 'V2', 4, 2), clip('e', 'V3', 0, 10)],
+      [overlay('V2'), overlay('V3')],
+    );
+    expect(ids(q, 3.75)).toEqual(['m', 'c', 'd', 'e']);
+    expect(ids(q, 4.6)).toEqual(['m', 'd', 'e']);
+  });
+
+  it('leaves the project’s length and every clip’s start as they are', () => {
+    const plain = project([clip('a', MAIN_VIDEO, 0, 2), clip('b', MAIN_VIDEO, 2, 2, 'video')]);
+    expect(projectLength(p)).toBe(projectLength(plain));
+    expect(p.clips.map((c) => c.start)).toEqual(plain.clips.map((c) => c.start));
+  });
+
+  it('a transition on a hidden track draws nothing (as its clips)', () => {
+    const hidden = project([clip('m', MAIN_VIDEO, 0, 10), withTransition(clip('c', 'V2', 1, 3), 'd', 1), clip('d', 'V2', 4, 2)], [overlay('V2', { hidden: true })]);
+    expect(ids(hidden, 4)).toEqual(['m']);
+  });
+});
+
+describe('AC-11: the stack at every export frame with transitions equals an independent reference', () => {
+  /**
+   * The reference: on each visible picture track, a clip shows over its own span and over the halves of its
+   * transitions beyond it (its handles); where two show, it is a transition, the progress linear over [cut − d/2,
+   * cut + d/2) and then eased. Written without frameStack's code.
+   */
+  function reference(p: Project, t: number) {
+    const out: { id: string; local: number; track: string; progress?: number; role?: 'from' | 'to' }[] = [];
+    for (const track of p.tracks) {
+      if ((track.kind !== 'video' && track.kind !== 'overlay') || track.hidden) continue;
+      const on = p.clips.filter((c) => c.track === track.id);
+      const shown: typeof out = [];
+      for (const c of on) {
+        const len = c.kind === 'photo' ? c.dur : c.out - c.in;
+        const before = (on.find((other) => other.transition?.to === c.id)?.transition?.dur ?? 0) / 2;
+        const after = (c.transition?.dur ?? 0) / 2;
+        if (t >= c.start - before - 1e-9 && t < c.start + len + after - 1e-9) shown.push({ id: c.id, local: t - c.start, track: track.id });
+      }
+      if (shown.length === 2) {
+        const outgoing = on.find((c) => c.id === shown[0].id)!;
+        const d = outgoing.transition!.dur;
+        const cut = on.find((c) => c.id === shown[1].id)!.start;
+        const progress = eased((t - (cut - d / 2)) / d);
+        shown[0] = { ...shown[0], progress, role: 'from' };
+        shown[1] = { ...shown[1], progress, role: 'to' };
+      }
+      out.push(...shown);
+    }
+    return out;
+  }
+
+  const kinds: [Transition['kind'], Partial<Transition>][] = [
+    ['dissolve', {}],
+    ['dip', { colour: 'black' }],
+    ['wipe', { dir: 'right' }],
+    ['slide', { dir: 'down' }],
+    ['zoom', {}],
+  ];
+  for (const [kind, extra] of kinds)
+    for (const fps of [30, 60]) {
+      it(`${kind} at ${fps} fps, a video into a photo on the main track and a photo into a video on an overlay`, () => {
+        const p = project(
+          [
+            withTransition(clip('v', MAIN_VIDEO, 0, 3, 'video'), 'p', 1, kind, extra),
+            clip('p', MAIN_VIDEO, 3, 2),
+            withTransition(clip('q', 'V2', 1, 2), 'w', 0.5, kind, extra),
+            clip('w', 'V2', 3, 1.5, 'video'),
+          ],
+          [overlay('V2')],
+        );
+        const [, frames] = frameRange(0, projectLength(p), fps);
+        for (let i = 0; i < frames; i++) {
+          const t = i / fps;
+          const got = frameStack(p, t).map((item) => ({
+            id: item.clip.id,
+            local: item.local,
+            track: item.track,
+            ...(item.mix ? { progress: item.mix.progress, role: item.mix.role } : {}),
+          }));
+          expect(got, `frame ${i}`).toEqual(reference(p, t));
+        }
+      });
+    }
+});
+
+describe('mostVideosAt with transitions (206 AC-3, Q7)', () => {
+  const tracks = defaultTracks();
+  it('counts both videos over a transition between them, and only then', () => {
+    const plain = [clip('a', MAIN_VIDEO, 0, 2, 'video'), clip('b', MAIN_VIDEO, 2, 2, 'video')];
+    expect(mostVideosAt(plain, tracks)).toBe(1);
+    expect(mostVideosAt([withTransition(plain[0], 'b', 1), plain[1]], tracks)).toBe(2);
+    // A photo on one side: one video at a time.
+    expect(mostVideosAt([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1), plain[1]], tracks)).toBe(1);
   });
 });

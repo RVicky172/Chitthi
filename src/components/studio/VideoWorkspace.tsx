@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
 import { adjacentKey, keyState, layerAt, layersAt, transformAt, volumeAt, type LayerKeyProp } from '../../engine/keyframes';
 import { frameStack } from '../../engine/stack';
+import { halves } from '../../engine/transitions';
 import { MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
 import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
 import { KeyframeButton, KeyframeNav } from './KeyframeButton';
+import { TransitionInspector, TransitionPanel } from './TransitionPanel';
 import { clipLabel } from './timelineRows';
 import { useClipTransform } from './useClipTransform';
 import { saveFile } from '../../lib/download';
@@ -62,11 +64,11 @@ import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { LookPicker } from '../ig/LookPicker';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
-import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, InstagramIcon, LayersIcon, MusicIcon, RedoIcon, ReelIcon, ShapesIcon, ShareIcon, TrashIcon, TypeIcon, UndoIcon, YouTubeIcon } from '../icons';
+import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, InstagramIcon, LayersIcon, MusicIcon, RedoIcon, ReelIcon, ShapesIcon, ShareIcon, TransitionIcon, TrashIcon, TypeIcon, UndoIcon, YouTubeIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { StudioDialog } from './Dialog';
 import { DesktopNote, StudioShell, useFit, type RailItem, type StudioMode } from './Shell';
-import { Timeline, Transport } from './Timeline';
+import { OPEN_TRANSITIONS, Timeline, Transport } from './Timeline';
 
 /*
  * The video editor in the studio layout, for Reels / Shorts (vertical, short, shared to Instagram) and YouTube videos
@@ -75,12 +77,13 @@ import { Timeline, Transport } from './Timeline';
  * engine/videoExport.ts (loaded on export).
  */
 
-type Tool = 'media' | 'text' | 'elements' | 'draw' | 'audio' | 'layers';
+type Tool = 'media' | 'text' | 'elements' | 'draw' | 'transitions' | 'audio' | 'layers';
 const RAIL: RailItem<Tool>[] = [
   { id: 'media', label: 'Media', icon: <ImageIcon /> },
   { id: 'text', label: 'Text', icon: <TypeIcon /> },
   { id: 'elements', label: 'Elements', icon: <ShapesIcon /> },
   { id: 'draw', label: 'Draw', icon: <BrushIcon /> },
+  { id: 'transitions', label: 'Transitions', icon: <TransitionIcon /> },
   { id: 'audio', label: 'Audio', icon: <MusicIcon /> },
   { id: 'layers', label: 'Layers', icon: <LayersIcon /> },
 ];
@@ -95,6 +98,7 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
     layers = useVideo((s) => s.layers),
     layerSel = useVideo((s) => s.layerSel),
     selected = useVideo((s) => s.selected),
+    transitionSel = useVideo((s) => s.transitionSel),
     t = useVideo((s) => s.t),
     format = useVideo((s) => s.format),
     canUndo = useVideo((s) => s.canUndo),
@@ -105,6 +109,12 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
   const total = useVideo(videoLength);
   const f = vFormat(format);
 
+  // The timeline's cuts open the Transitions panel (206 D2).
+  useEffect(() => {
+    const open = () => setTool('transitions');
+    document.addEventListener(OPEN_TRANSITIONS, open);
+    return () => document.removeEventListener(OPEN_TRANSITIONS, open);
+  }, []);
   useEffect(() => {
     setVTools({ tool: tool === 'draw' ? 'draw' : 'select' });
     return () => setVTools({ tool: 'select' });
@@ -172,10 +182,14 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
       <AddElements {...lp} />
     ) : tool === 'draw' ? (
       <DrawPanel tools={tools} onTools={setVTools} onNewDrawing={() => selectVLayer(null)} />
+    ) : tool === 'transitions' ? (
+      <TransitionPanel />
     ) : (
       <LayerList {...lp} />
     );
   const clip = clips.find((c) => c.id === selected);
+  // The selected cut (206): its transition in the inspector.
+  const cut = clips.find((c) => c.id === transitionSel);
 
   return (
     <StudioShell
@@ -211,7 +225,7 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
         </>
       }
       panel={panel}
-      inspector={layerSel ? <LayerProps {...lp} /> : clip ? <ClipPanel clip={clip} /> : <ProjectPanel />}
+      inspector={layerSel ? <LayerProps {...lp} /> : cut ? <TransitionInspector clip={cut} /> : clip ? <ClipPanel clip={clip} /> : <ProjectPanel />}
       stage={clips.length ? <VideoStage /> : <EmptyStage kind={kind} />}
       dock={
         <>
@@ -436,7 +450,8 @@ function VideoStage() {
       if (!pool) return;
       const plan = lanePlan(projectOf(getVideo()), t, 2);
       pool.want([...plan.visible, ...plan.next].map((c) => c.id));
-      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c));
+      // Primed from its transition's first frame, when one leads into it (206).
+      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c, halves(c, getVideo().clips).before));
     },
     // usesPool only reads stage
     // eslint-disable-next-line react-hooks/exhaustive-deps

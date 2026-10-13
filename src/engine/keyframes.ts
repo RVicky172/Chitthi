@@ -190,9 +190,39 @@ export function layersAt(layers: Layer[], t?: number): Layer[] {
 /** A sound source's volume at timeline time `t`: its volume keys (or its volume) times its end ramps. */
 export function sourceGainAt(source: SoundSource, t: number): number {
   let volume = source.gain ? clampValue('volume', valueAt(source.gain, t - source.start), 'clip') : source.volume;
+  volume *= edgeGain(source, t);
   if (source.fadeIn > 0 && t < source.start + source.fadeIn) volume *= Math.max(0, (t - source.start) / source.fadeIn);
   if (source.fadeOut > 0 && t > source.end - source.fadeOut) volume *= Math.max(0, (source.end - t) / source.fadeOut);
   return volume;
+}
+
+/** A transition's progress is eased as its picture is (206 Q12): 205's Ease in and out. */
+const TRANSITION_EASE: Keyframe[] = [
+  { t: 0, v: 0, ease: 'ease-in-out' },
+  { t: 1, v: 1, ease: 'ease-in-out' },
+];
+
+/**
+ * A source's gain from its transitions (206 AC-6) at timeline time t: over the transition leading into it (centred on
+ * its start, `lead` each side) it rises as sin(π/2 · p), and over its own (centred on its end, `trail` each side) it
+ * falls as cos(π/2 · p), with p the transition's eased progress, so two clips' squares sum to 1 (equal power); a dip
+ * (`dip`) goes through silence at the cut instead (2p − 1 rising, 1 − 2p falling). 1 elsewhere and without transitions.
+ */
+export function edgeGain(
+  source: Pick<SoundSource, 'start' | 'end' | 'lead' | 'trail' | 'edgeIn' | 'edgeOut'>,
+  t: number,
+): number {
+  const progress = (from: number, length: number) => valueAt(TRANSITION_EASE, Math.min(1, Math.max(0, (t - from) / length)));
+  let gain = 1;
+  if (source.lead) {
+    const p = progress(source.start - source.lead, 2 * source.lead);
+    gain *= source.edgeIn === 'dip' ? Math.max(0, 2 * p - 1) : Math.sin((Math.PI / 2) * p);
+  }
+  if (source.trail) {
+    const p = progress(source.end - source.trail, 2 * source.trail);
+    gain *= source.edgeOut === 'dip' ? Math.max(0, 1 - 2 * p) : Math.cos((Math.PI / 2) * p);
+  }
+  return gain;
 }
 
 /**

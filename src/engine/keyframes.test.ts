@@ -6,6 +6,8 @@ import {
   animate,
   clampValue,
   countKeys,
+  edgeGain,
+  sourceGainAt,
   gainCurve,
   isAnimated,
   keyState,
@@ -696,5 +698,75 @@ describe('keyState and adjacentKey (the inspector, AC-6)', () => {
     expect(adjacentKey(item, 3, 1)).toBeNull();
     expect(adjacentKey(item, 1, -1)).toBeNull();
     expect(adjacentKey({}, 1, 1)).toBeNull();
+  });
+});
+
+/* ---------- 206 T040: sound across a transition (AC-6) ---------- */
+
+describe('edgeGain: the clips’ sound across a transition (206 AC-6, Q6)', () => {
+  /** 205's Ease in and out at linear progress p: transitions ease their sound as their picture. */
+  const eased = (p: number) => valueAt([{ t: 0, v: 0, ease: 'ease-in-out' }, { t: 1, v: 1, ease: 'ease-in-out' }], p);
+  const sound = (extra: Partial<SoundSource>): SoundSource => ({ ref: 'x', start: 0, end: 4, from: 0, volume: 1, fadeIn: 0, fadeOut: 0, ...extra });
+  // A plays 0–4 and goes on 0.5 s past its end; B plays 4–8 and starts 0.5 s before: a 1 s transition on the cut at 4.
+  const outgoing = sound({ ref: 'a', trail: 0.5, edgeOut: 'power' }),
+    incoming = sound({ ref: 'b', start: 4, end: 8, lead: 0.5, edgeIn: 'power' });
+
+  it('equal power: the squares of the two gains sum to 1 within 1 % at every millisecond of the transition', () => {
+    for (let t = 3.5; t <= 4.5; t += 0.001) {
+      const sum = edgeGain(outgoing, t) ** 2 + edgeGain(incoming, t) ** 2;
+      expect(Math.abs(sum - 1)).toBeLessThan(0.01);
+    }
+    expect([edgeGain(outgoing, 3.5), edgeGain(incoming, 3.5)]).toEqual([1, 0]);
+    expect(edgeGain(outgoing, 4.5)).toBeCloseTo(0, 12);
+    expect(edgeGain(incoming, 4.5)).toBeCloseTo(1, 12);
+    // Follows the eased progress, as the picture does.
+    expect(edgeGain(incoming, 3.75)).toBeCloseTo(Math.sin((Math.PI / 2) * eased(0.25)), 12);
+  });
+
+  it('a dip: the outgoing sound down to silence by the cut, the incoming up from it', () => {
+    const out = sound({ trail: 0.5, edgeOut: 'dip' }),
+      into = sound({ start: 4, end: 8, lead: 0.5, edgeIn: 'dip' });
+    expect(edgeGain(out, 3.5)).toBe(1);
+    expect(edgeGain(out, 4)).toBeCloseTo(0, 12);
+    expect(edgeGain(out, 4.2)).toBe(0);
+    expect(edgeGain(into, 3.8)).toBe(0);
+    expect(edgeGain(into, 4)).toBeCloseTo(0, 12);
+    expect(edgeGain(into, 4.5)).toBeCloseTo(1, 12);
+    expect(edgeGain(out, 3.75)).toBeCloseTo(1 - 2 * eased(0.25), 12);
+  });
+
+  it('is 1 away from transitions and for sources without them', () => {
+    expect(edgeGain(outgoing, 2)).toBe(1);
+    expect(edgeGain(incoming, 6)).toBe(1);
+    expect(edgeGain(sound({}), 3.99)).toBe(1);
+  });
+
+  it('sourceGainAt multiplies it in, over the clip’s volume or its volume keyframes; no 0.03 s ramp at a transition edge', () => {
+    const keyed = { ...incoming, gain: [{ t: 0, v: 0.5, ease: 'hold' as const }] };
+    expect(sourceGainAt(keyed, 3.75)).toBeCloseTo(0.5 * edgeGain(incoming, 3.75), 12);
+    expect(sourceGainAt({ ...outgoing, volume: 0.8 }, 3.75)).toBeCloseTo(0.8 * edgeGain(outgoing, 3.75), 12);
+  });
+
+  it('gainCurve with transition edges stays within 0.5 dB of the exact curve (and with volume keyframes)', () => {
+    const exact = (s: SoundSource, t: number) => {
+      const p = (from: number) => eased(Math.min(1, Math.max(0, (t - from) / 1)));
+      let v = s.gain ? valueAt(s.gain, t - s.start) : s.volume;
+      if (s.lead) v *= Math.sin((Math.PI / 2) * p(s.start - s.lead));
+      if (s.trail) v *= Math.cos((Math.PI / 2) * p(s.end - s.trail));
+      return v;
+    };
+    for (const s of [incoming, outgoing, { ...incoming, gain: [{ t: 0, v: 0.2, ease: 'linear' as const }, { t: 2, v: 1, ease: 'linear' as const }] }]) {
+      const from = 3.4,
+        length = 1.2;
+      const curve = gainCurve(s, from, length);
+      for (let t = from; t <= from + length; t += 0.0005) {
+        const at = ((t - from) / length) * (curve.length - 1);
+        const i = Math.min(curve.length - 2, Math.floor(at));
+        const got = curve[i] + (curve[i + 1] - curve[i]) * (at - i),
+          want = exact(s, t);
+        if (want >= 0.01) expect(Math.abs(20 * Math.log10(got / want))).toBeLessThanOrEqual(0.5);
+        else expect(Math.abs(got - want)).toBeLessThan(0.001);
+      }
+    }
   });
 });

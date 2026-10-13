@@ -1381,3 +1381,111 @@
     transition: none;
   }
 }
+
+/* 206 §6: the Transitions panel (each kind with a small looping preview) and its inspector. */
+.tr-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+.tr-kind {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.tr-kind:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.tr-kind[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.tr-kind:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tr-kind:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.tr-preview {
+  width: 64px;
+  height: 40px;
+  border-radius: 4px;
+  background: #000;
+}
+
+/* 206 §7: cuts between touching clips (buttons) and transitions (blocks over their cut) on a picture row. */
+.tl-cut {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  width: 12px;
+  height: 22px;
+  margin: -11px 0 0 -6px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  opacity: 0;
+  cursor: pointer;
+}
+.tl-video:hover .tl-cut,
+.tl-cut:focus-visible,
+.tl-cut.on {
+  opacity: 1;
+}
+.tl-cut.on,
+.tl-cut:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.tl-trans {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  z-index: 4;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+.tl-trans.on {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent);
+}
+.tl-trans-body {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;
+}
+.tl-trans-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tl-trans-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+.tl-trans-edge-start {
+  left: -3px;
+}
+.tl-trans-edge-end {
+  right: -3px;
+}

@@ -337,6 +337,7 @@ export const DOC_PAGES: DocPage[] = [
               '**Overlay tracks** (picture-in-picture, B-roll): **+** at the top left adds one; drop files on its row, or on the time ruler for a new track; drag a clip to another row or use **Move to**. Click a track’s name to rename it; its height menu moves it up or down or deletes it.',
               'On the preview, drag an overlay clip to move it (it snaps to the centre lines and edges), its corner to resize, its top handle to turn it (Shift: 15° steps); arrow keys move it 1 % (Shift: 10 %). **Position and size** in the inspector has presets and exact fields.',
               '**Keyframes**: press the diamond next to a clip’s position, size, rotation, opacity, corner radius or sound, or a layer’s position, size, turn or opacity; then any change at the playhead sets a keyframe there. The selected clip or layer shows its keyframes under its row: drag, Delete, Enter for the interpolation (Linear, Ease in, Ease out, Ease in and out, Hold). K sets keyframes at the playhead, Alt + [ / ] jump between them.',
+              '**Transitions**: Cross-dissolve, Dip to black or white, Wipe, Slide and Zoom, from Transitions in the tool rail, or click a cut between two clips on the timeline (Enter from the keyboard). Drag a transition’s edges to change its length; ← / → change it a frame, Delete removes it. **Apply to every cut** does a whole track.',
               'Export: H.264 and AAC in an MP4 with its index at the front (fast start), using the graphics card where it can.',
             ],
           },

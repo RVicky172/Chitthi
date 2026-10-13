@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mostVideosAt } from '../../engine/stack';
 import { EDGE_EPS, MAIN_VIDEO, MUSIC, defaultTracks, type Project, type TimedClip } from '../../engine/timeline';
+import { edgeGain } from '../../engine/keyframes';
 import { limitsFor } from '../../engine/video';
 import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from './previewSound';
 
@@ -166,7 +167,7 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
     const plan = soundPlan(p, t);
     s.update(
       {
-        current: plan.current.map((x) => ({ clip: asSound(x.clip), local: x.local })),
+        current: plan.current.map((x) => ({ clip: asSound(x.clip), local: x.local, edges: x.edges })),
         next: plan.next.map(asSound),
         held: plan.held.map(asSound),
       },
@@ -281,6 +282,28 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
     // A clip without keys keeps its stored volume.
     tick(s, fadeIn, 2.5, true);
     expect(el(s, 'ov')!.volume).toBe(fadeIn.clips.find((x) => x.id === 'ov')!.volume);
+    s.dispose();
+  });
+
+  it('206: both clips of a transition play into their handles, at their equal-power volumes (AC-6)', () => {
+    const s = previewSound();
+    // x 0–4 (source 1–5), a 1 s dissolve into y 4–8 (source 1–5): the transition plays 3.5–4.5.
+    const x = { ...v('x', MAIN_VIDEO, 0, 4), volume: 0.8, transition: { kind: 'dissolve' as const, dur: 1, to: 'y' } },
+      y = v('y', MAIN_VIDEO, 4, 4);
+    const p: Project<C> = { tracks: defaultTracks(), clips: [x, y], audio: [], layers: [], fadeOut: false };
+    // Playing inside the transition: both elements play.
+    tick(s, p, 3.6, true);
+    expect([el(s, 'x')!.paused, el(s, 'y')!.paused]).toEqual([false, false]);
+    // Paused (each element seeks exactly): each waits at its source past its own ends (x past 5 s, y before 1 s).
+    for (const t of [3.6, 4, 4.4]) {
+      tick(s, p, t, false);
+      const outgoing = el(s, 'x')!,
+        incoming = el(s, 'y')!;
+      expect(outgoing.currentTime, `at ${t}`).toBeCloseTo(1 + t, 9);
+      expect(incoming.currentTime, `at ${t}`).toBeCloseTo(1 + t - 4, 9);
+      expect(outgoing.volume, `at ${t}`).toBeCloseTo(0.8 * edgeGain({ start: 0, end: 4, trail: 0.5, edgeOut: 'power' }, t), 9);
+      expect(incoming.volume, `at ${t}`).toBeCloseTo(edgeGain({ start: 4, end: 8, lead: 0.5, edgeIn: 'power' }, t), 9);
+    }
     s.dispose();
   });
 });

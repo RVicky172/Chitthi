@@ -1,0 +1,934 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "206",
+  "title": "Transitions between clips",
+  "workItem": "P2.6",
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-13",
+    "approved": "2026-10-13",
+    "started": "2026-10-13",
+    "done": "2026-10-13"
+  },
+  "git": {
+    "branch": "feat/206-transitions"
+  },
+  "spec": {
+    "phase": "Phase 2 — Multi-track timeline (release 3.0.0)",
+    "summary": "Transitions blend one clip into the next: a cross-dissolve between two shots, a dip to black between scenes, a wipe or a push for energy, a zoom into the next moment. Today a cut is always hard; the only softening is a clip’s **Fade in from black**. 206 lets the user put a transition on any cut between two touching clips, choose its kind and length, and see it the same in the preview and the export, with the clips’ sound blending across it. It completes the timeline’s basic editing set (with 202’s edit tools and 205’s keyframes) and is one of the items the Phase 2 gate needs (“a 4K multi-track timeline with transitions plays smoothly on desktop”).",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a vlogger, I want a soft cross-dissolve between two shots, so that a change of place doesn’t feel like a jump."
+        },
+        "US-2": {
+          "text": "As a creator making a Reel, I want quick wipes, pushes and zooms between clips, so that the video has the energy of the ones in my feed."
+        },
+        "US-3": {
+          "text": "As a YouTuber, I want a dip to black between chapters and the sound to blend across every transition, so that the video sounds as smooth as it looks."
+        },
+        "US-4": {
+          "text": "As an editor, I want to change a transition’s kind and length on the timeline, put the same one on every cut at once, and keep my transitions when I trim or move clips, so that I don’t redo them after every edit."
+        },
+        "US-5": {
+          "text": "As a keyboard or screen-reader user, I want to add, select, change and remove transitions without a mouse and hear what changed."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "The transitions",
+          "proof": "unit",
+          "text": "Five transitions can be put on a cut between two touching clips on the same picture track (Q1): **Cross-dissolve**; **Dip to colour** (black or white: the first clip fades to the colour, then the second fades in from it); **Wipe** (left, right, up, down: an edge moves across and reveals the second clip); **Slide** (left, right, up, down: the second clip pushes the first out of the frame); **Zoom** (the first clip grows while it dissolves into the second). Each is a function of its progress from 0 to 1, eased in and out (Q12): at progress 0 the frame is exactly the first clip alone, at 1 exactly the second clip alone, and a cross-dissolve at 0.5 is an even mix of the two (within 1/255 per channel).",
+          "done": true
+        },
+        "AC-2": {
+          "group": "The transitions",
+          "proof": "unit",
+          "text": "A transition is centred on its cut (Q2): with a length *d* (default 0.5 s, 0.1 s to 3 s, in whole frames, Q3) it runs from *d*/2 before the cut to *d*/2 after it. The first clip goes on playing past its out point and the second starts *d*/2 before its in point, from their sources; where a video’s source has no frames there, its nearest frame is held (a photo always has a picture). The project’s length and every clip’s start and length are the same with and without the transition.",
+          "done": true
+        },
+        "AC-3": {
+          "group": "The transitions",
+          "proof": "unit",
+          "text": "Limits, each refused with the reason: a transition only on a cut between two touching clips of one track (not across a gap, not on a locked track); its half-length on each side fits in that clip together with the clip’s other transition (the two halves never overlap, so a clip of length *L* takes at most *L* of transitions); while a transition between two videos plays, both count towards the videos-at-once limit (web 3, desktop 5; Q7).",
+          "done": true
+        },
+        "AC-4": {
+          "group": "The transitions",
+          "proof": "unit",
+          "text": "Edits keep transitions where they belong (Q8): after a move, trim, Roll, Slip, Slide, split, delete, ripple, Magnetic switch or move to another track, a transition stays on its cut while its two clips still touch, its length shortened to the new limit if needed; when they no longer touch (a gap opens, one is deleted, moved away or to another track) it is removed and the change says so. Undo brings everything back. A seeded property test of 1,000 random edits never leaves a transition between clips that don’t touch or beyond its limits.",
+          "done": true
+        },
+        "AC-5": {
+          "group": "The transitions",
+          "proof": "unit",
+          "text": "Transitions are saved with the project. The document validator reads them with the other fields: unknown kinds, directions and colours become the defaults, lengths are clamped to their limits, transitions on cuts that don’t exist (clips that don’t touch, missing clips) are dropped with a reason; at least 20 malformed documents never make it throw. A project with transitions round-trips document → validator → document equal; documents without transitions stay byte-identical.",
+          "done": true
+        },
+        "AC-6": {
+          "group": "Sound",
+          "proof": "unit",
+          "text": "The clips’ sound blends across a transition (Q6): over a Cross-dissolve, Wipe, Slide or Zoom the two sounds cross-fade with equal power (the squares of their gains sum to 1 within 1 % at every point), the first clip’s sound going on past its out point from its source; over a Dip to colour the first sound fades out by the middle and the second fades in from there. Clip volumes and 205’s volume keyframes still apply on top. A cut without a transition keeps today’s 0.03 s ramps. The export’s sound sources for a fixture with every kind equal the expected list exactly.",
+          "done": false
+        },
+        "AC-7": {
+          "group": "The transitions",
+          "proof": "unit",
+          "text": "Each change is one undo step: adding a transition, changing its kind, direction, colour or length (a drag is one step however long), removing it, and **Apply to every cut** on a track.",
+          "done": true
+        },
+        "AC-8": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "A **Transitions** panel in the video editor’s tool rail lists the five, each with a small looping preview (a still with reduced motion). Choosing one puts it on the selected cut, or, with a clip selected, on the cut at its end (the start for the last clip); **Apply to every cut** puts it on every cut of that track where it fits. With no cut to use the panel says why.",
+          "done": false
+        },
+        "AC-9": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "On the timeline every cut between two touching clips is a focusable target, and a transition shows as a marked block over its cut. A transition is a button: a click selects it and the inspector shows its kind, direction or colour, and length; Delete removes it; dragging either edge changes its length on both sides (in frames, up to its limit); with it selected, ← / → change the length by a frame (Shift: by 0.5 s). Each change is announced (kind, cut, length).",
+          "done": false
+        },
+        "AC-10": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "Everything in AC-8 and AC-9 works from the keyboard; the panel, the cut targets, the transition blocks and the inspector fields have names and states for screen readers; axe finds no serious problems in the panel, the timeline and the inspector; at 360 px wide nothing scrolls sideways outside the timeline; with reduced motion the panel’s previews don’t play.",
+          "done": false
+        },
+        "AC-11": {
+          "group": "Rendering",
+          "proof": "unit",
+          "text": "The preview and the export decide what to draw with one function: at a time inside a transition, the two clips, each one’s local time (from its source, held at its edges) and the progress. For a fixture with each kind between a video and a photo, on the main track and on an overlay track, at 30 and 60 fps, its answer at every frame of the export equals the expected list exactly.",
+          "done": true
+        },
+        "AC-12": {
+          "group": "Rendering",
+          "proof": "self-test (290)",
+          "text": "Golden frames: each kind (and each direction of Wipe and Slide, both Dip colours) at progress 0, 0.25, 0.5, 0.75 and 1, at 9:16 and 16:9, matches its reference within the self-test’s tolerance on every rendering backend; the paused preview shows the same frames and the export renders the same frames from the same inputs. On an overlay track the transition happens inside the clips’ boxes as they are drawn (203’s boxes and 205’s keyframes included, Q5).",
+          "done": false
+        },
+        "AC-13": {
+          "group": "Rendering",
+          "proof": "self-test (290)",
+          "text": "No regressions: projects without transitions are pixel-identical and give identical export inputs (frames, clips, times and sound sources) to 205 for 201’s to 205’s fixtures; every existing video e2e test passes unchanged.",
+          "done": false
+        },
+        "AC-14": {
+          "group": "Rendering",
+          "proof": "timing (290)",
+          "text": "Speed: on the reference mid-range laptop a cross-dissolve between two 1080p30 videos previews with no more dropped frames than 205’s two-video overlay playback; drawing a transition frame at 1080p takes at most 4 ms (median) more than drawing one clip; exporting a 60-second Reel with 10 transitions takes at most 10 % longer than the same Reel with hard cuts.",
+          "done": false
+        },
+        "AC-15": {
+          "group": "Docs",
+          "proof": "review",
+          "text": "`docs/MEDIA-STUDIO.md` (the transitions, their options, limits and keys), `specs/lld.md` (the model, the timing, the drawing and the sound), `CHANGELOG.md` and the in-app docs describe the change; the media studio’s “Still to do” no longer lists cross-fades.",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12"
+      ],
+      "byId": {
+        "Q1": {
+          "open": false,
+          "text": "Which transitions, with which options? _Answer (accepted 2026-10-13):_ the five of the work item (P2.6): Cross-dissolve; Dip to colour (black or white, no colour picker); Wipe and Slide in four directions (left, right, up, down); Zoom (in only). More kinds (iris, spin, blur, glitch, custom shaders) can follow in a later feature."
+        },
+        "Q2": {
+          "open": false,
+          "text": "How does a transition fit in time? _Answer (accepted 2026-10-13):_ centred on the cut, using the clips’ source beyond their in and out points (“handles”), and holding a video’s first or last frame where its source runs out, so adding or removing a transition never changes the project’s length or any clip’s place. (The alternative, overlapping the clips as some phone editors do, shortens the video by the transition’s length and moves every later clip, music and layer timing out of sync.)"
+        },
+        "Q3": {
+          "open": false,
+          "text": "Length? _Answer (accepted 2026-10-13):_ 0.5 s by default (a common default that reads as smooth in a Reel), from 0.1 s to 3 s, in whole frames; limited by the clips as AC-3 says."
+        },
+        "Q4": {
+          "open": false,
+          "text": "The roadmap says “as shaders”: must transitions run on the GPU? _Answer (accepted 2026-10-13):_ not in 206. The video preview and export draw with the 2D canvas today (203, 205); all five kinds are a mix, a moving edge or a moving and scaled picture, which the 2D canvas draws exactly and the same in the preview, the export and every browser. Writing them as shaders now would need the video drawing moved to the GPU first, a separate, larger change. They move to shaders when the video pipeline does; the roadmap item becomes “Transitions between clips”. This is the maintainer’s call."
+        },
+        "Q5": {
+          "open": false,
+          "text": "Which tracks? _Answer (accepted 2026-10-13):_ every picture track: the main track and overlay tracks, always between two touching clips of the same track. On an overlay track the transition happens inside the clips’ boxes as drawn (a wipe moves across the clips, not the whole frame); a clip with a box that differs from its neighbour’s blends from one box to the other only through the transition’s picture, not by moving the box."
+        },
+        "Q6": {
+          "open": false,
+          "text": "What happens to the sound? _Answer (accepted 2026-10-13):_ always blended: equal-power cross-fades for Cross-dissolve, Wipe, Slide and Zoom; for Dip to colour the sound dips too (out to the middle, then in). No option to turn it off in 206; a hard sound cut over a soft picture transition can come with the audio work (208)."
+        },
+        "Q7": {
+          "open": false,
+          "text": "Do the two videos during a transition count towards the videos-at-once limit? _Answer (accepted 2026-10-13):_ yes: both are decoded and drawn at once, so the limit (web 3, desktop 5) stays honest; a transition that would go over it is refused with the reason, as 203’s edits are."
+        },
+        "Q8": {
+          "open": false,
+          "text": "What happens to a transition when an edit separates its clips? _Answer (accepted 2026-10-13):_ it is removed, and the edit’s announcement says so; undo brings it back with the clips. While the clips still touch it stays, shortened if the new limits need it. (The alternative, refusing edits that would break a transition, would make ordinary trims fail.)"
+        },
+        "Q9": {
+          "open": false,
+          "text": "Transitions at the video’s start or end, or into a gap? _Answer (accepted 2026-10-13):_ not in 206: a transition always joins two clips. The clip’s **Fade in from black** and the video’s fade-out at its end stay as they are and cover the start and the end; a gap stays a hard cut to black."
+        },
+        "Q10": {
+          "open": false,
+          "text": "Agent tools (Constitution XI)? _Answer (accepted 2026-10-13):_ none in 206, as 203 and 205: transitions are store actions and pure functions, and the timeline’s agent tools, transitions included, come together in 212."
+        },
+        "Q11": {
+          "open": false,
+          "text": "Should the selected cut, the Transitions panel and Apply to every cut also cover the music track? _Answer (accepted 2026-10-13):_ no: the music is one clip; its sound already fades in and out. Sound-only cross-fades between audio clips come with audio tracks (208)."
+        },
+        "Q12": {
+          "open": false,
+          "text": "Easing? _Answer (accepted 2026-10-13):_ every transition’s progress follows Ease in and out (205’s curve), with no choice in 206; a choice of easing, or keyframes on a transition’s progress, can come later."
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-13",
+        "text": "Created: draft spec with 15 acceptance criteria and 12 open questions with proposed answers."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Q1–Q12: every proposed answer accepted by the maintainer (Q4: 2D canvas, no shaders in 206, D-035); Approved."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Plan drafted (§1–§9, D1–D3 for the maintainer)."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Plan approved (D1–D3 as recommended, D-036)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** a transition frame costs at most 4 ms more to draw than one clip at 1080p (median, desktop); preview playback and export speed for projects without transitions stay within 5 % of 205 (AC-13, AC-14); no extra decoding outside a transition.\n- **Accessibility:** every action works from the keyboard and is announced; names and states for screen readers; reduced motion respected (AC-10).\n- **Compatibility:** web and desktop alike; no new dependency; every existing project opens and exports unchanged (AC-5, AC-13).\n- **Free and open source:** every transition is for everyone, on the web and the desktop app."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- More kinds (iris, spin, blur, glitch), custom or imported transitions, and shader-based drawing (Q1, Q4).\n- Transitions at the video’s start or end, into gaps, or on the music (Q9, Q11).\n- A choice of easing, keyframes on a transition, or separate sound and picture transitions (Q6, Q12).\n- Speed changes (207); audio tracks and sound cross-fades between audio clips (208); text animations (210).\n- Agent tools for transitions (212, Q10)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-13, D1–D3 as recommended, D-036) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/transitions.ts`, `src/engine/transitions.test.ts`",
+        "change": "new",
+        "purpose": "§1: the model, progress, room, `tidyTransitions`, `mergeTransition`"
+      },
+      {
+        "file": "`src/engine/stack.ts`, `src/engine/stack.test.ts`",
+        "change": "modify",
+        "purpose": "§2: both clips during a transition (`mix`), `mostVideosAt` with halves"
+      },
+      {
+        "file": "`src/engine/video.ts`, `src/engine/video.test.ts`",
+        "change": "modify",
+        "purpose": "§3: `transitionOps`, the pair drawn in `renderStack`"
+      },
+      {
+        "file": "`src/engine/timeline.ts`, `src/engine/timeline.test.ts`",
+        "change": "modify",
+        "purpose": "§4, §8: `transition` on clips and in the document; `lead` / `trail` / edges in `audioPlan`"
+      },
+      {
+        "file": "`src/engine/keyframes.ts`, `src/engine/keyframes.test.ts`",
+        "change": "modify",
+        "purpose": "§4: `edgeGain` in `sourceGainAt` / `gainCurve`"
+      },
+      {
+        "file": "`src/engine/decodePool.ts`, `src/engine/decodePool.test.ts`",
+        "change": "modify",
+        "purpose": "§2: lanes with handles, `lanePlan` for a transition"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`",
+        "change": "modify",
+        "purpose": "§2, §4: the pair in the frame loop; sources with edges in `mixWindow`"
+      },
+      {
+        "file": "`src/state/video.ts`, `src/state/video.test.ts`",
+        "change": "modify",
+        "purpose": "§5: `tidyTransitions` in `change()`, actions, split / duplicate, `transitionSel`"
+      },
+      {
+        "file": "`src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts`",
+        "change": "modify",
+        "purpose": "§2, §4: the preview draws the pair and sets each sound's volume with the edges"
+      },
+      {
+        "file": "`src/components/studio/TransitionPanel.tsx` (new), `src/components/studio/VideoWorkspace.tsx`",
+        "change": "new / modify",
+        "purpose": "§6: the rail panel and the inspector for a selected transition"
+      },
+      {
+        "file": "`src/components/studio/Timeline.tsx`, `src/components/studio/timelineRows.ts`, `src/components/studio/timelineRows.test.ts`",
+        "change": "modify",
+        "purpose": "§7: cut targets, transition blocks, keys, announcements"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "§6, §7: the panel, cuts and blocks"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`",
+        "change": "modify",
+        "purpose": "AC-15"
+      },
+      {
+        "file": "`specs/features/290-phase2-test-pass-release/feature.json`",
+        "change": "modify",
+        "purpose": "the deferred checks for AC-6 (sound), AC-8–AC-10, AC-12–AC-14 (D-033)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Decoding past a clip's out point** (§2): the pool opens a lane for a clip's `in`–`out`; a transition needs frames up to d/2 beyond, and two lanes of one track at once. Mitigation: a spike task first, with the fake frame source: a lane asked for times before `in` and after `out` serves them (or holds at the source's ends), and two clips of one track decode side by side; if the pool can't, widen `PoolClip`'s window in `poolClip` / the export's `lane`."
+      },
+      {
+        "text": "**Overlay transitions and see-through clips** (§3): mixing two clips that are themselves see-through (an opacity keyframe, a fade-in) on a scratch canvas could double-apply alpha. Mitigation: each clip is drawn on the scratch canvas exactly as `renderStack` draws it alone (its own alpha), the pair mixed there, and the result laid down at alpha 1; golden frames with see-through overlay clips in 290 (AC-12)."
+      },
+      {
+        "text": "**Edits silently dropping transitions** (§5, Q8): a trim or reorder can remove a transition the user made. Mitigation: the rule is announced (\"Transition between clip 2 and clip 3 removed\") and undo restores it; the property test proves no transition is ever left invalid (AC-4)."
+      },
+      {
+        "text": "**Playback cost** (AC-14): a transition draws two clips and a scratch canvas per frame. Mitigation: the scratch canvas is the one `renderStack` already keeps; the timing runs in 290 on the reference laptop, with the 4 ms budget per transition frame; if it is missed, the pair is drawn in place where both clips are opaque full-frame (the main track), skipping the scratch canvas."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-13 (Q1–Q12 accepted, D-035)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Unit tests first for every task (D-033); e2e, golden frames, sound and timing listed in 290."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency; one rule (`tidyTransitions`) instead of transition logic in every edit; the 2D canvas, not a GPU path (Q4)."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "Decisions and gotchas logged as they come; progress at the end."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Every transition for everyone, web and desktop alike."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "All drawing and mixing happen locally."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new to license."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "`frameStack` and `transitionOps` are shared by the preview and the export; sound through one `edgeGain`."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No IPC or Electron change."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "4 ms per transition frame, export within 10 % (AC-14); keyboard, names, announcements, reduced motion (AC-10); entry chunk unchanged (the code loads with the studio)."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "✅",
+        "notes": "Store actions and pure functions, ready for 212's agent tools (Q10)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "A transition is data on the clip before its cut, and the one function that decides what a frame shows (`frameStack`) returns both clips while it plays. The preview picture, the preview sound, the export's frames and sound and the decoder pool already ask `frameStack` (or `audioPlan`), so they all follow from it and show the same thing (Constitution VIII). Drawing stays on the 2D canvas (Q4, D-035). Under D-033 every task is proven by unit tests; the e2e, golden-frame, sound and timing checks go to 290.\n\n**§1 The model (new `engine/transitions.ts`, AC-1–AC-3).** `Transition` = `{ kind, dur, to, dir?, colour? }` on the outgoing clip (`TimedClip.transition?`, D1): `kind` one of `dissolve`, `dip`, `wipe`, `slide`, `zoom`; `dur` seconds (0.1–3, whole frames, default 0.5, Q3); `to` the id of the clip it leads into; `dir` (`left` / `right` / `up` / `down`) for wipe and slide; `colour` (`black` / `white`) for dip. Pure helpers: `cutsOf(clips, track)` (each pair of touching clips, within 1e-6 s), `halves(clip)` (the seconds of transition before its end and after its start), `progressAt(transition, cut, t)` (0 → 1 over [cut − d/2, cut + d/2], eased with 205's Ease in and out, Q12), `roomFor(a, b)` (the longest transition that fits, AC-3), and `tidyTransitions(clips, fps)`: the one rule that keeps transitions valid (AC-4): a transition whose `to` clip doesn't start where its clip ends on the same track is dropped; the rest are clamped, in time order, so that each clip's two halves fit in it (rounded down to a frame; under 0.1 s it is dropped). It returns the clips and what it dropped (for the announcement).\n\n**§2 What a frame shows (`engine/stack.ts`, AC-2, AC-11).** `frameStack(p, t)` gives, on a track where t is inside a transition, two items in the track's place: the outgoing clip (its `local` past its length up to d/2) and the incoming one (`local` from −d/2), each with `mix: { kind, dir, colour, progress, role: 'from' | 'to' }`. Elsewhere it is unchanged, so projects without transitions get exactly 205's stack (AC-13). A video's source time is `in + local`; outside its source the picture holds its nearest frame (the pool already holds at a source's `head` / `tail`; photos clamp their movement progress to 0–1). `mostVideosAt` widens each video clip's span by its halves, so both videos of a transition count (Q7); `lanePlan` lists both clips of a playing transition and the incoming one within 2 s.\n\n**§3 Drawing (`engine/video.ts`, AC-1, AC-12).** A pure `transitionOps(mix, W, H)` describes each clip's drawing as data: an alpha, a clip rectangle, a translation and a scale (and, for dip, the colour's alpha), so it is unit-tested without a canvas. `renderStack` draws a track's transition pair onto one scratch canvas (each clip as before 206: its box, keyframes and look), applies the ops, and lays the result down once: Cross-dissolve: from, then to at alpha p; Wipe: from, then to clipped to the revealed part of the frame; Slide: from moved out by p of the frame, to moved in from the opposite edge; Zoom: to, then from scaled 1 → 1.3 about the centre at alpha 1 − p (D3); Dip: from (p < 0.5) or to (p ≥ 0.5), then the colour with `source-atop` at alpha 1 − |2p − 1|, so on an overlay track only the clips' own pixels dip (Q5). The main track's fade-in darkness and the video's fade-out stay as they are.\n\n**§4 Sound (`engine/timeline.ts`, `engine/keyframes.ts`, `videoExport.ts`, `previewSound.ts`, AC-6).** A `SoundSource` gains `lead` / `trail` (seconds it plays before its start / after its end, its transitions' halves) and `edgeIn` / `edgeOut` (`power` or `dip`). `start`, `end`, `from` and `gain`'s times keep their meaning, so sources without transitions are 205's exactly. A pure `edgeGain(source, t)`: equal power (sin / cos of the eased progress) over the whole transition, or for a dip the outgoing sound down to 0 by the cut and the incoming up from it. `sourceGainAt` multiplies it in, so `gainCurve` and `mixWindow`'s single `setValueCurveAtTime` cover sources with transitions (as keyed ones); `previewSound` sets each element's volume from the same function on every tick (`soundPlan` already lists both clips, through `frameStack`).\n\n**§5 Edits and the store (`state/video.ts`, `engine/edits.ts`, AC-3, AC-4, AC-7).** The store's `change()` runs `tidyTransitions` after packing, so every edit (move, trim, Roll, Slip, Slide, ripple, delete, Magnetic, move to track) keeps or drops transitions by the one rule; edits themselves don't change. Split moves a clip's outgoing transition to the right part; duplicate copies it to the copy (which ends at the old cut, so the transition stays there). New actions, each one undo step returning its refusal: `setTransition(clipId, patch)` (add or change; refused across a gap, on a locked track, past the videos-at-once limit, with the reason), `removeTransition(clipId)`, `transitionEveryCut(trackId, kind)` (where it fits), and a view-state selection `transitionSel` (the outgoing clip's id; not undone, not saved).\n\n**§6 The Transitions panel (`VideoWorkspace.tsx`, new `studio/TransitionPanel.tsx`, AC-8, AC-10).** A **Transitions** item in the tool rail: the five kinds as buttons, each with a small looping preview drawn by `transitionOps` on two coloured cards (a still with reduced motion); choosing one applies it to the selected cut, else to the cut at the selected clip's end (the start for the last clip); **Apply to every cut** for that track; a note when there is no cut. With a transition selected, the inspector shows its kind, direction or colour, and length (a number field in seconds, whole frames) and **Remove transition**.\n\n**§7 The timeline (`Timeline.tsx`, `timelineRows.ts`, AC-9, AC-10).** In each picture row every cut between touching clips is a small focusable button over the cut (`tl-cut`, as 202's gaps), and a transition is a block over its cut (`tl-trans`, its width the transition's length, its kind's icon): click selects it, Delete removes it, dragging either edge changes its length on both sides (whole frames, up to its room; one undo step), and with it focused ← / → change the length a frame (Shift: 0.5 s). A cut button's Enter opens the Transitions panel for it. `describeTransitionChange` (timelineRows.ts) announces adds, changes, removals, and transitions dropped by an edit.\n\n**§8 The project document (`timeline.ts`, AC-5).** `DocClip.transition`, written only when present (documents without transitions byte-identical). `mergeProject` reads it through `mergeTransition` (unknown kind → dissolve, unknown `dir` → left, unknown `colour` → black, `dur` clamped and put on frames, a `to` that isn't a clip dropped) and runs `tidyTransitions` after placing the clips, each drop with a reason; it never throws.\n\n**§9 Agent tools.** None in 206 (Q10): 212 adds the timeline's agent tools, transitions included."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/transitions.ts\nexport type TransitionKind = 'dissolve' | 'dip' | 'wipe' | 'slide' | 'zoom';\nexport type Direction = 'left' | 'right' | 'up' | 'down';\nexport interface Transition {\n  kind: TransitionKind;\n  /** Seconds, centred on the cut (Q2): 0.1–3, whole frames. */\n  dur: number;\n  /** The clip it leads into: it starts where this clip ends, on the same track (D1). */\n  to: string;\n  dir?: Direction;          // wipe, slide\n  colour?: 'black' | 'white'; // dip\n}\nexport const TRANSITION_LIMITS = { min: 0.1, max: 3, default: 0.5 };\nexport function tidyTransitions<C extends TimedClip>(clips: C[], fps: number): { clips: C[]; dropped: string[] };\nexport function progressAt(tr: Transition, cut: number, t: number): number | null;   // null outside it\nexport function roomFor(a: TimedClip, b: TimedClip, clips: TimedClip[]): number;\n\n// engine/timeline.ts\ninterface TimedClip { /* … */ transition?: Transition }   // on the outgoing clip\ninterface SoundSource { /* … */ lead?: number; trail?: number; edgeIn?: 'power' | 'dip'; edgeOut?: 'power' | 'dip' }\n\n// engine/stack.ts\nexport interface Mix { kind: TransitionKind; dir?: Direction; colour?: 'black' | 'white'; progress: number; role: 'from' | 'to' }\nexport interface StackItem<C> { clip: C; local: number; track: string; mix?: Mix }\n\n// engine/video.ts\nexport interface DrawOp { alpha: number; clip?: { x: number; y: number; w: number; h: number }; dx: number; dy: number; scale: number }\nexport function transitionOps(mix: Mix, W: number, H: number): { op: DrawOp; colour?: { css: string; alpha: number } };\n\n// state/video.ts\nexport function setTransition(clipId: string, patch: Partial<Omit<Transition, 'to'>>, key?: string): string | null;\nexport function removeTransition(clipId: string): string | null;\nexport function transitionEveryCut(trackId: string, kind: TransitionKind): string | null;\n// view state: transitionSel: string | null (the outgoing clip's id)\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **One rule, run in one place.** `tidyTransitions` is pure and runs in the store's `change()` (after `pack`) and in `mergeProject`, as `pack` does for Magnetic: edits stay unaware of transitions and a seeded property test (1,000 random edits, as 202's) proves the invariant (AC-4).\n- **Handles without new decoding paths.** The pool's lane for a clip in a transition is opened with its window widened by the halves, clamped to the source; past the source it holds its first / last frame as it already does at `head` / `tail` (a spike task proves this with the fake frame source first).\n- **Ops as data.** `transitionOps` returns plain numbers, so every kind, direction and progress is unit-tested exactly (AC-1), and the canvas code that applies them is a few lines, checked by 290's golden frames.\n- **Easing** reuses 205's Ease in and out solver (`valueAt` on two keys), so the motion matches keyframes' feel.\n- **Equal-power sound**: gains sin(πp/2) and cos(πp/2) of the eased progress; their squares sum to 1 exactly, within floating point (AC-6). A dip uses the linear halves instead, so the sound is silent at the cut as the picture is black.\n- **Announcements** through the timeline's live region, as 202–205 do."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | Test |\n| --- | --- | --- |\n| AC-1 | unit | `transitionOps` per kind, direction, colour at progress 0, 0.25, 0.5, 0.75, 1: from alone at 0, to alone at 1, a dissolve's alphas at 0.5 (`transitions.test.ts`, `video.test.ts`) |\n| AC-2 | unit | `frameStack` inside a transition: both clips, locals past the out point / before the in point, held at the source's ends; project length and starts unchanged (`stack.test.ts`) |\n| AC-3 | unit | `roomFor`, `tidyTransitions` clamping, refusals of `setTransition` (gap, locked, videos at once); `mostVideosAt` with halves (`transitions.test.ts`, `state/video.test.ts`) |\n| AC-4 | unit | each edit kind keeps or drops as the rule says; split and duplicate; a seeded 1,000-edit property test (`state/video.test.ts`) |\n| AC-5 | unit | ≥ 20 malformed documents, round trip, byte-identical without transitions (`timeline.test.ts`) |\n| AC-6 | unit + self-test (290) | `edgeGain` equal power within 1 %, the dip shape; `audioPlan` sources for a fixture of every kind; `gainCurve` with edges; the exported sound measured in 290 |\n| AC-7 | unit | undo-step counts for every action, a drag one step (`state/video.test.ts`) |\n| AC-8, AC-9, AC-10 | e2e (290) | the panel, cut targets, blocks, inspector, keys, announcements, axe, 360 px, reduced motion |\n| AC-11 | unit | a fixture (each kind between a video and a photo, main and overlay tracks, 30 and 60 fps): `frameStack` at every export frame equals the expected list (`stack.test.ts`) |\n| AC-12 | self-test (290) | golden frames per kind / direction / colour at five progresses, 9:16 and 16:9, every backend; paused preview and export |\n| AC-13 | self-test (290) | 201–205 fixtures pixel-identical with identical export inputs; existing video e2e unchanged |\n| AC-14 | timing (290) | two-video dissolve playback, draw time per transition frame, export time with 10 transitions |\n| AC-15 | review | the docs (T090) |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-13: D1–D3 as recommended)",
+        "markdown": "- **D1 — Where a transition lives.** _Recommended:_ on the outgoing clip, naming the clip it leads into (`to`): it is removed when that pair no longer touches (a reorder, a gap, a move to another track), as AC-4 and Q8 say, and split / duplicate carry it naturally. _Alternative:_ on the outgoing clip without `to` (it would stay on the clip's end whatever clip comes next after a reorder), or a project-level list of cuts (one more structure to keep in step with every edit).\n- **D2 — Adding from the keyboard.** _Recommended:_ every cut is a focusable button on the timeline (like 202's gaps); Enter on it opens the Transitions panel for that cut, and the panel applies to the selected cut. _Alternative:_ no cut targets, the panel acting only on the cut at the selected clip's end (no way to pick a clip's start cut directly).\n- **D3 — What Zoom looks like.** _Recommended:_ the outgoing clip grows from 1× to 1.3× about the centre while it dissolves into the incoming one (a \"zoom into the next shot\"). _Alternative:_ a zoom through: the outgoing clip grows out, then the incoming one shrinks in from 1.3× (more motion, harsher at Reel speed)."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); the e2e, golden-frame, sound and timing checks are listed in `290` (\"Deferred checks collected from the phase\": 206 AC-6, AC-8, AC-9, AC-10, AC-12, AC-13, AC-14).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 206 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "The model",
+        "intro": "Pure functions in `engine/transitions.ts` first; the spike proves the pool can decode past a clip's ends before anything relies on it."
+      },
+      {
+        "title": "What a frame shows",
+        "intro": "One `frameStack` for the preview, the export, the preview sound and the pool (Constitution VIII)."
+      },
+      {
+        "title": "Drawing",
+        "intro": null
+      },
+      {
+        "title": "Sound",
+        "intro": null
+      },
+      {
+        "title": "Store actions",
+        "intro": null
+      },
+      {
+        "title": "Panel, inspector and timeline",
+        "intro": "Unit tests cover the pure helpers; the UI itself is checked in 290."
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T040",
+        "T041",
+        "T050",
+        "T051",
+        "T060",
+        "T061",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Spike (risk 1): with the fake frame source in `decodePool.test.ts`, prove a lane asked for times before a clip's `in` and after its `out` serves the source's frames there and holds its first / last frame past the source's ends, and that two clips of one track decode side by side. If not, note what `PoolClip` / `poolClip` / the export's `lane` must widen, for T021. Record the finding.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/engine/decodePool.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/decodePool.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** Spike in decodePool.test.ts ('206 spike', 4 cases, fake frame source): the pool already serves frames before a clip's in and after its out point (asked by source time; in / out only matter for priming), holds the source's first frame before it and its last after it, and plays two clips of one track side by side through a 1 s transition with no frame behind (2 decoders). Finding for T021: prepare primes a lane at PoolClip.in, so an incoming clip handed over as stored shows its in-point frame (held) at the transition's first frame; handed over with in widened by the half before its start, the first frame is ready with no hold. So T021 widens PoolClip.in by the incoming half (poolClip and the export's lane); out needs no change. npm run check green, 1,552 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T011": {
+          "text": "Failing tests (`src/engine/transitions.test.ts`): `progressAt` (null outside [cut − d/2, cut + d/2], 0 and 1 at the ends, eased in and out as 205's curve at 0.25 / 0.5 / 0.75); `roomFor`; `tidyTransitions`: keeps a transition on touching clips, drops one whose `to` doesn't start where its clip ends (a gap, another track, a missing clip), clamps lengths in time order so each clip's two halves fit, rounds down to frames (30 / 60 fps), drops under 0.1 s, returns what it dropped; the defaults (0.5 s, dir left, colour black).",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/transitions.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/transitions.test.ts`: fails (no module)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** src/engine/transitions.test.ts: 13 cases: defaults (0.5 s; wipe / slide left; dip black) and limits; cutsOf (touching within 1e-6, not across a gap or track); halves; progressAt (null outside [cut − d/2, cut + d/2), 0 at the start, 205's Ease in and out at 0.25 / 0.5 / 0.75); roomFor (twice the shorter of what is left of each clip, 3 s cap, the other transition's half); tidyTransitions (same array when nothing changes; drops across a gap, another track, a missing clip, a reorder; clamps in time order; whole frames at 30 / 60 fps; drops under 0.1 s of room; overlay tracks and extra fields). Fails: no module."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T012": {
+          "text": "Implement plan §1 in `src/engine/transitions.ts`: `Transition`, `TransitionKind`, `Direction`, `TRANSITION_LIMITS`, `cutsOf`, `halves`, `progressAt` (205's Ease in and out), `roomFor`, `tidyTransitions`; `transition?` on `TimedClip`.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/transitions.ts",
+            "src/engine/timeline.ts"
+          ],
+          "test": "T011",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** src/engine/transitions.ts: Transition { kind, dur, to, dir?, colour? }, TransitionKind / Direction / DipColour and their lists, TRANSITION_LIMITS (0.1 / 3 / 0.5), defaultTransition, cutsOf (touching within 1e-6), halves, progressAt (205's Ease in and out through valueAt on two keys), roomFor, tidyTransitions (per track in time order: drops when `to` isn't the clip starting at its end, clamps so each clip's halves fit, whole frames rounding down, 3 s cap, drops under 0.1 s; same array when nothing changes); transition? on TimedClip (type import). 13/13 transition tests; break-test (clamp ignoring the incoming half) caught by 2 cases; npm run check green, 1,565 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T013": {
+          "text": "Failing tests (`src/engine/timeline.test.ts`, the document gate): ≥ 20 malformed transition documents (wrong types, NaN, unknown kind / dir / colour, lengths out of range or off the frame grid, a `to` that is missing, on another track or not touching, `__proto__`) never throw and give the expected transitions and reasons; a project with transitions round-trips document → gate → document equal; 201–205 documents without transitions stay byte-identical.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/timeline.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** timeline.test.ts \"206 AC-5\": 27 malformed transition documents on the mixed 2.x fixture with a dissolve and a wipe (text / array / number / null transitions; missing, unknown and numeric kinds; missing, text, NaN, 0, negative, over-3 s and off-grid lengths; unknown and numeric directions, a missing direction, an unknown dip colour, options a kind doesn’t have; a missing, numeric, unknown or non-adjacent `to`; a transition on the last clip; extra fields; __proto__; a length longer than its room), a round trip, and every 2.x fixture byte-identical without transitions. 28 cases failed before T014."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T014": {
+          "text": "Implement plan §8: `mergeTransition` (in `transitions.ts`), `DocClip.transition`, `toDocument` (written only when present), `mergeProject` runs `tidyTransitions` after placing the clips, each drop with a reason.",
+          "section": "The model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/transitions.ts",
+            "src/engine/timeline.ts"
+          ],
+          "test": "T013",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** transitions.ts mergeTransition (known fields only; unknown kind → dissolve, unknown dir / colour → the default, length clamped to 0.1–3 s, each with a reason once; missing option = default without one; no `to` → left out), TRANSITION_REASONS, transitionFields (document order); timeline.ts: DocClip carries transition (via TimedClip), toDocument writes it only when present, mergeProject reads it per clip and runs tidyTransitions after placeClips (drops off a cut with one reason; frames and room clamped silently). 330/330 timeline tests (the 28 new ones failed before); break-test (no tidy in the gate) caught by 5 cases; npm run check green, 1,606 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T020": {
+          "text": "Failing tests (`src/engine/stack.test.ts`, `src/engine/decodePool.test.ts`): `frameStack` inside a transition gives the pair in the track's place with `mix` (kind, dir, colour, progress, role) and locals past the out point / before the in point; outside it, and for projects without transitions, exactly 205's stack; AC-11's fixture (each kind between a video and a photo, on the main and an overlay track, at 30 and 60 fps): the stack at every export frame equals the expected list; the project's length and the clips' starts are unchanged by transitions; `mostVideosAt` counts both videos over a transition's span; `lanePlan` lists both clips of a playing transition and the incoming one within 2 s.",
+          "section": "What a frame shows",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-3",
+            "AC-11",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/stack.test.ts",
+            "src/engine/decodePool.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/stack.test.ts src/engine/decodePool.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** stack.test.ts \"206\": frameStack during a transition (both clips from d/2 before the cut to d/2 after, outgoing first; locals past the ends; the eased progress; dir / colour carried; the pair in an overlay’s place; length and starts unchanged; a hidden track draws nothing); AC-11: every export frame of a fixture (a video into a photo on the main track, a photo into a video on an overlay) for each of the five kinds at 30 and 60 fps equals an independent reference (each clip shown over its span plus its handles); mostVideosAt counts both videos only over a transition between two videos. decodePool.test.ts: lanePlan lists both clips of a playing transition and readies the incoming clip 2 s before its transition starts. 17 cases failed before T021."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T021": {
+          "text": "Implement plan §2: `Mix` and `frameStack`'s pair in `stack.ts`; `mostVideosAt` with halves; `lanePlan` and lanes widened by the halves (from T010's finding) in `decodePool.ts`, `previewFrame.ts` (`poolClip`) and the export's `lane`; photos clamp their movement progress to 0–1.",
+          "section": "What a frame shows",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-3",
+            "AC-11",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/stack.ts",
+            "src/engine/decodePool.ts",
+            "src/components/studio/previewFrame.ts",
+            "src/engine/videoExport.ts",
+            "src/engine/video.ts"
+          ],
+          "test": "T020",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** stack.ts: Mix, StackItem.mix, transitionItems (its own transition into the next clip, or the one leading into it, checked by the transition’s window), frameStack pushes the pair in the track’s place; mostVideosAt widens each video’s span by its halves. decodePool.ts lanePlan: both clips of a playing transition visible; the next clip readied 2 s before its picture starts (its incoming half). Pool window (T010): poolClip(c, lead) and the export’s lane widen `in` by the incoming half, used where lanes are primed (the stage’s look-ahead, the export). Photos already clamp their movement (motionEdit). 101/101 stack + pool tests (17 new ones failed before); break-test (no second half of a transition) caught by 14 cases; npm run check green, 1,625 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T030": {
+          "text": "Failing tests (`src/engine/transitions.test.ts`): `transitionOps(mix, W, H)` for every kind, each Wipe and Slide direction and both Dip colours at progress 0, 0.25, 0.5, 0.75, 1: at 0 the outgoing clip alone (alpha 1, nothing moved), at 1 the incoming alone; a dissolve's alphas at 0.5; a wipe's revealed rectangle; a slide's offsets (± p of the frame); Zoom's scale 1 → 1.3 and alpha 1 − p (D3); a dip's colour alpha 1 − |2p − 1| and which clip shows on each side of 0.5.",
+          "section": "Drawing",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/engine/transitions.test.ts"
+          ],
+          "test": "`npx vitest run src/engine/transitions.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** transitions.test.ts \"transitionOps\": every kind, both dip colours and each wipe / slide direction show the outgoing clip alone at progress 0 and the incoming alone at 1; a dissolve adds the clips at 1 − p and p (lighter); Zoom is that with the outgoing clip at scale 1 + 0.3p (D3); Dip shows the outgoing clip before 0.5 and the incoming after, under the colour at 1 − |2p − 1|; Wipe splits the frame at the moving edge (the parts tile it); Slide moves both clips by p of the frame the way of dir. 17 cases failed (no function)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T031": {
+          "text": "Implement plan §3: `transitionOps` and `DrawOp`; `renderStack` draws a track's pair on the scratch canvas (each clip as alone: box, keyframes, look, its own alpha), applies the ops (dip with `source-atop`) and lays it down once; `StackDraw` carries `mix`; the preview (`drawPreview`) and the export's frame loop pass it through. Unit tests: `renderStack` without a `mix` is unchanged (the 203 / 205 tests).",
+          "section": "Drawing",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-12",
+            "AC-14"
+          ],
+          "files": [
+            "src/engine/transitions.ts",
+            "src/engine/video.ts",
+            "src/components/studio/previewFrame.ts",
+            "src/engine/videoExport.ts"
+          ],
+          "test": "T030; `npm run check` (203's and 205's drawing tests unchanged)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** transitions.ts transitionOps and DrawOp (alpha, composite source-over / lighter, clip rect, dx / dy, scale; dip colour returned with the incoming clip). video.ts: renderStack’s loop body is drawClip (unchanged drawing); a from / to pair goes to drawPair: each clip drawn alone on a layer canvas (scratch slot 1), laid onto the pair canvas (slot 2) with its ops, a dip’s colour with source-atop, the pair laid down once; the main fade-in darkness follows the outgoing clip during a transition. StackDraw.mix; previewFrame StageItem.mix, pausedAt / pausedFrame / heldStageFrame / drawPreview and the export’s frame loop pass it through. 3 recording-canvas tests (no DOM) pin the steps: dissolve (lighter 0.75 / 0.25, laid down once), dip (one clip, white source-atop at 0.5), wipe rects, slide offsets; break-test (no lighter, no colour) caught by 2; 205’s drawing tests unchanged; npm run check green, 1,645 tests. Pixels are 290’s golden frames (AC-12), speed 290’s timing (AC-14)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T040": {
+          "text": "Failing tests (`src/engine/keyframes.test.ts`, `src/engine/timeline.test.ts`): `edgeGain`: equal power (squares sum to 1 within 1 % every 1 ms across the transition), the outgoing sound past its end, the dip (out to 0 by the cut, in from it); `audioPlan` gives `lead` / `trail` / edges for a fixture with every kind (expected list exactly) and 205's sources unchanged without transitions; `gainCurve` with edges stays within 0.5 dB of the exact curve, with volume keyframes too.",
+          "section": "Sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/keyframes.test.ts",
+            "src/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run src/engine`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** keyframes.test.ts \"edgeGain\": equal power (squares sum to 1 within 1 % every 1 ms over a 1 s transition; 1 / 0 at its start, 0 / 1 at its end; the eased progress), the dip (the outgoing sound silent from the cut, the incoming from it), 1 away from transitions, sourceGainAt multiplies it over the volume or volume keyframes, gainCurve with edges within 0.5 dB of an exact curve (keyframes too). timeline.test.ts: audioPlan for a dissolve and a dip (lead / trail / edges instead of the 0.03 s ramps at those cuts; each kind’s edge), and 205’s sources unchanged without transitions. 6 cases failed before T041."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T041": {
+          "text": "Implement plan §4: `SoundSource` `lead` / `trail` / `edgeIn` / `edgeOut` in `audioPlan`; `edgeGain` in `sourceGainAt` / `gainCurve`; `mixWindow` reads each source from `start − lead` to `end + trail` with one curve; `previewSound` sets each element's volume with the edges on every tick (new preview test).",
+          "section": "Sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "src/engine/timeline.ts",
+            "src/engine/keyframes.ts",
+            "src/engine/videoExport.ts",
+            "src/components/studio/previewSound.ts"
+          ],
+          "test": "T040",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** timeline.ts: SoundSource lead / trail / edgeIn / edgeOut; soundEdges(clip, clips) (shared); audioPlan replaces the 0.03 s ramp at a transition’s cut with the edge. keyframes.ts edgeGain (sin / cos of the eased progress, or the dip through silence) multiplied into sourceGainAt, so gainCurve covers it. videoExport mixWindow reads each source from start − lead to end + trail, one setValueCurveAtTime for keyed or edged sources, source time clamped at 0. previewSound: soundPlan gives transition clips their edges; follow plays into the handles at volume × edgeGain. New preview test (failed first). Break-tests (preview halting at the clip’s ends; a linear instead of equal-power fade) caught by 3; npm run check green, 1,653 tests. The exported sound is measured in 290 (AC-6)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T050": {
+          "text": "Failing tests (`src/state/video.test.ts`): `change()` keeps or drops transitions by the rule after a move, trim, Roll, Slip, Slide, ripple, delete, Magnetic switch and move to track (a shortened one clamped); split moves the outgoing transition to the right part; duplicate keeps it at the old cut; `setTransition` (add, change kind / dir / colour / length; refused across a gap, on a locked track and past the videos-at-once limit, recording nothing), `removeTransition`, `transitionEveryCut` (only where it fits); undo-step counts for each, a length drag one step; a seeded 1,000-edit property test never leaves a transition between clips that don't touch or beyond its room.",
+          "section": "Store actions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-4",
+            "AC-7"
+          ],
+          "files": [
+            "src/state/video.test.ts"
+          ],
+          "test": "`npx vitest run src/state/video.test.ts`: the new cases fail",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** state/video.test.ts \"206: transitions in the store\": setTransition (a 0.5 s dissolve into the next clip; kind changes with that kind’s defaults; options; a length drag one step, held to its room and 3 s), removeTransition (one step; none → nothing), transitionEveryCut (every cut that fits, one step); refusals recording nothing (no cut after the clip, a gap, a locked track, the videos-at-once limit); edits by the rule (a trim shortens, delete of the next clip drops, a reorder keeping the pair keeps, Magnetic off delete drops, undo restores); split moves the outgoing transition to the right part; duplicate keeps it at the old cut; a seeded 1,000-edit property test of the invariant. 13 cases failed (no functions)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T051": {
+          "text": "Implement plan §5 in `src/state/video.ts`: `tidyTransitions` in `change()` after packing (what it drops goes to the announcement), split and duplicate, `setTransition`, `removeTransition`, `transitionEveryCut`, `transitionSel` (view state).",
+          "section": "Store actions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-4",
+            "AC-7"
+          ],
+          "files": [
+            "src/state/video.ts"
+          ],
+          "test": "T050",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** state/video.ts: VClip.transition; change() runs tidyTransitions after packing and grouping, so every edit keeps or drops transitions by the one rule; split moves the clip’s outgoing transition to the right part (the left keeps the one leading in); duplicate copies it (the tidy rule keeps it at the old cut); setTransition (default 0.5 s dissolve; a new kind brings its options; length held to 0.1 s and the room; refusals: no touching clip after it, no room, locked, the videos-at-once limit through commit), removeTransition, transitionEveryCut. transitionSel is left to T061 with the timeline UI that uses it. 77/77 store tests incl. the 1,000-edit property test; break-test (no tidy in change) caught by 5; npm run check green, 1,666 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T060": {
+          "text": "Implement plan §6: `TransitionPanel` (the five kinds with looping previews drawn by `transitionOps`, still with reduced motion; applies to the selected cut, else the cut at the selected clip's end (the start for the last clip); Apply to every cut; a note with no cut) as a tool-rail item, and the inspector for a selected transition (kind, direction or colour, length in whole frames, Remove transition). Pure helper `panelCut(state)` (which cut the panel acts on, or why none) with unit tests.",
+          "section": "Panel, inspector and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8",
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/TransitionPanel.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/studio/timelineRows.ts",
+            "src/components/studio/timelineRows.test.ts",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "the helper's unit tests; `npm run check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** TransitionPanel.tsx: a Transitions rail item (TransitionIcon) with the five kinds, each with a 64 × 40 looping preview drawn by transitionOps on two cards (a still at 0.5 with reduced motion); choosing one sets it on the panel’s cut and selects it; Apply … to every cut (the cut’s kind, else a cross-dissolve); the reason when there is no cut. TransitionInspector for the selected cut: kind (select), direction or colour (Seg), length slider in whole frames up to its room, Remove transition; a hard cut says how to add one. Store: transitionSel and selectTransition (view state; selecting a clip or layer clears it; kept by undo while its clip exists). timelineRows.ts panelCut (selected cut, else the selected clip’s end cut, else its start cut; or why: no selection, no touching clip, locked): 3 tests (failed first); break-test caught; npm run check green, 1,669 tests. The panel itself is checked in 290 (AC-8, AC-10)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T061": {
+          "text": "Implement plan §7 (D2): cut targets (`tl-cut`, Enter opens the panel for the cut) and transition blocks (`tl-trans`: select, Delete, edge drags in whole frames up to the room, ← / → a frame, Shift 0.5 s) in each picture row; announcements. Pure helpers in `timelineRows.ts` with unit tests: `transitionBlock` (left and width from cut, length, zoom), `describeTransitionChange` (added, changed, removed, dropped by an edit).",
+          "section": "Panel, inspector and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/Timeline.tsx",
+            "src/components/studio/timelineRows.ts",
+            "src/components/studio/timelineRows.test.ts",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "the helpers' unit tests; `npm run check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** Timeline.tsx CutMarks in each picture row: every cut between touching clips is a button (hidden until the row is hovered, shown when focused or selected; click or Enter selects it and opens the Transitions panel through a document event VideoWorkspace listens to, D2); a transition is a block centred on its cut (click selects it for the inspector; Delete removes; ← / → a frame, Shift 0.5 s; edge drags change both sides in whole frames up to its room, one step). The live region announces clip changes and transition changes together. timelineRows.ts: TRANSITION_NAMES (shared with the panel), transitionName, transitionBlock, draggedLength, describeTransitionChange; 3 tests (failed first); break-test caught; npm run check green, 1,672 tests. The timeline UI is checked in 290 (AC-9, AC-10)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T090": {
+          "text": "Docs (AC-15): `docs/MEDIA-STUDIO.md` (the transitions, options, limits, keys; \"Still to do\" without cross-fades), `specs/lld.md` (the model, the timing, the drawing, the sound), `CHANGELOG.md` Unreleased, the in-app docs.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "specs/lld.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "relative links resolve",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** docs/MEDIA-STUDIO.md: a Transitions section (the five kinds and options in a table; adding from the panel, the cut buttons and Apply to every cut; the block, the inspector, edge drags and keys; timing centred on the cut with handles; equal-power sound and the dip; how edits keep or remove them; videos at once; one drawing for preview and export), a Transitions row in the timeline table, the Cross-fades row gone from Still to do. specs/lld.md 4.9: Transitions (206) — model, the one rule, the stack, drawing, sound, the document, store and UI. CHANGELOG.md Unreleased and the in-app timeline help. 13 relative links, 0 broken; npm run check green, 1,672 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T091": {
+          "text": "`npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033).",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "`npm run check`; `npm run build`",
+          "commits": [
+            "0bf15c3"
+          ],
+          "notes": [
+            "**Result (2026-10-13):** On 0bf15c3: npm run check green (typecheck, lint 0 errors / 5 known warnings, specs:check, 1,672 unit tests); npm run build green: entry chunk 327 KB (budget 350 KB; unchanged from 205), no AI code in it; the studio chunk InstagramStudio 187.66 kB (61.07 kB gzip; 177.12 kB at 205), loaded with the studio. The other gates (e2e, self-test, golden frames, sound, timing) run in 290 (D-033)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T092": {
+          "text": "Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 206 ✔️, `editor-implementation.md` P2.6 Done, `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-11 (unit tests) and AC-15 (docs, T090) ticked; AC-6 (its self-test half; the unit half passes), AC-8, AC-9, AC-10 (e2e), AC-12, AC-13 (self-test) and AC-14 (timing) are listed in 290’s deferred checks. Status Implemented; roadmap 206 ✔️; editor-implementation.md P2.6 Done (2D canvas, D-035); memory/progress.md and memory/MEMORY.md updated."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { snapTargets, snapTime, type Tool } from '../../engine/edits';
 import { adjacentKey, type Keyframes } from '../../engine/keyframes';
 import { layerName, type Layer } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/timeline';
+import { cutsOf, roomFor, TRANSITION_LIMITS } from '../../engine/transitions';
 import { clipLength, fmtTime } from '../../engine/video';
 import { toast } from '../../lib/toast';
 import { isDesktop } from '../../platform/desktop';
@@ -24,12 +25,14 @@ import {
   moveTrack,
   nudgeClip,
   removeClip,
+  removeTransition,
   renameTrack,
   removeVLayer,
   rippleDeleteClip,
   rippleTrimToPlayhead,
   rollClip,
   selectClip,
+  selectTransition,
   selectVLayer,
   setPlayhead,
   setLayerTimes,
@@ -39,6 +42,7 @@ import {
   setTool,
   setTrack,
   setTrackHeight,
+  setTransition,
   setZoom,
   slideClip,
   slipClip,
@@ -58,7 +62,7 @@ import { typingIn } from '../ig/LayerPanel';
 import { MoreMenu } from '../MoreMenu';
 import { KeyframeLane, KeyframeLaneHeads, animatedProps, type LaneItem } from './KeyframeLane';
 import { useFallbackNote } from './previewFrame';
-import { clipLabel, describeClipChange, describeKeyChange, keyTimes, pictureTracksTopFirst, rowUnderPointer, type RowBounds, type RowTarget } from './timelineRows';
+import { clipLabel, describeClipChange, describeKeyChange, describeTransitionChange, draggedLength, keyTimes, pictureTracksTopFirst, transitionBlock, transitionName, rowUnderPointer, type RowBounds, type RowTarget } from './timelineRows';
 import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, PlusIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 
 /*
@@ -148,7 +152,8 @@ export function Timeline() {
     before.current = clips;
     if (was === clips) return;
     const state = getVideo();
-    const message = describeClipChange(was, clips, state.tracks, state.selected);
+    // A clip's change and what it did to transitions (206: one dropped by an edit, or one added, changed, removed).
+    const message = [describeClipChange(was, clips, state.tracks, state.selected), describeTransitionChange(was, clips, state.tracks)].filter(Boolean).join('. ');
     if (!message) return;
     const timer = setTimeout(() => setSaid(message), 250);
     return () => clearTimeout(timer);
@@ -686,9 +691,98 @@ function PictureRow({
           onPointerDown={(e) => e.stopPropagation()}
         />
       ))}
+      <CutMarks track={track} clips={clips} zoom={zoom} />
       {reorder && !reorder.elsewhere && <span className="tl-drop" style={{ left: reorder.at !== undefined ? reorder.at * zoom : markerAt(reorder.id, reorder.to) }} />}
       {dropMarkerAt !== null && <span className="tl-drop" style={{ left: dropMarkerAt * zoom }} />}
     </div>
+  );
+}
+
+/** Opens the Transitions panel in the tool rail (VideoWorkspace listens): the timeline doesn't own the rail. */
+export const OPEN_TRANSITIONS = 'chitthi:video-transitions';
+
+/**
+ * A picture row's cuts (206 §7, D2): every cut between two touching clips is a small button (click or Enter selects it
+ * and opens the Transitions panel for it), and a transition is a block over its cut, as wide as it is long: a click
+ * selects it (the inspector shows it), Delete removes it, ← / → change its length a frame (Shift: 0.5 s), and dragging
+ * either edge changes it on both sides of the cut, in whole frames up to its room. Each change is one undo step.
+ */
+function CutMarks({ track, clips, zoom }: { track: Track; clips: VClip[]; zoom: number }) {
+  const transitionSel = useVideo((s) => s.transitionSel);
+  const fps = useVideo((s) => s.fps);
+  const openFor = (id: string) => {
+    selectTransition(id);
+    document.dispatchEvent(new CustomEvent(OPEN_TRANSITIONS));
+  };
+  return (
+    <>
+      {cutsOf(clips, track.id).map(([before, after]) => {
+        const cut = after.start;
+        const between = `${clipLabel(track, clips.indexOf(before) + 1, true)} and ${clipLabel(track, clips.indexOf(after) + 1, true)}`;
+        const transition = before.transition?.to === after.id ? before.transition : undefined;
+        const selected = transitionSel === before.id;
+        if (!transition)
+          return (
+            <button
+              key={before.id}
+              type="button"
+              className={`tl-cut${selected ? ' on' : ''}`}
+              style={{ left: cut * zoom }}
+              aria-label={`Cut between ${between}: no transition. Press Enter to choose one`}
+              aria-pressed={selected}
+              title="A cut: click to choose a transition for it"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => openFor(before.id)}
+            />
+          );
+        const block = transitionBlock(cut, transition.dur, zoom);
+        /** The longest this transition can be: the room its clips leave, on frames. */
+        const most = () => {
+          const all = getVideo().clips;
+          return Math.floor(Math.min(TRANSITION_LIMITS.max, roomFor(before, after, all)) * fps + 1e-6) / fps;
+        };
+        const edgeDrag = (e: ReactPointerEvent, side: 'start' | 'end') => {
+          e.stopPropagation();
+          if (refused(before.id)) return;
+          selectTransition(before.id);
+          const dur0 = transition.dur,
+            room = most(),
+            key = `tr-length:${before.id}:${++dragSeq}`,
+            say = refusals();
+          drag(e, (dx) => say(setTransition(before.id, { dur: draggedLength(dur0, dx, side, zoom, fps, room) }, key)));
+        };
+        const onKey = (e: ReactKeyboardEvent) => {
+          if (e.altKey || e.ctrlKey || e.metaKey) return;
+          if (e.key === 'Delete' || e.key === 'Backspace') tell(removeTransition(before.id));
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const step = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 0.5 : 1 / fps);
+            const dur = Math.min(most(), Math.max(TRANSITION_LIMITS.min, Math.round((transition.dur + step) * fps) / fps));
+            tell(setTransition(before.id, { dur }, `tr-key:${before.id}`));
+          } else if (e.key === 'Enter') openFor(before.id);
+          else return;
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        return (
+          <div key={before.id} className={`tl-trans${selected ? ' on' : ''}`} style={{ left: block.left, width: Math.max(8, block.width) }}>
+            <button
+              type="button"
+              className="tl-trans-body"
+              aria-label={`${transitionName(transition)} between ${between}, ${transition.dur.toFixed(2)} s. Delete removes it, arrow keys change its length`}
+              aria-pressed={selected}
+              title={`${transitionName(transition)}, ${transition.dur.toFixed(2)} s: drag an edge to change its length`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                selectTransition(before.id);
+              }}
+              onKeyDown={onKey}
+            />
+            <span className="tl-trans-edge tl-trans-edge-start" aria-hidden="true" onPointerDown={(e) => edgeDrag(e, 'start')} />
+            <span className="tl-trans-edge tl-trans-edge-end" aria-hidden="true" onPointerDown={(e) => edgeDrag(e, 'end')} />
+          </div>
+        );
+      })}
+    </>
   );
 }
 

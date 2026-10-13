@@ -1,7 +1,9 @@
 import { DEFAULT_EDIT, renderIg, type IgEdit } from './instagram';
 import { transformAt, type ClipKeyProp, type Keyframes } from './keyframes';
 import { drawLayers, type Layer } from './layers';
+import type { Mix } from './stack';
 import type { ClipTransform } from './timeline';
+import { transitionOps } from './transitions';
 
 /*
  * The video editor's timeline maths and frame drawing, free of UI code. One function draws a frame at any time t, for
@@ -151,6 +153,8 @@ export interface StackDraw {
   sw: number;
   sh: number;
   local: number;
+  /** Part of a transition (206): drawn with its partner, the outgoing clip first. */
+  mix?: Mix;
 }
 
 /** A stack item's box at its frame: its keyframed values at its local time (205), else its stored box itself. */
@@ -163,13 +167,16 @@ export const IDENTITY: ClipTransform = Object.freeze({ x: 0.5, y: 0.5, w: 1, rot
 export const isIdentity = (t?: ClipTransform): boolean =>
   !t || (Object.keys(IDENTITY) as (keyof ClipTransform)[]).every((k) => t[k] === IDENTITY[k]);
 
-/** Each target canvas's own frame-size canvas for its see-through clips (made on first use, gone with the target), so
- * the preview and the export, of different sizes and interleaved, don't remake it every frame. */
-const scratches = new WeakMap<HTMLCanvasElement | OffscreenCanvas, HTMLCanvasElement>();
+/** Each target canvas's own frame-size canvases (made on first use, gone with the target), so the preview and the
+ * export, of different sizes and interleaved, don't remake them every frame: slot 0 for see-through clips, 1 and 2
+ * for a transition's clip and pair (206). */
+const scratches = new WeakMap<HTMLCanvasElement | OffscreenCanvas, HTMLCanvasElement[]>();
 
-function scratchFor(ctx: CanvasRenderingContext2D, W: number, H: number): CanvasRenderingContext2D | null {
-  let c = scratches.get(ctx.canvas);
-  if (!c) scratches.set(ctx.canvas, (c = document.createElement('canvas')));
+function scratchFor(ctx: CanvasRenderingContext2D, W: number, H: number, slot = 0): CanvasRenderingContext2D | null {
+  let slots = scratches.get(ctx.canvas);
+  if (!slots) scratches.set(ctx.canvas, (slots = []));
+  let c = slots[slot];
+  if (!c) slots[slot] = c = document.createElement('canvas');
   if (c.width !== W || c.height !== H) [c.width, c.height] = [W, H];
   const x = c.getContext('2d');
   if (!x) return null;
@@ -227,38 +234,15 @@ export function renderStack(
   ctx.fillRect(0, 0, W, H);
   let mainLocal = 0,
     mainFade = false;
-  for (const item of items) {
-    const { clip, src, sw, sh, local } = item;
-    if (!clip.overlay) [mainLocal, mainFade] = [local, clip.fade];
-    if (!src || sw <= 0 || sh <= 0) continue;
-    const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
-    const tf = itemTransform(item);
-    const alpha = tf.opacity * (clip.overlay && clip.fade ? Math.min(1, Math.max(0, local / V_FADE)) : 1);
-    if (alpha <= 0) continue;
-    if (alpha >= 1 && isIdentity(tf)) {
-      renderIg(ctx, src, sw, sh, edit, W, H);
-      continue;
-    }
-    // See-through: the finished picture (its background, colour and vignette) is drawn into its box on a canvas of
-    // its own first and laid down once, so its own passes don't show through one another. The same geometry either way.
-    const sx = alpha < 1 ? scratchFor(ctx, W, H) : null;
-    const x = sx ?? ctx;
-    x.save();
-    // Restored even when drawing throws (a closed video frame), so the box's transform and clip don't stay behind.
-    try {
-      // No scratch canvas (alpha 1, or none could be made): drawn in place, at its alpha.
-      if (!sx) x.globalAlpha = alpha;
-      intoBox(x, tf, W, H);
-      renderIg(x, src, sw, sh, edit, W, H);
-    } finally {
-      x.restore();
-    }
-    if (sx) {
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(sx.canvas, 0, 0);
-      ctx.restore();
-    }
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
+    // The main track's fade-in darkness follows the clip on screen; during a transition, the outgoing one.
+    if (!item.clip.overlay && item.mix?.role !== 'to') [mainLocal, mainFade] = [item.local, item.clip.fade];
+    const partner = item.mix?.role === 'from' ? items[index + 1] : undefined;
+    if (partner?.mix?.role === 'to') {
+      drawPair(ctx, item, partner, W, H);
+      index++;
+    } else drawClip(ctx, item, W, H);
   }
   const dark = fadeAmount(mainLocal, mainFade, t, total, fadeOut);
   // Layers fade with the picture, so a title can fade in with the first photo.
@@ -267,6 +251,89 @@ export function renderStack(
     ctx.fillStyle = `rgba(0,0,0,${dark})`;
     ctx.fillRect(0, 0, W, H);
   }
+}
+
+/** Draws one clip of a frame's stack as 203 and 205 do: its picture, framed for the whole frame, in its box. */
+function drawClip(ctx: CanvasRenderingContext2D, item: StackDraw, W: number, H: number): void {
+  const { clip, src, sw, sh, local } = item;
+  if (!src || sw <= 0 || sh <= 0) return;
+  const edit = clip.kind === 'photo' ? motionEdit(clip.edit, clip.motion, local / clipLength(clip)) : clip.edit;
+  const tf = itemTransform(item);
+  const alpha = tf.opacity * (clip.overlay && clip.fade ? Math.min(1, Math.max(0, local / V_FADE)) : 1);
+  if (alpha <= 0) return;
+  if (alpha >= 1 && isIdentity(tf)) {
+    renderIg(ctx, src, sw, sh, edit, W, H);
+    return;
+  }
+  // See-through: the finished picture (its background, colour and vignette) is drawn into its box on a canvas of
+  // its own first and laid down once, so its own passes don't show through one another. The same geometry either way.
+  const sx = alpha < 1 ? scratchFor(ctx, W, H) : null;
+  const x = sx ?? ctx;
+  x.save();
+  // Restored even when drawing throws (a closed video frame), so the box's transform and clip don't stay behind.
+  try {
+    // No scratch canvas (alpha 1, or none could be made): drawn in place, at its alpha.
+    if (!sx) x.globalAlpha = alpha;
+    intoBox(x, tf, W, H);
+    renderIg(x, src, sw, sh, edit, W, H);
+  } finally {
+    x.restore();
+  }
+  if (sx) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(sx.canvas, 0, 0);
+    ctx.restore();
+  }
+}
+
+/**
+ * Draws a transition (206 plan §3): each clip exactly as drawClip draws it alone (its box, keyframes, look and own
+ * alpha) on a layer canvas, laid onto a pair canvas with its ops (transitionOps: alpha, compositing, the part of the
+ * frame, move and scale), a dip's colour over the clips' own pixels only (`source-atop`, so on an overlay track only
+ * the clips dip, Q5), and the pair laid down once. Without scratch canvases it falls back to drawing the clips in turn.
+ */
+function drawPair(ctx: CanvasRenderingContext2D, from: StackDraw, to: StackDraw, W: number, H: number): void {
+  const pair = scratchFor(ctx, W, H, 2);
+  if (!pair) {
+    drawClip(ctx, (from.mix!.progress < 0.5 ? from : to), W, H);
+    return;
+  }
+  let colour: { css: string; alpha: number } | undefined;
+  for (const item of [from, to]) {
+    const ops = transitionOps(item.mix!, W, H);
+    colour = ops.colour ?? colour;
+    const op = ops.op;
+    if (op.alpha <= 0 || (op.clip && (op.clip.w <= 0 || op.clip.h <= 0))) continue;
+    const layer = scratchFor(ctx, W, H, 1);
+    if (!layer) continue;
+    drawClip(layer, item, W, H);
+    pair.save();
+    try {
+      pair.globalAlpha = op.alpha;
+      pair.globalCompositeOperation = op.composite;
+      if (op.clip) {
+        pair.beginPath();
+        pair.rect(op.clip.x, op.clip.y, op.clip.w, op.clip.h);
+        pair.clip();
+      }
+      pair.translate(W / 2 + op.dx, H / 2 + op.dy);
+      pair.scale(op.scale, op.scale);
+      pair.translate(-W / 2, -H / 2);
+      pair.drawImage(layer.canvas, 0, 0);
+    } finally {
+      pair.restore();
+    }
+  }
+  if (colour && colour.alpha > 0) {
+    pair.save();
+    pair.globalCompositeOperation = 'source-atop';
+    pair.globalAlpha = colour.alpha;
+    pair.fillStyle = colour.css;
+    pair.fillRect(0, 0, W, H);
+    pair.restore();
+  }
+  ctx.drawImage(pair.canvas, 0, 0);
 }
 
 /**

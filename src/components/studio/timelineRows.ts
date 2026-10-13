@@ -3,7 +3,8 @@
 // and the keyframe lane's diamonds, names and announcements (205 §9).
 import { describeTransform } from '../../engine/clipBox';
 import type { Ease, Keyframe, Keyframes } from '../../engine/keyframes';
-import { IDENTITY, MAIN_VIDEO, type TimedClip, type Track } from '../../engine/timeline';
+import { IDENTITY, MAIN_VIDEO, lockedReason, type TimedClip, type Track } from '../../engine/timeline';
+import { TRANSITION_LIMITS, cutsOf, type Transition, type TransitionKind } from '../../engine/transitions';
 import { V_FPS, clipLength } from '../../engine/video';
 
 /** A picture row's vertical extent on screen, in client pixels. */
@@ -202,4 +203,94 @@ export function describeKeyChange(
     if (gone) return `${name}: keyframe at ${at(gone.t)} removed`;
   }
   return `${name}: keyframes changed`;
+}
+
+/* ---------- The Transitions panel (206 §6) ---------- */
+
+/**
+ * The cut the Transitions panel acts on (AC-8): the selected cut (its outgoing clip's id), else the cut at the selected
+ * clip's end, or at its start when nothing touches its end; or why there is none (no selection, a clip touching no
+ * other, a locked track).
+ * @returns the cut's outgoing clip and its track, or the reason
+ */
+export function panelCut(state: {
+  clips: TimedClip[];
+  tracks: Track[];
+  selected: string | null;
+  transitionSel: string | null;
+}): { clip: string; track: string } | { why: string } {
+  const byId = (id: string | null) => state.clips.find((clip) => clip.id === id);
+  const cut = (clip: TimedClip | undefined) => (clip ? cutsOf(state.clips, clip.track).find(([before]) => before.id === clip.id) : undefined);
+  const chosen = cut(byId(state.transitionSel));
+  const selected = byId(state.selected);
+  const atEnd = chosen ?? cut(selected);
+  const atStart = !atEnd && selected ? cutsOf(state.clips, selected.track).find(([, after]) => after.id === selected.id) : undefined;
+  const found = atEnd ?? atStart;
+  if (!found) {
+    if (!selected) return { why: 'Select a clip, or a cut between two clips on the timeline.' };
+    return { why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.' };
+  }
+  const [outgoing] = found;
+  const locked = lockedReason(state.tracks, outgoing.track);
+  return locked ? { why: locked } : { clip: outgoing.id, track: outgoing.track };
+}
+
+/* ---------- Transitions on the timeline (206 §7) ---------- */
+
+/** A transition kind's name (the panel, the inspector, the timeline and its announcements). */
+export const TRANSITION_NAMES: Record<TransitionKind, string> = {
+  dissolve: 'Cross-dissolve',
+  dip: 'Dip to colour',
+  wipe: 'Wipe',
+  slide: 'Slide',
+  zoom: 'Zoom',
+};
+
+/** A transition's name with its option: "Wipe up", "Dip to white", "Cross-dissolve". */
+export function transitionName(transition: Transition): string {
+  if (transition.kind === 'dip') return `Dip to ${transition.colour ?? 'black'}`;
+  if (transition.kind === 'wipe' || transition.kind === 'slide') return `${TRANSITION_NAMES[transition.kind]} ${transition.dir ?? 'left'}`;
+  return TRANSITION_NAMES[transition.kind];
+}
+
+/** A transition's block on its row: centred on the cut (seconds), as wide as the transition, in pixels at `zoom`. */
+export function transitionBlock(cut: number, dur: number, zoom: number): { left: number; width: number } {
+  return { left: (cut - dur / 2) * zoom, width: dur * zoom };
+}
+
+/**
+ * A transition's length after dragging one of its block's edges `dx` pixels: it changes on both sides of the cut (the
+ * end edge right or the start edge left lengthens it), to the nearest frame, from 0.1 s up to `room`.
+ */
+export function draggedLength(dur: number, dx: number, side: 'start' | 'end', zoom: number, fps: number, room: number): number {
+  const wanted = dur + ((side === 'end' ? 2 : -2) * dx) / zoom;
+  const onFrames = Math.round(wanted * fps) / fps;
+  return Math.min(room, Math.max(TRANSITION_LIMITS.min, onFrames));
+}
+
+/**
+ * What to announce after a change to the picture tracks' transitions (the timeline's live region): the first one
+ * added, changed or removed, with its cut's clips and its length; '' when none changed. A transition gone with its
+ * clip isn't announced here (the clip change is).
+ */
+export function describeTransitionChange(before: TimedClip[], after: TimedClip[], tracks: Track[]): string {
+  const previous = new Map(before.map((clip) => [clip.id, clip]));
+  const name = (clips: TimedClip[], id: string) => {
+    const clip = clips.find((candidate) => candidate.id === id);
+    const track = clip && tracks.find((candidate) => candidate.id === clip.track);
+    return clip && track ? clipLabel(track, clips.filter((candidate) => candidate.track === clip.track).indexOf(clip) + 1, true) : 'a clip';
+  };
+  for (const clip of after) {
+    const old = previous.get(clip.id)?.transition,
+      now = clip.transition;
+    if (now && JSON.stringify(old) !== JSON.stringify(now)) {
+      const between = `between ${name(after, clip.id)} and ${name(after, now.to)}, ${now.dur.toFixed(2)} s`;
+      return old ? `${transitionName(now)} ${between}` : `${transitionName(now)} added ${between}`;
+    }
+    if (old && !now) {
+      const next = after.find((candidate) => candidate.id === old.to);
+      return next ? `Transition removed between ${name(after, clip.id)} and ${name(after, old.to)}` : `Transition removed after ${name(after, clip.id)}`;
+    }
+  }
+  return '';
 }

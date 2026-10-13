@@ -521,6 +521,32 @@ the stage and the inspector.
   `layersAt`) edits the values shown and writes through the routers; `KeyframeLane.tsx` under the selected item's row
   (`keyTimes`, `easeShape`, `describeKeyChange` in `timelineRows.ts`), K and Alt + [ / ] in the timeline.
 
+**Transitions (206, D-035, D-036).** `engine/transitions.ts`; `frameStack` returning both clips is what everything
+else follows (the preview picture and sound, the export, the decoder pool).
+
+- **The model**: `TimedClip.transition?` = `{ kind, dur, to, dir?, colour? }` on the outgoing clip, `to` naming the
+  clip it leads into (D1); kinds `dissolve`, `dip`, `wipe`, `slide`, `zoom`; `dur` 0.1–3 s in whole frames
+  (`TRANSITION_LIMITS`), centred on the cut. `cutsOf`, `halves`, `progressAt` (205's Ease in and out), `roomFor`.
+- **The one rule**: `tidyTransitions(clips, fps)` drops a transition whose `to` doesn't start where its clip ends on
+  the same track and clamps the rest, in time order, so each clip's two halves fit; run in the store's `change()`
+  (after `pack`) and in `mergeProject` (after placing clips), so edits know nothing of transitions.
+- **The stack**: `frameStack` gives a track's pair during a transition (`transitionItems`), each with
+  `mix: { kind, dir?, colour?, progress, role }` and its `local` past its ends (the handles); `mostVideosAt` widens a
+  video's span by its halves; `lanePlan` lists both clips and readies the incoming one 2 s before its transition;
+  pool lanes are primed from the handle (`poolClip(c, lead)`, the export's `lane`), as `prepare` primes at `in`.
+- **Drawing**: `transitionOps(mix, W, H)` = a `DrawOp` (alpha, `lighter` or `source-over`, clip rect, move, scale) and
+  a dip's colour; `renderStack` draws a pair with `drawPair`: each clip as `drawClip` draws it alone on a layer canvas,
+  laid onto a pair canvas with its op, the dip colour `source-atop`, the pair laid down once.
+- **Sound**: `SoundSource.lead` / `trail` / `edgeIn` / `edgeOut` from `soundEdges`; `edgeGain` (sin / cos of the eased
+  progress, or the dip through silence) inside `sourceGainAt`, so `gainCurve` and `mixWindow`'s one curve cover it;
+  the preview plays both clips into their handles at the same gain.
+- **The document**: `DocClip.transition`, written only when present; `mergeTransition` (unknown kind → dissolve,
+  unknown option → its default, length clamped, each reason once), then `tidyTransitions`.
+- **The store and UI**: `setTransition`, `removeTransition`, `transitionEveryCut` (one undo step each; refusals: no
+  touching clip after it, no room, locked, videos at once), split and duplicate carry them, `transitionSel` (view
+  state); `TransitionPanel.tsx` (the rail panel, `panelCut`) and `TransitionInspector`; the timeline's `CutMarks`
+  (cut buttons and blocks, `draggedLength`, `describeTransitionChange`).
+
 ### 4.10 Decoder pool (`decodePool.ts`, `frameSource.ts`)
 
 The preview and the export get their video pictures from one place, so a paused preview shows the frame the export

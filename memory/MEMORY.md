@@ -33,11 +33,16 @@
   same stack. AC-1–3, 5, 8, 10, 12–14 wait for 290 (D-033). Plan D1–D3, D-031. **204** merged into `main` and pushed
   (2026-10-11). Tasks run one at a time in the main session, no agent batches (maintainer's choice).
 - **Testing (D-033, 2026-10-12):** unit tests only while a phase is built; e2e, self-test, timing and manual checks are written and run in the phase's test pass (`290` for Phase 2), which ends in the release (3.0.0).
-- **205:** `205-keyframes` ✔️ Implemented 2026-10-13 on `feat/205-keyframes` (`8dae911`; the close, T091–T092, not committed yet), not
-  merged into `main` yet: keyframes for the clip box, clip volume and layers; inspector diamonds, stage auto-key,
-  timeline lane, K / Alt + [ / ]. AC-6, 7, 9, 10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
-- **Next (roadmap):** merge 205 into `main`; then 206 (transitions), 207 (speed) or 208 (audio, uses 205's volume
-  keys); 290 collects the deferred checks.
+- **205:** `205-keyframes` ✔️ Implemented 2026-10-13, merged into `main` and pushed (`5d7640f`): keyframes for the
+  clip box, clip volume and layers; inspector diamonds, stage auto-key, timeline lane, K / Alt + [ / ]. AC-6, 7, 9,
+  10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
+- **206:** `206-transitions` ✔️ Implemented 2026-10-13 on `feat/206-transitions`: Cross-dissolve, Dip, Wipe, Slide,
+  Zoom on the 2D canvas (D-035; D-036), centred on the cut with handles, sound cross-fades, panel + inspector +
+  timeline cuts; AC-6 (self-test), 8–10, 12–14 wait for 290. Entry 327 KB.
+- **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
+  a tag on `main`.
+- **Next (roadmap):** merge 206 into `main`; then 207 (speed) or 208 (audio tracks, builds on 205 / 206 sound),
+  branched from `main`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

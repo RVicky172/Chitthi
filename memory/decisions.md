@@ -419,3 +419,32 @@ jump between them; D3: the diamond's shape shows its easing. The audio risk is h
 (no self-test spike during the phase, D-033).
 **Alternatives:** keys in source time (a slip would move animations); one lane row per value always; buttons only.
 **Consequences:** projects without keys take today's code paths; 205's UI and sound are checked in 290.
+
+## D-035 — 206's transitions draw with the 2D canvas, not shaders (2026-10-13)
+
+**Context:** 206 (transitions, P2.6) spec review; the roadmap item said "as shaders", but the video preview and
+export draw with the 2D canvas (203, 205).
+**Decision:** all twelve proposed answers accepted. Five kinds (Cross-dissolve, Dip to black or white, Wipe and Slide
+in four directions, Zoom), centred on the cut using the clips' handles (the project's length never changes), 0.5 s by
+default (0.1–3 s), on every picture track, sound always blended, both videos count towards videos at once, removed
+when an edit separates the clips. Q4: drawn with the 2D canvas, which does all five exactly and identically in the
+preview, the export and every browser; they move to shaders when the video drawing moves to the GPU. The roadmap item
+is renamed "Transitions between clips".
+**Alternatives:** shaders now (needs the whole video drawing on the GPU first); overlapping clips (shortens the video
+and moves later timings).
+**Consequences:** no GPU work in 206; P2.6's `gpu/nodes/transition.ts` in editor-implementation.md waits for the GPU
+video pipeline.
+
+## D-036 — 206's plan: transitions on the outgoing clip, one tidy rule (2026-10-13)
+
+**Context:** 206 (transitions) plan review; spec Q1–Q12 accepted the same day (D-035).
+**Decision:** `frameStack` returns both clips while a transition plays, so the preview, the export, the preview sound
+and the decoder pool follow from it; drawing is `transitionOps` (data) on the 2D canvas; sound blends through one
+`edgeGain` in 205's gain curve. D1: a transition lives on the outgoing clip and names the clip it leads into (`to`);
+`tidyTransitions`, run in the store's `change()` and in `mergeProject`, drops it when that pair no longer touches and
+clamps it to its room, so edits stay unaware of transitions. D2: every cut is a focusable timeline button; Enter opens
+the Transitions panel for it. D3: Zoom grows the outgoing clip 1× → 1.3× while it dissolves into the next.
+**Alternatives:** a transition without `to` (stays on the clip's end after a reorder); a project-level list of cuts;
+no cut targets; a zoom through.
+**Consequences:** the first task is a spike proving the pool decodes past a clip's out point; 206's UI, golden frames,
+sound and timing are checked in 290.

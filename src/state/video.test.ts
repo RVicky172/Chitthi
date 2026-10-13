@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_EDIT } from '../engine/instagram';
+import { clipLength } from '../engine/video';
 import { TEXT_STYLES } from '../data/layers';
 import { layerAt, type Ease, type Keyframe } from '../engine/keyframes';
 import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '../engine/layers';
@@ -56,6 +57,9 @@ import {
   toggleKey,
   updateLayerAt,
   setVLayers,
+  removeTransition,
+  setTransition,
+  transitionEveryCut,
   type VClip,
   type VMusic,
 } from './video';
@@ -862,5 +866,190 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     expect(setClipTransformAt('a', { x: 0.3 }, '')).toMatch(/at most 100/);
     expect(getVideo().canUndo).toBe(false);
     expect(toggleKey({ clip: 'nope' }, 'x')).toMatch(/isn’t on the timeline/);
+  });
+});
+
+/* ---------- 206: transitions in the store (AC-3, AC-4, AC-7) ---------- */
+
+describe('206: transitions in the store', () => {
+  const transitionOf = (id: string) => getVideo().clips.find((c) => c.id === id)?.transition;
+  const ids = () => getVideo().clips.map((c) => c.id);
+
+  describe('adding, changing and removing (AC-7)', () => {
+    beforeEach(() => loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3), clip('c', 5, 1)] }));
+
+    it('setTransition adds a 0.5 s cross-dissolve into the next clip, one undo step', () => {
+      expect(setTransition('a', {})).toBeNull();
+      expect(transitionOf('a')).toEqual({ kind: 'dissolve', dur: 0.5, to: 'b' });
+      expect(undos()).toBe(1);
+      expect(transitionOf('a')).toBeUndefined();
+    });
+
+    it('changes its kind (with that kind’s defaults), options and length; a length drag is one step, held to its room', () => {
+      setTransition('a', { kind: 'wipe' });
+      expect(transitionOf('a')).toEqual({ kind: 'wipe', dur: 0.5, to: 'b', dir: 'left' });
+      setTransition('a', { dir: 'up' });
+      setTransition('a', { kind: 'dip', colour: 'white' });
+      expect(transitionOf('a')).toEqual({ kind: 'dip', dur: 0.5, to: 'b', colour: 'white' });
+      for (const dur of [1, 2, 5]) setTransition('a', { dur }, 'length:a');
+      endVStep();
+      // a is 2 s and b 3 s: room for 3 s at most... and the 3 s cap.
+      expect(transitionOf('a')!.dur).toBe(3);
+      expect(undos()).toBe(4);
+    });
+
+    it('removeTransition is one step; with none there is nothing to undo', () => {
+      setTransition('b', { kind: 'zoom' });
+      expect(removeTransition('b')).toBeNull();
+      expect(transitionOf('b')).toBeUndefined();
+      expect(removeTransition('b')).toBeNull();
+      expect(undos()).toBe(2);
+    });
+
+    it('transitionEveryCut puts the kind on every cut of the track where it fits, one step', () => {
+      expect(transitionEveryCut(MAIN_VIDEO, 'slide')).toBeNull();
+      expect([transitionOf('a'), transitionOf('b'), transitionOf('c')]).toEqual([
+        { kind: 'slide', dur: 0.5, to: 'b', dir: 'left' },
+        { kind: 'slide', dur: 0.5, to: 'c', dir: 'left' },
+        undefined,
+      ]);
+      expect(undos()).toBe(1);
+    });
+  });
+
+  describe('refusals record nothing (AC-3)', () => {
+    it('no cut after the clip (the last clip, a gap after it)', () => {
+      loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 3, 3)], magnetic: false });
+      expect(setTransition('b', {})).toMatch(/cut between two clips that touch/);
+      expect(setTransition('a', {})).toMatch(/cut between two clips that touch/);
+      expect(transitionEveryCut(MAIN_VIDEO, 'dissolve')).toMatch(/no cuts between touching clips/);
+      expect(undos()).toBe(0);
+    });
+
+    it('a locked track', () => {
+      loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3)] });
+      setTransition('a', {});
+      setTrack(MAIN_VIDEO, { locked: true });
+      for (const refusal of [setTransition('a', { dur: 1 }), removeTransition('a'), transitionEveryCut(MAIN_VIDEO, 'zoom')]) expect(refusal).toMatch(/locked/);
+      expect(transitionOf('a')!.dur).toBe(0.5);
+      expect(undos()).toBe(2);
+    });
+
+    it('more videos at once than the app allows while it plays (Q7)', () => {
+      withDecoder();
+      try {
+        // a 0–4, b 4–8 on the main track; x and y on two overlays over the cut: 3 videos at once, the browser’s limit.
+        loadVideoProject({ clips: [vid('a', 0, 4), vid('b', 4, 4), vid('x', 3, 2, 'O1'), vid('y', 3, 2, 'O2')], tracks: withOverlays('O1', 'O2') });
+        expect(setTransition('a', {})).toMatch(/videos/);
+        expect(transitionOf('a')).toBeUndefined();
+        expect(undos()).toBe(0);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
+  describe('edits keep or drop them by the one rule (AC-4)', () => {
+    beforeEach(() => {
+      loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3), clip('c', 5, 1)] });
+      setTransition('a', { dur: 1 });
+    });
+
+    it('a trim shortens one that no longer fits; undo brings it back', () => {
+      expect(trimClip('a', 'end', -1.6)).toBeNull();
+      // a is 0.4 s: room for 0.8 s.
+      expect(transitionOf('a')!.dur).toBeCloseTo(0.8, 9);
+      undoV();
+      expect(transitionOf('a')!.dur).toBe(1);
+    });
+
+    it('deleting the next clip drops it (Magnetic packs c against a: another clip)', () => {
+      expect(removeClip('b')).toBe(true);
+      expect(transitionOf('a')).toBeUndefined();
+      undoV();
+      expect(transitionOf('a')).toEqual({ kind: 'dissolve', dur: 1, to: 'b' });
+    });
+
+    it('Magnetic off: a delete leaves a gap and drops it; a reorder that keeps the pair together keeps it', () => {
+      expect(moveClipTo('c', 0)).toBe(true);
+      expect(ids()).toEqual(['c', 'a', 'b']);
+      expect(transitionOf('a')).toEqual({ kind: 'dissolve', dur: 1, to: 'b' });
+      setMagnetic(false);
+      removeClip('b');
+      expect(transitionOf('a')).toBeUndefined();
+    });
+
+    it('split moves a clip’s outgoing transition to its right part; the one leading in stays on the left', () => {
+      setTransition('b', { kind: 'wipe' });
+      setPlayhead(3.5);
+      selectClip('b');
+      expect(splitAtPlayheadWhy()).toBeNull();
+      const right = getVideo().clips.find((c) => c.start === 3.5)!;
+      expect(transitionOf('a')).toEqual({ kind: 'dissolve', dur: 1, to: 'b' });
+      expect(transitionOf('b')).toBeUndefined();
+      expect(right.transition).toEqual({ kind: 'wipe', dur: 0.5, to: 'c', dir: 'left' });
+    });
+
+    it('duplicate: the copy, now before the next clip, keeps the transition at the old cut', () => {
+      expect(duplicateClipWhy('a')).toBeNull();
+      const copy = getVideo().clips[1];
+      expect(transitionOf('a')).toBeUndefined();
+      expect(copy.transition).toEqual({ kind: 'dissolve', dur: 1, to: 'b' });
+      expect(undos()).toBe(2);
+    });
+  });
+
+  it('a seeded 1,000-edit property test never leaves a transition off a cut or beyond its room (AC-4)', () => {
+    let seed = 2061;
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const pick = <T,>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
+    const fresh = () => loadVideoProject({ clips: ['a', 'b', 'c', 'd', 'e'].map((id, i) => clip(id, i * 2, 1 + random() * 3)), magnetic: random() < 0.7 });
+    fresh();
+    const kinds = ['dissolve', 'dip', 'wipe', 'slide', 'zoom'] as const;
+    for (let step = 0; step < 1000; step++) {
+      const s = getVideo();
+      if (s.clips.length < 2) fresh();
+      const id = pick(getVideo().clips).id;
+      const edit = pick([
+        () => setTransition(id, { kind: pick(kinds), dur: 0.1 + random() * 3.5 }),
+        () => setTransition(id, {}),
+        () => removeTransition(id),
+        () => transitionEveryCut(MAIN_VIDEO, pick(kinds)),
+        () => trimClip(id, pick(['start', 'end'] as const), (random() - 0.5) * 2, { ripple: random() < 0.5 }),
+        () => removeClip(id),
+        () => moveClipTo(id, Math.floor(random() * getVideo().clips.length)),
+        () => duplicateClipWhy(id),
+        () => {
+          setPlayhead(random() * videoLength(getVideo()));
+          return splitAtPlayheadWhy();
+        },
+        () => setMagnetic(!getVideo().magnetic),
+        () => (undoV(), null),
+      ]);
+      edit();
+      endVStep();
+      const clips = getVideo().clips,
+        fps = getVideo().fps;
+      for (const c of clips) {
+        const tr = c.transition;
+        if (!tr) continue;
+        const next = clips.find((other) => other.id === tr.to);
+        const where = `step ${step}: ${c.id} → ${tr.to}`;
+        expect(next, where).toBeDefined();
+        expect(next!.track, where).toBe(c.track);
+        expect(Math.abs(c.start + clipLength(c) - next!.start), where).toBeLessThanOrEqual(1e-6);
+        expect(tr.dur, where).toBeGreaterThanOrEqual(0.1 - 1e-9);
+        expect(tr.dur, where).toBeLessThanOrEqual(3);
+        expect(Math.abs(tr.dur * fps - Math.round(tr.dur * fps)), where).toBeLessThan(1e-6);
+        const before = clips.find((other) => other.transition?.to === c.id)?.transition?.dur ?? 0;
+        expect(before / 2 + tr.dur / 2, where).toBeLessThanOrEqual(clipLength(c) + 1e-9);
+        expect(tr.dur / 2, where).toBeLessThanOrEqual(clipLength(next!) + 1e-9);
+      }
+    }
   });
 });

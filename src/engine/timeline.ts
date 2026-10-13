@@ -9,6 +9,7 @@ import {
   type Keyframes,
 } from './keyframes';
 import { mergeLayers, type Layer } from './layers';
+import { mergeTransition, tidyTransitions, transitionFields, TRANSITION_REASONS, type Transition } from './transitions';
 import {
   IDENTITY,
   MOTIONS,
@@ -254,6 +255,8 @@ export interface TimedClip extends ClipTiming {
   tf?: ClipTransform;
   /** Keyframes (205): animated box values and volume, times from the clip's start; missing = nothing animated. */
   keys?: Keyframes<ClipKeyProp>;
+  /** The transition on the cut at its end, into the clip that starts there (206, D1); missing = a hard cut. */
+  transition?: Transition;
 }
 
 /** A sound on an audio track: the music. `toEnd` plays it to the end of the video whatever its length (2.x music). */
@@ -388,6 +391,30 @@ export interface SoundSource {
   /** Volume ramps at its ends, seconds. */
   fadeIn: number;
   fadeOut: number;
+  /** Transitions (206): seconds it plays before `start` (half the transition leading into it) and after `end` (half
+   * its own), and how its sound goes there: an equal-power cross-fade (`power`) or a dip through silence (`dip`). */
+  lead?: number;
+  trail?: number;
+  edgeIn?: 'power' | 'dip';
+  edgeOut?: 'power' | 'dip';
+}
+
+/** How a clip's sound meets its transitions (206): the `SoundSource` fields of `lead`, `trail` and their edges. */
+export type SoundEdges = Pick<SoundSource, 'lead' | 'trail' | 'edgeIn' | 'edgeOut'>;
+
+/**
+ * A clip's sound edges from its transitions (206 AC-6): half the transition leading into it (`lead`) and half its own
+ * (`trail`), each an equal-power cross-fade or, for a dip, a dip through silence; empty without transitions. Shared by
+ * the export's sound plan and the preview's sound, so they blend alike.
+ */
+export function soundEdges(clip: TimedClip, clips: readonly TimedClip[]): SoundEdges {
+  const leading = clips.find((other) => other.track === clip.track && other.transition?.to === clip.id)?.transition;
+  const own = clip.transition;
+  const edge = (transition: Transition) => (transition.kind === 'dip' ? 'dip' : 'power');
+  return {
+    ...(leading ? { lead: leading.dur / 2, edgeIn: edge(leading) } : {}),
+    ...(own ? { trail: own.dur / 2, edgeOut: edge(own) } : {}),
+  };
 }
 
 /**
@@ -407,6 +434,8 @@ export function audioPlan(p: Project): SoundSource[] {
       // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
       const gain = c.keys?.volume?.length ? c.keys.volume : undefined;
       if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) continue;
+      // A transition at a cut (206) replaces the 0.03 s ramp there: the sound plays into the handle with its edge.
+      const edges = soundEdges(c, p.clips);
       out.push({
         ref: c.id,
         start: c.start,
@@ -414,8 +443,9 @@ export function audioPlan(p: Project): SoundSource[] {
         from: c.in,
         volume,
         ...(gain ? { gain } : {}),
-        fadeIn: 0.03,
-        fadeOut: 0.03,
+        fadeIn: edges.lead ? 0 : 0.03,
+        fadeOut: edges.trail ? 0 : 0.03,
+        ...edges,
       });
     }
   };
@@ -525,7 +555,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
     magnetic: p.magnetic !== false,
     tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
     clips: p.clips.map(
-      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys }) => {
+      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys, transition }) => {
         const t = clampTransform(tf ?? transform);
         const kept = keys && tidyKeys(keys);
         return {
@@ -543,6 +573,7 @@ export function toDocument(p: ProjectDoc): ProjectDoc {
           volume,
           ...(isIdentity(t) ? {} : { transform: t }),
           ...(kept ? { keys: kept } : {}),
+          ...(transition ? { transition: transitionFields(transition) } : {}),
         };
       },
     ),
@@ -854,6 +885,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
       }
       const tf = readTransform(c.transform, dropped);
       const keys = mergeKeys(c.keys, CLIP_KEY_PROPS, 'clip', budget);
+      const transition = mergeTransition(c.transition, dropped);
       clips.push({
         id: unique(c.id, 'v'),
         track: tr.id,
@@ -869,8 +901,12 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
         ...(tf ? { tf } : {}),
         ...(keys ? { keys } : {}),
+        ...(transition ? { transition } : {}),
       });
     }
+    // Transitions only on cuts between touching clips, fitting in them (206 AC-4, AC-5), once the clips are placed.
+    const placed = tidyTransitions(placeClips(clips, tracks, magnetic, L.seconds, dropped), fps);
+    if (placed.dropped.length && !dropped.includes(TRANSITION_REASONS.cut)) dropped.push(TRANSITION_REASONS.cut);
 
     // Sound clips.
     const audio: DocAudio[] = [];
@@ -909,7 +945,7 @@ export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc;
         fadeOut,
         magnetic,
         tracks,
-        clips: placeClips(clips, tracks, magnetic, L.seconds, dropped),
+        clips: placed.clips,
         audio,
         layers,
         media,

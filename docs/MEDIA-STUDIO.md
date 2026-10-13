@@ -327,6 +327,7 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 | Split, duplicate, delete | Transport buttons, or S and Delete with the timeline focused; Shift + Delete ripple-deletes |
 | Nudge, trim to the playhead | Alt + ← / → moves the selected clip a frame with the tool (Shift + Alt: a second); Q / W trim its start / end to the playhead |
 | Keyframes | K sets keyframes at the playhead for the selected clip's or layer's animated values (or removes the ones there); Alt + [ / ] jump to its previous / next keyframe; its keyframe lane is under its row (below) |
+| Transitions | Click a cut between two touching clips (or press Enter on it) to choose one; drag a transition's edges to change its length; Delete removes it (below) |
 | Zoom | Ctrl + wheel over the timeline, the zoom slider, + / −, or **Fit** |
 | Play | The play button or Space; the timeline follows the playhead |
 | Step | ← / → one frame, Shift + ← / → one second, Home / End |
@@ -454,6 +455,43 @@ what the preview shows, frame for frame; the clip's sound follows its volume key
 volume curve with a point at least every 5 ms. Projects without keyframes are saved, drawn and exported exactly as
 before.
 
+### Transitions
+
+A transition blends one clip into the next at a cut, instead of a hard cut. It goes on any cut between two clips that
+touch on the same picture track: the Video track or an overlay track.
+
+| Transition | What it does | Options |
+| --- | --- | --- |
+| **Cross-dissolve** | The first clip fades out as the second fades in | |
+| **Dip to colour** | The first clip fades to the colour, then the second fades in from it | Black or white |
+| **Wipe** | An edge moves across the frame and reveals the second clip | Left, right, up, down |
+| **Slide** | The second clip pushes the first out of the frame | Left, right, up, down |
+| **Zoom** | The first clip grows (1× to 1.3×) as it dissolves into the second | |
+
+- **Add one** from **Transitions** in the tool rail: choosing a kind puts it on the selected cut, or, with a clip
+  selected, on the cut at its end (at its start for the last clip). **Apply … to every cut** puts it on every cut of
+  that track where it fits. On the timeline every cut between touching clips is a small button (shown when the row is
+  hovered, or focused from the keyboard): click it, or press Enter on it, to choose a transition for that cut.
+- **On the timeline** a transition is a block over its cut, as wide as it is long. Click it to see it in the inspector
+  (kind, direction or colour, length, **Remove transition**); drag either edge to change its length on both sides of
+  the cut; with it focused, ← / → change its length by a frame (Shift: 0.5 s) and Delete removes it.
+- **Timing**: a transition is centred on its cut, 0.5 s by default, from 0.1 s to 3 s in whole frames. The first clip
+  goes on playing past its end and the second starts before its start, from their files (a video's first or last
+  frame is held where its file runs out), so adding or removing a transition never changes the video's length or
+  moves anything. A transition fits in its clips: two transitions on one clip never overlap.
+- **Sound**: the clips' sound blends across the transition with equal loudness (an equal-power cross-fade); a dip
+  goes through silence at the cut, as the picture goes through the colour. Clip volumes and volume keyframes still
+  apply.
+- **Edits keep them**: a transition stays on its cut while its two clips still touch, shortened if a trim leaves less
+  room; when an edit separates them (a gap, a delete, a move, a reorder) it is removed, the change is announced, and
+  undo brings it back. Split keeps a clip's transition at its end; Duplicate keeps it at the old cut.
+- **Videos at once**: while a transition between two videos plays, both count towards the videos-at-once limit (3 in
+  the browser, 5 in the desktop app); a transition that would go over it is refused with the reason.
+
+Transitions are drawn on the same 2D canvas as the rest of the video (D-035), with the same code for the preview and
+the export (`src/engine/transitions.ts`), so the file shows what the preview shows. Projects without transitions are
+saved, drawn and exported exactly as before.
+
 ### The preview
 
 The preview decodes video clips the way the export does, through one **decoder pool** (`src/engine/decodePool.ts`):
@@ -519,7 +557,6 @@ The longer plan for advanced features (masks, curves, multi-track timeline, keyf
 
 | Next | Why it isn't in this version |
 | --- | --- |
-| Cross-fades between clips | Needs two decoded frames at once; fade-in from black covers most uses |
 | Speed changes and reverse | Needs re-timing the clip's sound as well |
 | Several music tracks, voice-over recording | One track covers the common Reel and vlog |
 | Clip waveforms | Music shows its waveform; clips would need their sound decoded on import |

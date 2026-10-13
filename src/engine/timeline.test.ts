@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Transition } from './transitions';
 import {
   IDENTITY,
   MAIN_VIDEO,
@@ -1750,5 +1751,158 @@ describe('volume keyframes in the sound plan (205 AC-10)', () => {
     expect(audioPlan(project([silent, boxOnly]))).toEqual([
       { ref: 'b', start: 4, end: 8, from: 1, volume: 0.5, fadeIn: 0.03, fadeOut: 0.03 },
     ]);
+  });
+});
+
+/* ---------- 206 AC-5: transitions in the document ---------- */
+
+describe('transitions in the document (206 AC-5)', () => {
+  /**
+   * The mixed 2.x project (photo 3 s, video 4.5 s, photo 1.5 s, video 0.33 s, back to back) with a 1 s dissolve on the
+   * first cut and a 0.6 s wipe to the right on the second.
+   */
+  const fixture = () => {
+    const d = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
+    const [p6, v7, p8] = d.clips;
+    const clips = d.clips.map((c) =>
+      c.id === p6.id
+        ? { ...c, transition: { kind: 'dissolve', dur: 1, to: v7.id } as Transition }
+        : c.id === v7.id
+          ? { ...c, transition: { kind: 'wipe', dur: 0.6, to: p8.id, dir: 'right' } as Transition }
+          : c,
+    );
+    return toDocument({ ...d, clips });
+  };
+  type Doc = ReturnType<typeof fixture>;
+  type Gated = ReturnType<typeof mergeProject>;
+  const ids = (d: Doc) => d.clips.map((c) => c.id);
+  const transitionOf = (r: Gated, id: string) => r.doc.clips.find((c) => c.id === id)!.transition;
+  const UNREAD = /Some transitions couldn’t be read and were left out/;
+  const KIND = /Some transitions were of an unknown kind and are now cross-dissolves/;
+  const OPTION = /Some transition options were unknown and were set to the defaults/;
+  const LENGTH = /Some transition lengths were out of range and were adjusted/;
+  const CUT = /Some transitions weren’t on a cut between two touching clips and were left out/;
+
+  /** The first clip's transition replaced by `transition`. */
+  const first = (transition: unknown) => (d: Doc) => ({
+    ...d,
+    clips: d.clips.map((c, i) => (i === 0 ? { ...c, transition } : c)),
+  });
+  /** The first clip's transition is `expected` (undefined: none), the second's as written, and the reasons `reasons`. */
+  const firstIs =
+    (expected: Record<string, unknown> | undefined, ...reasons: RegExp[]) =>
+    (r: Gated, d: Doc) => {
+      const [p6, v7, p8] = ids(d);
+      if (expected === undefined) expect('transition' in r.doc.clips[0]).toBe(false);
+      else expect(transitionOf(r, p6)).toEqual({ to: v7, ...expected });
+      expect(transitionOf(r, v7)).toEqual({ kind: 'wipe', dur: 0.6, to: p8, dir: 'right' });
+      expect(r.dropped).toEqual(reasons.map((re) => expect.stringMatching(re)));
+    };
+  /** A transition into the second clip with these fields. */
+  const into = (fields: Record<string, unknown>) => (d: Doc) => first({ to: ids(d)[1], ...fields })(d);
+
+  const bad: [string, (d: Doc) => unknown, (r: Gated, d: Doc) => void][] = [
+    ['a transition that is text', first('dissolve'), firstIs(undefined, UNREAD)],
+    ['a transition that is an array', first([{ kind: 'dissolve' }]), firstIs(undefined, UNREAD)],
+    ['a transition that is a number', first(3), firstIs(undefined, UNREAD)],
+    ['a transition that is null', first(null), firstIs(undefined)],
+    ['a missing kind', into({ dur: 1 }), firstIs({ kind: 'dissolve', dur: 1 }, KIND)],
+    ['an unknown kind', into({ kind: 'spin', dur: 1 }), firstIs({ kind: 'dissolve', dur: 1 }, KIND)],
+    ['a kind that is a number', into({ kind: 2, dur: 1 }), firstIs({ kind: 'dissolve', dur: 1 }, KIND)],
+    ['a missing length', into({ kind: 'zoom' }), firstIs({ kind: 'zoom', dur: 0.5 }, LENGTH)],
+    ['a length that is text', into({ kind: 'zoom', dur: '1' }), firstIs({ kind: 'zoom', dur: 0.5 }, LENGTH)],
+    ['a length that isn’t a number (NaN → null)', into({ kind: 'zoom', dur: NaN }), firstIs({ kind: 'zoom', dur: 0.5 }, LENGTH)],
+    ['a length of 0', into({ kind: 'zoom', dur: 0 }), firstIs({ kind: 'zoom', dur: 0.1 }, LENGTH)],
+    ['a negative length', into({ kind: 'zoom', dur: -2 }), firstIs({ kind: 'zoom', dur: 0.1 }, LENGTH)],
+    ['a length over 3 s', into({ kind: 'zoom', dur: 10 }), firstIs({ kind: 'zoom', dur: 3 }, LENGTH)],
+    ['a length off the frame grid (rounded down, no reason)', into({ kind: 'zoom', dur: 0.51 }), firstIs({ kind: 'zoom', dur: 0.5 })],
+    ['an unknown wipe direction', into({ kind: 'wipe', dur: 1, dir: 'diagonal' }), firstIs({ kind: 'wipe', dur: 1, dir: 'left' }, OPTION)],
+    ['a slide direction that is a number', into({ kind: 'slide', dur: 1, dir: 1 }), firstIs({ kind: 'slide', dur: 1, dir: 'left' }, OPTION)],
+    ['a missing wipe direction (the default, no reason)', into({ kind: 'wipe', dur: 1 }), firstIs({ kind: 'wipe', dur: 1, dir: 'left' })],
+    ['an unknown dip colour', into({ kind: 'dip', dur: 1, colour: 'red' }), firstIs({ kind: 'dip', dur: 1, colour: 'black' }, OPTION)],
+    ['options a kind doesn’t have (left out, no reason)', into({ kind: 'dissolve', dur: 1, dir: 'up', colour: 'white' }), firstIs({ kind: 'dissolve', dur: 1 })],
+    ['a missing `to`', first({ kind: 'dissolve', dur: 1 }), firstIs(undefined, CUT)],
+    ['a `to` that is a number', first({ kind: 'dissolve', dur: 1, to: 7 }), firstIs(undefined, CUT)],
+    ['a `to` naming no clip', first({ kind: 'dissolve', dur: 1, to: 'nobody' }), firstIs(undefined, CUT)],
+    ['a `to` naming a clip that doesn’t start at its end', (d) => first({ kind: 'dissolve', dur: 1, to: ids(d)[2] })(d), firstIs(undefined, CUT)],
+    [
+      'a transition on the last clip',
+      (d) => ({ ...d, clips: d.clips.map((c, i) => (i === 3 ? { ...c, transition: { kind: 'dissolve', dur: 0.2, to: ids(d)[0] } } : c)) }),
+      (r, d) => {
+        expect('transition' in r.doc.clips[3]).toBe(false);
+        expect(transitionOf(r, ids(d)[0])).toEqual({ kind: 'dissolve', dur: 1, to: ids(d)[1] });
+        expect(r.dropped).toEqual([expect.stringMatching(CUT)]);
+      },
+    ],
+    ['extra fields (left out, no reason)', into({ kind: 'dissolve', dur: 1, speed: 2, note: 'x' }), firstIs({ kind: 'dissolve', dur: 1 })],
+    ['a __proto__ field (left out, no reason)', (d) => JSON.parse(JSON.stringify(into({ kind: 'dissolve', dur: 1 })(d)).replace('"kind":"dissolve"', '"__proto__":{"polluted":1},"kind":"dissolve"')), firstIs({ kind: 'dissolve', dur: 1 })],
+    [
+      'a length longer than its clips leave room for (shortened, no reason)',
+      (d) => ({ ...d, clips: d.clips.map((c, i) => (i === 2 ? { ...c, transition: { kind: 'dissolve', dur: 2, to: ids(d)[3] } } : c)) }),
+      (r, d) => {
+        // The last clip is 0.33 s: room 0.66 s, on frames 19 / 30 s.
+        expect(transitionOf(r, ids(d)[2])).toEqual({ kind: 'dissolve', dur: 19 / 30, to: ids(d)[3] });
+        expect(r.dropped).toEqual([]);
+      },
+    ],
+  ];
+
+  it('has at least 20 malformed documents', () => expect(bad.length).toBeGreaterThanOrEqual(20));
+
+  it.each(bad)('%s: never throws, keeps what it can and says why', (_, make, check) => {
+    const d = fixture();
+    let r: Gated | undefined;
+    expect(() => (r = mergeProject(JSON.parse(JSON.stringify(make(d))), true))).not.toThrow();
+    check(r!, d);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('writes transitions only where there are some, and round-trips document → gate → document equal', () => {
+    const doc = fixture();
+    expect(doc.clips.map((c) => 'transition' in c)).toEqual([true, true, false, false]);
+    const text = JSON.stringify(doc);
+    const once = mergeProject(JSON.parse(text), true);
+    expect(once.dropped).toEqual([]);
+    expect(toDocument(once.doc)).toEqual(doc);
+    expect(JSON.stringify(toDocument(once.doc))).toBe(text);
+  });
+
+  it.each(fixtures)('%s: a 201–205 document without transitions stays byte-identical', (_, p) => {
+    const once = mergeProject(legacyDoc(p), true).doc;
+    const text = JSON.stringify(toDocument(once));
+    expect(text).not.toMatch(/"transition"/);
+    const back = mergeProject(JSON.parse(text), true);
+    expect(back.dropped).toEqual([]);
+    expect(JSON.stringify(toDocument(back.doc))).toBe(text);
+  });
+});
+
+/* ---------- 206 T040: the sound plan across transitions (AC-6, AC-13) ---------- */
+
+describe('audioPlan with transitions (206 AC-6)', () => {
+  const v = (id: string, start: number, len: number, transition?: Transition) =>
+    ({ id, track: MAIN_VIDEO, start, kind: 'video', dur: 0, in: 2, out: 2 + len, volume: 0.9, ...(transition ? { transition } : {}) }) as TimedClip;
+  const project = (clips: TimedClip[]): Project => ({ tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false });
+
+  it('each kind: the sources play into their handles with the transition’s edges instead of the 0.03 s ramps', () => {
+    const p = project([v('a', 0, 3, { kind: 'dissolve', dur: 1, to: 'b' }), v('b', 3, 3, { kind: 'dip', dur: 0.5, to: 'c', colour: 'black' }), v('c', 6, 2)]);
+    expect(audioPlan(p)).toEqual([
+      { ref: 'a', start: 0, end: 3, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0, trail: 0.5, edgeOut: 'power' },
+      { ref: 'b', start: 3, end: 6, from: 2, volume: 0.9, fadeIn: 0, fadeOut: 0, lead: 0.5, edgeIn: 'power', trail: 0.25, edgeOut: 'dip' },
+      { ref: 'c', start: 6, end: 8, from: 2, volume: 0.9, fadeIn: 0, fadeOut: 0.03, lead: 0.25, edgeIn: 'dip' },
+    ]);
+    for (const kind of ['wipe', 'slide', 'zoom'] as const) {
+      const q = project([v('a', 0, 3, { kind, dur: 1, to: 'b' }), v('b', 3, 3)]);
+      expect(audioPlan(q).map((s) => [s.edgeOut, s.edgeIn])).toEqual([['power', undefined], [undefined, 'power']]);
+    }
+  });
+
+  it('a cut without a transition keeps 205’s sources exactly (no new fields)', () => {
+    const p = project([v('a', 0, 3), v('b', 3, 3)]);
+    expect(audioPlan(p)).toEqual([
+      { ref: 'a', start: 0, end: 3, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0.03 },
+      { ref: 'b', start: 3, end: 6, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0.03 },
+    ]);
+    expect(audioPlan(p).every((s) => !('lead' in s) && !('trail' in s))).toBe(true);
   });
 });
