@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-13 — 205 T091–T092 (gates, close): ✔️ Implemented
+
+**Done:** T091 on `8dae911`: check green (1,548 tests), build green, entry 327 KB (budget 350). T092: AC-1–5, 8, 12,
+14 ticked; AC-6, 7, 9, 10 (self-test half), 11, 13 wait for 290 (listed there); status Implemented, roadmap 205 ✔️,
+editor-implementation P2.5 Done. Not merged into `main` yet.
+**Next:** merge `feat/205-keyframes` into `main` (maintainer's call), then the next Phase 2 item (206 transitions,
+207 speed, 208 audio; 208 builds on 205's volume keys).
+**Blockers:** none
+
 ## 2026-10-13 — 205 T060–T062 (inspector keyframe buttons, the stage evaluates first, the keyframe lane)
 
 **Done:** T060: `KeyframeButton` / `KeyframeNav` beside Position and size, Clip sound and the layers' Position, Size,

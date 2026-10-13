@@ -4,13 +4,13 @@
   "id": "205",
   "title": "Keyframes: animate a clip's box, its volume and layers over time",
   "workItem": "P2.5",
-  "status": "in-progress",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-12",
     "approved": "2026-10-12",
     "started": "2026-10-12",
-    "done": null
+    "done": "2026-10-13"
   },
   "git": {
     "branch": "feat/205-keyframes"
@@ -66,31 +66,31 @@
           "group": "The model",
           "proof": "unit",
           "text": "These values can be animated (Q1): a picture clip's box (X, Y, size, rotation, opacity, corner radius), a video clip's volume, and a layer's X, Y, size, rotation and opacity. Each animated value is a list of keyframes (a time and a value) in time order; a value without keyframes stays as today.",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "The model",
           "proof": "unit",
           "text": "Between two keyframes the value follows the first one's interpolation (Q3): **Linear**, **Ease in**, **Ease out**, **Ease in and out** (the standard CSS curves `ease-in`, `ease-out`, `ease-in-out`, within 0.001 of the value) or **Hold** (the value stays until the next keyframe). At a keyframe's time the value is exactly the keyframe's; before the first keyframe it is the first one's value, after the last the last one's. Values never leave their property's range (the ranges of 203's transform, layers and volume).",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "The model",
           "proof": "unit",
           "text": "Keyframe times are measured from the start of their clip or layer (Q2), so moving a clip or layer (drag, ripple, roll, slide, nudge, a change of track) moves its keyframes with it. Trimming a clip's start keeps every keyframe at the same place on the timeline; keyframes that end up outside the clip are kept (an undo or a re-trim brings them back) but don't act. Splitting gives each part the keyframes in its span plus a keyframe at the cut holding the value there, so nothing jumps; duplicating copies them. Slip doesn't move them.",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "The model",
           "proof": "unit",
           "text": "The project document stores keyframes as optional fields: every existing document opens unchanged and one without keyframes is written back byte-identical. The validator sorts keyframes by time, keeps the last of several at the same time, clamps values to their range, drops non-numeric ones, and enforces at most 100 keyframes per value and 5,000 per project (Q5) with a reason; at least 25 malformed documents never make it throw. A project with keyframes round-trips document → validator → document equal.",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "group": "The model",
           "proof": "unit",
           "text": "Every edit to keyframes is one undo step: adding, changing a value, moving, deleting, changing an interpolation; a drag (on the stage or on the timeline) is one step however long.",
-          "done": false
+          "done": true
         },
         "AC-6": {
           "group": "Editing",
@@ -108,7 +108,7 @@
           "group": "Rendering",
           "proof": "unit",
           "text": "The preview and the export take every animated value from the same evaluation at each frame's time on the export's frame grid: for a fixture (a clip moving from one corner to the other with Ease in and out while its opacity falls from 100 % to 0 and it turns 90°; a title layer that flies in, holds, and fades), the values at every frame equal the expected list exactly.",
-          "done": false
+          "done": true
         },
         "AC-9": {
           "group": "Rendering",
@@ -132,7 +132,7 @@
           "group": "Quality",
           "proof": "unit",
           "text": "Working out every animated value for one frame takes at most 0.05 ms (median) for a project with 500 clips and 5,000 keyframes, so keyframes don't slow playback; a project without keyframes does no extra work per frame.",
-          "done": false
+          "done": true
         },
         "AC-13": {
           "group": "Quality",
@@ -144,7 +144,7 @@
           "group": "Quality",
           "proof": "review",
           "text": "`docs/MEDIA-STUDIO.md` (keyframes, interpolations, keys), `specs/lld.md` (the keyframe model, the evaluation, the document fields), `CHANGELOG.md` and the in-app docs (keys) describe the change.",
-          "done": false
+          "done": true
         }
       }
     },
@@ -900,20 +900,26 @@
         "T091": {
           "text": "`npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033).",
           "section": "Docs and close",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [],
           "files": [],
           "test": "`npm run check`; `npm run build`",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "8dae911"
+          ],
+          "notes": [
+            "**Result (2026-10-13):** On 8dae911: npm run check green (typecheck, lint 0 errors / 5 known warnings, specs:check, 1,548 unit tests); npm run build green: entry chunk 327 KB (budget 350 KB; 326 KB at 000-baseline), no AI code in it (9 provider chunks on demand); the keyframe code ships in InstagramStudio (177.12 kB, 57.63 kB gzip), loaded with the studio. The other gates (e2e, self-test, MCP, timing, golden frames, sound) run in 290 (D-033)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T092": {
           "text": "Tick the ACs proven by unit tests; the rest are listed in 290; Status `Implemented`, roadmap 205 ✔️, `editor-implementation.md` P2.5 Done, `memory/progress.md`, `memory/MEMORY.md`.",
           "section": "Docs and close",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -921,7 +927,11 @@
           "files": [],
           "test": null,
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-12 (unit tests) and AC-14 (docs, T090) ticked; AC-6, AC-7, AC-13 (e2e), AC-9, AC-11 (self-test) and AC-10 (its self-test half; the unit half passes) are listed in 290's deferred checks. Status Implemented; roadmap 205 ✔️; specs/vision/editor-implementation.md P2.5 Done; memory/progress.md and memory/MEMORY.md updated."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         }
       }
     }

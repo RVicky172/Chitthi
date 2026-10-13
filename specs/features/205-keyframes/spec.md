@@ -2,7 +2,7 @@
 
 # 205 — Keyframes: animate a clip's box, its volume and layers over time
 
-**Status:** In Progress
+**Status:** Implemented
 **Roadmap phase:** Phase 2 — Multi-track timeline (release 3.0.0) · **Created:** 2026-10-12
 
 ## Summary
@@ -21,11 +21,11 @@ Keyframes let a value change over time: a picture-in-picture clip that slides in
 
 ### The model
 
-- [ ] **AC-1:** These values can be animated (Q1): a picture clip's box (X, Y, size, rotation, opacity, corner radius), a video clip's volume, and a layer's X, Y, size, rotation and opacity. Each animated value is a list of keyframes (a time and a value) in time order; a value without keyframes stays as today. _(unit)_
-- [ ] **AC-2:** Between two keyframes the value follows the first one's interpolation (Q3): **Linear**, **Ease in**, **Ease out**, **Ease in and out** (the standard CSS curves `ease-in`, `ease-out`, `ease-in-out`, within 0.001 of the value) or **Hold** (the value stays until the next keyframe). At a keyframe's time the value is exactly the keyframe's; before the first keyframe it is the first one's value, after the last the last one's. Values never leave their property's range (the ranges of 203's transform, layers and volume). _(unit)_
-- [ ] **AC-3:** Keyframe times are measured from the start of their clip or layer (Q2), so moving a clip or layer (drag, ripple, roll, slide, nudge, a change of track) moves its keyframes with it. Trimming a clip's start keeps every keyframe at the same place on the timeline; keyframes that end up outside the clip are kept (an undo or a re-trim brings them back) but don't act. Splitting gives each part the keyframes in its span plus a keyframe at the cut holding the value there, so nothing jumps; duplicating copies them. Slip doesn't move them. _(unit)_
-- [ ] **AC-4:** The project document stores keyframes as optional fields: every existing document opens unchanged and one without keyframes is written back byte-identical. The validator sorts keyframes by time, keeps the last of several at the same time, clamps values to their range, drops non-numeric ones, and enforces at most 100 keyframes per value and 5,000 per project (Q5) with a reason; at least 25 malformed documents never make it throw. A project with keyframes round-trips document → validator → document equal. _(unit)_
-- [ ] **AC-5:** Every edit to keyframes is one undo step: adding, changing a value, moving, deleting, changing an interpolation; a drag (on the stage or on the timeline) is one step however long. _(unit)_
+- [x] **AC-1:** These values can be animated (Q1): a picture clip's box (X, Y, size, rotation, opacity, corner radius), a video clip's volume, and a layer's X, Y, size, rotation and opacity. Each animated value is a list of keyframes (a time and a value) in time order; a value without keyframes stays as today. _(unit)_
+- [x] **AC-2:** Between two keyframes the value follows the first one's interpolation (Q3): **Linear**, **Ease in**, **Ease out**, **Ease in and out** (the standard CSS curves `ease-in`, `ease-out`, `ease-in-out`, within 0.001 of the value) or **Hold** (the value stays until the next keyframe). At a keyframe's time the value is exactly the keyframe's; before the first keyframe it is the first one's value, after the last the last one's. Values never leave their property's range (the ranges of 203's transform, layers and volume). _(unit)_
+- [x] **AC-3:** Keyframe times are measured from the start of their clip or layer (Q2), so moving a clip or layer (drag, ripple, roll, slide, nudge, a change of track) moves its keyframes with it. Trimming a clip's start keeps every keyframe at the same place on the timeline; keyframes that end up outside the clip are kept (an undo or a re-trim brings them back) but don't act. Splitting gives each part the keyframes in its span plus a keyframe at the cut holding the value there, so nothing jumps; duplicating copies them. Slip doesn't move them. _(unit)_
+- [x] **AC-4:** The project document stores keyframes as optional fields: every existing document opens unchanged and one without keyframes is written back byte-identical. The validator sorts keyframes by time, keeps the last of several at the same time, clamps values to their range, drops non-numeric ones, and enforces at most 100 keyframes per value and 5,000 per project (Q5) with a reason; at least 25 malformed documents never make it throw. A project with keyframes round-trips document → validator → document equal. _(unit)_
+- [x] **AC-5:** Every edit to keyframes is one undo step: adding, changing a value, moving, deleting, changing an interpolation; a drag (on the stage or on the timeline) is one step however long. _(unit)_
 
 ### Editing
 
@@ -34,16 +34,16 @@ Keyframes let a value change over time: a picture-in-picture clip that slides in
 
 ### Rendering
 
-- [ ] **AC-8:** The preview and the export take every animated value from the same evaluation at each frame's time on the export's frame grid: for a fixture (a clip moving from one corner to the other with Ease in and out while its opacity falls from 100 % to 0 and it turns 90°; a title layer that flies in, holds, and fades), the values at every frame equal the expected list exactly. _(unit)_
+- [x] **AC-8:** The preview and the export take every animated value from the same evaluation at each frame's time on the export's frame grid: for a fixture (a clip moving from one corner to the other with Ease in and out while its opacity falls from 100 % to 0 and it turns 90°; a title layer that flies in, holds, and fades), the values at every frame equal the expected list exactly. _(unit)_
 - [ ] **AC-9:** Golden frames: that fixture at 9:16 and 16:9, at 8 sample times including each keyframe's frame, matches its reference within the self-test's tolerance on every GPU backend, the paused preview shows the same frames, and the export renders the same frames from the same inputs. _(self-test (290))_
 - [ ] **AC-10:** Volume keyframes shape a video clip's sound in the export sample by sample (no steps or clicks: within 0.5 dB of the curve) and in the preview within one frame of it; at 0 % the clip is silent. The export's sound sources for a fixture with volume keyframes equal the expected list exactly. _(unit + self-test (290))_
 - [ ] **AC-11:** A project without keyframes is unchanged: pixel-identical preview frames at 10 sample times and identical export inputs (frames, clips, times and sound sources) to 203 for 201's, 202's and 203's fixtures; all existing video e2e tests pass unchanged. _(self-test (290))_
 
 ### Quality
 
-- [ ] **AC-12:** Working out every animated value for one frame takes at most 0.05 ms (median) for a project with 500 clips and 5,000 keyframes, so keyframes don't slow playback; a project without keyframes does no extra work per frame. _(unit)_
+- [x] **AC-12:** Working out every animated value for one frame takes at most 0.05 ms (median) for a project with 500 clips and 5,000 keyframes, so keyframes don't slow playback; a project without keyframes does no extra work per frame. _(unit)_
 - [ ] **AC-13:** Everything in AC-6 and AC-7 works from the keyboard; the keyframe buttons, the lane and the interpolation menu have names and states for screen readers; axe finds no serious problems in the inspector and the timeline; at 360 px wide nothing scrolls sideways outside the timeline; with reduced motion the lane and diamonds don't animate. _(e2e (290))_
-- [ ] **AC-14:** `docs/MEDIA-STUDIO.md` (keyframes, interpolations, keys), `specs/lld.md` (the keyframe model, the evaluation, the document fields), `CHANGELOG.md` and the in-app docs (keys) describe the change. _(review)_
+- [x] **AC-14:** `docs/MEDIA-STUDIO.md` (keyframes, interpolations, keys), `specs/lld.md` (the keyframe model, the evaluation, the document fields), `CHANGELOG.md` and the in-app docs (keys) describe the change. _(review)_
 
 ## Non-Functional Requirements
 
