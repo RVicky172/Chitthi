@@ -37,11 +37,11 @@
   clip box, clip volume and layers; inspector diamonds, stage auto-key, timeline lane, K / Alt + [ / ]. AC-6, 7, 9,
   10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
 - **206:** `206-transitions` 🚧 on `feat/206-transitions` (`main` merged in): spec Approved (Q1–Q12, D-035: 2D canvas,
-  no shaders; roadmap item renamed), plan Approved (D1–D3, D-036), tasks T010–T092; T010–T021 done 2026-10-13 (model, stack
-  + document gate); deferred checks listed in 290.
+  no shaders; roadmap item renamed), plan Approved (D1–D3, D-036), tasks T010–T092; T010–T021 done 2026-10-13 (model,
+  document gate, frame stack; `51504ef`); deferred checks listed in 290.
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
-- **Next (roadmap):** 206 T020 (`frameStack` pair, pool window); 290 collects the deferred checks.
+- **Next (roadmap):** 206 T030 (`transitionOps`, drawing the pair); 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
