@@ -2,7 +2,7 @@
 
 # 206 — Transitions between clips
 
-**Status:** Approved
+**Status:** In Progress
 **Roadmap phase:** Phase 2 — Multi-track timeline (release 3.0.0) · **Created:** 2026-10-13
 
 ## Summary
