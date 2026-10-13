@@ -36,8 +36,10 @@
 - **205:** `205-keyframes` ✔️ Implemented 2026-10-13 on `feat/205-keyframes` (`8dae911`; the close, T091–T092, not committed yet), not
   merged into `main` yet: keyframes for the clip box, clip volume and layers; inspector diamonds, stage auto-key,
   timeline lane, K / Alt + [ / ]. AC-6, 7, 9, 10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
-- **Next (roadmap):** merge 205 into `main`; then 206 (transitions), 207 (speed) or 208 (audio, uses 205's volume
-  keys); 290 collects the deferred checks.
+- **206:** `206-transitions` ✅ spec Approved 2026-10-13 on `spec/206-transitions` (branched from `feat/205-keyframes`):
+  15 ACs, Q1–Q12 accepted as proposed (D-035: 2D canvas, no shaders in 206; roadmap item renamed).
+- **Next (roadmap):** merge 205 into `main` (the agent's merge was blocked by a permission check; the maintainer
+  merges); `/spec-plan 206`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

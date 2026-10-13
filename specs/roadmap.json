@@ -174,11 +174,11 @@
         ]
       },
       "206": {
-        "title": "Transitions as shaders",
+        "title": "Transitions between clips",
         "workItem": "P2.6",
-        "status": "not-started",
+        "status": "spec-approved",
         "note": "",
-        "folder": null,
+        "folder": "features/206-transitions",
         "needs": [
           "201",
           "204"

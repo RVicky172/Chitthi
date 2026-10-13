@@ -419,3 +419,18 @@ jump between them; D3: the diamond's shape shows its easing. The audio risk is h
 (no self-test spike during the phase, D-033).
 **Alternatives:** keys in source time (a slip would move animations); one lane row per value always; buttons only.
 **Consequences:** projects without keys take today's code paths; 205's UI and sound are checked in 290.
+
+## D-035 — 206's transitions draw with the 2D canvas, not shaders (2026-10-13)
+
+**Context:** 206 (transitions, P2.6) spec review; the roadmap item said "as shaders", but the video preview and
+export draw with the 2D canvas (203, 205).
+**Decision:** all twelve proposed answers accepted. Five kinds (Cross-dissolve, Dip to black or white, Wipe and Slide
+in four directions, Zoom), centred on the cut using the clips' handles (the project's length never changes), 0.5 s by
+default (0.1–3 s), on every picture track, sound always blended, both videos count towards videos at once, removed
+when an edit separates the clips. Q4: drawn with the 2D canvas, which does all five exactly and identically in the
+preview, the export and every browser; they move to shaders when the video drawing moves to the GPU. The roadmap item
+is renamed "Transitions between clips".
+**Alternatives:** shaders now (needs the whole video drawing on the GPU first); overlapping clips (shortens the video
+and moves later timings).
+**Consequences:** no GPU work in 206; P2.6's `gpu/nodes/transition.ts` in editor-implementation.md waits for the GPU
+video pipeline.
