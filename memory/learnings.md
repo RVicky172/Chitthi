@@ -131,3 +131,28 @@ A held `VideoFrame` can be closed by the pool before the stage draws it; `drawIm
 half the frame and every later draw landed in its bottom-right quarter (looked like a dim or missing clip). Any
 `save()` around a draw that can throw needs `try { … } finally { restore() }` (now in photoDrawer and renderStack's
 boxed path; guarded by the pool check "drawing a closed video frame leaves the canvas unchanged").
+
+## 2026-10-13 — A layer's `w` alone isn't its size; evaluate before editing
+
+A layer's Size slider is `scaleLayer` (a title's font size, a shape's height and stroke scale with `w`), so an
+animated `w` must scale the whole layer when drawn (`layerAt`), and `updateLayerAt` scales an edited layer back to the
+stored `w` before keeping it, or the font drifts with every edit. Anything that edits layers on the video (the stage's
+pointer, the fields) works on `layersAt(layers, t)` and writes through `updateLayerAt`; a drawn stroke
+(`onSetLayers`) must store every other layer as saved, not as shown, or their animated values get baked in.
+
+## 2026-10-13 — Don't run prettier on single source files
+
+Many files (e.g. `studio/Timeline.tsx`, `timelineRows.test.ts`) aren't prettier-formatted (lines past the 120 in
+`.prettierrc.json`), so `npx prettier --write <file>` rewrites hundreds of unrelated lines. Match the file's layout by
+hand; restore with `git checkout <file>` if it happened on a file with no other changes.
+
+## 2026-10-13 — Long inline heredocs fail in the agent's Bash tool
+
+Twice a long Python script passed inline (`python - <<'EOF' … EOF`) failed with `unexpected EOF while looking for
+matching '` before touching any file; the content was heavy with quotes, apostrophes, backticks and `${…}`. Short
+heredocs worked; the exact trigger wasn't found. For doc and code edits:
+1. Prose in Markdown or `src/data/docs.ts`: the Edit tool, one exact replacement per section (no shell involved).
+2. Many edits at once or scripted changes: write the script to the session scratchpad with the Write tool, then run it
+   with a one-line command.
+3. Heredocs only for short plain text (a CSS block, a memory note).
+4. After doc changes: check relative links and run `npm run check`.

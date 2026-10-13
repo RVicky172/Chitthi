@@ -2,7 +2,7 @@
  * Keyframes (205): values of a clip's box, its volume and a layer that change over time. One pure module evaluates
  * them for the preview, the export, the stage and the inspector, so what is seen is what is exported.
  */
-import type { Layer } from './layers';
+import { scaleLayer, type Layer } from './layers';
 import type { ClipTransform, SoundSource, TimedClip } from './timeline';
 import { IDENTITY, V_FPS } from './video';
 
@@ -167,8 +167,13 @@ export function layerAt<L extends Layer>(layer: L, t: number): L {
   for (const prop of LAYER_KEY_PROPS) {
     const list = keys[prop];
     if (!list || list.length === 0) continue;
-    out ??= { ...layer };
-    out[prop] = clampValue(prop, valueAt(list, local), 'layer');
+    const value = clampValue(prop, valueAt(list, local), 'layer');
+    // Size scales the whole layer, as the Size slider does: a title's font size, a shape's height and stroke too.
+    if (prop === 'w') out = { ...scaleLayer(out ?? layer, value / layer.w), w: value };
+    else {
+      out ??= { ...layer };
+      out[prop] = value;
+    }
   }
   return out ?? layer;
 }
@@ -415,6 +420,33 @@ export function stopAnimating(
   if (!isClip(item)) return { [prop]: value, keys } as Partial<Layer>;
   if (prop === 'volume') return { volume: value, keys };
   return { tf: { ...(item.tf ?? IDENTITY), [prop]: value }, keys } as Partial<KeyedClip>;
+}
+
+/* ---------- The inspector (§7) ---------- */
+
+/** The keyframe button's state for a value at `local`: not animated, at a key (within half a frame), or between. */
+export function keyState(keys: readonly Keyframe[] | undefined, local: number, fps: number = V_FPS): 'none' | 'key' | 'between' {
+  if (!keys || keys.length === 0) return 'none';
+  return keys.some((key) => near(key.t, local, fps)) ? 'key' : 'between';
+}
+
+/**
+ * The time of the item's previous (`direction` −1) or next (+1) keyframe of any animated value, seconds from its start;
+ * a key within half a frame of `local` doesn't count, so pressing again moves on. Null when there is none.
+ */
+export function adjacentKey(
+  item: { keys?: Keyframes<string> },
+  local: number,
+  direction: -1 | 1,
+  fps: number = V_FPS,
+): number | null {
+  let best: number | null = null;
+  for (const list of Object.values(item.keys ?? {}))
+    for (const key of list ?? []) {
+      if (near(key.t, local, fps) || (direction > 0 ? key.t < local : key.t > local)) continue;
+      if (best === null || (direction > 0 ? key.t < best : key.t > best)) best = key.t;
+    }
+  return best;
 }
 
 /* ---------- The document gate (§10) ---------- */

@@ -326,6 +326,7 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 | Slide the music | Drag the music bar to choose which part of the song plays; its waveform shows the loudness |
 | Split, duplicate, delete | Transport buttons, or S and Delete with the timeline focused; Shift + Delete ripple-deletes |
 | Nudge, trim to the playhead | Alt + ← / → moves the selected clip a frame with the tool (Shift + Alt: a second); Q / W trim its start / end to the playhead |
+| Keyframes | K sets keyframes at the playhead for the selected clip's or layer's animated values (or removes the ones there); Alt + [ / ] jump to its previous / next keyframe; its keyframe lane is under its row (below) |
 | Zoom | Ctrl + wheel over the timeline, the zoom slider, + / −, or **Fit** |
 | Play | The play button or Space; the timeline follows the playhead |
 | Step | ← / → one frame, Shift + ← / → one second, Home / End |
@@ -415,6 +416,44 @@ or out, pan four ways), fade in from black, framing (fill or whole picture with 
 and colour (the presets and LUTs of the photo editor, brightness, contrast, saturation, warmth). Layers are the same text, shapes, stickers and
 drawings as photos, each with **Appears at** and **Disappears at** times; new ones start at the playhead.
 
+### Keyframes
+
+Keyframes animate a value over time: a clip moving across the frame, a picture-in-picture growing, a title flying in
+and fading out, the sound dipping under a voice. What can be animated: a picture clip's **X, Y, size, rotation,
+opacity and corner radius** (Position and size), a video clip's **Clip sound** (0–100 %), and a layer's **position,
+size, turn and opacity**. A layer's size scales it whole, as the Size slider does (a title's font grows with it).
+
+- **Start animating** with the diamond next to a value in the inspector (the layers' Position diamond animates X and Y
+  together). An empty diamond: not animated; filled: a keyframe at the playhead; half filled: animated, between
+  keyframes. Pressing it starts the animation with a keyframe holding today's value, adds a keyframe at the playhead,
+  or removes the one there. Its menu has **Remove animation**, which keeps the value shown at the playhead.
+- **Once a value is animated, any change at the playhead sets a keyframe there**: typing in a field, dragging the
+  clip or layer on the preview, the arrow keys, the presets. The fields show the value at the playhead. To change the
+  whole animation at once, remove it and start again.
+- **Previous / next keyframe** buttons sit in the heading of the clip's Position and size group and of the layer's
+  settings; Alt + [ / ] do the same with the timeline focused.
+- **The keyframe lane**: under the selected clip's or layer's row, when it is animated, one row of diamonds shows its
+  keyframe times; **Keys** in the timeline's header column shows a row per value as well. Click a diamond to select
+  it, drag it to move it (it snaps to frames, the playhead and the clip's ends; Alt: to frames only), ← / → move it a
+  frame (Shift: a second), Delete removes it. Enter, the context-menu key or a right click opens its menu: the
+  interpolation, and **Delete keyframe**. K sets or removes keyframes at the playhead for every animated value.
+- **Interpolations**: **Linear**, **Ease in**, **Ease out**, **Ease in and out** (what new keyframes get) and **Hold**
+  (the value jumps at the next keyframe). A keyframe's interpolation shapes the change that starts at it, and the
+  diamond's shape shows it: rounded for an ease, square for Hold, pointed for Linear.
+- **Keyframes belong to their clip or layer**, timed from its start: moving it moves its animation, and so do Slip
+  and a trim of its end. Trimming its start (or dragging a layer's start, or a Roll or Slide that moves a clip's
+  start) keeps the keyframes where they are on the timeline, so the motion doesn't jump; keyframes outside the clip
+  are kept but don't act. Split gives each part the keyframes on its side, with one at the cut, so nothing changes on
+  screen.
+- **Limits**: 100 keyframes per value and 5,000 per project; a change past them is refused with the reason. Every
+  change is one undo step (a drag is one step) and is announced to screen readers.
+
+A photo's movement (zoom in, pan …) still moves the picture inside its box; keyframes move the box. The preview, the
+stage and the export evaluate keyframes with the same code (`src/engine/keyframes.ts`), so the file shows exactly
+what the preview shows, frame for frame; the clip's sound follows its volume keyframes in the export through a
+volume curve with a point at least every 5 ms. Projects without keyframes are saved, drawn and exported exactly as
+before.
+
 ### The preview
 
 The preview decodes video clips the way the export does, through one **decoder pool** (`src/engine/decodePool.ts`):
@@ -486,4 +525,4 @@ The longer plan for advanced features (masks, curves, multi-track timeline, keyf
 | Clip waveforms | Music shows its waveform; clips would need their sound decoded on import |
 | Direct upload to YouTube or Instagram | Needs sign-in and a server (OAuth, hosting); exports go to the share sheet, a file, or the upload page |
 | Firefox and Safari checks | Encoding support varies by version; check before relying on them |
-| Text animations (slide, pop, typewriter) | The layer timing is in place; animations are a separate design |
+| Text animation presets (slide, pop, typewriter) | Keyframes animate a title by hand; presets and text style animation are a separate design (210) |

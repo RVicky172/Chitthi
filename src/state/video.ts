@@ -22,7 +22,7 @@ import {
   type Keyframes,
   type LayerKeyProp,
 } from '../engine/keyframes';
-import type { Layer } from '../engine/layers';
+import { scaleLayer, type Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
 import {
   IDENTITY,
@@ -888,7 +888,8 @@ export function setClipTransform(id: string, patch: Partial<ClipTransform>, key 
 export function applyPreset(id: string, preset: Preset): string | null {
   const f = vFormat(state.format);
   const { x, y, w, rot } = presetTransform(preset, f.w, f.h);
-  return setClipTransform(id, { x, y, w, rot }, '');
+  // Through the router: an animated value gets a key at the playhead (205).
+  return setClipTransformAt(id, { x, y, w, rot }, '');
 }
 /** The Slip keys on the music (Q8): moves where in the song the video's sound starts. */
 export function slipMusic(delta: number): string | null {
@@ -979,25 +980,36 @@ function withoutKey<T extends VClip | Layer>(item: T, prop: KeyProp, at: number)
 }
 
 /**
- * The inspector's keyframe button (Q4): starts animating `prop` with a key at the playhead holding its value there,
- * adds a key there, or (at a key) removes it. One undo step.
+ * The inspector's keyframe button (Q4): starts animating the value(s) with a key at the playhead holding their value
+ * there, adds a key there, or (at a key) removes it. Several values (a layer's position: X and Y) go together, as the
+ * first one is. One undo step.
  */
-export function toggleKey(target: KeyTarget, prop: KeyProp): string | null {
+export function toggleKey(target: KeyTarget, props: KeyProp | KeyProp[]): string | null {
   const found = keyItem(target);
   if ('error' in found) return found.error;
   const { item, local } = found;
-  const at = keysOf(item)?.[prop]?.some((k) => Math.abs(k.t - local) < 0.5 / state.fps);
-  if (at) return storeItem(target, withoutKey(item, prop, local), '');
-  const keys = setKey(keysOf(item), prop, local, valueOf(item, prop, local), keyEdit(item));
-  return 'error' in keys ? keys.error : storeItem(target, { keys } as Partial<VClip>, '');
+  const names = Array.isArray(props) ? props : [props];
+  if (keysOf(item)?.[names[0]]?.some((k) => Math.abs(k.t - local) < 0.5 / state.fps)) {
+    let next = item;
+    for (const name of names) next = withoutKey(next, name, local);
+    return storeItem(target, next, '');
+  }
+  let keys = keysOf(item);
+  for (const name of names) {
+    const added = setKey(keys, name, local, valueOf(item, name, local), { ...keyEdit(item), projectKeys: projectKeyCount() + countKeys(keys) - countKeys(keysOf(item)) });
+    if ('error' in added) return added.error;
+    keys = added;
+  }
+  return storeItem(target, { keys } as Partial<VClip>, '');
 }
 
-/** **Remove animation** (the keyframe button's menu): `prop`'s keys go, its value at the playhead stays. One undo step. */
-export function removeAnimation(target: KeyTarget, prop: KeyProp): string | null {
+/** **Remove animation** (the keyframe button's menu): the values' keys go, their values at the playhead stay. One step. */
+export function removeAnimation(target: KeyTarget, props: KeyProp | KeyProp[]): string | null {
   const found = keyItem(target);
   if ('error' in found) return found.error;
-  if (!isAnimated(found.item, prop)) return null;
-  return storeItem(target, stoppedAt(found.item, prop, found.local), '');
+  let item: VClip | Layer = found.item;
+  for (const name of Array.isArray(props) ? props : [props]) if (isAnimated(item, name)) item = { ...item, ...stoppedAt(item, name, found.local) } as VClip | Layer;
+  return item === found.item ? null : storeItem(target, item, '');
 }
 
 /** Moves the key at `from` (one value's, or every value's for 'all') to `to`, item times; a drag passes one `key`. */
@@ -1084,7 +1096,9 @@ export function updateLayerAt(id: string, patch: Partial<Layer> | ((shown: Layer
   const shown = layerAt(l, state.t);
   const next = typeof patch === 'function' ? patch(shown) : ({ ...shown, ...patch } as Layer);
   let keys: Keyframes<LayerKeyProp> = l.keys;
-  const out = { ...next } as Layer;
+  // An animated size scales the whole layer when drawn (layerAt): scaled back to the stored size, what scales with it
+  // (a title's font size, a shape's height) is stored as it would be at that size, so it doesn't drift.
+  const out = (isAnimated(l, 'w') && next.w !== l.w ? scaleLayer(next, l.w / next.w) : { ...next }) as Layer;
   for (const prop of LAYER_KEY_PROPS) {
     if (!isAnimated(l, prop)) continue;
     out[prop] = l[prop];

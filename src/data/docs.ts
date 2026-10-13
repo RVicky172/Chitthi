@@ -336,6 +336,7 @@ export const DOC_PAGES: DocPage[] = [
               'Track headers: **Hide** the video (black with the layers), **Mute** the music, **Lock** a track against edits, and set its height. Hide, Mute and Lock can be undone.',
               '**Overlay tracks** (picture-in-picture, B-roll): **+** at the top left adds one; drop files on its row, or on the time ruler for a new track; drag a clip to another row or use **Move to**. Click a track’s name to rename it; its height menu moves it up or down or deletes it.',
               'On the preview, drag an overlay clip to move it (it snaps to the centre lines and edges), its corner to resize, its top handle to turn it (Shift: 15° steps); arrow keys move it 1 % (Shift: 10 %). **Position and size** in the inspector has presets and exact fields.',
+              '**Keyframes**: press the diamond next to a clip’s position, size, rotation, opacity, corner radius or sound, or a layer’s position, size, turn or opacity; then any change at the playhead sets a keyframe there. The selected clip or layer shows its keyframes under its row: drag, Delete, Enter for the interpolation (Linear, Ease in, Ease out, Ease in and out, Hold). K sets keyframes at the playhead, Alt + [ / ] jump between them.',
               'Export: H.264 and AAC in an MP4 with its index at the front (fast start), using the graphics card where it can.',
             ],
           },

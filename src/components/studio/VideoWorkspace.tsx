@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
+import { adjacentKey, keyState, layerAt, layersAt, transformAt, volumeAt, type LayerKeyProp } from '../../engine/keyframes';
 import { frameStack } from '../../engine/stack';
-import { IDENTITY, MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
+import { MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
 import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
+import { KeyframeButton, KeyframeNav } from './KeyframeButton';
 import { clipLabel } from './timelineRows';
 import { useClipTransform } from './useClipTransform';
 import { saveFile } from '../../lib/download';
@@ -35,7 +37,14 @@ import {
   setKind,
   setMusicFile,
   setPlayhead,
-  setClipTransform,
+  removeAnimation,
+  setClipTransformAt,
+  setClipVolume,
+  setLayerTimes,
+  toggleKey,
+  updateLayerAt,
+  type KeyProp,
+  type KeyTarget,
   setPlaying,
   setVideoOptions,
   setVLayers,
@@ -43,7 +52,6 @@ import {
   undoV,
   updateClipWhy,
   updateMusic,
-  updateVLayer,
   useVideo,
   type VClip,
   projectOf,
@@ -122,12 +130,30 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
     return () => document.removeEventListener('keydown', on);
   }, []);
 
+  // The layers as shown at the playhead (205): the fields show animated values, and changes go through the router, so an
+  // animated value gets a keyframe there. A new start alone is the layer's start edge (its keyframes stay in place).
+  const shownLayers = layersAt(layers, t);
+  const selectedLayer = layers.find((l) => l.id === layerSel);
+  const layerLocal = t - (selectedLayer?.start ?? 0);
+  const layerPrevious = selectedLayer ? adjacentKey(selectedLayer, layerLocal, -1) : null,
+    layerNext = selectedLayer ? adjacentKey(selectedLayer, layerLocal, 1) : null;
   const lp: LayerPanelProps = {
-    layers,
+    layers: shownLayers,
     selected: layerSel,
     onSelect: selectVLayer,
     onAdd: addVLayer,
-    onUpdate: (id, patch, key) => updateVLayer(id, patch, key),
+    onUpdate: (id, patch, key) =>
+      tell(typeof patch === 'object' && 'start' in patch && !('end' in patch) ? setLayerTimes(id, { start: patch.start }, key) : updateLayerAt(id, patch, key)),
+    keyframes: (props: LayerKeyProp[], label: string) =>
+      selectedLayer && <KeyButton target={{ layer: selectedLayer.id }} props={props} label={label} state={keyState(selectedLayer.keys?.[props[0]], layerLocal)} time={t} />,
+    keyNav: selectedLayer?.keys && (
+      <KeyframeNav
+        what="layer"
+        previous={layerPrevious === null ? null : (selectedLayer.start ?? 0) + layerPrevious}
+        next={layerNext === null ? null : (selectedLayer.start ?? 0) + layerNext}
+        onSeek={setPlayhead}
+      />
+    ),
     onRemove: removeVLayer,
     onRestack: restackVLayer,
     timing: { duration: total, now: t },
@@ -399,7 +425,7 @@ function VideoStage() {
       drawPreview(x, W, H, view, last.current);
     }
     const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
-    if (sel) drawSelection(x, layerBox(x, sel, W, H), handleRadius(cv));
+    if (sel) drawSelection(x, layerBox(x, layerAt(sel, s.t), W, H), handleRadius(cv));
     else clipBox.drawBox(x, W, H);
   };
 
@@ -516,17 +542,32 @@ function VideoStage() {
   }, [musicMuted]);
   useEffect(() => () => audio.current?.pause(), []);
 
+  // The stage edits the layers as shown at the playhead (205 §8), so hit tests and handles match what is drawn; changes go
+  // through the router, so dragging an animated layer sets a keyframe there. A refusal is shown once per drag.
+  const lastRefusal = useRef<string | null>(null);
+  const tellOnce = (refusal: string | null) => {
+    if (refusal && refusal !== lastRefusal.current) toast(refusal);
+    lastRefusal.current = refusal;
+  };
   const handlers = useLayerPointer({
     canvas: ref,
-    layers,
+    layers: layersAt(layers, t),
     selected: layerSel,
     tools,
     t,
     onSelect: selectVLayer,
-    onUpdate: (id, layer, key) => updateVLayer(id, layer, key),
-    onSetLayers: (ls, key, sel) => setVLayers(ls, key, sel),
+    onUpdate: (id, layer, key) => tellOnce(updateLayerAt(id, layer, key)),
+    // A stroke changes only the drawing `sel`: the other layers are stored as they are, not as shown at the playhead.
+    onSetLayers: (ls, key, sel) => {
+      const stored = getVideo().layers;
+      if (ls.length === stored.length && stored.some((l) => l.id === sel && l.keys)) tellOnce(updateLayerAt(sel, ls.find((l) => l.id === sel)!, key));
+      else setVLayers(ls.map((l) => (l.id === sel ? l : (stored.find((s) => s.id === l.id) ?? l))), key, sel);
+    },
     onRemove: removeVLayer,
-    onEndStep: endVStep,
+    onEndStep: () => {
+      lastRefusal.current = null;
+      endVStep();
+    },
     onBackground: clipBox.background,
   });
 
@@ -568,6 +609,9 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
   const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
   const locked = useVideo((s) => lockedReason(s.tracks, c.track));
   const cantExport = useFallbackNote(c.file);
+  const t = useVideo((s) => s.t);
+  const local = t - c.start;
+  const volume = volumeAt(c, local);
   const e = c.edit;
   return (
     <div className="lp">
@@ -598,14 +642,17 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           <>
             <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip({ in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
             <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip({ out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
-            <Range id="v-vol" label="Clip sound" value={c.volume} min={0} max={1} step={0.05} show={c.volume ? `${Math.round(c.volume * 100)}%` : 'muted'} onChange={(volume) => updateClip({ volume })} />
+            <div className="kf-row">
+              <Range id="v-vol" label="Clip sound" value={volume} min={0} max={1} step={0.05} show={volume ? `${Math.round(volume * 100)}%` : 'muted'} onChange={(v) => tell(setClipVolume(c.id, v))} />
+              <KeyButton target={{ clip: c.id }} props={['volume']} label="Clip sound" state={keyState(c.keys?.volume, local)} time={t} />
+            </div>
           </>
         )}
         <Check checked={c.fade} onChange={(fade) => updateClip({ fade }, '')}>
           Fade in from black
         </Check>
       </div>
-      <PositionGroup clip={c} />
+      <PositionGroup clip={c} t={t} />
       <div className="ig-group">
         <h3>Frame</h3>
         <Seg<'fill' | 'fit'>
@@ -654,13 +701,18 @@ const POSITION_FIELDS: { field: keyof ClipTransform; label: string; unit: string
  * (X, Y), size, rotation, opacity and corner radius. Typing in a field is one undo step per field until another field
  * changes; the stage shows the same box, with handles, for dragging.
  */
-function PositionGroup({ clip }: { clip: VClip }) {
-  const transform = clip.tf ?? IDENTITY;
-  /** Shows a refusal (a locked track) instead of dropping it. */
-  const tell = (refusal: string | null) => refusal && toast(refusal);
+function PositionGroup({ clip, t }: { clip: VClip; t: number }) {
+  const local = t - clip.start;
+  // The box as shown at the playhead (205): animated values from their keyframes, written back through the router.
+  const transform = transformAt(clip, local);
+  const previous = adjacentKey(clip, local, -1),
+    next = adjacentKey(clip, local, 1);
   return (
     <div className="ig-group">
-      <h3>Position and size</h3>
+      <h3 className="kf-head">
+        Position and size
+        {clip.keys && <KeyframeNav what="clip" previous={previous === null ? null : clip.start + previous} next={next === null ? null : clip.start + next} onSeek={setPlayhead} />}
+      </h3>
       <div className="chips" role="group" aria-label="Place the clip">
         {PRESETS.map(([preset, label]) => (
           <button key={preset} type="button" className="chip" onClick={() => tell(applyPreset(clip.id, preset))}>
@@ -670,19 +722,29 @@ function PositionGroup({ clip }: { clip: VClip }) {
       </div>
       <div className="v-position">
         {POSITION_FIELDS.map(({ field, label, unit, min, max, scale }) => (
-          <NumberField
-            key={field}
-            label={label}
-            unit={unit}
-            min={min}
-            max={max}
-            value={Math.round(transform[field] * scale * 10) / 10}
-            onChange={(value) => tell(setClipTransform(clip.id, { [field]: value / scale }, `tf-field:${clip.id}:${field}`))}
-          />
+          <div key={field} className="kf-field">
+            <NumberField
+              label={label}
+              unit={unit}
+              min={min}
+              max={max}
+              value={Math.round(transform[field] * scale * 10) / 10}
+              onChange={(value) => tell(setClipTransformAt(clip.id, { [field]: value / scale }, `tf-field:${clip.id}:${field}`))}
+            />
+            <KeyButton target={{ clip: clip.id }} props={[field]} label={label} state={keyState(clip.keys?.[field], local)} time={t} />
+          </div>
         ))}
       </div>
     </div>
   );
+}
+
+/** Shows a refusal (a locked track, a keyframe limit) instead of dropping it. */
+const tell = (refusal: string | null) => refusal && toast(refusal);
+
+/** A keyframe button wired to the store (205): toggles the value(s) at the playhead; its menu removes the animation. */
+function KeyButton({ target, props, label, state, time }: { target: KeyTarget; props: KeyProp[]; label: string; state: ReturnType<typeof keyState>; time: number }) {
+  return <KeyframeButton label={label} state={state} time={time} onToggle={() => tell(toggleKey(target, props))} onRemove={() => tell(removeAnimation(target, props))} />;
 }
 
 /**

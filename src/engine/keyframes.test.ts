@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { TEXT_STYLES } from '../data/layers';
 import {
   KEY_LIMITS,
+  adjacentKey,
   animate,
   clampValue,
   countKeys,
   gainCurve,
   isAnimated,
+  keyState,
   layerAt,
   layersAt,
   moveKey,
@@ -23,7 +26,7 @@ import {
   type Keyframe,
   type Keyframes,
 } from './keyframes';
-import { newSticker } from './layers';
+import { newSticker, newText } from './layers';
 import { IDENTITY, type ClipTransform, type SoundSource, type TimedClip } from './timeline';
 import { frameRange, itemTransform, type StackDraw } from './video';
 
@@ -212,6 +215,14 @@ describe('transformAt / volumeAt / layerAt', () => {
     // A layer without a start counts from 0.
     const fromZero = { ...newSticker('⭐'), keys: { x: pair(0, 1, 'linear') } };
     expect(layerAt(fromZero, 0.25).x).toBeCloseTo(0.25, 12);
+  });
+
+  it('an animated size scales the whole layer, as the Size slider does (a title’s font size too)', () => {
+    const title = { ...newText(TEXT_STYLES[0], 'Hello'), w: 0.4, keys: { w: pair(0.4, 0.8, 'linear') } };
+    const grown = layerAt(title, 1);
+    expect(grown.w).toBeCloseTo(0.8, 12);
+    expect(grown.size).toBeCloseTo(title.size * 2, 12);
+    expect(title.size).toBe(newText(TEXT_STYLES[0], 'Hello').size);
   });
 
   it('values out of range in keys are clamped when evaluated', () => {
@@ -653,5 +664,37 @@ describe('gainCurve: the volume the export sets for a source in one window (AC-1
     // Only the fade-in's points and the one step across the jump change the value.
     expect(changes.filter((d) => d > 0.2)).toHaveLength(1);
     expect(step).toBeLessThanOrEqual(0.005 + 1e-12);
+  });
+});
+
+/* ---------- 205 T060: the inspector's keyframe button and previous / next ---------- */
+
+describe('keyState and adjacentKey (the inspector, AC-6)', () => {
+  const keys: Keyframe[] = [
+    { t: 1, v: 0, ease: 'linear' },
+    { t: 3, v: 1, ease: 'linear' },
+  ];
+
+  it('keyState: not animated, at a key (within half a frame), or between keys', () => {
+    expect(keyState(undefined, 1)).toBe('none');
+    expect(keyState([], 1)).toBe('none');
+    expect(keyState(keys, 1)).toBe('key');
+    expect(keyState(keys, 3 + 0.4 / 30)).toBe('key');
+    expect(keyState(keys, 2)).toBe('between');
+    // Before the first key and after the last the value is animated too (held).
+    expect(keyState(keys, 0)).toBe('between');
+    expect(keyState(keys, 9, 60)).toBe('between');
+  });
+
+  it('adjacentKey: the previous / next key time of any animated value, skipping the one at the playhead', () => {
+    const item = { keys: { x: keys, opacity: [{ t: 2, v: 1, ease: 'hold' as const }] } };
+    expect(adjacentKey(item, 0, 1)).toBe(1);
+    expect(adjacentKey(item, 1, 1)).toBe(2);
+    expect(adjacentKey(item, 1 + 0.2 / 30, 1)).toBe(2);
+    expect(adjacentKey(item, 2.5, -1)).toBe(2);
+    expect(adjacentKey(item, 2, -1)).toBe(1);
+    expect(adjacentKey(item, 3, 1)).toBeNull();
+    expect(adjacentKey(item, 1, -1)).toBeNull();
+    expect(adjacentKey({}, 1, 1)).toBeNull();
   });
 });

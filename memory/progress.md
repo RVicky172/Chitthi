@@ -11,6 +11,21 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-13 — 205 T060–T062 (inspector keyframe buttons, the stage evaluates first, the keyframe lane)
+
+**Done:** T060: `KeyframeButton` / `KeyframeNav` beside Position and size, Clip sound and the layers' Position, Size,
+Turn, Opacity; fields show values at the playhead and write through the routers; `keyState`, `adjacentKey`;
+`.kf-*` styles; an animated layer Size scales the whole layer (learnings 2026-10-13). T061: `useClipTransform` and the
+video stage's layers edit the shown values through `setClipTransformAt` / `updateLayerAt`. `npm run check` green,
+1,539 tests. T060–T090 committed together.
+**Then T062:** `KeyframeLane.tsx` under the selected animated clip or layer (one row of diamonds, expandable per
+value; select, drag on release, ← / →, Delete, interpolation menu; shapes per D3), K and Alt + [ / ] in the timeline,
+announcements (`describeKeyChange`); the layer bar's start-edge drag now keeps keys in place (`setLayerTimes`).
+1,548 tests green.
+**Then T090:** keyframes in `docs/MEDIA-STUDIO.md`, `specs/lld.md` 4.9, CHANGELOG and the in-app timeline help; 13 links, 0 broken.
+**Next:** T091 (check + build), T092 (close).
+**Blockers:** none
+
 ## 2026-10-12 — 205 T014–T016, T020–T021 (document gate, AC-8 / AC-12, start-edge edits)
 
 **Done:** T010–T013 committed (`788b0d7`). `mergeKeys` gate (unknown names and `__proto__` dropped, finite times

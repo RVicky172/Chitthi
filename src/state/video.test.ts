@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_EDIT } from '../engine/instagram';
-import type { Ease, Keyframe } from '../engine/keyframes';
-import { newSticker, type Layer } from '../engine/layers';
+import { TEXT_STYLES } from '../data/layers';
+import { layerAt, type Ease, type Keyframe } from '../engine/keyframes';
+import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '../engine/layers';
 import { IDENTITY, MAIN_VIDEO, defaultTracks, presetTransform, tooManyTracks, type Track } from '../engine/timeline';
 import {
   NEW_TRACK,
@@ -54,6 +55,7 @@ import {
   setLayerTimes,
   toggleKey,
   updateLayerAt,
+  setVLayers,
   type VClip,
   type VMusic,
 } from './video';
@@ -747,6 +749,19 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     expect(undos()).toBe(5);
   });
 
+  it('toggleKey and removeAnimation take several values at once (a layer’s position: X and Y), one step each', () => {
+    setPlayhead(2);
+    expect(toggleKey({ layer: 'M' }, ['x', 'y'])).toBeNull();
+    expect(getLayer('M').keys).toEqual({ x: [k(2, 0.5, 'ease-in-out')], y: [k(2, 0.5, 'ease-in-out')] });
+    setPlayhead(1);
+    updateLayerAt('M', { x: 0.2, y: 0.3 }, '');
+    expect(toggleKey({ layer: 'M' }, ['x', 'y'])).toBeNull();
+    expect(getLayer('M').keys!.x).toHaveLength(1);
+    expect(removeAnimation({ layer: 'M' }, ['x', 'y'])).toBeNull();
+    expect(getLayer('M').keys).toBeUndefined();
+    expect(undos()).toBe(4);
+  });
+
   it('removeAnimation keeps the value at the playhead as the stored one', () => {
     setPlayhead(1);
     expect(removeAnimation({ clip: 'a' }, 'x')).toBeNull();
@@ -806,6 +821,19 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     expect(getLayer('L').keys!.opacity!.at(-1)).toEqual(k(2, 0.5));
     expect(getLayer('L').y).toBe(0.9);
     expect(undos()).toBe(2);
+  });
+
+  it('updateLayerAt with an animated size: the Size slider keys w and leaves the stored font size alone', () => {
+    const title = { ...newText(TEXT_STYLES[0], 'Hi'), id: 'T', w: 0.4, start: 0, keys: { w: [k(0, 0.4), k(2, 0.8)] } } as Layer;
+    setVLayers([title], '');
+    setPlayhead(1);
+    updateLayerAt('T', (shown) => scaleLayer(shown, 0.9 / shown.w), '');
+    const stored = getLayer('T') as TextLayer;
+    expect(stored.keys!.w).toEqual([k(0, 0.4), k(1, 0.9, 'ease-in-out'), k(2, 0.8)]);
+    expect(stored.w).toBe(0.4);
+    expect(stored.size).toBeCloseTo((title as TextLayer).size, 12);
+    // Drawn at 1 s: 0.9 wide, its font scaled with it.
+    expect((layerAt(stored, 1) as TextLayer).size).toBeCloseTo(((title as TextLayer).size * 0.9) / 0.4, 12);
   });
 
   it('setClipVolume keys an animated volume and stores an unanimated one', () => {

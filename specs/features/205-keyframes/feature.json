@@ -801,7 +801,7 @@
         "T060": {
           "text": "Implement plan §7: `KeyframeButton` (three states, `aria-pressed`, a name with the value and time; menu: Remove animation) beside 203's Position and size fields, the Clip sound slider and the layers' position, size, rotation and opacity controls; fields show the value at the playhead and write through the routers; previous / next keyframe buttons. Pure helpers `keyState(keys, local)` and `adjacentKey(item, local, direction)` with unit tests (`keyframes.test.ts`).",
           "section": "Inspector, stage and timeline",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -818,12 +818,16 @@
           ],
           "test": "the helpers' unit tests; `npm run check`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** KeyframeButton.tsx: a diamond (empty / half / filled for none / between / key), aria-pressed at a key, a name with the value and the playhead ('X: keyframe at 0:01.2, press to remove'), a Remove animation menu when animated; KeyframeNav (previous / next, disabled at the ends). Beside the six Position and size fields, Clip sound, and the layers' Position (X and Y together), Size, Turn and Opacity; fields show transformAt / volumeAt / layersAt at the playhead and write through setClipTransformAt / setClipVolume / updateLayerAt (applyPreset too); a lone new layer start goes through setLayerTimes. An animated layer size scales the whole layer when drawn (a title's font size too), and updateLayerAt stores it back unscaled. toggleKey / removeAnimation take several values in one step. keyframes.ts keyState and adjacentKey; styles .kf-* in 36-media-studio.css. 5 new tests; break-test (adjacentKey not skipping the key at the playhead) caught; npm run check green, 1,539 tests. The UI itself is checked in 290."
+          ],
+          "startedOn": "2026-10-12",
+          "doneOn": "2026-10-13"
         },
         "T061": {
           "text": "Implement plan §8: the stage evaluates before editing: `useClipTransform` uses `transformAt` and `setClipTransformAt`; the video stage passes `layerAt(layer, t)` to `useLayerPointer` and routes its updates through `updateLayerAt`; the photo editor unchanged.",
           "section": "Inspector, stage and timeline",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -837,12 +841,16 @@
           ],
           "test": "`npm run check` (the routers are proven by T050)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** useClipTransform: the box, hit tests, handles and nudges use the box as shown (transformAt at the playhead) and write through setClipTransformAt (only changed animated values get a key; a main-track clip with keys but no stored box is editable). The video stage passes layersAt(layers, t) to useLayerPointer, draws the selection from layerAt, and routes updates through updateLayerAt (a refusal shown once per drag); a drawn stroke stores the other layers as saved and sends a keyed drawing through the router. useLayerPointer and the photo editor unchanged. npm run check green, 1,539 tests (the routers are proven by T050); the stage itself is checked in 290."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T062": {
           "text": "Implement plan §9 (D1–D3): `KeyframeLane` under the selected clip's or layer's row (one row of diamonds, expand to one row per value; select, drag with `snap`, Delete, the interpolation menu; the shape shows the ease), K / Alt + [ / ] / ← → keys, announcements. Pure helpers in `timelineRows.ts` with unit tests: `keyTimes(item)` (the union of times), `describeKeyChange`, `easeShape`.",
           "section": "Inspector, stage and timeline",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -859,12 +867,16 @@
           ],
           "test": "the helpers' unit tests; `npm run check`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** KeyframeLane.tsx: under the selected clip's track row or the selected layer's row, shown when it is animated; one row of diamonds (keyTimes: the union of times, keys within half a frame are one diamond, mixed eases shown as Mixed) and, expanded from the header's Keys button, one row per value (KeyframeLaneHeads gives the matching header cells). A diamond is a button (aria-pressed when selected, a name with its timeline time, values and interpolation): click selects; a drag shows it at the snapped time (the timeline's snap: edges, playhead, the item's ends; Alt: frames) and moves it on release (one moveKeys, one undo step); ← / → move it a frame (Shift: a second; repeats one step); Delete removes it; Enter, the context-menu key, Shift + F10 or a right click open a portal menu (the five interpolations with their shapes, Delete keyframe). Shapes (D3): rounded diamond = an ease, square = Hold, pointed = Linear (easeShape). Timeline: K keys every animated value at the playhead or removes the keys there; Alt + [ / ] (by key code) jump to the previous / next keyframe; changes announced in the live region (describeKeyChange: move, add, removal, start and end of an animation, interpolation, value, in timeline seconds). Also fixed: the timeline's layer bar drags used updateVLayer, so a start-edge drag didn't keep keys in place; they now use setLayerTimes (AC-3). No transition on diamonds with reduced motion. timelineRows.ts keyTimes, easeShape, easeName, keyPropName, describeKeyChange: 9 new tests (failed first); break-test (grouping only equal times) caught; npm run check green, 1,548 tests. The lane itself is checked in 290 (AC-7, AC-13)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T090": {
           "text": "Docs (AC-14): `docs/MEDIA-STUDIO.md` (keyframes, interpolations, keys), `specs/lld.md` (the model, the evaluation, the document fields, the gain curve), `CHANGELOG.md` Unreleased, the in-app docs' keys.",
           "section": "Docs and close",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -879,7 +891,11 @@
           ],
           "test": "relative links resolve",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** docs/MEDIA-STUDIO.md: a Keyframes section (what can be animated, the diamonds and Remove animation, auto-key at the playhead, previous / next, the lane and its keys, the five interpolations and their shapes, keys timed from their item and what each edit does to them, limits, one evaluation for preview / stage / export, the sound curve) and a Keyframes row in the timeline table; the Still to do row now says text animation presets (210). specs/lld.md 4.9: Keyframes (205, D-034) — model, evaluation, pure edits and keepKeys, sound (gain, gainCurve, mixWindow, previewSound), the document gate, store actions and routers, UI. CHANGELOG.md Unreleased: keyframes. src/data/docs.ts timeline topic: keyframes and K / Alt + [ / ]. Relative links in the three Markdown files: 13, 0 broken; npm run check green, 1,548 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T091": {
           "text": "`npm run check` and `npm run build` green; entry chunk within budget; record the numbers. The other gates run in 290 (D-033).",

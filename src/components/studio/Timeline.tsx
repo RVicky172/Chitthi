@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { snapTargets, snapTime, type Tool } from '../../engine/edits';
+import { adjacentKey, type Keyframes } from '../../engine/keyframes';
 import { layerName, type Layer } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/timeline';
 import { clipLength, fmtTime } from '../../engine/video';
@@ -12,6 +13,7 @@ import {
   addTrack,
   clipLocked,
   deleteGap,
+  deleteKeys,
   deleteTrack,
   duplicateClipWhy,
   endVStep,
@@ -30,6 +32,7 @@ import {
   selectClip,
   selectVLayer,
   setPlayhead,
+  setLayerTimes,
   setMagnetic,
   setPlaying,
   setSnapping,
@@ -41,18 +44,21 @@ import {
   slipClip,
   slipMusic,
   splitAtPlayheadWhy,
+  toggleKey,
   trimClip,
   updateMusic,
-  updateVLayer,
   useVideo,
+  type KeyProp,
+  type KeyTarget,
   type TrackHeight,
   type VClip,
   videoLength,
 } from '../../state/video';
 import { typingIn } from '../ig/LayerPanel';
 import { MoreMenu } from '../MoreMenu';
+import { KeyframeLane, KeyframeLaneHeads, animatedProps, type LaneItem } from './KeyframeLane';
 import { useFallbackNote } from './previewFrame';
-import { clipLabel, describeClipChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds, type RowTarget } from './timelineRows';
+import { clipLabel, describeClipChange, describeKeyChange, keyTimes, pictureTracksTopFirst, rowUnderPointer, type RowBounds, type RowTarget } from './timelineRows';
 import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, MusicIcon, MuteIcon, PauseIcon, PlayIcon, PlusIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 
 /*
@@ -70,6 +76,8 @@ import { CopyIcon, EditToolIcon, HeightIcon, HideIcon, LockIcon, MagneticIcon, M
  * off: leaves a gap; Shift + Delete ripples; on a focused gap: closes it), Alt + ← → nudge the selected clip a frame
  * with the tool (Shift: a second), Q / W ripple-trim its start / end to the playhead,
  * ← → a frame (Shift: a second), Home / End, + / − zoom; V / R / Y / U pick the edit tool (Select, Roll, Slip, Slide).
+ * An animated clip or layer, when selected, has a keyframe lane under its row (205 §9, KeyframeLane.tsx): K adds
+ * keyframes at the playhead for its animated values (or removes the ones there), Alt + [ / ] jump to its previous / next.
  */
 
 const SNAP_PX = 8;
@@ -145,6 +153,25 @@ export function Timeline() {
     const timer = setTimeout(() => setSaid(message), 250);
     return () => clearTimeout(timer);
   }, [clips]);
+
+  // The selected clip or layer, for its keyframe lane, K and Alt + [ / ] (205 §9); the lane shows when it is animated.
+  const [keysExpanded, setKeysExpanded] = useState(false);
+  const keyed = selectedItem(pictureTracks, pictureClips, layers, selected, layerSel, total);
+  const lane = keyed && animatedProps(keyed.item).length ? keyed : null;
+  // Each change to its keyframes is announced too.
+  const keysBefore = useRef<{ id: string; keys?: Keyframes<string> } | null>(null);
+  const keyedId = keyed ? JSON.stringify(keyed.target) : '',
+    keyedKeys = keyed?.item.keys;
+  useEffect(() => {
+    const was = keysBefore.current;
+    keysBefore.current = { id: keyedId, keys: keyedKeys };
+    if (!keyed || was?.id !== keyedId) return;
+    const message = describeKeyChange(was.keys, keyedKeys, keyed.name, keyed.item.start, getVideo().fps);
+    if (!message) return;
+    const timer = setTimeout(() => setSaid(message), 250);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change of the keys (or of the selection) is announced
+  }, [keyedId, keyedKeys]);
 
   // The picture rows' elements, so a drag or a file drop can tell which row the pointer is over.
   const rowElements = useRef(new Map<string, HTMLDivElement>());
@@ -244,6 +271,15 @@ export function Timeline() {
     // The track headers' buttons and menus handle their own keys.
     if (typingIn(e.target) || (e.target as HTMLElement).closest?.('.tl-heads')) return;
     const s = getVideo();
+    // Alt + [ / ] (205 D2): the playhead to the selection's previous / next keyframe (by key position, any layout).
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) {
+      e.preventDefault();
+      if (!keyed) return void toast('Select a clip or a layer first.');
+      const next = adjacentKey(keyed.item, s.t - keyed.item.start, e.code === 'BracketLeft' ? -1 : 1, s.fps);
+      if (next === null) toast(animatedProps(keyed.item).length ? 'No more keyframes that way.' : 'Nothing is animated yet.');
+      else setPlayhead(keyed.item.start + next);
+      return;
+    }
     // Alt + ← / → (Q5): nudge the selected clip with the tool, a frame (Shift: a second); kept from the browser's Back.
     if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
@@ -266,6 +302,7 @@ export function Timeline() {
     const map: Record<string, () => void> = {
       ' ': () => setPlaying(!s.playing),
       s: split,
+      k: () => keyAtPlayhead(keyed, s.t, s.fps),
       q: () => tell(rippleTrimToPlayhead('start')),
       w: () => tell(rippleTrimToPlayhead('end')),
       Delete: del,
@@ -286,6 +323,21 @@ export function Timeline() {
     }
   };
 
+  /** The selection's keyframe lane, under its row. */
+  const laneRows = (shown: SelectedItem) => (
+    <KeyframeLane
+      key={shown.row}
+      target={shown.target}
+      item={shown.item}
+      on={'clip' in shown.target ? 'clip' : 'layer'}
+      name={shown.name}
+      zoom={zoom}
+      expanded={keysExpanded}
+      snapAt={(v, ev) => snap(v, {}, ev)}
+      drag={drag}
+    />
+  );
+
   const step = tickStep(zoom);
   const ticks = Array.from({ length: Math.floor(width / zoom / step) + 1 }, (_, i) => i * step);
 
@@ -296,11 +348,17 @@ export function Timeline() {
           <AddTrackButton tracks={tracks} />
         </div>
         {pictureTracks.map((track) => (
-          <TrackHead key={track.id} track={track} height={trackView[track.id] ?? 'medium'} clipCount={clips.filter((clip) => clip.track === track.id).length} />
+          <div key={track.id}>
+            <TrackHead track={track} height={trackView[track.id] ?? 'medium'} clipCount={clips.filter((clip) => clip.track === track.id).length} />
+            {lane?.row === track.id && <KeyframeLaneHeads item={lane.item} on="clip" expanded={keysExpanded} onExpand={setKeysExpanded} />}
+          </div>
         ))}
-        {(layers.length ? layers : [null]).map((l, i) => (
-          <div key={l?.id ?? 'none'} className="tl-h tl-h-layer" aria-hidden="true">
-            {i === 0 ? 'Layers' : ''}
+        {(layers.length ? [...layers].reverse() : [null]).map((l, i) => (
+          <div key={l?.id ?? 'none'}>
+            <div className="tl-h tl-h-layer" aria-hidden="true">
+              {i === 0 ? 'Layers' : ''}
+            </div>
+            {l && lane?.row === l.id && <KeyframeLaneHeads item={lane.item} on="layer" expanded={keysExpanded} onExpand={setKeysExpanded} />}
           </div>
         ))}
         <TrackHead track={musicTrack} height={trackView[MUSIC] ?? 'medium'} />
@@ -320,22 +378,24 @@ export function Timeline() {
           </div>
 
           {pictureTracks.map((track) => (
-            <PictureRow
-              key={track.id}
-              track={track}
-              clips={clips.filter((clip) => clip.track === track.id)}
-              height={px(track.id)}
-              zoom={zoom}
-              tool={tool}
-              selected={layerSel ? null : selected}
-              snap={snap}
-              snapSpan={snapSpan}
-              seekFrom={seekFrom}
-              rowRef={(element) => (element ? rowElements.current.set(track.id, element) : rowElements.current.delete(track.id))}
-              rowTargetAt={rowTargetAt}
-              dropMarkerAt={dropMarker?.target === track.id ? dropMarker.at : null}
-              setDropMarker={setDropMarker}
-            />
+            <div key={track.id}>
+              <PictureRow
+                track={track}
+                clips={clips.filter((clip) => clip.track === track.id)}
+                height={px(track.id)}
+                zoom={zoom}
+                tool={tool}
+                selected={layerSel ? null : selected}
+                snap={snap}
+                snapSpan={snapSpan}
+                seekFrom={seekFrom}
+                rowRef={(element) => (element ? rowElements.current.set(track.id, element) : rowElements.current.delete(track.id))}
+                rowTargetAt={rowTargetAt}
+                dropMarkerAt={dropMarker?.target === track.id ? dropMarker.at : null}
+                setDropMarker={setDropMarker}
+              />
+              {lane?.row === track.id && laneRows(lane)}
+            </div>
           ))}
 
           {layers.length === 0 && (
@@ -344,47 +404,52 @@ export function Timeline() {
             </div>
           )}
           {[...layers].reverse().map((l) => (
-            <div key={l.id} className="tl-row tl-layer" onPointerDown={seekFrom}>
-              <LayerBar
-                layer={l}
-                total={total}
-                zoom={zoom}
-                selected={l.id === layerSel}
-                onBody={(e) => {
-                  selectVLayer(l.id);
-                  const s0 = l.start ?? 0,
-                    e0 = Math.min(l.end ?? total, total),
-                    len = e0 - s0,
-                    key = `ltime:${l.id}:${++dragSeq}`;
-                  drag(
-                    e,
-                    (dx, ev) => {
-                      let s = snap(s0 + dx / zoom, { layer: l.id }, ev);
-                      if (Math.abs(s - toFrame(s0 + dx / zoom)) < 1e-9) s = snap(s0 + dx / zoom + len, { layer: l.id }, ev) - len;
-                      s = Math.max(0, Math.min(total - len, s));
-                      updateVLayer(l.id, { start: s, end: s + len >= total - 0.01 ? undefined : s + len }, key);
-                    },
-                    (moved) => {
-                      const now = getVideo().t;
-                      if (!moved && (now < s0 || now >= e0)) setPlayhead(s0);
-                    },
-                  );
-                }}
-                onEdge={(e, side) => {
-                  selectVLayer(l.id);
-                  const s0 = l.start ?? 0,
-                    e0 = Math.min(l.end ?? total, total),
-                    key = `ltime:${l.id}:${++dragSeq}`;
-                  drag(e, (dx, ev) => {
-                    const v = snap((side === 'start' ? s0 : e0) + dx / zoom, { layer: l.id }, ev);
-                    if (side === 'start') updateVLayer(l.id, { start: Math.max(0, Math.min(e0 - 0.2, v)) }, key);
-                    else {
-                      const end = Math.max(s0 + 0.2, Math.min(total, v));
-                      updateVLayer(l.id, { end: end >= total - 0.01 ? undefined : end }, key);
-                    }
-                  });
-                }}
-              />
+            <div key={l.id}>
+              <div className="tl-row tl-layer" onPointerDown={seekFrom}>
+                <LayerBar
+                  layer={l}
+                  total={total}
+                  zoom={zoom}
+                  selected={l.id === layerSel}
+                  onBody={(e) => {
+                    selectVLayer(l.id);
+                    const s0 = l.start ?? 0,
+                      e0 = Math.min(l.end ?? total, total),
+                      len = e0 - s0,
+                      key = `ltime:${l.id}:${++dragSeq}`;
+                    drag(
+                      e,
+                      (dx, ev) => {
+                        let s = snap(s0 + dx / zoom, { layer: l.id }, ev);
+                        if (Math.abs(s - toFrame(s0 + dx / zoom)) < 1e-9) s = snap(s0 + dx / zoom + len, { layer: l.id }, ev) - len;
+                        s = Math.max(0, Math.min(total - len, s));
+                        // Moved whole: its keyframes go with it.
+                        setLayerTimes(l.id, { start: s, end: s + len >= total - 0.01 ? undefined : s + len }, key);
+                      },
+                      (moved) => {
+                        const now = getVideo().t;
+                        if (!moved && (now < s0 || now >= e0)) setPlayhead(s0);
+                      },
+                    );
+                  }}
+                  onEdge={(e, side) => {
+                    selectVLayer(l.id);
+                    const s0 = l.start ?? 0,
+                      e0 = Math.min(l.end ?? total, total),
+                      key = `ltime:${l.id}:${++dragSeq}`;
+                    drag(e, (dx, ev) => {
+                      const v = snap((side === 'start' ? s0 : e0) + dx / zoom, { layer: l.id }, ev);
+                      // Its start edge: the keyframes stay where they are on the timeline (205 AC-3).
+                      if (side === 'start') setLayerTimes(l.id, { start: Math.max(0, Math.min(e0 - 0.2, v)) }, key);
+                      else {
+                        const end = Math.max(s0 + 0.2, Math.min(total, v));
+                        setLayerTimes(l.id, { end: end >= total - 0.01 ? undefined : end }, key);
+                      }
+                    });
+                  }}
+                />
+              </div>
+              {lane?.row === l.id && laneRows(lane)}
             </div>
           ))}
 
@@ -730,6 +795,44 @@ function MusicBar({ total, zoom, height, onDrag }: { total: number; zoom: number
 
 /** Shows a refusal's reason, if any. */
 const tell = (why: string | null) => why && toast(why);
+
+/** The selected clip or layer as the keyframe lane sees it (205 §9). */
+interface SelectedItem {
+  target: KeyTarget;
+  item: LaneItem;
+  /** Its name in labels and announcements. */
+  name: string;
+  /** The row the lane goes under: the clip's track or the layer. */
+  row: string;
+}
+
+/** The selected picture clip (when no layer is) or layer, or null. */
+function selectedItem(pictureTracks: Track[], pictureClips: VClip[], layers: Layer[], selected: string | null, layerSel: string | null, total: number): SelectedItem | null {
+  if (layerSel) {
+    const layer = layers.find((candidate) => candidate.id === layerSel);
+    if (!layer) return null;
+    const start = layer.start ?? 0;
+    return { target: { layer: layer.id }, item: { start, length: Math.max(0, Math.min(layer.end ?? total, total) - start), keys: layer.keys }, name: layerName(layer), row: layer.id };
+  }
+  const clip = pictureClips.find((candidate) => candidate.id === selected);
+  const track = clip && pictureTracks.find((candidate) => candidate.id === clip.track);
+  if (!clip || !track) return null;
+  const numberOnTrack = pictureClips.filter((candidate) => candidate.track === clip.track).indexOf(clip) + 1;
+  return { target: { clip: clip.id }, item: { start: clip.start, length: clipLength(clip), keys: clip.keys }, name: clipLabel(track, numberOnTrack), row: track.id };
+}
+
+/**
+ * K (205 D2): keyframes at the playhead for every animated value of the selection, or, when it has keyframes there,
+ * removes them.
+ */
+function keyAtPlayhead(keyed: SelectedItem | null, t: number, fps: number): void {
+  if (!keyed) return void toast('Select a clip or a layer first.');
+  const props = animatedProps(keyed.item);
+  if (!props.length) return void toast('Nothing is animated yet: start with a keyframe button in the inspector.');
+  const local = t - keyed.item.start;
+  const atKey = keyTimes(keyed.item, fps).some((time) => Math.abs(time.t - local) < 0.5 / fps);
+  tell(atKey ? deleteKeys(keyed.target, 'all', local) : toggleKey(keyed.target, props as KeyProp[]));
+}
 
 /** A clip as it is now (a drag edits from the store's current state, step by step). */
 const current = (id: string) => getVideo().clips.find((c) => c.id === id);

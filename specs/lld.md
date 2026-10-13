@@ -484,6 +484,43 @@ Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: no
   arrow keys `nudgedTransform` (1 %, Shift 10 %); a press on an overlay clip selects it. ClipPanel's Position and size
   group sets the same transform.
 
+**Keyframes (205, D-034).** One pure module, `engine/keyframes.ts`, evaluates keyframes for the preview, the export,
+the stage and the inspector.
+
+- **The model**: a clip or layer may carry `keys?: Keyframes<P>` = `{ [value]: Keyframe[] }`, `Keyframe` =
+  `{ t, v, ease }` with `t` in seconds from the item's start, sorted, `ease` one of `linear`, `ease-in`, `ease-out`,
+  `ease-in-out` (new keys), `hold`. Clip values (`ClipKeyProp`): the box's `x y w rot opacity radius` and `volume`;
+  layer values (`LayerKeyProp`): `x y w rot opacity`. Ranges are 203's box clamps, volume 0–1 and `mergeLayers`'
+  clamps (`clampValue`). Limits (`KEY_LIMITS`): 100 per value, 5,000 per project.
+- **Evaluation**: `valueAt(keys, t)` (binary search; the first value before the first key, the last after; the CSS
+  cubic-bezier eases solved by Newton with a bisection fallback, stop 1e-12); `transformAt(clip, local)`,
+  `volumeAt`, `layerAt(layer, t)` (an animated `w` scales the whole layer with `scaleLayer`) and `layersAt` return
+  the item itself when nothing is animated, so projects without keys take the 203 paths; `itemTransform` gives
+  `renderStack` each item's box, `drawLayers` draws `layersAt(layers, t)` (the photo editor passes no time).
+  500 clips with 5,000 keys: median 0.016 ms a frame.
+- **Edits** (pure, each returning new keys or `undefined` when nothing is left animated): `setKey` (a key within half
+  a frame is replaced), `removeKey`, `moveKey` (one value or all), `setEase`, `animate` / `stopAnimating` (keeps the
+  value at the playhead), `shiftKeys` and `splitKeys` (each part keeps its side and a key at the cut). In
+  `engine/edits.ts`, `keepKeys` shifts a clip's keys by minus its start's move when its start edge moves (a start trim
+  without ripple, Roll's right clip, Slide's next clip), so keys stay on the timeline; whole-clip moves need nothing.
+- **Sound**: `audioPlan` gives a keyed clip `gain` (its volume keys) and mixes it when any key is above 0;
+  `gainCurve` samples it every ≤ 5 ms (within 0.5 dB of the exact curve) and `mixWindow` sets one
+  `setValueCurveAtTime` per source per 10 s window (unkeyed sources keep the 0.03 s ramps); `previewSound` sets each
+  element's volume from `volumeAt` on every tick.
+- **The document**: `DocClip.keys` and `Layer.keys`, written only when some are left, so documents without keys are
+  byte-identical. `mergeKeys(raw, props, on, budget)` is the gate: known values only (`__proto__` and unknown names
+  dropped), finite times within a day, values clamped, unknown eases → `ease-in-out`, sorted with the last of equal
+  times kept, the limits (one `KeyBudget` shared by clips then layers), each reason once; it never throws.
+- **The store** (`state/video.ts`): `toggleKey(target, props)`, `removeAnimation`, `moveKeys` (a drag passes one undo
+  key), `setKeyEase`, `deleteKeys` (a value's last key stores its value); routers `setClipTransformAt`,
+  `setClipVolume`, `updateLayerAt` write an animated value as a key at the playhead and any other as before (auto-key,
+  Q4); `setLayerTimes` shifts a layer's keys when only its start moves; split and duplicate carry keys. Each action
+  is one undo step returning its refusal (a locked track, a limit).
+- **The UI**: `KeyframeButton` / `KeyframeNav` (`components/studio/KeyframeButton.tsx`, states from `keyState`, times
+  from `adjacentKey`) beside the inspector's values; the stage (`useClipTransform`, `useLayerPointer` given
+  `layersAt`) edits the values shown and writes through the routers; `KeyframeLane.tsx` under the selected item's row
+  (`keyTimes`, `easeShape`, `describeKeyChange` in `timelineRows.ts`), K and Alt + [ / ] in the timeline.
+
 ### 4.10 Decoder pool (`decodePool.ts`, `frameSource.ts`)
 
 The preview and the export get their video pictures from one place, so a paused preview shows the frame the export
