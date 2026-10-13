@@ -387,7 +387,7 @@
       "407": {
         "title": "Code structure: a tests folder, coding standards, readable names and JSDoc",
         "workItem": null,
-        "status": "spec-approved",
+        "status": "in-progress",
         "note": "",
         "folder": "features/407-code-structure",
         "needs": []

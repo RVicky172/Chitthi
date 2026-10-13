@@ -2,7 +2,7 @@
 
 # 407 — Code structure: a tests folder, coding standards, readable names and JSDoc
 
-**Status:** Approved
+**Status:** In Progress
 **Roadmap phase:** Other features (400+) · **Created:** 2026-10-13
 
 ## Summary

@@ -4,12 +4,12 @@
   "id": "407",
   "title": "Code structure: a tests folder, coding standards, readable names and JSDoc",
   "workItem": null,
-  "status": "approved",
+  "status": "in-progress",
   "owner": null,
   "dates": {
     "created": "2026-10-13",
     "approved": "2026-10-13",
-    "started": null,
+    "started": "2026-10-13",
     "done": null
   },
   "git": {
@@ -434,5 +434,850 @@
       }
     ]
   },
-  "tasks": null
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nBehaviour-neutral: each task is moves, renames, splits or type / lint fixes, proven by the existing tests (`npm run check` and `npm run build` green), one commit per task. Tasks run one at a time in the main session.\nUnlike phase features (D-033), 407 runs its heavy checks itself (spec Q9): e2e, self-test, MCP and timings run in T001, T013, T014, T043, T056, T060, T061, T071, T072 and T091; nothing is deferred to 290.\nWhen a task is done, record a **Result (YYYY-MM-DD):** note (in single quotes) with `npm run specs -- done 407 Txxx --result '…'`, with the standards report’s before / after numbers for its folder.",
+    "sections": [
+      {
+        "title": "Baselines",
+        "intro": "What “unchanged” is measured against (AC-9, AC-10)."
+      },
+      {
+        "title": "Tests into tests/",
+        "intro": "Moves in their own commits (`git mv`), then import fixes, so history follows each file."
+      },
+      {
+        "title": "Standards and rules",
+        "intro": "The rules land as warnings; each folder’s become errors when its clean-up is done (`FINISHED` in `eslint.config.js`)."
+      },
+      {
+        "title": "Clean-up: engine/",
+        "intro": null
+      },
+      {
+        "title": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+        "intro": null
+      },
+      {
+        "title": "Clean-up: components/",
+        "intro": null
+      },
+      {
+        "title": "Clean-up: tests/selftest/ and electron/",
+        "intro": null
+      },
+      {
+        "title": "Strict index access, React Compiler, performance",
+        "intro": null
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T050",
+        "T051",
+        "T052",
+        "T053",
+        "T054",
+        "T055",
+        "T056",
+        "T060",
+        "T061",
+        "T070",
+        "T071",
+        "T072",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Record the baselines (plan §1) in `specs/features/407-code-structure/baseline.md`: unit test count (1,672) and per-file counts; the e2e pass list (`npm run test:e2e`); `npm test` (self-test checks, 0 failed); `npm run test:mcp`; the 201–206 fixtures’ export inputs (the self-test’s video checks); entry and studio chunk sizes; the hot-path timings of §7 (pool and playback timing checks, export timing, `npm run measure:gate`, the print renderer per page).",
+          "section": "Baselines",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-10"
+          ],
+          "files": [
+            "specs/features/407-code-structure/baseline.md"
+          ],
+          "test": "every command run; numbers recorded",
+          "commits": [],
+          "notes": []
+        },
+        "T010": {
+          "text": "Test plumbing before any move (plan §2, D1): the `@/` → `src/` alias in `vite.config.ts` and the tsconfigs; `tsconfig.tests.json` (type-checks `tests/`, referenced from `tsconfig.json`); Vitest `include` for `tests/{unit,integration}/**/*.test.ts` and `tools/**`; Playwright `testDir: tests/e2e`. Nothing moved yet: the same 1,672 tests still run.",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "vite.config.ts",
+            "tsconfig.json",
+            "tsconfig.app.json",
+            "tsconfig.tests.json",
+            "playwright.config.ts"
+          ],
+          "test": "`npm run check`: 1,672 tests",
+          "commits": [],
+          "notes": []
+        },
+        "T011": {
+          "text": "Move the one-module tests with `git mv` to `tests/unit/<src path>/` (a commit with moves only), then point their imports at `@/…` (D1).",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/**",
+            "src/**/*.test.ts"
+          ],
+          "test": "`npm run check`: the same 1,672 tests, none left under `src/` except the integration ones (T012)",
+          "commits": [],
+          "notes": []
+        },
+        "T012": {
+          "text": "Move the integration tests (`state/*.test.ts`, `decodePool.test.ts`, `previewSound.test.ts`) to `tests/integration/` and the shared helpers to `tests/support/`: `timeline.testkit.ts`, and the fake decoder, recording canvas and fake audio element taken out of the test files that define them (one copy each, used by every test that needs it).",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/integration/**",
+            "tests/support/**"
+          ],
+          "test": "`npm run check`: the same test count; no test or test helper under `src/`",
+          "commits": [],
+          "notes": []
+        },
+        "T013": {
+          "text": "Move `e2e/` to `tests/e2e/` (`git mv`), Playwright and ESLint configs and CLAUDE.md’s single-test commands updated; run `npm run test:e2e` (Q9).",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/e2e/**",
+            "playwright.config.ts",
+            "eslint.config.js",
+            "CLAUDE.md"
+          ],
+          "test": "`npm run test:e2e`: the baseline’s pass list",
+          "commits": [],
+          "notes": []
+        },
+        "T014": {
+          "text": "Move the in-app self-test (`src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts`) to `tests/selftest/` (Q2), loaded by `main.tsx` in development only; `tsconfig.app.json` includes it; run `npm test` (Q9).",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-9"
+          ],
+          "files": [
+            "tests/selftest/**",
+            "src/main.tsx",
+            "tsconfig.app.json"
+          ],
+          "test": "`npm test`: the baseline’s check count, 0 failed",
+          "commits": [],
+          "notes": []
+        },
+        "T015": {
+          "text": "Guards (AC-1, AC-3): `scripts/check-structure.mjs` in `npm run check` (a test or test helper under `src/`, or `src/` importing `tests/` other than `main.tsx`’s development import, fails it) with unit tests in `tests/unit/scripts/`; a build-only Vite plugin failing `npm run build` when a chunk holds a module from `tests/`. Proved by planting a test file and a bad import, then removing them.",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "scripts/check-structure.mjs",
+            "tests/unit/scripts/checkStructure.test.ts",
+            "vite.config.ts",
+            "package.json"
+          ],
+          "test": "the planted file and import fail `check` and `build`; removed, both green",
+          "commits": [],
+          "notes": []
+        },
+        "T016": {
+          "text": "The standards report (`scripts/standards-report.mjs`, plan §1): per folder and rule, the ESLint findings of the standards rules (from ESLint’s JSON output) and the `noUncheckedIndexedAccess` errors (`tsc` with the flag); a table and a JSON file; unit tests for its counting on a fixture output. Record the starting numbers in `baseline.md`.",
+          "section": "Tests into tests/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8"
+          ],
+          "files": [
+            "scripts/standards-report.mjs",
+            "tests/unit/scripts/standardsReport.test.ts",
+            "package.json"
+          ],
+          "test": "its unit tests; the report run on the repo",
+          "commits": [],
+          "notes": []
+        },
+        "T020": {
+          "text": "Write `specs/coding-standards.md` (plan §3): names, JSDoc, SOLID as in Q7, sizes (Q4), cognitive complexity, React, types, layers and imports, errors, performance, comments, tests; each rule with a good / bad example from this code. Link it from `specs/constitution.md` (Definition of Done) and CLAUDE.md.",
+          "section": "Standards and rules",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "specs/coding-standards.md",
+            "specs/constitution.md",
+            "CLAUDE.md"
+          ],
+          "test": "review; relative links resolve",
+          "commits": [],
+          "notes": []
+        },
+        "T021": {
+          "text": "Add `eslint-plugin-jsdoc` and `eslint-plugin-sonarjs` as development dependencies (versions pinned; sonarjs’ exception row in `specs/licensing.md`, D-037) and the rules of plan §4 as **warnings**: `id-length` (exceptions `_`, `x`, `y`; properties not checked), JSDoc on exports, `max-lines-per-function` (80 `.ts`, 250 `.tsx`), `max-lines` 800 (warning), sonarjs recommended with `cognitive-complexity` 15, the layers’ `no-restricted-imports`; size rules off for `src/data/` and `tests/`; the `FINISHED` folder list that turns them into errors. Measure `npm run lint`’s time.",
+          "section": "Standards and rules",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "eslint.config.js",
+            "package.json",
+            "package-lock.json",
+            "specs/licensing.md"
+          ],
+          "test": "`npm run lint`: 0 errors (the new findings as warnings); the standards report counts them",
+          "commits": [],
+          "notes": []
+        },
+        "T022": {
+          "text": "Turn on `noImplicitReturns` and `noImplicitOverride` (Q13) and fix their 3 errors.",
+          "section": "Standards and rules",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "tsconfig.app.json",
+            "tsconfig.tests.json",
+            "src/**"
+          ],
+          "test": "`npm run check`",
+          "commits": [],
+          "notes": []
+        },
+        "T023": {
+          "text": "Add, as **warnings**: `eslint-plugin-react-hooks` `recommended-latest` (AC-12; 27 findings), typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` with `projectService` and `consistent-type-definitions: interface` (AC-13). Measure the lint time with type-aware rules; if it is too slow, apply plan Techniques’ fallback.",
+          "section": "Standards and rules",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-12",
+            "AC-13"
+          ],
+          "files": [
+            "eslint.config.js"
+          ],
+          "test": "`npm run lint`: 0 errors; the report lists the findings per folder",
+          "commits": [],
+          "notes": []
+        },
+        "T030": {
+          "text": "`engine/` video core (`keyframes`, `transitions`, `stack`, `edits`, `clipBox`, `decodePool`, `frameSource`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/{keyframes,transitions,stack,edits,clipBox,decodePool,frameSource}.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T031": {
+          "text": "Split `engine/timeline.ts` by job (tracks, the sound plan, the project document and its gate; plan §5, D2: importers updated, no barrels), then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/timeline.ts",
+            "src/engine/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T032": {
+          "text": "`engine/video.ts` and `engine/videoExport.ts` (split `video.ts`’s formats and limits from its drawing): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/video.ts",
+            "src/engine/videoExport.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T033": {
+          "text": "Split `engine/render.ts` (1,443 lines, the print renderer) by job, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/render.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T034": {
+          "text": "Split and clean `engine/layers.ts` and `engine/masks.ts`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/layers.ts",
+            "src/engine/masks.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T035": {
+          "text": "The photo pipeline (`photo`, `adjust`, `color`, `curve`, `hsl`, `light`, `detail`, `deep`, `raw`, `tiff`, `lut`, `analyze`, `chain`, `sample`, `segments`, `instagram`, `photoExport`, `export`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T036": {
+          "text": "The print modules (`design`, `layout`, `envelope`, `patterns`, `quote`, `proof`, `presets`) and `engine/gpu/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15. Then `src/engine/**` joins `FINISHED` (its rules are errors).",
+          "section": "Clean-up: engine/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; `npm run lint` 0 errors with engine’s rules as errors",
+          "commits": [],
+          "notes": []
+        },
+        "T040": {
+          "text": "Split `state/video.ts` (1,330 lines) into the store core and history, clip edits, keyframe actions, transition actions, media and export (plan §5, D2), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/state/video*.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T041": {
+          "text": "`state/store.ts`, `state/actions.ts`, `state/instagram.ts` and the rest of `state/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; `src/state/**` joins `FINISHED`.",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/state/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T042": {
+          "text": "`data/` (names and JSDoc; size rules exempt), `lib/` and `platform/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`.",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/data/**",
+            "src/lib/**",
+            "src/platform/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T043": {
+          "text": "`agent/` and `ai/` (agent tool names and schemas unchanged): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`; run `npm run test:mcp` (Q9).",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9",
+            "AC-13"
+          ],
+          "files": [
+            "src/agent/**",
+            "src/ai/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; `npm run test:mcp` passes",
+          "commits": [],
+          "notes": []
+        },
+        "T050": {
+          "text": "Split `components/studio/Timeline.tsx` (1,321 lines) into the timeline, picture rows, track header and menus, keyframe and cut marks, transport (plan §5), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T051": {
+          "text": "Split `components/studio/VideoWorkspace.tsx` into the workspace, its panels, the stage, the clip inspector and the export dialog, then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T052": {
+          "text": "Split `components/studio/PhotoWorkspace.tsx` the same way, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T053": {
+          "text": "The rest of `components/studio/` (`KeyframeLane`, `KeyframeButton`, `TransitionPanel`, `previewFrame`, `previewSound`, `useClipTransform`, `Shell`, `Dialog`, `timelineRows`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T054": {
+          "text": "`components/ig/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/ig/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T055": {
+          "text": "The other components (`App`, the print studio, dialogs, `Paper3D`, `Landing*`, `DocsPage` …): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/**",
+            "src/App.tsx"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": []
+        },
+        "T056": {
+          "text": "React (AC-12): fix the `recommended-latest` findings (27 at the start: state set in effects, refs read in render, memoization, purity, mutation) and review every `useEffect` (106) against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx`, `src/main.tsx` join `FINISHED`; run `npm run test:e2e` and `npm test` against the baselines (Q9).",
+          "section": "Clean-up: components/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-9",
+            "AC-12"
+          ],
+          "files": [
+            "src/components/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; react-hooks findings 0; e2e and self-test as the baselines",
+          "commits": [],
+          "notes": []
+        },
+        "T060": {
+          "text": "`tests/selftest/`: names and JSDoc (size rules exempt for tests); run `npm test` (Q9).",
+          "section": "Clean-up: tests/selftest/ and electron/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-9"
+          ],
+          "files": [
+            "tests/selftest/**"
+          ],
+          "test": "`npm test`: the baseline’s checks, 0 failed",
+          "commits": [],
+          "notes": []
+        },
+        "T061": {
+          "text": "`electron/` (CommonJS): names, JSDoc, function length and cognitive complexity (no type rules); IPC validation unchanged; `electron/**` joins `FINISHED`; run `npm run test:mcp` and `npm test` (Q9).",
+          "section": "Clean-up: tests/selftest/ and electron/",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9"
+          ],
+          "files": [
+            "electron/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run lint` 0 errors; MCP and self-test pass",
+          "commits": [],
+          "notes": []
+        },
+        "T070": {
+          "text": "Turn on `noUncheckedIndexedAccess` for `src/` (Q13; the report’s count at 0 after §5) and fix anything left.",
+          "section": "Strict index access, React Compiler, performance",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "tsconfig.app.json",
+            "tsconfig.tests.json",
+            "src/**"
+          ],
+          "test": "`npm run check`",
+          "commits": [],
+          "notes": []
+        },
+        "T071": {
+          "text": "React Compiler (Q11, D3): `oxc-transform-react` (MIT, development dependency) and `react({ compiler: true })`; `logDiagnostics` once, skipped components fixed or noted; remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22); compare e2e, self-test and timings with the baselines; kept only without regression, else turned off with the reason.",
+          "section": "Strict index access, React Compiler, performance",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-12"
+          ],
+          "files": [
+            "vite.config.ts",
+            "package.json",
+            "src/components/**"
+          ],
+          "test": "`npm run check`, build, e2e and self-test as the baselines; timings no worse",
+          "commits": [],
+          "notes": []
+        },
+        "T072": {
+          "text": "Performance review (plan §7, Q8): measure the hot paths against the baselines (frame drawing `renderStack` / `frameStack` / `drawPair`, the decoder pool, `mixWindow` / `gainCurve`, the photo pipeline, the print renderer); record findings in `performance.md`; change only what measures ≥ 10 % faster with no loss elsewhere, each with before / after numbers.",
+          "section": "Strict index access, React Compiler, performance",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "specs/features/407-code-structure/performance.md",
+            "src/**"
+          ],
+          "test": "timings before / after recorded; `npm run check` green",
+          "commits": [],
+          "notes": []
+        },
+        "T090": {
+          "text": "Docs (AC-11): CLAUDE.md (commands, single tests, layers), `specs/testing-strategy.md` (the layout; unit / integration / e2e / selftest), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts), memory.",
+          "section": "Docs and close",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "CLAUDE.md",
+            "specs/testing-strategy.md",
+            "specs/architecture.md",
+            "specs/lld.md",
+            "specs/build.md"
+          ],
+          "test": "relative links resolve",
+          "commits": [],
+          "notes": []
+        },
+        "T091": {
+          "text": "The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers.",
+          "section": "Docs and close",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-9"
+          ],
+          "files": [],
+          "test": "every command green; numbers recorded",
+          "commits": [],
+          "notes": []
+        },
+        "T092": {
+          "text": "Tick the ACs; Status `Implemented`; roadmap 407 ✔️; `memory/progress.md`, `memory/MEMORY.md`; merge into `main` (the standing rule) and push when the maintainer says so; 207 then branches from `main`.",
+          "section": "Docs and close",
+          "status": "todo",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "commits": [],
+          "notes": []
+        }
+      }
+    }
+  }
 }
