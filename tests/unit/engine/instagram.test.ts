@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { clampBatch, IG_FORMATS, IG_MAX_BATCH } from '../data/instagram';
-import { DEFAULT_ADJUST } from './adjust';
-import { adjustPixels, DEFAULT_EDIT, mergeEdit, placement, showsBackground } from './instagram';
+import { clampBatch, IG_FORMATS, IG_MAX_BATCH } from '@/data/instagram';
+import { DEFAULT_ADJUST } from '@/engine/adjust';
+import { adjustPixels, DEFAULT_EDIT, mergeEdit, placement, showsBackground } from '@/engine/instagram';
 
 describe('Instagram formats', () => {
   it('are 1080 px wide, with the ratio in their label', () => {

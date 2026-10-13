@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
-import { chainPixels } from './chain';
+import { DEFAULT_ADJUST, mergeAdjust, type Adjustments } from '@/engine/adjust';
+import { chainPixels } from '@/engine/chain';
 import {
   LUMA,
   lightNeutral,
@@ -10,7 +10,7 @@ import {
   toneAt,
   toSrgb,
   wbGains,
-} from './light';
+} from '@/engine/light';
 
 const A = (p: Partial<Adjustments>): Adjustments => ({ ...DEFAULT_ADJUST, ...p });
 const px = (r: number, g: number, b: number, a: Partial<Adjustments>) =>

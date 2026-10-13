@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Box } from './layers';
-import { valueAt } from './keyframes';
-import { frameStack, mostVideosAt, snapBox } from './stack';
+import type { Box } from '@/engine/layers';
+import { valueAt } from '@/engine/keyframes';
+import { frameStack, mostVideosAt, snapBox } from '@/engine/stack';
 import {
   MAIN_VIDEO,
   MUSIC,
@@ -13,10 +13,10 @@ import {
   type Project,
   type TimedClip,
   type Track,
-} from './timeline';
-import { legacyFixtures, type LegacyClip, type LegacyProject } from './timeline.testkit';
-import type { Transition } from './transitions';
-import { frameRange } from './video';
+} from '@/engine/timeline';
+import { legacyFixtures, type LegacyClip, type LegacyProject } from '@/engine/timeline.testkit';
+import type { Transition } from '@/engine/transitions';
+import { frameRange } from '@/engine/video';
 
 /* ---------- helpers ---------- */
 

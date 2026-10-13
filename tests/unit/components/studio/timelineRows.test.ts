@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Ease, Keyframe } from '../../engine/keyframes';
-import type { TimedClip, Track } from '../../engine/timeline';
-import type { Transition } from '../../engine/transitions';
-import { clipLabel, describeClipChange, describeKeyChange, describeTransitionChange, draggedLength, easeName, easeShape, keyPropName, keyTimes, panelCut, pictureTracksTopFirst, rowUnderPointer, transitionBlock, type RowBounds } from './timelineRows';
+import type { Ease, Keyframe } from '@/engine/keyframes';
+import type { TimedClip, Track } from '@/engine/timeline';
+import type { Transition } from '@/engine/transitions';
+import { clipLabel, describeClipChange, describeKeyChange, describeTransitionChange, draggedLength, easeName, easeShape, keyPropName, keyTimes, panelCut, pictureTracksTopFirst, rowUnderPointer, transitionBlock, type RowBounds } from '@/components/studio/timelineRows';
 
 /** A track with every switch off. */
 const track = (id: string, kind: Track['kind'], name: string): Track => ({ id, kind, name, hidden: false, muted: false, locked: false });

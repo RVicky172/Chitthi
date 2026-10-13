@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ADJUST, mergeAdjust } from './adjust';
-import { identityLut, lutFromJson, LutError, lutToJson, parseCube } from './lut';
+import { DEFAULT_ADJUST, mergeAdjust } from '@/engine/adjust';
+import { identityLut, lutFromJson, LutError, lutToJson, parseCube } from '@/engine/lut';
 import {
   cleanName,
   mergePreset,
@@ -13,7 +13,7 @@ import {
   sameSettings,
   uniqueName,
   type SavedPreset,
-} from './presets';
+} from '@/engine/presets';
 
 const preset = (name: string, adjust = DEFAULT_ADJUST): SavedPreset => ({
   id: presetId(),

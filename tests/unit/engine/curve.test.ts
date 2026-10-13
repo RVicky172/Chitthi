@@ -11,7 +11,7 @@ import {
   readTable,
   spline,
   type CurvePoint,
-} from './curve';
+} from '@/engine/curve';
 
 const xs = Array.from({ length: 256 }, (_, i) => i / 255);
 

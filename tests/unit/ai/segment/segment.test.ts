@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { normalise } from './index';
-import { SEG_MODELS, modelRow } from './models';
+import { normalise } from '@/ai/segment/index';
+import { SEG_MODELS, modelRow } from '@/ai/segment/models';
 
 describe('segmentation maps', () => {
   it('are stretched to 0–1, as the models’ reference code does', () => {
@@ -84,7 +84,7 @@ describe('deleting a model (401)', () => {
       },
     );
     vi.stubGlobal('fetch', async () => new Response(new ArrayBuffer(8)));
-    return import('./index');
+    return import('@/ai/segment/index');
   }
   /** A stand-in photo: the stubbed canvas never looks at it. */
   const photo = () => ({}) as CanvasImageSource;

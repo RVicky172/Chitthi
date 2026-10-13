@@ -22,12 +22,12 @@ import {
   type EditClip,
   type EditCtx,
   type Tool,
-} from './edits';
-import type { Keyframe } from './keyframes';
-import type { Layer } from './layers';
-import { MAIN_VIDEO, defaultTracks, mergeProject, pack, toDocument, type ProjectDoc } from './timeline';
-import { legacyFixtures, type LegacyClip } from './timeline.testkit';
-import { clipLength } from './video';
+} from '@/engine/edits';
+import type { Keyframe } from '@/engine/keyframes';
+import type { Layer } from '@/engine/layers';
+import { MAIN_VIDEO, defaultTracks, mergeProject, pack, toDocument, type ProjectDoc } from '@/engine/timeline';
+import { legacyFixtures, type LegacyClip } from '@/engine/timeline.testkit';
+import { clipLength } from '@/engine/video';
 
 type C = LegacyClip & EditClip;
 

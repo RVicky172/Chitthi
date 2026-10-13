@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { layoutsFor } from '../data/layouts';
-import { PRODUCTS, sizesFor } from '../data/products';
-import { DEFAULT_DESIGN, mergeDesign, productDesign } from './design';
-import { computeLayout, slotCount } from './layout';
+import { layoutsFor } from '@/data/layouts';
+import { PRODUCTS, sizesFor } from '@/data/products';
+import { DEFAULT_DESIGN, mergeDesign, productDesign } from '@/engine/design';
+import { computeLayout, slotCount } from '@/engine/layout';
 
 describe('mergeDesign', () => {
   it('returns the defaults for anything that is not an object', () => {

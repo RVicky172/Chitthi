@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ADJUST, mergeAdjust, type Adjustments } from './adjust';
-import { blurImage, detailNeutral, detailPixels, gaussKernel, grainAt, hash2, MAX_TAPS } from './detail';
+import { DEFAULT_ADJUST, mergeAdjust, type Adjustments } from '@/engine/adjust';
+import { blurImage, detailNeutral, detailPixels, gaussKernel, grainAt, hash2, MAX_TAPS } from '@/engine/detail';
 
 const A = (p: Partial<Adjustments>): Adjustments => ({ ...DEFAULT_ADJUST, ...p });
 const N = 32;

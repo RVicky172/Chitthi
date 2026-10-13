@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TEXT_STYLES } from '../data/layers';
+import { TEXT_STYLES } from '@/data/layers';
 import {
   KEY_LIMITS,
   adjacentKey,
@@ -27,10 +27,10 @@ import {
   type Ease,
   type Keyframe,
   type Keyframes,
-} from './keyframes';
-import { newSticker, newText } from './layers';
-import { IDENTITY, type ClipTransform, type SoundSource, type TimedClip } from './timeline';
-import { frameRange, itemTransform, type StackDraw } from './video';
+} from '@/engine/keyframes';
+import { newSticker, newText } from '@/engine/layers';
+import { IDENTITY, type ClipTransform, type SoundSource, type TimedClip } from '@/engine/timeline';
+import { frameRange, itemTransform, type StackDraw } from '@/engine/video';
 
 /** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */
 const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & { volume: number } => ({

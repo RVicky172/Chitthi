@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ADJUST } from './adjust';
-import { runNodes, TexturePool, type GraphNode } from './gpu/graph';
-import { MASK_MIX_PROGRAM, maskNodes } from './gpu/mask';
-import type { GpuDevice, GpuTexture } from './gpu/types';
-import { DEFAULT_EDIT, mergeEdit } from './instagram';
-import { segmentAt, segmentOf, segmentVersion, setSegment, shareSegments } from './segments';
+import { DEFAULT_ADJUST } from '@/engine/adjust';
+import { runNodes, TexturePool, type GraphNode } from '@/engine/gpu/graph';
+import { MASK_MIX_PROGRAM, maskNodes } from '@/engine/gpu/mask';
+import type { GpuDevice, GpuTexture } from '@/engine/gpu/types';
+import { DEFAULT_EDIT, mergeEdit } from '@/engine/instagram';
+import { segmentAt, segmentOf, segmentVersion, setSegment, shareSegments } from '@/engine/segments';
 import {
   aiTargets,
   type AiPart,
@@ -31,7 +31,7 @@ import {
   type BrushStroke,
   type FrameMask,
   type Mask,
-} from './masks';
+} from '@/engine/masks';
 
 const stroke = (pts: number[], o: Partial<BrushStroke> = {}): BrushStroke => ({
   pts,

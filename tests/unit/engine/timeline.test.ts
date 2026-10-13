@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Transition } from './transitions';
+import type { Transition } from '@/engine/transitions';
 import {
   IDENTITY,
   MAIN_VIDEO,
@@ -29,7 +29,7 @@ import {
   type Project,
   type TimedClip,
   type Track,
-} from './timeline';
+} from '@/engine/timeline';
 import {
   legacyAudioPlan,
   legacyClipAt,
@@ -39,11 +39,11 @@ import {
   legacyTotal,
   type LegacyClip,
   type LegacyProject,
-} from './timeline.testkit';
-import { countKeys, type Ease, type Keyframe } from './keyframes';
-import { mergeLayers, newSticker, type Layer } from './layers';
-import { clipLength, limitsFor } from './video';
-import * as V from './video';
+} from '@/engine/timeline.testkit';
+import { countKeys, type Ease, type Keyframe } from '@/engine/keyframes';
+import { mergeLayers, newSticker, type Layer } from '@/engine/layers';
+import { clipLength, limitsFor } from '@/engine/video';
+import * as V from '@/engine/video';
 
 /** A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document). */
 function onTracks(p: LegacyProject): Project<LegacyClip & TimedClip> {

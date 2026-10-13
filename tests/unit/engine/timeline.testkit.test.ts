@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { legacyClipLength, legacyFixtures, legacyFrameRange } from './timeline.testkit';
-import { clipLength, frameRange } from './video';
+import { legacyClipLength, legacyFixtures, legacyFrameRange } from '@/engine/timeline.testkit';
+import { clipLength, frameRange } from '@/engine/video';
 
 /*
  * The frozen 2.x reference must equal the editor's own functions as long as they exist. Until 201 T023 this also

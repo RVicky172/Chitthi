@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { LOOKS } from '../data/layouts';
-import { IG_FILTERS } from '../data/instagram';
-import { ADJUST_RANGES, colourNeutral, DEFAULT_ADJUST, LOOK_IDS, mergeAdjust } from './adjust';
+import { LOOKS } from '@/data/layouts';
+import { IG_FILTERS } from '@/data/instagram';
+import { ADJUST_RANGES, colourNeutral, DEFAULT_ADJUST, LOOK_IDS, mergeAdjust } from '@/engine/adjust';
 
 describe('Adjustments', () => {
   it('know every look the studios offer', () => {

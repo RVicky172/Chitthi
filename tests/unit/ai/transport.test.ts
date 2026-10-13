@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isResultHost, keyAllowed } from './transport';
+import { isResultHost, keyAllowed } from '@/ai/transport';
 
 // The web transport attaches a provider's key only where electron/ai-hosts.json allows it.
 describe('keyAllowed', () => {

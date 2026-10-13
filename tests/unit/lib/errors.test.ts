@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
  * with logError('handled', e), so the copied error report can explain the message. This reads the app's own source
  * and lists every catch block that shows a message (a toast, or an error put into a dialog's state) without logging.
  */
-const sources = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.ts', '!../dev/**'], {
+const sources = import.meta.glob<string>(['/src/**/*.{ts,tsx}', '!/src/dev/**'], {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -38,7 +38,7 @@ describe('shown errors are logged', () => {
     const missing = Object.entries(sources).flatMap(([file, src]) =>
       catchBlocks(src)
         .filter((b) => SHOWS.test(b.body) && !b.body.includes('logError('))
-        .map((b) => `${file.replace('../', 'src/')}:${b.line}`),
+        .map((b) => `${file.replace(/^\//, '')}:${b.line}`),
     );
     expect(missing).toEqual([]);
   });

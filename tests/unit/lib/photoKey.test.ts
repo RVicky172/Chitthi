@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { photoKey } from './photoKey';
+import { photoKey } from '@/lib/photoKey';
 
 describe('photoKey', () => {
   it('uses short URLs as their own key', () => {

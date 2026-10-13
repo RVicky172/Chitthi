@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { decodeSrgb, embeddedJpeg, encodeSrgb, isRawName, rawToRgba8 } from './raw';
-import { buildTiff, syntheticDng, tiff16 } from './tiff';
+import { decodeSrgb, embeddedJpeg, encodeSrgb, isRawName, rawToRgba8 } from '@/engine/raw';
+import { buildTiff, syntheticDng, tiff16 } from '@/engine/tiff';
 
 /** A minimal complete JPEG: SOI, a frame header, a scan with data (stuffed FF 00 and a restart marker), EOI. */
 function jpeg(fill: number, len: number): Uint8Array {

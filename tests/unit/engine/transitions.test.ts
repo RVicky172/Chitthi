@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { valueAt } from './keyframes';
-import { renderStack, type StackDraw } from './video';
-import { MAIN_VIDEO, type TimedClip } from './timeline';
-import { DIRECTIONS, TRANSITION_LIMITS, cutsOf, defaultTransition, halves, progressAt, roomFor, tidyTransitions, transitionOps, type DrawOp, type Transition } from './transitions';
+import { valueAt } from '@/engine/keyframes';
+import { renderStack, type StackDraw } from '@/engine/video';
+import { MAIN_VIDEO, type TimedClip } from '@/engine/timeline';
+import { DIRECTIONS, TRANSITION_LIMITS, cutsOf, defaultTransition, halves, progressAt, roomFor, tidyTransitions, transitionOps, type DrawOp, type Transition } from '@/engine/transitions';
 
 /** A video clip on a track: `len` seconds from `start`. */
 const clip = (id: string, start: number, len: number, extra: Partial<TimedClip> = {}): TimedClip => ({

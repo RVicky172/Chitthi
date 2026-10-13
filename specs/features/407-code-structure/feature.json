@@ -566,7 +566,7 @@
         "T011": {
           "text": "Move the one-module tests with `git mv` to `tests/unit/<src path>/` (a commit with moves only), then point their imports at `@/…` (D1).",
           "section": "Tests into tests/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -580,7 +580,11 @@
           ],
           "test": "`npm run check`: the same 1,672 tests, none left under `src/` except the integration ones (T012)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** 27 one-module tests moved with git mv from src/ to tests/unit/<their src path> (git sees all 27 as renames); relative imports rewritten to `@/…` from each file’s old place (26 files); the errors test reads the app source through `/src/**` instead of `../**`. tsconfig.tests.json (the app’s options, the `@/` paths, src/vite-env.d.ts for Vite’s and WebGPU’s types) referenced from tsconfig.json; tests/ linted with src/. npm run check green: 48 files, 1,672 tests; the 3 integration tests stay in src/ until T012."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T012": {
           "text": "Move the integration tests (`state/*.test.ts`, `decodePool.test.ts`, `previewSound.test.ts`) to `tests/integration/` and the shared helpers to `tests/support/`: `timeline.testkit.ts`, and the fake decoder, recording canvas and fake audio element taken out of the test files that define them (one copy each, used by every test that needs it).",

@@ -8,7 +8,7 @@ import {
   mixerNeutral,
   mixerParams,
   type ColourMixer,
-} from './hsl';
+} from '@/engine/hsl';
 
 const run = (rgb: [number, number, number], m: Partial<ColourMixer>) => {
   const o = [0, 0, 0];

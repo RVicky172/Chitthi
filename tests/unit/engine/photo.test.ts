@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lookPixel, lookPixels } from './photo';
+import { lookPixel, lookPixels } from '@/engine/photo';
 
 /** Runs one RGB pixel through a look and returns the result. */
 const look = (rgb: [number, number, number], id: Parameters<typeof lookPixels>[1]) => {

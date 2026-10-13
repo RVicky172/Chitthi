@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ADJUST } from '../adjust';
-import { ADJUST_PROGRAM, adjustUniforms, colourNodes, LOOK_PROGRAM } from './colour';
-import { detailNodes } from './detail';
-import { runNodes, SPARES, TexturePool } from './graph';
-import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from './types';
+import { DEFAULT_ADJUST } from '@/engine/adjust';
+import { ADJUST_PROGRAM, adjustUniforms, colourNodes, LOOK_PROGRAM } from '@/engine/gpu/colour';
+import { detailNodes } from '@/engine/gpu/detail';
+import { runNodes, SPARES, TexturePool } from '@/engine/gpu/graph';
+import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from '@/engine/gpu/types';
 
 /** A device that only records what it was asked to do. */
 function fakeDevice() {

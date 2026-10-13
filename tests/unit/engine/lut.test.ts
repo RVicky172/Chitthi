@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { BUILT_IN_PRESETS, presetApplied } from '../data/presets';
-import { colourNeutral, DEFAULT_ADJUST, mergeAdjust } from './adjust';
-import { chainPixels } from './chain';
-import { colourNodes } from './gpu/colour';
-import { runNodes, TexturePool, type DataInput } from './gpu/graph';
-import { LUT_PROGRAM } from './gpu/lut';
-import type { GpuDevice, GpuTexture } from './gpu/types';
-import { toHalf } from './gpu/webgpu';
+import { BUILT_IN_PRESETS, presetApplied } from '@/data/presets';
+import { colourNeutral, DEFAULT_ADJUST, mergeAdjust } from '@/engine/adjust';
+import { chainPixels } from '@/engine/chain';
+import { colourNodes } from '@/engine/gpu/colour';
+import { runNodes, TexturePool, type DataInput } from '@/engine/gpu/graph';
+import { LUT_PROGRAM } from '@/engine/gpu/lut';
+import type { GpuDevice, GpuTexture } from '@/engine/gpu/types';
+import { toHalf } from '@/engine/gpu/webgpu';
 import {
   addLut,
   identityLut,
@@ -18,7 +18,7 @@ import {
   parseCube,
   removeLut,
   type Lut,
-} from './lut';
+} from '@/engine/lut';
 
 /** A .cube file for a table made by f(r, g, b) at size points per side. */
 function cube(size: number, f: (r: number, g: number, b: number) => number[], head = ''): string {
