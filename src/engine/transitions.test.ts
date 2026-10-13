@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { valueAt } from './keyframes';
+import { renderStack, type StackDraw } from './video';
 import { MAIN_VIDEO, type TimedClip } from './timeline';
-import { TRANSITION_LIMITS, cutsOf, defaultTransition, halves, progressAt, roomFor, tidyTransitions, type Transition } from './transitions';
+import { DIRECTIONS, TRANSITION_LIMITS, cutsOf, defaultTransition, halves, progressAt, roomFor, tidyTransitions, transitionOps, type DrawOp, type Transition } from './transitions';
 
 /** A video clip on a track: `len` seconds from `start`. */
 const clip = (id: string, start: number, len: number, extra: Partial<TimedClip> = {}): TimedClip => ({
@@ -130,5 +131,176 @@ describe('tidyTransitions (AC-4): the one rule', () => {
     const tidy = tidyTransitions(clips, 30);
     expect(tidy.clips[0]).toEqual(clips[0]);
     expect(tidy.clips[0].name).toBe('first');
+  });
+});
+
+/* ---------- 206 T030: how each clip of a transition is drawn (AC-1) ---------- */
+
+describe('transitionOps (AC-1, D3)', () => {
+  const W = 1080,
+    H = 1920;
+  /** The ops of the outgoing and incoming clip at progress p. */
+  const ops = (kind: Transition['kind'], p: number, extra: Partial<Transition> = {}) => ({
+    from: transitionOps({ kind, progress: p, role: 'from', ...extra }, W, H),
+    to: transitionOps({ kind, progress: p, role: 'to', ...extra }, W, H),
+  });
+  const PROGRESS = [0, 0.25, 0.5, 0.75, 1];
+  const ALL: [Transition['kind'], Partial<Transition>][] = [
+    ['dissolve', {}],
+    ['zoom', {}],
+    ['dip', { colour: 'black' }],
+    ['dip', { colour: 'white' }],
+    ...DIRECTIONS.flatMap((dir) => [['wipe', { dir }] as [Transition['kind'], Partial<Transition>], ['slide', { dir }] as [Transition['kind'], Partial<Transition>]]),
+  ];
+  /** Whether an op draws its clip at all (visible, inside the frame). */
+  const shows = (op: DrawOp) =>
+    op.alpha > 0 &&
+    (!op.clip || (op.clip.w > 0 && op.clip.h > 0)) &&
+    Math.abs(op.dx) < W &&
+    Math.abs(op.dy) < H;
+  /** Exactly the clip as drawn alone: full alpha, in place, unscaled, unclipped (or clipped to the whole frame). */
+  const alone = (op: DrawOp) =>
+    op.alpha === 1 && op.dx === 0 && op.dy === 0 && op.scale === 1 && (!op.clip || (op.clip.x <= 0 && op.clip.y <= 0 && op.clip.w >= W && op.clip.h >= H));
+
+  it.each(ALL)('%s %o: the outgoing clip alone at 0, the incoming alone at 1', (kind, extra) => {
+    const start = ops(kind, 0, extra),
+      end = ops(kind, 1, extra);
+    expect(alone(start.from.op)).toBe(true);
+    expect(shows(start.to.op)).toBe(false);
+    expect(start.to.colour?.alpha ?? 0).toBe(0);
+    expect(alone(end.to.op)).toBe(true);
+    expect(shows(end.from.op)).toBe(false);
+    expect(end.to.colour?.alpha ?? 0).toBe(0);
+  });
+
+  it('a cross-dissolve adds the two clips: the outgoing at 1 − p, the incoming at p', () => {
+    for (const p of PROGRESS) {
+      const { from, to } = ops('dissolve', p);
+      expect(from.op).toEqual({ alpha: 1 - p, composite: 'lighter', dx: 0, dy: 0, scale: 1 });
+      expect(to.op).toEqual({ alpha: p, composite: 'lighter', dx: 0, dy: 0, scale: 1 });
+    }
+    // At 0.5 an even mix.
+    expect(ops('dissolve', 0.5).from.op.alpha + ops('dissolve', 0.5).to.op.alpha).toBe(1);
+  });
+
+  it('Zoom: a dissolve with the outgoing clip growing 1× → 1.3× about the centre (D3)', () => {
+    for (const p of PROGRESS) {
+      const { from, to } = ops('zoom', p);
+      expect(from.op).toEqual({ alpha: 1 - p, composite: 'lighter', dx: 0, dy: 0, scale: 1 + 0.3 * p });
+      expect(to.op).toEqual({ alpha: p, composite: 'lighter', dx: 0, dy: 0, scale: 1 });
+    }
+  });
+
+  it('Dip: the outgoing clip to the middle, the incoming after, under the colour at 1 − |2p − 1|', () => {
+    for (const colour of ['black', 'white'] as const)
+      for (const p of PROGRESS) {
+        const { from, to } = ops('dip', p, { colour });
+        expect(from.op.alpha).toBe(p < 0.5 ? 1 : 0);
+        expect(to.op.alpha).toBe(p < 0.5 ? 0 : 1);
+        expect(from.colour).toBeUndefined();
+        expect(to.colour).toEqual({ css: colour === 'black' ? '#000000' : '#ffffff', alpha: 1 - Math.abs(2 * p - 1) });
+      }
+  });
+
+  it('Wipe: an edge moves the way of `dir`, the incoming clip in the part it has passed', () => {
+    const p = 0.25;
+    expect(ops('wipe', p, { dir: 'left' }).to.op.clip).toEqual({ x: W * 0.75, y: 0, w: W * 0.25, h: H });
+    expect(ops('wipe', p, { dir: 'left' }).from.op.clip).toEqual({ x: 0, y: 0, w: W * 0.75, h: H });
+    expect(ops('wipe', p, { dir: 'right' }).to.op.clip).toEqual({ x: 0, y: 0, w: W * 0.25, h: H });
+    expect(ops('wipe', p, { dir: 'up' }).to.op.clip).toEqual({ x: 0, y: H * 0.75, w: W, h: H * 0.25 });
+    expect(ops('wipe', p, { dir: 'down' }).to.op.clip).toEqual({ x: 0, y: 0, w: W, h: H * 0.25 });
+    for (const dir of DIRECTIONS) {
+      const { from, to } = ops('wipe', p, { dir });
+      expect([from.op.alpha, to.op.alpha, from.op.composite, to.op.composite]).toEqual([1, 1, 'source-over', 'source-over']);
+      // The two parts tile the frame.
+      expect(from.op.clip!.w * from.op.clip!.h + to.op.clip!.w * to.op.clip!.h).toBeCloseTo(W * H, 6);
+    }
+  });
+
+  it('Slide: the incoming clip pushes the outgoing one out the way of `dir`', () => {
+    const p = 0.25;
+    expect([ops('slide', p, { dir: 'left' }).from.op.dx, ops('slide', p, { dir: 'left' }).to.op.dx]).toEqual([-W * 0.25, W * 0.75]);
+    expect([ops('slide', p, { dir: 'right' }).from.op.dx, ops('slide', p, { dir: 'right' }).to.op.dx]).toEqual([W * 0.25, -W * 0.75]);
+    expect([ops('slide', p, { dir: 'up' }).from.op.dy, ops('slide', p, { dir: 'up' }).to.op.dy]).toEqual([-H * 0.25, H * 0.75]);
+    expect([ops('slide', p, { dir: 'down' }).from.op.dy, ops('slide', p, { dir: 'down' }).to.op.dy]).toEqual([H * 0.25, -H * 0.75]);
+    for (const dir of DIRECTIONS) {
+      const { from, to } = ops('slide', p, { dir });
+      expect([from.op.alpha, to.op.alpha, from.op.scale, to.op.scale, from.op.clip, to.op.clip]).toEqual([1, 1, 1, 1, undefined, undefined]);
+    }
+  });
+});
+
+/* ---------- 206 T031: renderStack draws a transition pair (the steps; pixels are 290’s golden frames) ---------- */
+
+describe('renderStack with a transition pair (plan §3)', () => {
+  /** A 2D context that records what is set and called on it (by canvas name), enough for renderStack’s pair path. */
+  function recordingCanvas(name: string, logs: Map<string, string[]>) {
+    const log: string[] = [];
+    logs.set(name, log);
+    const canvas = { name, width: 0, height: 0, getContext: () => context };
+    const show = (value: unknown) => (value && typeof value === 'object' ? ((value as { name?: string }).name ?? 'object') : String(value));
+    const context: CanvasRenderingContext2D = new Proxy({ canvas } as Record<string | symbol, unknown>, {
+      get: (target, prop) => (prop in target ? target[prop] : (...args: unknown[]) => void log.push(`${String(prop)}(${args.map(show).join(',')})`)),
+      set: (target, prop, value) => {
+        log.push(`${String(prop)}=${show(value)}`);
+        target[prop] = value;
+        return true;
+      },
+    }) as unknown as CanvasRenderingContext2D;
+    return { canvas, context };
+  }
+
+  const pairItems = (kind: Transition['kind'], progress: number, extra: Partial<Transition> = {}): StackDraw[] =>
+    (['from', 'to'] as const).map((role, index) => ({
+      clip: { id: `c${index}`, kind: 'photo', dur: 2, in: 0, out: 0, edit: {} as StackDraw['clip']['edit'], motion: 'none', fade: false, overlay: false },
+      src: null,
+      sw: 0,
+      sh: 0,
+      local: index ? -0.25 : 1.75,
+      mix: { kind, progress, role, ...extra },
+    }));
+
+  function draw(items: StackDraw[]) {
+    const logs = new Map<string, string[]>();
+    let scratches = 0;
+    vi.stubGlobal('document', { createElement: () => recordingCanvas(`scratch${++scratches}`, logs).canvas });
+    try {
+      const main = recordingCanvas('main', logs);
+      renderStack(main.context, 100, 200, items, [], 1, 4, false);
+      return logs;
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }
+  /** The pair canvas’s log (the second scratch canvas made: slot 2 after the layer’s slot 1). */
+  const pairLog = (logs: Map<string, string[]>) => [...logs.entries()].find(([name, log]) => name !== 'main' && log.some((line) => line.startsWith('drawImage(')))![1];
+
+  it('a dissolve lays both clips onto the pair with `lighter` at 1 − p and p, then the pair onto the frame once', () => {
+    const logs = draw(pairItems('dissolve', 0.25));
+    const pair = pairLog(logs).filter((line) => /^(globalAlpha|globalCompositeOperation|drawImage)/.test(line));
+    expect(pair).toEqual([
+      'globalAlpha=0.75',
+      'globalCompositeOperation=lighter',
+      expect.stringMatching(/^drawImage\(scratch\d,0,0\)$/),
+      'globalAlpha=0.25',
+      'globalCompositeOperation=lighter',
+      expect.stringMatching(/^drawImage\(scratch\d,0,0\)$/),
+    ]);
+    expect(logs.get('main')!.filter((line) => line.startsWith('drawImage('))).toHaveLength(1);
+  });
+
+  it('a dip draws only the visible clip and the colour over the clips’ own pixels (source-atop)', () => {
+    const pair = pairLog(draw(pairItems('dip', 0.75, { colour: 'white' })));
+    expect(pair.filter((line) => line.startsWith('drawImage('))).toHaveLength(1);
+    const atop = pair.indexOf('globalCompositeOperation=source-atop');
+    expect(atop).toBeGreaterThan(-1);
+    expect(pair.slice(atop)).toEqual(expect.arrayContaining(['globalAlpha=0.5', 'fillStyle=#ffffff', 'fillRect(0,0,100,200)']));
+  });
+
+  it('a wipe clips each clip to its part of the frame; a slide moves it', () => {
+    const wipe = pairLog(draw(pairItems('wipe', 0.25, { dir: 'left' })));
+    expect(wipe).toEqual(expect.arrayContaining(['rect(0,0,75,200)', 'rect(75,0,25,200)']));
+    const slide = pairLog(draw(pairItems('slide', 0.25, { dir: 'up' })));
+    expect(slide).toEqual(expect.arrayContaining(['translate(50,50)', 'translate(50,250)']));
   });
 });

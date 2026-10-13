@@ -680,7 +680,7 @@
         "T030": {
           "text": "Failing tests (`src/engine/transitions.test.ts`): `transitionOps(mix, W, H)` for every kind, each Wipe and Slide direction and both Dip colours at progress 0, 0.25, 0.5, 0.75, 1: at 0 the outgoing clip alone (alpha 1, nothing moved), at 1 the incoming alone; a dissolve's alphas at 0.5; a wipe's revealed rectangle; a slide's offsets (± p of the frame); Zoom's scale 1 → 1.3 and alpha 1 − p (D3); a dip's colour alpha 1 − |2p − 1| and which clip shows on each side of 0.5.",
           "section": "Drawing",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -692,12 +692,16 @@
           ],
           "test": "`npx vitest run src/engine/transitions.test.ts`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** transitions.test.ts \"transitionOps\": every kind, both dip colours and each wipe / slide direction show the outgoing clip alone at progress 0 and the incoming alone at 1; a dissolve adds the clips at 1 − p and p (lighter); Zoom is that with the outgoing clip at scale 1 + 0.3p (D3); Dip shows the outgoing clip before 0.5 and the incoming after, under the colour at 1 − |2p − 1|; Wipe splits the frame at the moving edge (the parts tile it); Slide moves both clips by p of the frame the way of dir. 17 cases failed (no function)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T031": {
           "text": "Implement plan §3: `transitionOps` and `DrawOp`; `renderStack` draws a track's pair on the scratch canvas (each clip as alone: box, keyframes, look, its own alpha), applies the ops (dip with `source-atop`) and lays it down once; `StackDraw` carries `mix`; the preview (`drawPreview`) and the export's frame loop pass it through. Unit tests: `renderStack` without a `mix` is unchanged (the 203 / 205 tests).",
           "section": "Drawing",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -714,7 +718,11 @@
           ],
           "test": "T030; `npm run check` (203's and 205's drawing tests unchanged)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** transitions.ts transitionOps and DrawOp (alpha, composite source-over / lighter, clip rect, dx / dy, scale; dip colour returned with the incoming clip). video.ts: renderStack’s loop body is drawClip (unchanged drawing); a from / to pair goes to drawPair: each clip drawn alone on a layer canvas (scratch slot 1), laid onto the pair canvas (slot 2) with its ops, a dip’s colour with source-atop, the pair laid down once; the main fade-in darkness follows the outgoing clip during a transition. StackDraw.mix; previewFrame StageItem.mix, pausedAt / pausedFrame / heldStageFrame / drawPreview and the export’s frame loop pass it through. 3 recording-canvas tests (no DOM) pin the steps: dissolve (lighter 0.75 / 0.25, laid down once), dip (one clip, white source-atop at 0.5), wipe rects, slide offsets; break-test (no lighter, no colour) caught by 2; 205’s drawing tests unchanged; npm run check green, 1,645 tests. Pixels are 290’s golden frames (AC-12), speed 290’s timing (AC-14)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T040": {
           "text": "Failing tests (`src/engine/keyframes.test.ts`, `src/engine/timeline.test.ts`): `edgeGain`: equal power (squares sum to 1 within 1 % every 1 ms across the transition), the outgoing sound past its end, the dip (out to 0 by the cut, in from it); `audioPlan` gives `lead` / `trail` / edges for a fixture with every kind (expected list exactly) and 205's sources unchanged without transitions; `gainCurve` with edges stays within 0.5 dB of the exact curve, with volume keyframes too.",

@@ -2,7 +2,7 @@
 // clip shows at a time, its picture from a PreviewSource, and the drawing. VideoStage uses exactly these.
 import { useSyncExternalStore } from 'react';
 import { DecodePool, frameTime, poolLimits, type FrameSourceFactory, type PoolClip } from '../../engine/decodePool';
-import { frameStack } from '../../engine/stack';
+import { frameStack, type Mix, type StackItem } from '../../engine/stack';
 import { MAIN_VIDEO, type Project, type TimedClip } from '../../engine/timeline';
 import { limitsFor, renderStack, type FrameClip } from '../../engine/video';
 import type { Layer } from '../../engine/layers';
@@ -23,6 +23,8 @@ export interface StageItem<C extends FrameClip = FrameClip> {
   clip: C;
   local: number;
   pic: Picture | null;
+  /** Part of a transition (206): drawn with its partner. */
+  mix?: Mix;
 }
 /** What the stage draws (203 §5): the time on the frame grid and the clips showing then, bottom first. */
 export interface StageFrame<C extends FrameClip = FrameClip> {
@@ -132,7 +134,7 @@ export function pausedAt<C extends PreviewClip>(
   project: Project<C>,
   playhead: number,
   fps: number,
-): { at: number; items: { clip: C; local: number }[] } {
+): { at: number; items: StackItem<C>[] } {
   const at = frameTime(playhead, fps);
   return { at, items: frameStack(project, at) };
 }
@@ -167,7 +169,10 @@ export async function pausedFrame<C extends PreviewClip>(
   const pictures = await Promise.all(
     stack.map(({ clip, local }) => (clip.kind === 'video' ? source.frame(clip, clip.in + local) : photoPicture(clip))),
   );
-  return { at, items: stack.map((stackItem, index) => ({ clip: stackItem.clip, local: stackItem.local, pic: pictures[index] })) };
+  return {
+    at,
+    items: stack.map((stackItem, index) => ({ clip: stackItem.clip, local: stackItem.local, pic: pictures[index], ...(stackItem.mix ? { mix: stackItem.mix } : {}) })),
+  };
 }
 
 /**
@@ -183,7 +188,7 @@ export async function pausedFrame<C extends PreviewClip>(
  */
 export function heldStageFrame<C extends PreviewClip>(
   at: number,
-  stack: { clip: C; local: number }[],
+  stack: { clip: C; local: number; mix?: Mix }[],
   lastFrame: StageFrame<C> | null,
   pictureNow: (stackItem: { clip: C; local: number }) => Picture | null,
   decodesInPool: (clip: C) => boolean,
@@ -218,12 +223,13 @@ export function drawPreview(
     context,
     width,
     height,
-    frame.items.map(({ clip, local, pic }) => ({
+    frame.items.map(({ clip, local, pic, mix }) => ({
       clip: { ...clip, overlay: clip.track !== MAIN_VIDEO },
       src: pic?.image ?? null,
       sw: pic?.w ?? 0,
       sh: pic?.h ?? 0,
       local,
+      mix,
     })),
     view.layers,
     frame.at,

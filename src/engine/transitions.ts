@@ -87,6 +87,83 @@ export function roomFor(a: TimedClip, b: TimedClip, clips: readonly TimedClip[])
   return Math.min(TRANSITION_LIMITS.max, 2 * Math.max(0, Math.min(left, right)));
 }
 
+/* ---------- Drawing (AC-1, plan §3) ---------- */
+
+/**
+ * How one clip of a transition is drawn on the track's scratch canvas, in frame pixels: at `alpha` with `composite`,
+ * inside `clip` (the part of the frame it may cover), moved by `dx`, `dy` and scaled by `scale` about the frame's centre.
+ */
+export interface DrawOp {
+  alpha: number;
+  /** `lighter` adds the two clips (a true mix, whatever their boxes); `source-over` lays one over the other. */
+  composite: 'source-over' | 'lighter';
+  clip?: { x: number; y: number; w: number; h: number };
+  dx: number;
+  dy: number;
+  scale: number;
+}
+
+/** Zoom's outgoing clip grows to this scale (D3). */
+const ZOOM_TO = 1.3;
+
+/**
+ * How a clip of a transition is drawn at its progress (data, so every kind is unit-tested without a canvas): the
+ * outgoing clip alone at 0, the incoming one alone at 1. Cross-dissolve and Zoom add the two clips (1 − p and p; Zoom
+ * grows the outgoing clip 1× → 1.3×, D3); Dip shows the outgoing clip to the middle and the incoming one after, with the
+ * colour over them at 1 − |2p − 1| (returned with the incoming clip, which is drawn last); Wipe splits the frame at an
+ * edge moving the way of `dir`; Slide moves both clips by p of the frame the way of `dir`.
+ * @param mix the clip's part in the transition (its kind, options, eased progress and role)
+ * @param W the frame's width in pixels
+ * @param H its height
+ */
+export function transitionOps(
+  mix: { kind: TransitionKind; dir?: Direction; colour?: DipColour; progress: number; role: 'from' | 'to' },
+  W: number,
+  H: number,
+): { op: DrawOp; colour?: { css: string; alpha: number } } {
+  const p = mix.progress,
+    outgoing = mix.role === 'from';
+  const plain: DrawOp = { alpha: 1, composite: 'source-over', dx: 0, dy: 0, scale: 1 };
+  switch (mix.kind) {
+    case 'dissolve':
+    case 'zoom':
+      return {
+        op: {
+          ...plain,
+          alpha: outgoing ? 1 - p : p,
+          composite: 'lighter',
+          scale: mix.kind === 'zoom' && outgoing ? 1 + (ZOOM_TO - 1) * p : 1,
+        },
+      };
+    case 'dip': {
+      const op = { ...plain, alpha: (outgoing ? p < 0.5 : p >= 0.5) ? 1 : 0 };
+      if (outgoing) return { op };
+      return { op, colour: { css: mix.colour === 'white' ? '#ffffff' : '#000000', alpha: 1 - Math.abs(2 * p - 1) } };
+    }
+    case 'wipe': {
+      // The incoming clip shows in the part the edge has passed: for `left`, the edge goes from the right side leftwards.
+      const dir = mix.dir ?? 'left';
+      const across = dir === 'left' || dir === 'right',
+        size = across ? W : H,
+        passed = size * p,
+        ahead = size - passed;
+      // Where the passed part starts along the axis: after the part still ahead for left / up, at 0 for right / down.
+      const passedAt = dir === 'left' || dir === 'up' ? ahead : 0,
+        aheadAt = dir === 'left' || dir === 'up' ? 0 : passed;
+      const [at, length] = outgoing ? [aheadAt, ahead] : [passedAt, passed];
+      return { op: { ...plain, clip: across ? { x: at, y: 0, w: length, h: H } : { x: 0, y: at, w: W, h: length } } };
+    }
+    case 'slide': {
+      const dir = mix.dir ?? 'left';
+      const sign = dir === 'left' || dir === 'up' ? -1 : 1,
+        size = dir === 'left' || dir === 'right' ? W : H;
+      // Both move the way of `dir`: the outgoing clip out by p of the frame, the incoming one in from the far side.
+      const shift = outgoing ? sign * size * p : -sign * size * (1 - p);
+      return { op: dir === 'left' || dir === 'right' ? { ...plain, dx: shift } : { ...plain, dy: shift } };
+    }
+  }
+}
+
 /* ---------- The document gate (AC-5) ---------- */
 
 export const TRANSITION_REASONS = {

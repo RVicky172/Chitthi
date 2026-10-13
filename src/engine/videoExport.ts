@@ -279,6 +279,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
             sw: framePictures[index]?.width ?? 0,
             sh: framePictures[index]?.height ?? 0,
             local: stackItem.local,
+            mix: stackItem.mix,
           })),
           job.layers,
           time,
