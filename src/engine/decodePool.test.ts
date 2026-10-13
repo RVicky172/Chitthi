@@ -762,3 +762,31 @@ describe('206 spike: a transition reads past a clip’s ends', () => {
     pool.dispose();
   });
 });
+
+describe('206: lanePlan with transitions (AC-2, AC-3)', () => {
+  const v = (id: string, start: number, len: number, transitionTo?: string): TimedClip => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind: 'video',
+    in: 1,
+    out: 1 + len,
+    dur: 0,
+    ...(transitionTo ? { transition: { kind: 'dissolve' as const, dur: 1, to: transitionTo } } : {}),
+  });
+  // a 0–4, a 1 s dissolve into b 4–8 (it plays 3.5–4.5).
+  const p: Project = { tracks: defaultTracks(), clips: [v('a', 0, 4, 'b'), v('b', 4, 4)], audio: [], layers: [], fadeOut: false };
+  const ids = (clips: TimedClip[]) => clips.map((clip) => clip.id);
+
+  it('lists both clips of a playing transition as visible', () => {
+    expect(ids(lanePlan(p, 3.7, 2).visible)).toEqual(['a', 'b']);
+    expect(ids(lanePlan(p, 4.3, 2).visible)).toEqual(['a', 'b']);
+    expect(ids(lanePlan(p, 4.6, 2).visible)).toEqual(['b']);
+  });
+
+  it('gets the incoming clip ready 2 s before its transition starts, not before its own start', () => {
+    // At 1.6 s b starts in 2.4 s, but its transition in 1.9 s.
+    expect(ids(lanePlan(p, 1.6, 2).next)).toEqual(['b']);
+    expect(ids(lanePlan(p, 1.4, 2).next)).toEqual([]);
+  });
+});

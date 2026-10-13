@@ -20,6 +20,7 @@ import { mediabunnySource } from './frameSource';
 import { gainCurve } from './keyframes';
 import { loadImage } from './photo';
 import { frameStack } from './stack';
+import { halves } from './transitions';
 import { MAIN_VIDEO, audioPlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
 import { limitsFor, renderStack, type FrameClip } from './video';
 
@@ -177,7 +178,15 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   const pool = new DecodePool(mediabunnySource, poolLimits(limitsFor('reel', isDesktop).videosAtOnce, isDesktop), {
     maxWidth: Math.round(Math.max(W, H) * 1.8),
   });
-  const lane = (c: ExportClip): PoolClip => ({ id: c.id, file: c.file, in: c.in, out: c.out, start: c.start, track: c.track });
+  // A clip's lane starts at the first frame its picture shows: half its incoming transition before its in point (206).
+  const lane = (c: ExportClip): PoolClip => ({
+    id: c.id,
+    file: c.file,
+    in: Math.max(0, c.in - halves(c, job.clips).before),
+    out: c.out,
+    start: c.start,
+    track: c.track,
+  });
   const memory = job.sink.kind === 'memory';
   const target = job.sink.kind === 'memory' ? new BufferTarget() : new StreamTarget(job.sink.writable, { chunked: true });
   // Streamed files reserve space at the front for the index, so they get fast start without holding the video in memory.

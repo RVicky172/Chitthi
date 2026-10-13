@@ -79,7 +79,18 @@ export function videoElementSource(
   };
 }
 
-export const poolClip = (c: PreviewClip & { file: Blob }): PoolClip => ({ id: c.id, file: c.file, in: c.in, out: c.out, start: c.start, track: c.track });
+/**
+ * A clip as the decoder pool sees it. `lead` (206): the half of the transition leading into it, seconds; its lane is
+ * primed that much before its in point, so a transition's first frame is ready (the pool primes at `in`).
+ */
+export const poolClip = (c: PreviewClip & { file: Blob }, lead = 0): PoolClip => ({
+  id: c.id,
+  file: c.file,
+  in: Math.max(0, c.in - lead),
+  out: c.out,
+  start: c.start,
+  track: c.track,
+});
 
 /**
  * Pictures from the decoder pool (204 §3): exact frames, latest wins (a superseded ask resolves to null). A clip the

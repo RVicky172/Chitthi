@@ -19,7 +19,8 @@ T010 spike: the pool already serves frames outside a clip's in–out and holds a
 primes at `PoolClip.in`, so T021 widens `in` by the incoming half. T011–T012 `engine/transitions.ts` (model,
 `progressAt`, `roomFor`, `tidyTransitions`); T013–T014 the document gate (`mergeTransition`, tidy after placing).
 `npm run check` green, 1,606 tests.
-**Next:** T020–T021 (`frameStack` pair, `mostVideosAt`, `lanePlan`, pool window).
+**Then T020–T021:** `frameStack` returns both clips with `mix` during a transition (AC-11 reference at every frame, 5 kinds × 30 / 60 fps), `mostVideosAt` and `lanePlan` with halves, pool lanes primed from the handle; 1,625 tests.
+**Next:** T030–T031 (`transitionOps`, the pair drawn in `renderStack`).
 **Blockers:** none (205 merged into `main` as `5d7640f`; `main` merged into `feat/206-transitions`).
 
 ## 2026-10-13 — 205 T091–T092 (gates, close): ✔️ Implemented

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawSelection, layerBox } from '../../engine/layers';
 import { adjacentKey, keyState, layerAt, layersAt, transformAt, volumeAt, type LayerKeyProp } from '../../engine/keyframes';
 import { frameStack } from '../../engine/stack';
+import { halves } from '../../engine/transitions';
 import { MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
 import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
 import { lanePlan } from '../../engine/decodePool';
@@ -436,7 +437,8 @@ function VideoStage() {
       if (!pool) return;
       const plan = lanePlan(projectOf(getVideo()), t, 2);
       pool.want([...plan.visible, ...plan.next].map((c) => c.id));
-      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c));
+      // Primed from its transition's first frame, when one leads into it (206).
+      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c, halves(c, getVideo().clips).before));
     },
     // usesPool only reads stage
     // eslint-disable-next-line react-hooks/exhaustive-deps

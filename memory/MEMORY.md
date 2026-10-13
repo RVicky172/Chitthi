@@ -37,7 +37,7 @@
   clip box, clip volume and layers; inspector diamonds, stage auto-key, timeline lane, K / Alt + [ / ]. AC-6, 7, 9,
   10 (self-test), 11, 13 wait for 290 (D-033). Entry 327 KB.
 - **206:** `206-transitions` 🚧 on `feat/206-transitions` (`main` merged in): spec Approved (Q1–Q12, D-035: 2D canvas,
-  no shaders; roadmap item renamed), plan Approved (D1–D3, D-036), tasks T010–T092; T010–T014 done 2026-10-13 (model
+  no shaders; roadmap item renamed), plan Approved (D1–D3, D-036), tasks T010–T092; T010–T021 done 2026-10-13 (model, stack
   + document gate); deferred checks listed in 290.
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
