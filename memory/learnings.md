@@ -162,3 +162,12 @@ heredocs worked; the exact trigger wasn't found. For doc and code edits:
 `npm run specs -- done … --result "…"` in double quotes lets the shell run any backticks in the note (`to` became
 "to: command not found" and vanished from 206 T012's result). Pass the note in single quotes (write `’` for an
 apostrophe), or fix a damaged note in `feature.json` with a small script.
+
+## 2026-10-13 — A store selector must return the same value for the same state
+
+`useVideo((s) => clipPlace(c.id, s))` returned a new object on every read, so `useSyncExternalStore` re-rendered
+forever (React #185, "The result of getSnapshot should be cached") and the video editor showed the error screen as
+soon as a clip was selected. It sat on `main` from 203 T054 (2026-10-12) until 407's baseline e2e run, because e2e
+had been deferred to the phase's test pass (D-033). Selectors return primitives or objects already in the state
+(`find` is fine; `filter`, `map`, `{…}` and helper results that build objects are not); derive objects in render.
+The same run found 206's cut buttons over the clips' trim edges and 24 px touch-target failures (axe `target-size`).

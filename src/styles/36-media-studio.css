@@ -972,15 +972,25 @@
 .tl-playhead-grip {
   position: absolute;
   top: 0;
-  left: -8px;
-  width: 14px;
-  height: 18px;
+  left: -13px;
+  /* A 24 px touch target drawing the 14 × 18 px grip. */
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 3px 3px 7px 7px;
-  background: var(--danger);
+  background: none;
   cursor: ew-resize;
   pointer-events: auto;
+}
+.tl-playhead-grip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 5px;
+  width: 14px;
+  height: 18px;
+  border-radius: 3px 3px 7px 7px;
+  background: var(--danger);
 }
 
 /* Export sheet */
@@ -1187,14 +1197,15 @@
   margin: 4px 6px;
   background: var(--line);
 }
-/* Add track sits in the ruler's header cell, above the track headers. */
+/* Add track sits in the ruler's header cell, above the track headers: at its left, clear of the playhead's grip at
+   time 0 (two touch targets must not overlap). */
 .tl-h-ruler {
-  justify-content: flex-end;
+  justify-content: flex-start;
   padding: 0 4px;
 }
 .tl-add-track {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 .tl-add-track[aria-disabled='true'] {
   opacity: 0.45;
@@ -1283,7 +1294,7 @@
   color: var(--accent);
 }
 .kf-menu .mm-btn {
-  width: 20px;
+  width: 24px;
   height: 24px;
   min-height: 0;
   padding: 0;
@@ -1291,11 +1302,11 @@
 
 /* 205 §9: the keyframe lane under the selected clip or layer; a diamond's shape shows its interpolation (D3). */
 .tl-keys {
-  height: 22px;
+  height: 24px;
   background: var(--sunk);
 }
 .tl-h-keys {
-  height: 22px;
+  height: 24px;
   border-bottom: 1px solid var(--line);
   text-transform: none;
   font-weight: 500;
@@ -1322,28 +1333,39 @@
 .tl-key {
   position: absolute;
   top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: grab;
+}
+.tl-key::before {
+  content: '';
+  position: absolute;
+  top: 6.5px;
+  left: 6.5px;
   width: 11px;
   height: 11px;
-  margin: -5.5px 0 0 -5.5px;
-  padding: 0;
+  box-sizing: border-box;
   border: 1.5px solid var(--accent);
   background: var(--panel);
   transform: rotate(45deg);
-  cursor: grab;
   transition: background-color 0.12s, box-shadow 0.12s;
 }
-.tl-key-round {
+.tl-key-round::before {
   border-radius: 3px;
 }
-.tl-key-square {
+.tl-key-square::before {
   transform: none;
   border-radius: 1px;
 }
-.tl-key-pointed {
+.tl-key-pointed::before {
   border-radius: 0;
   transform: rotate(45deg) scale(0.8, 1.15);
 }
-.tl-key.on {
+.tl-key.on::before {
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent);
 }
@@ -1353,7 +1375,8 @@
 }
 .tl-key:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: -2px;
+  border-radius: 6px;
 }
 /* The diamond beside each interpolation in its menu. */
 .tl-key-icon {
@@ -1429,23 +1452,39 @@
   position: absolute;
   top: 50%;
   z-index: 4;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+}
+.tl-cut::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 6px;
   width: 12px;
   height: 22px;
-  margin: -11px 0 0 -6px;
-  padding: 0;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--panel);
-  opacity: 0;
-  cursor: pointer;
 }
-.tl-video:hover .tl-cut,
+/* With the Transitions panel open, the cuts are what the pointer is for: shown and clickable. */
+.mst:has(.tr-panel) .tl-cut {
+  opacity: 1;
+  pointer-events: auto;
+}
 .tl-cut:focus-visible,
 .tl-cut.on {
   opacity: 1;
 }
-.tl-cut.on,
-.tl-cut:focus-visible {
+.tl-cut.on::before,
+.tl-cut:focus-visible::before {
   border-color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 1px;
