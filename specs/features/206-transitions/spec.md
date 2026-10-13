@@ -86,3 +86,5 @@ Transitions blend one clip into the next: a cross-dissolve between two shots, a 
 
 - 2026-10-13 — Created: draft spec with 15 acceptance criteria and 12 open questions with proposed answers.
 - 2026-10-13 — Q1–Q12: every proposed answer accepted by the maintainer (Q4: 2D canvas, no shaders in 206, D-035); Approved.
+- 2026-10-13 — Plan drafted (§1–§9, D1–D3 for the maintainer).
+- 2026-10-13 — Plan approved (D1–D3 as recommended, D-036).

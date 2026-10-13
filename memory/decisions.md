@@ -434,3 +434,17 @@ is renamed "Transitions between clips".
 and moves later timings).
 **Consequences:** no GPU work in 206; P2.6's `gpu/nodes/transition.ts` in editor-implementation.md waits for the GPU
 video pipeline.
+
+## D-036 — 206's plan: transitions on the outgoing clip, one tidy rule (2026-10-13)
+
+**Context:** 206 (transitions) plan review; spec Q1–Q12 accepted the same day (D-035).
+**Decision:** `frameStack` returns both clips while a transition plays, so the preview, the export, the preview sound
+and the decoder pool follow from it; drawing is `transitionOps` (data) on the 2D canvas; sound blends through one
+`edgeGain` in 205's gain curve. D1: a transition lives on the outgoing clip and names the clip it leads into (`to`);
+`tidyTransitions`, run in the store's `change()` and in `mergeProject`, drops it when that pair no longer touches and
+clamps it to its room, so edits stay unaware of transitions. D2: every cut is a focusable timeline button; Enter opens
+the Transitions panel for it. D3: Zoom grows the outgoing clip 1× → 1.3× while it dissolves into the next.
+**Alternatives:** a transition without `to` (stays on the clip's end after a reorder); a project-level list of cuts;
+no cut targets; a zoom through.
+**Consequences:** the first task is a spike proving the pool decodes past a clip's out point; 206's UI, golden frames,
+sound and timing are checked in 290.

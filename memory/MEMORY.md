@@ -39,7 +39,8 @@
 - **206:** `206-transitions` ✅ spec Approved 2026-10-13 on `spec/206-transitions` (branched from `feat/205-keyframes`):
   15 ACs, Q1–Q12 accepted as proposed (D-035: 2D canvas, no shaders in 206; roadmap item renamed).
 - **Next (roadmap):** merge 205 into `main` (the agent's merge was blocked by a permission check; the maintainer
-  merges); `/spec-plan 206`; 290 collects the deferred checks.
+  merges); 206's plan Approved 2026-10-13 (§1–§9, D1–D3 as recommended, D-036), then `/spec-tasks 206`; 290 collects the
+  deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
