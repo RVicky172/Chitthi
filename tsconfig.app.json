@@ -16,7 +16,8 @@
     "skipLibCheck": true,
     "useDefineForClassFields": true,
     "allowImportingTsExtensions": false,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src"]
 }

@@ -541,7 +541,7 @@
         "T010": {
           "text": "Test plumbing before any move (plan §2, D1): the `@/` → `src/` alias in `vite.config.ts` and the tsconfigs; `tsconfig.tests.json` (type-checks `tests/`, referenced from `tsconfig.json`); Vitest `include` for `tests/{unit,integration}/**/*.test.ts` and `tools/**`; Playwright `testDir: tests/e2e`. Nothing moved yet: the same 1,672 tests still run.",
           "section": "Tests into tests/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -557,7 +557,11 @@
           ],
           "test": "`npm run check`: 1,672 tests",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** vite.config.ts: the `@/` → src/ alias (resolve.alias) and Vitest include for tests/unit, tests/integration, src (until the move) and tools; tsconfig.app.json paths `@/*`. tsconfig.tests.json comes with the first moved tests (T011: an empty project fails tsc -b) and Playwright’s testDir with the e2e move (T013). npm run check green: the same 48 files, 1,672 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T011": {
           "text": "Move the one-module tests with `git mv` to `tests/unit/<src path>/` (a commit with moves only), then point their imports at `@/…` (D1).",
