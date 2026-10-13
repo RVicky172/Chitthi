@@ -774,7 +774,7 @@
         "T050": {
           "text": "Failing tests (`src/state/video.test.ts`): `change()` keeps or drops transitions by the rule after a move, trim, Roll, Slip, Slide, ripple, delete, Magnetic switch and move to track (a shortened one clamped); split moves the outgoing transition to the right part; duplicate keeps it at the old cut; `setTransition` (add, change kind / dir / colour / length; refused across a gap, on a locked track and past the videos-at-once limit, recording nothing), `removeTransition`, `transitionEveryCut` (only where it fits); undo-step counts for each, a length drag one step; a seeded 1,000-edit property test never leaves a transition between clips that don't touch or beyond its room.",
           "section": "Store actions",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -788,12 +788,16 @@
           ],
           "test": "`npx vitest run src/state/video.test.ts`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** state/video.test.ts \"206: transitions in the store\": setTransition (a 0.5 s dissolve into the next clip; kind changes with that kind’s defaults; options; a length drag one step, held to its room and 3 s), removeTransition (one step; none → nothing), transitionEveryCut (every cut that fits, one step); refusals recording nothing (no cut after the clip, a gap, a locked track, the videos-at-once limit); edits by the rule (a trim shortens, delete of the next clip drops, a reorder keeping the pair keeps, Magnetic off delete drops, undo restores); split moves the outgoing transition to the right part; duplicate keeps it at the old cut; a seeded 1,000-edit property test of the invariant. 13 cases failed (no functions)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T051": {
           "text": "Implement plan §5 in `src/state/video.ts`: `tidyTransitions` in `change()` after packing (what it drops goes to the announcement), split and duplicate, `setTransition`, `removeTransition`, `transitionEveryCut`, `transitionSel` (view state).",
           "section": "Store actions",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -807,7 +811,11 @@
           ],
           "test": "T050",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** state/video.ts: VClip.transition; change() runs tidyTransitions after packing and grouping, so every edit keeps or drops transitions by the one rule; split moves the clip’s outgoing transition to the right part (the left keeps the one leading in); duplicate copies it (the tidy rule keeps it at the old cut); setTransition (default 0.5 s dissolve; a new kind brings its options; length held to 0.1 s and the room; refusals: no touching clip after it, no room, locked, the videos-at-once limit through commit), removeTransition, transitionEveryCut. transitionSel is left to T061 with the timeline UI that uses it. 77/77 store tests incl. the 1,000-edit property test; break-test (no tidy in change) caught by 5; npm run check green, 1,666 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T060": {
           "text": "Implement plan §6: `TransitionPanel` (the five kinds with looping previews drawn by `transitionOps`, still with reduced motion; applies to the selected cut, else the cut at the selected clip's end (the start for the last clip); Apply to every cut; a note with no cut) as a tool-rail item, and the inspector for a selected transition (kind, direction or colour, length in whole frames, Remove transition). Pure helper `panelCut(state)` (which cut the panel acts on, or why none) with unit tests.",

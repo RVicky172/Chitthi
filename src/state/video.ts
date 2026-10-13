@@ -25,6 +25,15 @@ import {
 import { scaleLayer, type Layer } from '../engine/layers';
 import { checkFile, loadImage } from '../engine/photo';
 import {
+  TRANSITION_LIMITS,
+  cutsOf,
+  defaultTransition,
+  roomFor,
+  tidyTransitions,
+  type Transition,
+  type TransitionKind,
+} from '../engine/transitions';
+import {
   IDENTITY,
   MAIN_VIDEO,
   MUSIC,
@@ -77,6 +86,8 @@ export interface VClip {
   tf?: ClipTransform;
   /** Keyframes (205): animated box values and volume, seconds from its start; missing = nothing animated. */
   keys?: Keyframes<ClipKeyProp>;
+  /** The transition on the cut at its end, into the clip that starts there (206); missing = a hard cut. */
+  transition?: Transition;
   /** Seconds from the start of the video; kept packed end to end while Magnetic is on. */
   start: number;
   name: string;
@@ -306,12 +317,16 @@ function grouped(clips: VClip[], tracks: Track[]): VClip[] {
   if (clips.every((c, i) => i === 0 || of(clips[i - 1]) <= of(c))) return clips;
   return clips.slice().sort((a, b) => of(a) - of(b));
 }
-/** Every undoable change goes through here; with Magnetic on, changed clips are packed end to end (the one place). */
+/**
+ * Every undoable change goes through here; with Magnetic on, changed clips are packed end to end (the one place), and
+ * transitions are kept or dropped by their one rule (206 AC-4: `tidyTransitions`), so edits needn't know of them.
+ */
 function change(key: string, patch: Partial<Snap>, extra: Partial<VState> = {}): void {
   record(key);
   const magnetic = patch.magnetic ?? state.magnetic;
   if (patch.clips && magnetic) patch = { ...patch, clips: pack(patch.clips) };
   if (patch.clips || patch.tracks) patch = { ...patch, clips: grouped(patch.clips ?? state.clips, patch.tracks ?? state.tracks) };
+  if (patch.clips) patch = { ...patch, clips: tidyTransitions(patch.clips, state.fps).clips };
   const clips = patch.clips ?? state.clips;
   set({ ...patch, ...flags(), ...extra, t: Math.min(extra.t ?? state.t, lengthOf(clips, patch.tracks, magnetic)) });
 }
@@ -799,11 +814,14 @@ export function splitAtPlayheadWhy(): string | null {
   // Each part keeps its keyframes, with one at the cut holding the value there (205 AC-3).
   const [keysA, keysB] = splitKeys(c.keys, local);
   const keys = (k: VClip['keys']) => (c.keys ? { keys: k } : {});
-  const a: VClip = c.kind === 'video' ? { ...c, out: c.in + local, ...keys(keysA) } : { ...c, dur: local, ...keys(keysA) };
+  // The clip's own transition (206) is at its end: it goes with the right part.
+  const { transition, ...left } = c;
+  const outgoing = transition ? { transition } : {};
+  const a: VClip = c.kind === 'video' ? { ...left, out: c.in + local, ...keys(keysA) } : { ...left, dur: local, ...keys(keysA) };
   const b: VClip =
     c.kind === 'video'
-      ? { ...c, id: newId(), start: t0 + local, in: c.in + local, fade: false, ...keys(keysB) }
-      : { ...c, id: newId(), start: t0 + local, dur: len - local, fade: false, ...keys(keysB) };
+      ? { ...left, id: newId(), start: t0 + local, in: c.in + local, fade: false, ...keys(keysB), ...outgoing }
+      : { ...left, id: newId(), start: t0 + local, dur: len - local, fade: false, ...keys(keysB), ...outgoing };
   const clips = state.clips.slice();
   clips.splice(state.clips.indexOf(c), 1, a, b);
   return commit('', { clips }, { selected: b.id });
@@ -1241,3 +1259,64 @@ export async function exportVideo(): Promise<ExportOutcome> {
   }
 }
 export const cancelExport = () => running?.abort();
+
+/* ---------- Transitions (206 plan §5): each one undo step, returning why it was refused ---------- */
+
+const NO_CUT = 'A transition goes on a cut between two clips that touch: this clip has no clip right after it on its track.';
+const NO_ROOM = 'These clips are too short for a transition (it needs at least 0.1 s, half on each side).';
+
+/** The clip right after `clip` on its track, touching it: the other side of its cut. */
+const nextOnTrack = (clip: VClip): VClip | undefined => cutsOf(state.clips, clip.track).find(([before]) => before.id === clip.id)?.[1];
+
+/**
+ * Adds a transition on the cut at the end of clip `id` (a 0.5 s cross-dissolve unless `patch` says otherwise), or
+ * changes the one there: a new kind brings that kind's options (a wipe goes left, a dip to black) unless given; a length
+ * is held to 0.1 s and to the room the two clips leave (`roomFor`). Refused, recording nothing, with no clip touching it
+ * after it, too little room, on a locked track, or when it would show more videos at once than this app allows (Q7).
+ * @param id the outgoing clip
+ * @param patch what to set: kind, length, direction, colour
+ * @param key groups a drag's changes into one undo step
+ */
+export function setTransition(id: string, patch: Partial<Omit<Transition, 'to'>>, key = ''): string | null {
+  const clip = state.clips.find((c) => c.id === id);
+  if (!clip) return NOT_FOUND;
+  const locked = clipLocked(id);
+  if (locked) return locked;
+  const next = nextOnTrack(clip);
+  if (!next) return NO_CUT;
+  const room = roomFor(clip, next, state.clips);
+  if (room < TRANSITION_LIMITS.min - 1e-9) return NO_ROOM;
+  const current = clip.transition?.to === next.id ? clip.transition : undefined;
+  const kind: TransitionKind = patch.kind ?? current?.kind ?? 'dissolve';
+  // A new kind starts from its own defaults (its options), keeping the length.
+  const base: Transition = current && current.kind === kind ? current : { ...defaultTransition(kind, next.id), ...(current ? { dur: current.dur } : {}) };
+  const { kind: _kind, ...options } = patch;
+  const wanted: Transition = { ...base, ...options, kind, to: next.id };
+  const transition: Transition = { ...wanted, dur: Math.min(room, Math.max(TRANSITION_LIMITS.min, wanted.dur)) };
+  return commit(key, { clips: state.clips.map((c) => (c.id === id ? { ...c, transition } : c)) });
+}
+
+/** Removes the transition at the end of clip `id` (a hard cut again); nothing to undo when there is none. */
+export function removeTransition(id: string): string | null {
+  const clip = state.clips.find((c) => c.id === id);
+  if (!clip) return NOT_FOUND;
+  if (!clip.transition) return null;
+  const locked = clipLocked(id);
+  if (locked) return locked;
+  const { transition: _gone, ...hardCut } = clip;
+  change('', { clips: state.clips.map((c) => (c.id === id ? (hardCut as VClip) : c)) });
+  return null;
+}
+
+/**
+ * **Apply to every cut** (the Transitions panel): a 0.5 s transition of `kind` on every cut of the track, replacing
+ * the ones there; where the clips leave less room it is shortened, and where there is none it is left out. One step.
+ */
+export function transitionEveryCut(track: string, kind: TransitionKind): string | null {
+  const locked = lockedReason(state.tracks, track);
+  if (locked) return locked;
+  const cuts = cutsOf(state.clips, track);
+  if (!cuts.length) return 'This track has no cuts between touching clips to put a transition on.';
+  const into = new Map(cuts.map(([before, after]) => [before.id, after.id]));
+  return commit('', { clips: state.clips.map((c) => (into.has(c.id) ? { ...c, transition: defaultTransition(kind, into.get(c.id)!) } : c)) });
+}
