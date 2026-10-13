@@ -82,6 +82,7 @@ Print studio, site and anything outside the editor phases take the next free num
 | 404 | Roadmap data (JSON) and a roadmap dashboard on localhost | [spec](features/404-roadmap-dashboard/spec.md) | ✔️ | — |
 | 405 | Roadmap dashboard revamp: a scrollable road, motion and live task progress | [spec](features/405-roadmap-revamp/spec.md) | ✔️ | 404 |
 | 406 | Roadmap improvements: next actions, task briefs and planning clarity | [spec](features/406-roadmap-actionable-workflow/spec.md) | ✔️ | — |
+| 407 | Code structure: a tests folder, coding standards, readable names and JSDoc | [spec](features/407-code-structure/spec.md) | 📝 | — |
 
 ## Backlog (unscheduled ideas)
 

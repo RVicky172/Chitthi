@@ -41,8 +41,13 @@
   timeline cuts; AC-6 (self-test), 8–10, 12–14 wait for 290. Entry 327 KB.
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
-- **Next (roadmap):** merge 206 into `main`; then 207 (speed) or 208 (audio tracks, builds on 205 / 206 sound),
-  branched from `main`; 290 collects the deferred checks.
+- **206 merged** into `main` and pushed (`797bbf2`, 2026-10-13).
+- **407:** `407-code-structure` 📝 Draft 2026-10-13 on `spec/407-code-structure` (from `main`): tests into
+  `tests/{unit,integration,e2e,support}`, `specs/coding-standards.md`, lint rules, no one-letter names, JSDoc on
+  exports, large files split (SOLID), measured optimizations; Q1–Q10 open. Baseline: 34 % one-letter names (5,593),
+  333 / 880 exports without JSDoc, 19 files > 600 lines, 103 functions > 80 lines.
+- **Next (roadmap):** answer 407's Q1–Q10, plan and do 407; then 207 (speed) from `main`; 290 collects the deferred
+  checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

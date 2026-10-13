@@ -1,0 +1,227 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "407",
+  "title": "Code structure: a tests folder, coding standards, readable names and JSDoc",
+  "workItem": null,
+  "status": "draft",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-13",
+    "approved": null,
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/407-code-structure"
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "The code works, but it is harder to read and change than it should be. Unit tests sit beside the code in `src/` (30 files), so tests and code are mixed when browsing; there are no written coding standards; 34 % of the names declared in `src/` are one letter (5,593 of 16,459), 38 % of exported functions have no JSDoc (333 of 880), 19 files are over 600 lines (the largest 1,443) and 103 functions over 80 lines. 407 moves every test into a top-level `tests/` folder (unit, integration, e2e), writes the standards down (naming, JSDoc, SOLID as applied here, sizes, performance), makes ESLint enforce what it can, and brings the existing code up to them without changing what the app does. (Tests beside the code never reached the build: Vite bundles only what the app imports, and the Docker image and the desktop app ship only `dist/`; 407 keeps that proven by a check.) It comes before 207 so Phase 2’s remaining features are written to the standards from the start.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As the maintainer, I want all tests in one `tests/` folder, split into unit, integration and e2e, so that code and tests don’t mix and I can find any test quickly."
+        },
+        "US-2": {
+          "text": "As a contributor (or an agent), I want written coding standards that the linter checks, so that new code is consistent without anyone having to remember the rules."
+        },
+        "US-3": {
+          "text": "As someone reading the code, I want descriptive names and a JSDoc on every exported function, so that I understand a function without reading its body."
+        },
+        "US-4": {
+          "text": "As the maintainer, I want large files split into modules that each do one job, so that a change touches one small place and is easy to review."
+        },
+        "US-5": {
+          "text": "As a user, I want none of this to change how the app looks, behaves or performs, except where it gets faster."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Tests in one place",
+          "proof": "check",
+          "text": "Every test lives under `tests/`: `tests/unit/` (one module, mirroring `src/`’s paths, e.g. `tests/unit/engine/keyframes.test.ts`), `tests/integration/` (several modules together: the stores, the decoder pool with its fake decoder, the preview sound), `tests/e2e/` (the Playwright tests, from `e2e/`) and `tests/support/` (shared fixtures and fakes, e.g. `timeline.testkit.ts`) (Q1). A check (in `npm run check`) fails if a `*.test.ts` or test helper appears under `src/`.",
+          "done": false
+        },
+        "AC-2": {
+          "group": "Tests in one place",
+          "proof": "check",
+          "text": "After the move the same tests run and pass: `npm run test:unit` runs the same 1,672 unit and integration tests (more if 407 adds any), `npm run test:e2e` the same e2e tests; `npm run check`, the editor’s test explorer and single-test commands (documented in CLAUDE.md) work with the new paths.",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Tests in one place",
+          "proof": "check",
+          "text": "No test code reaches what is shipped: `scripts/check-bundle.mjs` (in `npm run build`) fails if any built file contains a module from `tests/` or test-only code (Vitest, the fakes); the Docker image and the desktop package keep shipping only `dist/` and the listed Electron files.",
+          "done": false
+        },
+        "AC-4": {
+          "group": "Written standards",
+          "proof": "review",
+          "text": "`specs/coding-standards.md` says how code is written here, with a short example of each rule: names (descriptive; the one-letter exceptions of Q3), JSDoc (every exported function, class, React component and type: what it does, its parameters, what it returns, what it throws), SOLID as it applies to this codebase (Q7: one job per module, layers that only depend downwards, small interfaces), sizes (Q4), React (hooks, component size, props), performance (no allocation per frame in the drawing and decoding paths; measure before optimizing), errors (`logError`), comments, and tests (where they go, how they are named). The constitution’s Definition of Done and CLAUDE.md point to it.",
+          "done": false
+        },
+        "AC-5": {
+          "group": "Written standards",
+          "proof": "check",
+          "text": "ESLint enforces the rules it can: name length (Q3’s exceptions only), JSDoc on exports (`eslint-plugin-jsdoc`, BSD-3-Clause, a development dependency only, checked against `specs/licensing.md`), file and function size and complexity (Q4), and the layers’ import direction (`data` → `engine` → `state` → `components`; `engine` never imports `state` or `components`). At the end of 407 `npm run lint` has 0 errors with every rule on as an error for `src/` and `electron/`.",
+          "done": false
+        },
+        "AC-6": {
+          "group": "The existing code brought up to the standards",
+          "proof": "check",
+          "text": "No one-letter names are left in `src/` and `electron/` outside Q3’s exceptions (5,593 in `src/` on 2026-10-13), as the lint rule reports.",
+          "done": false
+        },
+        "AC-7": {
+          "group": "The existing code brought up to the standards",
+          "proof": "check",
+          "text": "Every exported function, class, React component and type in `src/` and `electron/` has a JSDoc (333 exported functions without one on 2026-10-13), as the lint rule reports.",
+          "done": false
+        },
+        "AC-8": {
+          "group": "The existing code brought up to the standards",
+          "proof": "check + review",
+          "text": "Files and functions over Q4’s limits are split by responsibility into focused modules (19 files over 600 lines and 103 functions over 80 lines on 2026-10-13; e.g. `engine/render.ts`, `state/video.ts`, `components/studio/Timeline.tsx`), each module with one job and a short header saying what it is for; data files (tables of products, docs) are exempt (Q4).",
+          "done": false
+        },
+        "AC-9": {
+          "group": "Nothing changes for users",
+          "proof": "unit + e2e + self-test + MCP (407)",
+          "text": "Behaviour is unchanged: every unit, integration and e2e test, the self-test (~6,100 checks: every product × size × layout, print packs, agent tools) and the MCP test pass before and after; the 201–206 video fixtures export identical inputs and pixel-identical frames; the entry chunk is no larger than before (327 KB). These run at the end of 407 itself, not in 290 (Q9).",
+          "done": false
+        },
+        "AC-10": {
+          "group": "Optimized code",
+          "proof": "timing + review",
+          "text": "A performance review of the hot paths (video frame drawing `renderStack` / `frameStack`, the decoder pool, the sound mix, the photo pipeline, the print renderer) is recorded in `specs/features/407-code-structure/` with measurements; a change is made only where it measures at least 10 % faster (Q8), with before / after numbers; no timing check gets slower.",
+          "done": false
+        },
+        "AC-11": {
+          "group": "Docs",
+          "proof": "review",
+          "text": "CLAUDE.md (commands, single tests, the layers), `specs/testing-strategy.md` (the new layout and what is unit / integration / e2e), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts) and `memory/` describe the new structure; relative links resolve.",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10"
+      ],
+      "byId": {
+        "Q1": {
+          "open": true,
+          "text": "The `tests/` layout? _Proposed:_ `tests/unit/` mirrors `src/` (one test file per module it tests); `tests/integration/` holds tests that drive several modules together (today: `state/*.test.ts`, `decodePool.test.ts` with its fake decoder, `previewSound.test.ts`); `tests/e2e/` takes `e2e/`; `tests/support/` the shared fixtures and fakes (`timeline.testkit.ts`, the fake decoder, the recording canvas). The roadmap dashboard’s own tests stay with that tool (`tools/`, a separate app) until Q6’s follow-up."
+        },
+        "Q2": {
+          "open": true,
+          "text": "The in-app self-test (`src/dev/selftest.ts`, `videoChecks.ts`, `poolChecks.ts`, `playbackChecks.ts`, ~5,000 lines) runs inside the Electron app, in the page. Where does it go? _Proposed:_ `tests/selftest/`, loaded by `main.tsx` only in development builds (as today, behind `import.meta.env.DEV`), with AC-3’s check proving it never reaches the production build. `src/dev/showcase` and `printSamples` (development pages, not tests) stay in `src/dev/`."
+        },
+        "Q3": {
+          "open": true,
+          "text": "Which one-letter names, if any, are allowed? _Proposed:_ only `_` for a value that is deliberately unused, and `x` / `y` for a point’s coordinates (they are the axes’ real names); everything else is descriptive: `index` not `i`, `clip` not `c`, `context` not `ctx` or `x`, `width` / `height` not `W` / `H`, `error` not `e`, `event` not `e`. The lint rule (`id-length` with these exceptions) applies to variables, parameters, functions and properties we declare."
+        },
+        "Q4": {
+          "open": true,
+          "text": "Size limits? _Proposed:_ files at most 500 lines, functions at most 80 lines, cyclomatic complexity at most 15, React components at most 250 lines; data-only files (`src/data/`, `docs.ts`) and test files are exempt. Lint warnings while a folder is being cleaned up, errors once it is done."
+        },
+        "Q5": {
+          "open": true,
+          "text": "All at once or step by step? _Proposed:_ step by step, one folder per task, each its own commit with every test green, in this order: the tests move first (smallest risk, AC-1–AC-3), then the standards and lint rules as warnings (AC-4, AC-5), then `engine/`, `state/`, `agent/` + `ai/` + `lib/` + `platform/`, `components/`, `dev/` → `tests/selftest/`, `electron/`; each folder’s rules become errors when it is done. Estimated at 3–5 working days of tasks; Phase 2 work (207) waits for it."
+        },
+        "Q6": {
+          "open": true,
+          "text": "Scope: what is cleaned up? _Proposed:_ the shipped code: `src/` and `electron/`. The development tools (`scripts/`, `tools/specs-index`, `tools/roadmap-dashboard`) follow the same standards for new code but are cleaned up later in their own feature (408), so 407 stays reviewable."
+        },
+        "Q7": {
+          "open": true,
+          "text": "What does SOLID mean here, concretely? _Proposed:_ **S**: one job per module (e.g. `state/video.ts` becomes the store core and history, clip edits, keyframe actions, transition actions and export; `render.ts` and `Timeline.tsx` split the same way). **O**: products, sizes, layouts, kinds stay data-driven (add a table entry, not a branch), as `src/data/` already does. **L**: few classes here; where an interface has several implementations (frame sources, AI providers, file sinks) each honours it fully. **I**: small props and options interfaces, not one large shared one. **D**: layers depend downwards only (`data` → `engine` → `state` → `components`), enforced by lint; platform differences behind `platform/` and `lib/`. No class hierarchies added for their own sake."
+        },
+        "Q8": {
+          "open": true,
+          "text": "How is “optimized” judged? _Proposed:_ by measurement, not by eye: the existing timing checks (preview frame time, export speed, the pool’s decode timings, the print renderer’s time per page) before and after; a change goes in only with at least 10 % gain on its path and no loss elsewhere. Readability changes (renames, splits) must not slow anything (checked by the same timings)."
+        },
+        "Q9": {
+          "open": true,
+          "text": "Heavy tests (D-033 puts them in a phase’s test pass)? _Proposed:_ 407 is not a phase feature and touches every file, so it runs the full Definition of Done itself at its end (e2e, self-test, MCP, licences, build) and after each large folder (components, dev), not deferred to 290."
+        },
+        "Q10": {
+          "open": true,
+          "text": "Order with Phase 2? _Proposed:_ 407 first (branched from `main`, merged into `main` when done), then 207 branched from the updated `main`, written to the standards from its first line."
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-13",
+        "text": "Created: draft spec with 11 acceptance criteria and 10 open questions with proposed answers (the maintainer asked for a tests folder, coding standards, SOLID, JSDoc and no one-letter names before 207)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Behaviour-neutral:** no change to what the app shows, saves, exports or how fast it is (except measured speed-ups, AC-10); every test green after every task (AC-9).\n- **Reviewable:** one folder per task and commit; moves (`git mv`) separate from edits, so history follows the files.\n- **Dependencies:** one development dependency (`eslint-plugin-jsdoc`, BSD-3-Clause; listed in `scripts/check-licenses.mjs` as not shipped); nothing new in the shipped app.\n- **Free and open source:** unchanged."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- New features or behaviour changes; UI changes.\n- `scripts/` and `tools/` clean-up (408, Q6).\n- A different test framework (Vitest and Playwright stay).\n- Rewrites for style alone: a module is split or renamed to meet a standard, not redesigned."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

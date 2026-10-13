@@ -117,7 +117,8 @@
           "401",
           "404",
           "405",
-          "406"
+          "406",
+          "407"
         ]
       }
     }
@@ -381,6 +382,14 @@
         "status": "done",
         "note": "",
         "folder": "features/406-roadmap-actionable-workflow",
+        "needs": []
+      },
+      "407": {
+        "title": "Code structure: a tests folder, coding standards, readable names and JSDoc",
+        "workItem": null,
+        "status": "spec-drafted",
+        "note": "",
+        "folder": "features/407-code-structure",
         "needs": []
       },
       "000": {
