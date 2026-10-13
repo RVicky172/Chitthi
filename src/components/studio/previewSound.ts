@@ -4,9 +4,9 @@
 // alone decodes pictures. Kept within a frame of the picture by nudging playbackRate (AC-8, Q5). The music keeps its
 // own element in VideoStage.
 import { lanePlan } from '../../engine/decodePool';
-import { volumeAt, type ClipKeyProp, type Keyframes } from '../../engine/keyframes';
+import { edgeGain, volumeAt, type ClipKeyProp, type Keyframes } from '../../engine/keyframes';
 import { frameStack } from '../../engine/stack';
-import { type Project, type TimedClip } from '../../engine/timeline';
+import { soundEdges, type Project, type SoundEdges, type TimedClip } from '../../engine/timeline';
 
 /**
  * Whose sound plays at playhead `t`: every video clip under it, bottom track first: the main track's and each overlay
@@ -21,14 +21,16 @@ export function soundPlan<C extends TimedClip>(
   p: Project<C>,
   t: number,
   ahead = 2,
-): { current: { clip: C; local: number }[]; next: C[]; held: C[] } {
+): { current: { clip: C; local: number; edges?: SoundEdges }[]; next: C[]; held: C[] } {
   const shown = { ...p, tracks: p.tracks.map((tr) => (tr.hidden ? { ...tr, hidden: false } : tr)) };
   const muted = new Set(p.tracks.filter((tr) => tr.kind === 'overlay' && tr.muted).map((tr) => tr.id));
-  const current: { clip: C; local: number }[] = [],
+  const current: { clip: C; local: number; edges?: SoundEdges }[] = [],
     held: C[] = [];
   for (const it of frameStack(shown, t)) {
     if (it.clip.kind !== 'video') continue;
     if (muted.has(it.track)) held.push(it.clip);
+    // During a transition (206) the clip plays into its handles with the transition's edges, as the export mixes it.
+    else if (it.mix) current.push({ clip: it.clip, local: it.local, edges: soundEdges(it.clip, p.clips) });
     else current.push({ clip: it.clip, local: it.local });
   }
   const on = new Set([...current.map((x) => x.clip.id), ...held.map((c) => c.id)]);
@@ -99,12 +101,16 @@ export function previewSound() {
     if (!el.paused) el.pause();
     if (el.playbackRate !== 1) el.playbackRate = 1;
   };
-  /** One current clip's element at `local` seconds into the clip: playing and kept in step, or waiting there. */
-  const follow = (c: SoundClip, local: number, play: boolean, fps: number) => {
-    // Volume keyframes are followed on every tick (within a frame of the picture, 205 AC-10).
-    const el = element(c, volumeAt(c, local)),
+  /**
+   * One current clip's element at `local` seconds into the clip: playing and kept in step, or waiting there. During a
+   * transition (`edges`, 206) it plays into its handles, before its start and past its end, at the edges' gain.
+   */
+  const follow = (c: SoundClip, local: number, play: boolean, fps: number, edges: SoundEdges = {}) => {
+    // Volume keyframes and transition edges are followed on every tick (within a frame of the picture, 205 AC-10).
+    const length = c.out - c.in;
+    const el = element(c, volumeAt(c, local) * edgeGain({ start: 0, end: length, ...edges }, local)),
       want = c.in + local;
-    if (local < 0 || want >= c.out - 1e-3) return halt(el);
+    if (local < -(edges.lead ?? 0) || want < 0 || want >= c.out + (edges.trail ?? 0) - 1e-3) return halt(el);
     if (!play) {
       halt(el);
       if (Math.abs(el.currentTime - want) > SETTLED) el.currentTime = want;
@@ -132,7 +138,7 @@ export function previewSound() {
      * and is kept in step on its own; paused, each waits at its clip's time.
      */
     update(
-      { current, next, held }: { current: { clip: SoundClip; local: number }[]; next: SoundClip[]; held: SoundClip[] },
+      { current, next, held }: { current: { clip: SoundClip; local: number; edges?: SoundEdges }[]; next: SoundClip[]; held: SoundClip[] },
       play: boolean,
       fps: number,
     ) {
@@ -156,7 +162,7 @@ export function previewSound() {
           halt(el);
           el.muted = true;
         }
-      for (const x of current) follow(x.clip, x.local, play, fps);
+      for (const x of current) follow(x.clip, x.local, play, fps, x.edges);
     },
     /** The element playing a clip's sound now, if any (self-tests capture it: AC-8). */
     element: (id: string): HTMLAudioElement | undefined => els.get(id),

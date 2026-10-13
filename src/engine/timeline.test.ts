@@ -1876,3 +1876,33 @@ describe('transitions in the document (206 AC-5)', () => {
     expect(JSON.stringify(toDocument(back.doc))).toBe(text);
   });
 });
+
+/* ---------- 206 T040: the sound plan across transitions (AC-6, AC-13) ---------- */
+
+describe('audioPlan with transitions (206 AC-6)', () => {
+  const v = (id: string, start: number, len: number, transition?: Transition) =>
+    ({ id, track: MAIN_VIDEO, start, kind: 'video', dur: 0, in: 2, out: 2 + len, volume: 0.9, ...(transition ? { transition } : {}) }) as TimedClip;
+  const project = (clips: TimedClip[]): Project => ({ tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false });
+
+  it('each kind: the sources play into their handles with the transition’s edges instead of the 0.03 s ramps', () => {
+    const p = project([v('a', 0, 3, { kind: 'dissolve', dur: 1, to: 'b' }), v('b', 3, 3, { kind: 'dip', dur: 0.5, to: 'c', colour: 'black' }), v('c', 6, 2)]);
+    expect(audioPlan(p)).toEqual([
+      { ref: 'a', start: 0, end: 3, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0, trail: 0.5, edgeOut: 'power' },
+      { ref: 'b', start: 3, end: 6, from: 2, volume: 0.9, fadeIn: 0, fadeOut: 0, lead: 0.5, edgeIn: 'power', trail: 0.25, edgeOut: 'dip' },
+      { ref: 'c', start: 6, end: 8, from: 2, volume: 0.9, fadeIn: 0, fadeOut: 0.03, lead: 0.25, edgeIn: 'dip' },
+    ]);
+    for (const kind of ['wipe', 'slide', 'zoom'] as const) {
+      const q = project([v('a', 0, 3, { kind, dur: 1, to: 'b' }), v('b', 3, 3)]);
+      expect(audioPlan(q).map((s) => [s.edgeOut, s.edgeIn])).toEqual([['power', undefined], [undefined, 'power']]);
+    }
+  });
+
+  it('a cut without a transition keeps 205’s sources exactly (no new fields)', () => {
+    const p = project([v('a', 0, 3), v('b', 3, 3)]);
+    expect(audioPlan(p)).toEqual([
+      { ref: 'a', start: 0, end: 3, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0.03 },
+      { ref: 'b', start: 3, end: 6, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0.03 },
+    ]);
+    expect(audioPlan(p).every((s) => !('lead' in s) && !('trail' in s))).toBe(true);
+  });
+});

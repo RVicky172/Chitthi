@@ -391,6 +391,30 @@ export interface SoundSource {
   /** Volume ramps at its ends, seconds. */
   fadeIn: number;
   fadeOut: number;
+  /** Transitions (206): seconds it plays before `start` (half the transition leading into it) and after `end` (half
+   * its own), and how its sound goes there: an equal-power cross-fade (`power`) or a dip through silence (`dip`). */
+  lead?: number;
+  trail?: number;
+  edgeIn?: 'power' | 'dip';
+  edgeOut?: 'power' | 'dip';
+}
+
+/** How a clip's sound meets its transitions (206): the `SoundSource` fields of `lead`, `trail` and their edges. */
+export type SoundEdges = Pick<SoundSource, 'lead' | 'trail' | 'edgeIn' | 'edgeOut'>;
+
+/**
+ * A clip's sound edges from its transitions (206 AC-6): half the transition leading into it (`lead`) and half its own
+ * (`trail`), each an equal-power cross-fade or, for a dip, a dip through silence; empty without transitions. Shared by
+ * the export's sound plan and the preview's sound, so they blend alike.
+ */
+export function soundEdges(clip: TimedClip, clips: readonly TimedClip[]): SoundEdges {
+  const leading = clips.find((other) => other.track === clip.track && other.transition?.to === clip.id)?.transition;
+  const own = clip.transition;
+  const edge = (transition: Transition) => (transition.kind === 'dip' ? 'dip' : 'power');
+  return {
+    ...(leading ? { lead: leading.dur / 2, edgeIn: edge(leading) } : {}),
+    ...(own ? { trail: own.dur / 2, edgeOut: edge(own) } : {}),
+  };
 }
 
 /**
@@ -410,6 +434,8 @@ export function audioPlan(p: Project): SoundSource[] {
       // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
       const gain = c.keys?.volume?.length ? c.keys.volume : undefined;
       if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) continue;
+      // A transition at a cut (206) replaces the 0.03 s ramp there: the sound plays into the handle with its edge.
+      const edges = soundEdges(c, p.clips);
       out.push({
         ref: c.id,
         start: c.start,
@@ -417,8 +443,9 @@ export function audioPlan(p: Project): SoundSource[] {
         from: c.in,
         volume,
         ...(gain ? { gain } : {}),
-        fadeIn: 0.03,
-        fadeOut: 0.03,
+        fadeIn: edges.lead ? 0 : 0.03,
+        fadeOut: edges.trail ? 0 : 0.03,
+        ...edges,
       });
     }
   };

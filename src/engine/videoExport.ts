@@ -117,9 +117,12 @@ async function mixWindow(sources: AudioSource[], t0: number, len: number): Promi
   const ctx = new OfflineAudioContext(2, Math.max(1, Math.round(len * SAMPLE_RATE)), SAMPLE_RATE);
   const t1 = t0 + len;
   for (const s of sources) {
-    if (s.end <= t0 || s.start >= t1) continue;
-    const a = Math.max(t0, s.start),
-      b = Math.min(t1, s.end);
+    // A source plays into its transitions' handles (206): from half the one leading in, to half its own.
+    const first = s.start - (s.lead ?? 0),
+      last = s.end + (s.trail ?? 0);
+    if (last <= t0 || first >= t1) continue;
+    const a = Math.max(t0, first),
+      b = Math.min(t1, last);
     const gain = ctx.createGain();
     gain.connect(ctx.destination);
     // Volume over the window, with its ramps at the source's ends (times relative to the window).
@@ -129,14 +132,16 @@ async function mixWindow(sources: AudioSource[], t0: number, len: number): Promi
       if (s.fadeOut > 0 && t > s.end - s.fadeOut) v *= Math.max(0, (s.end - t) / s.fadeOut);
       return v;
     };
-    // Volume keyframes (205): one curve over [a, b], the only automation on this gain node, so events never overlap.
-    if (s.gain) gain.gain.setValueCurveAtTime(gainCurve(s, a, b - a), a - t0, b - a);
+    // Volume keyframes (205) or transition edges (206): one curve over [a, b], the only automation on this gain node, so
+    // events never overlap.
+    if (s.gain || s.lead || s.trail) gain.gain.setValueCurveAtTime(gainCurve(s, a, b - a), a - t0, b - a);
     else {
       gain.gain.setValueAtTime(at(a), a - t0);
       for (const edge of [s.start + s.fadeIn, s.end - s.fadeOut, b]) if (edge > a && edge <= b) gain.gain.linearRampToValueAtTime(at(edge), edge - t0);
     }
     // Source seconds covering [a, b).
-    const srcA = s.from + (a - s.start),
+    // Before the source's own start (an incoming handle past the file's start) there is nothing to play.
+    const srcA = Math.max(0, s.from + (a - s.start)),
       srcB = s.from + (b - s.start);
     for await (const wb of s.sink.buffers(srcA, srcB)) {
       const node = ctx.createBufferSource();

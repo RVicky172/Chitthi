@@ -727,7 +727,7 @@
         "T040": {
           "text": "Failing tests (`src/engine/keyframes.test.ts`, `src/engine/timeline.test.ts`): `edgeGain`: equal power (squares sum to 1 within 1 % every 1 ms across the transition), the outgoing sound past its end, the dip (out to 0 by the cut, in from it); `audioPlan` gives `lead` / `trail` / edges for a fixture with every kind (expected list exactly) and 205's sources unchanged without transitions; `gainCurve` with edges stays within 0.5 dB of the exact curve, with volume keyframes too.",
           "section": "Sound",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -741,12 +741,16 @@
           ],
           "test": "`npx vitest run src/engine`: the new cases fail",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** keyframes.test.ts \"edgeGain\": equal power (squares sum to 1 within 1 % every 1 ms over a 1 s transition; 1 / 0 at its start, 0 / 1 at its end; the eased progress), the dip (the outgoing sound silent from the cut, the incoming from it), 1 away from transitions, sourceGainAt multiplies it over the volume or volume keyframes, gainCurve with edges within 0.5 dB of an exact curve (keyframes too). timeline.test.ts: audioPlan for a dissolve and a dip (lead / trail / edges instead of the 0.03 s ramps at those cuts; each kind’s edge), and 205’s sources unchanged without transitions. 6 cases failed before T041."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T041": {
           "text": "Implement plan §4: `SoundSource` `lead` / `trail` / `edgeIn` / `edgeOut` in `audioPlan`; `edgeGain` in `sourceGainAt` / `gainCurve`; `mixWindow` reads each source from `start − lead` to `end + trail` with one curve; `previewSound` sets each element's volume with the edges on every tick (new preview test).",
           "section": "Sound",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -761,7 +765,11 @@
           ],
           "test": "T040",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-13):** timeline.ts: SoundSource lead / trail / edgeIn / edgeOut; soundEdges(clip, clips) (shared); audioPlan replaces the 0.03 s ramp at a transition’s cut with the edge. keyframes.ts edgeGain (sin / cos of the eased progress, or the dip through silence) multiplied into sourceGainAt, so gainCurve covers it. videoExport mixWindow reads each source from start − lead to end + trail, one setValueCurveAtTime for keyed or edged sources, source time clamped at 0. previewSound: soundPlan gives transition clips their edges; follow plays into the handles at volume × edgeGain. New preview test (failed first). Break-tests (preview halting at the clip’s ends; a linear instead of equal-power fade) caught by 3; npm run check green, 1,653 tests. The exported sound is measured in 290 (AC-6)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
         },
         "T050": {
           "text": "Failing tests (`src/state/video.test.ts`): `change()` keeps or drops transitions by the rule after a move, trim, Roll, Slip, Slide, ripple, delete, Magnetic switch and move to track (a shortened one clamped); split moves the outgoing transition to the right part; duplicate keeps it at the old cut; `setTransition` (add, change kind / dir / colour / length; refused across a gap, on a locked track and past the videos-at-once limit, recording nothing), `removeTransition`, `transitionEveryCut` (only where it fits); undo-step counts for each, a length drag one step; a seeded 1,000-edit property test never leaves a transition between clips that don't touch or beyond its room.",
