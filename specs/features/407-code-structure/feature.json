@@ -762,7 +762,7 @@
         "T022": {
           "text": "Turn on `noImplicitReturns` and `noImplicitOverride` (Q13) and fix their 3 errors.",
           "section": "Standards and rules",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": true,
           "manual": false,
@@ -775,8 +775,14 @@
             "src/**"
           ],
           "test": "`npm run check`",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "423f59d"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `noImplicitReturns` and `noImplicitOverride` on in `tsconfig.app.json` and `tsconfig.tests.json`. They reported the 3 errors expected, all `noImplicitOverride` (TS4114) in `components/ErrorBoundary.tsx` (`state`, `componentDidCatch`, `render`), now marked `override`; `noImplicitReturns` found none. `npm run check` green (1,683 tests, lint 0 errors)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
         },
         "T023": {
           "text": "Add, as **warnings**: `eslint-plugin-react-hooks` `recommended-latest` (AC-12; 27 findings), typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` with `projectService` and `consistent-type-definitions: interface` (AC-13). Measure the lint time with type-aware rules; if it is too slow, apply plan Techniques’ fallback.",
