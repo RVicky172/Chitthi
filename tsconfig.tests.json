@@ -11,6 +11,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "skipLibCheck": true,

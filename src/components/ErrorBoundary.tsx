@@ -13,13 +13,13 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
-  state: State = { failed: false, copied: false };
+  override state: State = { failed: false, copied: false };
 
   static getDerivedStateFromError(): Partial<State> {
     return { failed: true };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     logError('render', error);
     if (info.componentStack) console.error(info.componentStack);
   }
@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     }
   };
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (!this.state.failed) return this.props.children;
     return (
       <div className="crash" role="alert">
