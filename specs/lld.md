@@ -100,8 +100,16 @@ src/
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
     instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
     presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
-    video.ts                 Video editor: tracks, clips, layers, music, playhead, undo, lock guards, Magnetic, tool,
-                             Snap, edit actions (through engine/edits.ts), export
+    videoStore.ts            Video editor's store: kind, tracks, clips, layers, music, playhead, Magnetic, tool, Snap,
+                             undo / redo, `change` / `commit` (the one path for undoable changes), loadVideoProject
+    videoTracks.ts           Track actions (add, rename, move, delete, hide / mute / lock, heights), clipPlace
+    videoClips.ts            Clip changes, remove, move, duplicate, split; edit tools (through engine/edits.ts)
+    videoBox.ts              A clip's box and volume, stored or keyed at the playhead; presets
+    videoKeys.ts             Keyframe actions on clips and layers (toggle, remove animation, move, ease, delete)
+    videoLayers.ts           Layer actions; updateLayerAt (keyed at the playhead), setLayerTimes
+    videoTransitions.ts      Transition actions: set, remove, on every cut
+    videoMedia.ts            Photos and videos into clips (addMedia, filmstrips), the music
+    videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
@@ -428,7 +436,7 @@ removes (`1 − min(r, 1/r)`, where r is the photo aspect divided by the slot as
 most 20%. `slotDpi` is the resolution a photo reaches covering the slot. Pixel sizes of stored photos are learned
 from their thumbnails (`rememberDims`) and cached for the session, so filtering needs no extra decoding.
 
-### 4.9 Video project as tracks (`timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`, `state/video.ts`)
+### 4.9 Video project as tracks (`timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`, `state/video*.ts`)
 
 A project is `{ tracks, clips, audio, layers, fadeOut }`. A `Track` has an id, a kind (`video`, `overlay`, `audio`), a
 name and `hidden` / `muted` / `locked`; every project has `V1` (main video) and `A1` (music); limits 8 + 8 tracks on
@@ -467,7 +475,7 @@ touching clips), `slip` (videos only), `slide` (needs a clip after it; with `mag
 shortened), the source, 60 s for photos (`PHOTO_MAX`), the project's length. Video edges are clamped to the source
 and starts at 0 where they move (floating-point sums miss them by 1e-16). `checkTrack` is the invariant (sorted, no
 overlap, inside sources, within the limit, nothing newly under 0.3 s); 1,000 seeded edits per operation keep it and
-pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store (`state/video.ts`) wraps each in one
+pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store (`state/videoClips.ts`) wraps each in one
 undo step (`apply`); `magnetic` is in its undo snapshots (D1), `tool` and `snapping` are view settings (D4), and
 `loadVideoProject` starts a project from ready clips (tests).
 
@@ -502,7 +510,7 @@ Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: no
   `renderStack` with one item.
 - **The document**: `DocClip.transform` (written only when not the identity), overlay tracks kept, the overlap rule
   on every picture track; 201 / 202 documents round-trip byte-identical.
-- **The store** (`state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for
+- **The store** (`state/videoTracks.ts`, `videoMedia.ts`, `videoBox.ts`, `videoClips.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for
   overlays), `addMedia(files, { track, at })` (`NEW_TRACK` makes one), `moveClipToTrack`, `setClipTransform` (a
   key per drag), `applyPreset`, `updateClipWhy` (the inspector shows refusals); every result is checked with
   `limitVideos`; overlay clips are lifted, never rippled (Q8).
@@ -545,7 +553,7 @@ the stage and the inspector.
   byte-identical. `mergeKeys(raw, props, on, budget)` is the gate: known values only (`__proto__` and unknown names
   dropped), finite times within a day, values clamped, unknown eases → `ease-in-out`, sorted with the last of equal
   times kept, the limits (one `KeyBudget` shared by clips then layers), each reason once; it never throws.
-- **The store** (`state/video.ts`): `toggleKey(target, props)`, `removeAnimation`, `moveKeys` (a drag passes one undo
+- **The store** (`state/videoKeys.ts`, `videoBox.ts`, `videoLayers.ts`): `toggleKey(target, props)`, `removeAnimation`, `moveKeys` (a drag passes one undo
   key), `setKeyEase`, `deleteKeys` (a value's last key stores its value); routers `setClipTransformAt`,
   `setClipVolume`, `updateLayerAt` write an animated value as a key at the playhead and any other as before (auto-key,
   Q4); `setLayerTimes` shifts a layer's keys when only its start moves; split and duplicate carry keys. Each action

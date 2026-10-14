@@ -4,7 +4,8 @@
 import { useEffect, useRef } from 'react';
 import { DIRECTIONS, TRANSITION_KINDS, TRANSITION_LIMITS, roomFor, transitionOps, type Direction, type TransitionKind } from '../../engine/transitions';
 import { toast } from '../../lib/toast';
-import { getVideo, removeTransition, selectTransition, setTransition, transitionEveryCut, useVideo, type VClip } from '../../state/video';
+import { getVideo, selectTransition, useVideo, type VClip } from '../../state/videoStore';
+import { removeTransition, setTransition, transitionEveryCut } from '../../state/videoTransitions';
 import { Seg } from '../common';
 import { LpRange } from '../ig/LayerPanel';
 import { TRANSITION_NAMES, panelCut } from './timelineRows';

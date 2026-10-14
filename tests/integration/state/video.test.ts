@@ -5,7 +5,14 @@ import { TEXT_STYLES } from '@/data/layers';
 import { layerAt, type Ease, type Keyframe } from '@/engine/keyframes';
 import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '@/engine/layers';
 import { MAIN_VIDEO, defaultTracks, tooManyTracks, type Track } from '@/engine/tracks';
-import { NEW_TRACK, addMedia, addTrack, applyPreset, clipPlace, deleteGap, deleteTrack, duplicateClip, duplicateClipWhy, endVStep, getVideo, loadVideoProject, mediaIO, moveClip, moveClipToTime, moveClipToTrack, moveTrack, renameTrack, setClipTransform, splitAtPlayheadWhy, nudgeClip, rippleDeleteClip, rippleTrimToPlayhead, rollClip, selectClip, setPlayhead, setTrack, slideClip, slipClip, slipMusic, splitAtPlayhead, trimClip, moveClipTo, removeClip, setMagnetic, setSnapping, setTool, undoV, updateClip, updateClipWhy, videoLength, deleteKeys, moveKeys, removeAnimation, setClipTransformAt, setClipVolume, setKeyEase, setLayerTimes, toggleKey, updateLayerAt, setVLayers, removeTransition, setTransition, transitionEveryCut, type VClip, type VMusic } from '@/state/video';
+import { applyPreset, setClipTransform, setClipTransformAt, setClipVolume } from '@/state/videoBox';
+import { deleteGap, duplicateClip, duplicateClipWhy, moveClip, moveClipTo, moveClipToTime, moveClipToTrack, nudgeClip, removeClip, rippleDeleteClip, rippleTrimToPlayhead, rollClip, slideClip, slipClip, splitAtPlayhead, splitAtPlayheadWhy, trimClip, updateClip, updateClipWhy } from '@/state/videoClips';
+import { deleteKeys, moveKeys, removeAnimation, setKeyEase, toggleKey } from '@/state/videoKeys';
+import { setLayerTimes, setVLayers, updateLayerAt } from '@/state/videoLayers';
+import { addMedia, mediaIO, NEW_TRACK, slipMusic } from '@/state/videoMedia';
+import { endVStep, getVideo, loadVideoProject, selectClip, setMagnetic, setPlayhead, setSnapping, setTool, undoV, type VClip, videoLength, type VMusic } from '@/state/videoStore';
+import { addTrack, clipPlace, deleteTrack, moveTrack, renameTrack, setTrack } from '@/state/videoTracks';
+import { removeTransition, setTransition, transitionEveryCut } from '@/state/videoTransitions';
 
 /*
  * The video store's Magnetic switch, tool and Snap (202 T020). Clips are made by hand (no media decoding in Node):

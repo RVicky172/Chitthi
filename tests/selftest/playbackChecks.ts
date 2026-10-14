@@ -36,7 +36,8 @@ async function mountEditor() {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
-  const v = await import('@/state/video');
+  // The video store and the actions these checks use.
+  const v = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
   const pf = await import('@/components/studio/previewFrame');
   const { openFrames } = await import('@/engine/frameSource');
   const host = document.createElement('div');

@@ -15,7 +15,8 @@ import {
 import { createPortal } from 'react-dom';
 import { EASES, type Ease, type Keyframes } from '../../engine/keyframes';
 import { toast } from '../../lib/toast';
-import { deleteKeys, getVideo, moveKeys, setKeyEase, type KeyProp, type KeyTarget } from '../../state/video';
+import { deleteKeys, type KeyProp, type KeyTarget, moveKeys, setKeyEase } from '../../state/videoKeys';
+import { getVideo } from '../../state/videoStore';
 import { easeName, easeShape, keyPropName, keyTimes, type KeyTime } from './timelineRows';
 
 /** The item whose keyframes the lane shows: where it starts and how long it is on the timeline, and its keys. */

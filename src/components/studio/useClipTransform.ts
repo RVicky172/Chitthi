@@ -7,7 +7,8 @@ import { frameStack, type SnapGuide } from '../../engine/stack';
 import { MAIN_VIDEO, lockedReason } from '../../engine/tracks';
 import { type ClipTransform } from '../../engine/timeline';
 import { toast } from '../../lib/toast';
-import { getVideo, projectOf, selectClip, setClipTransformAt, type VClip } from '../../state/video';
+import { setClipTransformAt } from '../../state/videoBox';
+import { getVideo, projectOf, selectClip, type VClip } from '../../state/videoStore';
 import { handleRadius } from '../ig/useLayerPointer';
 
 /*

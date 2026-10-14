@@ -21,7 +21,14 @@ import { canStreamToDisk } from '../../lib/fileSink';
 import { toast } from '../../lib/toast';
 import { desktop, isDesktop } from '../../platform/desktop';
 import { canShareFiles, getIg, setIg, useIg } from '../../state/instagram';
-import { addMedia, addVLayer, cancelExport, adjustClip, applyPreset, clipPlace, editClip, endVStep, exportVideo, getVideo, limitText, limits, redoV, removeMusic, removeVLayer, restackVLayer, selectVLayer, setKind, setMusicFile, setPlayhead, removeAnimation, setClipTransformAt, setClipVolume, setLayerTimes, toggleKey, updateLayerAt, type KeyProp, type KeyTarget, setPlaying, setVideoOptions, setVLayers, setVTools, undoV, updateClipWhy, updateMusic, useVideo, type VClip, projectOf, total as videoTotal, videoLength } from '../../state/video';
+import { applyPreset, setClipTransformAt, setClipVolume } from '../../state/videoBox';
+import { adjustClip, editClip, updateClipWhy } from '../../state/videoClips';
+import { cancelExport, exportVideo } from '../../state/videoExportJob';
+import { type KeyProp, type KeyTarget, removeAnimation, toggleKey } from '../../state/videoKeys';
+import { addVLayer, removeVLayer, restackVLayer, setLayerTimes, setVLayers, updateLayerAt } from '../../state/videoLayers';
+import { addMedia, removeMusic, setMusicFile, updateMusic } from '../../state/videoMedia';
+import { endVStep, getVideo, limits, limitText, projectOf, redoV, selectVLayer, setKind, setPlayhead, setPlaying, setVideoOptions, setVTools, total as videoTotal, undoV, useVideo, type VClip, videoLength } from '../../state/videoStore';
+import { clipPlace } from '../../state/videoTracks';
 import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { LookPicker } from '../ig/LookPicker';
@@ -35,7 +42,7 @@ import { OPEN_TRANSITIONS, Timeline, Transport } from './Timeline';
 /*
  * The video editor in the studio layout, for Reels / Shorts (vertical, short, shared to Instagram) and YouTube videos
  * (16:9, long, saved to a file). The stage plays the timeline live; the timeline below edits it directly; the
- * inspector shows the selected clip or layer. State: state/video.ts; drawing: engine/video.ts; export:
+ * inspector shows the selected clip or layer. State: state/video*.ts (videoStore.ts and its actions); drawing: engine/video.ts; export:
  * engine/videoExport.ts (loaded on export).
  */
 

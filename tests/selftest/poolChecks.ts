@@ -369,7 +369,8 @@ async function fallbackOnMutedOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
-  const video = await import('@/state/video');
+  // The video store and the actions these checks use.
+  const video = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
   const { refuseDecodingForTests, allowDecodingForTests } = await import('@/engine/frameSource');
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(3, 640, 360, 1, false, 2),
@@ -465,7 +466,8 @@ async function editorStageShowsOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
-  const video = await import('@/state/video');
+  // The video store and the actions these checks use.
+  const video = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(4, 640, 360, 1, false, true),
     makeTestClip(4, 320, 240, 1, false, 3),
@@ -904,7 +906,8 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
-  const v = await import('@/state/video');
+  // The video store and the actions these checks use.
+  const v = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
   // 6 s, so playback is still running after a few of the hidden window's slow ticks (below).
   const clip = await makeTestClip(6, 640, 360, 1, false, true);
   if (!clip) return 'pool: stage check skipped (no H.264 encoder)';
@@ -1011,7 +1014,8 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   const { liveStages } = await import('@/components/studio/previewFrame');
-  const v = await import('@/state/video');
+  // The video store and the actions these checks use.
+  const v = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
   const { refuseDecodingForTests, allowDecodingForTests, openFrames } = await import('@/engine/frameSource');
   const { recentErrors } = await import('@/lib/errors');
   const { encodeVideo, ExportError } = await import('@/engine/videoExport');

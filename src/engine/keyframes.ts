@@ -65,14 +65,14 @@ const BOX_PROPS = CLIP_KEY_PROPS.filter((prop): prop is keyof ClipTransform => p
  * @param prop a value name
  * @returns true for a clip's box values and its volume
  */
-const isClipKeyProp = (prop: string): prop is ClipKeyProp => Object.hasOwn(CLIP_RANGES, prop);
+export const isClipKeyProp = (prop: string): prop is ClipKeyProp => Object.hasOwn(CLIP_RANGES, prop);
 
 /**
  * Whether a value name is one a layer can animate.
  * @param prop a value name
  * @returns true for a layer's position, size, turn and opacity
  */
-const isLayerKeyProp = (prop: string): prop is LayerKeyProp => Object.hasOwn(LAYER_RANGES, prop);
+export const isLayerKeyProp = (prop: string): prop is LayerKeyProp => Object.hasOwn(LAYER_RANGES, prop);
 
 /**
  * A value kept within its property's range on a clip or a layer.

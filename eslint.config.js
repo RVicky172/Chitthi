@@ -17,6 +17,8 @@ import tseslint from 'typescript-eslint';
 const FINISHED = [
   // 407 T030–T036: the whole engine (video core, timeline, renderer, layers and masks, photo pipeline, print, GPU).
   'src/engine/**',
+  // 407 T040: state/video.ts split by job.
+  'src/state/video*.ts',
 ];
 
 /** The code the standards rules apply to. */
