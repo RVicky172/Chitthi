@@ -661,7 +661,7 @@
         "T015": {
           "text": "Guards (AC-1, AC-3): `scripts/check-structure.mjs` in `npm run check` (a test or test helper under `src/`, or `src/` importing `tests/` other than `main.tsx`’s development import, fails it) with unit tests in `tests/unit/scripts/`; a build-only Vite plugin failing `npm run build` when a chunk holds a module from `tests/`. Proved by planting a test file and a bad import, then removing them.",
           "section": "Tests into tests/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -676,8 +676,14 @@
             "package.json"
           ],
           "test": "the planted file and import fail `check` and `build`; removed, both green",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "3081c0d"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `scripts/check-structure.mjs` runs in `npm run check` (245 files in `src/`, no test files or helpers, no `tests/` imports except the `main.tsx` development self-test); 4 unit tests in `tests/unit/scripts/checkStructure.test.ts` (unit total 1,672 → 1,676). The build-only Vite plugin `chitthi:no-test-code` fails `npm run build` when a chunk holds a module from `tests/`. Proved by planting `src/engine/planted.test.ts` and a `tests/support/fakeAudio` import in `main.tsx`: check-structure reported both (exit 1), and `vite build` failed with \"index-….js contains test code\". Removed, `check` and `build` pass (entry 327 KB)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-14"
         },
         "T016": {
           "text": "The standards report (`scripts/standards-report.mjs`, plan §1): per folder and rule, the ESLint findings of the standards rules (from ESLint’s JSON output) and the `noUncheckedIndexedAccess` errors (`tsc` with the flag); a table and a JSON file; unit tests for its counting on a fixture output. Record the starting numbers in `baseline.md`.",
