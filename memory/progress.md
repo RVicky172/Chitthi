@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-14 — 407 T035 (the photo pipeline cleaned)
+
+**Done:** 18 modules at 0 findings, in `FINISHED`; checked identical against frozen copies; hot paths within noise
+(chain kept one function per pixel after a split cost 9–20 %). Check green (1,686 tests), build green. Commit `0ae1574`.
+**Open:** entry chunk 329 KB vs AC-9's 327 KB (readable code in `export.ts` and `analyze.ts`, both in the entry
+through `state/`): maintainer to choose (relax AC-9, lazy-load, or trim) before T036 adds more.
+**Next:** T036 (print modules and `engine/gpu/`, then `src/engine/**` joins `FINISHED`). T020 still waits for review.
+**Blockers:** the entry-size decision
+
 ## 2026-10-14 — 407 T034 (engine/layers.ts and masks.ts split by job and cleaned)
 
 **Done:** nine modules (`layers`, `layerDraw`, `layerPick`, `layerGate`, `masks`, `maskGate`, `maskBrush`,

@@ -945,7 +945,7 @@
         "T035": {
           "text": "The photo pipeline (`photo`, `adjust`, `color`, `curve`, `hsl`, `light`, `detail`, `deep`, `raw`, `tiff`, `lut`, `analyze`, `chain`, `sample`, `segments`, `instagram`, `photoExport`, `export`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: engine/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -959,10 +959,14 @@
             "src/engine/**"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "0ae1574"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** The 18 photo-pipeline modules (3,196 lines, 950 lint findings, 278 unchecked-index errors) at 0 and in `FINISHED`. Complexity splits: `checkFile` 18 (a table of refusals), `parseCube` 39 (data and keyword lines), `jpegEnd` 31, `buildTiff` 17, `blurImage` 21 and `detailPixels` 42 (one function per effect), `analyzeImage` 39, `renderDeep` 21, `chainPixels` 33, `buildPDF` 40 and `printSpec` 32 (a line writer) → each ≤ 15; casts replaced by typed fallbacks and the guards (`isObjectLike`, `isOneOf`). Behaviour checked by a scratch harness against frozen copies (not committed): every export on random and junk input (colour helpers, mixer, curves, gates, light tables, LUT parsing incl. broken files, chain with and without a LUT, every detail effect, analysis with a fake canvas, file checks, looks, JPEG walking, TIFF bytes, deep render CPU path, `renderIg` on a recording canvas, print pages / imposition / spec for every product): identical; 7 planted changes each failed it. Hot paths timed old vs new, interleaved (1080×1350, medians): chain every step −0 to +3 %, chain light-only 0 to +6 % (after a first split cost 9–20 %: the light maths stay in one function per pixel), `lookPixels` ±noise, `adjustPixels` −4 %, `detailPixels` +2 %, `rawToRgba8` −2 to −11 %, `placeDeep` −21 % (no closure per pixel). Small behaviour notes: `loadImage` rejects with an Error (was the Event); a canvas without a 2D context throws “Canvas unavailable.” in `analyzeImage` / `samplePhoto` (was a TypeError); `exp.pngs` and `masks` follow their types. `src/engine` per the report: 2,002 → 774 (unchecked index 365 → 87); `lint:full` 9,192 → 8,242. `npm run check` green (1,686 tests), `npm run build` green, but the entry chunk is 329 KB (was 327): `export.ts` (+0.7 KB) and `analyze.ts` (+1.0 KB) are in it through `state/`; AC-9 asks ≤ 327 KB, a decision for the maintainer before T091."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-14"
         },
         "T036": {
           "text": "The print modules (`design`, `layout`, `envelope`, `patterns`, `quote`, `proof`, `presets`) and `engine/gpu/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15. Then `src/engine/**` joins `FINISHED` (its rules are errors).",
