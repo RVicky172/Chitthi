@@ -240,3 +240,19 @@ old against new, interleaved, medians over 9+ rounds: single runs on this machin
 Minifiers rename locals but keep property names, function boundaries and `?? 0` checks: cleaning `export.ts` and
 `analyze.ts` (both in the entry through `state/`) added ~1.8 KB (entry 327 → 329 KB). `String()` around numbers in
 template strings is unneeded here (D-040 `allowNumber`) and costs bytes; leave numbers bare.
+
+## 2026-10-14 — The entry figure alone misleads: sum the start-up chunks (407 T036)
+
+After T036 the entry chunk fell 317 → 311 KB, but start-up JavaScript rose 463,181 → 465,073 bytes: Rolldown moved the
+envelope geometry into a small chunk of its own that the entry still imports statically. To see what really loads at
+start, sum the files `dist/index.html` names (`src=` and `modulepreload` `href=`), and compare with a build of the
+previous commit (a `git worktree` with a junction to `node_modules` builds in a minute).
+
+## 2026-10-14 — Scratch harnesses: shell quoting and thenable fakes (407 T036)
+
+- In this Git Bash, `node -e "…"`, heredocs and `sed` replacements lose backslashes (`\\w` → `w`, `\\n` → a real
+  newline, `'﻿'` → the character itself): a regex rename once mangled every identifier in `patterns.ts`. Write
+  scripts and harness files with the Write tool and run them with `node <file>`.
+- A recording `Proxy` that answers every property also answers `then`, so returning it from an `async` function makes
+  it a thenable that never settles: the test hangs until its timeout. Return `undefined` for `then` (real jsPDF and GPU
+  objects have none).

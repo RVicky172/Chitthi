@@ -15,18 +15,8 @@ import tseslint from 'typescript-eslint';
 
 /** Folders whose standards rules are errors: globs, added as 407's clean-up tasks finish them. */
 const FINISHED = [
-  // 407 T030: the engine's video core (src/engine/** joins in T036).
-  'src/engine/{keyframes,keyframeGate,transitions,stack,edits,clipBox,decodePool,frameSource,guards,timeSnap}.ts',
-  // 407 T031: timeline.ts split by job.
-  'src/engine/{timeline,tracks,soundPlan,projectDoc,projectGate}.ts',
-  // 407 T032: video.ts split into its drawing and videoFormats.ts; videoExport.ts.
-  'src/engine/{video,videoFormats,videoExport}.ts',
-  // 407 T033: render.ts split by job.
-  'src/engine/{render,themeBackground,printText,photoSlots,postalDecor,frontText,cardFront,cardBack,calendarDraw}.ts',
-  // 407 T034: layers.ts and masks.ts split by job.
-  'src/engine/{layers,layerDraw,layerPick,layerGate,masks,maskGate,maskBrush,maskRaster,maskPlace}.ts',
-  // 407 T035: the photo pipeline.
-  'src/engine/{photo,adjust,color,curve,hsl,light,detail,deep,raw,tiff,lut,analyze,chain,sample,segments,instagram,photoExport,export,printPages}.ts',
+  // 407 T030–T036: the whole engine (video core, timeline, renderer, layers and masks, photo pipeline, print, GPU).
+  'src/engine/**',
 ];
 
 /** The code the standards rules apply to. */

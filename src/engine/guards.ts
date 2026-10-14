@@ -41,3 +41,15 @@ export function isOneOf<T extends string | number>(options: readonly T[], value:
 export function isObjectLike(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
+
+/**
+ * The first entry of a built-in table that is never empty (sizes, themes), used as its fallback.
+ * @param table the table
+ * @returns its first entry
+ * @throws when the table is empty: a programming error, not bad input
+ */
+export function firstOf<T>(table: readonly T[]): T {
+  const first = table.at(0);
+  if (first === undefined) throw new Error('A built-in table is empty.');
+  return first;
+}

@@ -30,7 +30,10 @@ src/
     presets.ts               Built-in presets of the photo & video editors (looks)
   engine/                  Framework-free; no React imports
     design.ts                DEFAULT_DESIGN, productDesign, mergeDesign, cardMM, calPages, cornerMM, resolveTheme, inks
-    layout.ts                computeLayout, slotCount, slotPhotoIndex
+    layout.ts                computeLayout (a table of one builder per layout), slotCount, slotPhotoIndex
+    layoutParts.ts           What layout builders share: the context (card, pad, gap, unit) and rect / slot helpers
+    postcardLayouts.ts       The postcard layouts' builders
+    printLayouts.ts          The frame-print, calendar and magnet layouts' builders
     render.ts                renderCard (one side, bleed, round cut, guides), renderThemeTile, photoDpi
     themeBackground.ts       The card's unit, the bleed fill, the occasion background (drawThemeBg)
     printText.ts             wrapLines, shrinkFont, label typeface, letter spacing, cap height
@@ -82,8 +85,12 @@ src/
                              frameTime, poolLimits (section 4.10)
     frameSource.ts           The pool's frames from Mediabunny: inputs shared per file, readers, openFrames() registry
     videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny over framePlan / audioPlan, on export
-    export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
-    envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
+    printPages.ts            pagesOf, nup, SHEETS, exportSummary, baseName: what the studio shows before building
+    export.ts                buildPDF, buildPNG, printSpec, buildPack, envelope PDFs; loaded with import() on export
+    envelope.ts              Envelope size and paper, flap shapes, the template's sheet, envelopeSummary
+    envelopeDraw.ts          renderEnvelope: front / back and the 3D layers (body, flap, liner); drawChitthiMark
+    envelopeTemplate.ts      renderEnvelopeTemplate: the fold-your-own net with cut and fold lines
+    quote.ts, quoteWriter.ts Print-shop documents (catalog, quote request, order sheet) and their jsPDF writer
     color.ts, sample.ts      Colour maths and drawing helpers; painted stand-in photos
   state/
     store.ts                 App store, undo/redo, persistence, setters
@@ -261,10 +268,12 @@ in the selected slot when the card is full.
 - `cardMM(d)` gives the trim size in mm for the orientation (custom sizes are clamped by the UI to 40–420 mm).
 - `renderCard(canvas, side, pxPerMM, bleedMM, input, opts)` sizes the canvas to `(w + 2·bleed) × (h + 2·bleed) ×
   pxPerMM` and defines the box `B = {x: e, y: e, w, h, e}` in canvas pixels, where `e` is the bleed in pixels.
-- `computeLayout(id, B, d)` returns a `Layout` in the same pixel space. Shared metrics: `m = min(w, h)`,
-  `pad = 0.075m`, `gap = 0.016m`, `u = m/100`. Because every value is relative to the box, one layout works at any
-  size and dpi. Helpers: `rs()` makes a bleed slot, `plain()` an inset slot, `right()` / `below()` the text zone
-  beside or under a photo. At the end, slots touching the trim are extended into the bleed (`extend()`).
+- `computeLayout(id, B, d)` returns a `Layout` in the same pixel space, through the layout's builder (`BUILDERS`:
+  `postcardLayouts.ts`, `printLayouts.ts`). Each builder gets a `LayoutContext` (`layoutParts.ts`) with the shared
+  metrics: `short = min(w, h)`, `pad = 0.075·short`, `gap = 0.016·short`, `unit = short/100`. Because every value is
+  relative to the box, one layout works at any size and dpi. Helpers: `bleedSlot()` makes a bleed slot,
+  `plainSlot()` an inset slot, `rightOf()` / `below()` the text zone beside or under a photo. At the end, slots
+  touching the trim are extended into the bleed (`extend()`).
 - **Calendars**: each calendar layout defines a photo region and an *area*. When `cal.text` is `photo`, the text
   zone is the photo inset by 8%, with white ink and the scrim limited to the photo. When it is `caption`, a band
   of `min(0.1·area.h, 0.075·area.w) × textScale` is taken from the top of the area. The title band is
@@ -328,7 +337,10 @@ Round sizes are then masked white outside the trim circle plus bleed. `drawGuide
 once at full resolution (capped at 16 MP for mobile canvas limits) into an off-screen canvas. `updatePhoto`
 re-processes only when rotation, mirroring, crop or look changed; zoom and position are applied at draw time.
 
-### 4.4 Export (`export.ts`)
+### 4.4 Export (`printPages.ts`, `export.ts`)
+
+`printPages.ts` holds what the studio shows before anything is built (pages, imposition, the summary, file names);
+`export.ts` builds the files and is loaded with `import()` on the first export (D-042).
 
 - `pagesOf(d)`: one front (or one per calendar month, one for the Year strip), plus the back when `exp.back` is on
   and the product prints one (magnets don't).
@@ -364,7 +376,7 @@ sequenceDiagram
   F-->>U: browser download or native Save dialog
 ```
 
-### 4.5 Envelopes (`envelope.ts`)
+### 4.5 Envelopes (`envelope.ts`, `envelopeDraw.ts`, `envelopeTemplate.ts`)
 
 - `envelopeSpec(d)`: the smallest standard envelope with at least 5 mm room around the piece; square pieces get
   square envelopes; bigger pieces get a made-to-measure size.
@@ -897,7 +909,7 @@ processed photo canvases only it still holds pass 320 MB (at least 10 steps stay
 | A size, layout or product | [SPECIFICATIONS.md](../docs/SPECIFICATIONS.md) → *Changing specifications* |
 | An occasion theme | `src/data/themes.ts` (colours, patterns from `PAT`, fonts, greetings); new artwork goes in `engine/patterns.ts` |
 | A font | `src/data/fonts.ts`, then `npm run fetch:fonts` for desktop |
-| An export format | `engine/export.ts` (`pagesOf` / `buildPack`), `ExportFormat` type, `PrintPane` |
+| An export format | `engine/printPages.ts` (`pagesOf`), `engine/export.ts` (`buildPack`), `ExportFormat` type, `PrintPane` |
 | A setting | `SettingsDialog.tsx`; keep values in `localStorage` via a small module like `lib/pexels.ts` |
 | An AI provider | [AI.md](../docs/AI.md) → *Adding a provider* |
 | An agent tool | `src/agent/tools.ts` (schema + handler), then document it in [MCP.md](../docs/MCP.md); `npm test` runs every tool |

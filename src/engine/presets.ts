@@ -1,4 +1,5 @@
 import { mergeAdjust, type Adjustments } from './adjust';
+import { isObjectLike } from './guards';
 import { lutFromJson, lutToJson, type Lut } from './lut';
 
 /*
@@ -9,100 +10,162 @@ import { lutFromJson, lutToJson, type Lut } from './lut';
  * whose colour settings go through mergeAdjust() (the gate mergeEdit() uses for colour).
  */
 
+/** A preset as stored on the device. */
 export interface SavedPreset {
   /** The storage key; same pattern as the desktop app's file names. */
   id: string;
   name: string;
   adjust: Adjustments;
+  /** When it was saved, ms since 1970 (0 when unknown). */
   created: number;
 }
 
+/** A preset read from a preset file: it has no storage id yet. */
+export interface FilePreset {
+  name: string;
+  adjust: Adjustments;
+}
+
+/** What a preset file holds. */
+export interface PresetFileContents {
+  presets: FilePreset[];
+  luts: Lut[];
+}
+
+/** A preset name's longest length, characters. */
 export const PRESET_NAME_MAX = 60;
 /** At most this many presets in one file, and files of at most this size (a 65³ LUT is about 4.4 MB in one). */
 export const PRESET_FILE_MAX = 500;
+/** A preset file's largest size, bytes. */
 export const PRESET_FILE_BYTES = 64 * 1024 * 1024;
+/** The `format` field of a preset file. */
 export const PRESET_FORMAT = 'chitthi-presets';
 
+/** A valid storage id. */
 const ID = /^[A-Za-z0-9_-]{1,100}$/;
 
+/** A preset file that can't be read; its message is fit for the user. */
 export class PresetError extends Error {}
 
-/** A name fit to show and store: spaces collapsed, trimmed, at most PRESET_NAME_MAX characters; '' if nothing is left. */
-export const cleanName = (v: unknown): string =>
-  typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, PRESET_NAME_MAX).trim() : '';
+/**
+ * A name fit to show and store.
+ * @param value a typed or saved name
+ * @returns spaces collapsed, trimmed, at most PRESET_NAME_MAX characters; '' if nothing is left
+ */
+export const cleanName = (value: unknown): string =>
+  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, PRESET_NAME_MAX).trim() : '';
 
-/** A new storage id. */
-export const presetId = (): string => `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+/**
+ * A new storage id.
+ * @returns "p", the time and six random letters or digits
+ */
+export const presetId = (): string => {
+  const random = crypto.getRandomValues(new Uint32Array(1)).at(0) ?? 0;
+  return `p${Date.now().toString(36)}${random.toString(36).padStart(6, '0').slice(-6)}`;
+};
 
-/** The single gate for a stored preset: a complete, valid SavedPreset, or null when it can't be one. */
+/**
+ * The single gate for a stored preset.
+ * @param raw anything read from storage
+ * @returns a complete, valid preset, or null when it can't be one
+ */
 export function mergePreset(raw: unknown): SavedPreset | null {
-  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
-  if (!o || typeof o.id !== 'string' || !ID.test(o.id)) return null;
-  const name = cleanName(o.name);
+  if (!isObjectLike(raw) || typeof raw.id !== 'string' || !ID.test(raw.id)) return null;
+  const name = cleanName(raw.name);
   if (!name) return null;
   return {
-    id: o.id,
+    id: raw.id,
     name,
-    adjust: mergeAdjust(o.adjust),
-    created: typeof o.created === 'number' && Number.isFinite(o.created) ? o.created : 0,
+    adjust: mergeAdjust(raw.adjust),
+    created: typeof raw.created === 'number' && Number.isFinite(raw.created) ? raw.created : 0,
   };
 }
 
-/** name, or "name (2)", "name (3)" … : the first one no preset in taken has. */
+/**
+ * A name no other preset has.
+ * @param name the wanted name
+ * @param taken the other presets' names
+ * @returns the name, or "name (2)", "name (3)" …: the first one not taken (case aside)
+ */
 export function uniqueName(name: string, taken: readonly string[]): string {
-  const lower = new Set(taken.map((n) => n.toLowerCase()));
+  const lower = new Set(taken.map((takenName) => takenName.toLowerCase()));
   if (!lower.has(name.toLowerCase())) return name;
-  for (let i = 2; ; i++) {
-    const suffix = ` (${i})`,
-      n = `${name.slice(0, PRESET_NAME_MAX - suffix.length).trim()}${suffix}`;
-    if (!lower.has(n.toLowerCase())) return n;
+  for (let number = 2; ; number++) {
+    const suffix = ` (${number})`;
+    const candidate = `${name.slice(0, PRESET_NAME_MAX - suffix.length).trim()}${suffix}`;
+    if (!lower.has(candidate.toLowerCase())) return candidate;
   }
 }
 
-/** True when two presets would make the same picture. */
-export const sameSettings = (a: Adjustments, b: Adjustments): boolean => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Whether two presets would make the same picture.
+ * @param first one preset's settings
+ * @param second the other's
+ * @returns true when every setting is the same
+ */
+export const sameSettings = (first: Adjustments, second: Adjustments): boolean => JSON.stringify(first) === JSON.stringify(second);
 
-/** The preset file: the presets (without their storage ids) and the LUTs they use. */
+/**
+ * The preset file.
+ * @param presets the presets to share
+ * @param luts the LUTs they use
+ * @returns JSON: the presets (without their storage ids) and the LUTs
+ */
 export function presetFile(presets: readonly SavedPreset[], luts: readonly Lut[]): string {
   return JSON.stringify({
     format: PRESET_FORMAT,
     version: 1,
-    presets: presets.map((p) => ({ name: p.name, adjust: p.adjust })),
+    presets: presets.map((preset) => ({ name: preset.name, adjust: preset.adjust })),
     luts: luts.map(lutToJson),
   });
 }
 
 /**
- * Reads a preset file. Throws a PresetError (message fit for the user) when it isn't one; LUTs that are damaged are
- * left out, and presets using them still load (they show the LUT as missing).
+ * A preset file's presets: those with a name, their colour settings through the gate.
+ * @param entries the file's `presets` array
+ * @returns the presets
  */
-export function readPresetFile(text: string): { presets: { name: string; adjust: Adjustments }[]; luts: Lut[] } {
-  let o: unknown;
-  try {
-    o = JSON.parse(text);
-  } catch {
-    throw new PresetError('This isn’t a preset file (it isn’t JSON).');
-  }
-  const f = o && typeof o === 'object' ? (o as Record<string, unknown>) : {};
-  if (f.format !== PRESET_FORMAT || !Array.isArray(f.presets))
-    throw new PresetError('This isn’t a Chitthi Studio preset file.');
-  if (typeof f.version === 'number' && f.version > 1)
-    throw new PresetError('This preset file is from a newer version of Chitthi Studio.');
-  if (f.presets.length > PRESET_FILE_MAX)
-    throw new PresetError(
-      `The file holds ${f.presets.length} presets; at most ${PRESET_FILE_MAX} can be imported at once.`,
-    );
-  const presets = f.presets.flatMap((p: unknown) => {
-    const r = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
-    const name = cleanName(r.name);
-    return name ? [{ name, adjust: mergeAdjust(r.adjust) }] : [];
+function filePresets(entries: readonly unknown[]): FilePreset[] {
+  return entries.flatMap((entry) => {
+    const fields = isObjectLike(entry) ? entry : {};
+    const name = cleanName(fields.name);
+    return name ? [{ name, adjust: mergeAdjust(fields.adjust) }] : [];
   });
-  const luts = (Array.isArray(f.luts) ? f.luts.slice(0, PRESET_FILE_MAX) : []).flatMap((l: unknown) => {
+}
+
+/**
+ * A preset file's LUTs; damaged ones are left out.
+ * @param entries the file's `luts` field
+ * @returns the LUTs that could be read, at most PRESET_FILE_MAX
+ */
+function fileLuts(entries: unknown): Lut[] {
+  return (Array.isArray(entries) ? entries.slice(0, PRESET_FILE_MAX) : []).flatMap((entry: unknown) => {
     try {
-      return [lutFromJson(l)];
+      return [lutFromJson(entry)];
     } catch {
       return [];
     }
   });
-  return { presets, luts };
+}
+
+/**
+ * Reads a preset file. LUTs that are damaged are left out, and presets using them still load (they show the LUT as
+ * missing).
+ * @param text the file's text
+ * @returns its presets and LUTs
+ * @throws PresetError, with a message fit for the user, when it isn't a preset file this version can read
+ */
+export function readPresetFile(text: string): PresetFileContents {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new PresetError('This isn’t a preset file (it isn’t JSON).');
+  }
+  const file = isObjectLike(parsed) ? parsed : {};
+  if (file.format !== PRESET_FORMAT || !Array.isArray(file.presets)) throw new PresetError('This isn’t a Chitthi Studio preset file.');
+  if (typeof file.version === 'number' && file.version > 1) throw new PresetError('This preset file is from a newer version of Chitthi Studio.');
+  if (file.presets.length > PRESET_FILE_MAX)
+    throw new PresetError(`The file holds ${file.presets.length} presets; at most ${PRESET_FILE_MAX} can be imported at once.`);
+  return { presets: filePresets(file.presets), luts: fileLuts(file.luts) };
 }

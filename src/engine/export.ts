@@ -7,7 +7,9 @@ import { crc32, makeZip, type ZipEntry } from '../lib/zip';
 import type { Design, RenderInput, Side } from '../types';
 import { calMonth } from './calendarDraw';
 import { cardMM, sizeOf } from './design';
-import { envelopeSpec, envelopeSummary, renderEnvelope, renderEnvelopeTemplate, templateSheet } from './envelope';
+import { envelopeSpec, envelopeSummary, templateSheet } from './envelope';
+import { renderEnvelope } from './envelopeDraw';
+import { renderEnvelopeTemplate } from './envelopeTemplate';
 import { baseName, bleedText, monthName, nup, pagesOf, round1, SHEETS, type Imposition, type PrintPage } from './printPages';
 import { renderCard } from './render';
 

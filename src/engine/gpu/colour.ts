@@ -120,16 +120,20 @@ fn effect(uv: vec2f) -> vec4f {
 }`,
 };
 
-/** The light step's uniforms, with the same gains as lookLightPixels(). */
-export function lightUniforms(a: Adjustments): Float32Array {
-  const g = wbGains(a.temperature, a.tint),
-    ex = 2 ** a.exposure,
-    tone = a.highlights || a.shadows || a.whites || a.blacks ? 1 : 0;
-  return new Float32Array([g[0] * ex, g[1] * ex, g[2] * ex, tone, a.highlights / 100, a.shadows / 100, a.whites / 100, a.blacks / 100, 0, 0, 0, 0]);
+/**
+ * The light step's uniforms, with the same gains as lookLightPixels().
+ * @param adjust the colour settings
+ * @returns white balance × exposure gains, whether a tone slider is on, and the four tone sliders
+ */
+export function lightUniforms(adjust: Adjustments): Float32Array {
+  const [redGain, greenGain, blueGain] = wbGains(adjust.temperature, adjust.tint);
+  const exposure = 2 ** adjust.exposure;
+  const tone = adjust.highlights || adjust.shadows || adjust.whites || adjust.blacks ? 1 : 0;
+  return new Float32Array([redGain * exposure, greenGain * exposure, blueGain * exposure, tone, adjust.highlights / 100, adjust.shadows / 100, adjust.whites / 100, adjust.blacks / 100, 0, 0, 0, 0]);
 }
 
 /** Index of the "keep unrounded" flag in each chain program's uniforms, set on every step of the chain but the last. */
-const UNROUNDED: Record<string, number> = { look: 1, light: 8, curve: 0, mixer: 0, lut: 0 };
+const UNROUNDED: Partial<Record<string, number>> = { look: 1, light: 8, curve: 0, mixer: 0, lut: 0 };
 
 /**
  * The tone curve (P1.2): the 129-sample tables of engine/curve.ts curveTable() in u[1…], red then green then blue, read
@@ -308,41 +312,62 @@ fn effect(uv: vec2f) -> vec4f {
 }`,
 };
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/**
+ * A number kept to a range.
+ * @param value the number
+ * @param low the smallest allowed
+ * @param high the largest allowed
+ * @returns it, clamped
+ */
+const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
-/** The slider uniforms, with the same scaling as adjustPixels(). */
-export function adjustUniforms(a: Adjustments): Float32Array {
+/**
+ * The slider uniforms, with the same scaling as adjustPixels().
+ * @param adjust the colour settings
+ * @returns brightness, contrast, saturation and warmth, scaled
+ */
+export function adjustUniforms(adjust: Adjustments): Float32Array {
   return new Float32Array([
-    (clamp(a.brightness, -100, 100) / 100) * 64,
-    1 + clamp(a.contrast, -100, 100) / 125,
-    1 + clamp(a.saturation, -100, 100) / 100,
-    (clamp(a.warmth, -100, 100) / 100) * 24,
+    (clamp(adjust.brightness, -100, 100) / 100) * 64,
+    1 + clamp(adjust.contrast, -100, 100) / 125,
+    1 + clamp(adjust.saturation, -100, 100) / 100,
+    (clamp(adjust.warmth, -100, 100) / 100) * 24,
   ]);
 }
 
 /**
- * The nodes for a picture's colour settings: the look, light and white balance, curve, mixer and LUT, then the older
- * sliders, each only when it changes something. `deep` (the 16-bit TIFF export, P1.9) keeps every step unrounded.
+ * A step whose uniforms hold a table after their first vec4.
+ * @param program the step's program
+ * @param table the table
+ * @returns the node
  */
-export function colourNodes(a: Adjustments, deep = false): GraphNode[] {
-  if (colourNeutral(a)) return [];
+function tableNode(program: GraphNode['program'], table: ArrayLike<number>): GraphNode {
+  const uniforms = new Float32Array(program.uniforms * 4);
+  uniforms.set(table, 4);
+  return { program, uniforms };
+}
+
+/**
+ * The nodes for a picture's colour settings: the look, light and white balance, curve, mixer and LUT, then the older
+ * sliders, each only when it changes something.
+ * @param adjust the colour settings
+ * @param deep the 16-bit TIFF export (P1.9): keeps every step unrounded
+ * @returns the nodes, none when the settings change nothing
+ */
+export function colourNodes(adjust: Adjustments, deep = false): GraphNode[] {
+  if (colourNeutral(adjust)) return [];
   // The chain (look, light, curve, mixer, LUT) rounds once, after its last step, as chain.ts chainPixels() does.
   const nodes: GraphNode[] = [];
-  if (a.look !== 'none') nodes.push({ program: LOOK_PROGRAM, uniforms: new Float32Array([LOOK_IDS.indexOf(a.look), 0, 0, 0]) });
-  if (!lightNeutral(a)) nodes.push({ program: LIGHT_PROGRAM, uniforms: lightUniforms(a) });
-  if (!curveNeutral(a.curve)) {
-    const u = new Float32Array(CURVE_PROGRAM.uniforms * 4);
-    u.set(curveTable(a.curve), 4);
-    nodes.push({ program: CURVE_PROGRAM, uniforms: u });
-  }
-  if (!mixerNeutral(a.mixer)) {
-    const u = new Float32Array(MIXER_PROGRAM.uniforms * 4);
-    u.set(mixerParams(a.mixer), 4);
-    nodes.push({ program: MIXER_PROGRAM, uniforms: u });
-  }
-  const lut = lutNode(a);
+  if (adjust.look !== 'none') nodes.push({ program: LOOK_PROGRAM, uniforms: new Float32Array([LOOK_IDS.indexOf(adjust.look), 0, 0, 0]) });
+  if (!lightNeutral(adjust)) nodes.push({ program: LIGHT_PROGRAM, uniforms: lightUniforms(adjust) });
+  if (!curveNeutral(adjust.curve)) nodes.push(tableNode(CURVE_PROGRAM, curveTable(adjust.curve)));
+  if (!mixerNeutral(adjust.mixer)) nodes.push(tableNode(MIXER_PROGRAM, mixerParams(adjust.mixer)));
+  const lut = lutNode(adjust);
   if (lut) nodes.push(lut);
-  for (const n of deep ? nodes : nodes.slice(0, -1)) n.uniforms[UNROUNDED[n.program.id]] = 1;
-  if (a.brightness || a.contrast || a.saturation || a.warmth) nodes.push({ program: ADJUST_PROGRAM, uniforms: adjustUniforms(a) });
+  for (const node of deep ? nodes : nodes.slice(0, -1)) {
+    const flag = UNROUNDED[node.program.id];
+    if (flag !== undefined) node.uniforms[flag] = 1;
+  }
+  if (adjust.brightness || adjust.contrast || adjust.saturation || adjust.warmth) nodes.push({ program: ADJUST_PROGRAM, uniforms: adjustUniforms(adjust) });
   return nodes;
 }

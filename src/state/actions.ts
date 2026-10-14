@@ -2,7 +2,7 @@ import { themeById, PLAIN } from '../data/themes';
 import { MONTHS } from '../data/products';
 import { calPages, cardMM, cornerMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
 import { pagesOf, type PrintPage } from '../engine/printPages';
-import { renderEnvelope } from '../engine/envelope';
+import { renderEnvelope } from '../engine/envelopeDraw';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
 import { calMonth } from '../engine/calendarDraw';
 import { renderCard } from '../engine/render';

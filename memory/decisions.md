@@ -517,3 +517,14 @@ reach the entry through `state/`. Options: relax AC-9, lazy-load, a named chunk 
 and `state/actions.ts` loads it with `import()` on the first export, as it already did for `quote.ts`.
 **Consequences:** entry 329 → 317 KB; `export` is a 10.9 KB chunk. Code that only needs pages or the imposition imports
 `printPages.ts`, never `export.ts`, or the builders return to the entry chunk.
+
+## D-043 — Print layouts are a table of builders; GPU backends are classes (2026-10-14)
+
+**Context:** 407 T036. `computeLayout` was one 626-line switch (cognitive complexity 193); `openWebGL2` and
+`openWebGPU` each built their device as one 200+ line object literal of closures (over the 80-line limit).
+**Decision:** `layout.ts` maps every `LayoutId` to a builder (`BUILDERS: Record<LayoutId, LayoutBuilder>`) in
+`postcardLayouts.ts` / `printLayouts.ts`, sharing a `LayoutContext` (`layoutParts.ts`); TypeScript asks for a builder
+for every new id. The backends are classes implementing `GpuDevice` (`WebGL2Device`, `WebGPUDevice`), made by the
+same `open…()` functions. No caller detaches a device method (checked), so `this` is safe.
+**Consequences:** a new layout is a builder plus a table entry, not a new `case`; device methods must be called on the
+device (`device.read(t)`), never passed around unbound.

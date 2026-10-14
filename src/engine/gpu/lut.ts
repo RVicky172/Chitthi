@@ -72,15 +72,19 @@ fn effect(uv: vec2f) -> vec4f {
 }`,
 };
 
-/** The LUT node for these settings, or null when no LUT applies (none set, amount 0, or its table not loaded). */
-export function lutNode(a: Adjustments): GraphNode | null {
-  if (lutNeutral(a)) return null;
-  const l = lutById(a.lut)!,
-    tex = lutTexture(l),
-    { scale, offset } = lutScale(l);
+/**
+ * The LUT node for these settings.
+ * @param adjust the colour settings
+ * @returns the node, or null when no LUT applies (none set, amount 0, or its table not loaded)
+ */
+export function lutNode(adjust: Adjustments): GraphNode | null {
+  const lut = lutById(adjust.lut);
+  if (lutNeutral(adjust) || !lut) return null;
+  const texture = lutTexture(lut);
+  const { scale, offset } = lutScale(lut);
   return {
     program: LUT_PROGRAM,
-    uniforms: new Float32Array([0, a.lutAmount / 100, l.size, tex.cols, ...scale, 0, ...offset, 0]),
-    inputs: ['prev', { key: `lut:${l.id}`, width: tex.width, height: tex.height, rgba: tex.rgba }],
+    uniforms: new Float32Array([0, adjust.lutAmount / 100, lut.size, texture.cols, ...scale, 0, ...offset, 0]),
+    inputs: ['prev', { key: `lut:${lut.id}`, width: texture.width, height: texture.height, rgba: texture.rgba }],
   };
 }

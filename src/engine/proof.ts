@@ -9,7 +9,7 @@
  */
 
 /** How much of a fully saturated colour each hue keeps in print (0–360°, linear between the points). */
-const KEEP: [number, number][] = [
+const KEEP: readonly (readonly [number, number])[] = [
   [0, 0.94], // red
   [30, 0.95], // orange
   [60, 0.93], // yellow
@@ -22,55 +22,67 @@ const KEEP: [number, number][] = [
   [320, 0.84], // magenta / pink
   [360, 0.94],
 ];
-function keepAt(h: number): number {
-  for (let i = 1; i < KEEP.length; i++) {
-    const [h1, k1] = KEEP[i];
-    if (h <= h1) {
-      const [h0, k0] = KEEP[i - 1];
-      return k0 + ((h - h0) / (h1 - h0)) * (k1 - k0);
+/**
+ * How much saturation a hue keeps in print.
+ * @param hue 0–360°
+ * @returns 0–1, linear between the points of KEEP
+ */
+function keepAt(hue: number): number {
+  for (let index = 1; index < KEEP.length; index++) {
+    const [toHue, toKeep] = KEEP[index] ?? [360, 0.94];
+    if (hue <= toHue) {
+      const [fromHue, fromKeep] = KEEP[index - 1] ?? [0, 0.94];
+      return fromKeep + ((hue - fromHue) / (toHue - fromHue)) * (toKeep - fromKeep);
     }
   }
-  return KEEP[0][1];
+  return KEEP[0]?.[1] ?? 0.94;
 }
 
-// Paper white and printed black in RGB (uncoated card is a touch warmer and darker than the screen's white).
-const PAPER = [246, 243, 236],
-  INK = [35, 31, 32];
+/** Paper white in RGB (uncoated card is a touch warmer and darker than the screen's white). */
+const PAPER = { red: 246, green: 243, blue: 236 };
+/** Printed black in RGB. */
+const INK = { red: 35, green: 31, blue: 32 };
 
-/** Applies the print-colours look to a canvas in place. */
-export function softProof(cv: HTMLCanvasElement): void {
-  const c = cv.getContext('2d', { willReadFrequently: true });
-  if (!c || !cv.width || !cv.height) return;
-  const img = c.getImageData(0, 0, cv.width, cv.height),
-    a = img.data;
-  // Hue keep factors in a small table: the loop runs for every pixel.
-  const table = new Float32Array(361);
-  for (let h = 0; h <= 360; h++) table[h] = keepAt(h);
-  for (let i = 0; i < a.length; i += 4) {
-    let r = a[i],
-      g = a[i + 1],
-      b = a[i + 2];
-    const max = Math.max(r, g, b),
-      min = Math.min(r, g, b),
-      chroma = max - min;
+/**
+ * Applies the print-colours look to a canvas in place. The hue maths stay inline: the loop runs for every pixel, and
+ * a call per pixel cost about 9 %.
+ * @param canvas the screen copy of the design
+ */
+export function softProof(canvas: HTMLCanvasElement): void {
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context || !canvas.width || !canvas.height) return;
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = image.data;
+  // Hue keep factors in a small table.
+  const keepByHue = new Float32Array(361);
+  for (let hue = 0; hue <= 360; hue++) keepByHue[hue] = keepAt(hue);
+  const redRange = PAPER.red - INK.red;
+  const greenRange = PAPER.green - INK.green;
+  const blueRange = PAPER.blue - INK.blue;
+  for (let index = 0; index < pixels.length; index += 4) {
+    let red = pixels[index] ?? 0;
+    let green = pixels[index + 1] ?? 0;
+    let blue = pixels[index + 2] ?? 0;
+    const max = Math.max(red, green, blue);
+    const chroma = max - Math.min(red, green, blue);
     if (chroma > 24) {
-      let h: number;
-      if (max === r) h = ((g - b) / chroma) % 6;
-      else if (max === g) h = (b - r) / chroma + 2;
-      else h = (r - g) / chroma + 4;
-      h = Math.round((h * 60 + 360) % 360);
+      let sector: number;
+      if (max === red) sector = ((green - blue) / chroma) % 6;
+      else if (max === green) sector = (blue - red) / chroma + 2;
+      else sector = (red - green) / chroma + 4;
+      const hue = Math.round((sector * 60 + 360) % 360);
       // Only strong colours lose saturation; soft tones and skin print close to the screen.
-      const t = Math.min(1, Math.max(0, (chroma - 70) / 150)),
-        k = 1 - (1 - table[h]) * t;
-      const grey = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = grey + (r - grey) * k;
-      g = grey + (g - grey) * k;
-      b = grey + (b - grey) * k;
+      const strength = Math.min(1, Math.max(0, (chroma - 70) / 150));
+      const keep = 1 - (1 - (keepByHue[hue] ?? 1)) * strength;
+      const grey = 0.299 * red + 0.587 * green + 0.114 * blue;
+      red = grey + (red - grey) * keep;
+      green = grey + (green - grey) * keep;
+      blue = grey + (blue - grey) * keep;
     }
     // Map the full range from printed black to paper white.
-    a[i] = INK[0] + (r / 255) * (PAPER[0] - INK[0]);
-    a[i + 1] = INK[1] + (g / 255) * (PAPER[1] - INK[1]);
-    a[i + 2] = INK[2] + (b / 255) * (PAPER[2] - INK[2]);
+    pixels[index] = INK.red + (red / 255) * redRange;
+    pixels[index + 1] = INK.green + (green / 255) * greenRange;
+    pixels[index + 2] = INK.blue + (blue / 255) * blueRange;
   }
-  c.putImageData(img, 0, 0);
+  context.putImageData(image, 0, 0);
 }

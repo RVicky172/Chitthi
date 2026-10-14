@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useRef } from 'react';
-import { envelopeSpec, envelopeSummary, renderEnvelope, type EnvelopeFace } from '../../engine/envelope';
+import { envelopeSpec, envelopeSummary } from '../../engine/envelope';
+import { renderEnvelope, type EnvelopeFace } from '../../engine/envelopeDraw';
 import { open3D } from '../../state/actions';
 import { setBack, setDesign, useApp } from '../../state/store';
 import type { Design, EnvelopeSettings, Photo } from '../../types';

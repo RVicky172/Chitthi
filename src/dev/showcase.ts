@@ -5,7 +5,8 @@
  */
 import { SHOWCASE, type ShowcaseImage, type ShowcaseRender } from '../data/showcase';
 import { cardMM, cornerMM, productDesign, sizeOf } from '../engine/design';
-import { envelopeSpec, renderEnvelope } from '../engine/envelope';
+import { envelopeSpec } from '../engine/envelope';
+import { renderEnvelope } from '../engine/envelopeDraw';
 import { loadImage, makePhoto } from '../engine/photo';
 import { renderCard } from '../engine/render';
 import { ensureFonts, fontsFor } from '../lib/fonts';

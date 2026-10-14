@@ -20,11 +20,11 @@ sheets side by side at true relative scale, stacked, or imposed on a sheet, with
 | Sizes | `src/data/sizes.ts` → `SIZES` | Long and short side in mm, group, which products offer it, corner radius or round shape, Instax photo window |
 | Size groups (order in the UI) | `src/data/sizes.ts` → `SIZE_GROUPS` | |
 | Layouts (ids, names, product) | `src/data/layouts.ts` → `LAYOUTS` | Order here is the order in the Layout step and the guide |
-| Layout geometry | `src/engine/layout.ts` → `computeLayout()` | Photo slots, text zone, calendar title/grid, badge ring; one `case` per layout, horizontal and vertical |
+| Layout geometry | `src/engine/layout.ts` → `computeLayout()` | Photo slots, text zone, calendar title/grid, badge ring; one builder per layout (`postcardLayouts.ts`, `printLayouts.ts`), horizontal and vertical |
 | Bleed choices | `src/components/panes/PrintPane.tsx` | 0, 3 mm, ⅛ in (3.175 mm), 5 mm. Default 3 mm (`DEFAULT_DESIGN.exp` in `src/engine/design.ts`) |
 | Resolution | `PrintPane.tsx`, `DEFAULT_DESIGN.exp.dpi` | 300 dpi (print) or 150 dpi (draft) |
 | Safe area | `drawGuides()` in `src/engine/render.ts`, print spec in `src/engine/export.ts` | 4 mm inside the trim |
-| Sheet sizes for imposition | `src/engine/export.ts` → `SHEETS` | A4, A3, 13×19 in, US Letter; 8 mm sheet margin; 10 mm gap with crop marks, 4 mm without |
+| Sheet sizes for imposition | `src/engine/printPages.ts` → `SHEETS` | A4, A3, 13×19 in, US Letter; 8 mm sheet margin; 10 mm gap with crop marks, 4 mm without |
 | Photos per design | `src/engine/photo.ts` → `maxPhotos()` | 4 (24 for calendars: two per month) |
 | Upload limits | `src/engine/photo.ts` | 25 MB per file, JPG / PNG / WebP, processed images capped at 16 MP |
 | Calendar options | `CalendarSettings` in `src/types.ts`, defaults in `DEFAULT_DESIGN.cal` | Year (default: the current year), start month, 1 or 12 pages, week start, text placement, captions and caption font, title font / size / alignment / year on or off, dates font (or the title font) / size / bold / Sundays in colour / position, grid (rows, boxes, tiles, none), year-page title font |
@@ -75,12 +75,16 @@ sheets side by side at true relative scale, stacked, or imposed on a sheet, with
 
 1. Add the id to the `LayoutId` union in `src/types.ts`.
 2. Add `[id, 'Name', product]` to `LAYOUTS` in `src/data/layouts.ts`.
-3. Add a `case` to `computeLayout()` in `src/engine/layout.ts`. Work in the card box `B` (canvas units):
-   - `rs(x, y, w, h)` is a photo slot that bleeds off any edge it touches; `plain(rect, shape)` is an inset slot
-     (`rect`, `round`, `circle` or `arch`).
-   - Set `L.text` for the words, `L.onPhoto` when they sit on a photo, `L.frame` / `L.bg` for paper or occasion
-     background, `L.ink = 'frame'` for dark ink on paper.
-   - Handle both orientations (`land` is true for horizontal).
+3. Write its builder in `src/engine/postcardLayouts.ts` (or `printLayouts.ts` for frames, calendars and magnets)
+   and add it to `BUILDERS` in `src/engine/layout.ts` (TypeScript asks for every id). A builder gets the
+   `LayoutContext` (the card `box` in canvas units, `pad`, `gap`, `unit`, `landscape`, the `layout` to fill in) and
+   returns its photo slots:
+   - `bleedSlot(x, y, w, h)` is a photo slot that bleeds off any edge it touches; `plainSlot(rect, shape)` is an
+     inset slot (`rect`, `round`, `circle` or `arch`); `rightOf()` / `below()` give the words' area beside or under
+     a photo.
+   - Set `layout.text` for the words, `layout.onPhoto` when they sit on a photo, `layout.frame` / `layout.bg` for
+     paper or occasion background, `layout.ink = 'frame'` for dark ink on paper.
+   - Handle both orientations (`landscape` is true for horizontal).
 4. Open the Layout step and the guide at a few sizes (small magnet, A3) to check it scales.
 
 ### Add a product
