@@ -95,12 +95,12 @@ different way; the report is the number tasks count down from.
 
 | Standard | Findings |
 | --- | ---: |
-| Names (`id-length`) | 6,402 (4,356) |
-| JSDoc (`require-jsdoc` 558, `require-param` 1,742, `require-returns` 708) | 3,008 (2,537) |
+| Names (`id-length`) | 6,402 (4,311) |
+| JSDoc (`require-jsdoc` 558, `require-param` 1,742, `require-returns` 708) | 3,008 (2,571) |
 | Function length (80 lines; 250 in `.tsx`; blank lines and comments not counted) | 31 (31) |
 | Files over 800 lines (warning only) | 8 (8) |
 | Cognitive complexity over 15 | 97 (73) |
-| Sonar's other rules (most: nested conditionals 233, nested template literals 75) | 419 (303) |
+| Sonar's other rules (most: nested conditionals 233, nested template literals 75) | 419 (297) |
 | Layers (`src/data` importing `engine/` or `lib/`: `instagram.ts`, `presets.ts`, `samples.ts`) | 5 (5) |
 
 The ESLint counts are lower than the hand counts in the Code table above (103 functions over 80 lines, 19 files over
