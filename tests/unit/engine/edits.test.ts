@@ -15,14 +15,13 @@ import {
   roll,
   slide,
   slip,
-  snapTargets,
-  snapTime,
   tooManyVideos,
   trim,
   type EditClip,
   type EditCtx,
   type Tool,
 } from '@/engine/edits';
+import { snapTargets, snapTime } from '@/engine/timeSnap';
 import type { Keyframe } from '@/engine/keyframes';
 import type { Layer } from '@/engine/layers';
 import { MAIN_VIDEO, defaultTracks, mergeProject, pack, toDocument, type ProjectDoc } from '@/engine/timeline';

@@ -14,7 +14,10 @@ import tseslint from 'typescript-eslint';
  */
 
 /** Folders whose standards rules are errors: globs, added as 407's clean-up tasks finish them. */
-const FINISHED = [];
+const FINISHED = [
+  // 407 T030: the engine's video core (src/engine/** joins in T036).
+  'src/engine/{keyframes,keyframeGate,transitions,stack,edits,clipBox,decodePool,frameSource,guards,timeSnap}.ts',
+];
 
 /** The code the standards rules apply to. */
 const STANDARDS_FILES = ['src/**/*.{ts,tsx}', 'tests/**/*.ts', 'electron/**/*.{cjs,mjs}'];
@@ -92,6 +95,10 @@ function typedStandards(files, severity) {
       rules: {
         ...presetRules([...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked], severity, TS_RECOMMENDED),
         '@typescript-eslint/consistent-type-definitions': [severity, 'interface'],
+        // Numbers in template strings are fine (`${percent} %`); objects, null and undefined still aren't (D-040).
+        '@typescript-eslint/restrict-template-expressions': [severity, { allowNumber: true }],
+        // A one-line arrow handler may call a void function (`onClick={() => setOpen(false)}`) (D-040).
+        '@typescript-eslint/no-confusing-void-expression': [severity, { ignoreArrowShorthand: true }],
       },
     },
   ];
@@ -142,7 +149,8 @@ function standards(files, severity) {
     ...typedStandards(files, severity),
     { files: SIZE_EXEMPT, rules: { 'max-lines-per-function': 'off', 'max-lines': 'off' } },
     ...LAYERS.map((layer) => ({
-      files: layer.files,
+      // Only the layer's files among `files` (a FINISHED file in another layer must not get this layer's rule).
+      files: layer.files.flatMap((layerGlob) => files.map((glob) => [glob, layerGlob])),
       rules: { 'no-restricted-imports': [severity, { patterns: [{ group: layer.group, message: layer.message }] }] },
     })),
   ];

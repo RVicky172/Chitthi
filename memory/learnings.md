@@ -186,3 +186,17 @@ quietly weaken the existing gate: `eslint.config.js` skips the `recommended` rul
 rules (`projectService`) fail with "not found by the project service" on a file no tsconfig includes (`tests/e2e`, root
 configs), so they are scoped to `TYPED_FILES`. Some `sonarjs/` rules switch on when type information exists (Sonar
 findings rose 297 → 417 in `src/`).
+
+## 2026-10-14 — Clean-up patterns that satisfy lint and `noUncheckedIndexedAccess` together (407 T030)
+
+- **Indexed reads that may miss:** `list.at(index)` returns `T | undefined` under both checks. With `list[index]`,
+  a guard is "unnecessary" to `no-unnecessary-condition` (flag off) but needed once the flag is on.
+- **TypeScript narrows `lane.closed` across `await`:** after `if (lane.closed) return;`, a later check of
+  `lane.closed` (other async work changed it) is flagged "always falsy". Read it through a method (`isClosed(lane)`)
+  with a comment saying why; don't delete the check.
+- **Splitting a module can create a load-time cycle:** `keyframeGate.ts`'s top level read `KEY_LIMITS` from
+  `keyframes.ts`, which imports `layers.ts`, which imports the gate: `KEY_LIMITS` was still undefined ("Cannot read
+  properties of undefined (reading 'perValue')", 6 test files failed to load). A module's top level must not read
+  values from a module in a cycle with it; move the constant to the module that reads it at load.
+- **Never `git checkout -- <file>` to undo a planted line** in a file with uncommitted work: it restores the last
+  commit and throws the work away (lost `stack.ts`'s rewrite once). Plant in a new file, or copy the file first.

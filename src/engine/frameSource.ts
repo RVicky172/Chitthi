@@ -6,6 +6,7 @@ import {
   VideoSampleSink,
   type InputVideoTrack,
   type VideoSample,
+  type WrappedCanvas,
 } from 'mediabunny';
 import { isDesktop } from '../platform/desktop';
 import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
@@ -17,20 +18,38 @@ import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
  * decoded them. Every frame goes through one registry, so `openFrames()` tells any self-test what is still open.
  */
 
-const open = { decoders: 0, frames: 0, bytes: 0, made: 0 };
+/** What is open right now across every pool, as `openFrames` returns it. */
+export interface OpenCounts {
+  decoders: number;
+  frames: number;
+  /** The open frames' bytes: width × height × 4 (D2). */
+  bytes: number;
+  /** Every frame ever decoded (a self-test tells from it that frames went through the pool). */
+  made: number;
+}
 
-/** Frames, their bytes (width × height × 4, D2) and decoders open right now, across every pool; `made` counts every
- * frame ever decoded (a self-test tells from it that frames went through the pool). */
-export const openFrames = () => ({ ...open });
+const open: OpenCounts = { decoders: 0, frames: 0, bytes: 0, made: 0 };
 
-function trackFrame(f: Omit<PoolFrame, 'close'>, release: () => void): PoolFrame {
-  const bytes = f.width * f.height * 4;
+/**
+ * Frames, their bytes and decoders open right now, across every pool.
+ * @returns a copy of the counts
+ */
+export const openFrames = (): OpenCounts => ({ ...open });
+
+/**
+ * Counts a decoded frame as open until it is closed (once).
+ * @param frame the frame without its `close`
+ * @param release frees the frame's memory when it is closed
+ * @returns the frame with a `close` that counts it closed and releases it
+ */
+function trackFrame(frame: Omit<PoolFrame, 'close'>, release: () => void): PoolFrame {
+  const bytes = frame.width * frame.height * 4;
   let closed = false;
   open.frames++;
   open.made++;
   open.bytes += bytes;
   return {
-    ...f,
+    ...frame,
     close() {
       if (closed) return;
       closed = true;
@@ -41,74 +60,129 @@ function trackFrame(f: Omit<PoolFrame, 'close'>, release: () => void): PoolFrame
   };
 }
 
-const nameOf = (b: Blob) => (b instanceof File ? b.name : 'A clip');
+const nameOf = (file: Blob) => (file instanceof File ? file.name : 'A clip');
 
-/** Self-tests only (204 T040, poolChecks.ts `fallbackOnTheEditor`): files refused here as if their codec couldn't be
- * decoded, so a check can give the preview and the export a clip the pool can't decode. Empty in the app. */
-export const undecodableForTests = new WeakSet<Blob>();
+/** Files refused as if their codec couldn't be decoded (self-tests only). */
+const undecodable = new WeakSet<Blob>();
 
-interface Shared {
+/**
+ * Self-tests only (204 T040, poolChecks.ts): refuses a file here as if its codec couldn't be decoded, so a check can
+ * give the preview and the export a clip the pool can't decode. Never called in the app.
+ * @param file the file
+ */
+export function refuseDecodingForTests(file: Blob): void {
+  undecodable.add(file);
+}
+
+/**
+ * Self-tests only: decodes a file refused by `refuseDecodingForTests` again.
+ * @param file the file
+ */
+export function allowDecodingForTests(file: Blob): void {
+  undecodable.delete(file);
+}
+
+/** One file's input, shared by every lane reading it. */
+interface SharedInput {
   input: Input;
   track: Promise<InputVideoTrack>;
+  /** The lanes using it; the input is disposed with the last. */
   refs: number;
 }
-const inputs = new Map<Blob, Shared>();
+const inputs = new Map<Blob, SharedInput>();
 
-/** The file's video track, opened once per file; refused (naming the file) when it has none or can't be decoded. */
-function share(file: Blob): Shared {
-  let s = inputs.get(file);
-  if (!s) {
+/**
+ * The file's video track, opened once per file and refused (naming the file) when it has none or can't be decoded.
+ * @param file the video file
+ * @returns its shared input, with one more user counted
+ */
+function share(file: Blob): SharedInput {
+  let shared = inputs.get(file);
+  if (!shared) {
     const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
     const track = (async () => {
-      const t = await input.getPrimaryVideoTrack().catch(() => {
+      const videoTrack = await input.getPrimaryVideoTrack().catch(() => {
         throw new Error(`${nameOf(file)} couldn’t be read. It may be damaged, or not a video file.`);
       });
-      if (!t) throw new Error(`${nameOf(file)} has no video track.`);
-      if (undecodableForTests.has(file) || !(await t.canDecode()))
+      if (!videoTrack) throw new Error(`${nameOf(file)} has no video track.`);
+      if (undecodable.has(file) || !(await videoTrack.canDecode()))
         throw new Error(
           `${nameOf(file)} uses a video format this ${isDesktop ? 'computer' : 'browser'} can’t decode (often HEVC from an iPhone).`,
         );
-      return t;
+      return videoTrack;
     })();
     track.catch(() => undefined);
-    s = { input, track, refs: 0 };
-    inputs.set(file, s);
+    shared = { input, track, refs: 0 };
+    inputs.set(file, shared);
   }
-  s.refs++;
-  return s;
+  shared.refs++;
+  return shared;
 }
 
-function unshare(file: Blob, s: Shared): void {
-  if (--s.refs > 0) return;
-  if (inputs.get(file) === s) inputs.delete(file);
-  s.input.dispose();
+/**
+ * One user of a file's input is done; the last one disposes it.
+ * @param file the video file
+ * @param shared its shared input
+ */
+function unshare(file: Blob, shared: SharedInput): void {
+  shared.refs--;
+  if (shared.refs > 0) return;
+  if (inputs.get(file) === shared) inputs.delete(file);
+  shared.input.dispose();
 }
 
-/** A frame the pool can keep: a `VideoFrame` of its own (the sample is closed), or a canvas when the file asks for a
- * rotation or flip that a bare `VideoFrame` wouldn't show. */
-function fromSample(s: VideoSample): PoolFrame {
-  const width = s.displayWidth,
-    height = s.displayHeight;
+/**
+ * A frame the pool can keep from a decoded sample (the sample is closed).
+ * @param sample the decoded sample
+ * @returns a `VideoFrame` of its own, or a canvas when the file asks for a rotation or flip that a bare `VideoFrame`
+ *   wouldn't show
+ */
+function fromSample(sample: VideoSample): PoolFrame {
+  const width = sample.displayWidth;
+  const height = sample.displayHeight;
   try {
-    if (!s.rotation && !s.flip) {
-      const vf = s.toVideoFrame();
-      return trackFrame({ image: vf, width, height, time: s.timestamp, duration: s.duration }, () => vf.close());
+    if (!sample.rotation && !sample.flip) {
+      const videoFrame = sample.toVideoFrame();
+      return trackFrame({ image: videoFrame, width, height, time: sample.timestamp, duration: sample.duration }, () =>
+        videoFrame.close(),
+      );
     }
-    const c = new OffscreenCanvas(width, height);
-    s.draw(c.getContext('2d')!, 0, 0);
-    return trackFrame({ image: c, width, height, time: s.timestamp, duration: s.duration }, () => {
-      c.width = c.height = 0;
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('A 2D canvas isn’t available to turn the video frame.');
+    sample.draw(context, 0, 0);
+    return trackFrame({ image: canvas, width, height, time: sample.timestamp, duration: sample.duration }, () => {
+      canvas.width = 0;
+      canvas.height = 0;
     });
   } finally {
-    s.close();
+    sample.close();
   }
 }
 
-/** Wraps one Mediabunny iterator as a reader: counted as a decoder until it ends or is stopped. A decoding error
- * names the file. */
+/**
+ * A frame the pool can keep from an export lane's resized canvas (the sink's ring owns it, so closing frees nothing).
+ * @param wrapped the canvas and its timing
+ * @returns the frame
+ */
+function fromCanvas(wrapped: WrappedCanvas): PoolFrame {
+  const { canvas } = wrapped;
+  return trackFrame(
+    { image: canvas, width: canvas.width, height: canvas.height, time: wrapped.timestamp, duration: wrapped.duration },
+    () => undefined,
+  );
+}
+
+/**
+ * Wraps one Mediabunny iterator as a reader: counted as a decoder until it ends or is stopped.
+ * @param frames the iterator
+ * @param toFrame turns what it yields into a pool frame
+ * @param file the video file, named in a decoding error
+ * @returns the reader
+ */
 function reader<T>(
-  gen: AsyncGenerator<T, void, unknown>,
-  wrap: (v: T) => PoolFrame,
+  frames: AsyncGenerator<T, void, unknown>,
+  toFrame: (value: T) => PoolFrame,
   file: Blob,
 ): AsyncIterator<PoolFrame> {
   open.decoders++;
@@ -122,22 +196,25 @@ function reader<T>(
   return {
     async next() {
       try {
-        const r = await gen.next();
-        if (r.done) {
+        const result = await frames.next();
+        if (result.done) {
           stop();
           return { done: true, value: undefined };
         }
-        return { done: false, value: wrap(r.value) };
-      } catch (e) {
+        return { done: false, value: toFrame(result.value) };
+      } catch (error) {
         stop();
-        throw new Error(`${nameOf(file)} couldn’t be decoded: ${e instanceof Error ? e.message : String(e)}`, {
-          cause: e,
-        });
+        throw new Error(
+          `${nameOf(file)} couldn’t be decoded: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            cause: error,
+          },
+        );
       }
     },
     async return() {
       try {
-        await gen.return(undefined);
+        await frames.return(undefined);
       } finally {
         stop();
       }
@@ -146,46 +223,41 @@ function reader<T>(
   };
 }
 
-export const mediabunnySource: FrameSourceFactory = async (file, opts) => {
-  const s = share(file);
+/**
+ * The decoder pool's frame source from Mediabunny.
+ * @param file the video file
+ * @param options `maxWidth` for an export lane (resized canvases), none for the preview (full-size `VideoFrame`s)
+ * @returns the source; it refuses (naming the file) a file it can't read or decode
+ */
+export const mediabunnySource: FrameSourceFactory = async (file, options) => {
+  const shared = share(file);
   let track: InputVideoTrack;
   try {
-    track = await s.track;
-  } catch (e) {
-    unshare(file, s);
-    throw e;
+    track = await shared.track;
+  } catch (error) {
+    unshare(file, shared);
+    throw error;
   }
   let closed = false;
-  // Export lanes: resized canvases from a ring larger than the frames a lane holds (the last + 4 ahead + 1 decoding).
-  const canvases = opts.maxWidth
-    ? new CanvasSink(track, { width: Math.min(track.displayWidth, Math.round(opts.maxWidth)), poolSize: 8 })
-    : null;
-  const samples = canvases ? null : new VideoSampleSink(track);
+  let readFrom: (time: number) => AsyncIterator<PoolFrame>;
+  if (options.maxWidth) {
+    // Export lanes: resized canvases from a ring larger than the frames a lane holds (the last + 4 ahead + 1 decoding).
+    const width = Math.min(await track.getDisplayWidth(), Math.round(options.maxWidth));
+    const canvases = new CanvasSink(track, { width, poolSize: 8 });
+    readFrom = (time) => reader(canvases.canvases(Math.max(0, time)), fromCanvas, file);
+  } else {
+    const samples = new VideoSampleSink(track);
+    readFrom = (time) => reader(samples.samples(Math.max(0, time)), fromSample, file);
+  }
   const source: FrameSource = {
-    from(t) {
+    from(time) {
       if (closed) throw new Error('The video was closed.');
-      if (canvases)
-        return reader(
-          canvases.canvases(Math.max(0, t)),
-          (wc) =>
-            trackFrame(
-              {
-                image: wc.canvas,
-                width: wc.canvas.width,
-                height: wc.canvas.height,
-                time: wc.timestamp,
-                duration: wc.duration,
-              },
-              () => undefined,
-            ),
-          file,
-        );
-      return reader(samples!.samples(Math.max(0, t)), fromSample, file);
+      return readFrom(time);
     },
     close() {
       if (closed) return;
       closed = true;
-      unshare(file, s);
+      unshare(file, shared);
     },
   };
   return source;

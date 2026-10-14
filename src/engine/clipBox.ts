@@ -83,6 +83,7 @@ export function movedTransform(
  * @param startBox the box when the drag began, frame pixels
  * @param pressedAt where the drag began, frame pixels
  * @param pointer where the pointer is now, frame pixels
+ * @returns the resized transform
  */
 export function resizedTransform(start: ClipTransform, startBox: Box, pressedAt: Point, pointer: Point): ClipTransform {
   const startDistance = Math.max(1, Math.hypot(pressedAt.x - startBox.cx, pressedAt.y - startBox.cy));
@@ -117,7 +118,12 @@ const NUDGE = { normal: 0.01, shift: 0.1 };
  */
 export function nudgedTransform(start: ClipTransform, key: string, shift: boolean): ClipTransform | null {
   const step = shift ? NUDGE.shift : NUDGE.normal;
-  const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+  const moves: Partial<Record<string, readonly [number, number]>> = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+  };
   const move = moves[key];
   return move ? clampTransform({ ...start, x: start.x + move[0], y: start.y + move[1] }) : null;
 }

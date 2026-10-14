@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TEXT_STYLES } from '@/data/layers';
+import { KEY_LIMITS } from '@/engine/keyframeGate';
 import {
-  KEY_LIMITS,
   adjacentKey,
   animate,
   clampValue,

@@ -486,3 +486,12 @@ mitigation was ESLint's cache, or the type-aware rules on changed files only.
 (`ci.yml`) and at a feature's close. All rules stay in one config, so there is one lint, not a fast and a slow split.
 **Trade-off:** ESLint caches per file, so a type-aware finding in a file whose imports changed can be stale until that
 file changes or a full run. Acceptable: CI and the close run in full.
+
+## D-040 — Two strict type-aware rules take their usual options (2026-10-14)
+
+**Context:** 407 T030, the first clean-up. Of `strictTypeChecked`'s findings in `src/`, 576 were
+`restrict-template-expressions` on numbers in template strings and 850 `no-confusing-void-expression` on one-line arrow
+handlers (`onClick={() => setOpen(false)}`): safe code, and changing it would be churn.
+**Decision:** `restrict-template-expressions` with `allowNumber: true` (objects, `null`, `undefined` and unions with
+them are still reported) and `no-confusing-void-expression` with `ignoreArrowShorthand: true`. Together 1,426 → 27.
+The presets stay whole (AC-13); only these options change.

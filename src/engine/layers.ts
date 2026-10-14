@@ -1,5 +1,6 @@
 import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
-import { LAYER_KEY_PROPS, keyBudget, layersAt, mergeKeys, type KeyBudget, type Keyframes, type LayerKeyProp } from './keyframes';
+import { keyBudget, mergeKeys, type KeyBudget } from './keyframeGate';
+import { LAYER_KEY_PROPS, layersAt, type Keyframes, type LayerKeyProp } from './keyframes';
 import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
 
 /*

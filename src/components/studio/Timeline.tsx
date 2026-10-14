@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { snapTargets, snapTime, type Tool } from '../../engine/edits';
+import type { Tool } from '../../engine/edits';
+import { snapTargets, snapTime } from '../../engine/timeSnap';
 import { adjacentKey, type Keyframes } from '../../engine/keyframes';
 import { layerName, type Layer } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/timeline';

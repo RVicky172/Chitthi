@@ -370,14 +370,14 @@ async function fallbackOnMutedOverlay(check: Check): Promise<string> {
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   const video = await import('@/state/video');
-  const { undecodableForTests } = await import('@/engine/frameSource');
+  const { refuseDecodingForTests, allowDecodingForTests } = await import('@/engine/frameSource');
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(3, 640, 360, 1, false, 2),
     makeTestClip(3, 640, 360, 1, false, true),
   ]);
   if (!mainBlob || !overlayBlob) return 'pool: muted-overlay fallback check skipped (no H.264 encoder)';
   const undecodable = new File([overlayBlob], 'overlay-cant-decode.mp4', { type: 'video/mp4' });
-  undecodableForTests.add(undecodable);
+  refuseDecodingForTests(undecodable);
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
   document.body.append(host);
@@ -446,7 +446,7 @@ async function fallbackOnMutedOverlay(check: Check): Promise<string> {
       `pool: a fallback clip on an overlay track shows its frame where the playhead is, muted or not: ${results.join(', ')}`,
     );
   } finally {
-    undecodableForTests.delete(undecodable);
+    allowDecodingForTests(undecodable);
     video.setPlaying(false);
     for (const id of addedIds) video.removeClip(id);
     for (const track of video.getVideo().tracks) if (!tracksBefore.has(track.id)) video.deleteTrack(track.id);
@@ -999,7 +999,7 @@ const NOTE = /This clip can[’']t be exported here: \S/;
 
 /**
  * AC-14 (204 §7, Q6) on the real editor (StrictMode, as `npm run dev`): two copies of a frame-coded clip, one refused
- * by the decoder's source as if its codec couldn't be decoded (frameSource.ts `undecodableForTests`: what an HEVC
+ * by the decoder's source as if its codec couldn't be decoded (frameSource.ts `refuseDecodingForTests`: what an HEVC
  * file the browser can play but WebCodecs can't decode meets). The refused clip previews from its <video>, the other
  * from the pool; the refused one carries the note (timeline title and accessible name, inspector), the preview logs
  * it, and the export refuses it naming the file.
@@ -1010,7 +1010,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   const { liveStages } = await import('@/components/studio/previewFrame');
   const v = await import('@/state/video');
-  const { undecodableForTests, openFrames } = await import('@/engine/frameSource');
+  const { refuseDecodingForTests, allowDecodingForTests, openFrames } = await import('@/engine/frameSource');
   const { recentErrors } = await import('@/lib/errors');
   const { encodeVideo, ExportError } = await import('@/engine/videoExport');
   const blob = await makeTestClip(2, 640, 360, 1, false, true);
@@ -1018,7 +1018,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
   // Two files with the same frames: the source refuses the first, as it would an HEVC file the browser can play.
   const bad = new File([blob], 'cant-decode-here.mp4', { type: 'video/mp4' });
   const good = new File([blob], 'decodes-fine.mp4', { type: 'video/mp4' });
-  undecodableForTests.add(bad);
+  refuseDecodingForTests(bad);
   const since = new Date().toISOString();
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff';
@@ -1133,7 +1133,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
       `pool: the export refuses the clip, naming the file (${refusal instanceof Error ? `${refusal.constructor.name}: ${refusal.message}` : 'it exported'}) (AC-14)`,
     );
   } finally {
-    undecodableForTests.delete(bad);
+    allowDecodingForTests(bad);
     v.setPlaying(false);
     for (const id of ids) v.removeClip(id);
     root.unmount();

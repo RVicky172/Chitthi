@@ -1,13 +1,6 @@
 import { mergeEdit, type IgEdit } from './instagram';
-import {
-  CLIP_KEY_PROPS,
-  keyBudget,
-  mergeKeys,
-  tidyKeys,
-  type ClipKeyProp,
-  type Keyframe,
-  type Keyframes,
-} from './keyframes';
+import { keyBudget, mergeKeys } from './keyframeGate';
+import { CLIP_KEY_PROPS, tidyKeys, type ClipKeyProp, type Keyframe, type Keyframes } from './keyframes';
 import { mergeLayers, type Layer } from './layers';
 import { mergeTransition, tidyTransitions, transitionFields, TRANSITION_REASONS, type Transition } from './transitions';
 import {
