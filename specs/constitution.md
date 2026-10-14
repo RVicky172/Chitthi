@@ -3,8 +3,8 @@
 > The non-negotiable principles of this project. Every spec, plan, task, and line of code must comply.
 > If a change needs to break a principle, amend this document first (see "Governance & Amendments").
 
-**Version:** 2.0.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-12 (II and the Definition of Done: heavy checks at
-the end of a phase, D-033)
+**Version:** 2.1.0 · **Ratified:** 2026-10-06 · **Amended:** 2026-10-14 (Definition of Done 11: the coding standards,
+D-038; 2026-10-12: II and the Definition of Done, heavy checks at the end of a phase, D-033)
 
 ---
 
@@ -102,7 +102,7 @@ feature specs (`2xx`, `3xx`) when they start; the vision docs are input, not app
 
 ## Quality Gates (Definition of Done)
 
-A feature is **Implemented** when 1, 2, 4, 8, 9 and 10 are true; its deferred checks (3, 5, 6, 7) are listed in the
+A feature is **Implemented** when 1, 2, 4, 8, 9, 10 and 11 are true; its deferred checks (3, 5, 6, 7) are listed in the
 phase's test-pass feature. A phase is **Done**, and released, when all are true for every feature in it (D-033):
 
 1. Spec status is `Implemented` and every acceptance criterion is checked — each one proven by a test or a
@@ -118,6 +118,8 @@ phase's test-pass feature. A phase is **Done**, and released, when all are true 
    and `CHANGELOG.md`.
 9. Caught-and-shown errors call `logError('handled', e)`.
 10. `memory/progress.md`, `memory/MEMORY.md` and `specs/roadmap.md` are updated.
+11. The code follows [coding-standards.md](coding-standards.md) (names, JSDoc, sizes, React, types, layers); the
+    rules lint enforces pass in `npm run check`, the rest is checked in review.
 
 ## Governance & Amendments
 

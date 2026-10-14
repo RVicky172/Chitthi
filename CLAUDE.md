@@ -46,6 +46,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 | Doc                                                 | Read when                                                      |
 | --------------------------------------------------- | -------------------------------------------------------------- |
 | `specs/constitution.md`                             | Before any design decision; contains the Definition of Done    |
+| `specs/coding-standards.md`                         | Before writing code: names, JSDoc, sizes, React, types, layers |
 | `specs/architecture.md`, `specs/lld.md`             | Before touching shared code or adding a module                 |
 | `specs/tech-stack.md`, `specs/licensing.md`         | Before adding or upgrading any library, model, binary or asset |
 | `specs/testing-strategy.md`                         | Before writing tests                                           |

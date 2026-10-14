@@ -467,3 +467,12 @@ bundled, unmodified, so LGPL's distribution terms don't arise; recorded in `spec
 **Alternatives:** a 500-line file limit (rejected: length is a proxy); ESLint's cyclomatic `complexity` only; the Babel
 route for the compiler; tests left beside the code (they never reached the build, but mixed code and tests).
 **Consequences:** ~3–5 days of behaviour-neutral clean-up before 207; the full test suite runs inside 407 (Q9).
+
+## D-038 — The coding standards join the Definition of Done (2026-10-14)
+
+**Context:** 407 T020 wrote `specs/coding-standards.md` (AC-4); the spec asks the Definition of Done to point to it.
+**Decision:** constitution 2.0.0 → 2.1.0 (MINOR: a gate added). Definition of Done item 11: the code follows
+`specs/coding-standards.md`; what lint enforces passes in `npm run check`, the rest is checked in review. It is part
+of **Implemented** (not deferred to a phase's test pass). While 407 runs, the new lint rules are warnings outside its
+finished folders, so item 11 is judged on review there.
+**Consequences:** every feature from 407 on (207 first) is written to the standards from its first line.
