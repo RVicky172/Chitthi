@@ -971,7 +971,7 @@
         "T036": {
           "text": "The print modules (`design`, `layout`, `envelope`, `patterns`, `quote`, `proof`, `presets`) and `engine/gpu/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15. Then `src/engine/**` joins `FINISHED` (its rules are errors).",
           "section": "Clean-up: engine/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -987,10 +987,14 @@
             "eslint.config.js"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; `npm run lint` 0 errors with engine’s rules as errors",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "afbb134"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** First, the entry-size question from T035 (maintainer chose lazy-loading, D-042, `caf8d3a`): `engine/printPages.ts` holds pages, imposition, summary and file names; `export.ts` loads with `import()` on export (entry 329 → 317 KB). Then the print modules and `engine/gpu/` (≈860 lint findings, ≈100 unchecked-index errors) at 0, and `src/engine/**` in `FINISHED` (rules are errors; a planted short name fails lint). Splits by job (D-043): `computeLayout` (a 626-line switch, complexity 193) → a table of builders in `layoutParts`, `postcardLayouts`, `printLayouts`; `envelope` → `envelopeDraw`, `envelopeTemplate`; `quote` → `quoteWriter`; WebGL2 and WebGPU backends → classes implementing `GpuDevice`; `firstOf` guard for built-in tables. Behaviour checked against frozen copies by scratch harnesses (not committed): 315,840 layout cases, 20,000 junk designs through `mergeDesign`, presets and preset files, `softProof`, 600 envelope faces + 150 templates on a recording canvas (1.2 M calls), every pattern × theme × mode × box (67 M chars of calls), the quote catalog, 60 quote requests and 300 order sheets through a recording jsPDF, GPU node builders (4,000 settings), half floats (all 65,536 halves, 200,000 floats), the graph runner on a fake device, and both backends on recording fake contexts: all identical. 46 of 47 planted changes failed it (after adding inputs for three that slipped through); the 47th, bunting’s control point written as (left + right) / 2, gives equal numbers for the boxes tried. Timing old vs new (medians, interleaved): `softProof` +2–4 % (after inlining the hue maths back; a helper call per pixel cost 9 %), `toHalf` +1 ms per 65³ LUT upload (once per LUT). Standards report: `src/engine` and `src/engine/gpu` 0 (total 8,826 → 7,867); `lint:full` 8,242 → 7,384. `npm run check` green (1,686 tests), `npm run build` green: entry 311 KB (AC-9 ≤ 327), but start-up JavaScript 463,181 → 465,073 bytes (+1.9 KB): the entry fell because envelope geometry became its own start-up chunk (learnings). Docs: `specs/lld.md` module map and §4.1/4.4/4.5, `docs/SPECIFICATIONS.md` (add a layout)."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-14"
         },
         "T040": {
           "text": "Split `state/video.ts` (1,330 lines) into the store core and history, clip edits, keyframe actions, transition actions, media and export (plan §5, D2), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",

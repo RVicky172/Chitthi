@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-12)
+## Current State (2026-10-14)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -47,8 +47,11 @@
   JSDoc, function length, sonarjs cognitive complexity, React `recommended-latest`, strictTypeChecked, layers), folder
   by folder; React Compiler last. Baseline: 34 % one-letter names, 333 / 880 exports without JSDoc, 103 functions > 80
   lines, 27 React findings, 379 `as`, 177 `!`.
-- **Next (roadmap):** `/spec-implement 407` from T001 (baselines) on `feat/407-code-structure` (from
-  `spec/407-code-structure`); then 207 (speed) from `main`; 290 collects the deferred checks.
+- **407 progress (2026-10-14):** T001–T036 done except T020 (standards doc, waits for review): tests moved, lint
+  rules in, `src/engine/**` fully clean and in `FINISHED` (`afbb134`). Print-file builders load on export (D-042);
+  entry 311 KB. Behaviour of each clean-up is checked against frozen copies by scratch harnesses (learnings).
+- **Next (roadmap):** `/spec-implement 407` from T040 (split `state/video.ts`) on `feat/407-code-structure`; then 207
+  (speed) from `main`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

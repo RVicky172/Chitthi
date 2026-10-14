@@ -11,6 +11,16 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-14 — 407 T036 (print modules and engine/gpu cleaned; src/engine finished)
+
+**Done:** entry-size question settled by the maintainer: lazy-load (D-042, `caf8d3a`): `printPages.ts` split from
+`export.ts`, which loads on export; entry 329 → 317 KB. T036: design, layout (table of builders, D-043), envelope,
+patterns, quote, proof, presets and `engine/gpu/` at 0 findings; `src/engine/**` in `FINISHED`. All checked identical
+against frozen copies (recording canvas, recording jsPDF, fake GPU contexts; 46 of 47 plants caught, the 47th is
+numerically equal). Check green (1,686 tests), build green, entry 311 KB, start-up JS +1.9 KB. Commit `afbb134`.
+**Next:** T040 (split `state/video.ts`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-14 — 407 T035 (the photo pipeline cleaned)
 
 **Done:** 18 modules at 0 findings, in `FINISHED`; checked identical against frozen copies; hot paths within noise
