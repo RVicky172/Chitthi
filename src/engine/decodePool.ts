@@ -1,5 +1,6 @@
 import { transitionItems } from './stack';
-import { MAIN_VIDEO, type Project, type TimedClip } from './timeline';
+import { MAIN_VIDEO } from './tracks';
+import { type Project, type TimedClip } from './timeline';
 import { clipLength } from './video';
 
 /*

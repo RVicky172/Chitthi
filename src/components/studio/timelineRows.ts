@@ -3,7 +3,9 @@
 // and the keyframe lane's diamonds, names and announcements (205 §9).
 import { describeTransform } from '../../engine/clipBox';
 import type { Ease, Keyframe, Keyframes } from '../../engine/keyframes';
-import { IDENTITY, MAIN_VIDEO, lockedReason, type TimedClip, type Track } from '../../engine/timeline';
+import { IDENTITY } from '../../engine/video';
+import { MAIN_VIDEO, lockedReason, type Track } from '../../engine/tracks';
+import { type TimedClip } from '../../engine/timeline';
 import { TRANSITION_LIMITS, cutsOf, type Transition, type TransitionKind } from '../../engine/transitions';
 import { V_FPS, clipLength } from '../../engine/video';
 

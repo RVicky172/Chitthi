@@ -4,7 +4,7 @@ import type { Tool } from '../../engine/edits';
 import { snapTargets, snapTime } from '../../engine/timeSnap';
 import { adjacentKey, type Keyframes } from '../../engine/keyframes';
 import { layerName, type Layer } from '../../engine/layers';
-import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/timeline';
+import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/tracks';
 import { cutsOf, roomFor, TRANSITION_LIMITS } from '../../engine/transitions';
 import { clipLength, fmtTime } from '../../engine/video';
 import { toast } from '../../lib/toast';

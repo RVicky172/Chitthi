@@ -24,7 +24,10 @@ import {
 import { snapTargets, snapTime } from '@/engine/timeSnap';
 import type { Keyframe } from '@/engine/keyframes';
 import type { Layer } from '@/engine/layers';
-import { MAIN_VIDEO, defaultTracks, mergeProject, pack, toDocument, type ProjectDoc } from '@/engine/timeline';
+import { MAIN_VIDEO, defaultTracks } from '@/engine/tracks';
+import { mergeProject } from '@/engine/projectGate';
+import { pack } from '@/engine/timeline';
+import { toDocument, type ProjectDoc } from '@/engine/projectDoc';
 import { legacyFixtures, type LegacyClip } from '../../support/timeline.testkit';
 import { clipLength } from '@/engine/video';
 

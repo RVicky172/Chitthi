@@ -33,29 +33,9 @@ import {
   type Transition,
   type TransitionKind,
 } from '../engine/transitions';
-import {
-  IDENTITY,
-  MAIN_VIDEO,
-  MUSIC,
-  addTrack as withNewTrack,
-  clampTransform,
-  defaultTracks,
-  deleteTrack as withoutTrack,
-  gaps,
-  isIdentity,
-  lockedReason,
-  moveTrack as withTrackMoved,
-  pack,
-  patchTrack,
-  presetTransform,
-  projectLength,
-  renameTrack as withTrackRenamed,
-  type AudioClip,
-  type ClipTransform,
-  type Preset,
-  type Project,
-  type Track,
-} from '../engine/timeline';
+import { IDENTITY, isIdentity } from '../engine/video';
+import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, defaultTracks, deleteTrack as withoutTrack, lockedReason, moveTrack as withTrackMoved, patchTrack, renameTrack as withTrackRenamed, type Track } from '../engine/tracks';
+import { clampTransform, gaps, pack, presetTransform, projectLength, type AudioClip, type ClipTransform, type Preset, type Project } from '../engine/timeline';
 import { V_PHOTO_SECONDS, bitrateFor, clipLength, formatsFor, limitsFor, vFormat, type Motion, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/video';
 import { logError } from '../lib/errors';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
@@ -401,14 +381,14 @@ export function addTrack(): string | null {
 export function renameTrack(id: string, name: string): string | null {
   const r = withTrackRenamed(state.tracks, id, name);
   if ('error' in r) return r.error;
-  if (r !== state.tracks) change('', { tracks: r });
+  if (r.tracks !== state.tracks) change('', { tracks: r.tracks });
   return null;
 }
 /** Moves an overlay track one place up (+1, drawn later) or down among the overlay tracks; why not, or null. */
 export function moveTrack(id: string, by: 1 | -1): string | null {
   const r = withTrackMoved(state.tracks, id, by);
   if ('error' in r) return r.error;
-  change('', { tracks: r });
+  change('', { tracks: r.tracks });
   return null;
 }
 /** Deletes an overlay track with its clips (the UI asks first when it holds any); why not, or null. */

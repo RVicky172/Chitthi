@@ -230,7 +230,7 @@ step.
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
 | Video formats, limits and frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/video.ts`; `src/engine/videoExport.ts` |
 | Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
-| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`; `src/engine/layers.ts` |
+| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layers.ts` |
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
 | Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
@@ -270,7 +270,7 @@ format, batch size and file settings are remembered.
 
 **Tests.** Unit: `src/engine/instagram.test.ts` (formats, limits, placement, colour maths) and
 `src/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
-`mergeLayers`), `src/engine/timeline.test.ts` (the track model against the frozen 2.x code in `timeline.testkit.ts`:
+`mergeLayers`), `tests/unit/engine/timeline.test.ts` (the track model against the frozen 2.x code in `timeline.testkit.ts`:
 clip placement, frames and sound sources for every 2.x shape; hide, mute and lock; the project document, its round
 trips and 36 malformed documents), `src/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
 edits, 1,000 seeded random edits per operation through `checkTrack` and `mergeProject`, each operation under 2 ms on
@@ -378,7 +378,7 @@ the left of the timeline, has:
 Hide, Mute and Lock are undo steps; the height is a view setting that lasts for the session. Each control is a button
 with a name for screen readers, usable from the keyboard; hidden and muted rows are dimmed, locked clips show a lock.
 
-Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`). With Magnetic on the
+Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`, tracks in `tracks.ts`). With Magnetic on the
 main video track places its clips end to end exactly as before, so every video looks and sounds the same as in 2.x;
 with it off it keeps gaps. A project also has a document form (JSON, version 1, with `magnetic`) and one validator,
 `mergeProject()`, which reads any document (a 2.x project without a version is converted; with Magnetic off, a clip

@@ -5,7 +5,8 @@
 import { keysOf } from './guards';
 import { KEY_LIMITS } from './keyframeGate';
 import { scaleLayer, type Layer } from './layers';
-import type { ClipTransform, SoundSource, TimedClip } from './timeline';
+import type { ClipTransform, TimedClip } from './timeline';
+import type { SoundSource } from './soundPlan';
 import { IDENTITY, V_FPS } from './video';
 
 /** How the change that starts at a keyframe eases into the next one (Q3). */

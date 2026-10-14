@@ -6,7 +6,8 @@
 import { lanePlan } from '../../engine/decodePool';
 import { edgeGain, volumeAt, type ClipKeyProp, type Keyframes } from '../../engine/keyframes';
 import { frameStack } from '../../engine/stack';
-import { soundEdges, type Project, type SoundEdges, type TimedClip } from '../../engine/timeline';
+import { soundEdges, type SoundEdges } from '../../engine/soundPlan';
+import { type Project, type TimedClip } from '../../engine/timeline';
 
 /**
  * Whose sound plays at playhead `t`: every video clip under it, bottom track first: the main track's and each overlay

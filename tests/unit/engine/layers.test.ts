@@ -3,7 +3,8 @@ import { TEXT_STYLES } from '@/data/layers';
 import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, mergeLayers, newImageLayer, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer, type ShapeLayer, type TextLayer } from '@/engine/layers';
 import { newPart } from '@/engine/masks';
 import { DEFAULT_EDIT } from '@/engine/instagram';
-import { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength, videoAt } from '@/engine/timeline';
+import { MAIN_VIDEO, defaultTracks } from '@/engine/tracks';
+import { framePlan, pack, projectLength, videoAt } from '@/engine/timeline';
 import { V_FADE, clipLength, fadeAmount, frameRange, motionEdit } from '@/engine/video';
 
 describe('layers', () => {

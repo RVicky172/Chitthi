@@ -2,18 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Box } from '@/engine/layers';
 import { valueAt } from '@/engine/keyframes';
 import { frameStack, mostVideosAt, snapBox } from '@/engine/stack';
-import {
-  MAIN_VIDEO,
-  MUSIC,
-  defaultTracks,
-  framePlan,
-  pack,
-  projectLength,
-  videoAt,
-  type Project,
-  type TimedClip,
-  type Track,
-} from '@/engine/timeline';
+import { MAIN_VIDEO, MUSIC, defaultTracks, type Track } from '@/engine/tracks';
+import { framePlan, pack, projectLength, videoAt, type Project, type TimedClip } from '@/engine/timeline';
 import { legacyFixtures, type LegacyClip, type LegacyProject } from '../../support/timeline.testkit';
 import type { Transition } from '@/engine/transitions';
 import { frameRange } from '@/engine/video';

@@ -571,7 +571,8 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
   const { encodeVideo } = await import('@/engine/videoExport');
   const { renderFrame, NO_PICTURE } = await import('@/engine/video');
   const { legacyFixtures } = await import('../support/timeline.testkit');
-  const { MAIN_VIDEO, defaultTracks, framePlan, pack, projectLength } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
+  const { framePlan, pack, projectLength } = await import('@/engine/timeline');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const { loadImage } = await import('@/engine/photo');
   const W = 480,
@@ -713,7 +714,7 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
 async function exportNoLeaks(check: Check): Promise<string> {
   const { encodeVideo, ExportError } = await import('@/engine/videoExport');
   const { openFrames } = await import('@/engine/frameSource');
-  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const t0 = performance.now();
   const srcs = await Promise.all([0, 1, 2].map(() => makeTestClip(10, 1920, 1080, 2)));
@@ -810,7 +811,8 @@ async function exportNoLeaks(check: Check): Promise<string> {
  */
 async function pausedPreviewIsExport(check: Check): Promise<string> {
   const { encodeVideo } = await import('@/engine/videoExport');
-  const { MAIN_VIDEO, defaultTracks, pack, projectLength } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
+  const { pack, projectLength } = await import('@/engine/timeline');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const { drawPreview, pausedFrame, stageSource } = await import('@/components/studio/previewFrame');
   const files = (await Promise.all([0, 1].map(() => makeTestClip(4, 640, 360, 2, false, true)))).filter(

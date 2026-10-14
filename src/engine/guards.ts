@@ -23,11 +23,11 @@ export function keysOf<K extends string>(record: Partial<Record<K, unknown>>): K
 }
 
 /**
- * Whether a value is one of a list of known values, e.g. a transition kind.
+ * Whether a value is one of a list of known values, e.g. a transition kind or a frame rate.
  * @param options the known values
  * @param value anything
  * @returns true when `value` is one of `options`
  */
-export function isOneOf<T extends string>(options: readonly T[], value: unknown): value is T {
+export function isOneOf<T extends string | number>(options: readonly T[], value: unknown): value is T {
   return options.some((option) => option === value);
 }

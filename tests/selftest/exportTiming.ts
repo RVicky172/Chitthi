@@ -13,7 +13,8 @@ const secs = (ms: number) => (ms / 1000).toFixed(2);
 export async function exportTiming(): Promise<string[]> {
   const { encodeVideo } = await import('@/engine/videoExport');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
-  const { MAIN_VIDEO, defaultTracks, pack } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
+  const { pack } = await import('@/engine/timeline');
   const W = 1920,
     H = 1080;
   const out: string[] = [];

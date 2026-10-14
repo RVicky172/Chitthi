@@ -1,170 +1,18 @@
-import { mergeEdit, type IgEdit } from './instagram';
-import { keyBudget, mergeKeys } from './keyframeGate';
-import { CLIP_KEY_PROPS, tidyKeys, type ClipKeyProp, type Keyframe, type Keyframes } from './keyframes';
-import { mergeLayers, type Layer } from './layers';
-import { mergeTransition, tidyTransitions, transitionFields, TRANSITION_REASONS, type Transition } from './transitions';
-import {
-  IDENTITY,
-  MOTIONS,
-  V_PHOTO_SECONDS,
-  clipLength,
-  formatsFor,
-  frameRange,
-  isIdentity,
-  limitsFor,
-  type ClipTiming,
-  type Motion,
-  type VFormatId,
-  type VFps,
-  type VKind,
-  type VQuality,
-} from './video';
+import { keysOf } from './guards';
+import type { ClipKeyProp, Keyframes } from './keyframes';
+import type { Layer } from './layers';
+import { MAIN_VIDEO, isPictureTrack, type Track } from './tracks';
+import type { Transition } from './transitions';
+import { IDENTITY, clipLength, frameRange, type ClipTiming } from './video';
 
 /*
  * The video editor's project as tracks (P2.1, specs/features/201-track-model), free of DOM and React. Clips sit on a
- * track at an absolute start time; tracks have a kind (video, overlay, audio) and can be hidden (pictures), muted
- * (sound) or locked (no edits). A 2.x project, clips in a row plus one song, is one video track packed end to end and
- * one music track; for it every function here gives exactly the 2.x answer (timeline.testkit.ts keeps the 2.x code to
- * prove it), so the preview and the export don't change. Times are seconds at full precision.
+ * track at an absolute start time; tracks (tracks.ts) have a kind and can be hidden, muted or locked. A 2.x project,
+ * clips in a row plus one song, is one video track packed end to end and one music track; for it every function here
+ * gives exactly the 2.x answer (timeline.testkit.ts keeps the 2.x code to prove it), so the preview and the export
+ * don't change. Times are seconds at full precision. The sound plan is soundPlan.ts; the document, projectDoc.ts and
+ * projectGate.ts.
  */
-
-export type TrackKind = 'video' | 'overlay' | 'audio';
-
-export interface Track {
-  id: string;
-  kind: TrackKind;
-  name: string;
-  /** Video / overlay: not drawn in the preview or the export. */
-  hidden: boolean;
-  /** Audio: not heard in the preview or the export. */
-  muted: boolean;
-  /** Its clips can't be selected, moved, trimmed, split, duplicated or deleted. */
-  locked: boolean;
-}
-
-/** The main video track and the music track: every project has them. */
-export const MAIN_VIDEO = 'V1';
-export const MUSIC = 'A1';
-
-export const defaultTracks = (): Track[] => [
-  { id: MAIN_VIDEO, kind: 'video', name: 'Video', hidden: false, muted: false, locked: false },
-  { id: MUSIC, kind: 'audio', name: 'Music', hidden: false, muted: false, locked: false },
-];
-
-/**
- * A track with its switches changed: Hide applies to picture tracks, Mute to sound and overlay tracks (an overlay
- * clip's own sound, 203 Q7; the main track keeps Hide only, 201 D2), Lock to all. Returns the same array when nothing
- * changes (unknown track, a switch the track doesn't have, or the value it already has).
- */
-export function patchTrack(
-  tracks: Track[],
-  id: string,
-  patch: Partial<Pick<Track, 'hidden' | 'muted' | 'locked'>>,
-): Track[] {
-  const i = tracks.findIndex((t) => t.id === id);
-  if (i < 0) return tracks;
-  const t = tracks[i],
-    visual = t.kind !== 'audio';
-  const next: Track = {
-    ...t,
-    hidden: visual && patch.hidden !== undefined ? patch.hidden : t.hidden,
-    muted: t.kind !== 'video' && patch.muted !== undefined ? patch.muted : t.muted,
-    locked: patch.locked ?? t.locked,
-  };
-  if (next.hidden === t.hidden && next.muted === t.muted && next.locked === t.locked) return tracks;
-  return tracks.map((x, j) => (j === i ? next : x));
-}
-
-/** Why a track's clips can't be changed, or null when they can (unknown tracks aren't locked). */
-export function lockedReason(tracks: Track[], id: string): string | null {
-  const t = tracks.find((x) => x.id === id);
-  return t?.locked ? `The ${t.name} track is locked. Unlock it to change its clips.` : null;
-}
-
-/** How many picture (video + overlay) and sound tracks a project may have (Q4; 201 uses 1 + 1). */
-export const TRACK_LIMITS = (desktop: boolean): { visual: number; audio: number } =>
-  desktop ? { visual: 8, audio: 8 } : { visual: 4, audio: 4 };
-
-/** Why Add track is refused at the picture track limit (the button shows it). */
-export const tooManyTracks = (desktop: boolean): string =>
-  desktop
-    ? `A project holds up to ${TRACK_LIMITS(true).visual} picture tracks.`
-    : `A project holds up to ${TRACK_LIMITS(false).visual} picture tracks in the browser (memory); the desktop app allows ${TRACK_LIMITS(true).visual}.`;
-
-const OVERLAY_ID = /^O(\d+)$/;
-const OVERLAY_NAME = /^Overlay (\d+)$/;
-/** The lowest whole number from 1 that none of the matches use. */
-const lowestFree = (values: string[], re: RegExp) => {
-  const used = new Set<number>();
-  for (const v of values) {
-    const n = re.exec(v)?.[1];
-    if (n) used.add(Number(n));
-  }
-  let n = 1;
-  while (used.has(n)) n++;
-  return n;
-};
-
-/**
- * A new empty overlay track at the top of the picture tracks (above the last one, below the sound tracks), named
- * "Overlay N" with the lowest free N (203 Q12); refused at the picture track limit.
- */
-export function addTrack(tracks: Track[], desktop: boolean): { tracks: Track[]; id: string } | { error: string } {
-  if (tracks.filter(isVisual).length >= TRACK_LIMITS(desktop).visual) return { error: tooManyTracks(desktop) };
-  const ids = tracks.map((t) => t.id),
-    names = tracks.map((t) => t.name);
-  const id = `O${lowestFree(ids, OVERLAY_ID)}`;
-  const name = `Overlay ${lowestFree(names, OVERLAY_NAME)}`;
-  const at = tracks.findLastIndex(isVisual) + 1;
-  const track: Track = { id, kind: 'overlay', name, hidden: false, muted: false, locked: false };
-  return { tracks: [...tracks.slice(0, at), track, ...tracks.slice(at)], id };
-}
-
-const NO_TRACK = 'That track isn’t in the project.';
-const MAIN_FIXED = 'The main video track stays the bottom picture track.';
-
-/** A track renamed (trimmed, 1–40 characters); the same array when the name doesn't change. Any track: the UI
- * offers it for overlay tracks only (AC-1). */
-export function renameTrack(tracks: Track[], id: string, name: string): Track[] | { error: string } {
-  const i = tracks.findIndex((t) => t.id === id);
-  if (i < 0) return { error: NO_TRACK };
-  const n = name.trim();
-  if (!n) return { error: 'A track needs a name.' };
-  if (n.length > 40) return { error: 'A track name can be up to 40 characters.' };
-  return n === tracks[i].name ? tracks : tracks.map((t, j) => (j === i ? { ...t, name: n } : t));
-}
-
-/**
- * An overlay track moved one place up (+1, drawn later) or down (−1) among the overlay tracks; the main video track
- * stays the bottom picture track (203 Q10), sound tracks don't move.
- */
-export function moveTrack(tracks: Track[], id: string, by: 1 | -1): Track[] | { error: string } {
-  const t = tracks.find((x) => x.id === id);
-  if (!t) return { error: NO_TRACK };
-  if (t.id === MAIN_VIDEO) return { error: MAIN_FIXED };
-  if (t.kind !== 'overlay') return { error: 'Only overlay tracks can be moved.' };
-  const overlays = tracks.flatMap((x, i) => (x.kind === 'overlay' ? [i] : []));
-  const k = overlays.indexOf(tracks.indexOf(t)) + by;
-  if (k >= overlays.length) return { error: `The ${t.name} track is already the top track.` };
-  if (k < 0) return { error: `The ${t.name} track is already just above the main video track.` };
-  const a = tracks.indexOf(t),
-    b = overlays[k];
-  return tracks.map((x, i) => (i === a ? tracks[b] : i === b ? t : x));
-}
-
-/** An overlay track deleted with its clips; the main video and sound tracks can't be, nor a locked track. */
-export function deleteTrack<C extends TimedClip>(
-  tracks: Track[],
-  clips: C[],
-  id: string,
-): { tracks: Track[]; clips: C[] } | { error: string } {
-  const t = tracks.find((x) => x.id === id);
-  if (!t) return { error: NO_TRACK };
-  if (t.id === MAIN_VIDEO) return { error: 'The main video track can’t be deleted.' };
-  if (t.kind !== 'overlay') return { error: 'Only overlay tracks can be deleted.' };
-  if (t.locked) return { error: `The ${t.name} track is locked. Unlock it to delete it.` };
-  return { tracks: tracks.filter((x) => x !== t), clips: clips.filter((c) => c.track !== id) };
-}
 
 /* ---------- the clip transform (203) ---------- */
 
@@ -186,10 +34,8 @@ export interface ClipTransform {
   radius: number;
 }
 
-// The whole frame and the test for it live with the drawing (engine/video.ts renderStack's fast path), here for callers.
-export { IDENTITY, isIdentity };
-
-const TF_RANGE: Record<keyof ClipTransform, [number, number]> = {
+/** Each transform field's range. */
+export const TRANSFORM_RANGES: Readonly<Record<keyof ClipTransform, readonly [number, number]>> = {
   x: [-0.5, 1.5],
   y: [-0.5, 1.5],
   w: [0.05, 4],
@@ -198,16 +44,22 @@ const TF_RANGE: Record<keyof ClipTransform, [number, number]> = {
   radius: [0, 0.5],
 };
 
-/** Every field within its range; missing or non-finite fields take the identity value. A new object. */
-export function clampTransform(t: Partial<ClipTransform> | undefined): ClipTransform {
-  const out = { ...IDENTITY };
-  for (const k of Object.keys(TF_RANGE) as (keyof ClipTransform)[]) {
-    const v = t?.[k];
-    if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.min(TF_RANGE[k][1], Math.max(TF_RANGE[k][0], v));
+/**
+ * Every field of a transform within its range.
+ * @param transform a transform, possibly partial
+ * @returns a new transform; missing or non-finite fields take the identity value
+ */
+export function clampTransform(transform: Partial<ClipTransform> | undefined): ClipTransform {
+  const clamped = { ...IDENTITY };
+  for (const field of keysOf(TRANSFORM_RANGES)) {
+    const value = transform?.[field];
+    const [low, high] = TRANSFORM_RANGES[field];
+    if (typeof value === 'number' && Number.isFinite(value)) clamped[field] = Math.min(high, Math.max(low, value));
   }
-  return out;
+  return clamped;
 }
 
+/** The inspector's box presets. */
 export type Preset = 'full' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 /** The inspector's presets, in order, with their labels (Q4). */
@@ -220,23 +72,29 @@ export const PRESETS: readonly (readonly [Preset, string])[] = [
 ];
 
 /**
- * A preset's transform for a W × H frame: Full frame is the identity; a corner is 35 % of the frame width, 4 % of the
- * frame width from the two nearest edges (Q4). The box is 0.35 H tall (the frame's aspect), so the vertical margin
- * as a share of the height is 0.04 W / H.
+ * A preset's transform: Full frame is the identity; a corner is 35 % of the frame width, 4 % of the frame width from
+ * the two nearest edges (Q4). The box is 0.35 of the height tall (the frame's aspect), so the vertical margin as a
+ * share of the height is 0.04 × width / height.
+ * @param preset the preset
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight the frame's height, pixels
+ * @returns the transform
  */
-export function presetTransform(p: Preset, W: number, H: number): ClipTransform {
-  if (p === 'full') return { ...IDENTITY };
-  const w = 0.35,
-    m = 0.04;
-  const x = m + w / 2,
-    y = (m * W) / Math.max(1, H) + w / 2;
+export function presetTransform(preset: Preset, frameWidth: number, frameHeight: number): ClipTransform {
+  if (preset === 'full') return { ...IDENTITY };
+  const size = 0.35;
+  const margin = 0.04;
+  const x = margin + size / 2;
+  const y = (margin * frameWidth) / Math.max(1, frameHeight) + size / 2;
   return {
     ...IDENTITY,
-    w,
-    x: p.endsWith('left') ? x : 1 - x,
-    y: p.startsWith('top') ? y : 1 - y,
+    w: size,
+    x: preset.endsWith('left') ? x : 1 - x,
+    y: preset.startsWith('top') ? y : 1 - y,
   };
 }
+
+/* ---------- clips and the project ---------- */
 
 /** A photo or video clip on a picture track. */
 export interface TimedClip extends ClipTiming {
@@ -265,6 +123,7 @@ export interface AudioClip {
   srcDur: number;
 }
 
+/** A video project: its tracks, picture clips, sound clips and layers. */
 export interface Project<C extends TimedClip = TimedClip> {
   tracks: Track[];
   clips: C[];
@@ -274,23 +133,23 @@ export interface Project<C extends TimedClip = TimedClip> {
   fadeOut: boolean;
 }
 
-const isVisual = (t: Track) => t.kind === 'video' || t.kind === 'overlay';
-
 /**
  * Places the main video track's clips end to end in their order (the gapless rule of 201; `202` brings gaps and
  * ripple). Starts are summed exactly as 2.x did, so they are bit-identical. Other tracks keep their starts.
+ * @param clips the picture clips
+ * @returns the clips (each unchanged when already in place)
  */
 export function pack<C extends TimedClip>(clips: C[]): C[] {
-  let t = 0;
-  return clips.map((c) => {
-    if (c.track !== MAIN_VIDEO) return c;
-    const start = t;
-    t += clipLength(c);
-    return c.start === start ? c : { ...c, start };
+  let reached = 0;
+  return clips.map((clip) => {
+    if (clip.track !== MAIN_VIDEO) return clip;
+    const start = reached;
+    reached += clipLength(clip);
+    return clip.start === start ? clip : { ...clip, start };
   });
 }
 
-const endOf = (c: TimedClip) => c.start + clipLength(c);
+const endOf = (clip: TimedClip) => clip.start + clipLength(clip);
 
 /**
  * Seconds of slack at a clip's edges when asking which clip covers a time. Starts summed in floating point (pack, 2.x)
@@ -299,656 +158,120 @@ const endOf = (c: TimedClip) => c.start + clipLength(c);
  */
 export const EDGE_EPS = 1e-9;
 
-/** The video's length: where the last picture clip ends (hidden tracks count too: hiding doesn't shorten it). */
-export function projectLength(p: Project): number {
-  const visual = new Set(p.tracks.filter(isVisual).map((t) => t.id));
+/**
+ * The video's length: where the last picture clip ends (hidden tracks count too: hiding doesn't shorten it).
+ * @param project the project
+ * @returns seconds
+ */
+export function projectLength(project: Project): number {
+  const pictureTracks = new Set(project.tracks.filter(isPictureTrack).map((track) => track.id));
   let end = 0;
-  for (const c of p.clips) if (visual.has(c.track)) end = Math.max(end, endOf(c));
+  for (const clip of project.clips) if (pictureTracks.has(clip.track)) end = Math.max(end, endOf(clip));
   return end;
 }
 
-/** A track's gaps: the empty stretches before and between its clips (clips are kept in start order). */
-export function gaps(p: Project, track: string): { start: number; end: number }[] {
-  const out: { start: number; end: number }[] = [];
-  let t = 0;
-  for (const c of p.clips) {
-    if (c.track !== track) continue;
-    // A tiny tolerance: starts summed in floating point may sit a hair after the previous end.
-    if (c.start > t + 1e-9) out.push({ start: t, end: c.start });
-    t = Math.max(t, endOf(c));
-  }
-  return out;
+/** An empty stretch of a track, seconds. */
+export interface Gap {
+  start: number;
+  end: number;
 }
 
-/** The picture clip showing at time t on the topmost visible picture track, and seconds into it; null for none (a
- * gap shows nothing). The main track clamps as 2.x did: before 0 its first clip (when it starts at 0), at or past the
- * end its last. Edges are EDGE_EPS early, as frameRange's, so the paused preview and the export agree on every frame. */
-export function videoAt<C extends TimedClip>(p: Project<C>, t: number): { clip: C; local: number } | null {
-  const visual = p.tracks.filter((tr) => isVisual(tr) && !tr.hidden);
-  for (let i = visual.length - 1; i >= 0; i--) {
-    const on = p.clips.filter((c) => c.track === visual[i].id);
-    if (!on.length) continue;
-    const hit = on.find((c) => t >= c.start - EDGE_EPS && t < endOf(c) - EDGE_EPS);
-    if (hit) return { clip: hit, local: t - hit.start };
-    if (visual[i].id === MAIN_VIDEO) {
-      const first = on[0],
-        last = on[on.length - 1];
-      const c = t < 0 && first.start <= 0 ? first : t >= endOf(last) - EDGE_EPS ? last : null;
-      if (c) return { clip: c, local: t - c.start };
-    }
+/**
+ * A track's gaps: the empty stretches before and between its clips (clips are kept in start order).
+ * @param project the project
+ * @param track the track's id
+ * @returns the gaps, in time order
+ */
+export function gaps(project: Project, track: string): Gap[] {
+  const found: Gap[] = [];
+  let reached = 0;
+  for (const clip of project.clips) {
+    if (clip.track !== track) continue;
+    // A tiny tolerance: starts summed in floating point may sit a hair after the previous end.
+    if (clip.start > reached + 1e-9) found.push({ start: reached, end: clip.start });
+    reached = Math.max(reached, endOf(clip));
+  }
+  return found;
+}
+
+/** A clip showing at a time, and seconds into it. */
+export interface ClipAtTime<C> {
+  clip: C;
+  local: number;
+}
+
+/**
+ * The main track's clamp, as 2.x had it: before 0 its first clip (when it starts at 0), at or past the end its last.
+ * @param onTrack the main track's clips, in start order
+ * @param time timeline seconds
+ * @returns the clip, or null
+ */
+function mainClamp<C extends TimedClip>(onTrack: readonly C[], time: number): C | null {
+  const first = onTrack.at(0);
+  const last = onTrack.at(-1);
+  if (!first || !last) return null;
+  if (time < 0 && first.start <= 0) return first;
+  return time >= endOf(last) - EDGE_EPS ? last : null;
+}
+
+/**
+ * The picture clip showing at a time on the topmost visible picture track (a gap shows nothing). The main track clamps
+ * as 2.x did (`mainClamp`). Edges are EDGE_EPS early, as frameRange's, so the paused preview and the export agree on
+ * every frame.
+ * @param project the project
+ * @param time timeline seconds
+ * @returns the clip and seconds into it, or null for none
+ */
+export function videoAt<C extends TimedClip>(project: Project<C>, time: number): ClipAtTime<C> | null {
+  const visible = project.tracks.filter((track) => isPictureTrack(track) && !track.hidden);
+  for (let index = visible.length - 1; index >= 0; index--) {
+    const track = visible.at(index);
+    if (!track) continue;
+    const onTrack = project.clips.filter((clip) => clip.track === track.id);
+    const hit =
+      onTrack.find((clip) => time >= clip.start - EDGE_EPS && time < endOf(clip) - EDGE_EPS) ??
+      (track.id === MAIN_VIDEO ? mainClamp(onTrack, time) : null);
+    if (hit) return { clip: hit, local: time - hit.start };
   }
   return null;
 }
 
+/** A span of the export's frames: one clip's frames, or a gap's (black, layers on top) with no clip. */
+export interface FrameSpan<C> {
+  clip: C | null;
+  /** The first frame, and one past the last. */
+  f0: number;
+  f1: number;
+  /** The timeline second the span's local time counts from (frame i shows i / fps − start). */
+  start: number;
+}
+
 /**
- * The export's frames: per clip of the visible main track, frame numbers [f0, f1) at fps and its start (local time of
- * frame i = i / fps − start), exactly as 2.x's loop; a gap is a span with no clip (black, layers on top), so the
- * frames run 0 → total without holes. With the main track hidden: one span of black frames.
+ * The export's frames: per clip of the visible main track, frame numbers [f0, f1) at fps and its start, exactly as
+ * 2.x's loop; a gap is a span with no clip, so the frames run 0 → total without holes. With the main track hidden: one
+ * span of black frames.
+ * @param project the project
+ * @param fps the frame rate
+ * @returns the spans, in frame order
  */
-export function framePlan<C extends TimedClip>(
-  p: Project<C>,
-  fps: number,
-): { clip: C | null; f0: number; f1: number; start: number }[] {
-  const total = projectLength(p);
+export function framePlan<C extends TimedClip>(project: Project<C>, fps: number): FrameSpan<C>[] {
+  const total = projectLength(project);
   const frames = Math.max(1, Math.round(total * fps));
-  const main = p.tracks.find((t) => t.id === MAIN_VIDEO);
+  const main = project.tracks.find((track) => track.id === MAIN_VIDEO);
   if (!main || main.hidden) return [{ clip: null, f0: 0, f1: frames, start: 0 }];
-  const out: { clip: C | null; f0: number; f1: number; start: number }[] = [];
-  let next = 0,
-    prevEnd = 0;
-  for (const c of p.clips) {
-    if (c.track !== MAIN_VIDEO) continue;
-    const [f0, f1] = frameRange(c.start, endOf(c), fps);
+  const spans: FrameSpan<C>[] = [];
+  let next = 0;
+  let previousEnd = 0;
+  for (const clip of project.clips) {
+    if (clip.track !== MAIN_VIDEO) continue;
+    const [f0, f1] = frameRange(clip.start, endOf(clip), fps);
     const last = Math.min(f1, frames);
     // Frames between the previous clip and this one: a gap. A packed track (2.x) never has any.
-    if (f0 > next) out.push({ clip: null, f0: next, f1: Math.min(f0, frames), start: prevEnd });
-    prevEnd = endOf(c);
+    if (f0 > next) spans.push({ clip: null, f0: next, f1: Math.min(f0, frames), start: previousEnd });
+    previousEnd = endOf(clip);
     if (f0 >= last) continue;
-    out.push({ clip: c, f0, f1: last, start: c.start });
+    spans.push({ clip, f0, f1: last, start: clip.start });
     next = last;
   }
-  return out;
-}
-
-export interface SoundSource {
-  /** The clip's id, or the audio clip's id ('music'). */
-  ref: string;
-  /** Timeline seconds. */
-  start: number;
-  end: number;
-  /** Source seconds at `start`. */
-  from: number;
-  volume: number;
-  /** Volume keyframes (205), seconds from `start`: when present they set the volume instead of `volume`. */
-  gain?: Keyframe[];
-  /** Volume ramps at its ends, seconds. */
-  fadeIn: number;
-  fadeOut: number;
-  /** Transitions (206): seconds it plays before `start` (half the transition leading into it) and after `end` (half
-   * its own), and how its sound goes there: an equal-power cross-fade (`power`) or a dip through silence (`dip`). */
-  lead?: number;
-  trail?: number;
-  edgeIn?: 'power' | 'dip';
-  edgeOut?: 'power' | 'dip';
-}
-
-/** How a clip's sound meets its transitions (206): the `SoundSource` fields of `lead`, `trail` and their edges. */
-export type SoundEdges = Pick<SoundSource, 'lead' | 'trail' | 'edgeIn' | 'edgeOut'>;
-
-/**
- * A clip's sound edges from its transitions (206 AC-6): half the transition leading into it (`lead`) and half its own
- * (`trail`), each an equal-power cross-fade or, for a dip, a dip through silence; empty without transitions. Shared by
- * the export's sound plan and the preview's sound, so they blend alike.
- */
-export function soundEdges(clip: TimedClip, clips: readonly TimedClip[]): SoundEdges {
-  const leading = clips.find((other) => other.track === clip.track && other.transition?.to === clip.id)?.transition;
-  const own = clip.transition;
-  const edge = (transition: Transition) => (transition.kind === 'dip' ? 'dip' : 'power');
-  return {
-    ...(leading ? { lead: leading.dur / 2, edgeIn: edge(leading) } : {}),
-    ...(own ? { trail: own.dur / 2, edgeOut: edge(own) } : {}),
-  };
-}
-
-/**
- * The sounds the export mixes: each video clip's own sound on the main track (hiding the track keeps it: hiding is
- * about pictures) with short ramps at the cuts, then each video clip's on the overlay tracks that aren't muted (hidden
- * ones too, 203 Q7), bottom track first, then the audio clips of tracks that aren't muted; a `toEnd` clip plays to the
- * end of the video and fades out over min(1.5 s, a third of the video), as 2.x's music did. The main track's entries
- * come first in their own order, so a project without overlay clips mixes exactly 202's sources (203 AC-10).
- */
-export function audioPlan(p: Project): SoundSource[] {
-  const total = projectLength(p);
-  const out: SoundSource[] = [];
-  const own = (track: string) => {
-    for (const c of p.clips) {
-      if (c.track !== track || c.kind !== 'video') continue;
-      const volume = (c as TimedClip & { volume?: number }).volume ?? 0;
-      // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
-      const gain = c.keys?.volume?.length ? c.keys.volume : undefined;
-      if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) continue;
-      // A transition at a cut (206) replaces the 0.03 s ramp there: the sound plays into the handle with its edge.
-      const edges = soundEdges(c, p.clips);
-      out.push({
-        ref: c.id,
-        start: c.start,
-        end: endOf(c),
-        from: c.in,
-        volume,
-        ...(gain ? { gain } : {}),
-        fadeIn: edges.lead ? 0 : 0.03,
-        fadeOut: edges.trail ? 0 : 0.03,
-        ...edges,
-      });
-    }
-  };
-  own(MAIN_VIDEO);
-  for (const t of p.tracks) if (t.kind === 'overlay' && !t.muted) own(t.id);
-  const muted = new Set(p.tracks.filter((t) => t.kind === 'audio' && t.muted).map((t) => t.id));
-  for (const a of p.audio) {
-    if (muted.has(a.track) || a.volume <= 0) continue;
-    const end = a.toEnd ? total : a.start + Math.max(0, a.srcDur - a.in);
-    out.push({
-      ref: a.id,
-      start: a.start,
-      end,
-      from: Math.max(0, a.in),
-      volume: a.volume,
-      fadeIn: 0,
-      fadeOut: Math.min(1.5, total / 3),
-    });
-  }
-  return out;
-}
-
-/* ---------- the project document and its gate ---------- */
-
-export type MediaKind = 'photo' | 'video' | 'audio' | 'image';
-
-/** A file the project uses, described (never embedded): where it lives is up to whoever saves the project. */
-export interface DocMedia {
-  id: string;
-  kind: MediaKind;
-  name: string;
-  /** MIME type. */
-  type: string;
-  /** Bytes. */
-  size: number;
-  /** Pixels (0 for sound). */
-  w: number;
-  h: number;
-  /** Seconds (0 for pictures). */
-  srcDur: number;
-}
-
-/** A picture clip as saved: its timing, look and motion, and the media it shows. */
-export interface DocClip extends TimedClip {
-  media: string;
-  edit: IgEdit;
-  motion: Motion;
-  fade: boolean;
-  /** Its own sound, 0–1 (photos: 0). */
-  volume: number;
-  /** In the document only: the clip's `tf` (203), written when it isn't the identity; the gate turns it into `tf`. */
-  transform?: ClipTransform;
-}
-
-export interface DocAudio extends AudioClip {
-  media: string;
-}
-
-/** A project as JSON. Version 1 is the track model; a document without a version is a 2.x project (clips in a row). */
-export interface ProjectDoc extends Project<DocClip> {
-  version: 1;
-  kind: VKind;
-  format: VFormatId;
-  fps: VFps;
-  quality: VQuality;
-  audio: DocAudio[];
-  media: DocMedia[];
-  /** The main track packs its clips end to end (202); missing in a document = on. */
-  magnetic?: boolean;
-}
-
-/**
- * A 2.x project on tracks: the clips back to back on the main video track, the song as a music clip that plays to the
- * end of the video from its offset. Every other field of the clips and the song is kept.
- */
-export function fromSequence<
-  C extends ClipTiming & { id: string },
-  M extends { offset: number; volume: number; dur: number },
->(seq: {
-  clips: C[];
-  music: M | null;
-  layers: Layer[];
-  fadeOut: boolean;
-}): Project<C & { track: string; start: number }> & { audio: (AudioClip & Omit<M, 'offset' | 'volume' | 'dur'>)[] } {
-  const clips = pack(seq.clips.map((c) => ({ ...c, track: MAIN_VIDEO, start: 0 })));
-  let audio: (AudioClip & Omit<M, 'offset' | 'volume' | 'dur'>)[] = [];
-  if (seq.music) {
-    const { offset, volume, dur, ...rest } = seq.music;
-    audio = [{ ...rest, id: 'music', track: MUSIC, start: 0, in: offset, volume, toEnd: true, srcDur: dur }];
-  }
-  return { tracks: defaultTracks(), clips, audio, layers: seq.layers, fadeOut: seq.fadeOut };
-}
-
-/**
- * The JSON form of a project: only the fields a project is made of (no files, URLs, thumbnails or view state). A
- * clip's `tf` is written as `transform`, and only when it isn't the identity; its keyframes (205) only when it has
- * some. So 201 / 202 documents stay as they were.
- */
-export function toDocument(p: ProjectDoc): ProjectDoc {
-  return {
-    version: 1,
-    kind: p.kind,
-    format: p.format,
-    fps: p.fps,
-    quality: p.quality,
-    fadeOut: p.fadeOut,
-    magnetic: p.magnetic !== false,
-    tracks: p.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({ id, kind, name, hidden, muted, locked })),
-    clips: p.clips.map(
-      ({ id, track, start, media, kind, dur, in: i, out, edit, motion, fade, volume, tf, transform, keys, transition }) => {
-        const t = clampTransform(tf ?? transform);
-        const kept = keys && tidyKeys(keys);
-        return {
-          id,
-          track,
-          start,
-          media,
-          kind,
-          dur,
-          in: i,
-          out,
-          edit,
-          motion,
-          fade,
-          volume,
-          ...(isIdentity(t) ? {} : { transform: t }),
-          ...(kept ? { keys: kept } : {}),
-          ...(transition ? { transition: transitionFields(transition) } : {}),
-        };
-      },
-    ),
-    audio: p.audio.map(({ id, track, start, media, in: i, volume, toEnd, srcDur }) => ({
-      id,
-      track,
-      start,
-      media,
-      in: i,
-      volume,
-      toEnd,
-      srcDur,
-    })),
-    layers: p.layers,
-    media: p.media.map(({ id, kind, name, type, size, w, h, srcDur }) => ({
-      id,
-      kind,
-      name,
-      type,
-      size,
-      w,
-      h,
-      srcDur,
-    })),
-  };
-}
-
-const ID = /^[A-Za-z0-9_-]{1,40}$/;
-const MEDIA_KINDS: readonly MediaKind[] = ['photo', 'video', 'audio', 'image'];
-const TRACK_KINDS: readonly TrackKind[] = ['video', 'overlay', 'audio'];
-const MOTION_IDS: readonly string[] = MOTIONS.map(([m]) => m);
-/** The longest source or timeline time the gate accepts, seconds (a day). */
-const MAX_TIME = 86400;
-const obj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
-const arr = (v: unknown) => (Array.isArray(v) ? v : []);
-const fin = (v: unknown, lo: number, hi: number) =>
-  typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null;
-const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
-let gen = 0;
-const freshId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(gen++).toString(36)}`;
-
-function emptyDoc(desktop: boolean): ProjectDoc {
-  return {
-    version: 1,
-    kind: 'reel',
-    format: 'reel',
-    fps: limitsFor('reel', desktop).fps[0],
-    quality: 'standard',
-    fadeOut: true,
-    magnetic: true,
-    tracks: defaultTracks(),
-    clips: [],
-    audio: [],
-    layers: [],
-    media: [],
-  };
-}
-
-/** A 2.x document (no version) as a version 1 candidate, still to go through the gate. */
-function upgrade(o: Record<string, unknown>): Record<string, unknown> {
-  const clips = arr(o.clips).filter((c): c is Record<string, unknown> => !!obj(c));
-  const m = obj(o.music);
-  const seq = fromSequence({
-    clips: clips.map((c) => ({
-      ...c,
-      kind: c.kind === 'video' ? ('video' as const) : ('photo' as const),
-      dur: Number(c.dur),
-      in: Number(c.in),
-      out: Number(c.out),
-      id: String(c.id),
-    })),
-    music: m ? { ...m, offset: Number(m.offset), volume: Number(m.volume), dur: Number(m.dur) } : null,
-    layers: [],
-    fadeOut: o.fadeOut !== false,
-  });
-  return { ...o, version: 1, tracks: seq.tracks, clips: seq.clips, audio: seq.audio, music: undefined };
-}
-
-/**
- * The picture clips track by track, in the tracks' order: the main track packed (Magnetic on) or, like every overlay
- * track, its clips in start order (equal starts keep the document's order) with a clip that overlaps the one before it
- * moved to that clip's end, with a reason (D-009 D3, 203). A clip that then starts at or past the project's length
- * limit (`maxSeconds`) is left out, with a reason.
- */
-function placeClips<C extends TimedClip>(
-  clips: C[],
-  tracks: Track[],
-  magnetic: boolean,
-  maxSeconds: number,
-  dropped: string[],
-): C[] {
-  const out: C[] = [];
-  const limit = maxSeconds % 60 ? `${maxSeconds}-second` : `${maxSeconds / 60}-minute`;
-  let late = 0;
-  const fits = (c: C) => {
-    if (c.start < maxSeconds) return true;
-    late++;
-    return false;
-  };
-  for (const t of tracks.filter(isVisual)) {
-    const on = clips.filter((c) => c.track === t.id);
-    if (t.id === MAIN_VIDEO && magnetic) {
-      out.push(...pack(on).filter(fits));
-      continue;
-    }
-    const where = t.id === MAIN_VIDEO ? 'the video track' : `the ${t.name} track`;
-    let end = 0;
-    for (const c of on.sort((a, b) => a.start - b.start)) {
-      const start = c.start < end - 1e-6 ? end : c.start;
-      const placed = start === c.start ? c : { ...c, start };
-      if (!fits(placed)) continue;
-      if (start !== c.start) dropped.push(`Two clips overlapped on ${where}; one was moved to after the other.`);
-      end = Math.max(end, start + clipLength(c));
-      out.push(placed);
-    }
-  }
-  if (late)
-    dropped.push(
-      late === 1
-        ? `A clip didn’t fit within the ${limit} limit and was left out.`
-        : `${late} clips didn’t fit within the ${limit} limit and were left out.`,
-    );
-  return out;
-}
-
-/**
- * A clip's `transform` from a document as its `tf`: undefined at the identity (or when missing), clamped otherwise; a
- * reason when it had no number to read, or a field was out of range or missing.
- */
-function readTransform(v: unknown, dropped: string[]): ClipTransform | undefined {
-  if (v === undefined) return undefined;
-  const o = obj(v);
-  const keys = Object.keys(TF_RANGE) as (keyof ClipTransform)[];
-  const tf = clampTransform((o ?? {}) as Partial<ClipTransform>);
-  if (!o || !keys.some((k) => typeof o[k] === 'number' && Number.isFinite(o[k]))) {
-    dropped.push('A clip’s position and size couldn’t be read; it fills the frame.');
-    return undefined;
-  }
-  if (keys.some((k) => o[k] !== tf[k]))
-    dropped.push('A clip’s position and size were out of range or incomplete and were adjusted.');
-  return isIdentity(tf) ? undefined : tf;
-}
-
-/**
- * The single gate for project data from outside the running app (project files; 2.x projects): a valid version 1
- * project and what it dropped or changed, and why. Values out of range are clamped or replaced by defaults; clips on a
- * missing or wrong track or without their media, and unknown fields, are dropped; ids are made unique; a clip's
- * `transform` is clamped into its `tf`; the main track is the one video track and the bottom picture track; it is
- * packed (with Magnetic off: sorted, overlaps moved apart, as overlay tracks always are). Never throws.
- */
-export function mergeProject(raw: unknown, desktop: boolean): { doc: ProjectDoc; dropped: string[] } {
-  const dropped: string[] = [];
-  try {
-    let o = obj(raw);
-    if (!o) return { doc: emptyDoc(desktop), dropped: ['This isn’t a project.'] };
-    if (o.version === undefined) o = upgrade(o);
-    else if (o.version !== 1)
-      return {
-        doc: emptyDoc(desktop),
-        dropped: [
-          `This project is from a newer version of Chitthi Studio (version ${String(o.version).slice(0, 10)}).`,
-        ],
-      };
-
-    // Settings.
-    const kind: VKind = o.kind === 'vlog' ? 'vlog' : 'reel';
-    const formats = formatsFor(kind);
-    const format = formats.find((f) => f.id === o.format && (desktop || !f.desktopOnly))?.id ?? formats[0].id;
-    const L = limitsFor(kind, desktop);
-    const fps = L.fps.includes(o.fps as VFps) ? (o.fps as VFps) : L.fps[0];
-    const quality: VQuality = o.quality === 'high' ? 'high' : 'standard';
-    const fadeOut = o.fadeOut !== false;
-    const magnetic = o.magnetic !== false;
-
-    // Media.
-    const media: DocMedia[] = [];
-    for (const r of arr(o.media)) {
-      const m = obj(r);
-      if (
-        !m ||
-        typeof m.id !== 'string' ||
-        !ID.test(m.id) ||
-        media.some((x) => x.id === m.id) ||
-        !MEDIA_KINDS.includes(m.kind as MediaKind)
-      ) {
-        dropped.push('A media entry was unreadable and was left out.');
-        continue;
-      }
-      media.push({
-        id: m.id,
-        kind: m.kind as MediaKind,
-        name: text(m.name, 200),
-        type: text(m.type, 100),
-        size: fin(m.size, 0, Number.MAX_SAFE_INTEGER) ?? 0,
-        w: Math.round(fin(m.w, 0, 100000) ?? 0),
-        h: Math.round(fin(m.h, 0, 100000) ?? 0),
-        srcDur: fin(m.srcDur, 0, MAX_TIME) ?? 0,
-      });
-    }
-    const mediaOf = (id: unknown) => media.find((m) => m.id === id);
-
-    // Tracks: the main video and music tracks always exist, with their kinds; the rest within the limits.
-    const T = TRACK_LIMITS(desktop);
-    const tracks: Track[] = [];
-    for (const r of arr(o.tracks)) {
-      const t = obj(r);
-      if (
-        !t ||
-        typeof t.id !== 'string' ||
-        !ID.test(t.id) ||
-        tracks.some((x) => x.id === t.id) ||
-        !TRACK_KINDS.includes(t.kind as TrackKind)
-      ) {
-        dropped.push('A track was unreadable and was left out.');
-        continue;
-      }
-      // One video track, the main one: any other picture track is an overlay (203).
-      const kindT: TrackKind =
-        t.id === MAIN_VIDEO
-          ? 'video'
-          : t.id === MUSIC
-            ? 'audio'
-            : t.kind === 'video'
-              ? 'overlay'
-              : (t.kind as TrackKind);
-      // The main video and music tracks never count against the limits: a slot is kept for each until it is read.
-      const audio = kindT === 'audio';
-      const full =
-        t.id !== MAIN_VIDEO &&
-        t.id !== MUSIC &&
-        tracks.filter(audio ? (x) => x.kind === 'audio' : isVisual).length >=
-          (audio ? T.audio : T.visual) - (tracks.some((x) => x.id === (audio ? MUSIC : MAIN_VIDEO)) ? 0 : 1);
-      const name = text(t.name, 40) || (audio ? 'Audio' : kindT === 'overlay' ? 'Overlay' : 'Video');
-      if (full) {
-        dropped.push(
-          `A project holds up to ${T.visual} picture and ${T.audio} sound tracks here; “${name}” was left out.`,
-        );
-        continue;
-      }
-      if (kindT === 'overlay' && t.kind === 'video')
-        dropped.push(`The “${name}” track became an overlay track: a project has one main video track.`);
-      tracks.push({
-        id: t.id,
-        kind: kindT,
-        name,
-        hidden: t.hidden === true,
-        // The main track has Hide only (201 D2): its clips' sound is set per clip.
-        muted: kindT !== 'video' && t.muted === true,
-        locked: t.locked === true,
-      });
-    }
-    // Missing ones are added: the slots kept for them mean no other track has to go.
-    for (const d of defaultTracks())
-      if (!tracks.some((t) => t.id === d.id)) tracks.splice(d.kind === 'video' ? 0 : tracks.length, 0, d);
-    // The main track is the bottom picture track: nothing is drawn under it (203 Q10).
-    const first = tracks.findIndex(isVisual),
-      main = tracks.findIndex((t) => t.id === MAIN_VIDEO);
-    if (main !== first) {
-      tracks.splice(first, 0, ...tracks.splice(main, 1));
-      dropped.push('The main video track was moved below the overlay tracks.');
-    }
-    const trackOf = (id: unknown) => tracks.find((t) => t.id === id);
-
-    // Picture clips.
-    const ids = new Set<string>();
-    const unique = (v: unknown, prefix: string) => {
-      let id = typeof v === 'string' && ID.test(v) ? v : '';
-      if (!id || ids.has(id)) {
-        if (id) dropped.push(`Two items had the id “${id}”; one was renamed.`);
-        id = freshId(prefix);
-      }
-      ids.add(id);
-      return id;
-    };
-    // Keyframes: 5,000 in the whole project, clips first, then layers (205 Q5).
-    const budget = keyBudget(dropped);
-    const clips: DocClip[] = [];
-    const rawClips = arr(o.clips);
-    if (rawClips.length > L.clips)
-      dropped.push(`A project holds up to ${L.clips} clips here; ${rawClips.length - L.clips} were left out.`);
-    for (const r of rawClips.slice(0, L.clips)) {
-      const c = obj(r);
-      if (!c) {
-        dropped.push('A clip was unreadable and was left out.');
-        continue;
-      }
-      const cKind = c.kind === 'video' ? 'video' : 'photo';
-      const tr = trackOf(c.track);
-      if (!tr || !isVisual(tr)) {
-        dropped.push('A clip on a missing or sound track was left out.');
-        continue;
-      }
-      const m = mediaOf(c.media);
-      if (!m || m.kind !== cKind) {
-        dropped.push(`A ${cKind} clip without its media was left out.`);
-        continue;
-      }
-      let dur = 0,
-        cin = 0,
-        out = 0;
-      if (cKind === 'photo') dur = fin(c.dur, 0, L.seconds) ?? V_PHOTO_SECONDS;
-      else {
-        cin = fin(c.in, 0, MAX_TIME) ?? 0;
-        out = Math.min(fin(c.out, 0, MAX_TIME) ?? m.srcDur, m.srcDur);
-        if (!(cin < out)) {
-          dropped.push('A video clip with nothing left to play was left out.');
-          continue;
-        }
-      }
-      const tf = readTransform(c.transform, dropped);
-      const keys = mergeKeys(c.keys, CLIP_KEY_PROPS, 'clip', budget);
-      const transition = mergeTransition(c.transition, dropped);
-      clips.push({
-        id: unique(c.id, 'v'),
-        track: tr.id,
-        start: fin(c.start, 0, MAX_TIME) ?? 0,
-        media: m.id,
-        kind: cKind,
-        dur,
-        in: cin,
-        out,
-        edit: mergeEdit(c.edit),
-        motion: (MOTION_IDS.includes(c.motion as string) ? c.motion : cKind === 'photo' ? 'zoom-in' : 'none') as Motion,
-        fade: c.fade === true,
-        volume: fin(c.volume, 0, 1) ?? (cKind === 'video' ? 1 : 0),
-        ...(tf ? { tf } : {}),
-        ...(keys ? { keys } : {}),
-        ...(transition ? { transition } : {}),
-      });
-    }
-    // Transitions only on cuts between touching clips, fitting in them (206 AC-4, AC-5), once the clips are placed.
-    const placed = tidyTransitions(placeClips(clips, tracks, magnetic, L.seconds, dropped), fps);
-    if (placed.dropped.length && !dropped.includes(TRANSITION_REASONS.cut)) dropped.push(TRANSITION_REASONS.cut);
-
-    // Sound clips.
-    const audio: DocAudio[] = [];
-    for (const r of arr(o.audio)) {
-      const a = obj(r);
-      const tr = a && trackOf(a.track);
-      const m = a && mediaOf(a.media);
-      if (!a || !tr || tr.kind !== 'audio' || !m || m.kind !== 'audio') {
-        dropped.push('A sound on a missing or picture track, or without its media, was left out.');
-        continue;
-      }
-      audio.push({
-        id: unique(a.id, 'a'),
-        track: tr.id,
-        start: fin(a.start, 0, MAX_TIME) ?? 0,
-        media: m.id,
-        in: Math.min(fin(a.in, 0, MAX_TIME) ?? 0, m.srcDur),
-        volume: fin(a.volume, 0, 1) ?? 0.8,
-        toEnd: a.toEnd !== false,
-        srcDur: m.srcDur,
-      });
-    }
-
-    const images = new Set(media.filter((m) => m.kind === 'image').map((m) => m.id));
-    const layers = mergeLayers(o.layers, images, budget);
-    if (arr(o.layers).length > layers.length)
-      dropped.push(`${arr(o.layers).length - layers.length} layer(s) couldn’t be read and were left out.`);
-
-    return {
-      doc: {
-        version: 1,
-        kind,
-        format,
-        fps,
-        quality,
-        fadeOut,
-        magnetic,
-        tracks,
-        clips: placed.clips,
-        audio,
-        layers,
-        media,
-      },
-      dropped,
-    };
-  } catch (e) {
-    return {
-      doc: emptyDoc(desktop),
-      dropped: [...dropped, `The project couldn’t be read (${e instanceof Error ? e.message : 'unknown error'}).`],
-    };
-  }
+  return spans;
 }

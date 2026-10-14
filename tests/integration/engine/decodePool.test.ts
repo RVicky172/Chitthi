@@ -8,7 +8,8 @@ import {
   type PoolFrame,
   type PoolLimits,
 } from '@/engine/decodePool';
-import { MAIN_VIDEO, MUSIC, defaultTracks, type Project, type TimedClip } from '@/engine/timeline';
+import { MAIN_VIDEO, MUSIC, defaultTracks } from '@/engine/tracks';
+import { type Project, type TimedClip } from '@/engine/timeline';
 import { DEFAULT_EDIT } from '@/engine/instagram';
 import { FAKE_FPS as FPS, FRAME_BYTES, fakeDecoder, type FakeFrame } from '../../support/fakeDecoder';
 

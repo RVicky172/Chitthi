@@ -3,7 +3,8 @@ import { clipBoxPixels, movedTransform, nudgedTransform, partAt, resizedTransfor
 import { drawSelection, type Box } from '../../engine/layers';
 import { transformAt } from '../../engine/keyframes';
 import { frameStack, type SnapGuide } from '../../engine/stack';
-import { MAIN_VIDEO, lockedReason, type ClipTransform } from '../../engine/timeline';
+import { MAIN_VIDEO, lockedReason } from '../../engine/tracks';
+import { type ClipTransform } from '../../engine/timeline';
 import { toast } from '../../lib/toast';
 import { getVideo, projectOf, selectClip, setClipTransformAt, type VClip } from '../../state/video';
 import { handleRadius } from '../ig/useLayerPointer';

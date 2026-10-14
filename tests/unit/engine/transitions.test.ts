@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { valueAt } from '@/engine/keyframes';
 import { renderStack, type StackDraw } from '@/engine/video';
 import { recordingCanvas } from '../../support/recordingCanvas';
-import { MAIN_VIDEO, type TimedClip } from '@/engine/timeline';
+import { MAIN_VIDEO } from '@/engine/tracks';
+import { type TimedClip } from '@/engine/timeline';
 import { DIRECTIONS, TRANSITION_LIMITS, cutsOf, defaultTransition, halves, progressAt, roomFor, tidyTransitions, transitionOps, type DrawOp, type Transition } from '@/engine/transitions';
 
 /** A video clip on a track: `len` seconds from `start`. */

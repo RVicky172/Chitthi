@@ -19,7 +19,9 @@ import {
 } from 'mediabunny';
 import { renderIg } from '@/engine/instagram';
 import { drawLayers, newShape, type Layer } from '@/engine/layers';
-import { IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project, type Track } from '@/engine/timeline';
+import { IDENTITY, isIdentity } from '@/engine/video';
+import { presetTransform, type ClipTransform, type Project } from '@/engine/timeline';
+import { type Track } from '@/engine/tracks';
 import { clipLength, fadeAmount, motionEdit, type FrameClip } from '@/engine/video';
 import type { ExportClip } from '@/engine/videoExport';
 
@@ -495,8 +497,9 @@ const hasSound = async (mp4: Blob) => new TextDecoder('latin1').decode(await mp4
 async function trackChecks(check: Check): Promise<string[]> {
   const { renderFrame, NO_PICTURE } = await import('@/engine/video');
   const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../support/timeline.testkit');
-  const { MAIN_VIDEO, MUSIC, audioPlan, defaultTracks, framePlan, pack, projectLength, videoAt } =
-    await import('@/engine/timeline');
+  const { MAIN_VIDEO, MUSIC, defaultTracks } = await import('@/engine/tracks');
+  const { audioPlan } = await import('@/engine/soundPlan');
+  const { framePlan, pack, projectLength, videoAt } = await import('@/engine/timeline');
   const { newShape } = await import('@/engine/layers');
   const { encodeVideo } = await import('@/engine/videoExport');
   const notes: string[] = [];
@@ -699,7 +702,8 @@ async function videoTiming(clip: Blob): Promise<string> {
   const { renderFrame } = await import('@/engine/video');
   const { encodeVideo } = await import('@/engine/videoExport');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
-  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
+  const { pack, projectLength, videoAt } = await import('@/engine/timeline');
   const { openGpu, gpu } = await import('@/engine/gpu/device');
   await openGpu();
   const W = 1920,
@@ -1099,7 +1103,8 @@ const bytesDiffering = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
 export async function stackChecks(check: Check): Promise<string[]> {
   const { renderStack, V_FADE, NO_PICTURE } = await import('@/engine/video');
   const { frameStack } = await import('@/engine/stack');
-  const { MAIN_VIDEO, defaultTracks, pack, projectLength, videoAt } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
+  const { pack, projectLength, videoAt } = await import('@/engine/timeline');
   const { legacyClipAt, legacyFixtures, legacyTimeline, legacyTotal } = await import('../support/timeline.testkit');
   const { closeGpu, gpu, openGpu } = await import('@/engine/gpu/device');
   const notes: string[] = [];
@@ -1515,7 +1520,8 @@ async function exportsOverlaySound(check: Check): Promise<void> {
  */
 async function legacyExportFollowsFramePlan(check: Check): Promise<void> {
   const { encodeVideo } = await import('@/engine/videoExport');
-  const { MAIN_VIDEO, defaultTracks, framePlan, pack } = await import('@/engine/timeline');
+  const { MAIN_VIDEO, defaultTracks } = await import('@/engine/tracks');
+  const { framePlan, pack } = await import('@/engine/timeline');
   const { legacyFixtures } = await import('../support/timeline.testkit');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const fps = 30;

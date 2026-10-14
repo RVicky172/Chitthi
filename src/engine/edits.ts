@@ -1,6 +1,7 @@
 import { shiftKeys } from './keyframes';
 import { mostVideosAt } from './stack';
-import { MAIN_VIDEO, pack, type TimedClip, type Track } from './timeline';
+import { MAIN_VIDEO, type Track } from './tracks';
+import { pack, type TimedClip } from './timeline';
 import { clipLength, limitsFor } from './video';
 
 /*

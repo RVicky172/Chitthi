@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { clipBoxPixels, describeTransform, nudgedTransform, partAt, resizedTransform, rotatedTransform, movedTransform } from '@/engine/clipBox';
-import { IDENTITY, presetTransform, type ClipTransform } from '@/engine/timeline';
+import { IDENTITY } from '@/engine/video';
+import { presetTransform, type ClipTransform } from '@/engine/timeline';
 
 /** A 1080 × 1920 Reel frame. */
 const WIDTH = 1080,

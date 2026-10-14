@@ -29,7 +29,9 @@ import {
   type Keyframes,
 } from '@/engine/keyframes';
 import { newSticker, newText } from '@/engine/layers';
-import { IDENTITY, type ClipTransform, type SoundSource, type TimedClip } from '@/engine/timeline';
+import { IDENTITY } from '@/engine/video';
+import { type ClipTransform, type TimedClip } from '@/engine/timeline';
+import { type SoundSource } from '@/engine/soundPlan';
 import { frameRange, itemTransform, type StackDraw } from '@/engine/video';
 
 /** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */

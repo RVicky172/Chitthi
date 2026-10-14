@@ -4,7 +4,9 @@ import { clipLength } from '@/engine/video';
 import { TEXT_STYLES } from '@/data/layers';
 import { layerAt, type Ease, type Keyframe } from '@/engine/keyframes';
 import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '@/engine/layers';
-import { IDENTITY, MAIN_VIDEO, defaultTracks, presetTransform, tooManyTracks, type Track } from '@/engine/timeline';
+import { IDENTITY } from '@/engine/video';
+import { MAIN_VIDEO, defaultTracks, tooManyTracks, type Track } from '@/engine/tracks';
+import { presetTransform } from '@/engine/timeline';
 import {
   NEW_TRACK,
   addMedia,

@@ -53,7 +53,11 @@ src/
                              mirroring the CPU code), apply.ts (the GPU step of renderIg)
     layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
     video.ts                 Video formats, per-platform limits, clip lengths, frame drawing (renderFrame, NO_PICTURE)
-    timeline.ts              Video project as tracks (201): pack, gaps, videoAt, framePlan, audioPlan, document, mergeProject
+    timeline.ts              Video project as tracks (201): clips, the clip transform, pack, gaps, videoAt, framePlan
+    tracks.ts                Tracks (201, 203): the main video and music tracks, switches, add / rename / move / delete
+    soundPlan.ts             The export's sound plan (audioPlan) and a clip's sound edges (206)
+    projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
+    projectGate.ts           mergeProject: the gate for project files and 2.x projects
     edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
                              slide, nudge, snapping, checkTrack
     decodePool.ts            Decoder pool (204): lanes of decoded frames for the preview and the export, lanePlan,
@@ -394,7 +398,7 @@ removes (`1 − min(r, 1/r)`, where r is the photo aspect divided by the slot as
 most 20%. `slotDpi` is the resolution a photo reaches covering the slot. Pixel sizes of stored photos are learned
 from their thumbnails (`rememberDims`) and cached for the session, so filtering needs no extra decoding.
 
-### 4.9 Video project as tracks (`timeline.ts`, `state/video.ts`)
+### 4.9 Video project as tracks (`timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`, `state/video.ts`)
 
 A project is `{ tracks, clips, audio, layers, fadeOut }`. A `Track` has an id, a kind (`video`, `overlay`, `audio`), a
 name and `hidden` / `muted` / `locked`; every project has `V1` (main video) and `A1` (music); limits 8 + 8 tracks on

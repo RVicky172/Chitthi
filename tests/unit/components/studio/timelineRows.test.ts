@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Ease, Keyframe } from '@/engine/keyframes';
-import type { TimedClip, Track } from '@/engine/timeline';
+import type { TimedClip } from '@/engine/timeline';
+import type { Track } from '@/engine/tracks';
 import type { Transition } from '@/engine/transitions';
 import { clipLabel, describeClipChange, describeKeyChange, describeTransitionChange, draggedLength, easeName, easeShape, keyPropName, keyTimes, panelCut, pictureTracksTopFirst, rowUnderPointer, transitionBlock, type RowBounds } from '@/components/studio/timelineRows';
 

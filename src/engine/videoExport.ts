@@ -21,7 +21,9 @@ import { gainCurve } from './keyframes';
 import { loadImage } from './photo';
 import { frameStack } from './stack';
 import { halves } from './transitions';
-import { MAIN_VIDEO, audioPlan, projectLength, type AudioClip, type Project, type SoundSource, type TimedClip } from './timeline';
+import { MAIN_VIDEO } from './tracks';
+import { audioPlan, type SoundSource } from './soundPlan';
+import { projectLength, type AudioClip, type Project, type TimedClip } from './timeline';
 import { limitsFor, renderStack, type FrameClip } from './video';
 
 /*

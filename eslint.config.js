@@ -17,6 +17,8 @@ import tseslint from 'typescript-eslint';
 const FINISHED = [
   // 407 T030: the engine's video core (src/engine/** joins in T036).
   'src/engine/{keyframes,keyframeGate,transitions,stack,edits,clipBox,decodePool,frameSource,guards,timeSnap}.ts',
+  // 407 T031: timeline.ts split by job.
+  'src/engine/{timeline,tracks,soundPlan,projectDoc,projectGate}.ts',
 ];
 
 /** The code the standards rules apply to. */

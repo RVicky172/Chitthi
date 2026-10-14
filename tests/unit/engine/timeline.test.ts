@@ -1,35 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Transition } from '@/engine/transitions';
-import {
-  IDENTITY,
-  MAIN_VIDEO,
-  MUSIC,
-  TRACK_LIMITS,
-  addTrack,
-  audioPlan,
-  clampTransform,
-  defaultTracks,
-  deleteTrack,
-  framePlan,
-  fromSequence,
-  gaps,
-  isIdentity,
-  lockedReason,
-  mergeProject,
-  moveTrack,
-  pack,
-  patchTrack,
-  presetTransform,
-  projectLength,
-  renameTrack,
-  toDocument,
-  tooManyTracks,
-  videoAt,
-  type AudioClip,
-  type Project,
-  type TimedClip,
-  type Track,
-} from '@/engine/timeline';
+import { IDENTITY, isIdentity } from '@/engine/video';
+import { MAIN_VIDEO, MUSIC, TRACK_LIMITS, addTrack, defaultTracks, deleteTrack, lockedReason, moveTrack, patchTrack, renameTrack, tooManyTracks, type Track } from '@/engine/tracks';
+import { audioPlan } from '@/engine/soundPlan';
+import { clampTransform, framePlan, gaps, pack, presetTransform, projectLength, videoAt, type AudioClip, type Project, type TimedClip } from '@/engine/timeline';
+import { fromSequence, toDocument } from '@/engine/projectDoc';
+import { mergeProject } from '@/engine/projectGate';
 import {
   legacyAudioPlan,
   legacyClipAt,
@@ -739,7 +715,7 @@ describe('overlay tracks (203 AC-1, AC-2)', () => {
     expect(again.map((t) => t.name)).toEqual(['Video', 'Overlay 1', 'Overlay 3', 'Overlay 2', 'Music']);
     expect(new Set(ids(again)).size).toBe(again.length);
     // A renamed track frees its number.
-    const renamed = ok(renameTrack(three, three[1].id, 'Face cam'));
+    const renamed = ok(renameTrack(three, three[1].id, 'Face cam')).tracks;
     expect(add(renamed, true).at(-2)!.name).toBe('Overlay 1');
   });
 
@@ -761,20 +737,20 @@ describe('overlay tracks (203 AC-1, AC-2)', () => {
   it('renames a track: trimmed, 1–40 characters', () => {
     const tracks = add(defaultTracks());
     const id = tracks[1].id;
-    expect(ok(renameTrack(tracks, id, '  Face cam  '))[1].name).toBe('Face cam');
-    expect(ok(renameTrack(tracks, id, 'x'.repeat(40)))[1].name).toHaveLength(40);
+    expect(ok(renameTrack(tracks, id, '  Face cam  ')).tracks[1].name).toBe('Face cam');
+    expect(ok(renameTrack(tracks, id, 'x'.repeat(40))).tracks[1].name).toHaveLength(40);
     expect(err(renameTrack(tracks, id, 'x'.repeat(41)))).toMatch(/40/);
     expect(err(renameTrack(tracks, id, '   '))).toMatch(/name/i);
     expect(err(renameTrack(tracks, 'X9', 'B-roll'))).toBeTruthy();
-    expect(renameTrack(tracks, id, ' Overlay 1 ')).toBe(tracks); // no change: the same array
+    expect(ok(renameTrack(tracks, id, ' Overlay 1 ')).tracks).toBe(tracks); // no change: the same array
     expect(tracks[1].name).toBe('Overlay 1');
   });
 
   it('moves an overlay track up or down among the overlay tracks; the main track stays the bottom', () => {
     const tracks = add(add(add(defaultTracks(), true), true), true);
     const [, a, b, c] = ids(tracks);
-    expect(ids(ok(moveTrack(tracks, a, 1)))).toEqual([MAIN_VIDEO, b, a, c, MUSIC]);
-    expect(ids(ok(moveTrack(tracks, c, -1)))).toEqual([MAIN_VIDEO, a, c, b, MUSIC]);
+    expect(ids(ok(moveTrack(tracks, a, 1)).tracks)).toEqual([MAIN_VIDEO, b, a, c, MUSIC]);
+    expect(ids(ok(moveTrack(tracks, c, -1)).tracks)).toEqual([MAIN_VIDEO, a, c, b, MUSIC]);
     expect(err(moveTrack(tracks, c, 1))).toMatch(/top/);
     expect(err(moveTrack(tracks, a, -1))).toMatch(/main video track/);
     expect(err(moveTrack(tracks, MAIN_VIDEO, 1))).toMatch(/main video track/);
