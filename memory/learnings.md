@@ -171,3 +171,10 @@ soon as a clip was selected. It sat on `main` from 203 T054 (2026-10-12) until 4
 had been deferred to the phase's test pass (D-033). Selectors return primitives or objects already in the state
 (`find` is fine; `filter`, `map`, `{…}` and helper results that build objects are not); derive objects in render.
 The same run found 206's cut buttons over the clips' trim edges and 24 px touch-target failures (axe `target-size`).
+
+## 2026-10-14 — eslint-plugin-sonarjs: drop its AWS rules; flat config "and" globs
+
+`sonarjs.configs.recommended` includes ~20 `sonarjs/aws-*` rules for AWS CDK code. `aws-restricted-ip-admin-access`
+alone took 19 % of `npm run lint` here (TIMING=15 npx eslint .). We have no AWS code, so `eslint.config.js` filters
+them out. To scope a rule to "this folder AND .tsx", use a nested array in flat config: `files: [['src/engine/**',
+'**/*.tsx']]` (rewriting glob strings breaks on folder globs like `src/engine/**`).

@@ -10,6 +10,7 @@
  *   npm run standards                     the table, and the JSON in standards-report.json
  *   npm run standards -- --folder src/engine  only src/engine and its subfolders
  *   npm run standards -- --json out.json  the JSON somewhere else
+ *   npm run standards -- --by-rule        one column per rule instead of per standard
  */
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -100,20 +101,65 @@ export function summarize(findings, folderPrefix = '') {
 }
 
 /**
- * The report as a text table: one row per folder, one column per rule, and a total row.
+ * The table's columns, in order: each standard and the rules that count for it (the JSON keeps every rule).
+ * @type {{ name: string; matches: (rule: string) => boolean }[]}
+ */
+export const GROUPS = [
+  { name: 'names', matches: (rule) => rule === 'id-length' },
+  { name: 'jsdoc', matches: (rule) => rule.startsWith('jsdoc/') },
+  { name: 'function length', matches: (rule) => rule === 'max-lines-per-function' },
+  { name: 'long files', matches: (rule) => rule === 'max-lines' },
+  { name: 'complexity', matches: (rule) => rule === 'sonarjs/cognitive-complexity' },
+  { name: 'sonar other', matches: (rule) => rule.startsWith('sonarjs/') },
+  { name: 'react', matches: (rule) => rule.startsWith('react-hooks/') },
+  { name: 'types', matches: (rule) => rule.startsWith('@typescript-eslint/') },
+  { name: 'layers', matches: (rule) => rule === 'no-restricted-imports' },
+  { name: 'unchecked index', matches: (rule) => rule === UNCHECKED_INDEX },
+];
+
+/**
+ * The column a rule counts in: the first group that matches it.
+ * @param {string} rule an ESLint rule, or `UNCHECKED_INDEX`
+ * @returns {string} the group's name (the rule itself if none matches)
+ */
+export function groupOf(rule) {
+  return GROUPS.find((group) => group.matches(rule))?.name ?? rule;
+}
+
+/**
+ * Counts per table column.
+ * @param {Counts} counts a folder's or the total's counts
+ * @param {boolean} byRule one column per rule instead of per group
+ * @returns {Record<string, number>} column name → count
+ */
+function columnsOf(counts, byRule) {
+  /** @type {Record<string, number>} */
+  const columns = {};
+  for (const [rule, count] of Object.entries(counts.rules)) {
+    const column = byRule ? rule : groupOf(rule);
+    columns[column] = (columns[column] ?? 0) + count;
+  }
+  return columns;
+}
+
+/**
+ * The report as a text table: one row per folder, one column per standard (or per rule), and a total row.
  * @param {Report} report the counts
+ * @param {{ byRule?: boolean }} [options] `byRule`: one column per rule
  * @returns {string} the table, or a line saying there is nothing to fix
  */
-export function formatTable(report) {
+export function formatTable(report, { byRule = false } = {}) {
   if (report.total === 0) return 'standards-report: 0 findings.';
-  const rules = Object.keys(report.rules).sort();
-  const header = ['folder', ...rules, 'total'];
-  const rows = Object.entries(report.folders).map(([folder, counts]) => [
-    folder,
-    ...rules.map((rule) => String(counts.rules[rule] ?? 0)),
-    String(counts.total),
-  ]);
-  const totalRow = ['total', ...rules.map((rule) => String(report.rules[rule])), String(report.total)];
+  const order = GROUPS.map((group) => group.name);
+  const rank = (column) => (order.includes(column) ? order.indexOf(column) : order.length);
+  const columns = Object.keys(columnsOf(report, byRule)).sort((left, right) => rank(left) - rank(right) || left.localeCompare(right));
+  const header = ['folder', ...columns, 'total'];
+  const rowOf = (name, counts) => {
+    const counted = columnsOf(counts, byRule);
+    return [name, ...columns.map((column) => String(counted[column] ?? 0)), String(counts.total)];
+  };
+  const rows = Object.entries(report.folders).map(([folder, counts]) => rowOf(folder, counts));
+  const totalRow = rowOf('total', report);
   const table = [header, ...rows, totalRow];
   const widths = header.map((_, column) => Math.max(...table.map((row) => row[column].length)));
   const line = (row) => row.map((cell, column) => (column === 0 ? cell.padEnd(widths[column]) : cell.padStart(widths[column]))).join('  ');
@@ -155,5 +201,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const report = summarize([...lintFindings(lintResults, root), ...uncheckedIndexFindings(compilerOutput, root)], option('--folder'));
   const jsonPath = option('--json') ?? 'standards-report.json';
   writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
-  console.log(`${formatTable(report)}\n\n(JSON: ${jsonPath})`);
+  console.log(`${formatTable(report, { byRule: process.argv.includes('--by-rule') })}\n\n(JSON, every rule: ${jsonPath})`);
 }

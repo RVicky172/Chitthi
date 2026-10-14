@@ -3,6 +3,7 @@ import {
   UNCHECKED_INDEX,
   folderOf,
   formatTable,
+  groupOf,
   lintFindings,
   summarize,
   uncheckedIndexFindings,
@@ -81,8 +82,27 @@ describe('standards report (407 plan §1)', () => {
     expect(summarize(findings, 'src/eng').total).toBe(0);
   });
 
-  it('prints a table with a total row, or one line when there is nothing to fix', () => {
-    const table = formatTable(summarize(lintFindings(LINT_OUTPUT, ROOT), 'src/engine'));
+  it('groups rules into one column per standard, in the standards’ order', () => {
+    expect(groupOf('id-length')).toBe('names');
+    expect(groupOf('jsdoc/require-param')).toBe('jsdoc');
+    expect(groupOf('sonarjs/cognitive-complexity')).toBe('complexity');
+    expect(groupOf('sonarjs/no-nested-conditional')).toBe('sonar other');
+    expect(groupOf(UNCHECKED_INDEX)).toBe('unchecked index');
+    const findings = [
+      ...lintFindings(LINT_OUTPUT, ROOT),
+      { folder: 'src/engine', rule: 'jsdoc/require-param' },
+      { folder: 'src/engine/gpu', rule: 'sonarjs/no-nested-conditional' },
+    ];
+    expect(formatTable(summarize(findings, 'src/engine')).split('\n')).toEqual([
+      'folder          names  jsdoc  complexity  sonar other  total',
+      'src/engine          2      2           0            0      4',
+      'src/engine/gpu      0      0           1            1      2',
+      'total               2      2           1            1      6',
+    ]);
+  });
+
+  it('prints one column per rule when asked, or one line when there is nothing to fix', () => {
+    const table = formatTable(summarize(lintFindings(LINT_OUTPUT, ROOT), 'src/engine'), { byRule: true });
     expect(table.split('\n')).toEqual([
       'folder          id-length  jsdoc/require-jsdoc  sonarjs/cognitive-complexity  total',
       'src/engine              2                    1                             0      3',
