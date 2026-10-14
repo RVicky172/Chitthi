@@ -476,3 +476,13 @@ route for the compiler; tests left beside the code (they never reached the build
 of **Implemented** (not deferred to a phase's test pass). While 407 runs, the new lint rules are warnings outside its
 finished folders, so item 11 is judged on review there.
 **Consequences:** every feature from 407 on (207 first) is written to the standards from its first line.
+
+## D-039 — `npm run lint` uses ESLint's cache; `lint:full` doesn't (2026-10-14)
+
+**Context:** 407 T023 added typescript-eslint's type-aware presets: `eslint .` went from 13.7 s to 40.3 s. The plan's
+mitigation was ESLint's cache, or the type-aware rules on changed files only.
+**Decision:** `npm run lint` (so `npm run check`) runs `eslint . --cache --cache-strategy content` (cache in
+`node_modules/.cache/eslint/`): 3.4 s warm, 5.5 s after one file changes. `npm run lint:full` runs without it, in CI
+(`ci.yml`) and at a feature's close. All rules stay in one config, so there is one lint, not a fast and a slow split.
+**Trade-off:** ESLint caches per file, so a type-aware finding in a file whose imports changed can be stale until that
+file changes or a full run. Acceptable: CI and the close run in full.

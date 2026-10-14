@@ -23,7 +23,9 @@ cp .env.example .env.local   # optional: PEXELS_API_KEY=… for photo search in 
 | `npm run specs:check` | The JSON is valid against `specs/schema/`, its links resolve, and every generated `spec.md` / `plan.md` / `tasks.md` / `roadmap.md` is up to date; part of `npm run check` |
 | `npm run specs:sync` | Regenerates every generated Markdown file from the JSON (rarely needed: the CLI, the Claude Code hook and the dashboard do it) |
 | `npm run typecheck` | TypeScript 7 (`tsc -b`, the native compiler from the `typescript-native` package): strict type check of app and tooling, about 10× faster than 5.9 |
-| `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts |
+| `npm run lint` | ESLint (`eslint.config.js`): the app, the Electron main process and the scripts; cached in `node_modules/.cache/eslint/` (only changed files are linted again) |
+| `npm run lint:full` | The same without the cache (CI; the close of a feature): type-aware findings in an unchanged file can go stale when a file it imports changes |
+| `npm run standards` | The standards report (`scripts/standards-report.mjs`): per folder and standard, the lint findings and the `noUncheckedIndexedAccess` errors; `--folder`, `--by-rule`, `--json` |
 | `npm run format` | Prettier with `.prettierrc.json` over `src/`, `electron/` and `scripts/` (not enforced in CI) |
 | `npm run test:unit` | Vitest unit tests (`src/**/*.test.ts`). See [testing-strategy.md](testing-strategy.md) |
 | `npm run test:e2e` | Playwright browser tests with an axe accessibility check against the production build (`tests/e2e/`). First run: `npx playwright install chromium` |

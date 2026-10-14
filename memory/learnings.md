@@ -178,3 +178,11 @@ The same run found 206's cut buttons over the clips' trim edges and 24 px touch-
 alone took 19 % of `npm run lint` here (TIMING=15 npx eslint .). We have no AWS code, so `eslint.config.js` filters
 them out. To scope a rule to "this folder AND .tsx", use a nested array in flat config: `files: [['src/engine/**',
 '**/*.tsx']]` (rewriting glob strings breaks on folder globs like `src/engine/**`).
+
+## 2026-10-14 — typescript-eslint strict presets repeat `recommended`; type-aware rules need a tsconfig
+
+`tseslint.configs.strictTypeChecked` contains every `recommended` rule at `error`, so re-mapping a preset to `warn` would
+quietly weaken the existing gate: `eslint.config.js` skips the `recommended` rule names (`TS_RECOMMENDED`). Type-aware
+rules (`projectService`) fail with "not found by the project service" on a file no tsconfig includes (`tests/e2e`, root
+configs), so they are scoped to `TYPED_FILES`. Some `sonarjs/` rules switch on when type information exists (Sonar
+findings rose 297 → 417 in `src/`).

@@ -61,7 +61,9 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 npm run dev            # Vite dev server, http://localhost:5173
 npm run desktop:dev    # Vite + Electron with hot reload
 npm run check          # fast gate: typecheck + lint + specs:check + unit tests — run before ticking any task
-npm run lint           # ESLint (0 errors required; the 5 react-hooks warnings are known)
+npm run lint           # ESLint, cached (0 errors; the standards rules are warnings until a folder is in FINISHED)
+npm run lint:full      # ESLint without the cache (CI, the close of a feature): type-aware findings can go stale in the cache
+npm run standards      # per folder and standard: the lint findings and noUncheckedIndexedAccess errors (feature 407)
 npm run check:licenses # every shipped package has an allowed licence (specs/licensing.md)
 npm run typecheck      # TypeScript 7 (typescript-native) tsc -b; 6.0 stays as `typescript` only for typescript-eslint
 npm run build          # typecheck + vite build + scripts/check-bundle.mjs (fails if the entry chunk > 350 KB or contains AI code)

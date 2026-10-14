@@ -106,3 +106,20 @@ different way; the report is the number tasks count down from.
 The ESLint counts are lower than the hand counts in the Code table above (103 functions over 80 lines, 19 files over
 600 lines) because the rules don't count blank lines and comments, components have 250 lines, and the file rule is at
 800. `npm run lint`: 5.3 s before, 13.7 s after (Sonar's AWS CDK rules, a fifth of the time, are off).
+
+### With the React and type-aware rules (T023, 2026-10-14)
+
+`eslint-plugin-react-hooks` `recommended-latest` (Rules of Hooks stays an error) and typescript-eslint
+`strictTypeChecked` + `stylisticTypeChecked` (`projectService`; `consistent-type-definitions: interface`) as warnings,
+for `src/` and the type-checked test folders (`tests/e2e` is in no tsconfig, so it gets no type-aware rules). The rules
+of `recommended`, already errors, keep their severity. `npm run lint`: 0 errors, 12,704 warnings. In `src/`:
+
+| Standard | Findings |
+| --- | ---: |
+| React (`set-state-in-effect` 8, `refs` 6, `exhaustive-deps` 5, `preserve-manual-memoization` 3, `immutability` 2, `purity` 2, `use-memo` 1) | 27 (the spec's 27) |
+| Types (most: `no-confusing-void-expression` 850, `restrict-template-expressions` 576, `no-unnecessary-condition` 135, `no-non-null-assertion` 87, `no-unnecessary-type-assertion` 58) | 1,886 |
+| Sonar's other rules (some of them need type information, so they report more now) | 417 (was 297) |
+| All standards in `src/`, with the 744 unchecked-index errors | 10,073 |
+
+Lint time: 13.7 s → 40.3 s without a cache. With ESLint's cache (`npm run lint`, D-039): 37.9 s cold, 3.4 s warm,
+5.5 s after changing one file. `npm run lint:full` (no cache) is what CI runs. `npm run standards` takes ~38 s.

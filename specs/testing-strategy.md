@@ -9,7 +9,7 @@ no CI on feature branches or pull requests.
 | Command | Suite | Runs in | Time |
 | --- | --- | --- | --- |
 | `npm run check` | Fast gate: `typecheck` + `lint` + `test:unit`. Run after every task | Node | ~15 s |
-| `npm run lint` | ESLint (`eslint.config.js`) | Node | ~10 s |
+| `npm run lint` | ESLint (`eslint.config.js`), cached; `lint:full` without the cache | Node | ~4 s cached; ~40 s full |
 | `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
 | `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
 | `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~10 s |

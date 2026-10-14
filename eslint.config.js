@@ -46,6 +46,58 @@ const SONAR_RULES = Object.keys(sonarjs.configs.recommended.rules).filter(
 );
 
 /**
+ * The TypeScript files a tsconfig covers, so type-aware rules can run on them (tests/e2e and the root configs are in
+ * no tsconfig).
+ */
+const TYPED_FILES = '{src/**/*.{ts,tsx},tests/{unit,integration,support,selftest}/**/*.ts}';
+
+/**
+ * A preset's rules at another severity, keeping their options.
+ * @param {import('eslint').Linter.Config[]} preset a flat-config preset
+ * @param {'warn' | 'error'} severity the new severity (rules turned off stay off)
+ * @param {Set<string>} [skip] rules to leave out
+ * @returns {import('eslint').Linter.RulesRecord} the rules
+ */
+function presetRules(preset, severity, skip = new Set()) {
+  const rules = Object.assign({}, ...preset.map((config) => config.rules ?? {}));
+  return Object.fromEntries(
+    Object.entries(rules)
+      .filter(([rule]) => !skip.has(rule))
+      .map(([rule, setting]) => {
+        const [level, ...options] = Array.isArray(setting) ? setting : [setting];
+        return [rule, level === 'off' || level === 0 ? 'off' : [severity, ...options]];
+      }),
+  );
+}
+
+/** typescript-eslint's `recommended` rules, already errors for all TypeScript: the strict presets don't change them. */
+const TS_RECOMMENDED = new Set(Object.keys(Object.assign({}, ...tseslint.configs.recommended.map((config) => config.rules ?? {}))));
+
+/**
+ * The rules that need type information (AC-13) and React's current rules (AC-12), for TypeScript files.
+ * @param {string[]} files the files' globs
+ * @param {'warn' | 'error'} severity how a finding is reported
+ * @returns {import('eslint').Linter.Config[]} the config blocks
+ */
+function typedStandards(files, severity) {
+  return [
+    {
+      files: files.map((glob) => [glob, '**/*.{ts,tsx}']),
+      plugins: { 'react-hooks': reactHooks },
+      rules: presetRules([reactHooks.configs['recommended-latest']], severity, new Set(['react-hooks/rules-of-hooks'])),
+    },
+    {
+      files: files.map((glob) => [glob, TYPED_FILES]),
+      languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } },
+      rules: {
+        ...presetRules([...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked], severity, TS_RECOMMENDED),
+        '@typescript-eslint/consistent-type-definitions': [severity, 'interface'],
+      },
+    },
+  ];
+}
+
+/**
  * The standards rules for some files, at one severity.
  * @param {string[]} files the files' globs (a folder, e.g. `src/engine/**`, or a file pattern)
  * @param {'warn' | 'error'} severity how a finding is reported
@@ -87,6 +139,7 @@ function standards(files, severity) {
       files: files.map((glob) => [glob, '**/*.tsx']),
       rules: { 'max-lines-per-function': [severity, { max: 250, skipBlankLines: true, skipComments: true }] },
     },
+    ...typedStandards(files, severity),
     { files: SIZE_EXEMPT, rules: { 'max-lines-per-function': 'off', 'max-lines': 'off' } },
     ...LAYERS.map((layer) => ({
       files: layer.files,
@@ -102,7 +155,7 @@ export default tseslint.config(
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
-    // The classic hook rules only: the app doesn't use the React Compiler, so its rules don't apply.
+    // The Rules of Hooks are errors everywhere; React's newer rules (recommended-latest) come with the standards below.
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
