@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-14 — 407 T032 (engine/video.ts split; video and export cleaned)
+
+**Done:** `video.ts` → `videoFormats.ts` (formats, limits) + `video.ts` (drawing); clip timing and `IDENTITY` moved
+into `timeline.ts`; `fmtTime` → `formatTime`. `videoExport.ts`'s `encodeVideo` and `mixWindow` split into small
+parts; all three in `FINISHED`. New `tests/unit/engine/video.test.ts` (an overlay's fade-in in the drawing had no unit
+test). `npm run check` green (1,686 tests), build green (entry 327 KB). Commits `28f68e3`, `bb974b3`.
+**Next:** T033 (split and clean `engine/render.ts`, the print renderer). T020 still waits for the maintainer's review.
+**Blockers:** none
+
 ## 2026-10-13 — 206 T030–T092: ✔️ Implemented
 
 **Done:** T030–T031 drawing (`transitionOps` as data; `drawPair` on layer / pair scratch canvases; recording-canvas
