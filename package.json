@@ -33,6 +33,7 @@
     "mcp": "node scripts/mcp-dev.mjs",
     "test:mcp": "node scripts/mcp-smoke.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
+    "standards": "node scripts/standards-report.mjs",
     "preview": "vite preview --port 8080",
     "build:lib": "node node_modules/typescript-native/bin/tsc -p tsconfig.lib.json && node scripts/flatten-css.mjs",
     "fetch:samples": "node scripts/fetch-samples.mjs",

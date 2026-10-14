@@ -59,3 +59,31 @@ and touch targets under 24 px (203, 205, 206) failed axe. Fixed on `fix/clip-ins
 | Functions taking inline object types | 121 |
 | `noUncheckedIndexedAccess` errors | 1,400 |
 | `useEffect` | 106; `useMemo` / `useCallback` 19, `memo` 3 |
+
+## Standards report (T016, 2026-10-14)
+
+`npm run standards` (`scripts/standards-report.mjs`): per folder and rule, the ESLint findings of the standards rules
+(none are on yet besides `react-hooks/exhaustive-deps`; T021 and T023 add the rest) and the errors
+`noUncheckedIndexedAccess` adds (`tsc -p tsconfig.app.json`, each error counted once). Each later task records its
+folder's numbers from it. Starting numbers (about 6 s):
+
+| Folder | `react-hooks/exhaustive-deps` | `noUncheckedIndexedAccess` | Total |
+| --- | ---: | ---: | ---: |
+| `src/agent` | 0 | 22 | 22 |
+| `src/ai` (+ `providers` 6, `segment` 7) | 0 | 15 | 15 |
+| `src/components` | 5 | 73 | 78 |
+| `src/components/ai` | 0 | 2 | 2 |
+| `src/components/ig` | 0 | 23 | 23 |
+| `src/components/panes` | 0 | 3 | 3 |
+| `src/components/studio` | 0 | 22 | 22 |
+| `src/data` | 0 | 12 | 12 |
+| `src/dev` | 0 | 10 | 10 |
+| `src/engine` | 0 | 519 | 519 |
+| `src/engine/gpu` | 0 | 14 | 14 |
+| `src/lib` | 0 | 4 | 4 |
+| `src/state` | 0 | 25 | 25 |
+| **`src/`** | **5** | **744** | **749** |
+| `tests/selftest`, `tests/support` (in `tsconfig.app.json`) | 0 | 278 | 278 |
+
+The report's 744 unchecked-index errors in `src/` replace the table above's hand count of 1,400, which was taken a
+different way; the report is the number tasks count down from.
