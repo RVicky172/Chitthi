@@ -1,7 +1,7 @@
 import { themeById, PLAIN } from '../data/themes';
 import { MONTHS } from '../data/products';
 import { calPages, cardMM, cornerMM, mergeDesign, productDesign, sizeOf } from '../engine/design';
-import { buildEnvelopePDF, buildEnvelopeTemplate, buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
+import { pagesOf, type PrintPage } from '../engine/printPages';
 import { renderEnvelope } from '../engine/envelope';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
 import { calMonth } from '../engine/calendarDraw';
@@ -116,6 +116,12 @@ export async function addToLibrary(files: File[]): Promise<[kind: 'err' | 'warn'
   return msgs;
 }
 
+/**
+ * The print-file builders (PDF, PNG, envelope, pack), loaded on the first export so they stay out of the start-up bundle.
+ * @returns engine/export.ts
+ */
+const printFiles = (): Promise<typeof import('../engine/export')> => import('../engine/export');
+
 export async function downloadPrintFile(): Promise<void> {
   const d = getState().design;
   try {
@@ -124,7 +130,7 @@ export async function downloadPrintFile(): Promise<void> {
       for (const pg of pagesOf(d)) await downloadPNG(pg);
       return;
     }
-    const { blob, name } = await buildPDF(input());
+    const { blob, name } = await (await printFiles()).buildPDF(input());
     await saveFile(name, blob);
   } catch (e) {
     logError('handled', e);
@@ -149,7 +155,8 @@ export async function downloadQuote(kind: 'design' | 'catalog'): Promise<void> {
 export async function downloadEnvelope(kind: 'pdf' | 'template'): Promise<void> {
   try {
     await ensureFonts(fontsFor(getState().design));
-    const f = kind === 'pdf' ? await buildEnvelopePDF(input()) : await buildEnvelopeTemplate(input());
+    const files = await printFiles();
+    const f = kind === 'pdf' ? await files.buildEnvelopePDF(input()) : await files.buildEnvelopeTemplate(input());
     if (!f) {
       toast('This envelope is too big for a printable template. Use the envelope PDF on a ready-made envelope.');
       return;
@@ -164,7 +171,7 @@ export async function downloadEnvelope(kind: 'pdf' | 'template'): Promise<void> 
 export async function downloadPNG(pg: PrintPage): Promise<void> {
   try {
     await ensureFonts(fontsFor(getState().design));
-    const { blob, name } = await buildPNG(pg, input());
+    const { blob, name } = await (await printFiles()).buildPNG(pg, input());
     await saveFile(name, blob);
   } catch (e) {
     logError('handled', e);
@@ -176,7 +183,7 @@ export async function downloadPNG(pg: PrintPage): Promise<void> {
 export async function downloadPack(onStep?: (msg: string) => void): Promise<void> {
   try {
     await ensureFonts(fontsFor(getState().design));
-    const { blob, name } = await buildPack(input(), onStep);
+    const { blob, name } = await (await printFiles()).buildPack(input(), onStep);
     await saveFile(name, blob);
   } catch (e) {
     logError('handled', e);

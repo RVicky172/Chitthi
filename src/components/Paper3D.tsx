@@ -3,7 +3,7 @@ import { PRINT_SPECS } from '../data/printSpecs';
 import { productOf, sizesFor } from '../data/products';
 import { cardMM, productDesign } from '../engine/design';
 import { envelopeSpec, renderEnvelope } from '../engine/envelope';
-import { nup, SHEETS } from '../engine/export';
+import { nup, SHEETS } from '../engine/printPages';
 import { renderCard } from '../engine/render';
 import { samplePhoto } from '../engine/sample';
 import { ensureFonts, fontsFor } from '../lib/fonts';

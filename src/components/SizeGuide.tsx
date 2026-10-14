@@ -3,7 +3,7 @@ import { layoutsFor } from '../data/layouts';
 import { PRODUCTS, productOf, sizesFor } from '../data/products';
 import { SIZE_GROUPS } from '../data/sizes';
 import { productDesign } from '../engine/design';
-import { nup } from '../engine/export';
+import { nup } from '../engine/printPages';
 import { computeLayout } from '../engine/layout';
 import { samplePhoto } from '../engine/sample';
 import { downloadQuote, selectSize, switchProduct } from '../state/actions';

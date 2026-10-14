@@ -507,3 +507,13 @@ entry chunk: entry 327 → 347 KB (budget 350; 407 keeps it at 327). What loads 
 `patterns`), with `includeDependenciesRecursively: false` so `design.ts`, `layout.ts` and the rest stay where they
 were. The entry chunk holds the same modules as before (327 KB); `data/holidays.ts` became a small chunk of its own.
 **Consequences:** a new module of the print renderer is added to `PRINT_RENDERER`, or it may land in the entry chunk.
+
+## D-042 — The print-file builders load on export (2026-10-14)
+
+**Context:** 407 T035 left the entry chunk at 329 KB (AC-9: ≤ 327 KB): the readable `export.ts` and `analyze.ts`
+reach the entry through `state/`. Options: relax AC-9, lazy-load, a named chunk that still loads at start, or trim.
+**Decision (maintainer):** lazy-load. `engine/printPages.ts` holds what the studio shows before building (`pagesOf`,
+`nup`, `SHEETS`, `exportSummary`, `baseName`); `engine/export.ts` keeps the builders (PDF, PNG, envelope, pack, spec)
+and `state/actions.ts` loads it with `import()` on the first export, as it already did for `quote.ts`.
+**Consequences:** entry 329 → 317 KB; `export` is a 10.9 KB chunk. Code that only needs pages or the imposition imports
+`printPages.ts`, never `export.ts`, or the builders return to the entry chunk.

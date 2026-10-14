@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { productOf } from '../../data/products';
 import { sizeOf } from '../../engine/design';
-import { exportSummary, nup, pagesOf } from '../../engine/export';
+import { exportSummary, nup, pagesOf } from '../../engine/printPages';
 import { QUOTE_QTY } from '../../data/printSpecs';
 import { envelopeSummary, templateSheet } from '../../engine/envelope';
 import { applyInstaxPreset, downloadEnvelope, downloadPack, downloadPNG, downloadPrintFile, downloadQuote, open3D } from '../../state/actions';

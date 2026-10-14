@@ -9,7 +9,8 @@ import { PRINT_SAMPLES, PRINT_SAMPLE_YEAR, printSampleDesign, type PrintSampleDe
 import { productOf } from '../data/products';
 import { calPages, cardMM, productDesign, sizeOf } from '../engine/design';
 import { envelopeSpec, envelopeSummary, renderEnvelope, templateSheet } from '../engine/envelope';
-import { buildEnvelopePDF, buildEnvelopeTemplate, buildPDF, buildPNG, nup, pagesOf, printSpec, SHEETS } from '../engine/export';
+import { buildEnvelopePDF, buildEnvelopeTemplate, buildPDF, buildPNG, printSpec } from '../engine/export';
+import { nup, pagesOf, SHEETS } from '../engine/printPages';
 import { loadImage, makePhoto } from '../engine/photo';
 import { pexelsIdOf, pexelsName } from '../lib/credits';
 import { ensureFonts, fontsFor } from '../lib/fonts';
