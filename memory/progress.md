@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-14 — 407 T040 (state/video.ts split by job and cleaned)
+
+**Done:** `state/video.ts` → `videoStore`, `videoTracks`, `videoClips`, `videoBox`, `videoKeys`, `videoLayers`,
+`videoTransitions`, `videoMedia`, `videoExportJob`; 0 findings, in `FINISHED`; importers updated (no barrel). Checked
+identical against the frozen old store (16,000 random steps over 50 actions + 301 `addMedia` calls; 13 plants
+caught). Check green (1,686 tests), build green, entry 311 KB. Commit `cbd4273`.
+**Next:** T041 (the rest of `state/`: store.ts, actions.ts, instagram.ts …). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-14 — 407 T036 (print modules and engine/gpu cleaned; src/engine finished)
 
 **Done:** entry-size question settled by the maintainer: lazy-load (D-042, `caf8d3a`): `printPages.ts` split from

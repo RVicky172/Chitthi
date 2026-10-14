@@ -999,7 +999,7 @@
         "T040": {
           "text": "Split `state/video.ts` (1,330 lines) into the store core and history, clip edits, keyframe actions, transition actions, media and export (plan §5, D2), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1013,10 +1013,14 @@
             "src/state/video*.ts"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "cbd4273"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `state/video.ts` (1,323 lines, 405 lint findings, 10 unchecked-index errors) split by job into `videoStore` (types, state, selectors, view setters, undo / redo, `change` / `commit`, `loadVideoProject`, Magnetic), `videoTracks`, `videoClips` (clip changes and the edit tools), `videoBox` (box and volume, stored or keyed), `videoKeys`, `videoLayers`, `videoTransitions`, `videoMedia` (files into clips, `addMedia` in small steps, music) and `videoExportJob`: 2,269 lines, 0 findings, 0 unchecked-index errors, in `FINISHED` (`src/state/video*.ts`). The action modules read the store through `getVideo()` at each use, so they see the latest state as the old single `state` variable did; makeStrip shares a filmstrip through `shareStrip` in the store (the history stays private). No barrel (D2): 5 components, the integration test and the self-test (dynamic imports) import the new modules. `isClipKeyProp` / `isLayerKeyProp` exported from engine/keyframes.ts for the keyframe guards. Behaviour checked against the frozen old store by a scratch harness (not committed): 400 projects × 40 random steps over 50 actions (16,000 steps, the whole state and every return value compared after each, fake clock for undo grouping) and 301 `addMedia` calls with stand-in media (including the videos-at-once refusal): identical; 13 planted changes each failed it (after adding inputs for five that first slipped through). Not covered by the harness (DOM / encoder): reading media files, the filmstrip, the export; reviewed by hand; one change there: an in-memory export that gives no file now throws instead of giving a 4-byte file holding “null” (unreachable: the encoder always returns one in memory). 77 integration tests pass unchanged. `npm run check` green (1,686 tests), `npm run build` green, entry 311 KB. Docs: `specs/lld.md` module map, §4.9 store notes, `docs/MEDIA-STUDIO.md`."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-14"
         },
         "T041": {
           "text": "`state/store.ts`, `state/actions.ts`, `state/instagram.ts` and the rest of `state/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; `src/state/**` joins `FINISHED`.",
