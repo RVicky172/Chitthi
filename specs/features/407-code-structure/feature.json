@@ -865,7 +865,7 @@
         "T032": {
           "text": "`engine/video.ts` and `engine/videoExport.ts` (split `video.ts`’s formats and limits from its drawing): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: engine/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -880,10 +880,14 @@
             "src/engine/videoExport.ts"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "28f68e3"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/video.ts` (361 lines) split by job: `videoFormats.ts` (formats, bitrates, frame rates, `limitsFor`; 150 lines) and `video.ts` (the frame drawing only: `renderStack`, `renderFrame`, motions, fades). The clip timing (`ClipTiming`, `clipLength`, `frameRange`, `V_PHOTO_SECONDS`, `formatTime`, was `fmtTime`) and `IDENTITY` / `isIdentity` moved to `timeline.ts` beside the clip transform, so `timeline.ts` no longer imports `video.ts`. 31 importers rewritten by script (static, multi-line and dynamic `import()`), duplicate imports merged; no barrels. `videoExport.ts`: `encodeVideo` (136 lines, complexity 27) and `mixWindow` (19) split into `SoundFeed`, `FramePictures`, `encodeFrames`, `drawFrame`, `planLanes`, `mp4Output`, `scheduleGain`, `scheduleBuffers`, keeping the order of work. 149 lint findings in the two files to 0; 0 unchecked-index errors; all three in `FINISHED`. The re-export test (“has one definition”) removed: there is one definition now. New `tests/unit/engine/video.test.ts` (4 tests) covers `renderStack`’s single-clip steps; dropping an overlay’s fade-in from the drawing passed every unit test before it, and fails it now. The export’s sound mix and frame loop have no unit tests (WebCodecs); the self-test’s export checks cover them in 407’s next `npm test`. `src/engine` per the report: total 3,113 → 2,956 (unchecked index 462 → 454). `npm run check` green (1,686 tests), `npm run build` green (entry 327 KB)."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-14"
         },
         "T033": {
           "text": "Split `engine/render.ts` (1,443 lines, the print renderer) by job, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
