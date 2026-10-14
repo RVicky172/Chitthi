@@ -736,7 +736,7 @@
         "T021": {
           "text": "Add `eslint-plugin-jsdoc` and `eslint-plugin-sonarjs` as development dependencies (versions pinned; sonarjs’ exception row in `specs/licensing.md`, D-037) and the rules of plan §4 as **warnings**: `id-length` (exceptions `_`, `x`, `y`; properties not checked), JSDoc on exports, `max-lines-per-function` (80 `.ts`, 250 `.tsx`), `max-lines` 800 (warning), sonarjs recommended with `cognitive-complexity` 15, the layers’ `no-restricted-imports`; size rules off for `src/data/` and `tests/`; the `FINISHED` folder list that turns them into errors. Measure `npm run lint`’s time.",
           "section": "Standards and rules",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -750,8 +750,14 @@
             "specs/licensing.md"
           ],
           "test": "`npm run lint`: 0 errors (the new findings as warnings); the standards report counts them",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "7fcd233"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `eslint-plugin-jsdoc` 65.0.0 (BSD-3-Clause; 65.3.2 was a day old, so the newest release at least two weeks old) and `eslint-plugin-sonarjs` 4.2.2 (LGPL-3.0-only, with `@sonarsource/analyzer-commons-configurations`; exception row in `specs/licensing.md`) pinned as dev dependencies; `check:licenses` unchanged (168 shipped packages). Rules of plan §4 as warnings for `src/`, `electron/` and `tests/`: `id-length` (`_`, `x`, `y`; properties not checked), JSDoc on exports (`@returns` not asked of components), `max-lines-per-function` 80 / 250 in `.tsx`, `max-lines` 800 (always a warning), Sonar recommended without its AWS CDK rules plus `cognitive-complexity` 15, layers via `no-restricted-imports` (data may import only `src/types.ts`; planted engine → state / components, gpu → state and state → components imports all reported); size rules off for `src/data/` and `tests/`; `FINISHED` (empty) makes them errors. `npm run lint`: 0 errors, 9,975 warnings; 5.3 s → 13.7 s. Standards report (now grouped by standard; `--by-rule` for every rule), `src/`: names 4,311, JSDoc 2,571, function length 31, files over 800 lines 8, cognitive complexity 73, Sonar other 297, layers 5, unchecked index 744 (numbers in `baseline.md`, `505c4a9`). `npm run check` green (1,683 tests)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
         },
         "T022": {
           "text": "Turn on `noImplicitReturns` and `noImplicitOverride` (Q13) and fix their 3 errors.",
