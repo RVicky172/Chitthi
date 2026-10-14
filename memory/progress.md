@@ -11,6 +11,16 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-14 — 407 T033 (engine/render.ts split by job and cleaned)
+
+**Done:** `render.ts` → nine modules (`themeBackground`, `printText`, `photoSlots`, `postalDecor`, `frontText`,
+`cardFront`, `cardBack`, `calendarDraw`, `render`), 0 findings, in `FINISHED`. Checked against the old renderer by
+comparing canvas call logs over 11,100 cases (scratch harness, learnings 2026-10-14). The split moved the renderer
+into the entry chunk (327 → 347 KB); a named `render` chunk restores it (D-041). Check green (1,686 tests), build
+green, entry 327 KB. Commits `d20a0a7`, `bc1487b`.
+**Next:** T034 (split and clean `engine/layers.ts` and `engine/masks.ts`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-14 — 407 T032 (engine/video.ts split; video and export cleaned)
 
 **Done:** `video.ts` → `videoFormats.ts` (formats, limits) + `video.ts` (drawing); clip timing and `IDENTITY` moved
