@@ -892,7 +892,7 @@
         "T033": {
           "text": "Split `engine/render.ts` (1,443 lines, the print renderer) by job, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: engine/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -906,10 +906,14 @@
             "src/engine/render.ts"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "d20a0a7"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/render.ts` (1,442 lines, 390 lint findings, 12 unchecked-index errors) split by job into nine modules, all at 0 and in `FINISHED`: `render.ts` (`renderCard`, `renderThemeTile`, `photoDpi`, guides; 153 lines), `themeBackground.ts` (unit, bleed fill, `drawThemeBg`; 55), `printText.ts` (`wrapLines`, `shrinkFont` (nine hand-written font-shrinking loops), label face, spacing, cap height; 106), `photoSlots.ts` (371), `postalDecor.ts` (285), `frontText.ts` (270), `cardFront.ts` (145), `cardBack.ts` (422), `calendarDraw.ts` (698). Complexity splits: `drawDays` 46, `drawFront` 34, `drawText` 28, `drawBack` 25, `drawLayoutArt` 23, `drawSlot` 22 → each ≤ 15. 12 importers rewritten (no barrels). Behaviour checked by a scratch harness (not committed): the old file copied aside and the new modules drew 11,100 cases (every product × size × orientation × layout × 4–5 variants × front, hint and back) on a recording canvas; the 9 million log lines matched, and planted one-number changes in four modules each failed it. One difference by design: `cal.sundays` / `cal.showYear` / `cal.marks` follow their declared types (`mergeDesign` fills them), so only a saved `null` there would draw differently. The split moved the renderer into the entry chunk (327 → 347 KB); a named `render` chunk in `vite.config.ts` restores the old chunk exactly (D-041), entry 327 KB. `src/engine` per the report: 2,956 → 2,554 (unchecked index 454 → 442); `lint:full` 10,061 → 9,671 warnings. `npm run check` green (1,686 tests), `npm run build` green."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-14"
         },
         "T034": {
           "text": "Split and clean `engine/layers.ts` and `engine/masks.ts`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
