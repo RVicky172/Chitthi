@@ -688,7 +688,7 @@
         "T016": {
           "text": "The standards report (`scripts/standards-report.mjs`, plan §1): per folder and rule, the ESLint findings of the standards rules (from ESLint’s JSON output) and the `noUncheckedIndexedAccess` errors (`tsc` with the flag); a table and a JSON file; unit tests for its counting on a fixture output. Record the starting numbers in `baseline.md`.",
           "section": "Tests into tests/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -703,8 +703,14 @@
             "package.json"
           ],
           "test": "its unit tests; the report run on the repo",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "598e5f6"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `npm run standards` (`scripts/standards-report.mjs`, ~6 s): per folder and rule, the standards rules’ ESLint findings (from `eslint --format json`) and the `noUncheckedIndexedAccess` errors (`tsc -p tsconfig.app.json` with the flag, each error once); a table and `standards-report.json` (git-ignored); `--folder` limits it to a folder and its subfolders. 6 unit tests on fixture output (`tests/unit/scripts/standardsReport.test.ts`; unit total 1,682). Starting numbers in `baseline.md`: `src/` 749 (react-hooks/exhaustive-deps 5, unchecked index 744, of which `src/engine` 519), plus 278 in `tests/selftest` and `tests/support`. The report’s 744 replaces T001’s hand count of 1,400."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
         },
         "T020": {
           "text": "Write `specs/coding-standards.md` (plan §3): names, JSDoc, SOLID as in Q7, sizes (Q4), cognitive complexity, React, types, layers and imports, errors, performance, comments, tests; each rule with a good / bad example from this code. Link it from `specs/constitution.md` (Definition of Done) and CLAUDE.md.",
