@@ -17,6 +17,7 @@
     "useDefineForClassFields": true,
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
+    "allowJs": true,
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src/vite-env.d.ts", "tests/unit", "tests/integration", "tests/support"]

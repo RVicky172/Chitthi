@@ -1,8 +1,27 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import { configDefaults } from 'vitest/config';
+
+/**
+ * Fails the production build when any chunk holds a module from tests/ (407 AC-3): tests, their helpers and the in-app
+ * self-test never ship. (main.tsx loads the self-test only when `import.meta.env.DEV`, which the build removes.)
+ * @returns the build-only plugin
+ */
+function noTestCode(): Plugin {
+  return {
+    name: 'chitthi:no-test-code',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') continue;
+        const testModule = Object.keys(output.modules).find((id) => /[\\/]tests[\\/]/.test(id));
+        if (testModule) this.error(`${output.fileName} contains test code (${testModule}): app code must not import tests/`);
+      }
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   // PEXELS_API_KEY (from .env.local) has no VITE_ prefix, so it stays on the server: the dev and preview servers
@@ -22,7 +41,7 @@ export default defineConfig(({ mode }) => {
   // (npm run test:e2e) catch anything the policy would block on a real server.
   const csp = /Content-Security-Policy "([^"]+)"/.exec(readFileSync('nginx/security-headers.conf', 'utf8'))?.[1];
   return {
-    plugins: [react()],
+    plugins: [react(), noTestCode()],
     // `@/` is `src/`: how tests (and, later, app code) import the app, whatever folder they are in (407 D1).
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     base: './',
