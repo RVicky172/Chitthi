@@ -787,7 +787,7 @@
         "T023": {
           "text": "Add, as **warnings**: `eslint-plugin-react-hooks` `recommended-latest` (AC-12; 27 findings), typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` with `projectService` and `consistent-type-definitions: interface` (AC-13). Measure the lint time with type-aware rules; if it is too slow, apply plan Techniques’ fallback.",
           "section": "Standards and rules",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -800,8 +800,14 @@
             "eslint.config.js"
           ],
           "test": "`npm run lint`: 0 errors; the report lists the findings per folder",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "b07493a"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `eslint-plugin-react-hooks` `recommended-latest` (Rules of Hooks stays an error) and typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` (`projectService`, `consistent-type-definitions: interface`) as warnings, errors in `FINISHED` folders, for `src/` and the type-checked test folders (`tests/e2e` is in no tsconfig); `recommended`’s rules keep their error severity. React: 27 findings in `src/`, the spec’s count (set-state-in-effect 8, refs 6, exhaustive-deps 5, preserve-manual-memoization 3, immutability 2, purity 2, use-memo 1). Types: 1,886 in `src/` (no-confusing-void-expression 850, restrict-template-expressions 576, no-unnecessary-condition 135, no-non-null-assertion 87, no-unnecessary-type-assertion 58 …); Sonar other 297 → 417 (type-aware Sonar rules switch on). `npm run lint`: 0 errors, 12,704 warnings. Lint time 13.7 s → 40.3 s, so the fallback: ESLint’s cache in `npm run lint` (37.9 s cold, 3.4 s warm, 5.5 s after one file changes) and `npm run lint:full` without it, run by CI (D-039). `npm run check` green (1,683 tests). Numbers in `baseline.md`."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
         },
         "T030": {
           "text": "`engine/` video core (`keyframes`, `transitions`, `stack`, `edits`, `clipBox`, `decodePool`, `frameSource`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
