@@ -3,23 +3,12 @@ import { BUILT_IN_PRESETS } from '../data/presets';
 import { ADJUST_RANGES, DEFAULT_ADJUST, LOOK_IDS, mergeAdjust, type Adjustments } from '../engine/adjust';
 import { HSL_BANDS, type ColourMixer, type HslBand } from '../engine/hsl';
 import { mergeEdit, photoPlace, renderIg, type IgEdit } from '../engine/instagram';
-import { drawLayers } from '../engine/layers';
+import { drawLayers } from '../engine/layerDraw';
 import { neutralise } from '../engine/light';
 import { LUT_MAX_BYTES, lutById, LutError, parseCube } from '../engine/lut';
-import {
-  aiTargets,
-  frameMask,
-  MASK_COMBINES,
-  MASK_LIMITS,
-  maskActive,
-  mergeMasks,
-  newMask,
-  newPart,
-  type Mask,
-  type MaskCombine,
-  type MaskPart,
-  type PartKind,
-} from '../engine/masks';
+import { aiTargets, MASK_COMBINES, MASK_LIMITS, maskActive, newMask, newPart, type Mask, type MaskCombine, type MaskPart, type PartKind } from '../engine/masks';
+import { frameMask } from '../engine/maskPlace';
+import { mergeMasks } from '../engine/maskGate';
 import { encodableTypes, PHOTO_TYPE_IDS, type PhotoType } from '../engine/photoExport';
 import { PresetError } from '../engine/presets';
 import { ensureFonts } from '../lib/fonts';

@@ -358,7 +358,9 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
   const { DEFAULT_EDIT, photoPlace, renderIg } = await import('@/engine/instagram');
   const { DEFAULT_ADJUST } = await import('@/engine/adjust');
   const L = await import('@/engine/layers');
-  const { frameToPhoto, newPart } = await import('@/engine/masks');
+  const { drawLayers } = await import('@/engine/layerDraw');
+  const { frameToPhoto } = await import('@/engine/maskPlace');
+  const { newPart } = await import('@/engine/masks');
   await openGpu(backend);
   // Photos softened a little and about frame size: how two methods shrink fine detail differs (that's resampling, not
   // what this compares), so both paths start from pictures they sample alike.
@@ -414,7 +416,7 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
       x.fillStyle = '#ffffff';
       x.fillRect(0, 0, W, H);
       renderIg(x, img, img.width, img.height, k.e, W, H);
-      L.drawLayers(x, k.layers, W, H);
+      drawLayers(x, k.layers, W, H);
       const flat = x.getImageData(0, 0, W, H).data;
       const deep = await renderDeepPost({ img, w: img.width, h: img.height, sample, e: k.e, layers: k.layers, W, H });
       frames++;
@@ -471,6 +473,7 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
  */
 async function layerLooks(check: (ok: unknown, what: string) => void): Promise<void> {
   const L = await import('@/engine/layers');
+  const { drawLayers } = await import('@/engine/layerDraw');
   const { newPart } = await import('@/engine/masks');
   const N = 200;
   const frame = (bg: string, layers: import('@/engine/layers').Layer[]) => {
@@ -479,7 +482,7 @@ async function layerLooks(check: (ok: unknown, what: string) => void): Promise<v
     const x = c.getContext('2d', { willReadFrequently: true })!;
     x.fillStyle = bg;
     x.fillRect(0, 0, N, N);
-    L.drawLayers(x, layers, N, N);
+    drawLayers(x, layers, N, N);
     return (px: number, py: number) => [...x.getImageData(px, py, 1, 1).data.slice(0, 3)];
   };
   const box = { ...L.newShape('rect'), x: 0.5, y: 0.5, w: 2, h: 2, fill: '#808080', stroke: '', text: '' };
@@ -509,10 +512,11 @@ async function layerLooks(check: (ok: unknown, what: string) => void): Promise<v
 }
 
 async function knownMask(check: (ok: unknown, what: string) => void): Promise<void> {
-  const { newMask, newBrushPart, frameMask } = await import('@/engine/masks');
+  const { newMask, newBrushPart } = await import('@/engine/masks');
+  const { frameMask } = await import('@/engine/maskPlace');
   const { DEFAULT_EDIT, photoPlace } = await import('@/engine/instagram');
   const mask = { ...newMask('Known'), parts: [{ ...newBrushPart(), strokes: [{ pts: [0, 0.5, 1, 0.5], size: 0.1, feather: 0, flow: 100, erase: false }] }] };
-  const alpha = (f: import('@/engine/masks').FrameMask, x: number, y: number) => f.data[y * f.width + x];
+  const alpha = (f: import('@/engine/maskPlace').FrameMask, x: number, y: number) => f.data[y * f.width + x];
   // A 400 × 200 photo whole in a 400 × 400 frame: it fills rows 100–300, the stroke runs along row 200, 40 px tall.
   const flat = frameMask(mask, 400, 200, photoPlace(400, 200, { ...DEFAULT_EDIT, fit: 'fit' }, 400, 400), 400, 400)!;
   check(alpha(flat, 200, 200) === 255 && alpha(flat, 50, 210) === 255, 'masks: a brush stroke is full along its line');

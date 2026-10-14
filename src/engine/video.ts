@@ -1,6 +1,7 @@
 import { DEFAULT_EDIT, renderIg, type IgEdit } from './instagram';
 import { transformAt, type ClipKeyProp, type Keyframes } from './keyframes';
-import { drawLayers, type Layer } from './layers';
+import { drawLayers } from './layerDraw';
+import { type Layer } from './layers';
 import type { Mix } from './stack';
 import { clipLength, isIdentity, type ClipTiming, type ClipTransform } from './timeline';
 import { transitionOps, type ColourOver, type DrawOp, type FrameRect } from './transitions';

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
-import { addStroke, handleAt, hitLayer, layerBox, rotationFor, scaleLayer, type Box, type DrawLayer, type Layer } from '../../engine/layers';
+import { addStroke, scaleLayer, type Box, type DrawLayer, type Layer } from '../../engine/layers';
+import { handleAt, hitLayer, rotationFor } from '../../engine/layerPick';
+import { layerBox } from '../../engine/layerDraw';
 import { ensureFonts } from '../../lib/fonts';
 import { brushWidth, type LayerTools } from '../../state/instagram';
 

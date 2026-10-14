@@ -31,3 +31,13 @@ export function keysOf<K extends string>(record: Partial<Record<K, unknown>>): K
 export function isOneOf<T extends string | number>(options: readonly T[], value: unknown): value is T {
   return options.some((option) => option === value);
 }
+
+/**
+ * Whether a value is any object (arrays included), whose fields can then be read: the looser check of the older gates
+ * (masks, layers), kept so they accept exactly what they did.
+ * @param value anything
+ * @returns true for a non-null object
+ */
+export function isObjectLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}

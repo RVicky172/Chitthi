@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { clipBoxPixels, movedTransform, nudgedTransform, partAt, resizedTransform, rotatedTransform, type BoxPart, type Point } from '../../engine/clipBox';
-import { drawSelection, type Box } from '../../engine/layers';
+import { drawSelection } from '../../engine/layerPick';
+import { type Box } from '../../engine/layers';
 import { transformAt } from '../../engine/keyframes';
 import { frameStack, type SnapGuide } from '../../engine/stack';
 import { MAIN_VIDEO, lockedReason } from '../../engine/tracks';

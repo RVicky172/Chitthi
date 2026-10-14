@@ -23,6 +23,8 @@ const FINISHED = [
   'src/engine/{video,videoFormats,videoExport}.ts',
   // 407 T033: render.ts split by job.
   'src/engine/{render,themeBackground,printText,photoSlots,postalDecor,frontText,cardFront,cardBack,calendarDraw}.ts',
+  // 407 T034: layers.ts and masks.ts split by job.
+  'src/engine/{layers,layerDraw,layerPick,layerGate,masks,maskGate,maskBrush,maskRaster,maskPlace}.ts',
 ];
 
 /** The code the standards rules apply to. */

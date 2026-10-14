@@ -217,3 +217,11 @@ When lazy screens reached a function through a big module, Rolldown kept that mo
 split they import a small module instead, so the big one is needed only by the entry and is folded into it: entry
 327 → 347 KB with the same start-up bytes. Compare `npm run build`'s entry figure after every split; a named
 `codeSplitting` group (`includeDependenciesRecursively: false`) restores the old chunk (D-041).
+
+## 2026-10-14 — Comparing gates old vs new: random junk rarely reaches the deep branches (407 T034)
+
+Feeding `mergeMasks` / `mergeLayers` thousands of random junk values matched old and new, yet a planted change to a
+stroke's clamp went unnoticed: junk almost never builds a stroke with an even number of finite points, so that branch
+never ran. Add near-valid inputs (a valid shape with random values, some out of range) next to the junk, and plant a
+change in each deep branch to prove the comparison reaches it. In shell loops, `read -r`: plain `read` strips the
+backslashes of a planted `sed` pattern.

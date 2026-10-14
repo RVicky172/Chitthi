@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { TEXT_STYLES } from '@/data/layers';
-import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, mergeLayers, newImageLayer, newShape, newSticker, newText, rotationFor, scaleLayer, toLocal, type DrawLayer, type ShapeLayer, type TextLayer } from '@/engine/layers';
+import { activeAt, addStroke, BLEND_MODES, layerName, newImageLayer, newShape, newSticker, newText, scaleLayer, type DrawLayer, type ShapeLayer, type TextLayer } from '@/engine/layers';
+import { hitLayer, rotationFor, toLocal } from '@/engine/layerPick';
+import { layerMasked } from '@/engine/layerDraw';
+import { mergeLayers } from '@/engine/layerGate';
 import { newPart } from '@/engine/masks';
 import { DEFAULT_EDIT } from '@/engine/instagram';
 import { MAIN_VIDEO, defaultTracks } from '@/engine/tracks';

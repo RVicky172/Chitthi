@@ -5,33 +5,11 @@ import { MASK_MIX_PROGRAM, maskNodes } from '@/engine/gpu/mask';
 import type { GpuDevice, GpuTexture } from '@/engine/gpu/types';
 import { DEFAULT_EDIT, mergeEdit } from '@/engine/instagram';
 import { segmentAt, segmentOf, segmentVersion, setSegment, shareSegments } from '@/engine/segments';
-import {
-  aiTargets,
-  type AiPart,
-  dragPart,
-  frameToPhoto,
-  newPart,
-  oklab,
-  partHandles,
-  photoToFrame,
-  rasterShape,
-  type LinearPart,
-  type PhotoSample,
-  type RadialPart,
-  maskActive,
-  mergeMasks,
-  newBrushPart,
-  newMask,
-  paintStroke,
-  rasterDims,
-  rasterMask,
-  rasterPart,
-  rasterSize,
-  type BrushPart,
-  type BrushStroke,
-  type FrameMask,
-  type Mask,
-} from '@/engine/masks';
+import { aiTargets, type AiPart, newPart, type LinearPart, type RadialPart, maskActive, newBrushPart, newMask, type BrushPart, type BrushStroke, type Mask } from '@/engine/masks';
+import { dragPart, frameToPhoto, partHandles, photoToFrame, type FrameMask } from '@/engine/maskPlace';
+import { oklab, rasterShape, type PhotoSample, rasterDims, rasterMask, rasterPart, rasterSize } from '@/engine/maskRaster';
+import { mergeMasks } from '@/engine/maskGate';
+import { paintStroke } from '@/engine/maskBrush';
 
 const stroke = (pts: number[], o: Partial<BrushStroke> = {}): BrushStroke => ({
   pts,

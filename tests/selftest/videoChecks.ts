@@ -18,7 +18,8 @@ import {
   canEncodeVideo,
 } from 'mediabunny';
 import { renderIg } from '@/engine/instagram';
-import { drawLayers, newShape, type Layer } from '@/engine/layers';
+import { drawLayers } from '@/engine/layerDraw';
+import { newShape, type Layer } from '@/engine/layers';
 import { clipLength, IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project } from '@/engine/timeline';
 import { type Track } from '@/engine/tracks';
 import { fadeAmount, motionEdit, type FrameClip } from '@/engine/video';

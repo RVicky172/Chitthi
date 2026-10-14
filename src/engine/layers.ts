@@ -1,7 +1,6 @@
-import { BRUSHES, SHAPES, brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
-import { keyBudget, mergeKeys, type KeyBudget } from './keyframeGate';
-import { LAYER_KEY_PROPS, layersAt, type Keyframes, type LayerKeyProp } from './keyframes';
-import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from './masks';
+import { brushDef, shapeDef, type BrushId, type ShapeId, type TextStyle } from '../data/layers';
+import type { Keyframes, LayerKeyProp } from './keyframes';
+import type { MaskPart } from './masks';
 
 /*
  * Layers over a photo or video frame: text, shapes (which can hold words), emoji stickers and freehand drawing.
@@ -12,6 +11,7 @@ import { MASK_LIMITS, frameMask, mergePart, type FrameMask, type MaskPart } from
  * Every layer can blend with what is under it (multiply, screen, overlay…; Canvas 2D composite operations) and carry a
  * mask (P1.10): gradient parts from engine/masks.ts, placed in the layer's own box, so the mask moves, turns and grows
  * with the layer. Image layers (logos, overlays) refer to their picture by id; the pictures stay in memory here.
+ * Drawing is layerDraw.ts; picking and handles layerPick.ts; the gate for layers from files layerGate.ts.
  */
 
 /** How a layer mixes with what is under it: Canvas 2D's composite operations that blend colours. */
@@ -32,6 +32,8 @@ export type BlendMode =
   | 'saturation'
   | 'color'
   | 'luminosity';
+
+/** Every blend mode with its label, in the menu's order. */
 export const BLEND_MODES: readonly [BlendMode, string][] = [
   ['normal', 'Normal'],
   ['multiply', 'Multiply'],
@@ -60,7 +62,8 @@ export interface LayerMask {
   parts: MaskPart[];
 }
 
-interface LayerBase {
+/** What every layer has. */
+export interface LayerBase {
   id: string;
   /** Centre, as a share of the frame width / height (0–1). */
   x: number;
@@ -83,6 +86,7 @@ interface LayerBase {
   keys?: Keyframes<LayerKeyProp>;
 }
 
+/** Words. */
 export interface TextLayer extends LayerBase {
   kind: 'text';
   text: string;
@@ -100,6 +104,7 @@ export interface TextLayer extends LayerBase {
   shadow: boolean;
 }
 
+/** A shape, which can hold words. */
 export interface ShapeLayer extends LayerBase {
   kind: 'shape';
   shape: ShapeId;
@@ -119,11 +124,13 @@ export interface ShapeLayer extends LayerBase {
   bold: boolean;
 }
 
+/** An emoji sticker. */
 export interface StickerLayer extends LayerBase {
   kind: 'sticker';
   emoji: string;
 }
 
+/** One freehand stroke of a drawing. */
 export interface Stroke {
   brush: BrushId;
   color: string;
@@ -133,6 +140,7 @@ export interface Stroke {
   pts: number[];
 }
 
+/** A freehand drawing. */
 export interface DrawLayer extends LayerBase {
   kind: 'draw';
   /** Height, as a share of the frame width. */
@@ -151,6 +159,7 @@ export interface ImageLayer extends LayerBase {
   name: string;
 }
 
+/** Any layer. */
 export type Layer = TextLayer | ShapeLayer | StickerLayer | DrawLayer | ImageLayer;
 
 /** A layer's box on the frame, in pixels: centre, size and rotation (radians). */
@@ -162,48 +171,99 @@ export interface Box {
   rot: number;
 }
 
-const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+let idCount = 0;
 
-let seq = 0;
-export const layerId = () => `l${Date.now().toString(36)}${(seq++).toString(36)}`;
+/**
+ * A new layer id.
+ * @returns an id unique in this session
+ */
+export const layerId = (): string => `l${Date.now().toString(36)}${(idCount++).toString(36)}`;
 
-export const layerName = (l: Layer): string =>
-  l.kind === 'text'
-    ? `Text: ${l.text.split('\n')[0].slice(0, 24) || '(empty)'}`
-    : l.kind === 'shape'
-      ? `${shapeDef(l.shape).name}${l.text ? `: ${l.text.split('\n')[0].slice(0, 18)}` : ''}`
-      : l.kind === 'sticker'
-        ? `Sticker ${l.emoji}`
-        : l.kind === 'image'
-          ? `Image: ${l.name.slice(0, 24) || 'picture'}`
-          : `Drawing (${l.strokes.length} stroke${l.strokes.length === 1 ? '' : 's'})`;
+/**
+ * The first line of a text, cut short.
+ * @param text the text
+ * @param length the most characters
+ * @returns its first line's start
+ */
+const firstLine = (text: string, length: number): string => (text.split('\n').at(0) ?? '').slice(0, length);
 
-/** Whether a layer shows at time t (seconds); photos pass no time. */
-export const activeAt = (l: Layer, t?: number): boolean =>
-  !l.hidden && (t === undefined || ((l.start ?? 0) <= t && t < (l.end ?? Infinity)));
+/**
+ * A layer's name in the layer list.
+ * @param layer the layer
+ * @returns such as "Text: Happy birthday" or "Drawing (3 strokes)"
+ */
+export function layerName(layer: Layer): string {
+  switch (layer.kind) {
+    case 'text':
+      return `Text: ${firstLine(layer.text, 24) || '(empty)'}`;
+    case 'shape':
+      return layer.text ? `${shapeDef(layer.shape).name}: ${firstLine(layer.text, 18)}` : shapeDef(layer.shape).name;
+    case 'sticker':
+      return `Sticker ${layer.emoji}`;
+    case 'image':
+      return `Image: ${layer.name.slice(0, 24) || 'picture'}`;
+    case 'draw':
+      return `Drawing (${String(layer.strokes.length)} stroke${layer.strokes.length === 1 ? '' : 's'})`;
+  }
+}
+
+/**
+ * Whether a layer shows at a time.
+ * @param layer the layer
+ * @param time seconds on the timeline; photos pass none
+ * @returns true when not hidden and (with a time) within its start and end
+ */
+export const activeAt = (layer: Layer, time?: number): boolean =>
+  !layer.hidden && (time === undefined || ((layer.start ?? 0) <= time && time < (layer.end ?? Infinity)));
 
 /* ---------- images ---------- */
 
-/** Pictures of image layers, by id, for this session (layers keep only the id, so undo and copies stay small). */
-const images = new Map<string, CanvasImageSource & { width: number; height: number }>();
-let imageSeq = 0;
+/** A picture an image layer shows, with its size. */
+export type LayerPicture = CanvasImageSource & { width: number; height: number };
 
-/** Keeps a picture for image layers; returns its id. */
-export function addLayerImage(img: CanvasImageSource & { width: number; height: number }): string {
-  const id = `img${Date.now().toString(36)}${(imageSeq++).toString(36)}`;
-  images.set(id, img);
+/** Pictures of image layers, by id, for this session (layers keep only the id, so undo and copies stay small). */
+const images = new Map<string, LayerPicture>();
+let imageCount = 0;
+
+/**
+ * Keeps a picture for image layers.
+ * @param picture the picture
+ * @returns its id
+ */
+export function addLayerImage(picture: LayerPicture): string {
+  const id = `img${Date.now().toString(36)}${(imageCount++).toString(36)}`;
+  images.set(id, picture);
   return id;
 }
-export const layerImage = (id: string) => images.get(id);
 
-/** An image layer for a kept picture of w × h pixels, a third of the frame wide, centred. */
-export function newImageLayer(image: string, w: number, h: number, name: string): ImageLayer {
-  const lw = 0.34;
-  return { id: layerId(), kind: 'image', image, name, x: 0.5, y: 0.5, w: lw, h: (lw * h) / Math.max(1, w), rot: 0, opacity: 1 };
+/**
+ * A kept picture.
+ * @param id its id
+ * @returns the picture, or undefined when it isn't kept
+ */
+export const layerImage = (id: string): LayerPicture | undefined => images.get(id);
+
+/**
+ * An image layer for a kept picture, a third of the frame wide, centred.
+ * @param image the picture's id
+ * @param width its width, pixels
+ * @param height its height, pixels
+ * @param name the file it came from
+ * @returns the layer
+ */
+export function newImageLayer(image: string, width: number, height: number, name: string): ImageLayer {
+  const layerWidth = 0.34;
+  return { id: layerId(), kind: 'image', image, name, x: 0.5, y: 0.5, w: layerWidth, h: (layerWidth * height) / Math.max(1, width), rot: 0, opacity: 1 };
 }
 
 /* ---------- new layers ---------- */
 
+/**
+ * A new text layer in a style, centred.
+ * @param style the text style
+ * @param text its words
+ * @returns the layer
+ */
 export function newText(style: TextStyle, text = 'Your words'): TextLayer {
   return {
     id: layerId(),
@@ -226,23 +286,48 @@ export function newText(style: TextStyle, text = 'Your words'): TextLayer {
   };
 }
 
+/**
+ * A new shape's fill: red hearts, gold stars and bursts, else white.
+ * @param shape the shape
+ * @returns a colour
+ */
+function shapeFill(shape: ShapeId): string {
+  if (shape === 'heart') return '#e63946';
+  return shape === 'star' || shape === 'burst' ? '#f4c430' : '#ffffff';
+}
+
+/**
+ * A new shape's words, for shapes that hold them.
+ * @param shape the shape
+ * @returns the words, or ''
+ */
+function shapeWords(shape: ShapeId): string {
+  if (!shapeDef(shape).holdsText) return '';
+  if (shape === 'bubble') return 'Hello!';
+  return shape === 'burst' ? 'NEW' : 'Your words';
+}
+
+/**
+ * A new shape layer, centred, at the shape's own size.
+ * @param shape the shape
+ * @returns the layer
+ */
 export function newShape(shape: ShapeId): ShapeLayer {
-  const d = shapeDef(shape);
-  const line = shape === 'line' || shape === 'arrow';
+  const definition = shapeDef(shape);
   return {
     id: layerId(),
     kind: 'shape',
     shape,
     x: 0.5,
     y: 0.5,
-    w: d.w,
-    h: d.h,
+    w: definition.w,
+    h: definition.h,
     rot: 0,
     opacity: 1,
-    fill: line ? '#ffffff' : shape === 'heart' ? '#e63946' : shape === 'star' || shape === 'burst' ? '#f4c430' : '#ffffff',
+    fill: shapeFill(shape),
     stroke: '',
     strokeW: 0.006,
-    text: d.holdsText ? (shape === 'bubble' ? 'Hello!' : shape === 'burst' ? 'NEW' : 'Your words') : '',
+    text: shapeWords(shape),
     textColor: '#111111',
     font: 'Poppins',
     textSize: shape === 'pill' || shape === 'banner' ? 0.045 : 0.055,
@@ -250,635 +335,142 @@ export function newShape(shape: ShapeId): ShapeLayer {
   };
 }
 
+/**
+ * A new sticker, centred.
+ * @param emoji the emoji
+ * @returns the layer
+ */
 export const newSticker = (emoji: string): StickerLayer => ({ id: layerId(), kind: 'sticker', emoji, x: 0.5, y: 0.5, w: 0.18, rot: 0, opacity: 1 });
 
-/* ---------- measuring ---------- */
-
-const fontOf = (px: number, family: string, bold: boolean, italic: boolean) => `${italic ? 'italic ' : ''}${bold ? 700 : 400} ${Math.max(1, px)}px "${family}", sans-serif`;
-
-/** Breaks text into lines that fit maxW (explicit line breaks kept; a single long word is broken by letters). */
-export function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
-  const out: string[] = [];
-  for (const para of text.split('\n')) {
-    let line = '';
-    for (const word of para.split(/(\s+)/)) {
-      const next = line + word;
-      if (!line || ctx.measureText(next).width <= maxW) {
-        line = next;
-        continue;
-      }
-      out.push(line.trimEnd());
-      line = word.trimStart();
-      // A word longer than the box: break it.
-      while (line && ctx.measureText(line).width > maxW && line.length > 1) {
-        let cut = line.length - 1;
-        while (cut > 1 && ctx.measureText(line.slice(0, cut)).width > maxW) cut--;
-        out.push(line.slice(0, cut));
-        line = line.slice(cut);
-      }
-    }
-    out.push(line.trimEnd());
-  }
-  return out;
+/** The sizes a layer scales: its width, and its height, text sizes and border by kind. */
+interface ScaledSizes {
+  w: number;
+  h?: number;
+  size?: number;
+  textSize?: number;
+  strokeW?: number;
 }
-
-function textMetrics(ctx: CanvasRenderingContext2D, l: TextLayer, W: number) {
-  const px = l.size * W,
-    pad = l.bg ? px * 0.35 : px * 0.1,
-    boxW = l.w * W;
-  ctx.font = fontOf(px, l.font, l.bold, l.italic);
-  const lines = wrapText(ctx, l.text || ' ', Math.max(px, boxW - pad * 2));
-  const lh = px * 1.2;
-  return { px, pad, lines, lh, boxW, boxH: lines.length * lh + pad * 2 };
-}
-
-/** The layer's box in pixels on a W×H frame. Text needs ctx to measure its lines. */
-export function layerBox(ctx: CanvasRenderingContext2D, l: Layer, W: number, H: number): Box {
-  const cx = l.x * W,
-    cy = l.y * H,
-    rot = (l.rot * Math.PI) / 180;
-  if (l.kind === 'text') {
-    ctx.save();
-    const m = textMetrics(ctx, l, W);
-    ctx.restore();
-    return { cx, cy, w: m.boxW, h: m.boxH, rot };
-  }
-  if (l.kind === 'sticker') return { cx, cy, w: l.w * W, h: l.w * W, rot };
-  return { cx, cy, w: l.w * W, h: l.h * W, rot };
-}
-
-/* ---------- drawing ---------- */
-
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
-  ctx.closePath();
-}
-
-function starPath(ctx: CanvasRenderingContext2D, w: number, h: number, points: number, inner: number) {
-  for (let i = 0; i < points * 2; i++) {
-    const a = (i * Math.PI) / points - Math.PI / 2,
-      k = i % 2 ? inner : 1;
-    const x = Math.cos(a) * (w / 2) * k,
-      y = Math.sin(a) * (h / 2) * k;
-    if (i) ctx.lineTo(x, y);
-    else ctx.moveTo(x, y);
-  }
-  ctx.closePath();
-}
-
-/** The outline of a shape in its own box, centred on 0,0. Exported for tests. */
-export function shapePath(ctx: CanvasRenderingContext2D, shape: ShapeId, w: number, h: number): void {
-  const x = -w / 2,
-    y = -h / 2;
-  ctx.beginPath();
-  switch (shape) {
-    case 'rect':
-      ctx.rect(x, y, w, h);
-      break;
-    case 'round':
-      roundRectPath(ctx, x, y, w, h, Math.min(w, h) * 0.18);
-      break;
-    case 'pill':
-    case 'line':
-      roundRectPath(ctx, x, y, w, h, h / 2);
-      break;
-    case 'circle':
-      ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
-      break;
-    case 'bubble': {
-      // Rounded body over the top 78%, a tail at the bottom left.
-      const bh = h * 0.78,
-        r = Math.min(w, bh) * 0.22;
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + bh, r);
-      ctx.arcTo(x + w, y + bh, x, y + bh, r);
-      ctx.lineTo(x + w * 0.36, y + bh);
-      ctx.lineTo(x + w * 0.18, y + h);
-      ctx.lineTo(x + w * 0.22, y + bh);
-      ctx.arcTo(x, y + bh, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-      break;
-    }
-    case 'burst':
-      starPath(ctx, w, h, 14, 0.8);
-      break;
-    case 'star':
-      starPath(ctx, w, h, 5, 0.45);
-      break;
-    case 'heart':
-      ctx.moveTo(0, y + h * 0.3);
-      ctx.bezierCurveTo(0, y, x, y, x, y + h * 0.32);
-      ctx.bezierCurveTo(x, y + h * 0.62, -w * 0.12, y + h * 0.8, 0, y + h);
-      ctx.bezierCurveTo(w * 0.12, y + h * 0.8, -x, y + h * 0.62, -x, y + h * 0.32);
-      ctx.bezierCurveTo(-x, y, 0, y, 0, y + h * 0.3);
-      ctx.closePath();
-      break;
-    case 'banner': {
-      const n = Math.min(h * 0.4, w * 0.15);
-      ctx.moveTo(x, y);
-      ctx.lineTo(-x, y);
-      ctx.lineTo(-x - n, 0);
-      ctx.lineTo(-x, -y);
-      ctx.lineTo(x, -y);
-      ctx.lineTo(x + n, 0);
-      ctx.closePath();
-      break;
-    }
-    case 'arrow': {
-      const head = Math.min(h, w * 0.5),
-        s = h * 0.2;
-      ctx.moveTo(x, -s);
-      ctx.lineTo(-x - head, -s);
-      ctx.lineTo(-x - head, y);
-      ctx.lineTo(-x, 0);
-      ctx.lineTo(-x - head, -y);
-      ctx.lineTo(-x - head, s);
-      ctx.lineTo(x, s);
-      ctx.closePath();
-      break;
-    }
-  }
-}
-
-function drawLines(ctx: CanvasRenderingContext2D, lines: string[], lh: number, top: number, xs: number, fill: string, outline: string, px: number) {
-  lines.forEach((line, i) => {
-    const y = top + lh * (i + 0.5);
-    if (outline) {
-      ctx.save();
-      ctx.shadowColor = 'transparent';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = px * 0.14;
-      ctx.strokeStyle = outline;
-      ctx.strokeText(line, xs, y);
-      ctx.restore();
-    }
-    ctx.fillStyle = fill;
-    ctx.fillText(line, xs, y);
-  });
-}
-
-function drawText(ctx: CanvasRenderingContext2D, l: TextLayer, W: number) {
-  const m = textMetrics(ctx, l, W);
-  if (l.bg) {
-    ctx.fillStyle = l.bg;
-    ctx.beginPath();
-    roundRectPath(ctx, -m.boxW / 2, -m.boxH / 2, m.boxW, m.boxH, m.px * 0.3);
-    ctx.fill();
-  }
-  if (l.shadow) {
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = m.px * 0.18;
-    ctx.shadowOffsetY = m.px * 0.04;
-  }
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = l.align;
-  const xs = l.align === 'left' ? -m.boxW / 2 + m.pad : l.align === 'right' ? m.boxW / 2 - m.pad : 0;
-  drawLines(ctx, m.lines, m.lh, -m.boxH / 2 + m.pad, xs, l.color, l.outline, m.px);
-}
-
-function drawShape(ctx: CanvasRenderingContext2D, l: ShapeLayer, W: number) {
-  const w = l.w * W,
-    h = l.h * W;
-  shapePath(ctx, l.shape, w, h);
-  if (l.fill) {
-    ctx.fillStyle = l.fill;
-    ctx.fill();
-  }
-  if (l.stroke && l.strokeW > 0) {
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = l.strokeW * W;
-    ctx.strokeStyle = l.stroke;
-    ctx.stroke();
-  }
-  if (l.text && shapeDef(l.shape).holdsText) {
-    const px = l.textSize * W;
-    ctx.font = fontOf(px, l.font, l.bold, false);
-    const inner = l.shape === 'circle' || l.shape === 'burst' ? 0.66 : l.shape === 'banner' ? 0.7 : 0.84;
-    const lines = wrapText(ctx, l.text, Math.max(px, w * inner));
-    const lh = px * 1.2,
-      // The bubble's words sit in its body, above the tail.
-      mid = l.shape === 'bubble' ? -h * 0.11 : 0;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    drawLines(ctx, lines, lh, mid - (lines.length * lh) / 2, 0, l.textColor, '', px);
-  }
-}
-
-function drawSticker(ctx: CanvasRenderingContext2D, l: StickerLayer, W: number) {
-  const px = l.w * W * 0.86;
-  ctx.font = `${px}px ${EMOJI_FONT}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#000';
-  ctx.fillText(l.emoji, 0, px * 0.06);
-}
-
-function drawStrokes(ctx: CanvasRenderingContext2D, l: DrawLayer, W: number) {
-  const bw = l.w * W,
-    bh = l.h * W;
-  for (const s of l.strokes) {
-    const b = brushDef(s.brush),
-      p = s.pts;
-    if (p.length < 2) continue;
-    ctx.save();
-    ctx.globalAlpha *= b.alpha;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = s.color;
-    ctx.fillStyle = s.color;
-    ctx.lineWidth = Math.max(0.5, s.width * bw);
-    if (b.glow) {
-      ctx.shadowColor = s.color;
-      ctx.shadowBlur = ctx.lineWidth * 2.5;
-    }
-    ctx.beginPath();
-    const X = (i: number) => p[i] * bw,
-      Y = (i: number) => p[i + 1] * bh;
-    if (p.length === 2) {
-      // A single tap: a dot.
-      ctx.arc(X(0), Y(0), ctx.lineWidth / 2, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.moveTo(X(0), Y(0));
-      // Smooth: curve through the midpoints between recorded points.
-      for (let i = 2; i < p.length - 2; i += 2) ctx.quadraticCurveTo(X(i), Y(i), (X(i) + X(i + 2)) / 2, (Y(i) + Y(i + 2)) / 2);
-      ctx.lineTo(X(p.length - 2), Y(p.length - 2));
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-}
-
-function drawImageLayer(ctx: CanvasRenderingContext2D, l: ImageLayer, W: number) {
-  const img = images.get(l.image);
-  if (!img) return;
-  const w = l.w * W,
-    h = l.h * W;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, -w / 2, -h / 2, w, h);
-}
-
-/** One layer, drawn at its place (ctx already holds the opacity and blend to use). */
-function drawOne(ctx: CanvasRenderingContext2D, l: Layer, W: number, H: number) {
-  ctx.translate(l.x * W, l.y * H);
-  ctx.rotate((l.rot * Math.PI) / 180);
-  if (l.kind === 'text') drawText(ctx, l, W);
-  else if (l.kind === 'shape') drawShape(ctx, l, W);
-  else if (l.kind === 'sticker') drawSticker(ctx, l, W);
-  else if (l.kind === 'image') drawImageLayer(ctx, l, W);
-  else drawStrokes(ctx, l, W);
-}
-
-/** True when the layer's mask changes where it shows. */
-export const layerMasked = (l: Layer): boolean => !!l.mask && (l.mask.parts.length > 0 || l.mask.invert);
-
-/** A layer's mask laid on the W × H frame where the layer is (its box, turned with it). */
-export function layerFrameMask(ctx: CanvasRenderingContext2D, l: Layer, W: number, H: number): FrameMask | null {
-  if (!l.mask || !layerMasked(l)) return null;
-  const b = layerBox(ctx, l, W, H);
-  return frameMask(l.mask, b.w, b.h, { cx: b.cx, cy: b.cy, w: b.w, h: b.h, rot: (b.rot * 180) / Math.PI, flip: false }, W, H);
-}
-
-/** The mask as an image whose alpha is the mask, to cut a layer with ('destination-in'). Cached per mask raster. */
-const maskImages = new WeakMap<FrameMask, HTMLCanvasElement>();
-function maskImage(f: FrameMask): HTMLCanvasElement | null {
-  let c = maskImages.get(f);
-  if (c) return c;
-  c = document.createElement('canvas');
-  c.width = f.width;
-  c.height = f.height;
-  const x = c.getContext('2d');
-  if (!x) return null;
-  const img = x.createImageData(f.width, f.height),
-    d = new Uint32Array(img.data.buffer);
-  // White, with the mask as alpha (little-endian RGBA: alpha in the top byte).
-  for (let i = 0; i < f.data.length; i++) d[i] = (f.data[i] << 24) | 0xffffff;
-  x.putImageData(img, 0, 0);
-  maskImages.set(f, c);
-  return c;
-}
-
-/** A frame-size canvas to draw a masked layer into, reused. */
-let scratch: HTMLCanvasElement | null = null;
 
 /**
- * Draws every visible layer (bottom first) on a W×H frame; with t, only the layers showing at that time. A layer with
- * a blend mode mixes with what is under it; a masked one is drawn on its own canvas first, cut by its mask, then laid
- * on with its opacity and blend.
+ * A layer's sizes scaled.
+ * @param layer the layer
+ * @param scale the scale
+ * @returns the scaled sizes
  */
-export function drawLayers(ctx: CanvasRenderingContext2D, layers: Layer[], W: number, H: number, t?: number): void {
-  // With a time (the video editor) keyed layers are drawn at it (205); the photo editor passes none.
-  for (const l of layersAt(layers, t)) {
-    if (!activeAt(l, t)) continue;
-    const blend: GlobalCompositeOperation = l.blend && l.blend !== 'normal' ? l.blend : 'source-over',
-      alpha = Math.max(0, Math.min(1, l.opacity));
-    const fm = layerFrameMask(ctx, l, W, H),
-      cut = fm && maskImage(fm);
-    if (!cut) {
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.globalCompositeOperation = blend;
-      drawOne(ctx, l, W, H);
-      ctx.restore();
-      continue;
-    }
-    if (!scratch) scratch = document.createElement('canvas');
-    if (scratch.width !== cut.width || scratch.height !== cut.height) {
-      scratch.width = cut.width;
-      scratch.height = cut.height;
-    }
-    const sx = scratch.getContext('2d');
-    if (!sx) continue;
-    sx.setTransform(1, 0, 0, 1, 0, 0);
-    sx.globalAlpha = 1;
-    sx.globalCompositeOperation = 'source-over';
-    sx.clearRect(0, 0, scratch.width, scratch.height);
-    sx.save();
-    drawOne(sx, l, W, H);
-    sx.restore();
-    sx.globalCompositeOperation = 'destination-in';
-    sx.drawImage(cut, 0, 0);
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.globalCompositeOperation = blend;
-    ctx.drawImage(scratch, 0, 0, W, H);
-    ctx.restore();
+function scaledSizes(layer: Layer, scale: number): ScaledSizes {
+  const width = layer.w * scale;
+  switch (layer.kind) {
+    case 'text':
+      return { w: width, size: layer.size * scale };
+    case 'shape':
+      return { w: width, h: layer.h * scale, textSize: layer.textSize * scale, strokeW: layer.strokeW * scale };
+    case 'draw':
+    case 'image':
+      return { w: width, h: layer.h * scale };
+    case 'sticker':
+      return { w: width };
   }
 }
 
-/* ---------- picking and handles ---------- */
-
-/** A point in the layer's own (unrotated, centred) coordinates. */
-export function toLocal(b: Box, px: number, py: number): [number, number] {
-  const dx = px - b.cx,
-    dy = py - b.cy,
-    c = Math.cos(b.rot),
-    s = Math.sin(b.rot);
-  return [dx * c + dy * s, -dx * s + dy * c];
-}
-
-/** The topmost layer under a point (pixels on the W×H frame), or null. tol: extra pixels around each box. */
-export function hitLayer(ctx: CanvasRenderingContext2D, layers: Layer[], px: number, py: number, W: number, H: number, tol = 4, t?: number): Layer | null {
-  for (let i = layers.length - 1; i >= 0; i--) {
-    const l = layers[i];
-    if (!activeAt(l, t)) continue;
-    const b = layerBox(ctx, l, W, H),
-      [lx, ly] = toLocal(b, px, py);
-    if (Math.abs(lx) <= b.w / 2 + tol && Math.abs(ly) <= b.h / 2 + tol) return l;
-  }
-  return null;
-}
-
-/** Distance of the rotate handle above the box, in pixels at scale 1. */
-export const ROTATE_GAP = 26;
-
-/** Which handle of a selected box is under the point: resize (bottom-right corner), rotate (above the top), or null. */
-export function handleAt(b: Box, px: number, py: number, r: number): 'resize' | 'rotate' | null {
-  const [lx, ly] = toLocal(b, px, py);
-  if (Math.hypot(lx - b.w / 2, ly - b.h / 2) <= r * 1.6) return 'resize';
-  if (Math.hypot(lx, ly + b.h / 2 + ROTATE_GAP * (r / 7)) <= r * 1.6) return 'rotate';
-  return null;
-}
-
-/** Selection outline with its two handles (preview only, never exported). r = handle radius in pixels. */
-export function drawSelection(ctx: CanvasRenderingContext2D, b: Box, r: number): void {
-  ctx.save();
-  ctx.translate(b.cx, b.cy);
-  ctx.rotate(b.rot);
-  ctx.lineWidth = Math.max(1, r / 4);
-  ctx.strokeStyle = '#ffffff';
-  ctx.setLineDash([r, r * 0.7]);
-  ctx.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
-  ctx.strokeStyle = '#d97706';
-  ctx.lineDashOffset = r;
-  ctx.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
-  ctx.setLineDash([]);
-  const gap = ROTATE_GAP * (r / 7);
-  ctx.beginPath();
-  ctx.moveTo(0, -b.h / 2);
-  ctx.lineTo(0, -b.h / 2 - gap);
-  ctx.stroke();
-  for (const [x, y] of [
-    [b.w / 2, b.h / 2],
-    [0, -b.h / 2 - gap],
-  ]) {
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, r / 3);
-    ctx.strokeStyle = '#d97706';
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/** A layer scaled about its centre by f (width, height, text sizes, sticker size). */
-export function scaleLayer<L extends Layer>(l: L, f: number): L {
-  const k = Math.max(0.03 / l.w, Math.min(3 / l.w, f));
-  const out = { ...l, w: l.w * k } as L;
-  if (out.kind === 'text') out.size = (l as TextLayer).size * k;
-  if (out.kind === 'shape') {
-    out.h = (l as ShapeLayer).h * k;
-    out.textSize = (l as ShapeLayer).textSize * k;
-    out.strokeW = (l as ShapeLayer).strokeW * k;
-  }
-  if (out.kind === 'draw' || out.kind === 'image') out.h = (l as DrawLayer | ImageLayer).h * k;
-  return out;
-}
-
-/** Rotation in degrees for a pointer at (px, py) around the box centre, snapped to right angles within 4°. */
-export function rotationFor(b: Box, px: number, py: number): number {
-  let deg = (Math.atan2(py - b.cy, px - b.cx) * 180) / Math.PI + 90;
-  deg = ((deg % 360) + 360) % 360;
-  for (const snap of [0, 90, 180, 270, 360]) if (Math.abs(deg - snap) < 4) deg = snap % 360;
-  return Math.round(deg * 10) / 10;
+/**
+ * A layer scaled about its centre (width, height, text sizes, sticker size), its width kept between 0.03 and 3.
+ * @param layer the layer
+ * @param factor the scale wanted
+ * @returns the scaled layer
+ */
+export function scaleLayer<L extends Layer>(layer: L, factor: number): L {
+  const scale = Math.max(0.03 / layer.w, Math.min(3 / layer.w, factor));
+  return Object.assign({ ...layer }, scaledSizes(layer, scale));
 }
 
 /* ---------- drawing strokes into a layer ---------- */
 
+/** A stroke with its points and width in frame-width units (while addStroke re-fits the box). */
+type FrameStroke = Stroke;
+
+/** The bounds of a set of strokes, frame-width units. */
+interface StrokeBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * The bounds of strokes, each widened by half its width.
+ * @param strokes the strokes, frame-width units
+ * @returns the bounds
+ */
+function strokeBounds(strokes: FrameStroke[]): StrokeBounds {
+  const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  for (const stroke of strokes) {
+    const half = stroke.width / 2;
+    for (let index = 0; index + 1 < stroke.pts.length; index += 2) {
+      const x = stroke.pts[index] ?? 0;
+      const y = stroke.pts[index + 1] ?? 0;
+      bounds.left = Math.min(bounds.left, x - half);
+      bounds.right = Math.max(bounds.right, x + half);
+      bounds.top = Math.min(bounds.top, y - half);
+      bounds.bottom = Math.max(bounds.bottom, y + half);
+    }
+  }
+  return bounds;
+}
+
 /**
  * Adds a stroke drawn at frame pixels [x0, y0, x1, y1, …] to a drawing layer (or makes a new one), re-fitting the
- * layer's box around all its strokes. A rotated drawing can't take more strokes (null is returned: start a new one).
+ * layer's box around all its strokes.
+ * @param layer the drawing, or null for a new one
+ * @param points the stroke's points, frame pixels
+ * @param brush the brush
+ * @param color the colour
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ * @param widthPx the stroke's width, pixels (default: the brush's)
+ * @returns the drawing; null for a rotated drawing, which can't take more strokes (start a new one)
  */
-export function addStroke(layer: DrawLayer | null, abs: number[], brush: BrushId, color: string, W: number, H: number, widthPx?: number): DrawLayer | null {
+export function addStroke(
+  layer: DrawLayer | null,
+  points: number[],
+  brush: BrushId,
+  color: string,
+  frameWidth: number,
+  frameHeight: number,
+  widthPx?: number,
+): DrawLayer | null {
   if (layer && layer.rot !== 0) return null;
-  const bw = widthPx ?? brushDef(brush).width * W;
+  const brushWidth = widthPx ?? brushDef(brush).width * frameWidth;
   // Every point in frame-width units, with each stroke's width in the same units.
-  const strokes: { brush: BrushId; color: string; width: number; pts: number[] }[] = [];
+  const strokes: FrameStroke[] = [];
   if (layer) {
-    const lw = layer.w,
-      lh = layer.h,
-      cx = layer.x,
-      cyW = (layer.y * H) / W;
-    for (const s of layer.strokes)
-      strokes.push({ brush: s.brush, color: s.color, width: s.width * lw, pts: s.pts.map((v, i) => (i % 2 ? cyW + v * lh : cx + v * lw)) });
-  }
-  strokes.push({ brush, color, width: bw / W, pts: abs.map((v) => v / W) });
-  let x0 = Infinity,
-    y0 = Infinity,
-    x1 = -Infinity,
-    y1 = -Infinity;
-  for (const s of strokes)
-    for (let i = 0; i < s.pts.length; i += 2) {
-      x0 = Math.min(x0, s.pts[i] - s.width / 2);
-      x1 = Math.max(x1, s.pts[i] + s.width / 2);
-      y0 = Math.min(y0, s.pts[i + 1] - s.width / 2);
-      y1 = Math.max(y1, s.pts[i + 1] + s.width / 2);
+    const centreY = (layer.y * frameHeight) / frameWidth;
+    for (const stroke of layer.strokes) {
+      const pts = stroke.pts.map((value, index) => (index % 2 ? centreY + value * layer.h : layer.x + value * layer.w));
+      strokes.push({ brush: stroke.brush, color: stroke.color, width: stroke.width * layer.w, pts });
     }
-  const w = Math.max(0.005, x1 - x0),
-    h = Math.max(0.005, y1 - y0),
-    cx = (x0 + x1) / 2,
-    cyW = (y0 + y1) / 2;
+  }
+  strokes.push({ brush, color, width: brushWidth / frameWidth, pts: points.map((value) => value / frameWidth) });
+  const bounds = strokeBounds(strokes);
+  const width = Math.max(0.005, bounds.right - bounds.left);
+  const height = Math.max(0.005, bounds.bottom - bounds.top);
+  const centreX = (bounds.left + bounds.right) / 2;
+  const centreY = (bounds.top + bounds.bottom) / 2;
   return {
     id: layer?.id ?? layerId(),
     kind: 'draw',
-    x: cx,
-    y: (cyW * W) / H,
-    w,
-    h,
+    x: centreX,
+    y: (centreY * frameWidth) / frameHeight,
+    w: width,
+    h: height,
     rot: 0,
     opacity: layer?.opacity ?? 1,
     start: layer?.start,
     end: layer?.end,
-    strokes: strokes.map((s) => ({ brush: s.brush, color: s.color, width: s.width / w, pts: s.pts.map((v, i) => (i % 2 ? (v - cyW) / h : (v - cx) / w)) })),
+    strokes: strokes.map((stroke) => ({
+      brush: stroke.brush,
+      color: stroke.color,
+      width: stroke.width / width,
+      pts: stroke.pts.map((value, index) => (index % 2 ? (value - centreY) / height : (value - centreX) / width)),
+    })),
   };
-}
-
-/* ---------- the gate for layers from outside the running app ---------- */
-
-/** The most a layer list may hold when read from a project file. */
-export const LAYER_LIMITS = { layers: 100, text: 2000, strokes: 400, points: 8000, name: 120, font: 80, emoji: 16 } as const;
-
-const LAYER_ID = /^[A-Za-z0-9_-]{1,40}$/;
-const HEX = /^#[0-9a-f]{6}$/i;
-const SHAPE_IDS: readonly string[] = SHAPES.map((s) => s.id);
-const BRUSH_IDS: readonly string[] = BRUSHES.map((b) => b.id);
-const BLEND_IDS: readonly string[] = BLEND_MODES.map(([b]) => b);
-
-const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
-const str = (v: unknown, max: number, d = '') => (typeof v === 'string' ? v.slice(0, max) : d);
-/** A colour, '' for none where allowed, else the default. */
-const colour = (v: unknown, d: string, none = false) => (typeof v === 'string' && (HEX.test(v) || (none && v === '')) ? v : d);
-const time = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined);
-
-function mergeStrokes(raw: unknown): Stroke[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.slice(0, LAYER_LIMITS.strokes).flatMap((s): Stroke[] => {
-    const o = s && typeof s === 'object' ? (s as Record<string, unknown>) : null;
-    const pts = Array.isArray(o?.pts) ? o.pts.slice(0, LAYER_LIMITS.points) : [];
-    if (!o || pts.length < 2 || pts.length % 2 || !pts.every((v) => typeof v === 'number' && Number.isFinite(v))) return [];
-    return [
-      {
-        brush: (BRUSH_IDS.includes(o.brush as string) ? o.brush : 'pen') as BrushId,
-        color: colour(o.color, '#ffffff'),
-        width: num(o.width, 0.0005, 1, 0.02),
-        pts: (pts as number[]).map((v) => Math.min(2, Math.max(-2, v))),
-      },
-    ];
-  });
-}
-
-/**
- * The single gate for layers from outside the running app (project files): valid layers, or none. Unknown kinds are
- * dropped, numbers clamped, bad values replaced by defaults, text and drawings capped, ids kept unique. Image layers
- * are kept only when `images` holds their picture's id (the project's media). Keyframes go through `mergeKeys`
- * against the project's `budget` (205). Never throws.
- */
-export function mergeLayers(
-  raw: unknown,
-  images: ReadonlySet<string> = new Set(),
-  budget: KeyBudget = keyBudget(),
-): Layer[] {
-  if (!Array.isArray(raw)) return [];
-  const seen = new Set<string>();
-  const out: Layer[] = [];
-  for (const item of raw) {
-    if (out.length >= LAYER_LIMITS.layers) break;
-    const o = item && typeof item === 'object' && !Array.isArray(item) ? (item as Record<string, unknown>) : null;
-    if (!o) continue;
-    let id = typeof o.id === 'string' && LAYER_ID.test(o.id) ? o.id : layerId();
-    while (seen.has(id)) id = layerId();
-    const start = time(o.start);
-    const endT = time(o.end);
-    const keys = mergeKeys(o.keys, LAYER_KEY_PROPS, 'layer', budget);
-    const base = {
-      id,
-      x: num(o.x, -0.5, 1.5, 0.5),
-      y: num(o.y, -0.5, 1.5, 0.5),
-      w: num(o.w, 0.01, 4, 0.3),
-      rot: num(o.rot, -360, 360, 0),
-      opacity: num(o.opacity, 0, 1, 1),
-      ...(BLEND_IDS.includes(o.blend as string) ? { blend: o.blend as BlendMode } : {}),
-      ...(o.hidden === true ? { hidden: true } : {}),
-      ...(start !== undefined ? { start } : {}),
-      ...(endT !== undefined && endT > (start ?? 0) ? { end: endT } : {}),
-      ...(keys ? { keys } : {}),
-    };
-    const m = o.mask && typeof o.mask === 'object' ? (o.mask as Record<string, unknown>) : null;
-    const parts = (Array.isArray(m?.parts) ? m.parts.slice(0, MASK_LIMITS.parts) : [])
-      .map(mergePart)
-      .filter((p): p is MaskPart => !!p && (p.kind === 'linear' || p.kind === 'radial'));
-    const mask = m ? { mask: { invert: m.invert === true, parts } } : {};
-    let layer: Layer | null = null;
-    switch (o.kind) {
-      case 'text':
-        layer = {
-          ...base,
-          ...mask,
-          kind: 'text',
-          text: str(o.text, LAYER_LIMITS.text),
-          font: str(o.font, LAYER_LIMITS.font, 'Poppins') || 'Poppins',
-          size: num(o.size, 0.005, 1, 0.08),
-          color: colour(o.color, '#ffffff'),
-          align: o.align === 'left' || o.align === 'right' ? o.align : 'center',
-          bold: o.bold === true,
-          italic: o.italic === true,
-          outline: colour(o.outline, '', true),
-          bg: colour(o.bg, '', true),
-          shadow: o.shadow === true,
-        };
-        break;
-      case 'shape':
-        layer = {
-          ...base,
-          ...mask,
-          kind: 'shape',
-          shape: (SHAPE_IDS.includes(o.shape as string) ? o.shape : 'rect') as ShapeId,
-          h: num(o.h, 0.005, 4, 0.2),
-          fill: colour(o.fill, '', true),
-          stroke: colour(o.stroke, '', true),
-          strokeW: num(o.strokeW, 0, 0.2, 0),
-          text: str(o.text, LAYER_LIMITS.text),
-          textColor: colour(o.textColor, '#111111'),
-          font: str(o.font, LAYER_LIMITS.font, 'Poppins') || 'Poppins',
-          textSize: num(o.textSize, 0.005, 1, 0.055),
-          bold: o.bold === true,
-        };
-        break;
-      case 'sticker': {
-        const emoji = str(o.emoji, LAYER_LIMITS.emoji);
-        if (emoji) layer = { ...base, ...mask, kind: 'sticker', emoji };
-        break;
-      }
-      case 'draw':
-        layer = { ...base, ...mask, kind: 'draw', h: num(o.h, 0.005, 4, 0.2), strokes: mergeStrokes(o.strokes) };
-        break;
-      case 'image':
-        if (typeof o.image === 'string' && LAYER_ID.test(o.image) && images.has(o.image))
-          layer = { ...base, ...mask, kind: 'image', image: o.image, h: num(o.h, 0.005, 4, 0.2), name: str(o.name, LAYER_LIMITS.name) };
-        break;
-    }
-    if (!layer) continue;
-    seen.add(id);
-    out.push(layer);
-  }
-  return out;
 }

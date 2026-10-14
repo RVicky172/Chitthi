@@ -217,7 +217,7 @@ step.
 | Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/data/presets.ts` |
 | `.cube` parser, tetrahedral lookup and the LUTs loaded this session; imported LUTs on the device | `src/engine/lut.ts`; `src/lib/userLuts.ts` |
 | Saved presets: validation (`mergePreset`) and the preset file; the list and its storage | `src/engine/presets.ts`; `src/state/presets.ts` |
-| Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`; `src/engine/gpu/mask.ts` |
+| Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`, `maskGate.ts`, `maskBrush.ts`, `maskRaster.ts`, `maskPlace.ts`; `src/engine/gpu/mask.ts` |
 | Masks panel and the mask's settings (inspector) | `src/components/ig/MaskPanel.tsx` |
 | AI masks: the models, their download and check, the worker (ONNX Runtime Web); the maps kept per photo; panel status | `src/ai/segment/`; `src/engine/segments.ts`; `src/components/ig/useAiMask.ts` |
 | RAW files: developing with LibRaw (desktop); RAW names, the embedded preview, 8-bit previews from 16-bit data | `electron/raw.cjs`, `scripts/fetch-libraw.mjs`; `src/engine/raw.ts` |
@@ -226,11 +226,11 @@ step.
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
-| Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
+| Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts`, `layerDraw.ts`, `layerPick.ts`, `layerGate.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
 | Video formats and limits; frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/videoFormats.ts`; `src/engine/video.ts`; `src/engine/videoExport.ts` |
 | Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
-| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layers.ts` |
+| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layerGate.ts` |
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
 | Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |

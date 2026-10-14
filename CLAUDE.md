@@ -118,9 +118,9 @@ gate for external design data.
   `VideoWorkspace.tsx`, which share `studio/Shell.tsx` (top bar, tool rail, panel, stage, inspector, dock) and
   `studio/Timeline.tsx`. Styles: `styles/36-media-studio.css` (root class `.mst`) and `styles/35-instagram.css`
   (panel controls). Don't use the class `.ig` for new UI: it belongs to the Instagram-handle field on the card back.
-- Layers (text, shapes, stickers, drawings) live in `engine/layers.ts`: positions are shares of the frame, sizes are
-  shares of the frame **width**, so they render identically at any preview size, in exported photos and in every video
-  frame. Editing on a canvas is `components/ig/useLayerPointer.ts`; panels are `components/ig/LayerPanel.tsx`.
+- Layers (text, shapes, stickers, drawings) live in `engine/layers.ts` (drawn by `layerDraw.ts`): positions are shares
+  of the frame, sizes are shares of the frame **width**, so they render identically at any preview size, in exported
+  photos and in every video frame. Editing on a canvas is `components/ig/useLayerPointer.ts`; panels are `components/ig/LayerPanel.tsx`.
 - Video: `engine/videoFormats.ts` holds formats and per-platform limits (`limitsFor(kind, isDesktop)`),
   `engine/timeline.ts` the timeline maths, and `engine/video.ts` the frame drawing, `renderStack()` / `renderFrame()`
   (used by both the live preview and export). `engine/videoExport.ts` (Mediabunny, MPL-2.0, loaded only via dynamic

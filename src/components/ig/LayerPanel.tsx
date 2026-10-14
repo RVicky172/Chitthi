@@ -1,21 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { BRUSHES, PALETTE, SHAPES, STICKERS, TEXT_FONTS, TEXT_STYLES, shapeDef, type BrushId } from '../../data/layers';
-import {
-  addLayerImage,
-  BLEND_MODES,
-  layerName,
-  newImageLayer,
-  newShape,
-  newSticker,
-  newText,
-  scaleLayer,
-  shapePath,
-  type BlendMode,
-  type Layer,
-  type LayerMask,
-  type ShapeLayer,
-  type TextLayer,
-} from '../../engine/layers';
+import { addLayerImage, BLEND_MODES, layerName, newImageLayer, newShape, newSticker, newText, scaleLayer, type BlendMode, type Layer, type LayerMask, type ShapeLayer, type TextLayer } from '../../engine/layers';
+import { shapePath } from '../../engine/layerDraw';
 import { newPart, type LinearPart, type RadialPart } from '../../engine/masks';
 import type { LayerKeyProp } from '../../engine/keyframes';
 import { logError } from '../../lib/errors';

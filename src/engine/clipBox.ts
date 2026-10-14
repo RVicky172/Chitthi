@@ -1,4 +1,5 @@
-import { handleAt, rotationFor, toLocal, type Box } from './layers';
+import { handleAt, rotationFor, toLocal } from './layerPick';
+import { type Box } from './layers';
 import { snapBox, type SnapGuide } from './stack';
 import { clampTransform, type ClipTransform } from './timeline';
 

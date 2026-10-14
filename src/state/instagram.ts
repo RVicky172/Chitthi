@@ -3,7 +3,8 @@ import { clampBatch, IG_FORMATS, igFormat, type IgFileType, type IgFormatId } fr
 import { brushDef, type BrushId } from '../data/layers';
 import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, LOOK_KEYS, renderIg, type IgEdit } from '../engine/instagram';
-import { drawLayers, type Layer } from '../engine/layers';
+import { drawLayers } from '../engine/layerDraw';
+import { type Layer } from '../engine/layers';
 import { aiTargets, type Mask } from '../engine/masks';
 import { shareSegments } from '../engine/segments';
 import { ensureFonts } from '../lib/fonts';

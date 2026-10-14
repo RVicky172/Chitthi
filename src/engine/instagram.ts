@@ -3,7 +3,9 @@ import { DETAIL_WIDTH, detailPixels } from './detail';
 import { gpuColour } from './gpu/apply';
 import { gpu } from './gpu/device';
 import { chainNeutral, chainPixels } from './chain';
-import { frameMask, maskActive, mergeMasks, type FrameMask, type Mask, type PhotoPlace } from './masks';
+import { frameMask, type FrameMask, type PhotoPlace } from './maskPlace';
+import { maskActive, type Mask } from './masks';
+import { mergeMasks } from './maskGate';
 import { lookPixels } from './photo';
 
 /*

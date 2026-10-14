@@ -5,8 +5,10 @@ import { closeGpu, gpu, gpuPool, openGpu } from './gpu/device';
 import { runNodes, type GraphNode, type NodeInput } from './gpu/graph';
 import { maskNodes } from './gpu/mask';
 import { drawBackground, photoPlace, renderIg, vignetteAt, type IgEdit } from './instagram';
-import { drawLayers, type Layer } from './layers';
-import { frameMask, frameToPhoto, maskActive } from './masks';
+import { drawLayers } from './layerDraw';
+import { type Layer } from './layers';
+import { frameMask, frameToPhoto } from './maskPlace';
+import { maskActive } from './masks';
 import { decodeSrgb, encodeSrgb, type RawImage } from './raw';
 
 /*

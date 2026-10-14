@@ -50,7 +50,11 @@ src/
     detail.ts                Noise reduction, dehaze, clarity, sharpening, grain, sized for a 1080 px frame (P1.3)
     lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
     presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs)
-    masks.ts                 Masks: model, mergeMasks, brush / gradient / range rasters (cached), handles, frameMask
+    masks.ts                 Masks: the model (parts, limits, ranges, new parts and masks)
+    maskGate.ts              mergeMasks, mergePart: the gate for masks from outside
+    maskBrush.ts             Brush strokes on a raster, painted incrementally while drawing
+    maskRaster.ts            Gradient / range / AI rasters, parts and masks (cached), the photo sample
+    maskPlace.ts             The photo's place on the frame, gradient handles and drags, frameMask
     segments.ts              AI segmentation maps (subject, sky) per picture source, for AI mask parts (P1.8)
     photoExport.ts           Photo file types (JPEG, PNG, WebP, AVIF): which this browser writes, encodePhoto
     raw.ts, tiff.ts          Camera RAW: developed pixels → preview and linear source; 16-bit TIFF writer (P1.9)
@@ -59,7 +63,11 @@ src/
                              types.ts (device contract), device.ts (WebGPU, else WebGL2, else none), webgpu.ts,
                              webgl2.ts, graph.ts (nodes, runNodes), colour.ts, detail.ts, lut.ts, mask.ts (programs
                              mirroring the CPU code), apply.ts (the GPU step of renderIg)
-    layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
+    layers.ts                Text, shapes, stickers, drawings, images over photos and video: the model, new layers,
+                             names, scaleLayer, addStroke, the session's pictures
+    layerDraw.ts             drawLayers (blend, mask), layerBox, wrapText, shapePath
+    layerPick.ts             hitLayer, handles, the selection outline, rotationFor
+    layerGate.ts             mergeLayers: the gate for layers from project files
     videoFormats.ts          Video formats, bitrates, frame rates, per-platform limits (limitsFor)
     video.ts                 Frame drawing: renderStack, renderFrame, motions, fades, NO_PICTURE
     timeline.ts              Video project as tracks (201): clip timing (clipLength, frameRange), the clip transform

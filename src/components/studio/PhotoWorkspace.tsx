@@ -15,23 +15,10 @@ import {
 import { DEFAULT_ADJUST, type Adjustments } from '../../engine/adjust';
 import { neutralise } from '../../engine/light';
 import { photoPlace, placement, renderIg, showsBackground, type IgEdit, type IgRotation } from '../../engine/instagram';
-import { drawLayers, drawSelection, layerBox } from '../../engine/layers';
-import {
-  BRUSH_RANGES,
-  dragPart,
-  frameMask,
-  frameToPhoto,
-  MASK_LIMITS,
-  newBrushPart,
-  partHandles,
-  type BrushStroke,
-  type HandleId,
-  type LinearPart,
-  type Mask,
-  type MaskPart,
-  type PhotoPlace,
-  type RadialPart,
-} from '../../engine/masks';
+import { drawLayers, layerBox } from '../../engine/layerDraw';
+import { drawSelection } from '../../engine/layerPick';
+import { BRUSH_RANGES, MASK_LIMITS, newBrushPart, type BrushStroke, type LinearPart, type Mask, type MaskPart, type RadialPart } from '../../engine/masks';
+import { dragPart, frameMask, frameToPhoto, partHandles, type HandleId, type PhotoPlace } from '../../engine/maskPlace';
 import { MAX_MB } from '../../engine/photo';
 import { RAW_EXTS } from '../../engine/raw';
 import { encodableTypes, PHOTO_TYPES } from '../../engine/photoExport';

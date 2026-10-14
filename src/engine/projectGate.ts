@@ -6,7 +6,7 @@ import { isOneOf, isRecord, keysOf } from './guards';
 import { mergeEdit } from './instagram';
 import { keyBudget, mergeKeys, type KeyBudget } from './keyframeGate';
 import { CLIP_KEY_PROPS } from './keyframes';
-import { mergeLayers } from './layers';
+import { mergeLayers } from './layerGate';
 import {
   fromSequence,
   type DocAudio,

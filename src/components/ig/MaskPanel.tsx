@@ -1,15 +1,5 @@
 import { DEFAULT_ADJUST, type Adjustments } from '../../engine/adjust';
-import {
-  MASK_LIMITS,
-  newMask,
-  newPart,
-  PART_RANGES,
-  type AiPart,
-  type Mask,
-  type MaskCombine,
-  type MaskPart,
-  type PartKind,
-} from '../../engine/masks';
+import { MASK_LIMITS, newMask, newPart, PART_RANGES, type AiPart, type Mask, type MaskCombine, type MaskPart, type PartKind } from '../../engine/masks';
 import type { AiTarget } from '../../engine/segments';
 import { selectMask, setMaskBrush, setMasks, updateMask, useIg, type IgItem } from '../../state/instagram';
 import { Check, Seg } from '../common';

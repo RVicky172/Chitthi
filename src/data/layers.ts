@@ -5,9 +5,21 @@
 
 export type ShapeId = 'rect' | 'round' | 'circle' | 'pill' | 'bubble' | 'burst' | 'star' | 'heart' | 'banner' | 'arrow' | 'line';
 
-/** id, name, default size (width and height, as a share of the frame width), and whether words fit inside. */
-export const SHAPES: { id: ShapeId; name: string; w: number; h: number; holdsText: boolean }[] = [
-  { id: 'round', name: 'Rounded box', w: 0.6, h: 0.22, holdsText: true },
+/** A shape: id, name, default size (width and height, as a share of the frame width), and whether words fit inside. */
+export interface ShapeDef {
+  id: ShapeId;
+  name: string;
+  w: number;
+  h: number;
+  holdsText: boolean;
+}
+
+/** The first shape, and the one an unknown id falls back to. */
+const ROUNDED_BOX: ShapeDef = { id: 'round', name: 'Rounded box', w: 0.6, h: 0.22, holdsText: true };
+
+/** Every shape, in the panel's order. */
+export const SHAPES: ShapeDef[] = [
+  ROUNDED_BOX,
   { id: 'rect', name: 'Box', w: 0.6, h: 0.22, holdsText: true },
   { id: 'pill', name: 'Label', w: 0.5, h: 0.12, holdsText: true },
   { id: 'circle', name: 'Circle', w: 0.34, h: 0.34, holdsText: true },
@@ -19,7 +31,12 @@ export const SHAPES: { id: ShapeId; name: string; w: number; h: number; holdsTex
   { id: 'arrow', name: 'Arrow', w: 0.4, h: 0.12, holdsText: false },
   { id: 'line', name: 'Line', w: 0.5, h: 0.02, holdsText: false },
 ];
-export const shapeDef = (id: ShapeId) => SHAPES.find((s) => s.id === id) ?? SHAPES[0];
+/**
+ * A shape by its id.
+ * @param id the shape's id
+ * @returns the shape, or the rounded box for an unknown id
+ */
+export const shapeDef = (id: ShapeId): ShapeDef => SHAPES.find((shape) => shape.id === id) ?? ROUNDED_BOX;
 
 /** Emoji stickers: celebrations and Indian festivals first, then everyday ones. */
 export const STICKERS = [
@@ -56,11 +73,28 @@ export const TEXT_STYLES: TextStyle[] = [
 ];
 
 export type BrushId = 'pen' | 'marker' | 'highlighter' | 'neon';
-/** Brush: name, width (share of the frame width), opacity, and whether it glows. */
-export const BRUSHES: { id: BrushId; name: string; width: number; alpha: number; glow: boolean }[] = [
-  { id: 'pen', name: 'Pen', width: 0.008, alpha: 1, glow: false },
+/** A brush: name, width (share of the frame width), opacity, and whether it glows. */
+export interface BrushDef {
+  id: BrushId;
+  name: string;
+  width: number;
+  alpha: number;
+  glow: boolean;
+}
+
+/** The first brush, and the one an unknown id falls back to. */
+const PEN: BrushDef = { id: 'pen', name: 'Pen', width: 0.008, alpha: 1, glow: false };
+
+/** Every brush, in the panel's order. */
+export const BRUSHES: BrushDef[] = [
+  PEN,
   { id: 'marker', name: 'Marker', width: 0.02, alpha: 1, glow: false },
   { id: 'highlighter', name: 'Highlighter', width: 0.04, alpha: 0.4, glow: false },
   { id: 'neon', name: 'Neon', width: 0.012, alpha: 1, glow: true },
 ];
-export const brushDef = (id: BrushId) => BRUSHES.find((b) => b.id === id) ?? BRUSHES[0];
+/**
+ * A brush by its id.
+ * @param id the brush's id
+ * @returns the brush, or the pen for an unknown id
+ */
+export const brushDef = (id: BrushId): BrushDef => BRUSHES.find((brush) => brush.id === id) ?? PEN;

@@ -30,7 +30,8 @@ import {
   type LegacyProject,
 } from '../../support/timeline.testkit';
 import { countKeys, type Ease, type Keyframe } from '@/engine/keyframes';
-import { mergeLayers, newSticker, type Layer } from '@/engine/layers';
+import { mergeLayers } from '@/engine/layerGate';
+import { newSticker, type Layer } from '@/engine/layers';
 import { limitsFor } from '@/engine/videoFormats';
 
 /** A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document). */

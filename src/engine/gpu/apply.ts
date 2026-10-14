@@ -1,5 +1,5 @@
 import type { Adjustments } from '../adjust';
-import type { FrameMask } from '../masks';
+import type { FrameMask } from '../maskPlace';
 import { colourNodes } from './colour';
 import { detailNodes } from './detail';
 import { gpu, gpuPool } from './device';
