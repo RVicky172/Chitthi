@@ -715,8 +715,8 @@
         "T020": {
           "text": "Write `specs/coding-standards.md` (plan §3): names, JSDoc, SOLID as in Q7, sizes (Q4), cognitive complexity, React, types, layers and imports, errors, performance, comments, tests; each rule with a good / bad example from this code. Link it from `specs/constitution.md` (Definition of Done) and CLAUDE.md.",
           "section": "Standards and rules",
-          "status": "todo",
-          "blockedReason": null,
+          "status": "blocked",
+          "blockedReason": "Written and committed (549f00f): specs/coding-standards.md, constitution 2.1.0 (DoD item 11, D-038), CLAUDE.md Key Docs row; links resolve, npm run check green. Waiting for the maintainer's review (the task's proof is review); then done.",
           "parallel": false,
           "manual": false,
           "covers": [
@@ -729,7 +729,9 @@
           ],
           "test": "review; relative links resolve",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-14",
+          "doneOn": null
         },
         "T021": {
           "text": "Add `eslint-plugin-jsdoc` and `eslint-plugin-sonarjs` as development dependencies (versions pinned; sonarjs’ exception row in `specs/licensing.md`, D-037) and the rules of plan §4 as **warnings**: `id-length` (exceptions `_`, `x`, `y`; properties not checked), JSDoc on exports, `max-lines-per-function` (80 `.ts`, 250 `.tsx`), `max-lines` 800 (warning), sonarjs recommended with `cognitive-complexity` 15, the layers’ `no-restricted-imports`; size rules off for `src/data/` and `tests/`; the `FINISHED` folder list that turns them into errors. Measure `npm run lint`’s time.",
