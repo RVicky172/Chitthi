@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-14 — 407 T034 (engine/layers.ts and masks.ts split by job and cleaned)
+
+**Done:** nine modules (`layers`, `layerDraw`, `layerPick`, `layerGate`, `masks`, `maskGate`, `maskBrush`,
+`maskRaster`, `maskPlace`), 0 findings, in `FINISHED`; the layers ↔ keyframes import cycle is gone. Checked against
+frozen copies of the old files by a scratch harness (identical); hot paths timed old vs new, all within noise
+(painting +1–4 %, noted for T072). Check green (1,686 tests), build green, entry 327 KB. Commit `bf809f7`.
+**Next:** T035 (the photo pipeline: 18 engine modules). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-14 — 407 T033 (engine/render.ts split by job and cleaned)
 
 **Done:** `render.ts` → nine modules (`themeBackground`, `printText`, `photoSlots`, `postalDecor`, `frontText`,

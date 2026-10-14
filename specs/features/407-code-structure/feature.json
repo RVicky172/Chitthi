@@ -918,7 +918,7 @@
         "T034": {
           "text": "Split and clean `engine/layers.ts` and `engine/masks.ts`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: engine/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -933,10 +933,14 @@
             "src/engine/masks.ts"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "bf809f7"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/layers.ts` (884 lines, 225 findings) and `engine/masks.ts` (942, 250), 77 unchecked-index errors between them, split by job into nine modules, all at 0 and in `FINISHED`: `layers.ts` (model, new layers, names, `scaleLayer` without casts, `addStroke`, pictures; 476), `layerDraw.ts` (594), `layerPick.ts` (121), `layerGate.ts` (208); `masks.ts` (model, `PART_DEFAULTS`; 227), `maskGate.ts` (165), `maskBrush.ts` (401), `maskRaster.ts` (392), `maskPlace.ts` (266). Complexity: `rasterShape` 57, `mergeLayers` 49, `rasterPart` 41, `frameMask` 30, `layerName` 18 and the rest → ≤ 15; `rasterPart`’s always-false `base === prev?.full` became an explicit `reuse`. `layers.ts` no longer imports `keyframes.ts` (the import cycle is gone). `guards.ts` gains `isObjectLike` so the gates accept exactly what they did (arrays as objects); `data/layers.ts` `shapeDef` / `brushDef` fall back to named entries. 23 importers rewritten (the self-test’s namespace imports by hand). Behaviour checked by a scratch harness against frozen copies of the old files (not committed): 400 random masks of every part kind with photo samples, 60 brush parts painted step by step (extended, new, erased, undone), 150 frame masks with handles and drags, 1,500 layer sets drawn (every kind, blend, mask, time), picked and scaled, and both gates on 7,000 junk and near-valid inputs: identical; planted one-number changes in four modules each failed it. Hot paths timed old vs new, interleaved (medians): `rasterShape` −4 to +4 %, `rasterMask` and `frameMask` within ±9 % run to run, `paintStroke` −7 to −2 %, painting a stroke +1 to +4 % (for T072). `src/engine` per the report: 2,554 → 2,002 (unchecked index 442 → 365); `lint:full` 9,671 → 9,192. `npm run check` green (1,686 tests), `npm run build` green (entry 327 KB)."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-14"
         },
         "T035": {
           "text": "The photo pipeline (`photo`, `adjust`, `color`, `curve`, `hsl`, `light`, `detail`, `deep`, `raw`, `tiff`, `lut`, `analyze`, `chain`, `sample`, `segments`, `instagram`, `photoExport`, `export`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
