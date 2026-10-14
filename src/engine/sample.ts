@@ -8,49 +8,77 @@ const MOODS = [
   ['#c4b5fd', '#fbcfe8', '#fff1f2', '#4c1d95', '#2e1065', '#1e1b4b', '#a78bfa'],
 ];
 
+/** A hill's shape: its base height and wave, shares of the picture. */
+interface Hill {
+  base: number;
+  amplitude: number;
+  frequency: number;
+  phase: number;
+  colour: string;
+}
+
+/**
+ * Paints a hill: two sine waves over a base line, filled to the bottom.
+ * @param ctx the picture's context
+ * @param width pixels
+ * @param height pixels
+ * @param hill the hill
+ */
+function paintHill(ctx: CanvasRenderingContext2D, width: number, height: number, hill: Hill): void {
+  const { base, amplitude, frequency, phase } = hill;
+  ctx.fillStyle = hill.colour;
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  for (let x = 0; x <= width; x += 8) {
+    ctx.lineTo(
+      x,
+      height * base - Math.sin(x / (width / frequency) + phase) * height * amplitude - Math.sin(x / (width / (frequency * 2.7)) + phase * 2) * height * amplitude * 0.35,
+    );
+  }
+  ctx.lineTo(width, height);
+  ctx.closePath();
+  ctx.fill();
+}
+
 /**
  * A painted landscape used as a stand-in photo on the landing page, so product previews come from the real
  * renderer without shipping any image files.
+ * @param mood which colours (cycles through MOODS)
+ * @param width pixels
+ * @param height pixels
+ * @returns the photo
+ * @throws {Error} when no 2D context can be made
  */
-export function samplePhoto(mood: number, w = 900, h = 640): Photo {
-  const [sky1, sky2, sun, h1, h2, h3, water] = MOODS[mood % MOODS.length];
-  const cv = document.createElement('canvas');
-  cv.width = w;
-  cv.height = h;
-  const c = cv.getContext('2d')!;
-  const sky = c.createLinearGradient(0, 0, 0, h * 0.7);
+export function samplePhoto(mood: number, width = 900, height = 640): Photo {
+  const [sky1 = '', sky2 = '', sun = '', hill1 = '', hill2 = '', hill3 = '', water = ''] = MOODS[mood % MOODS.length] ?? [];
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable.');
+  const sky = ctx.createLinearGradient(0, 0, 0, height * 0.7);
   sky.addColorStop(0, sky1);
   sky.addColorStop(1, sky2);
-  c.fillStyle = sky;
-  c.fillRect(0, 0, w, h);
-  const glow = c.createRadialGradient(w * 0.68, h * 0.42, 0, w * 0.68, h * 0.42, h * 0.5);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, width, height);
+  const glow = ctx.createRadialGradient(width * 0.68, height * 0.42, 0, width * 0.68, height * 0.42, height * 0.5);
   glow.addColorStop(0, sun);
   glow.addColorStop(0.18, sun);
   glow.addColorStop(0.2, 'rgba(255,255,255,.35)');
   glow.addColorStop(1, 'rgba(255,255,255,0)');
-  c.fillStyle = glow;
-  c.fillRect(0, 0, w, h);
-  const hill = (base: number, amp: number, freq: number, phase: number, col: string) => {
-    c.fillStyle = col;
-    c.beginPath();
-    c.moveTo(0, h);
-    for (let x = 0; x <= w; x += 8)
-      c.lineTo(x, h * base - Math.sin(x / (w / freq) + phase) * h * amp - Math.sin(x / (w / (freq * 2.7)) + phase * 2) * h * amp * 0.35);
-    c.lineTo(w, h);
-    c.closePath();
-    c.fill();
-  };
-  hill(0.6, 0.07, 1.3, mood, h1);
-  hill(0.7, 0.06, 2.1, mood + 1.7, h2);
-  c.fillStyle = water;
-  c.globalAlpha = 0.55;
-  c.fillRect(0, h * 0.78, w, h * 0.22);
-  c.globalAlpha = 1;
-  hill(0.86, 0.05, 1.7, mood + 3.1, h3);
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
+  paintHill(ctx, width, height, { base: 0.6, amplitude: 0.07, frequency: 1.3, phase: mood, colour: hill1 });
+  paintHill(ctx, width, height, { base: 0.7, amplitude: 0.06, frequency: 2.1, phase: mood + 1.7, colour: hill2 });
+  ctx.fillStyle = water;
+  ctx.globalAlpha = 0.55;
+  ctx.fillRect(0, height * 0.78, width, height * 0.22);
+  ctx.globalAlpha = 1;
+  paintHill(ctx, width, height, { base: 0.86, amplitude: 0.05, frequency: 1.7, phase: mood + 3.1, colour: hill3 });
   // Crop, rotate and colour looks read the original's natural size, which a canvas doesn't have: give it one.
-  Object.defineProperties(cv, { naturalWidth: { value: w }, naturalHeight: { value: h } });
+  Object.defineProperties(canvas, { naturalWidth: { value: width }, naturalHeight: { value: height } });
   return {
-    id: `sample-${mood}`,
+    id: `sample-${String(mood)}`,
     name: 'Sample photo',
     url: '',
     rot: 0,
@@ -60,9 +88,10 @@ export function samplePhoto(mood: number, w = 900, h = 640): Photo {
     px: 0,
     py: 0,
     look: 'none',
-    orig: cv as unknown as HTMLImageElement,
-    src: cv,
-    sw: w,
-    sh: h,
+    // The canvas stands in for the decoded image: it is drawn like one and has its natural size (set above).
+    orig: canvas as unknown as HTMLImageElement,
+    src: canvas,
+    sw: width,
+    sh: height,
   };
 }

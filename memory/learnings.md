@@ -225,3 +225,18 @@ stroke's clamp went unnoticed: junk almost never builds a stroke with an even nu
 never ran. Add near-valid inputs (a valid shape with random values, some out of range) next to the junk, and plant a
 change in each deep branch to prove the comparison reaches it. In shell loops, `read -r`: plain `read` strips the
 backslashes of a planted `sed` pattern.
+
+## 2026-10-14 — Per-pixel loops: one call per pixel, no array destructuring (407 T035)
+
+Splitting `chainPixels` into small per-pixel functions (chainPixel → lightStep → toneFor → the later steps, colour
+through an array) made the light-only Canvas path 9–20 % slower, though every function was tiny: V8 stops inlining past
+a depth, and `const [a, b, c] = tuple` per pixel costs. Typed scratch buffers didn't help. What did: the light maths
+inline in one function per pixel (colour in plain numbers or a reused object), and the later steps called only when one
+of them is on (0–6 %, noise). `lookPixels` keeps its looks inline for the same reason (its comment says 2–3×). Time
+old against new, interleaved, medians over 9+ rounds: single runs on this machine swing ±15 %.
+
+## 2026-10-14 — Readable code costs bytes in the entry chunk
+
+Minifiers rename locals but keep property names, function boundaries and `?? 0` checks: cleaning `export.ts` and
+`analyze.ts` (both in the entry through `state/`) added ~1.8 KB (entry 327 → 329 KB). `String()` around numbers in
+template strings is unneeded here (D-040 `allowNumber`) and costs bytes; leave numbers bare.

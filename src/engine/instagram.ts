@@ -1,21 +1,24 @@
 import { DEFAULT_ADJUST, mergeAdjust, pixelsNeutral, type Adjustments } from './adjust';
+import { chainNeutral, chainPixels } from './chain';
 import { DETAIL_WIDTH, detailPixels } from './detail';
 import { gpuColour } from './gpu/apply';
 import { gpu } from './gpu/device';
-import { chainNeutral, chainPixels } from './chain';
+import { isObjectLike, isOneOf } from './guards';
+import { mergeMasks } from './maskGate';
 import { frameMask, type FrameMask, type PhotoPlace } from './maskPlace';
 import { maskActive, type Mask } from './masks';
-import { mergeMasks } from './maskGate';
 import { lookPixels } from './photo';
 
 /*
  * The Instagram studio's picture engine, free of UI code: where a photo sits in the frame, applying its colour settings
- * (engine/adjust.ts), and drawing one finished post at any scale. The preview and the exported files go through the same renderIg(), so what
- * the user sees is what they post.
+ * (engine/adjust.ts), and drawing one finished post at any scale. The preview and the exported files go through the
+ * same renderIg(), so what the user sees is what they post.
  */
 
+/** A photo's quarter turns. */
 export type IgRotation = 0 | 90 | 180 | 270;
 
+/** How a photo sits in its frame and how it looks. */
 export interface IgEdit {
   /** fill: cover the frame (edges cropped); fit: the whole photo, with a background around it. */
   fit: 'fill' | 'fit';
@@ -34,6 +37,7 @@ export interface IgEdit {
   masks: Mask[];
 }
 
+/** A photo filling its frame, unchanged. */
 export const DEFAULT_EDIT: IgEdit = {
   fit: 'fill',
   bg: '#ffffff',
@@ -49,221 +53,381 @@ export const DEFAULT_EDIT: IgEdit = {
 /** The edits that "Apply to all" copies: the look of a photo, not where it is placed (nor its masks, drawn on it). */
 export const LOOK_KEYS = ['fit', 'bg', 'adjust'] as const;
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/**
+ * A value within a range.
+ * @param value any number
+ * @param low the least
+ * @param high the most
+ * @returns the value, clamped
+ */
+const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
 const ROTATIONS: readonly IgRotation[] = [0, 90, 180, 270];
 
+/** A colour as the gates and the background accept it. */
+const HEX = /^#[0-9a-f]{6}$/i;
+
 /**
- * The single gate for photo and clip edits from outside the running app (presets, project files, agent tools): returns
- * a complete, valid IgEdit. Reads 2.x edits, whose colour settings sat directly in the edit (see mergeAdjust).
+ * A number within a range, or a fallback.
+ * @param value anything
+ * @param low the least
+ * @param high the most
+ * @param fallback the value when `value` isn't a finite number
+ * @returns the number
+ */
+const num = (value: unknown, low: number, high: number, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? clamp(value, low, high) : fallback;
+
+/**
+ * The single gate for photo and clip edits from outside the running app (presets, project files, agent tools). Reads
+ * 2.x edits, whose colour settings sat directly in the edit (see mergeAdjust).
+ * @param raw anything
+ * @returns a complete, valid edit
  */
 export function mergeEdit(raw: unknown): IgEdit {
-  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const n = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d);
+  const fields = isObjectLike(raw) ? raw : {};
+  const background = fields.bg;
   return {
-    fit: o.fit === 'fit' ? 'fit' : 'fill',
-    bg: o.bg === 'blur' || (typeof o.bg === 'string' && /^#[0-9a-f]{6}$/i.test(o.bg)) ? (o.bg as string) : DEFAULT_EDIT.bg,
-    zoom: n(o.zoom, 1, 4, 1),
-    px: n(o.px, -1, 1, 0),
-    py: n(o.py, -1, 1, 0),
-    rot: ROTATIONS.includes(o.rot as IgRotation) ? (o.rot as IgRotation) : 0,
-    flip: o.flip === true,
-    adjust: mergeAdjust(o.adjust ?? o),
-    masks: mergeMasks(o.masks),
+    fit: fields.fit === 'fit' ? 'fit' : 'fill',
+    bg: typeof background === 'string' && (background === 'blur' || HEX.test(background)) ? background : DEFAULT_EDIT.bg,
+    zoom: num(fields.zoom, 1, 4, 1),
+    px: num(fields.px, -1, 1, 0),
+    py: num(fields.py, -1, 1, 0),
+    rot: isOneOf(ROTATIONS, fields.rot) ? fields.rot : 0,
+    flip: fields.flip === true,
+    adjust: mergeAdjust(fields.adjust ?? fields),
+    masks: mergeMasks(fields.masks),
+  };
+}
+
+/** Where the photo is drawn: its centre and its drawn size (once rotated), pixels. */
+export interface Placement {
+  cx: number;
+  cy: number;
+  dw: number;
+  dh: number;
+}
+
+/**
+ * Where the photo is drawn in a frame.
+ * @param photoWidth the photo's own width, pixels
+ * @param photoHeight its own height, pixels
+ * @param edit its fit, zoom, position and turn
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ * @returns its centre and its size once rotated
+ */
+export function placement(photoWidth: number, photoHeight: number, edit: Pick<IgEdit, 'fit' | 'zoom' | 'px' | 'py' | 'rot'>, frameWidth: number, frameHeight: number): Placement {
+  const turned = edit.rot % 180 !== 0;
+  const turnedWidth = turned ? photoHeight : photoWidth;
+  const turnedHeight = turned ? photoWidth : photoHeight;
+  const base = edit.fit === 'fill' ? Math.max(frameWidth / turnedWidth, frameHeight / turnedHeight) : Math.min(frameWidth / turnedWidth, frameHeight / turnedHeight);
+  const scale = base * clamp(edit.zoom, 1, 4);
+  const drawnWidth = turnedWidth * scale;
+  const drawnHeight = turnedHeight * scale;
+  return {
+    cx: frameWidth / 2 + clamp(edit.px, -1, 1) * (Math.abs(drawnWidth - frameWidth) / 2),
+    cy: frameHeight / 2 + clamp(edit.py, -1, 1) * (Math.abs(drawnHeight - frameHeight) / 2),
+    dw: drawnWidth,
+    dh: drawnHeight,
   };
 }
 
 /**
- * Where the photo is drawn in a W×H frame: its centre and its size once rotated. sw × sh is the photo's own size.
+ * Where and how the photo is drawn on a frame, for laying its masks over it (and painting them).
+ * @param photoWidth the photo's own width, pixels
+ * @param photoHeight its own height, pixels
+ * @param edit the photo's edit
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ * @returns its centre, its own size as drawn (before turning), turn and mirror
  */
-export function placement(sw: number, sh: number, e: Pick<IgEdit, 'fit' | 'zoom' | 'px' | 'py' | 'rot'>, W: number, H: number) {
-  const turned = e.rot % 180 !== 0,
-    ew = turned ? sh : sw,
-    eh = turned ? sw : sh;
-  const base = e.fit === 'fill' ? Math.max(W / ew, H / eh) : Math.min(W / ew, H / eh);
-  const k = base * clamp(e.zoom, 1, 4),
-    dw = ew * k,
-    dh = eh * k;
-  return {
-    cx: W / 2 + clamp(e.px, -1, 1) * (Math.abs(dw - W) / 2),
-    cy: H / 2 + clamp(e.py, -1, 1) * (Math.abs(dh - H) / 2),
-    dw,
-    dh,
-  };
+export function photoPlace(photoWidth: number, photoHeight: number, edit: IgEdit, frameWidth: number, frameHeight: number): PhotoPlace {
+  const placed = placement(photoWidth, photoHeight, edit, frameWidth, frameHeight);
+  const turned = edit.rot % 180 !== 0;
+  return { cx: placed.cx, cy: placed.cy, w: turned ? placed.dh : placed.dw, h: turned ? placed.dw : placed.dh, rot: edit.rot, flip: edit.flip };
 }
 
-/** Where and how the photo is drawn on a W×H frame, for laying its masks over it (and painting them). */
-export function photoPlace(sw: number, sh: number, e: IgEdit, W: number, H: number): PhotoPlace {
-  const p = placement(sw, sh, e, W, H),
-    turned = e.rot % 180 !== 0;
-  return { cx: p.cx, cy: p.cy, w: turned ? p.dh : p.dw, h: turned ? p.dw : p.dh, rot: e.rot, flip: e.flip };
-}
-
-/** True when the photo leaves part of the frame empty, so the background shows. */
-export function showsBackground(sw: number, sh: number, e: IgEdit, W: number, H: number): boolean {
-  const p = placement(sw, sh, e, W, H);
-  return p.cx - p.dw / 2 > 0.5 || p.cy - p.dh / 2 > 0.5 || p.cx + p.dw / 2 < W - 0.5 || p.cy + p.dh / 2 < H - 0.5;
+/**
+ * Whether the photo leaves part of the frame empty, so the background shows.
+ * @param photoWidth the photo's own width, pixels
+ * @param photoHeight its own height, pixels
+ * @param edit the photo's edit
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ * @returns true when an edge of the frame is uncovered (by more than half a pixel)
+ */
+export function showsBackground(photoWidth: number, photoHeight: number, edit: IgEdit, frameWidth: number, frameHeight: number): boolean {
+  const placed = placement(photoWidth, photoHeight, edit, frameWidth, frameHeight);
+  return (
+    placed.cx - placed.dw / 2 > 0.5 ||
+    placed.cy - placed.dh / 2 > 0.5 ||
+    placed.cx + placed.dw / 2 < frameWidth - 0.5 ||
+    placed.cy + placed.dh / 2 < frameHeight - 0.5
+  );
 }
 
 /**
  * The colour chain (engine/chain.ts: look, light and white balance, tone curve, colour mixer), then brightness,
- * contrast, saturation and warmth, on raw RGBA pixels, rounding to 8 bits after the chain and at the end. Transparent pixels are skipped. The GPU path (gpu/colour.ts) mirrors it.
+ * contrast, saturation and warmth, on raw RGBA pixels, rounding to 8 bits after the chain and at the end. Transparent
+ * pixels are skipped. The GPU path (gpu/colour.ts) mirrors it.
+ * @param pixels RGBA, written in place
+ * @param adjust the settings
  */
-export function adjustPixels(a: Uint8ClampedArray, e: Adjustments): void {
-  if (chainNeutral(e)) lookPixels(a, e.look);
-  else chainPixels(a, e);
-  if (!e.brightness && !e.contrast && !e.saturation && !e.warmth) return;
-  const br = (clamp(e.brightness, -100, 100) / 100) * 64,
-    ct = 1 + clamp(e.contrast, -100, 100) / 125,
-    sa = 1 + clamp(e.saturation, -100, 100) / 100,
-    wa = (clamp(e.warmth, -100, 100) / 100) * 24;
-  for (let i = 0; i < a.length; i += 4) {
-    if (a[i + 3] === 0) continue;
-    let r = a[i] + br,
-      g = a[i + 1] + br,
-      b = a[i + 2] + br;
-    r = (r - 128) * ct + 128;
-    g = (g - 128) * ct + 128;
-    b = (b - 128) * ct + 128;
-    const l = 0.299 * r + 0.587 * g + 0.114 * b;
-    r = l + (r - l) * sa + wa;
-    g = l + (g - l) * sa + wa * 0.15;
-    b = l + (b - l) * sa - wa;
-    a[i] = r;
-    a[i + 1] = g;
-    a[i + 2] = b;
+export function adjustPixels(pixels: Uint8ClampedArray, adjust: Adjustments): void {
+  if (chainNeutral(adjust)) lookPixels(pixels, adjust.look);
+  else chainPixels(pixels, adjust);
+  if (!adjust.brightness && !adjust.contrast && !adjust.saturation && !adjust.warmth) return;
+  const brightness = (clamp(adjust.brightness, -100, 100) / 100) * 64;
+  const contrast = 1 + clamp(adjust.contrast, -100, 100) / 125;
+  const saturation = 1 + clamp(adjust.saturation, -100, 100) / 100;
+  const warmth = (clamp(adjust.warmth, -100, 100) / 100) * 24;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (pixels[index + 3] === 0) continue;
+    const red = ((pixels[index] ?? 0) + brightness - 128) * contrast + 128;
+    const green = ((pixels[index + 1] ?? 0) + brightness - 128) * contrast + 128;
+    const blue = ((pixels[index + 2] ?? 0) + brightness - 128) * contrast + 128;
+    const luma = 0.299 * red + 0.587 * green + 0.114 * blue;
+    pixels[index] = luma + (red - luma) * saturation + warmth;
+    pixels[index + 1] = luma + (green - luma) * saturation + warmth * 0.15;
+    pixels[index + 2] = luma + (blue - luma) * saturation - warmth;
   }
 }
 
 /**
  * One mask on the Canvas 2D path: the picture so far with the mask's settings applied, mixed into it by the mask
  * (0 keeps the picture, 1 takes the adjusted one). The GPU does the same with gpu/mask.ts.
+ * @param pixels the picture, RGBA, written in place
+ * @param width pixels
+ * @param height pixels
+ * @param adjust the mask's settings
+ * @param mask the mask on the frame (skipped when its size isn't the picture's)
  */
-export function maskPixels(px: Uint8ClampedArray, W: number, H: number, a: Adjustments, mask: FrameMask): void {
-  const m = mask.data;
-  if (mask.width !== W || mask.height !== H) return;
-  const b = px.slice();
-  adjustPixels(b, a);
-  detailPixels(b, W, H, a, W / DETAIL_WIDTH);
-  for (let i = 0; i < px.length; i += 4) {
-    const k = m[i >> 2];
-    if (!k || !px[i + 3]) continue;
-    const t = k / 255;
-    px[i] += (b[i] - px[i]) * t;
-    px[i + 1] += (b[i + 1] - px[i + 1]) * t;
-    px[i + 2] += (b[i + 2] - px[i + 2]) * t;
+export function maskPixels(pixels: Uint8ClampedArray, width: number, height: number, adjust: Adjustments, mask: FrameMask): void {
+  if (mask.width !== width || mask.height !== height) return;
+  const adjusted = pixels.slice();
+  adjustPixels(adjusted, adjust);
+  detailPixels(adjusted, width, height, adjust, width / DETAIL_WIDTH);
+  for (let index = 0; index < pixels.length; index += 4) {
+    const coverage = mask.data[index >> 2] ?? 0;
+    if (!coverage || !pixels[index + 3]) continue;
+    const share = coverage / 255;
+    for (let channel = index; channel < index + 3; channel++) {
+      const before = pixels[channel] ?? 0;
+      pixels[channel] = before + ((adjusted[channel] ?? 0) - before) * share;
+    }
   }
 }
 
-const canvas = (w: number, h: number) => {
-  const c = document.createElement('canvas');
-  c.width = Math.max(1, Math.round(w));
-  c.height = Math.max(1, Math.round(h));
-  return c;
+/**
+ * A canvas of a size (at least 1 × 1, whole pixels).
+ * @param width pixels
+ * @param height pixels
+ * @returns the canvas
+ */
+const canvasOf = (width: number, height: number): HTMLCanvasElement => {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
+  return canvas;
 };
 
-/** Draws the photo (src, sw × sh) into x centred at cx, cy at dw × dh, turned and mirrored as the edit says. */
-function photoDrawer(src: CanvasImageSource, e: IgEdit) {
-  const turned = e.rot % 180 !== 0;
-  return (x: CanvasRenderingContext2D, cx: number, cy: number, dw: number, dh: number) => {
-    x.save();
+/** Draws the photo centred at a point at a drawn size, turned and mirrored as its edit says. */
+type PhotoDrawer = (ctx: CanvasRenderingContext2D, cx: number, cy: number, drawnWidth: number, drawnHeight: number) => void;
+
+/**
+ * A function drawing a photo as its edit says.
+ * @param src the photo
+ * @param edit its turn and mirror
+ * @returns the drawer
+ */
+function photoDrawer(src: CanvasImageSource, edit: IgEdit): PhotoDrawer {
+  const turned = edit.rot % 180 !== 0;
+  return (ctx, cx, cy, drawnWidth, drawnHeight) => {
+    ctx.save();
     // Restored even when drawImage throws (a video frame closed since it was handed out), so the canvas isn't left
     // moved to the photo's centre for every later draw.
     try {
-      x.translate(cx, cy);
-      x.rotate((e.rot * Math.PI) / 180);
-      if (e.flip) x.scale(-1, 1);
-      const w = turned ? dh : dw,
-        h = turned ? dw : dh;
-      x.drawImage(src, -w / 2, -h / 2, w, h);
+      ctx.translate(cx, cy);
+      ctx.rotate((edit.rot * Math.PI) / 180);
+      if (edit.flip) ctx.scale(-1, 1);
+      const width = turned ? drawnHeight : drawnWidth;
+      const height = turned ? drawnWidth : drawnHeight;
+      ctx.drawImage(src, -width / 2, -height / 2, width, height);
     } finally {
-      x.restore();
+      ctx.restore();
     }
   };
+}
+
+/** A photo to draw: its source and its own size. */
+interface Source {
+  src: CanvasImageSource;
+  width: number;
+  height: number;
+}
+
+/**
+ * A blurred copy of the photo behind it: the photo covering the frame at 1/32 size, scaled back up (works in every
+ * browser), slightly darkened.
+ * @param ctx the frame's context
+ * @param source the photo
+ * @param edit its edit
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ */
+function drawBlurredCopy(ctx: CanvasRenderingContext2D, source: Source, edit: IgEdit, frameWidth: number, frameHeight: number): void {
+  const small = canvasOf(Math.max(8, frameWidth / 32), Math.max(8, frameHeight / 32));
+  const smallCtx = small.getContext('2d');
+  if (!smallCtx) return;
+  const cover = placement(source.width, source.height, { ...edit, fit: 'fill', zoom: 1, px: 0, py: 0 }, small.width, small.height);
+  smallCtx.imageSmoothingQuality = 'high';
+  smallCtx.save();
+  photoDrawer(source.src, edit)(smallCtx, cover.cx, cover.cy, cover.dw, cover.dh);
+  smallCtx.restore();
+  ctx.drawImage(small, 0, 0, frameWidth, frameHeight);
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(0, 0, frameWidth, frameHeight);
 }
 
 /**
  * The background, only where the photo leaves part of the frame empty: a colour, or a blurred copy of the photo. Part
  * of renderIg(); the 16-bit export (engine/deep.ts) draws it on its own and lays the photo over it in full precision.
+ * @param ctx the frame's context
+ * @param src the photo
+ * @param photoWidth its own width, pixels
+ * @param photoHeight its own height, pixels
+ * @param edit its edit
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
  */
-export function drawBackground(ctx: CanvasRenderingContext2D, src: CanvasImageSource, sw: number, sh: number, e: IgEdit, W: number, H: number): void {
-  const drawPhoto = photoDrawer(src, e);
+export function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  src: CanvasImageSource,
+  photoWidth: number,
+  photoHeight: number,
+  edit: IgEdit,
+  frameWidth: number,
+  frameHeight: number,
+): void {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  if (showsBackground(sw, sh, e, W, H)) {
-    if (e.bg === 'blur') {
-      // A blurred copy: the photo covering the frame at 1/32 size, scaled back up (works in every browser).
-      const small = canvas(Math.max(8, W / 32), Math.max(8, H / 32)),
-        sx = small.getContext('2d');
-      if (sx) {
-        const cover = placement(sw, sh, { ...e, fit: 'fill', zoom: 1, px: 0, py: 0 }, small.width, small.height);
-        sx.imageSmoothingQuality = 'high';
-        sx.save();
-        drawPhoto(sx, cover.cx, cover.cy, cover.dw, cover.dh);
-        sx.restore();
-        ctx.drawImage(small, 0, 0, W, H);
-        ctx.fillStyle = 'rgba(0,0,0,0.12)';
-        ctx.fillRect(0, 0, W, H);
-      }
-    } else {
-      ctx.fillStyle = /^#[0-9a-f]{6}$/i.test(e.bg) ? e.bg : '#ffffff';
-      ctx.fillRect(0, 0, W, H);
-    }
+  if (!showsBackground(photoWidth, photoHeight, edit, frameWidth, frameHeight)) return;
+  if (edit.bg === 'blur') {
+    drawBlurredCopy(ctx, { src, width: photoWidth, height: photoHeight }, edit, frameWidth, frameHeight);
+    return;
   }
-}
-
-/** The vignette's darkening at frame pixel (x, y), 0–1, exactly as renderIg()'s radial gradient draws it. */
-export function vignetteAt(x: number, y: number, W: number, H: number, vignette: number): number {
-  if (!(vignette > 0)) return 0;
-  const r0 = Math.min(W, H) * 0.35,
-    r1 = Math.hypot(W, H) / 2,
-    t = Math.min(1, Math.max(0, (Math.hypot(x - W / 2, y - H / 2) - r0) / (r1 - r0)));
-  return t * (clamp(vignette, 0, 100) / 100) * 0.6;
+  ctx.fillStyle = HEX.test(edit.bg) ? edit.bg : '#ffffff';
+  ctx.fillRect(0, 0, frameWidth, frameHeight);
 }
 
 /**
- * Draws a finished post into ctx (W×H): background, the photo placed, rotated and mirrored, its colour adjusted, and
- * the vignette. src is the photo (sw × sh); a smaller copy works for previews.
+ * The vignette's darkening at a frame pixel, exactly as renderIg()'s radial gradient draws it.
+ * @param x frame pixels
+ * @param y frame pixels
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ * @param vignette the setting, 0–100
+ * @returns 0–1
  */
-export function renderIg(ctx: CanvasRenderingContext2D, src: CanvasImageSource, sw: number, sh: number, e: IgEdit, W: number, H: number): void {
-  const p = placement(sw, sh, e, W, H);
-  const drawPhoto = photoDrawer(src, e);
-  drawBackground(ctx, src, sw, sh, e, W, H);
+export function vignetteAt(x: number, y: number, frameWidth: number, frameHeight: number, vignette: number): number {
+  if (Number.isNaN(vignette) || vignette <= 0) return 0;
+  const inner = Math.min(frameWidth, frameHeight) * 0.35;
+  const outer = Math.hypot(frameWidth, frameHeight) / 2;
+  const along = Math.min(1, Math.max(0, (Math.hypot(x - frameWidth / 2, y - frameHeight / 2) - inner) / (outer - inner)));
+  return along * (clamp(vignette, 0, 100) / 100) * 0.6;
+}
 
-  // The photo, on its own layer so the colour adjustments leave the background alone. The colour runs on the GPU when
-  // the media studio has opened a device (gpu/apply.ts), else on the CPU here; both give the same pixels.
-  const masks = (e.masks ?? []).filter(maskActive);
-  if (pixelsNeutral(e.adjust) && !masks.length) drawPhoto(ctx, p.cx, p.cy, p.dw, p.dh);
-  else {
-    // Each mask laid on the frame where the photo is: the same raster for both paths.
-    const place = photoPlace(sw, sh, e, W, H);
-    const local = masks.map((m) => ({ adjust: m.adjust, mask: frameMask(m, sw, sh, place, W, H, src) }));
-    // The same canvas mode on both paths: an accelerated canvas draws the photo's fractional edges differently from a
-    // read-back one, which would make the two paths disagree along the edge of the photo.
-    const onGpu = !!gpu(),
-      layer = canvas(W, H),
-      lx = layer.getContext('2d', { willReadFrequently: true });
-    if (lx) {
-      lx.imageSmoothingQuality = 'high';
-      drawPhoto(lx, p.cx, p.cy, p.dw, p.dh);
-      if (!onGpu || !gpuColour(ctx, layer, e.adjust, W, H, local)) {
-        const d = lx.getImageData(0, 0, layer.width, layer.height);
-        adjustPixels(d.data, e.adjust);
-        // Detail sizes are for a 1080 px frame, scaled to this one, so preview and export match.
-        detailPixels(d.data, layer.width, layer.height, e.adjust, layer.width / DETAIL_WIDTH);
-        for (const l of local) maskPixels(d.data, layer.width, layer.height, l.adjust, l.mask);
-        lx.putImageData(d, 0, 0);
-        ctx.drawImage(layer, 0, 0, W, H);
-      }
-    }
-  }
+/** A mask laid on the frame, with its settings. */
+interface LocalAdjustment {
+  adjust: Adjustments;
+  mask: FrameMask;
+}
 
-  const vignette = e.adjust.vignette;
-  if (vignette > 0) {
-    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) / 2);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, `rgba(0,0,0,${(clamp(vignette, 0, 100) / 100) * 0.6})`);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+/**
+ * The photo with its colour, detail and masks, on its own layer so the adjustments leave the background alone. The
+ * colour runs on the GPU when the media studio has opened a device (gpu/apply.ts), else on the CPU here; both give the
+ * same pixels.
+ * @param ctx the frame's context
+ * @param source the photo
+ * @param edit its edit
+ * @param masks the masks that change something
+ * @param frame the frame's size
+ * @param frame.width pixels
+ * @param frame.height pixels
+ */
+function drawAdjustedPhoto(ctx: CanvasRenderingContext2D, source: Source, edit: IgEdit, masks: Mask[], frame: { width: number; height: number }): void {
+  const { width, height } = frame;
+  const placed = placement(source.width, source.height, edit, width, height);
+  // Each mask laid on the frame where the photo is: the same raster for both paths.
+  const place = photoPlace(source.width, source.height, edit, width, height);
+  const local: LocalAdjustment[] = masks.map((mask) => ({ adjust: mask.adjust, mask: frameMask(mask, source.width, source.height, place, width, height, source.src) }));
+  // The same canvas mode on both paths: an accelerated canvas draws the photo's fractional edges differently from a
+  // read-back one, which would make the two paths disagree along the edge of the photo.
+  const onGpu = !!gpu();
+  const layer = canvasOf(width, height);
+  const layerCtx = layer.getContext('2d', { willReadFrequently: true });
+  if (!layerCtx) return;
+  layerCtx.imageSmoothingQuality = 'high';
+  photoDrawer(source.src, edit)(layerCtx, placed.cx, placed.cy, placed.dw, placed.dh);
+  if (onGpu && gpuColour(ctx, layer, edit.adjust, width, height, local)) return;
+  const image = layerCtx.getImageData(0, 0, layer.width, layer.height);
+  adjustPixels(image.data, edit.adjust);
+  // Detail sizes are for a 1080 px frame, scaled to this one, so preview and export match.
+  detailPixels(image.data, layer.width, layer.height, edit.adjust, layer.width / DETAIL_WIDTH);
+  for (const adjustment of local) maskPixels(image.data, layer.width, layer.height, adjustment.adjust, adjustment.mask);
+  layerCtx.putImageData(image, 0, 0);
+  ctx.drawImage(layer, 0, 0, width, height);
+}
+
+/**
+ * The vignette: a radial gradient darkening the corners.
+ * @param ctx the frame's context
+ * @param vignette the setting, 0–100
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ */
+function drawVignette(ctx: CanvasRenderingContext2D, vignette: number, frameWidth: number, frameHeight: number): void {
+  const gradient = ctx.createRadialGradient(
+    frameWidth / 2,
+    frameHeight / 2,
+    Math.min(frameWidth, frameHeight) * 0.35,
+    frameWidth / 2,
+    frameHeight / 2,
+    Math.hypot(frameWidth, frameHeight) / 2,
+  );
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, `rgba(0,0,0,${String((clamp(vignette, 0, 100) / 100) * 0.6)})`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, frameWidth, frameHeight);
+}
+
+/**
+ * Draws a finished post: background, the photo placed, rotated and mirrored, its colour adjusted, and the vignette.
+ * @param ctx the frame's context
+ * @param src the photo (a smaller copy works for previews)
+ * @param photoWidth its own width, pixels
+ * @param photoHeight its own height, pixels
+ * @param edit its edit
+ * @param frameWidth the frame's width, pixels
+ * @param frameHeight its height, pixels
+ */
+export function renderIg(
+  ctx: CanvasRenderingContext2D,
+  src: CanvasImageSource,
+  photoWidth: number,
+  photoHeight: number,
+  edit: IgEdit,
+  frameWidth: number,
+  frameHeight: number,
+): void {
+  drawBackground(ctx, src, photoWidth, photoHeight, edit, frameWidth, frameHeight);
+  const masks = edit.masks.filter(maskActive);
+  if (pixelsNeutral(edit.adjust) && !masks.length) {
+    const placed = placement(photoWidth, photoHeight, edit, frameWidth, frameHeight);
+    photoDrawer(src, edit)(ctx, placed.cx, placed.cy, placed.dw, placed.dh);
+  } else {
+    drawAdjustedPhoto(ctx, { src, width: photoWidth, height: photoHeight }, edit, masks, { width: frameWidth, height: frameHeight });
   }
+  if (edit.adjust.vignette > 0) drawVignette(ctx, edit.adjust.vignette, frameWidth, frameHeight);
 }

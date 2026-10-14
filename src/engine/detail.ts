@@ -11,19 +11,29 @@ import type { Adjustments } from './adjust';
  * pixel by its alpha, so the transparent surround of a "whole photo" frame never darkens the photo's edge.
  */
 
+/** The detail settings. */
 export type DetailKey = 'noise' | 'dehaze' | 'clarity' | 'sharpen' | 'sharpenRadius' | 'sharpenMask' | 'grain';
 
-/** True when no detail setting changes anything. */
-export const detailNeutral = (a: Adjustments): boolean => !a.noise && !a.dehaze && !a.clarity && !a.sharpen && !a.grain;
+/**
+ * Whether no detail setting changes anything.
+ * @param adjust the settings
+ * @returns true when noise, dehaze, clarity, sharpening and grain are all 0
+ */
+export const detailNeutral = (adjust: Adjustments): boolean => !adjust.noise && !adjust.dehaze && !adjust.clarity && !adjust.sharpen && !adjust.grain;
 
 /** Frame width the sizes below are given for. */
 export const DETAIL_WIDTH = 1080;
-/** Gaussian blur sizes (sigma, px at 1080 wide): the large ones for clarity and the dehaze haze map. */
-export const CLARITY_SIGMA = 12,
-  HAZE_SIGMA = 20;
+
+/** Gaussian blur size (sigma, px at 1080 wide) for clarity. */
+export const CLARITY_SIGMA = 12;
+
+/** Gaussian blur size (sigma, px at 1080 wide) for the dehaze haze map. */
+export const HAZE_SIGMA = 20;
+
 /** At most this many taps either side of a blur; wider blurs take every k-th pixel instead. */
 export const MAX_TAPS = 16;
 
+/** A blur's taps. */
 export interface Kernel {
   /** Distance in pixels between taps. */
   step: number;
@@ -31,211 +41,398 @@ export interface Kernel {
   weights: number[];
 }
 
-/** A Gaussian blur of the given sigma (px), as taps every `step` px, at most MAX_TAPS either side. */
+/**
+ * A Gaussian blur as taps every `step` px, at most MAX_TAPS either side.
+ * @param sigma the blur's sigma, pixels
+ * @returns the kernel
+ */
 export function gaussKernel(sigma: number): Kernel {
-  const s = Math.max(0.3, sigma),
-    step = Math.max(1, Math.ceil((3 * s) / MAX_TAPS)),
-    n = Math.max(1, Math.ceil((3 * s) / step)),
-    raw = Array.from({ length: 2 * n + 1 }, (_, i) => Math.exp(-(((i - n) * step) ** 2) / (2 * s * s))),
-    sum = raw.reduce((a, b) => a + b, 0);
-  return { step, weights: raw.map((w) => w / sum) };
+  const spread = Math.max(0.3, sigma);
+  const step = Math.max(1, Math.ceil((3 * spread) / MAX_TAPS));
+  const reach = Math.max(1, Math.ceil((3 * spread) / step));
+  const raw = Array.from({ length: 2 * reach + 1 }, (_, index) => Math.exp(-(((index - reach) * step) ** 2) / (2 * spread * spread)));
+  const sum = raw.reduce((total, weight) => total + weight, 0);
+  return { step, weights: raw.map((weight) => weight / sum) };
 }
 
-/** Grain cell size (px at 1080 wide) and the integer hash both paths use for it. */
+/** Grain cell size (px at 1080 wide). */
 export const GRAIN_CELL = 1.6;
-export function hash2(x: number, y: number): number {
-  let h = (Math.imul(x | 0, 0x8da6b343) ^ Math.imul(y | 0, 0xd8163841)) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x7feb352d) >>> 0;
-  h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-/** Smooth value noise in 0–1 at a point measured in grain cells. */
-export function grainAt(gx: number, gy: number): number {
-  const ix = Math.floor(gx),
-    iy = Math.floor(gy),
-    fx = gx - ix,
-    fy = gy - iy,
-    sx = fx * fx * (3 - 2 * fx),
-    sy = fy * fy * (3 - 2 * fy);
-  const a = hash2(ix, iy) + (hash2(ix + 1, iy) - hash2(ix, iy)) * sx,
-    b = hash2(ix, iy + 1) + (hash2(ix + 1, iy + 1) - hash2(ix, iy + 1)) * sx;
-  return a + (b - a) * sy;
-}
-
-const LR = 0.299,
-  LG = 0.587,
-  LB = 0.114;
-const clampI = (v: number, hi: number) => (v < 0 ? 0 : v > hi ? hi : v);
 
 /**
- * Separable alpha-weighted blur of a straight-alpha image (W×H×4, 0–1). Returns straight colour with the blurred alpha.
- * Edges repeat the border pixel, as a GPU sampler set to clamp does.
+ * The integer hash both paths use for grain.
+ * @param x a cell's column
+ * @param y a cell's row
+ * @returns 0–1
  */
-export function blurImage(src: Float32Array, W: number, H: number, k: Kernel): Float32Array {
-  const n = (k.weights.length - 1) / 2,
-    mid = new Float32Array(src.length),
-    out = new Float32Array(src.length);
-  // Horizontal: premultiplied sums.
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      let r = 0,
-        g = 0,
-        b = 0,
-        a = 0;
-      for (let t = -n; t <= n; t++) {
-        const j = (y * W + clampI(x + t * k.step, W - 1)) * 4,
-          w = k.weights[t + n] * src[j + 3];
-        r += w * src[j];
-        g += w * src[j + 1];
-        b += w * src[j + 2];
-        a += w;
+export function hash2(x: number, y: number): number {
+  let hash = (Math.imul(x | 0, 0x8da6b343) ^ Math.imul(y | 0, 0xd8163841)) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 16), 0x7feb352d) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 15), 0x846ca68b) >>> 0;
+  return ((hash ^ (hash >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Smooth value noise.
+ * @param cellX a point's x, in grain cells
+ * @param cellY its y, in grain cells
+ * @returns 0–1
+ */
+export function grainAt(cellX: number, cellY: number): number {
+  const column = Math.floor(cellX);
+  const row = Math.floor(cellY);
+  const fractionX = cellX - column;
+  const fractionY = cellY - row;
+  const easeX = fractionX * fractionX * (3 - 2 * fractionX);
+  const easeY = fractionY * fractionY * (3 - 2 * fractionY);
+  const top = hash2(column, row) + (hash2(column + 1, row) - hash2(column, row)) * easeX;
+  const bottom = hash2(column, row + 1) + (hash2(column + 1, row + 1) - hash2(column, row + 1)) * easeX;
+  return top + (bottom - top) * easeY;
+}
+
+/** Rec. 601 luma weights. */
+const LUMA_RED = 0.299;
+const LUMA_GREEN = 0.587;
+const LUMA_BLUE = 0.114;
+
+/**
+ * An index clamped to 0 – last (edges repeat the border pixel, as a GPU sampler set to clamp does).
+ * @param index any index
+ * @param last the last valid index
+ * @returns the index, clamped
+ */
+const clampIndex = (index: number, last: number): number => {
+  if (index < 0) return 0;
+  return index > last ? last : index;
+};
+
+/**
+ * A pixel's luma.
+ * @param image RGBA, 0–1
+ * @param offset the pixel's first value
+ * @returns 0–1
+ */
+const lumaAt = (image: Float32Array, offset: number): number =>
+  LUMA_RED * (image[offset] ?? 0) + LUMA_GREEN * (image[offset + 1] ?? 0) + LUMA_BLUE * (image[offset + 2] ?? 0);
+
+/**
+ * The blur's horizontal pass: alpha-weighted (premultiplied) sums.
+ * @param src the image, straight alpha
+ * @param width pixels
+ * @param height pixels
+ * @param kernel the blur
+ * @returns premultiplied sums with the blurred alpha
+ */
+function blurRows(src: Float32Array, width: number, height: number, kernel: Kernel): Float32Array {
+  const reach = (kernel.weights.length - 1) / 2;
+  const sums = new Float32Array(src.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let alpha = 0;
+      for (let tap = -reach; tap <= reach; tap++) {
+        const offset = (y * width + clampIndex(x + tap * kernel.step, width - 1)) * 4;
+        const weight = (kernel.weights[tap + reach] ?? 0) * (src[offset + 3] ?? 0);
+        red += weight * (src[offset] ?? 0);
+        green += weight * (src[offset + 1] ?? 0);
+        blue += weight * (src[offset + 2] ?? 0);
+        alpha += weight;
       }
-      const i = (y * W + x) * 4;
-      mid[i] = r;
-      mid[i + 1] = g;
-      mid[i + 2] = b;
-      mid[i + 3] = a;
+      const target = (y * width + x) * 4;
+      sums[target] = red;
+      sums[target + 1] = green;
+      sums[target + 2] = blue;
+      sums[target + 3] = alpha;
     }
-  // Vertical, then back to straight colour.
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      let r = 0,
-        g = 0,
-        b = 0,
-        a = 0;
-      for (let t = -n; t <= n; t++) {
-        const j = (clampI(y + t * k.step, H - 1) * W + x) * 4,
-          w = k.weights[t + n];
-        r += w * mid[j];
-        g += w * mid[j + 1];
-        b += w * mid[j + 2];
-        a += w * mid[j + 3];
+  }
+  return sums;
+}
+
+/**
+ * The blur's vertical pass, then back to straight colour.
+ * @param sums the horizontal pass's premultiplied sums
+ * @param width pixels
+ * @param height pixels
+ * @param kernel the blur
+ * @returns straight colour with the blurred alpha
+ */
+function blurColumns(sums: Float32Array, width: number, height: number, kernel: Kernel): Float32Array {
+  const reach = (kernel.weights.length - 1) / 2;
+  const out = new Float32Array(sums.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let alpha = 0;
+      for (let tap = -reach; tap <= reach; tap++) {
+        const offset = (clampIndex(y + tap * kernel.step, height - 1) * width + x) * 4;
+        const weight = kernel.weights[tap + reach] ?? 0;
+        red += weight * (sums[offset] ?? 0);
+        green += weight * (sums[offset + 1] ?? 0);
+        blue += weight * (sums[offset + 2] ?? 0);
+        alpha += weight * (sums[offset + 3] ?? 0);
       }
-      const i = (y * W + x) * 4;
-      out[i] = a > 0 ? r / a : 0;
-      out[i + 1] = a > 0 ? g / a : 0;
-      out[i + 2] = a > 0 ? b / a : 0;
-      out[i + 3] = a;
+      const target = (y * width + x) * 4;
+      out[target] = alpha > 0 ? red / alpha : 0;
+      out[target + 1] = alpha > 0 ? green / alpha : 0;
+      out[target + 2] = alpha > 0 ? blue / alpha : 0;
+      out[target + 3] = alpha;
     }
+  }
   return out;
 }
 
-/** Noise reduction: a 5×5 edge-preserving (bilateral) filter, taps `step` px apart. */
+/**
+ * A separable alpha-weighted blur of a straight-alpha image. Edges repeat the border pixel.
+ * @param src the image, RGBA 0–1, width × height
+ * @param width pixels
+ * @param height pixels
+ * @param kernel the blur
+ * @returns straight colour with the blurred alpha
+ */
+export function blurImage(src: Float32Array, width: number, height: number, kernel: Kernel): Float32Array {
+  return blurColumns(blurRows(src, width, height, kernel), width, height, kernel);
+}
+
+/** Noise reduction's spatial sigma, taps. */
 export const NOISE_SIGMA_S = 1.5;
-export function noiseParams(amount: number, scale: number) {
+
+/** Noise reduction's settings at a frame size. */
+export interface NoiseParams {
+  /** Pixels between taps. */
+  step: number;
+  /** How different a neighbour's luma may be and still count. */
+  sigmaR: number;
+  /** The spatial falloff: 1 / (2σ²) in taps. */
+  spatial: number;
+}
+
+/**
+ * Noise reduction's settings: a 5×5 edge-preserving (bilateral) filter, taps `step` px apart.
+ * @param amount the setting, 0–100
+ * @param scale the frame width over DETAIL_WIDTH
+ * @returns the filter's settings
+ */
+export function noiseParams(amount: number, scale: number): NoiseParams {
   const step = Math.max(1, Math.round(scale));
   return { step, sigmaR: (amount / 100) * 0.12, spatial: 1 / (2 * ((NOISE_SIGMA_S * scale) / step) ** 2) };
 }
-function denoise(src: Float32Array, W: number, H: number, amount: number, scale: number): Float32Array {
-  const { step, sigmaR, spatial } = noiseParams(amount, scale),
-    range = 1 / (2 * sigmaR * sigmaR),
-    out = new Float32Array(src.length);
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = (y * W + x) * 4;
-      if (src[i + 3] === 0) {
-        out.set(src.subarray(i, i + 4), i);
-        continue;
-      }
-      const l0 = LR * src[i] + LG * src[i + 1] + LB * src[i + 2];
-      let r = 0,
-        g = 0,
-        b = 0,
-        s = 0;
-      for (let dy = -2; dy <= 2; dy++)
-        for (let dx = -2; dx <= 2; dx++) {
-          const j = (clampI(y + dy * step, H - 1) * W + clampI(x + dx * step, W - 1)) * 4,
-            dl = LR * src[j] + LG * src[j + 1] + LB * src[j + 2] - l0,
-            w = Math.exp(-(dx * dx + dy * dy) * spatial - dl * dl * range) * src[j + 3];
-          r += w * src[j];
-          g += w * src[j + 1];
-          b += w * src[j + 2];
-          s += w;
-        }
-      out[i] = r / s;
-      out[i + 1] = g / s;
-      out[i + 2] = b / s;
-      out[i + 3] = src[i + 3];
-    }
-  return out;
-}
 
-/** The dark channel (darkest of red, green, blue), the haze estimate dehaze blurs. */
-function darkChannel(src: Float32Array): Float32Array {
-  const out = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i += 4) {
-    const d = Math.min(src[i], src[i + 1], src[i + 2]);
-    out[i] = out[i + 1] = out[i + 2] = d;
-    out[i + 3] = src[i + 3];
-  }
-  return out;
-}
-
-/** One pixel of dehaze, from its colour and the blurred dark channel h: positive removes haze, negative adds it. */
-export function dehazeAt(c: number, h: number, k: number): number {
-  if (k > 0) return (c - 1) / Math.max(1 - k * 0.95 * h, 0.1) + 1;
-  return c + -k * 0.4 * (0.9 - c);
+/** A bilateral filter at a frame size: its tap step and the two falloffs. */
+interface Bilateral {
+  step: number;
+  spatial: number;
+  /** The range falloff: 1 / (2σr²). */
+  range: number;
 }
 
 /**
- * Runs the detail settings over a straight-alpha RGBA image (0–255 in, 0–255 out, rounded once at the end). scale is
- * the frame width over DETAIL_WIDTH.
+ * One pixel of the bilateral filter: its neighbours weighted by distance, by how near their luma is, and by alpha.
+ * @param src the image
+ * @param size the image's width and height
+ * @param size.width pixels
+ * @param size.height pixels
+ * @param x the pixel's column
+ * @param y its row
+ * @param filter the filter
+ * @param out the image written
  */
-export function detailPixels(px: Uint8ClampedArray, W: number, H: number, a: Adjustments, scale: number): void {
-  if (detailNeutral(a)) return;
-  let img: Float32Array = new Float32Array(px.length);
-  for (let i = 0; i < px.length; i++) img[i] = px[i] / 255;
+function bilateralAt(src: Float32Array, size: { width: number; height: number }, x: number, y: number, filter: Bilateral, out: Float32Array): void {
+  const { width, height } = size;
+  const offset = (y * width + x) * 4;
+  const centre = lumaAt(src, offset);
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let total = 0;
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      const tap = (clampIndex(y + dy * filter.step, height - 1) * width + clampIndex(x + dx * filter.step, width - 1)) * 4;
+      const lumaDifference = lumaAt(src, tap) - centre;
+      const weight = Math.exp(-(dx * dx + dy * dy) * filter.spatial - lumaDifference * lumaDifference * filter.range) * (src[tap + 3] ?? 0);
+      red += weight * (src[tap] ?? 0);
+      green += weight * (src[tap + 1] ?? 0);
+      blue += weight * (src[tap + 2] ?? 0);
+      total += weight;
+    }
+  }
+  out[offset] = red / total;
+  out[offset + 1] = green / total;
+  out[offset + 2] = blue / total;
+  out[offset + 3] = src[offset + 3] ?? 0;
+}
 
-  if (a.noise > 0) img = denoise(img, W, H, a.noise, scale);
-  if (a.dehaze) {
-    const haze = blurImage(darkChannel(img), W, H, gaussKernel(HAZE_SIGMA * scale)),
-      k = a.dehaze / 100;
-    for (let i = 0; i < img.length; i += 4)
-      if (img[i + 3] > 0) for (let c = 0; c < 3; c++) img[i + c] = dehazeAt(img[i + c], haze[i], k);
-  }
-  if (a.clarity) {
-    const blur = blurImage(img, W, H, gaussKernel(CLARITY_SIGMA * scale)),
-      k = (a.clarity / 100) * 0.7;
-    for (let i = 0; i < img.length; i += 4) {
-      if (img[i + 3] === 0) continue;
-      const l = LR * img[i] + LG * img[i + 1] + LB * img[i + 2],
-        w = 1 - (2 * l - 1) ** 2;
-      for (let c = 0; c < 3; c++) img[i + c] += (img[i + c] - blur[i + c]) * k * w;
+/**
+ * Noise reduction over an image; transparent pixels are kept as they are.
+ * @param src the image, RGBA 0–1
+ * @param width pixels
+ * @param height pixels
+ * @param amount the setting, 0–100
+ * @param scale the frame width over DETAIL_WIDTH
+ * @returns the filtered image
+ */
+function denoise(src: Float32Array, width: number, height: number, amount: number, scale: number): Float32Array {
+  const { step, sigmaR, spatial } = noiseParams(amount, scale);
+  const filter: Bilateral = { step, spatial, range: 1 / (2 * sigmaR * sigmaR) };
+  const size = { width, height };
+  const out = new Float32Array(src.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const offset = (y * width + x) * 4;
+      if (src[offset + 3] === 0) out.set(src.subarray(offset, offset + 4), offset);
+      else bilateralAt(src, size, x, y, filter, out);
     }
   }
-  if (a.sharpen > 0) {
-    const blur = blurImage(img, W, H, gaussKernel(a.sharpenRadius * scale)),
-      amt = (a.sharpen / 100) * 1.5,
-      th = (a.sharpenMask / 100) * 0.08;
-    for (let i = 0; i < img.length; i += 4) {
-      if (img[i + 3] === 0) continue;
-      const dr = img[i] - blur[i],
-        dg = img[i + 1] - blur[i + 1],
-        db = img[i + 2] - blur[i + 2],
-        e = Math.abs(LR * dr + LG * dg + LB * db),
-        t = th > 0 ? Math.min(1, Math.max(0, (e - th) / (th + 0.01))) : 1,
-        m = amt * t * t * (3 - 2 * t);
-      img[i] += dr * m;
-      img[i + 1] += dg * m;
-      img[i + 2] += db * m;
+  return out;
+}
+
+/**
+ * The dark channel (darkest of red, green, blue), the haze estimate dehaze blurs.
+ * @param src the image, RGBA 0–1
+ * @returns the dark channel as a grey image, with the image's alpha
+ */
+function darkChannel(src: Float32Array): Float32Array {
+  const out = new Float32Array(src.length);
+  for (let offset = 0; offset < src.length; offset += 4) {
+    const darkest = Math.min(src[offset] ?? 0, src[offset + 1] ?? 0, src[offset + 2] ?? 0);
+    out[offset] = darkest;
+    out[offset + 1] = darkest;
+    out[offset + 2] = darkest;
+    out[offset + 3] = src[offset + 3] ?? 0;
+  }
+  return out;
+}
+
+/**
+ * One channel of dehaze: positive removes haze, negative adds it.
+ * @param channel the colour channel, 0–1
+ * @param haze the blurred dark channel there
+ * @param strength the setting as a fraction, -1 to 1
+ * @returns the new channel
+ */
+export function dehazeAt(channel: number, haze: number, strength: number): number {
+  if (strength > 0) return (channel - 1) / Math.max(1 - strength * 0.95 * haze, 0.1) + 1;
+  return channel + -strength * 0.4 * (0.9 - channel);
+}
+
+/**
+ * Dehaze over an image, in place.
+ * @param image the image, RGBA 0–1
+ * @param size its width and height
+ * @param size.width pixels
+ * @param size.height pixels
+ * @param amount the setting, -100 to 100
+ * @param scale the frame width over DETAIL_WIDTH
+ */
+function dehazeImage(image: Float32Array, size: { width: number; height: number }, amount: number, scale: number): void {
+  const haze = blurImage(darkChannel(image), size.width, size.height, gaussKernel(HAZE_SIGMA * scale));
+  const strength = amount / 100;
+  for (let offset = 0; offset < image.length; offset += 4) {
+    if ((image[offset + 3] ?? 0) > 0) {
+      for (let channel = 0; channel < 3; channel++) image[offset + channel] = dehazeAt(image[offset + channel] ?? 0, haze[offset] ?? 0, strength);
     }
   }
-  if (a.grain > 0) {
-    const amt = (a.grain / 100) * 0.12,
-      cell = GRAIN_CELL * scale;
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        if (img[i + 3] === 0) continue;
-        const n = (grainAt((x + 0.5) / cell, (y + 0.5) / cell) - 0.5) * amt;
-        img[i] += n;
-        img[i + 1] += n;
-        img[i + 2] += n;
-      }
+}
+
+/**
+ * Clarity over an image, in place: local contrast against a wide blur, strongest in the mid tones.
+ * @param image the image, RGBA 0–1
+ * @param size its width and height
+ * @param size.width pixels
+ * @param size.height pixels
+ * @param amount the setting, -100 to 100
+ * @param scale the frame width over DETAIL_WIDTH
+ */
+function clarityImage(image: Float32Array, size: { width: number; height: number }, amount: number, scale: number): void {
+  const blur = blurImage(image, size.width, size.height, gaussKernel(CLARITY_SIGMA * scale));
+  const strength = (amount / 100) * 0.7;
+  for (let offset = 0; offset < image.length; offset += 4) {
+    if (image[offset + 3] === 0) continue;
+    const midTones = 1 - (2 * lumaAt(image, offset) - 1) ** 2;
+    for (let channel = 0; channel < 3; channel++) {
+      const value = image[offset + channel] ?? 0;
+      image[offset + channel] = value + (value - (blur[offset + channel] ?? 0)) * strength * midTones;
+    }
   }
-  for (let i = 0; i < px.length; i += 4) {
-    px[i] = img[i] * 255;
-    px[i + 1] = img[i + 1] * 255;
-    px[i + 2] = img[i + 2] * 255;
+}
+
+/**
+ * Sharpening over an image, in place: an unsharp mask, held back where the detail is below the edge mask.
+ * @param image the image, RGBA 0–1
+ * @param size its width and height
+ * @param size.width pixels
+ * @param size.height pixels
+ * @param adjust the sharpening settings
+ * @param scale the frame width over DETAIL_WIDTH
+ */
+function sharpenImage(image: Float32Array, size: { width: number; height: number }, adjust: Pick<Adjustments, 'sharpen' | 'sharpenRadius' | 'sharpenMask'>, scale: number): void {
+  const blur = blurImage(image, size.width, size.height, gaussKernel(adjust.sharpenRadius * scale));
+  const amount = (adjust.sharpen / 100) * 1.5;
+  const threshold = (adjust.sharpenMask / 100) * 0.08;
+  for (let offset = 0; offset < image.length; offset += 4) {
+    if (image[offset + 3] === 0) continue;
+    const red = image[offset] ?? 0;
+    const green = image[offset + 1] ?? 0;
+    const blue = image[offset + 2] ?? 0;
+    const detailRed = red - (blur[offset] ?? 0);
+    const detailGreen = green - (blur[offset + 1] ?? 0);
+    const detailBlue = blue - (blur[offset + 2] ?? 0);
+    const edge = Math.abs(LUMA_RED * detailRed + LUMA_GREEN * detailGreen + LUMA_BLUE * detailBlue);
+    const masked = threshold > 0 ? Math.min(1, Math.max(0, (edge - threshold) / (threshold + 0.01))) : 1;
+    const strength = amount * masked * masked * (3 - 2 * masked);
+    image[offset] = red + detailRed * strength;
+    image[offset + 1] = green + detailGreen * strength;
+    image[offset + 2] = blue + detailBlue * strength;
+  }
+}
+
+/**
+ * Grain over an image, in place.
+ * @param image the image, RGBA 0–1
+ * @param size its width and height
+ * @param size.width pixels
+ * @param size.height pixels
+ * @param amount the setting, 0–100
+ * @param scale the frame width over DETAIL_WIDTH
+ */
+function grainImage(image: Float32Array, size: { width: number; height: number }, amount: number, scale: number): void {
+  const strength = (amount / 100) * 0.12;
+  const cell = GRAIN_CELL * scale;
+  for (let y = 0; y < size.height; y++) {
+    for (let x = 0; x < size.width; x++) {
+      const offset = (y * size.width + x) * 4;
+      if (image[offset + 3] === 0) continue;
+      const noise = (grainAt((x + 0.5) / cell, (y + 0.5) / cell) - 0.5) * strength;
+      image[offset] = (image[offset] ?? 0) + noise;
+      image[offset + 1] = (image[offset + 1] ?? 0) + noise;
+      image[offset + 2] = (image[offset + 2] ?? 0) + noise;
+    }
+  }
+}
+
+/**
+ * Runs the detail settings over a straight-alpha RGBA image, rounded once at the end.
+ * @param pixels the image, 0–255, written in place
+ * @param width pixels
+ * @param height pixels
+ * @param adjust the settings
+ * @param scale the frame width over DETAIL_WIDTH
+ */
+export function detailPixels(pixels: Uint8ClampedArray, width: number, height: number, adjust: Adjustments, scale: number): void {
+  if (detailNeutral(adjust)) return;
+  const size = { width, height };
+  let image: Float32Array = new Float32Array(pixels.length);
+  for (let index = 0; index < pixels.length; index++) image[index] = (pixels[index] ?? 0) / 255;
+  if (adjust.noise > 0) image = denoise(image, width, height, adjust.noise, scale);
+  if (adjust.dehaze) dehazeImage(image, size, adjust.dehaze, scale);
+  if (adjust.clarity) clarityImage(image, size, adjust.clarity, scale);
+  if (adjust.sharpen > 0) sharpenImage(image, size, adjust, scale);
+  if (adjust.grain > 0) grainImage(image, size, adjust.grain, scale);
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    pixels[offset] = (image[offset] ?? 0) * 255;
+    pixels[offset + 1] = (image[offset + 1] ?? 0) * 255;
+    pixels[offset + 2] = (image[offset + 2] ?? 0) * 255;
   }
 }

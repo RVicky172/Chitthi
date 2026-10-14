@@ -25,6 +25,8 @@ const FINISHED = [
   'src/engine/{render,themeBackground,printText,photoSlots,postalDecor,frontText,cardFront,cardBack,calendarDraw}.ts',
   // 407 T034: layers.ts and masks.ts split by job.
   'src/engine/{layers,layerDraw,layerPick,layerGate,masks,maskGate,maskBrush,maskRaster,maskPlace}.ts',
+  // 407 T035: the photo pipeline.
+  'src/engine/{photo,adjust,color,curve,hsl,light,detail,deep,raw,tiff,lut,analyze,chain,sample,segments,instagram,photoExport,export}.ts',
 ];
 
 /** The code the standards rules apply to. */
