@@ -23,6 +23,10 @@ function noTestCode(): Plugin {
   };
 }
 
+/** The print renderer's modules (render.ts and what it draws through, engine/patterns.ts included). */
+const PRINT_RENDERER =
+  /[\\/]src[\\/]engine[\\/](render|themeBackground|printText|photoSlots|postalDecor|frontText|cardFront|cardBack|calendarDraw|patterns)\.ts$/;
+
 export default defineConfig(({ mode }) => {
   // PEXELS_API_KEY (from .env.local) has no VITE_ prefix, so it stays on the server: the dev and preview servers
   // forward ./api/pexels/* to api.pexels.com and add the key there. Without a key the app asks the user for one.
@@ -49,6 +53,17 @@ export default defineConfig(({ mode }) => {
       target: 'es2022',
       sourcemap: false,
       chunkSizeWarningLimit: 900,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            // Only these modules: their dependencies (design.ts, layout.ts …) stay where they were.
+            includeDependenciesRecursively: false,
+            // The print renderer stays one chunk, as when it was one file (render.ts until 407 T033): lazy screens
+            // reach calendarDraw.ts alone, and without this the rest would fall into the entry chunk.
+            groups: [{ name: 'render', test: PRINT_RENDERER }],
+          },
+        },
+      },
     },
     // The segmentation worker (src/ai/segment/) is an ES module worker: ONNX Runtime Web imports modules.
     worker: { format: 'es' },

@@ -21,6 +21,8 @@ const FINISHED = [
   'src/engine/{timeline,tracks,soundPlan,projectDoc,projectGate}.ts',
   // 407 T032: video.ts split into its drawing and videoFormats.ts; videoExport.ts.
   'src/engine/{video,videoFormats,videoExport}.ts',
+  // 407 T033: render.ts split by job.
+  'src/engine/{render,themeBackground,printText,photoSlots,postalDecor,frontText,cardFront,cardBack,calendarDraw}.ts',
 ];
 
 /** The code the standards rules apply to. */

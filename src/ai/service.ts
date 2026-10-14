@@ -4,7 +4,7 @@ import { MONTHS } from '../data/products';
 import { themeById } from '../data/themes';
 import { calPages, cardMM } from '../engine/design';
 import { computeLayout } from '../engine/layout';
-import { calMonth } from '../engine/render';
+import { calMonth } from '../engine/calendarDraw';
 import { shortName } from '../lib/credits';
 import type { Design, Photo } from '../types';
 import { artPrompt, type ArtContext, type ArtStyle } from './prompts/artwork';

@@ -4,7 +4,8 @@ import { calPages, cardMM, cornerMM, mergeDesign, productDesign, sizeOf } from '
 import { buildEnvelopePDF, buildEnvelopeTemplate, buildPack, buildPDF, buildPNG, pagesOf, type PrintPage } from '../engine/export';
 import { renderEnvelope } from '../engine/envelope';
 import { checkFile, loadImage, makePhoto, maxPhotos, photoMeta, photosFromMeta, readAsDataURL } from '../engine/photo';
-import { calMonth, renderCard } from '../engine/render';
+import { calMonth } from '../engine/calendarDraw';
+import { renderCard } from '../engine/render';
 import { db } from '../lib/db';
 import { logError } from '../lib/errors';
 import { saveFile } from '../lib/download';

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { MONTHS } from '../data/products';
 import { calPages } from '../engine/design';
-import { calMonth } from '../engine/render';
+import { calMonth } from '../engine/calendarDraw';
 import {
   fetchPexels,
   onPexelsKey,

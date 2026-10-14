@@ -97,8 +97,9 @@ Packaging: `npm run desktop:pack` (unpacked app in `release/`), `desktop:dist` (
 - `src/data/` — specifications as data: products, sizes, layouts, themes, fonts, Instagram formats, layer shapes.
   New sizes/layouts/products/themes are added here (see `docs/SPECIFICATIONS.md`), not in rendering code.
 - `src/engine/` — framework-free (no React): print geometry in millimetres (`design.ts`, `layout.ts`), drawing
-  (`render.ts`), export (`export.ts`), photo processing, and the media engines (`instagram.ts`, `layers.ts`,
-  `video.ts`, `videoExport.ts`). Preview and export share one code path, so the files match the preview.
+  (`render.ts`, which draws through `cardFront.ts`, `cardBack.ts`, `calendarDraw.ts` …), export (`export.ts`), photo
+  processing, and the media engines (`instagram.ts`, `layers.ts`, `video.ts`, `videoExport.ts`). Preview and export
+  share one code path, so the files match the preview.
 - `src/state/` — small `useSyncExternalStore` stores, each with its own undo/redo: `store.ts` + `actions.ts` (print
   studio; design autosaves to localStorage), `instagram.ts` (photo batch), `video.ts` (video project). Undo snapshots
   are immutable arrays; changes with the same key within ~800 ms coalesce into one step (drags, sliders).

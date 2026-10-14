@@ -6,7 +6,8 @@ import { crc32, makeZip, type ZipEntry } from '../lib/zip';
 import type { Design, RenderInput, Side } from '../types';
 import { calPages, cardMM, sizeOf } from './design';
 import { envelopeSpec, envelopeSummary, renderEnvelope, renderEnvelopeTemplate, templateSheet } from './envelope';
-import { calMonth, renderCard } from './render';
+import { calMonth } from './calendarDraw';
+import { renderCard } from './render';
 
 export const SHEETS: Record<Design['exp']['sheet'], [number, number, string]> = {
   a4: [210, 297, 'A4'],

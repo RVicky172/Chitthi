@@ -7,7 +7,8 @@ import type { Design, ProductId, RenderInput, SizeDef } from '../types';
 import { calPages, cardMM, productDesign, sizeOf } from './design';
 import { envelopeSpec, STANDARD, templateSheet } from './envelope';
 import { baseName, nup, pagesOf } from './export';
-import { calMonth, renderCard } from './render';
+import { calMonth } from './calendarDraw';
+import { renderCard } from './render';
 
 /*
  * Documents for print shops, so a customer can ask for a quote:

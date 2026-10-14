@@ -1,7 +1,7 @@
 import { themeById } from '../data/themes';
 import { calPages, cardMM } from '../engine/design';
 import { computeLayout } from '../engine/layout';
-import { calMonth } from '../engine/render';
+import { calMonth } from '../engine/calendarDraw';
 import type { Design } from '../types';
 import { pexelsName } from './credits';
 

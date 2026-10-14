@@ -4,7 +4,7 @@ import { fontDef } from '../../data/fonts';
 import { MONTHS } from '../../data/products';
 import { aiReadyAsync, writeCaptions, writeMessages, writeWords, type Readiness, type WordsOption } from '../../ai/service';
 import { AiError } from '../../ai/types';
-import { calMonth } from '../../engine/render';
+import { calMonth } from '../../engine/calendarDraw';
 import { getState, setBack, setDesign, setUI, useApp } from '../../state/store';
 
 /*

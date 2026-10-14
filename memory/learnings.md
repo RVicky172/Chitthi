@@ -200,3 +200,20 @@ findings rose 297 → 417 in `src/`).
   values from a module in a cycle with it; move the constant to the module that reads it at load.
 - **Never `git checkout -- <file>` to undo a planted line** in a file with uncommitted work: it restores the last
   commit and throws the work away (lost `stack.ts`'s rewrite once). Plant in a new file, or copy the file first.
+
+## 2026-10-14 — Refactoring a renderer with no unit tests: compare call logs old vs new (407 T033)
+
+`engine/render.ts` had no unit tests (only the self-test, run at the phase's end). Before splitting it, a temporary
+copy of the old file (`src/engine/renderGolden.ts`) and a scratch Vitest file drew 11,100 cases (every product × size
+× orientation × layout × 4–5 design variants × front / hint / back) on a recording 2D context (a Proxy logging every
+call and property set; `measureText` returns widths from the font size; gradients are named objects) through both, and
+compared the logs line by line: 9 million lines in 6 s. Planted one-number changes in four modules each failed it.
+Neither file is committed. When a loop's text fitting is folded into a helper, keep the exact call order: a
+`for (k < 40 && …)` loop wraps once more at the last size before stopping, and draws those lines.
+
+## 2026-10-14 — Splitting a module can move code into the entry chunk (Rolldown)
+
+When lazy screens reached a function through a big module, Rolldown kept that module in a shared chunk. After the
+split they import a small module instead, so the big one is needed only by the entry and is folded into it: entry
+327 → 347 KB with the same start-up bytes. Compare `npm run build`'s entry figure after every split; a named
+`codeSplitting` group (`includeDependenciesRecursively: false`) restores the old chunk (D-041).

@@ -2,7 +2,7 @@ import { fontDef, fontStr } from '../data/fonts';
 import type { Design, Photo, Rect, RenderInput, Theme } from '../types';
 import { hexA, lum, mix, rng } from './color';
 import { cardMM, darkInk, postmarkYear, resolveTheme } from './design';
-import { drawThemeBg } from './render';
+import { drawThemeBg } from './themeBackground';
 
 /*
  * The envelope that goes with a design. Its size is the smallest standard envelope the piece fits in; its artwork

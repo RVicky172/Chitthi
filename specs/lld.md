@@ -31,7 +31,15 @@ src/
   engine/                  Framework-free; no React imports
     design.ts                DEFAULT_DESIGN, productDesign, mergeDesign, cardMM, calPages, cornerMM, resolveTheme, inks
     layout.ts                computeLayout, slotCount, slotPhotoIndex
-    render.ts                renderCard and every drawing routine (fronts, backs, calendars, badge, guides)
+    render.ts                renderCard (one side, bleed, round cut, guides), renderThemeTile, photoDpi
+    themeBackground.ts       The card's unit, the bleed fill, the occasion background (drawThemeBg)
+    printText.ts             wrapLines, shrinkFont, label typeface, letter spacing, cap height
+    photoSlots.ts            Photo slots (shapes, cover photo, hint, outline, print, tape), layout art, mat, glass
+    postalDecor.ts           Stamp, postmark, badge arc lettering, Instagram tag
+    frontText.ts             The front's words (drawText, layoutText) and a calendar page's words
+    cardFront.ts             drawFront: the front, bottom first
+    cardBack.ts              Postcard, frame and magnet backs, the credit line
+    calendarDraw.ts          calMonth, month page and title, day grid and marks, big number, year grid and back
     patterns.ts              Procedural occasion artwork (PAT)
     photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks), lookPixels
     instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
@@ -260,9 +268,9 @@ in the selected slot when the card is full.
   uses an arch slot above (or beside) it.
 - **Badge magnet**: a circular photo of radius `r − band` inside a ring; `arc` describes the ring for lettering.
 
-### 4.2 Rendering (`render.ts`)
+### 4.2 Rendering (`render.ts` and the modules it draws through, §2)
 
-`drawFront` runs in this order:
+`drawFront` (`cardFront.ts`) runs in this order:
 
 1. Background: paper colour (`frame` layouts), occasion gradient and patterns (`bg`), or nothing (full-bleed).
 2. Paper card and stamp shapes.

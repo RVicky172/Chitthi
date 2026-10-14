@@ -1,7 +1,7 @@
 import { FESTIVAL_YEARS, hasFestivals } from '../../data/holidays';
 import { MONTHS } from '../../data/products';
 import { calPages, resolveTheme } from '../../engine/design';
-import { calMonth } from '../../engine/render';
+import { calMonth } from '../../engine/calendarDraw';
 import { setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings, CalTextPlace, HAlign, VAlign } from '../../types';
 import { Check, Pane, Section, Seg, YearField } from '../common';

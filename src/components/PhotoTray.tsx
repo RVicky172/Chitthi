@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { MONTHS } from '../data/products';
 import { calPages } from '../engine/design';
 import { slotPhotoIndex } from '../engine/layout';
-import { calMonth } from '../engine/render';
+import { calMonth } from '../engine/calendarDraw';
 import { toast } from '../lib/toast';
 import { addFiles } from '../state/actions';
 import { putOnCard, useLibrary } from '../state/library';

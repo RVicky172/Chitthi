@@ -495,3 +495,15 @@ handlers (`onClick={() => setOpen(false)}`): safe code, and changing it would be
 **Decision:** `restrict-template-expressions` with `allowNumber: true` (objects, `null`, `undefined` and unions with
 them are still reported) and `no-confusing-void-expression` with `ignoreArrowShorthand: true`. Together 1,426 → 27.
 The presets stay whole (AC-13); only these options change.
+
+## D-041 — The print renderer is one named chunk (2026-10-14)
+
+**Context:** 407 T033 split `engine/render.ts` (1,442 lines) into nine modules. Lazy screens that only need `calMonth`
+now import `calendarDraw.ts`, so Rolldown kept that in a shared chunk and folded the rest of the renderer into the
+entry chunk: entry 327 → 347 KB (budget 350; 407 keeps it at 327). What loads at start-up was the same: the old
+`render` chunk was already a static import of the entry (`export.ts`, `state/actions.ts`).
+**Decision:** `vite.config.ts` names one chunk, `render`, for the renderer's modules (`PRINT_RENDERER`: `render`,
+`themeBackground`, `printText`, `photoSlots`, `postalDecor`, `frontText`, `cardFront`, `cardBack`, `calendarDraw`,
+`patterns`), with `includeDependenciesRecursively: false` so `design.ts`, `layout.ts` and the rest stay where they
+were. The entry chunk holds the same modules as before (327 KB); `data/holidays.ts` became a small chunk of its own.
+**Consequences:** a new module of the print renderer is added to `PRINT_RENDERER`, or it may land in the entry chunk.
