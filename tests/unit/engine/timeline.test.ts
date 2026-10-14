@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import type { Transition } from '@/engine/transitions';
-import { IDENTITY, isIdentity } from '@/engine/video';
+import {
+  clampTransform,
+  clipLength,
+  framePlan,
+  gaps,
+  IDENTITY,
+  isIdentity,
+  pack,
+  presetTransform,
+  projectLength,
+  videoAt,
+  type AudioClip,
+  type Project,
+  type TimedClip,
+} from '@/engine/timeline';
 import { MAIN_VIDEO, MUSIC, TRACK_LIMITS, addTrack, defaultTracks, deleteTrack, lockedReason, moveTrack, patchTrack, renameTrack, tooManyTracks, type Track } from '@/engine/tracks';
 import { audioPlan } from '@/engine/soundPlan';
-import { clampTransform, framePlan, gaps, pack, presetTransform, projectLength, videoAt, type AudioClip, type Project, type TimedClip } from '@/engine/timeline';
 import { fromSequence, toDocument } from '@/engine/projectDoc';
 import { mergeProject } from '@/engine/projectGate';
 import {
@@ -18,8 +31,7 @@ import {
 } from '../../support/timeline.testkit';
 import { countKeys, type Ease, type Keyframe } from '@/engine/keyframes';
 import { mergeLayers, newSticker, type Layer } from '@/engine/layers';
-import { clipLength, limitsFor } from '@/engine/video';
-import * as V from '@/engine/video';
+import { limitsFor } from '@/engine/videoFormats';
 
 /** A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document). */
 function onTracks(p: LegacyProject): Project<LegacyClip & TimedClip> {
@@ -605,12 +617,6 @@ describe('the clip transform (203 AC-4)', () => {
       expect(isIdentity({ ...IDENTITY, [k]: IDENTITY[k] + 0.01 }), k).toBe(false);
   });
 
-  it('has one definition: the drawing fast path (video.ts) is the one timeline.ts exports', () => {
-    expect(IDENTITY).toBe(V.IDENTITY);
-    expect(isIdentity).toBe(V.isIdentity);
-    for (const k of Object.keys(V.IDENTITY) as (keyof typeof IDENTITY)[])
-      expect(V.isIdentity({ ...V.IDENTITY, [k]: V.IDENTITY[k] + 0.25 }), k).toBe(false);
-  });
 
   it('clamps every field to its range', () => {
     const lo = clampTransform({ x: -9, y: -0.6, w: 0, rot: -400, opacity: -1, radius: -0.1 });

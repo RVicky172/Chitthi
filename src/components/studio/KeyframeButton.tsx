@@ -1,6 +1,6 @@
 // The inspector's keyframe controls (205 §7, AC-6): a diamond beside each animatable value, and previous / next
 // keyframe buttons for the selected clip or layer.
-import { fmtTime } from '../../engine/video';
+import { formatTime } from '../../engine/timeline';
 import { NextIcon, PrevIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 
@@ -27,7 +27,7 @@ function Diamond({ state }: { state: KeyButtonState }) {
  * @param onRemove Remove animation
  */
 export function KeyframeButton({ label, state, time, onToggle, onRemove }: { label: string; state: KeyButtonState; time: number; onToggle: () => void; onRemove: () => void }) {
-  const at = fmtTime(time);
+  const at = formatTime(time);
   const name =
     state === 'none' ? `${label}: animate, with a keyframe at ${at}` : state === 'key' ? `${label}: keyframe at ${at}, press to remove` : `${label}: animated, add a keyframe at ${at}`;
   return (

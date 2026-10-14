@@ -33,10 +33,24 @@ import {
   type Transition,
   type TransitionKind,
 } from '../engine/transitions';
-import { IDENTITY, isIdentity } from '../engine/video';
+import {
+  clampTransform,
+  clipLength,
+  gaps,
+  IDENTITY,
+  isIdentity,
+  pack,
+  presetTransform,
+  projectLength,
+  V_PHOTO_SECONDS,
+  type AudioClip,
+  type ClipTransform,
+  type Preset,
+  type Project,
+} from '../engine/timeline';
 import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, defaultTracks, deleteTrack as withoutTrack, lockedReason, moveTrack as withTrackMoved, patchTrack, renameTrack as withTrackRenamed, type Track } from '../engine/tracks';
-import { clampTransform, gaps, pack, presetTransform, projectLength, type AudioClip, type ClipTransform, type Preset, type Project } from '../engine/timeline';
-import { V_PHOTO_SECONDS, bitrateFor, clipLength, formatsFor, limitsFor, vFormat, type Motion, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/video';
+import { bitrateFor, formatsFor, limitsFor, vFormat, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/videoFormats';
+import type { Motion } from '../engine/video';
 import { logError } from '../lib/errors';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
 import { isDesktop } from '../platform/desktop';

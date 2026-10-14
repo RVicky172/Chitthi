@@ -5,18 +5,20 @@
 import type { IgEdit } from './instagram';
 import { tidyKeys } from './keyframes';
 import type { Layer } from './layers';
-import { clampTransform, pack, type AudioClip, type ClipTransform, type Project, type TimedClip } from './timeline';
+import {
+  clampTransform,
+  isIdentity,
+  pack,
+  type AudioClip,
+  type ClipTiming,
+  type ClipTransform,
+  type Project,
+  type TimedClip,
+} from './timeline';
 import { MAIN_VIDEO, MUSIC, defaultTracks } from './tracks';
 import { transitionFields } from './transitions';
-import {
-  isIdentity,
-  type ClipTiming,
-  type Motion,
-  type VFormatId,
-  type VFps,
-  type VKind,
-  type VQuality,
-} from './video';
+import type { Motion } from './video';
+import type { VFormatId, VFps, VKind, VQuality } from './videoFormats';
 
 /** What a media file is. */
 export type MediaKind = 'photo' | 'video' | 'audio' | 'image';

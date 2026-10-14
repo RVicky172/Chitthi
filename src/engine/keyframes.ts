@@ -5,9 +5,9 @@
 import { keysOf } from './guards';
 import { KEY_LIMITS } from './keyframeGate';
 import { scaleLayer, type Layer } from './layers';
-import type { ClipTransform, TimedClip } from './timeline';
+import { IDENTITY, type ClipTransform, type TimedClip } from './timeline';
 import type { SoundSource } from './soundPlan';
-import { IDENTITY, V_FPS } from './video';
+import { V_FPS } from './videoFormats';
 
 /** How the change that starts at a keyframe eases into the next one (Q3). */
 export type Ease = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'hold';

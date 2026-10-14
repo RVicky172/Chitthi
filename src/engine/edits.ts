@@ -1,8 +1,8 @@
 import { shiftKeys } from './keyframes';
 import { mostVideosAt } from './stack';
 import { MAIN_VIDEO, type Track } from './tracks';
-import { pack, type TimedClip } from './timeline';
-import { clipLength, limitsFor } from './video';
+import { clipLength, pack, type TimedClip } from './timeline';
+import { limitsFor } from './videoFormats';
 
 /*
  * The video editor's edit operations (P2.2, specs/features/202-edit-operations), free of DOM and React: ripple and

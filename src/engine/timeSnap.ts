@@ -1,6 +1,5 @@
 import type { Layer } from './layers';
-import type { TimedClip } from './timeline';
-import { clipLength } from './video';
+import { clipLength, type TimedClip } from './timeline';
 
 /*
  * Snapping on the timeline (202): the times a dragged clip, layer or edge snaps to, and the nearest one to a time.

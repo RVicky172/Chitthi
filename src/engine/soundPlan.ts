@@ -3,10 +3,9 @@
  * and how a clip's sound meets its transitions (shared with the preview's sound, so they blend alike).
  */
 import type { Keyframe } from './keyframes';
-import { projectLength, type Project, type TimedClip } from './timeline';
+import { clipLength, projectLength, type Project, type TimedClip } from './timeline';
 import { MAIN_VIDEO } from './tracks';
 import type { Transition } from './transitions';
-import { clipLength } from './video';
 
 const endOf = (clip: TimedClip) => clip.start + clipLength(clip);
 

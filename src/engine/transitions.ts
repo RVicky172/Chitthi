@@ -7,8 +7,7 @@
 import { isOneOf, isRecord } from './guards';
 import { valueAt, type Keyframe } from './keyframes';
 import type { Mix } from './stack';
-import type { TimedClip } from './timeline';
-import { clipLength } from './video';
+import { clipLength, type TimedClip } from './timeline';
 
 /** How one clip blends into the next. */
 export type TransitionKind = 'dissolve' | 'dip' | 'wipe' | 'slide' | 'zoom';

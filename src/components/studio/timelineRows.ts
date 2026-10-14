@@ -3,11 +3,10 @@
 // and the keyframe lane's diamonds, names and announcements (205 §9).
 import { describeTransform } from '../../engine/clipBox';
 import type { Ease, Keyframe, Keyframes } from '../../engine/keyframes';
-import { IDENTITY } from '../../engine/video';
+import { clipLength, IDENTITY, type TimedClip } from '../../engine/timeline';
 import { MAIN_VIDEO, lockedReason, type Track } from '../../engine/tracks';
-import { type TimedClip } from '../../engine/timeline';
 import { TRANSITION_LIMITS, cutsOf, type Transition, type TransitionKind } from '../../engine/transitions';
-import { V_FPS, clipLength } from '../../engine/video';
+import { V_FPS } from '../../engine/videoFormats';
 
 /** A picture row's vertical extent on screen, in client pixels. */
 export interface RowBounds {

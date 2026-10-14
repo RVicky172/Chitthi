@@ -120,9 +120,10 @@ gate for external design data.
 - Layers (text, shapes, stickers, drawings) live in `engine/layers.ts`: positions are shares of the frame, sizes are
   shares of the frame **width**, so they render identically at any preview size, in exported photos and in every video
   frame. Editing on a canvas is `components/ig/useLayerPointer.ts`; panels are `components/ig/LayerPanel.tsx`.
-- Video: `engine/video.ts` holds formats, per-platform limits (`limitsFor(kind, isDesktop)`), timeline maths and
-  `renderFrame()` (used by both the live preview and export). `engine/videoExport.ts` (Mediabunny, MPL-2.0, loaded only
-  via dynamic `import()` on export) encodes H.264 + AAC with the index at the front: in memory for Reels (so they can be
+- Video: `engine/videoFormats.ts` holds formats and per-platform limits (`limitsFor(kind, isDesktop)`),
+  `engine/timeline.ts` the timeline maths, and `engine/video.ts` the frame drawing, `renderStack()` / `renderFrame()`
+  (used by both the live preview and export). `engine/videoExport.ts` (Mediabunny, MPL-2.0, loaded only via dynamic
+  `import()` on export) encodes H.264 + AAC with the index at the front: in memory for Reels (so they can be
   shared), streamed to a file for YouTube (`lib/fileSink.ts`: desktop IPC or the File System Access API, with
   Mediabunny's `reserve` fast start). Sound is decoded and mixed in 10-second windows, interleaved with the frames.
 

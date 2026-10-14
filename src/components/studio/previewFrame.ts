@@ -5,7 +5,8 @@ import { DecodePool, frameTime, poolLimits, type FrameSourceFactory, type PoolCl
 import { frameStack, type Mix, type StackItem } from '../../engine/stack';
 import { MAIN_VIDEO } from '../../engine/tracks';
 import { type Project, type TimedClip } from '../../engine/timeline';
-import { limitsFor, renderStack, type FrameClip } from '../../engine/video';
+import { limitsFor } from '../../engine/videoFormats';
+import { renderStack, type FrameClip } from '../../engine/video';
 import type { Layer } from '../../engine/layers';
 import { logError } from '../../lib/errors';
 import { isDesktop } from '../../platform/desktop';

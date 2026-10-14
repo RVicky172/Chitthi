@@ -228,7 +228,7 @@ step.
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
-| Video formats, limits and frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/video.ts`; `src/engine/videoExport.ts` |
+| Video formats and limits; frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/videoFormats.ts`; `src/engine/video.ts`; `src/engine/videoExport.ts` |
 | Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
 | Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layers.ts` |
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
@@ -526,7 +526,7 @@ app tells users so and sends long or demanding projects to the desktop app:
 | Encoding | WebCodecs, hardware-accelerated where the browser allows | WebCodecs in Electron, using the graphics card's encoder |
 | Videos on screen at once (main + overlay video clips) | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
 
-Limits live in `limitsFor()` (`src/engine/video.ts`); the notes in the editor read from it. Videos on screen at once
+Limits live in `limitsFor()` (`src/engine/videoFormats.ts`); the notes in the editor read from it. Videos on screen at once
 is measured (see [PERFORMANCE.md](PERFORMANCE.md#videos-on-screen-at-once)) and counts the main track's and the
 overlay tracks' video clips showing at the same moment, hidden tracks included (so showing a track can't break it).
 Photos don't count.

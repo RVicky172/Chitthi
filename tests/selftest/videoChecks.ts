@@ -19,10 +19,9 @@ import {
 } from 'mediabunny';
 import { renderIg } from '@/engine/instagram';
 import { drawLayers, newShape, type Layer } from '@/engine/layers';
-import { IDENTITY, isIdentity } from '@/engine/video';
-import { presetTransform, type ClipTransform, type Project } from '@/engine/timeline';
+import { clipLength, IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project } from '@/engine/timeline';
 import { type Track } from '@/engine/tracks';
-import { clipLength, fadeAmount, motionEdit, type FrameClip } from '@/engine/video';
+import { fadeAmount, motionEdit, type FrameClip } from '@/engine/video';
 import type { ExportClip } from '@/engine/videoExport';
 
 type Check = (ok: unknown, what: string) => void;

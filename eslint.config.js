@@ -19,6 +19,8 @@ const FINISHED = [
   'src/engine/{keyframes,keyframeGate,transitions,stack,edits,clipBox,decodePool,frameSource,guards,timeSnap}.ts',
   // 407 T031: timeline.ts split by job.
   'src/engine/{timeline,tracks,soundPlan,projectDoc,projectGate}.ts',
+  // 407 T032: video.ts split into its drawing and videoFormats.ts; videoExport.ts.
+  'src/engine/{video,videoFormats,videoExport}.ts',
 ];
 
 /** The code the standards rules apply to. */

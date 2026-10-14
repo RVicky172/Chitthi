@@ -6,59 +6,10 @@ import { adjacentKey, type Keyframes } from '../../engine/keyframes';
 import { layerName, type Layer } from '../../engine/layers';
 import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../../engine/tracks';
 import { cutsOf, roomFor, TRANSITION_LIMITS } from '../../engine/transitions';
-import { clipLength, fmtTime } from '../../engine/video';
+import { clipLength, formatTime } from '../../engine/timeline';
 import { toast } from '../../lib/toast';
 import { isDesktop } from '../../platform/desktop';
-import {
-  NEW_TRACK,
-  addMedia,
-  addTrack,
-  clipLocked,
-  deleteGap,
-  deleteKeys,
-  deleteTrack,
-  duplicateClipWhy,
-  endVStep,
-  getVideo,
-  moveClipTo,
-  moveClipToTime,
-  moveClipToTrack,
-  moveTrack,
-  nudgeClip,
-  removeClip,
-  removeTransition,
-  renameTrack,
-  removeVLayer,
-  rippleDeleteClip,
-  rippleTrimToPlayhead,
-  rollClip,
-  selectClip,
-  selectTransition,
-  selectVLayer,
-  setPlayhead,
-  setLayerTimes,
-  setMagnetic,
-  setPlaying,
-  setSnapping,
-  setTool,
-  setTrack,
-  setTrackHeight,
-  setTransition,
-  setZoom,
-  slideClip,
-  slipClip,
-  slipMusic,
-  splitAtPlayheadWhy,
-  toggleKey,
-  trimClip,
-  updateMusic,
-  useVideo,
-  type KeyProp,
-  type KeyTarget,
-  type TrackHeight,
-  type VClip,
-  videoLength,
-} from '../../state/video';
+import { NEW_TRACK, addMedia, addTrack, clipLocked, deleteGap, deleteKeys, deleteTrack, duplicateClipWhy, endVStep, getVideo, moveClipTo, moveClipToTime, moveClipToTrack, moveTrack, nudgeClip, removeClip, removeTransition, renameTrack, removeVLayer, rippleDeleteClip, rippleTrimToPlayhead, rollClip, selectClip, selectTransition, selectVLayer, setPlayhead, setLayerTimes, setMagnetic, setPlaying, setSnapping, setTool, setTrack, setTrackHeight, setTransition, setZoom, slideClip, slipClip, slipMusic, splitAtPlayheadWhy, toggleKey, trimClip, updateMusic, useVideo, type KeyProp, type KeyTarget, type TrackHeight, type VClip, videoLength } from '../../state/video';
 import { typingIn } from '../ig/LayerPanel';
 import { MoreMenu } from '../MoreMenu';
 import { KeyframeLane, KeyframeLaneHeads, animatedProps, type LaneItem } from './KeyframeLane';
@@ -372,7 +323,7 @@ export function Timeline() {
       <div className="tl-live vh" aria-live="polite">
         {said}
       </div>
-      <div className="tl-scroll" ref={scroller} tabIndex={0} role="group" aria-label={`Timeline, ${fmtTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead, V R Y U pick the edit tool, Alt + arrow keys nudge the selected clip, Q and W trim it to the playhead.`}>
+      <div className="tl-scroll" ref={scroller} tabIndex={0} role="group" aria-label={`Timeline, ${formatTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead, V R Y U pick the edit tool, Alt + arrow keys nudge the selected clip, Q and W trim it to the playhead.`}>
         <div className="tl-canvas" ref={canvas} style={{ width }} onDragOver={onFilesOver} onDragLeave={() => setDropMarker(null)} onDrop={onFilesDrop}>
           <div className={`tl-ruler${dropMarker?.target === 'new' ? ' tl-new-track' : ''}`} onPointerDown={seekFrom}>
             {ticks.map((s) => (
@@ -480,7 +431,7 @@ export function Timeline() {
             <button
               type="button"
               className="tl-playhead-grip"
-              aria-label={`Playhead at ${fmtTime(t)}`}
+              aria-label={`Playhead at ${formatTime(t)}`}
               onPointerDown={(e) => {
                 setPlaying(false);
                 drag(e, (_dx, ev) => setPlayhead(snap(timeAt(ev.clientX), {}, ev)));
@@ -686,7 +637,7 @@ function PictureRow({
           className="tl-gap"
           data-at={g.start}
           style={{ left: g.start * zoom, width: Math.max(8, (g.end - g.start) * zoom - 2) }}
-          aria-label={`Gap, ${(g.end - g.start).toFixed(1)} s, from ${fmtTime(g.start)}`}
+          aria-label={`Gap, ${(g.end - g.start).toFixed(1)} s, from ${formatTime(g.start)}`}
           title="A gap: black, with the layers on top. Select it and press Delete to close it."
           // Not a seek: a click selects (focuses) the gap.
           onPointerDown={(e) => e.stopPropagation()}
@@ -846,7 +797,7 @@ function LayerBar(p: { layer: Layer; total: number; zoom: number; selected: bool
       className={`tl-bar tl-bar-${l.kind}${p.selected ? ' on' : ''}${l.hidden ? ' off' : ''}`}
       style={{ left: s * p.zoom, width: Math.max(10, (e - s) * p.zoom) }}
       onPointerDown={p.onBody}
-      title={`${layerName(l)} · ${fmtTime(s)}–${fmtTime(e)}`}
+      title={`${layerName(l)} · ${formatTime(s)}–${formatTime(e)}`}
     >
       <span>{layerName(l)}</span>
       <button type="button" className="tl-edge tl-edge-start" aria-label={`When ${layerName(l)} appears`} onPointerDown={(ev) => p.onEdge(ev, 'start')} />
@@ -882,7 +833,7 @@ function MusicBar({ total, zoom, height, onDrag }: { total: number; zoom: number
     <div className="tl-bar tl-bar-music" style={{ left: 0, width }} onPointerDown={onDrag} title={`${music.name}: drag to choose where the song starts`}>
       <canvas ref={ref} aria-hidden="true" />
       <span>
-        {music.name} · from {fmtTime(music.offset)}
+        {music.name} · from {formatTime(music.offset)}
       </span>
     </div>
   );
@@ -1234,7 +1185,7 @@ export function Transport() {
         <SkipForwardIcon />
       </button>
       <span className="tl-time">
-        <b>{fmtTime(t)}</b> / {fmtTime(total)}
+        <b>{formatTime(t)}</b> / {formatTime(total)}
       </span>
       <span className="tl-sep" />
       <button type="button" className="sbtn" disabled={!clips.length} onClick={split} title="Split at the playhead (S)" aria-label="Split">

@@ -1,8 +1,7 @@
 import type { Box } from './layers';
-import { EDGE_EPS, projectLength, type Project, type TimedClip } from './timeline';
+import { clipLength, EDGE_EPS, projectLength, type Project, type TimedClip } from './timeline';
 import { MAIN_VIDEO, type Track } from './tracks';
 import { progressAt, type DipColour, type Direction, type Transition, type TransitionKind } from './transitions';
-import { clipLength } from './video';
 
 /*
  * What shows at a time when several picture tracks draw at once (P2.3, specs/features/203-compositing-pip plan §3),

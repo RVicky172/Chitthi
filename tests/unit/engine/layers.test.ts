@@ -4,8 +4,8 @@ import { activeAt, addStroke, BLEND_MODES, hitLayer, layerMasked, layerName, mer
 import { newPart } from '@/engine/masks';
 import { DEFAULT_EDIT } from '@/engine/instagram';
 import { MAIN_VIDEO, defaultTracks } from '@/engine/tracks';
-import { framePlan, pack, projectLength, videoAt } from '@/engine/timeline';
-import { V_FADE, clipLength, fadeAmount, frameRange, motionEdit } from '@/engine/video';
+import { clipLength, framePlan, frameRange, pack, projectLength, videoAt } from '@/engine/timeline';
+import { V_FADE, fadeAmount, motionEdit } from '@/engine/video';
 
 describe('layers', () => {
   it('scale about their centre, with their text sizes, within limits', () => {
@@ -140,14 +140,14 @@ describe('video timeline', () => {
 
 describe('video formats and limits', () => {
   it('offers vertical formats for Reels and 16:9 for YouTube, with 1440p and 4K for the desktop app only', async () => {
-    const { formatsFor } = await import('@/engine/video');
+    const { formatsFor } = await import('@/engine/videoFormats');
     expect(formatsFor('reel').map((f) => f.ratio)).toEqual(['9:16', '4:5', '1:1']);
     const yt = formatsFor('vlog');
     expect(yt.every((f) => Math.abs(f.w / f.h - 16 / 9) < 0.01)).toBe(true);
     expect(yt.filter((f) => f.desktopOnly).map((f) => f.h)).toEqual([1440, 2160]);
   });
   it('uses YouTube’s recommended bitrates, more at 60 fps and for high quality', async () => {
-    const { bitrateFor, vFormat } = await import('@/engine/video');
+    const { bitrateFor, vFormat } = await import('@/engine/videoFormats');
     const hd = vFormat('yt1080');
     expect(bitrateFor(hd, 30, 'standard')).toBe(8e6);
     expect(bitrateFor(hd, 60, 'standard')).toBe(12e6);
@@ -155,7 +155,7 @@ describe('video formats and limits', () => {
     expect(bitrateFor(vFormat('reel'), 30, 'standard')).toBe(5e6);
   });
   it('gives the desktop app longer videos, more clips, bigger files and 60 fps', async () => {
-    const { limitsFor } = await import('@/engine/video');
+    const { limitsFor } = await import('@/engine/videoFormats');
     const web = limitsFor('vlog', false),
       desk = limitsFor('vlog', true);
     expect(web.seconds).toBe(15 * 60);
@@ -166,7 +166,7 @@ describe('video formats and limits', () => {
     expect(limitsFor('reel', false)).toMatchObject({ seconds: 90, minSeconds: 3, clips: 20 });
   });
   it('sets the videos on screen at once by 204 Q2 (largest count meeting the bar minus one, web ≤ 3, desktop ≤ 6, never < 2) and 1 without VideoDecoder', async () => {
-    const { limitsFor } = await import('@/engine/video');
+    const { limitsFor } = await import('@/engine/videoFormats');
     for (const kind of ['reel', 'vlog'] as const) {
       expect(limitsFor(kind, false, true).videosAtOnce).toBe(3);
       expect(limitsFor(kind, true, true).videosAtOnce).toBe(5);

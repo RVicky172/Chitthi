@@ -52,8 +52,10 @@ src/
                              webgl2.ts, graph.ts (nodes, runNodes), colour.ts, detail.ts, lut.ts, mask.ts (programs
                              mirroring the CPU code), apply.ts (the GPU step of renderIg)
     layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
-    video.ts                 Video formats, per-platform limits, clip lengths, frame drawing (renderFrame, NO_PICTURE)
-    timeline.ts              Video project as tracks (201): clips, the clip transform, pack, gaps, videoAt, framePlan
+    videoFormats.ts          Video formats, bitrates, frame rates, per-platform limits (limitsFor)
+    video.ts                 Frame drawing: renderStack, renderFrame, motions, fades, NO_PICTURE
+    timeline.ts              Video project as tracks (201): clip timing (clipLength, frameRange), the clip transform
+                             (IDENTITY), pack, gaps, videoAt, framePlan
     tracks.ts                Tracks (201, 203): the main video and music tracks, switches, add / rename / move / delete
     soundPlan.ts             The export's sound plan (audioPlan) and a clip's sound edges (206)
     projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
@@ -464,7 +466,7 @@ Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: no
 - **The transform**: a picture clip may carry `tf?: ClipTransform` = `{ x, y, w, rot, opacity, radius }` (centre and
   width as shares of the frame, degrees, 0–1, corner radius as a share of the shorter side); missing = `IDENTITY`
   (the whole frame). `clampTransform` is its gate, `presetTransform` the inspector's presets (35 % wide, 4 % margin).
-- **Drawing** (`engine/video.ts`): `renderStack(ctx, W, H, items, layers, t, total, fadeOut)`: black, each item, the
+- **Drawing** (`engine/video.ts`): `renderStack(ctx, frameWidth, frameHeight, items, layers, time, total, fadeOut)`: black, each item, the
   layers, the darkness. An item at the identity draws through 2.x's `renderIg` call, so a project without overlays
   is pixel-identical (AC-10); otherwise `intoBox` (translate, rotate, rounded clip, scale `w`), and a see-through
   item (opacity × an overlay's fade-in ramp < 1) is drawn on a scratch canvas and laid down once. `save()` /
@@ -641,7 +643,7 @@ for the self-test. `dispose()` runs in
 `finally`, so after a cancel or an error no frame or decoder is left. A clip the pool can't decode is refused with its
 reason, which usually names the file.
 
-**Limits.** `limitsFor()` (`engine/video.ts`) gives `videosAtOnce`: 3 on the web, 5 on the desktop app, 1 without
+**Limits.** `limitsFor()` (`engine/videoFormats.ts`) gives `videosAtOnce`: 3 on the web, 5 on the desktop app, 1 without
 `VideoDecoder`, set from the AC-15 measurements by Q2's rule (the numbers:
 [PERFORMANCE.md](../docs/PERFORMANCE.md#videos-on-screen-at-once)); `203` enforces it in the edits. The preview's and
 the export's pools use `poolLimits(videosAtOnce, …)` (the limit + 2 decoders).

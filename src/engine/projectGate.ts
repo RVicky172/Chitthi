@@ -15,7 +15,16 @@ import {
   type MediaKind,
   type ProjectDoc,
 } from './projectDoc';
-import { TRANSFORM_RANGES, clampTransform, pack, type ClipTransform, type TimedClip } from './timeline';
+import {
+  clampTransform,
+  clipLength,
+  isIdentity,
+  pack,
+  TRANSFORM_RANGES,
+  V_PHOTO_SECONDS,
+  type ClipTransform,
+  type TimedClip,
+} from './timeline';
 import {
   MAIN_VIDEO,
   MUSIC,
@@ -27,21 +36,8 @@ import {
   type TrackLimits,
 } from './tracks';
 import { TRANSITION_REASONS, mergeTransition, tidyTransitions } from './transitions';
-import {
-  MOTIONS,
-  V_FPS,
-  V_PHOTO_SECONDS,
-  clipLength,
-  formatsFor,
-  isIdentity,
-  limitsFor,
-  type Motion,
-  type VFormatId,
-  type VFps,
-  type VKind,
-  type VLimits,
-  type VQuality,
-} from './video';
+import { MOTIONS, type Motion } from './video';
+import { V_FPS, formatsFor, limitsFor, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from './videoFormats';
 
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const MEDIA_KINDS: readonly MediaKind[] = ['photo', 'video', 'audio', 'image'];

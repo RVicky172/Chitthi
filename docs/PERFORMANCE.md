@@ -117,7 +117,7 @@ Development machine, 2026-10-11 (Electron self-test, desktop limits):
 
 The limit is the largest 1080p30 count with a median ≤ 33 ms and a 95th percentile ≤ 50 ms, minus one for slower
 machines, capped at 3 on the web and 6 in the desktop app and never below 2: **3 on the web, 5 in the desktop app**
-(`videosAtOnce` in `limitsFor()`, `engine/video.ts`). Photos don't count. Without `VideoDecoder` (Firefox before
+(`videosAtOnce` in `limitsFor()`, `engine/videoFormats.ts`). Photos don't count. Without `VideoDecoder` (Firefox before
 130, Safari before 26) there is no pool and the limit is 1. The multi-track timeline (`203`) enforces it: an edit that would put more videos
 on screen at once is refused with the limit. The playback timing with overlays (main + 2 overlay 1080p30 videos,
 `203` AC-12) is measured in the Phase 2 test pass (`290`).

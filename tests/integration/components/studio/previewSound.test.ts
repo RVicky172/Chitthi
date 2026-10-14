@@ -3,7 +3,7 @@ import { mostVideosAt } from '@/engine/stack';
 import { EDGE_EPS, type Project, type TimedClip } from '@/engine/timeline';
 import { MAIN_VIDEO, MUSIC, defaultTracks } from '@/engine/tracks';
 import { edgeGain } from '@/engine/keyframes';
-import { limitsFor } from '@/engine/video';
+import { limitsFor } from '@/engine/videoFormats';
 import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from '@/components/studio/previewSound';
 import { FakeAudio } from '../../../support/fakeAudio';
 

@@ -4,8 +4,9 @@ import { adjacentKey, keyState, layerAt, layersAt, transformAt, volumeAt, type L
 import { frameStack } from '../../engine/stack';
 import { halves } from '../../engine/transitions';
 import { MUSIC, lockedReason } from '../../engine/tracks';
-import { PRESETS, type ClipTransform } from '../../engine/timeline';
-import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
+import { clipLength, formatTime, PRESETS, type ClipTransform } from '../../engine/timeline';
+import { MOTIONS, type Motion } from '../../engine/video';
+import { bitrateFor, formatsFor, vFormat, type VFps, type VQuality } from '../../engine/videoFormats';
 import { lanePlan } from '../../engine/decodePool';
 import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
 import { previewSound, soundPlan } from './previewSound';
@@ -19,48 +20,7 @@ import { canStreamToDisk } from '../../lib/fileSink';
 import { toast } from '../../lib/toast';
 import { desktop, isDesktop } from '../../platform/desktop';
 import { canShareFiles, getIg, setIg, useIg } from '../../state/instagram';
-import {
-  addMedia,
-  addVLayer,
-  cancelExport,
-  adjustClip,
-  applyPreset,
-  clipPlace,
-  editClip,
-  endVStep,
-  exportVideo,
-  getVideo,
-  limitText,
-  limits,
-  redoV,
-  removeMusic,
-  removeVLayer,
-  restackVLayer,
-  selectVLayer,
-  setKind,
-  setMusicFile,
-  setPlayhead,
-  removeAnimation,
-  setClipTransformAt,
-  setClipVolume,
-  setLayerTimes,
-  toggleKey,
-  updateLayerAt,
-  type KeyProp,
-  type KeyTarget,
-  setPlaying,
-  setVideoOptions,
-  setVLayers,
-  setVTools,
-  undoV,
-  updateClipWhy,
-  updateMusic,
-  useVideo,
-  type VClip,
-  projectOf,
-  total as videoTotal,
-  videoLength,
-} from '../../state/video';
+import { addMedia, addVLayer, cancelExport, adjustClip, applyPreset, clipPlace, editClip, endVStep, exportVideo, getVideo, limitText, limits, redoV, removeMusic, removeVLayer, restackVLayer, selectVLayer, setKind, setMusicFile, setPlayhead, removeAnimation, setClipTransformAt, setClipVolume, setLayerTimes, toggleKey, updateLayerAt, type KeyProp, type KeyTarget, setPlaying, setVideoOptions, setVLayers, setVTools, undoV, updateClipWhy, updateMusic, useVideo, type VClip, projectOf, total as videoTotal, videoLength } from '../../state/video';
 import { Check, Seg } from '../common';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { LookPicker } from '../ig/LookPicker';
@@ -594,7 +554,7 @@ function VideoStage() {
         tabIndex={0}
         className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}`}
         style={{ width, height }}
-        aria-label={`Video frame at ${fmtTime(t)}, ${f.ratio}. Drag a layer or an overlay clip to move it, its corner handle to resize, its top handle to turn it; arrow keys move the selected one. Delete removes the selected layer. Space plays and pauses.`}
+        aria-label={`Video frame at ${formatTime(t)}, ${f.ratio}. Drag a layer or an overlay clip to move it, its corner handle to resize, its top handle to turn it; arrow keys move the selected one. Delete removes the selected layer. Space plays and pauses.`}
         onDoubleClick={() => document.getElementById('layer-text')?.focus()}
         {...handlers}
       />
@@ -644,7 +604,7 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
         </h3>
         <p className="hint ig-name" title={c.name}>
           {c.name} · {c.w}×{c.h}
-          {c.kind === 'video' ? ` · ${fmtTime(c.srcDur)}` : ''}
+          {c.kind === 'video' ? ` · ${formatTime(c.srcDur)}` : ''}
         </p>
         {cantExport && <p className="hint bad" role="status">{cantExport}</p>}
         {c.kind === 'photo' ? (
@@ -661,8 +621,8 @@ function ClipPanel({ clip: c }: { clip: VClip }) {
           </>
         ) : (
           <>
-            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip({ in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
-            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip({ out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
+            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={formatTime(c.in)} onChange={(v) => updateClip({ in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
+            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={formatTime(c.out)} onChange={(v) => updateClip({ out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
             <div className="kf-row">
               <Range id="v-vol" label="Clip sound" value={volume} min={0} max={1} step={0.05} show={volume ? `${Math.round(volume * 100)}%` : 'muted'} onChange={(v) => tell(setClipVolume(c.id, v))} />
               <KeyButton target={{ clip: c.id }} props={['volume']} label="Clip sound" state={keyState(c.keys?.volume, local)} time={t} />
@@ -810,7 +770,7 @@ function ProjectPanel() {
       <div className="ig-group">
         <h3>Project</h3>
         <p className="hint">
-          {clips.length} clip{clips.length === 1 ? '' : 's'} · {fmtTime(total)} of up to {limitText(L.seconds)}.
+          {clips.length} clip{clips.length === 1 ? '' : 's'} · {formatTime(total)} of up to {limitText(L.seconds)}.
         </p>
         <p className="hint">Choose a clip on the timeline to edit it, or a layer to change it.</p>
       </div>
@@ -850,10 +810,10 @@ function MusicPanel() {
       {music && (
         <>
           <p className="hint ig-name" title={music.name}>
-            {music.name} · {fmtTime(music.dur)}
+            {music.name} · {formatTime(music.dur)}
           </p>
           <Range id="m-vol" label="Volume" value={music.volume} min={0} max={1} step={0.05} show={`${Math.round(music.volume * 100)}%`} onChange={(volume) => updateMusic({ volume })} />
-          <Range id="m-off" label="Start the song at" value={music.offset} min={0} max={Math.max(0, music.dur - Math.min(total, music.dur))} step={0.5} show={fmtTime(music.offset)} onChange={(offset) => updateMusic({ offset })} />
+          <Range id="m-off" label="Start the song at" value={music.offset} min={0} max={Math.max(0, music.dur - Math.min(total, music.dur))} step={0.5} show={formatTime(music.offset)} onChange={(offset) => updateMusic({ offset })} />
           <p className="hint">Or drag the music on the timeline. It fades out over the last seconds. Lower a clip’s own sound in its inspector.</p>
           <button type="button" className="sbtn" onClick={removeMusic}>
             <TrashIcon />
@@ -922,7 +882,7 @@ function ExportPanel() {
         <div>
           <h3>Video</h3>
           <p className="hint">
-            {f.ratio} {f.label} · {f.w}×{f.h} · H.264 + AAC sound · {fmtTime(total)}
+            {f.ratio} {f.label} · {f.w}×{f.h} · H.264 + AAC sound · {formatTime(total)}
           </p>
           {L.fps.length > 1 && (
             <>
@@ -996,7 +956,7 @@ function ExportPanel() {
         <div className="ig-actions">
           <button type="button" className="btn primary" disabled={!clips.length || tooShort} onClick={() => void run()}>
             <DownloadIcon />
-            {result || savedTo ? 'Export again' : `Export MP4 (${fmtTime(total)})`}
+            {result || savedTo ? 'Export again' : `Export MP4 (${formatTime(total)})`}
           </button>
           {result && (
             <>

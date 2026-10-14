@@ -3,7 +3,7 @@ import type { ClipKeyProp, Keyframes } from './keyframes';
 import type { Layer } from './layers';
 import { MAIN_VIDEO, isPictureTrack, type Track } from './tracks';
 import type { Transition } from './transitions';
-import { IDENTITY, clipLength, frameRange, type ClipTiming } from './video';
+import { V_FPS } from './videoFormats';
 
 /*
  * The video editor's project as tracks (P2.1, specs/features/201-track-model), free of DOM and React. Clips sit on a
@@ -33,6 +33,17 @@ export interface ClipTransform {
   /** Corner radius, a share of the box's shorter side (0…0.5, Q2). */
   radius: number;
 }
+
+/** The whole frame: a clip without a transform draws exactly as before 203. */
+export const IDENTITY: Readonly<ClipTransform> = Object.freeze({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
+
+/**
+ * Whether a transform leaves the clip as the whole frame (the fast path that draws as before 203).
+ * @param transform a clip's transform, if it has one
+ * @returns true for no transform or one equal to the identity
+ */
+export const isIdentity = (transform?: ClipTransform): boolean =>
+  !transform || keysOf(IDENTITY).every((field) => transform[field] === IDENTITY[field]);
 
 /** Each transform field's range. */
 export const TRANSFORM_RANGES: Readonly<Record<keyof ClipTransform, readonly [number, number]>> = {
@@ -92,6 +103,51 @@ export function presetTransform(preset: Preset, frameWidth: number, frameHeight:
     x: preset.endsWith('left') ? x : 1 - x,
     y: preset.startsWith('top') ? y : 1 - y,
   };
+}
+
+/* ---------- clip timing ---------- */
+
+/** A new photo's seconds on screen. */
+export const V_PHOTO_SECONDS = 3;
+
+/** What the timeline needs to know about a clip. */
+export interface ClipTiming {
+  kind: 'photo' | 'video';
+  /** Photo: seconds on screen. */
+  dur: number;
+  /** Video: the start of the part used, in seconds of the source. */
+  in: number;
+  /** Video: the end of the part used, in seconds of the source. */
+  out: number;
+}
+
+/**
+ * A clip's seconds on the timeline.
+ * @param clip the clip
+ * @returns a photo's duration or a video's trimmed length, at least 0.1 s
+ */
+export const clipLength = (clip: ClipTiming): number => Math.max(0.1, clip.kind === 'photo' ? clip.dur : clip.out - clip.in);
+
+/**
+ * The frame numbers whose time falls in [start, end).
+ * @param start the first time, seconds
+ * @param end the time after the last, seconds
+ * @param fps the frame rate
+ * @returns the first frame and the frame after the last
+ */
+export function frameRange(start: number, end: number, fps: number = V_FPS): [number, number] {
+  // The tiny offset keeps a frame exactly on a boundary in the later clip; max(0, …) avoids a -0 first frame.
+  return [Math.max(0, Math.ceil(start * fps - 1e-6)), Math.max(0, Math.ceil(end * fps - 1e-6))];
+}
+
+/**
+ * A time as the timeline shows it.
+ * @param seconds the time, seconds (below 0 shows as 0)
+ * @returns m:ss.s
+ */
+export function formatTime(seconds: number): string {
+  const time = Math.max(0, seconds);
+  return `${Math.floor(time / 60)}:${(time % 60).toFixed(1).padStart(4, '0')}`;
 }
 
 /* ---------- clips and the project ---------- */

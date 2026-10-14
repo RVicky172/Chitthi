@@ -1,7 +1,6 @@
 import { transitionItems } from './stack';
 import { MAIN_VIDEO } from './tracks';
-import { type Project, type TimedClip } from './timeline';
-import { clipLength } from './video';
+import { clipLength, type Project, type TimedClip } from './timeline';
 
 /*
  * The decoder pool (P2.4, specs/features/204-decoder-pool): the frames of every video visible at a time, for the

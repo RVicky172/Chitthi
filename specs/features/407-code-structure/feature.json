@@ -865,7 +865,7 @@
         "T032": {
           "text": "`engine/video.ts` and `engine/videoExport.ts` (split `video.ts`’s formats and limits from its drawing): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: engine/",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -881,7 +881,9 @@
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-14",
+          "doneOn": null
         },
         "T033": {
           "text": "Split `engine/render.ts` (1,443 lines, the print renderer) by job, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",

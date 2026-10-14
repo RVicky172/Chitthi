@@ -1,70 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_EDIT } from '@/engine/instagram';
-import { clipLength } from '@/engine/video';
+import { clipLength, IDENTITY, presetTransform } from '@/engine/timeline';
 import { TEXT_STYLES } from '@/data/layers';
 import { layerAt, type Ease, type Keyframe } from '@/engine/keyframes';
 import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '@/engine/layers';
-import { IDENTITY } from '@/engine/video';
 import { MAIN_VIDEO, defaultTracks, tooManyTracks, type Track } from '@/engine/tracks';
-import { presetTransform } from '@/engine/timeline';
-import {
-  NEW_TRACK,
-  addMedia,
-  addTrack,
-  applyPreset,
-  clipPlace,
-  deleteGap,
-  deleteTrack,
-  duplicateClip,
-  duplicateClipWhy,
-  endVStep,
-  getVideo,
-  loadVideoProject,
-  mediaIO,
-  moveClip,
-  moveClipToTime,
-  moveClipToTrack,
-  moveTrack,
-  renameTrack,
-  setClipTransform,
-  splitAtPlayheadWhy,
-  nudgeClip,
-  rippleDeleteClip,
-  rippleTrimToPlayhead,
-  rollClip,
-  selectClip,
-  setPlayhead,
-  setTrack,
-  slideClip,
-  slipClip,
-  slipMusic,
-  splitAtPlayhead,
-  trimClip,
-  moveClipTo,
-  removeClip,
-  setMagnetic,
-  setSnapping,
-  setTool,
-  undoV,
-  updateClip,
-  updateClipWhy,
-  videoLength,
-  deleteKeys,
-  moveKeys,
-  removeAnimation,
-  setClipTransformAt,
-  setClipVolume,
-  setKeyEase,
-  setLayerTimes,
-  toggleKey,
-  updateLayerAt,
-  setVLayers,
-  removeTransition,
-  setTransition,
-  transitionEveryCut,
-  type VClip,
-  type VMusic,
-} from '@/state/video';
+import { NEW_TRACK, addMedia, addTrack, applyPreset, clipPlace, deleteGap, deleteTrack, duplicateClip, duplicateClipWhy, endVStep, getVideo, loadVideoProject, mediaIO, moveClip, moveClipToTime, moveClipToTrack, moveTrack, renameTrack, setClipTransform, splitAtPlayheadWhy, nudgeClip, rippleDeleteClip, rippleTrimToPlayhead, rollClip, selectClip, setPlayhead, setTrack, slideClip, slipClip, slipMusic, splitAtPlayhead, trimClip, moveClipTo, removeClip, setMagnetic, setSnapping, setTool, undoV, updateClip, updateClipWhy, videoLength, deleteKeys, moveKeys, removeAnimation, setClipTransformAt, setClipVolume, setKeyEase, setLayerTimes, toggleKey, updateLayerAt, setVLayers, removeTransition, setTransition, transitionEveryCut, type VClip, type VMusic } from '@/state/video';
 
 /*
  * The video store's Magnetic switch, tool and Snap (202 T020). Clips are made by hand (no media decoding in Node):

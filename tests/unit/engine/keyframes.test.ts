@@ -29,10 +29,9 @@ import {
   type Keyframes,
 } from '@/engine/keyframes';
 import { newSticker, newText } from '@/engine/layers';
-import { IDENTITY } from '@/engine/video';
-import { type ClipTransform, type TimedClip } from '@/engine/timeline';
+import { frameRange, IDENTITY, type ClipTransform, type TimedClip } from '@/engine/timeline';
 import { type SoundSource } from '@/engine/soundPlan';
-import { frameRange, itemTransform, type StackDraw } from '@/engine/video';
+import { itemTransform, type StackDraw } from '@/engine/video';
 
 /** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */
 const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & { volume: number } => ({
