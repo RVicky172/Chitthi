@@ -11,6 +11,14 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T051 (VideoWorkspace.tsx split)
+
+**Done:** `VideoWorkspace.tsx` (1,008 lines) → `VideoWorkspace`, `VideoStage`, `ClipInspector`, `VideoPanels`,
+`VideoExport`, `videoFields`; all at 0, React compiler rules included. Check and build green, entry 312 KB. Editor
+e2e and manual checks wait for 290. Commit `0197ce1`.
+**Next:** T052 (split `PhotoWorkspace.tsx`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-15 — 407 T050 (Timeline.tsx split)
 
 **Done:** `components/studio/Timeline.tsx` (1,278 lines) → `Timeline`, `PictureRow`, `CutMarks`, `TimelineBars`,

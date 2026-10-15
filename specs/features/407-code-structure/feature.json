@@ -1137,7 +1137,7 @@
         "T051": {
           "text": "Split `components/studio/VideoWorkspace.tsx` into the workspace, its panels, the stage, the clip inspector and the export dialog, then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: components/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1151,8 +1151,14 @@
             "src/components/studio/**"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "0197ce1"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `components/studio/VideoWorkspace.tsx` (1,008 lines, ≈ 140 lint findings, 2 React compiler findings; `VideoStage` 275 lines, `ExportPanel` and `ClipPanel` with nested ternaries) split by job into `VideoWorkspace.tsx` (the workspace: `useWorkspaceKeys`, `useLayerPanelProps`, `ToolPanel`, `Inspector`, `WorkspaceActions`; 246 lines), `VideoStage.tsx` (`useStageSources` memoised so effects keep their identity, `drawStage` / `frameNow` / `pictureNow`, `syncMedia` + `syncFallbackVideo`, `lookAhead`, `usePlayback`, `useStageLayers`; 407), `ClipInspector.tsx` (`ClipInspector` with `TimingGroup` / `PositionGroup` / `PictureGroups`, `ProjectInspector`; 286), `VideoPanels.tsx` (`MediaPanel`, `MusicPanel`, `EmptyStage`, `LimitsNote`; 192), `VideoExport.tsx` (`ExportSettings`, `ExportDestination`, `ExportActions`, `runExport`, `postToInstagram`; 238) and `videoFields.tsx` (`Range`, `NumberField`, `KeyButton`; 99). All six at 0 lint findings (React compiler rules included) and 0 unchecked-index errors; no barrel. React fixes, behaviour kept: the stage's draw function is set in a layout effect instead of during render; `NumberField` resets its draft from a new value during render (React's previous-value pattern) instead of in an effect; the music `<audio>` is taken by the playback effect when it starts and paused by its cleanup (the separate unmount pause was redundant); casts and `!` gone (the frame-rate choice maps '60' / '30' explicitly; the clipboard is still guarded for insecure contexts). Behaviour otherwise moved as it was (reviewed line by line; the editors' e2e and manual checks run in 290, D-033). `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Docs: `specs/lld.md`, `docs/MEDIA-STUDIO.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
         },
         "T052": {
           "text": "Split `components/studio/PhotoWorkspace.tsx` the same way, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
