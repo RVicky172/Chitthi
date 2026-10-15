@@ -1,83 +1,183 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { layoutName } from '../data/layouts';
 import { productOf } from '../data/products';
-import { addToLibrary } from '../state/actions';
-import { keyOfStored, putOnCard, removeStored, useLibrary } from '../state/library';
-import {
-  cropLoss,
-  dimsOf,
-  fitsSlot,
-  rememberDims,
-  shapeOf,
-  SHAPE_LABEL,
-  sharpness,
-  slotDpi,
-  slotInfo,
-  useDimsTick,
-  type PhotoShape,
-} from '../state/photoFit';
-import { placePhoto, selectSlot, usePhotoSlots } from '../state/photoSlots';
-import { photoKey } from '../lib/photoKey';
-import { analyzeLibrary, autoArrange, smartFill, traitsForPhoto, traitsOf, useTraitsTick } from '../state/traits';
 import { relevance, type Hue } from '../engine/analyze';
 import { resolveTheme } from '../engine/design';
+import { isOneOf } from '../engine/guards';
+import { photoKey } from '../lib/photoKey';
+import { addToLibrary } from '../state/actions';
+import { putOnCard, removeStored, useLibrary } from '../state/library';
+import { dimsOf, SHAPE_LABEL, slotInfo, useDimsTick } from '../state/photoFit';
+import { placePhoto, usePhotoSlots } from '../state/photoSlots';
 import { getState, setPhotos, setUI, useApp } from '../state/store';
+import { analyzeLibrary, autoArrange, smartFill, traitsForPhoto, traitsOf, useTraitsTick } from '../state/traits';
 import type { StoredPhoto } from '../types';
-import { shortName } from '../lib/credits';
-import { PhotoCredit, Seg } from './common';
-import { AddPhotoIcon, CloseIcon, CropIcon, TrashIcon } from './icons';
+import { Seg } from './common';
+import { AddPhotoIcon, CloseIcon } from './icons';
 import { AiArtworkEntry } from './ai/AiEntry';
 import { PexelsSearch } from './PexelsSearch';
+import {
+  compareItems,
+  cropLossIn,
+  FILTERS,
+  libraryItems,
+  matchesSearch,
+  passesFilter,
+  passesRefine,
+  type Filter,
+  type Item,
+  type Refine,
+  type Sort,
+} from './photoLibraryItems';
+import { LibraryCard, RefineBar, SlotChips } from './PhotoLibraryParts';
 
-type Filter = 'fit' | 'all' | 'card' | 'unused' | 'uploads' | 'pexels' | PhotoShape;
-type Sort = 'rel' | 'new' | 'old' | 'name' | 'fit' | 'size';
-type Refine = {
-  hue?: Hue;
-  light?: 'bright' | 'dark';
-  mood?: 'colourful' | 'muted' | 'warm' | 'cool';
-  quality?: 'print' | 'sharp';
-};
-const HUE_SWATCH: Record<Hue, string> = {
-  red: '#d63a3a',
-  orange: '#ef8a2e',
-  yellow: '#f2cc38',
-  green: '#4aa55a',
-  teal: '#2fa6a0',
-  blue: '#3a78d6',
-  purple: '#8a5ad0',
-  pink: '#e06aa8',
-  neutral: '#9a948c',
-};
+const SORTS: Sort[] = ['rel', 'new', 'old', 'name', 'fit', 'size'];
 
-interface Item {
-  /** Fingerprint (lib/photoKey.ts): identifies the photo. */
-  key: string;
-  /** What the grid shows: the thumbnail, or the full image for a photo that is only on the design. */
-  view: string;
-  /** The stored photo, for placing it (its full image loads then). */
-  sp?: StoredPhoto;
-  /** Pixel size. */
-  w?: number;
-  h?: number;
-  name: string;
-  /** Photo store id (absent for a photo that is only on the card). */
-  id?: string;
-  added: number;
-  /** Index in the card's photo list, or -1. */
-  card: number;
+/**
+ * The selected slot's name in sentences.
+ * @param count photo slots in the layout
+ * @param active the selected slot
+ * @returns "slot 2", "the photo slot", or '' without slots
+ */
+function slotName(count: number, active: number): string {
+  if (count > 1) return `slot ${active + 1}`;
+  return count ? 'the photo slot' : '';
 }
 
-const FILTERS: [Filter, string][] = [
-  ['fit', 'Fits this slot'],
-  ['all', 'All'],
-  ['card', 'On this design'],
-  ['unused', 'Not used'],
-  ['wide', 'Wide'],
-  ['tall', 'Tall'],
-  ['square', 'Square'],
-  ['uploads', 'Uploaded'],
-  ['pexels', 'From Pexels'],
-];
+/** Where the library's sources show: your photos, Pexels, or AI pictures. */
+type Tab = 'mine' | 'pexels' | 'ai';
+
+/** The empty state's choices. */
+interface EmptyLibraryProps {
+  hasItems: boolean;
+  filter: Filter;
+  onShowAll: () => void;
+}
+
+/**
+ * Nothing to show: an empty library, or a filter that matches nothing (with Show all photos).
+ * @param props whether the library has photos, the filter and showing all
+ */
+function EmptyLibrary({ hasItems, filter, onShowAll }: Readonly<EmptyLibraryProps>) {
+  return (
+    <div className="empty lib-empty">
+      <AddPhotoIcon />
+      <p>
+        {hasItems
+          ? 'No photos match this filter. Try “All”, or crop a photo to fit.'
+          : 'Your library is empty. Upload photos, or drop them here. They stay on this device, ready for any design.'}
+      </p>
+      {hasItems && filter !== 'all' && (
+        <button type="button" className="btn" onClick={onShowAll}>
+          Show all photos
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** The filter bar's state and setters. */
+interface LibraryFiltersProps {
+  count: number;
+  active: number;
+  filter: Filter;
+  onFilter: (filter: Filter) => void;
+  query: string;
+  onQuery: (query: string) => void;
+  sort: Sort;
+  onSort: (sort: Sort) => void;
+  /** Whether a slot is selected (offers "Best fit for the slot"). */
+  hasSlot: boolean;
+}
+
+/**
+ * The filter chips, the search and the sort.
+ * @param props the filter, search and sort with their setters, and the slots
+ */
+function LibraryFilters({
+  count,
+  active,
+  filter,
+  onFilter,
+  query,
+  onQuery,
+  sort,
+  onSort,
+  hasSlot,
+}: Readonly<LibraryFiltersProps>) {
+  return (
+    <div className="lib-filters">
+      <div className="chips" aria-label="Show">
+        {FILTERS.filter(([filterId]) => filterId !== 'fit' || count > 0).map(([filterId, label]) => (
+          <button
+            key={filterId}
+            type="button"
+            className="chip"
+            aria-pressed={filter === filterId}
+            onClick={() => onFilter(filterId)}
+          >
+            {filterId === 'fit' && count > 1 ? `Fits slot ${active + 1}` : label}
+          </button>
+        ))}
+      </div>
+      <input
+        type="search"
+        aria-label="Search photos"
+        placeholder="Search: name, blue, bright, warm, sky…"
+        value={query}
+        onChange={(event) => onQuery(event.target.value)}
+      />
+      <select
+        aria-label="Sort"
+        value={sort}
+        onChange={(event) => {
+          const value = event.target.value;
+          if (isOneOf(SORTS, value)) onSort(value);
+        }}
+      >
+        <option value="rel">Most relevant</option>
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        {hasSlot && <option value="fit">Best fit for the slot</option>}
+        <option value="size">Most pixels</option>
+        <option value="name">Name</option>
+      </select>
+    </div>
+  );
+}
+
+/** The stored photos and whether the design has photos. */
+interface ArrangeActionsProps {
+  list: StoredPhoto[] | null;
+  hasPhotos: boolean;
+}
+
+/**
+ * Auto-arrange the design's photos, or fill empty slots with the best matches from the library.
+ * @param props the stored photos and whether the design has photos
+ */
+function ArrangeActions({ list, hasPhotos }: Readonly<ArrangeActionsProps>) {
+  return (
+    <div className="lib-actions">
+      <button type="button" className="btn" onClick={autoArrange} disabled={!hasPhotos}>
+        Auto-arrange photos in the layout
+      </button>
+      <button
+        type="button"
+        className="btn"
+        onClick={() => {
+          if (list) void smartFill(list);
+        }}
+        disabled={!list?.length}
+      >
+        Fill empty slots with the best matches
+      </button>
+      <span className="hint">
+        Photos are analysed for shape, colour, brightness and sharpness, and each crop is centred on its subject.
+      </span>
+    </div>
+  );
+}
 
 /**
  * Photo library (header → Photos): every photo on this device in one place. Upload, crop, put in a slot, take off
@@ -93,60 +193,37 @@ export function PhotoLibrary() {
   useDimsTick();
   const dlg = useRef<HTMLDialogElement>(null);
   const tab = useApp((state) => state.ui.libraryTab),
-    setTab = (libraryTab: 'mine' | 'pexels' | 'ai') => setUI({ libraryTab });
+    setTab = (libraryTab: Tab) => setUI({ libraryTab });
   const [filter, setFilter] = useState<Filter>('fit');
   const [sort, setSort] = useState<Sort>('rel');
   const [refine, setRefine] = useState<Refine>({});
   const [relevantOnly, setRelevantOnly] = useState(false);
   useTraitsTick();
-  const [query, setQ] = useState('');
+  const [query, setQuery] = useState('');
   const [msgs, setMsgs] = useState<['err' | 'warn', string][]>([]);
   const [over, setOver] = useState(false);
   const [sure, setSure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const el = dlg.current;
-    if (!el) return;
-    if (open && !el.open) {
-      el.showModal();
+    const dialog = dlg.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      dialog.showModal();
       setMsgs([]);
       setFilter(count ? 'fit' : 'all');
-    } else if (!open && el.open) el.close();
+    } else if (!open && dialog.open) dialog.close();
   }, [open, count]);
   useEffect(() => {
     if (!sure) return;
     const timer = setTimeout(() => setSure(null), 3000);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [sure]);
 
   const slot = useMemo(() => slotInfo(design, active), [design, active]);
-  const items = useMemo<Item[]>(() => {
-    const byKey = new Map<string, Item>();
-    (list ?? []).forEach((sp) => {
-      const key = keyOfStored(sp);
-      byKey.set(key, {
-        key,
-        view: sp.thumb || sp.url,
-        sp,
-        name: sp.name,
-        id: sp.id,
-        added: sp.added,
-        card: -1,
-        w: sp.w,
-        h: sp.h,
-      });
-      if (sp.w && sp.h) rememberDims(key, sp.w, sp.h);
-    });
-    photos.forEach((photo, index) => {
-      const key = photoKey(photo.url),
-        it = byKey.get(key);
-      if (it) it.card = index;
-      else byKey.set(key, { key, view: photo.url, name: photo.name, added: 0, card: index });
-      rememberDims(key, photo.orig.naturalWidth, photo.orig.naturalHeight);
-    });
-    return [...byKey.values()];
-  }, [list, photos]);
+  const items = useMemo(() => libraryItems(list, photos), [list, photos]);
 
   // Analyse everything once: library photos in the background, card photos straight away.
   useEffect(() => {
@@ -154,78 +231,23 @@ export function PhotoLibrary() {
     if (open) photos.forEach(traitsForPhoto);
   }, [open, list, photos]);
   const theme = resolveTheme(design);
-  const score = (it: Item) => {
-    const traits = traitsOf(it.key);
+  const score = (item: Item) => {
+    const traits = traitsOf(item.key);
     return traits ? relevance(traits, slot, theme) : 0;
   };
-  // Search matches the name and the words the analysis found (bright, blue, warm, sky, sharp…).
-  const byName = (it: Item) => {
-    if (!query.trim()) return true;
-    const hay = `${it.name} ${traitsOf(it.key)?.tags.join(' ') ?? ''}`.toLowerCase();
-    return query
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean)
-      .every((word) => hay.includes(word));
-  };
-  const refined = (it: Item) => {
-    const traits = traitsOf(it.key);
-    if (!refine.hue && !refine.light && !refine.mood && !refine.quality && !relevantOnly) return true;
-    if (!traits) return false;
-    if (refine.hue && traits.hue !== refine.hue) return false;
-    if (refine.light && !traits.tags.includes(refine.light)) return false;
-    if (refine.mood && !traits.tags.includes(refine.mood)) return false;
-    if (refine.quality === 'sharp' && traits.sharpness < 0.3) return false;
-    if (refine.quality === 'print' && slot && 25.4 / Math.max(slot.wmm / traits.w, slot.hmm / traits.h) < 250)
-      return false;
-    if (relevantOnly && relevance(traits, slot, theme) < 0.62) return false;
-    return true;
-  };
-  const hues = [...new Set(items.map((it) => traitsOf(it.key)?.hue).filter((hue): hue is Hue => !!hue))];
-  const shown = items
-    .filter((it) => {
-      const dm = dimsOf(it.key),
-        pex = /\(Pexels \//.test(it.name);
-      if (!byName(it) || !refined(it)) return false;
-      switch (filter) {
-        case 'fit':
-          return !slot || !dm || fitsSlot(dm.w, dm.h, slot.aspect);
-        case 'card':
-          return it.card >= 0;
-        case 'unused':
-          return it.card < 0;
-        case 'uploads':
-          return !pex;
-        case 'pexels':
-          return pex;
-        case 'wide':
-        case 'tall':
-        case 'square':
-          return !!dm && shapeOf(dm.w, dm.h) === filter;
-        default:
-          return true;
-      }
-    })
-    .sort((left, right) => {
-      const da = dimsOf(left.key),
-        db = dimsOf(right.key);
-      if (sort === 'rel') return score(right) - score(left);
-      if (sort === 'name') return left.name.localeCompare(right.name);
-      if (sort === 'old') return left.added - right.added;
-      if (sort === 'size') return (db ? db.w * db.h : 0) - (da ? da.w * da.h : 0);
-      if (sort === 'fit' && slot)
-        return (da ? cropLoss(da.w, da.h, slot.aspect) : 1) - (db ? cropLoss(db.w, db.h, slot.aspect) : 1);
-      return right.added - left.added;
-    });
-
+  const refineContext = { refine, relevantOnly, slot, theme };
+  const searched = items.filter((item) => matchesSearch(item, query) && passesRefine(item, refineContext));
+  const hues = [...new Set(items.map((item) => traitsOf(item.key)?.hue).filter((hue): hue is Hue => !!hue))];
+  const shown = searched
+    .filter((item) => passesFilter(item, filter, slot))
+    .sort((left, right) => compareItems(left, right, sort, slot, score));
   // With "Fits this slot", the other photos are still offered below, dimmed: they need more cropping.
-  const rest =
-    filter === 'fit' && slot
-      ? items.filter((it) => {
-          const dm = dimsOf(it.key);
-          return byName(it) && refined(it) && !!dm && !fitsSlot(dm.w, dm.h, slot.aspect);
-        })
-      : [];
+  const fitSlot = filter === 'fit' ? slot : null;
+  const rest = fitSlot
+    ? searched
+        .filter((item) => !!dimsOf(item.key) && !passesFilter(item, 'fit', fitSlot))
+        .toSorted((left, right) => cropLossIn(left, fitSlot) - cropLossIn(right, fitSlot))
+    : [];
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -236,96 +258,34 @@ export function PhotoLibrary() {
       setBusy(false);
     }
   };
-  const placeItem = async (it: Item) => {
-    if (it.sp) await putOnCard(it.sp);
+  const placeItem = async (item: Item) => {
+    if (item.sp) await putOnCard(item.sp);
     else {
-      const photo = getState().photos.find((x) => photoKey(x.url) === it.key);
+      const photo = getState().photos.find((candidate) => photoKey(candidate.url) === item.key);
       if (photo) placePhoto(photo.id, active);
     }
   };
-  const crop = async (it: Item) => {
-    if (it.card < 0) await placeItem(it);
-    const ph = getState().photos.find((candidate) => photoKey(candidate.url) === it.key);
-    if (ph) setUI({ cropId: ph.id });
+  const crop = async (item: Item) => {
+    if (item.card < 0) await placeItem(item);
+    const photo = getState().photos.find((candidate) => photoKey(candidate.url) === item.key);
+    if (photo) setUI({ cropId: photo.id });
   };
-  const takeOff = (it: Item) => setPhotos(getState().photos.filter((photo) => photoKey(photo.url) !== it.key));
+  const takeOff = (item: Item) => setPhotos(getState().photos.filter((photo) => photoKey(photo.url) !== item.key));
 
-  const card = (it: Item, dim = false) => {
-    const dm = dimsOf(it.key),
-      dpi = dm && slot ? slotDpi(dm.w, dm.h, slot) : null,
-      sh = dpi ? sharpness(dpi) : null,
-      inSlot = filled.findIndex((photo) => !!photo && photoKey(photo.url) === it.key);
-    return (
-      <li key={it.key} className={`lib-item${dim ? ' dim' : ''}`}>
-        <button
-          type="button"
-          className="lib-ph"
-          title={count ? `Put in ${where}` : it.name}
-          onClick={() => void placeItem(it)}
-          disabled={!count}
-        >
-          <img src={it.view} alt={it.name} loading="lazy" decoding="async" />
-          {inSlot >= 0 && <b className="lib-badge">{count > 1 ? `Slot ${inSlot + 1}` : 'On design'}</b>}
-          {inSlot < 0 && it.card >= 0 && <b className="lib-badge muted">On design</b>}
-        </button>
-        <div className="lib-meta">
-          <span className="lib-name">{shortName(it.name)}</span>
-          <PhotoCredit name={it.name} />
-          <span className="lib-facts">
-            {dm ? `${dm.w.toLocaleString()} × ${dm.h.toLocaleString()} · ${SHAPE_LABEL[shapeOf(dm.w, dm.h)]}` : '…'}
-            {sh && (
-              <em className={`q ${sh === 'sharp' ? 'good' : sh === 'fine' ? 'ok' : 'low'}`}>{`${sh} (${dpi} dpi)`}</em>
-            )}
-          </span>
-          {traitsOf(it.key) && (
-            <span className="lib-tags">
-              <b title="How well this photo suits the selected slot: shape, print sharpness, focus and colours">
-                {Math.round(score(it) * 100)}% match
-              </b>
-              {traitsOf(it.key)!.tags.slice(0, 4).join(' · ')}
-            </span>
-          )}
-        </div>
-        <div className="lib-acts">
-          {count > 0 && (
-            <button type="button" className="sbtn accent" onClick={() => void placeItem(it)}>
-              {count > 1 ? `Use in slot ${active + 1}` : 'Use'}
-            </button>
-          )}
-          {count > 0 && (
-            <button type="button" className="sbtn" aria-label={`Crop ${it.name}`} onClick={() => void crop(it)}>
-              <CropIcon />
-              Crop
-            </button>
-          )}
-          {it.card >= 0 && (
-            <button type="button" className="sbtn" onClick={() => takeOff(it)}>
-              Take off
-            </button>
-          )}
-          {it.id && (
-            <button
-              type="button"
-              className={`sbtn danger${sure === it.id ? ' sure' : ''}`}
-              aria-label={sure === it.id ? `Tap again to delete ${it.name}` : `Delete ${it.name} from the library`}
-              onClick={() => {
-                if (sure !== it.id) setSure(it.id ?? null);
-                else {
-                  setSure(null);
-                  void removeStored(it.id!);
-                }
-              }}
-            >
-              <TrashIcon />
-              {sure === it.id ? 'Sure?' : ''}
-            </button>
-          )}
-        </div>
-      </li>
-    );
+  const where = slotName(count, active);
+  const cardProps = {
+    count,
+    active,
+    slot,
+    filled,
+    where,
+    sure,
+    setSure,
+    onPlace: (item: Item) => void placeItem(item),
+    onCrop: (item: Item) => void crop(item),
+    onTakeOff: takeOff,
+    onDelete: (id: string) => void removeStored(id),
   };
-
-  const where = count > 1 ? `slot ${active + 1}` : count ? 'the photo slot' : '';
   return (
     <dialog
       ref={dlg}
@@ -339,7 +299,7 @@ export function PhotoLibrary() {
           {items.length} in your library{photos.length ? `, ${photos.length} on this design` : ''}
         </span>
         <div className="lib-tabs">
-          <Seg<'mine' | 'pexels' | 'ai'>
+          <Seg<Tab>
             label="Source"
             value={tab}
             options={[
@@ -386,39 +346,21 @@ export function PhotoLibrary() {
               </>
             )}
           </span>
-          {count > 1 && (
-            <div className="chips" role="radiogroup" aria-label="Slot to fill">
-              {filled.map((_, slotIndex) => {
-                const si = slotInfo(design, slotIndex);
-                return (
-                  <button
-                    key={slotIndex}
-                    type="button"
-                    role="radio"
-                    className="chip"
-                    aria-checked={slotIndex === active}
-                    aria-pressed={slotIndex === active}
-                    onClick={() => selectSlot(slotIndex)}
-                  >
-                    Slot {slotIndex + 1}
-                    {si ? ` · ${SHAPE_LABEL[si.shape]}` : ''}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {count > 1 && <SlotChips design={design} filled={filled} active={active} />}
         </div>
       )}
 
-      {tab === 'pexels' ? (
+      {tab === 'pexels' && (
         <div className="galbody lib-pexels">
           <PexelsSearch wide />
         </div>
-      ) : tab === 'ai' ? (
+      )}
+      {tab === 'ai' && (
         <div className="galbody lib-pexels">
           <AiArtworkEntry wide />
         </div>
-      ) : (
+      )}
+      {tab === 'mine' && (
         <div
           className={`galbody lib-body${over ? ' over' : ''}`}
           onDragOver={(event) => {
@@ -432,128 +374,25 @@ export function PhotoLibrary() {
             void upload(event.dataTransfer.files);
           }}
         >
-          <div className="lib-filters">
-            <div className="chips" aria-label="Show">
-              {FILTERS.filter(([filterId]) => filterId !== 'fit' || count > 0).map(([filterId, label]) => (
-                <button
-                  key={filterId}
-                  type="button"
-                  className="chip"
-                  aria-pressed={filter === filterId}
-                  onClick={() => setFilter(filterId)}
-                >
-                  {filterId === 'fit' && count > 1 ? `Fits slot ${active + 1}` : label}
-                </button>
-              ))}
-            </div>
-            <input
-              type="search"
-              aria-label="Search photos"
-              placeholder="Search: name, blue, bright, warm, sky…"
-              value={query}
-              onChange={(event) => setQ(event.target.value)}
-            />
-            <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
-              <option value="rel">Most relevant</option>
-              <option value="new">Newest first</option>
-              <option value="old">Oldest first</option>
-              {slot && <option value="fit">Best fit for the slot</option>}
-              <option value="size">Most pixels</option>
-              <option value="name">Name</option>
-            </select>
-          </div>
-          <div className="lib-refine" role="group" aria-label="Refine by what's in the photos">
-            <span className="lib-refine-l">Colour</span>
-            {hues.map((hue) => (
-              <button
-                key={hue}
-                type="button"
-                className="swatch"
-                title={hue}
-                aria-label={`${hue} photos`}
-                aria-pressed={refine.hue === hue}
-                style={{ background: HUE_SWATCH[hue] }}
-                onClick={() => setRefine((previous) => ({ ...previous, hue: previous.hue === hue ? undefined : hue }))}
-              />
-            ))}
-            <span className="lib-refine-l">Light</span>
-            {(['bright', 'dark'] as const).map((light) => (
-              <button
-                key={light}
-                type="button"
-                className="chip"
-                aria-pressed={refine.light === light}
-                onClick={() =>
-                  setRefine((previous) => ({ ...previous, light: previous.light === light ? undefined : light }))
-                }
-              >
-                {light}
-              </button>
-            ))}
-            <span className="lib-refine-l">Mood</span>
-            {(['colourful', 'muted', 'warm', 'cool'] as const).map((mood) => (
-              <button
-                key={mood}
-                type="button"
-                className="chip"
-                aria-pressed={refine.mood === mood}
-                onClick={() =>
-                  setRefine((previous) => ({ ...previous, mood: previous.mood === mood ? undefined : mood }))
-                }
-              >
-                {mood}
-              </button>
-            ))}
-            <span className="lib-refine-l">Quality</span>
-            {(
-              [
-                ['print', 'Print-sharp here'],
-                ['sharp', 'In focus'],
-              ] as const
-            ).map(([quality, label]) => (
-              <button
-                key={quality}
-                type="button"
-                className="chip"
-                aria-pressed={refine.quality === quality}
-                onClick={() =>
-                  setRefine((previous) => ({
-                    ...previous,
-                    quality: previous.quality === quality ? undefined : quality,
-                  }))
-                }
-              >
-                {label}
-              </button>
-            ))}
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={relevantOnly}
-                onChange={(event) => setRelevantOnly(event.target.checked)}
-              />{' '}
-              Relevant only
-            </label>
-          </div>
-          {count > 0 && (
-            <div className="lib-actions">
-              <button type="button" className="btn" onClick={autoArrange} disabled={!photos.length}>
-                Auto-arrange photos in the layout
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => list && void smartFill(list)}
-                disabled={!list?.length}
-              >
-                Fill empty slots with the best matches
-              </button>
-              <span className="hint">
-                Photos are analysed for shape, colour, brightness and sharpness, and each crop is centred on its
-                subject.
-              </span>
-            </div>
-          )}
+          <LibraryFilters
+            count={count}
+            active={active}
+            filter={filter}
+            onFilter={setFilter}
+            query={query}
+            onQuery={setQuery}
+            sort={sort}
+            onSort={setSort}
+            hasSlot={!!slot}
+          />
+          <RefineBar
+            hues={hues}
+            refine={refine}
+            setRefine={setRefine}
+            relevantOnly={relevantOnly}
+            onRelevantOnly={setRelevantOnly}
+          />
+          {count > 0 && <ArrangeActions list={list} hasPhotos={photos.length > 0} />}
           {msgs.length > 0 && (
             <ul className="msgs" role="alert">
               {msgs.map(([key, message], index) => (
@@ -563,44 +402,34 @@ export function PhotoLibrary() {
               ))}
             </ul>
           )}
-          {filter === 'fit' && slot && (
+          {fitSlot && (
             <p className="hint">
               Showing photos whose shape suits {where}: the automatic crop keeps at least 80% of each. Any photo can
               still be cropped by hand.
             </p>
           )}
-          {shown.length ? (
-            <ul className="lib-grid">{shown.map((it) => card(it))}</ul>
-          ) : rest.length ? (
+          {shown.length > 0 && (
+            <ul className="lib-grid">
+              {shown.map((item) => (
+                <LibraryCard key={item.key} item={item} score={score(item)} {...cardProps} />
+              ))}
+            </ul>
+          )}
+          {!shown.length && rest.length > 0 && (
             <p className="hint">
               No photo has the right shape for {where} yet: the closest are below. Crop one to fit exactly.
             </p>
-          ) : (
-            <div className="empty lib-empty">
-              <AddPhotoIcon />
-              <p>
-                {items.length
-                  ? 'No photos match this filter. Try “All”, or crop a photo to fit.'
-                  : 'Your library is empty. Upload photos, or drop them here. They stay on this device, ready for any design.'}
-              </p>
-              {items.length > 0 && filter !== 'all' && (
-                <button type="button" className="btn" onClick={() => setFilter('all')}>
-                  Show all photos
-                </button>
-              )}
-            </div>
+          )}
+          {!shown.length && !rest.length && (
+            <EmptyLibrary hasItems={items.length > 0} filter={filter} onShowAll={() => setFilter('all')} />
           )}
           {rest.length > 0 && (
             <>
               <h3 className="lib-h3">Other shapes: cropped more to fill {where}</h3>
               <ul className="lib-grid">
-                {rest
-                  .sort((left, right) => {
-                    const da = dimsOf(left.key)!,
-                      db = dimsOf(right.key)!;
-                    return cropLoss(da.w, da.h, slot!.aspect) - cropLoss(db.w, db.h, slot!.aspect);
-                  })
-                  .map((it) => card(it, true))}
+                {rest.map((item) => (
+                  <LibraryCard key={item.key} item={item} dim score={score(item)} {...cardProps} />
+                ))}
               </ul>
             </>
           )}
