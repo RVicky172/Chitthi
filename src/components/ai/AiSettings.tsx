@@ -26,6 +26,18 @@ import { logError } from '../../lib/errors';
 
 type Status = Partial<Record<AiProviderId, KeyInfo>>;
 
+/**
+ * A base URL without trailing slashes.
+ * @param url the URL as typed
+ * @returns the URL
+ */
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
+/** The AI settings: which service writes words and makes pictures, keys and services, limits, on-device models and agents. */
 export default function AiSettings() {
   const [settings, setS] = useState<AiSettings>(aiSettings);
   const [keys, setKeys] = useState<Status>({});
@@ -196,6 +208,31 @@ function ModelsOnDevice() {
   );
 }
 
+/**
+ * Whether a chosen service is ready, in words.
+ * @param def the service
+ * @param hasKey whether its key is saved
+ * @param model the model it will use
+ * @returns desktop only, add your key, or ready with the model
+ */
+function readiness(def: AiProviderDef, hasKey: boolean, model: string): string {
+  if (!runsHere(def)) return `${def.name} works in the desktop app only.`;
+  if (def.key && !hasKey) return `Add your ${def.name} key under “Keys and services”.`;
+  return `Ready. Model: ${model}.`;
+}
+
+/**
+ * What the provider row says about its key.
+ * @param needsKey whether the service needs a key
+ * @param info the key's status, if known
+ * @returns the note
+ */
+function keyNote(needsKey: boolean, info: KeyInfo | undefined): string {
+  if (!needsKey) return ' · no key needed';
+  if (!info?.has) return '';
+  return ` · key saved${info.where === 'session' ? ' (this tab)' : ''}`;
+}
+
 /** The service and model for one kind of work. */
 function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys: Status }>) {
   const cur = s[kind],
@@ -207,6 +244,23 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
   const suggested = (kind === 'text' ? def?.textModels : def?.imageModels) ?? [];
   const options = [...new Set([...(models ?? []), ...suggested])];
   const ready = def && (!def.key || keys[def.id]?.has) && runsHere(def);
+  const loadModels = async (provider: AiProviderId) => {
+    setBusy(true);
+    try {
+      const listed = await listModels(provider, kind);
+      setModels(listed);
+      toast(
+        listed.length
+          ? `${listed.length} models loaded: pick one from the Model list.`
+          : 'No models were listed; type the model name.',
+      );
+    } catch (error) {
+      logError('handled', error);
+      toast(error instanceof Error ? error.message : 'The model list couldn’t be loaded.');
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className="aichoice">
       <div className="row">
@@ -217,7 +271,7 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
             onChange={(event) =>
               setAiSettings({
                 [kind]: { provider: event.target.value as AiProviderId | '', model: '' },
-              } as Partial<AiSettings>)
+              })
             }
           >
             <option value="">Off</option>
@@ -237,9 +291,7 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
             placeholder={suggested[0] ?? 'model name'}
             value={cur.model}
             disabled={!def}
-            onChange={(event) =>
-              setAiSettings({ [kind]: { ...cur, model: event.target.value.trim() } } as Partial<AiSettings>)
-            }
+            onChange={(event) => setAiSettings({ [kind]: { ...cur, model: event.target.value.trim() } })}
           />
           <datalist id={`ai-models-${kind}`}>
             {options.map((model) => (
@@ -250,34 +302,9 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
       </div>
       {def && (
         <p className={`hint ${ready ? '' : 'bad'}`}>
-          {!runsHere(def)
-            ? `${def.name} works in the desktop app only.`
-            : def.key && !keys[def.id]?.has
-              ? `Add your ${def.name} key under “Keys and services”.`
-              : `Ready. Model: ${cur.model || suggested[0] || 'choose one'}.`}{' '}
+          {readiness(def, !!keys[def.id]?.has, cur.model || suggested[0] || 'choose one')}{' '}
           {ready && (
-            <button
-              type="button"
-              className="linkbtn"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const listed = await listModels(def.id, kind);
-                  setModels(listed);
-                  toast(
-                    listed.length
-                      ? `${listed.length} models loaded: pick one from the Model list.`
-                      : 'No models were listed; type the model name.',
-                  );
-                } catch (error) {
-                  logError('handled', error);
-                  toast(error instanceof Error ? error.message : 'The model list couldn’t be loaded.');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
+            <button type="button" className="linkbtn" disabled={busy} onClick={() => void loadModels(def.id)}>
               {busy ? 'Loading…' : 'Load my models'}
             </button>
           )}
@@ -297,7 +324,8 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
   const [busy, setBusy] = useState(false);
   const editableBase = p.id === 'ollama' || p.id === 'lmstudio' || p.id === 'custom';
   const here = runsHere(p);
-  const saveBase = () => setAiSettings({ bases: { ...aiSettings().bases, [p.id]: base.trim().replace(/\/+$/, '') } });
+  const saveBase = () =>
+    setAiSettings({ bases: { ...aiSettings().bases, [p.id]: withoutTrailingSlashes(base.trim()) } });
   const test = async () => {
     setBusy(true);
     setMsg(null);
@@ -310,6 +338,13 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
       setBusy(false);
     }
   };
+  const saveKey = async () => {
+    if (!draft.trim()) return;
+    if (editableBase) saveBase();
+    await setKey(p.id, draft, { session: !remember, base: editableBase ? base.trim() : '' });
+    setDraft('');
+    await test();
+  };
   return (
     <details className="aiprow">
       <summary>
@@ -317,11 +352,7 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
         <small>
           {p.kinds.map((kind) => (kind === 'text' ? 'words' : 'pictures')).join(' + ')}
           {p.web === 'desktop' ? ' · desktop app' : ''}
-          {!p.key
-            ? ' · no key needed'
-            : info?.has
-              ? ` · key saved${info.where === 'session' ? ' (this tab)' : ''}`
-              : ''}
+          {keyNote(p.key, info)}
         </small>
       </summary>
       {p.note && <p className="hint">{p.note}</p>}
@@ -334,7 +365,7 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
           <span className="px-search">
             <input
               type="url"
-              placeholder={p.base || 'https://…/v1'}
+              placeholder={p.base?.length ? p.base : 'https://…/v1'}
               value={base}
               onChange={(event) => setBase(event.target.value)}
               onBlur={saveBase}
@@ -345,13 +376,9 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
       {p.key && here && (
         <form
           className="setkey"
-          onSubmit={async (event) => {
+          onSubmit={(event) => {
             event.preventDefault();
-            if (!draft.trim()) return;
-            if (editableBase) saveBase();
-            await setKey(p.id, draft, { session: !remember, base: editableBase ? base.trim() : '' });
-            setDraft('');
-            await test();
+            void saveKey();
           }}
         >
           <label className="f">
@@ -408,9 +435,10 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
 /** Desktop: let an AI agent (Claude Code and other MCP clients) drive this open app. */
 function AgentConnect() {
   const [st, setSt] = useState<{ on: boolean; url: string; token: string } | null>(null);
+  const agent = desktop?.agent;
   useEffect(() => {
-    void desktop!.agent!.status().then(setSt);
-  }, []);
+    if (agent) void agent.status().then(setSt);
+  }, [agent]);
   const exe =
     desktop?.info.platform === 'darwin'
       ? '/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio'
@@ -419,6 +447,12 @@ function AgentConnect() {
   const live = st?.on
     ? `claude mcp add --transport http chitthi-live ${st.url} --header "Authorization: Bearer ${st.token}"`
     : '';
+  const goLive = async (on: boolean) => {
+    if (!agent) return;
+    // The tools answer from this window, so they load before the connection opens.
+    if (on) await import('../../agent/bridge');
+    setSt(await agent.setLive(on));
+  };
   const headless = `claude mcp add chitthi -- "${exe}" --mcp`;
   return (
     <details className="aiprov" open={!!st?.on}>
@@ -427,14 +461,7 @@ function AgentConnect() {
         Let Claude Code, Claude Desktop, VS Code or Cursor use Chitthi’s tools: build designs, write words, check print
         quality and export print packs. See docs/MCP.md.
       </p>
-      <Check
-        checked={!!st?.on}
-        onChange={async (on) => {
-          // The tools answer from this window, so they load before the connection opens.
-          if (on) await import('../../agent/bridge');
-          setSt(await desktop!.agent!.setLive(on));
-        }}
-      >
+      <Check checked={!!st?.on} onChange={(on) => void goLive(on)}>
         Let an agent work in this open window (live)
       </Check>
       {st?.on && (

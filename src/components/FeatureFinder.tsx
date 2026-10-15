@@ -42,14 +42,23 @@ const studio = (pane?: PaneId, section?: string) => {
 };
 const is = (product: string) => () => getState().design.product === product;
 
-function commands(pickFiles: () => void): Cmd[] {
-  const list: Cmd[] = [
+/**
+ * The commands for the studio's steps: photos, the media studio, size and layout, help, occasion, words and the
+ * calendar.
+ * @param pickFiles opens the file picker
+ * @returns the commands
+ */
+function stepCommands(pickFiles: () => void): Cmd[] {
+  return [
     {
       id: 'upload',
       group: 'Photos',
       title: 'Add photos from this device',
       words: 'upload import pictures images files',
-      run: () => (studio('photos'), pickFiles()),
+      run: () => {
+        studio('photos');
+        pickFiles();
+      },
     },
     {
       id: 'library',
@@ -100,7 +109,7 @@ function commands(pickFiles: () => void): Cmd[] {
       words: 'crop rotate mirror trim straighten',
       run: () => {
         const state = getState(),
-          ph = state.photos[Math.min(state.ui.slot, state.photos.length - 1)];
+          ph = state.photos.at(Math.min(state.ui.slot, state.photos.length - 1));
         if (!ph) {
           toast('Add a photo first, then crop it.');
           return;
@@ -115,7 +124,10 @@ function commands(pickFiles: () => void): Cmd[] {
       group: 'Photos',
       title: 'Auto-arrange photos in the layout',
       words: 'auto arrange fit align smart crop subject best',
-      run: () => (studio(), autoArrange()),
+      run: () => {
+        studio();
+        autoArrange();
+      },
     },
     {
       id: 'layout',
@@ -263,12 +275,24 @@ function commands(pickFiles: () => void): Cmd[] {
       when: is('calendar'),
       run: () => studio('words', 'calf.days'),
     },
+  ];
+}
+
+/**
+ * The commands for viewing, printing, AI, the back, designs and the app, then one per product.
+ * @returns the commands
+ */
+function otherCommands(): Cmd[] {
+  const list: Cmd[] = [
     {
       id: 'proof',
       group: 'View',
       title: 'Preview print colours (how colours come out on paper)',
       words: 'cmyk soft proof print colours colors dull preview',
-      run: () => (studio(), setUI({ proof: !getState().ui.proof })),
+      run: () => {
+        studio();
+        setUI({ proof: !getState().ui.proof });
+      },
     },
     {
       id: 'quotepack',
@@ -381,14 +405,20 @@ function commands(pickFiles: () => void): Cmd[] {
       group: 'View',
       title: 'Show or hide print guides',
       words: 'trim safe area bleed guides lines',
-      run: () => (studio(), setUI({ guides: !getState().ui.guides })),
+      run: () => {
+        studio();
+        setUI({ guides: !getState().ui.guides });
+      },
     },
     {
       id: 'flip',
       group: 'View',
       title: 'Flip to the other side',
       words: 'back front flip turn',
-      run: () => (studio(), setUI({ side: getState().ui.side === 'front' ? 'back' : 'front' })),
+      run: () => {
+        studio();
+        setUI({ side: getState().ui.side === 'front' ? 'back' : 'front' });
+      },
     },
     {
       id: 'full',
@@ -430,7 +460,10 @@ function commands(pickFiles: () => void): Cmd[] {
       group: 'Designs',
       title: 'Start a new design',
       words: 'new blank reset start over',
-      run: () => (studio(), newCard()),
+      run: () => {
+        studio();
+        newCard();
+      },
     },
     { id: 'undo', group: 'Designs', title: 'Undo', words: 'undo back revert', run: undo },
     { id: 'redo', group: 'Designs', title: 'Redo', words: 'redo again', run: redo },
@@ -464,21 +497,34 @@ function commands(pickFiles: () => void): Cmd[] {
   return list;
 }
 
-/** Every search word must appear in the title or keywords; titles that start with the query rank first. */
+/**
+ * Every command the finder offers.
+ * @param pickFiles opens the file picker
+ * @returns the commands
+ */
+const commands = (pickFiles: () => void): Cmd[] => [...stepCommands(pickFiles), ...otherCommands()];
+
+/**
+ * Every search word must appear in the title or keywords; titles that start with the query rank first.
+ * @param list the commands
+ * @param query what was typed
+ * @returns the matching commands, best first
+ */
 function rank(list: Cmd[], query: string): Cmd[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return list;
+  const first = words.at(0);
+  if (first === undefined) return list;
   return list
     .filter((command) => {
       const hay = `${command.title} ${command.words} ${command.group}`.toLowerCase();
       return words.every((word) => hay.includes(word));
     })
     .sort(
-      (left, right) =>
-        +!left.title.toLowerCase().startsWith(words[0]) - +!right.title.toLowerCase().startsWith(words[0]),
+      (left, right) => +!left.title.toLowerCase().startsWith(first) - +!right.title.toLowerCase().startsWith(first),
     );
 }
 
+/** The feature finder: a search box over every command, with the matches to run. */
 export function FeatureFinder() {
   const open = useApp((state) => state.ui.finder);
   const dlg = useRef<HTMLDialogElement>(null),
@@ -593,7 +639,11 @@ export function FeatureFinder() {
         onChange={(event) => {
           const chosen = event.target.files;
           event.target.value = '';
-          if (chosen?.length) void addFiles([...chosen]).then((messages) => messages.length && toast(messages[0][1]));
+          if (chosen?.length)
+            void addFiles([...chosen]).then((messages) => {
+              const firstMessage = messages.at(0);
+              if (firstMessage) toast(firstMessage[1]);
+            });
         }}
       />
     </dialog>

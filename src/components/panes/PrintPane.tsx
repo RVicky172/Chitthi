@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { productOf } from '../../data/products';
 import { sizeOf } from '../../engine/design';
-import { exportSummary, nup, pagesOf } from '../../engine/printPages';
+import { exportSummary, nup, pagesOf, type PrintPage } from '../../engine/printPages';
 import { QUOTE_QTY } from '../../data/printSpecs';
 import { envelopeSummary, templateSheet } from '../../engine/envelope';
 import {
@@ -35,12 +35,28 @@ const FORMATS: [ExportFormat, string, string][] = [
   ['png', 'PNG images only', 'Separate front and back images tagged with their print resolution.'],
 ];
 
+/**
+ * A bleed in words: ⅛ in for the US bleed, else millimetres.
+ * @param bleed the bleed setting
+ * @returns the size
+ */
+const bleedSize = (bleed: string) => (bleed === '3.175' ? '⅛ in' : `${bleed} mm`);
+
+/**
+ * A page's name on its PNG button: the front page's label, or Back.
+ * @param page the page
+ * @returns the name
+ */
+const pageName = (page: PrintPage) => (page.side === 'front' ? page.label : 'Back');
+
+/** The Print step: the print pack, export settings, single files, the envelope and quote requests. */
 export function PrintPane() {
   const design = useApp((state) => state.design),
     photos = useApp((state) => state.photos);
   const exportSettings = design.exp,
     prod = productOf(design.product),
     pages = pagesOf(design);
+  const bleedNote = +exportSettings.bleed ? `${exportSettings.bleed} mm bleed` : 'no bleed';
   const [busy, setBusy] = useState<string | null>(null);
   const [step, setStep] = useState('');
   const run = async (key: string, fn: () => Promise<void>) => {
@@ -63,17 +79,15 @@ export function PrintPane() {
           </b>
           <small>
             One ZIP with the print PDF
-            {exportSettings.pngs !== false && (
+            {exportSettings.pngs && (
               <>
                 , {pages.filter((page) => page.side === 'front').length > 1 ? 'every front page' : 'the front'}
                 {exportSettings.back ? ' and back' : ''} as separate PNG files
               </>
             )}
             , and a <code>PRINT-SPEC.txt</code> for the print shop with trim size,{' '}
-            {+exportSettings.bleed
-              ? `${exportSettings.bleed === '3.175' ? '⅛ in' : `${exportSettings.bleed} mm`} bleed`
-              : 'bleed'}
-            , safe area, resolution and paper.
+            {+exportSettings.bleed ? `${bleedSize(exportSettings.bleed)} bleed` : 'bleed'}, safe area, resolution and
+            paper.
             {design.env.on &&
               ' It also holds the matching envelope: a PDF to print on a ready-made envelope and a fold-your-own template.'}{' '}
             And a <code>QUOTE-REQUEST.pdf</code> to send to print shops: previews, paper, finishing and a price grid by
@@ -84,7 +98,7 @@ export function PrintPane() {
           type="button"
           className="btn primary"
           disabled={!!busy}
-          onClick={() => run('pack', () => downloadPack(setStep))}
+          onClick={() => void run('pack', () => downloadPack(setStep))}
         >
           {busy === 'pack' ? step || 'Preparing…' : 'Download print pack'}
         </button>
@@ -92,11 +106,7 @@ export function PrintPane() {
 
       <PexelsNotice />
 
-      <Section
-        id="print.settings"
-        title="Settings"
-        note={`${exportSettings.dpi} dpi, ${+exportSettings.bleed ? `${exportSettings.bleed} mm bleed` : 'no bleed'}`}
-      >
+      <Section id="print.settings" title="Settings" note={`${exportSettings.dpi} dpi, ${bleedNote}`}>
         <div className="row">
           <label className="f">
             Bleed
@@ -137,7 +147,7 @@ export function PrintPane() {
             )}
           </div>
         </div>
-        <Check checked={exportSettings.pngs !== false} onChange={(pngs) => setExp({ pngs })}>
+        <Check checked={exportSettings.pngs} onChange={(pngs) => setExp({ pngs })}>
           PNG images in the print pack
           {pages.length > 3 ? ` (${pages.length} pages: turn off for a much smaller ZIP)` : ''}
         </Check>
@@ -203,13 +213,13 @@ export function PrintPane() {
                 type="button"
                 className="btn"
                 disabled={!!busy}
-                onClick={() => run(pg.tag, () => downloadPNG(pg))}
+                onClick={() => void run(pg.tag, () => downloadPNG(pg))}
               >
-                {busy === pg.tag ? 'Preparing…' : `${pg.side === 'front' ? pg.label : 'Back'} PNG`}
+                {busy === pg.tag ? 'Preparing…' : `${pageName(pg)} PNG`}
               </button>
             ))
           ) : (
-            <button type="button" className="btn" disabled={!!busy} onClick={() => run('pdf', downloadPrintFile)}>
+            <button type="button" className="btn" disabled={!!busy} onClick={() => void run('pdf', downloadPrintFile)}>
               {busy === 'pdf' ? 'Preparing file…' : 'PDF only'}
             </button>
           )}
@@ -223,7 +233,7 @@ export function PrintPane() {
               type="button"
               className="btn"
               disabled={!!busy}
-              onClick={() => run('env', () => downloadEnvelope('pdf'))}
+              onClick={() => void run('env', () => downloadEnvelope('pdf'))}
             >
               {busy === 'env' ? 'Preparing…' : 'Envelope PDF'}
             </button>
@@ -232,7 +242,7 @@ export function PrintPane() {
                 type="button"
                 className="btn"
                 disabled={!!busy}
-                onClick={() => run('envt', () => downloadEnvelope('template'))}
+                onClick={() => void run('envt', () => downloadEnvelope('template'))}
               >
                 {busy === 'envt' ? 'Preparing…' : 'Fold-your-own template'}
               </button>
@@ -253,7 +263,7 @@ export function PrintPane() {
             type="button"
             className="btn"
             disabled={!!busy}
-            onClick={() => run('quote', () => downloadQuote('design'))}
+            onClick={() => void run('quote', () => downloadQuote('design'))}
           >
             {busy === 'quote' ? 'Preparing…' : 'Quote request for this design'}
           </button>
@@ -261,7 +271,7 @@ export function PrintPane() {
             type="button"
             className="btn"
             disabled={!!busy}
-            onClick={() => run('catalog', () => downloadQuote('catalog'))}
+            onClick={() => void run('catalog', () => downloadQuote('catalog'))}
           >
             {busy === 'catalog' ? 'Preparing…' : 'All products and sizes (PDF)'}
           </button>
@@ -290,7 +300,10 @@ function PexelsNotice() {
   if (!pex.length && !ai.length) return null;
   const credits = [
     ...new Map(
-      pex.map((photo) => creditOf(photo.name)!).map((credit) => [credit.url ?? credit.photographer, credit]),
+      pex
+        .map((photo) => creditOf(photo.name))
+        .filter((credit) => credit !== null)
+        .map((credit) => [credit.url ?? credit.photographer, credit]),
     ).values(),
   ];
   const words =
