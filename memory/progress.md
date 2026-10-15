@@ -11,6 +11,16 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)
+
+**Done:** the 19 React compiler findings fixed (resets on a change moved from effects to render; a promise chain for
+the Pexels fetch; refs no longer read during render); all 111 effects reviewed; `src/components/**`, `App.tsx`,
+`main.tsx` in `FINISHED`. Check (1,700 tests) and build green, entry 313 KB; e2e 84 / 16 skipped and self-test
+6,203 / 0 failed, both as the baselines. Commit `5a581a9`.
+**Next:** T060 (`tests/selftest/` names and JSDoc, 1,336 findings). `src/types.ts` (34 JSDoc) and `src/dev` (100)
+have no task yet; T091 needs the report at 0. T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-15 — 407 T053 (the rest of components/studio)
 
 **Done:** `KeyframeLane`, `KeyframeButton`, `TransitionPanel`, `previewFrame`, `previewSound` (now a class),
