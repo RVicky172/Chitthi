@@ -293,3 +293,13 @@ export function PhotoCredit({ name }: Readonly<{ name: string }>) {
     </span>
   );
 }
+
+/**
+ * How many photos a layout holds: "No photo", "1 photo", "3 photos".
+ * @param count the photo slots
+ * @returns the text
+ */
+export function photoCount(count: number): string {
+  if (count === 0) return 'No photo';
+  return count === 1 ? '1 photo' : `${count} photos`;
+}

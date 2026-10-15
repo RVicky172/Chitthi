@@ -4,13 +4,14 @@ import { PRODUCTS, productOf, sizesFor } from '../data/products';
 import { SIZE_GROUPS } from '../data/sizes';
 import { productDesign } from '../engine/design';
 import { nup } from '../engine/printPages';
+import { isOneOf } from '../engine/guards';
 import { computeLayout } from '../engine/layout';
 import { samplePhoto } from '../engine/sample';
 import { downloadQuote, selectSize, switchProduct } from '../state/actions';
 import { getState, setDesign, setUI, useApp } from '../state/store';
-import type { Design, LayoutId, Orient, ProductId, SizeDef } from '../types';
+import type { Design, LayoutId, Orient, Photo, ProductId, SizeDef } from '../types';
 import { LayoutThumb } from './canvases';
-import { Seg } from './common';
+import { photoCount, Seg } from './common';
 import { ProductIcon } from './icons';
 import { SiteNav } from './SiteNav';
 
@@ -26,7 +27,14 @@ const px = (mm: number) => Math.round((mm / 25.4) * DPI);
 const r1 = (value: number) => Math.round(value * 10) / 10;
 const inch = (mm: number) => r1(mm / 25.4);
 
-/** A design of this product at this size, keeping the user's occasion so thumbnails look like their work. */
+/**
+ * A design of this product at this size, keeping the user's occasion so thumbnails look like their work.
+ * @param product the product
+ * @param size the size
+ * @param orient the orientation
+ * @param layout the layout, else the size's own
+ * @returns the design
+ */
 function guideDesign(product: ProductId, size: SizeDef, orient: Orient, layout?: LayoutId): Design {
   const cur = getState().design,
     design = productDesign(product, cur);
@@ -43,6 +51,7 @@ function guideDesign(product: ProductId, size: SizeDef, orient: Orient, layout?:
 type ShapeFilter = 'all' | 'square-corner' | 'rounded' | 'round' | 'square';
 type ScaleFilter = 'all' | 'small' | 'medium' | 'large';
 type PhotosFilter = 'any' | '0' | '1' | '2' | '3';
+type WordsFilter = 'any' | 'words' | 'photo';
 const SHAPE_TEST: Record<ShapeFilter, (s: SizeDef) => boolean> = {
   all: () => true,
   'square-corner': (size) => !size.corner && !size.instax && size.shape !== 'circle',
@@ -134,7 +143,14 @@ function SizeDiagram({ s, o }: Readonly<{ s: SizeDef; o: Orient }>) {
   );
 }
 
-/** Pixels each photo slot needs for a sharp print, grouped when several slots share a size. */
+/**
+ * Pixels each photo slot needs for a sharp print, grouped when several slots share a size.
+ * @param design the design
+ * @param id the layout
+ * @param width the trim width, mm
+ * @param height the trim height, mm
+ * @returns the needs as text
+ */
 function slotNeeds(design: Design, id: LayoutId, width: number, height: number): string {
   const computed = computeLayout(id, { x: 0, y: 0, w: width, h: height, e: 0 }, { ...design, layout: id });
   if (!computed.slots.length) return 'No photo: words and artwork only';
@@ -146,33 +162,356 @@ function slotNeeds(design: Design, id: LayoutId, width: number, height: number):
   return [...groups].map(([need, count]) => (count > 1 ? `${count} × ${need}` : need)).join(', ');
 }
 
+const PRODUCT_IDS: ProductId[] = PRODUCTS.map((productDef) => productDef.id);
+
+/**
+ * The size shown: the one picked, else the most popular among those filtered, else the first.
+ * @param all every size of the product
+ * @param sizes the sizes the filters leave
+ * @param sizeId the size picked, if any
+ * @returns the size
+ */
+function pickSize(all: SizeDef[], sizes: SizeDef[], sizeId: string | null): SizeDef {
+  const size =
+    all.find((candidate) => candidate.id === sizeId) ??
+    sizes.find((candidate) => candidate.tag === 'Most popular') ??
+    sizes.at(0) ??
+    all.at(0);
+  if (!size) throw new Error('A product has no sizes.');
+  return size;
+}
+
+/**
+ * A size's shape in the table: round, its corners, or square corners.
+ * @param size the size
+ * @returns the text
+ */
+function shapeText(size: SizeDef): string {
+  if (size.shape === 'circle') return 'Round';
+  return size.corner || size.instax ? `${size.corner ?? 3} mm corners` : 'Square corners';
+}
+
+/**
+ * Whether a size matches the search.
+ * @param size the size
+ * @param query what was typed
+ * @returns true when nothing was typed or the size's name, inches, tag or millimetres contain it
+ */
+function matchesQuery(size: SizeDef, query: string): boolean {
+  const wanted = query.trim().toLowerCase();
+  if (!wanted) return true;
+  return `${size.name} ${size.inch ?? ''} ${size.tag ?? ''} ${Math.round(size.S)}×${Math.round(size.L)}`
+    .toLowerCase()
+    .includes(wanted);
+}
+
+/** The terms the guide uses: trim, bleed, safe area and dpi. */
+function GuideTerms() {
+  return (
+    <dl className="sg-terms">
+      <div>
+        <dt>
+          <i className="k-trim" /> Trim
+        </dt>
+        <dd>The finished size after cutting. This is the size you order.</dd>
+      </div>
+      <div>
+        <dt>
+          <i className="k-bleed" /> Bleed ({BLEED} mm)
+        </dt>
+        <dd>Extra picture around the edge that is cut off, so no white slivers show if the cut is slightly off.</dd>
+      </div>
+      <div>
+        <dt>
+          <i className="k-safe" /> Safe area ({SAFE} mm in)
+        </dt>
+        <dd>Keep faces and words inside it: anything outside may be trimmed.</dd>
+      </div>
+      <div>
+        <dt>{DPI} dpi</dt>
+        <dd>Print resolution. Pixels = millimetres ÷ 25.4 × {DPI}. Photos with fewer pixels print softer.</dd>
+      </div>
+    </dl>
+  );
+}
+
+/** A row of filter chips. */
+interface ChipsProps<Value extends string> {
+  options: [Value, string][];
+  value: Value;
+  onChange: (value: Value) => void;
+}
+
+/**
+ * Filter chips: one pressed among the options.
+ * @param props the options, the value and its change handler
+ */
+function Chips<Value extends string>({ options, value, onChange }: Readonly<ChipsProps<Value>>) {
+  return (
+    <div className="chips">
+      {options.map(([key, label]) => (
+        <button key={key} type="button" className="chip" aria-pressed={value === key} onClick={() => onChange(key)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const SHAPE_OPTIONS: [ShapeFilter, string][] = [
+  ['all', 'Any shape'],
+  ['square-corner', 'Square corners'],
+  ['rounded', 'Rounded corners'],
+  ['round', 'Round'],
+  ['square', 'Square format'],
+];
+const SCALE_OPTIONS: [ScaleFilter, string][] = [
+  ['all', 'Any size'],
+  ['small', 'Small (up to 10 cm)'],
+  ['medium', 'Medium (10–25 cm)'],
+  ['large', 'Large (over 25 cm)'],
+];
+const PHOTOS_OPTIONS: [PhotosFilter, string][] = [
+  ['any', 'Any number of photos'],
+  ['0', 'No photo'],
+  ['1', '1 photo'],
+  ['2', '2 photos'],
+  ['3', '3 or more'],
+];
+const WORDS_OPTIONS: [WordsFilter, string][] = [
+  ['any', 'With or without words'],
+  ['words', 'With words'],
+  ['photo', 'Photos only'],
+];
+
+/** The size table's rows and what picking one does. */
+interface SizeTableProps {
+  product: ProductId;
+  sizes: SizeDef[];
+  selectedId: string;
+  onPick: (id: string) => void;
+}
+
+/**
+ * The sizes in a table by group: trim, bleed, pixels, per sheet and shape.
+ * @param props the product, the sizes, the selected size and picking one
+ */
+function SizeTable({ product, sizes, selectedId, onPick }: Readonly<SizeTableProps>) {
+  const prod = productOf(product);
+  return (
+    <div className="sg-tablewrap">
+      <table className="sg-table">
+        <caption className="vh">{prod.name} sizes</caption>
+        <thead>
+          <tr>
+            <th scope="col">Size</th>
+            <th scope="col">Trim</th>
+            <th scope="col">With bleed</th>
+            <th scope="col">Pixels at {DPI} dpi</th>
+            <th scope="col">Per A4 / A3 sheet</th>
+            <th scope="col">Shape</th>
+          </tr>
+        </thead>
+        {SIZE_GROUPS.filter((group) => sizes.some((candidate) => candidate.grp === group)).map((group) => (
+          <tbody key={group}>
+            <tr className="sg-grp">
+              <th colSpan={6} scope="rowgroup">
+                {group}
+              </th>
+            </tr>
+            {sizes
+              .filter((candidate) => candidate.grp === group)
+              .map((sizeDef) => {
+                const sizeOrient = defaultOrient(sizeDef, product),
+                  trimmed = trim(sizeDef, sizeOrient),
+                  sizeDesign = guideDesign(product, sizeDef, sizeOrient);
+                return (
+                  <tr key={sizeDef.id} aria-selected={sizeDef.id === selectedId} onClick={() => onPick(sizeDef.id)}>
+                    <th scope="row">
+                      <button type="button" className="linkbtn" onClick={() => onPick(sizeDef.id)}>
+                        {sizeDef.name}
+                      </button>
+                      {sizeDef.tag && <em>{sizeDef.tag}</em>}
+                    </th>
+                    <td>
+                      {r1(trimmed.w)} × {r1(trimmed.h)} mm
+                      <small>{sizeDef.inch ?? `${inch(trimmed.w)} × ${inch(trimmed.h)} in`}</small>
+                    </td>
+                    <td>
+                      {r1(trimmed.w + 2 * BLEED)} × {r1(trimmed.h + 2 * BLEED)} mm
+                    </td>
+                    <td>
+                      {px(trimmed.w + 2 * BLEED).toLocaleString()} × {px(trimmed.h + 2 * BLEED).toLocaleString()}
+                    </td>
+                    <td>
+                      {perSheet(sizeDesign, 'a4') || '–'} / {perSheet(sizeDesign, 'a3') || '–'}
+                    </td>
+                    <td>{shapeText(sizeDef)}</td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        ))}
+      </table>
+    </div>
+  );
+}
+
+const SHEET_NAMES = [
+  ['a4', 'A4'],
+  ['a3', 'A3'],
+  ['1319', '13×19 in'],
+] as const;
+
+/** The selected size and how it is drawn. */
+interface SizeDetailProps {
+  product: ProductId;
+  size: SizeDef;
+  orient: Orient;
+  square: boolean;
+  design: Design;
+  onOrient: (orient: Orient) => void;
+}
+
+/**
+ * The selected size: its diagram (with the orientation switch) and its numbers.
+ * @param props the product, the size, its orientation and design, and changing the orientation
+ */
+function SizeDetail({ product, size, orient, square, design, onOrient }: Readonly<SizeDetailProps>) {
+  const { w, h } = trim(size, orient);
+  return (
+    <section className="sg-detail" aria-labelledby="sgSize">
+      <div className="sg-fig">
+        <SizeDiagram s={size} o={orient} />
+        {!square && (
+          <Seg<Orient>
+            label="Orientation"
+            value={orient}
+            options={[
+              ['landscape', 'Horizontal'],
+              ['portrait', 'Vertical'],
+            ]}
+            onChange={onOrient}
+          />
+        )}
+      </div>
+      <div>
+        <h2 id="sgSize">
+          {size.name} <small>{productOf(product).name}</small>
+        </h2>
+        <ul className="sg-facts">
+          <li>
+            <b>Trim</b> {r1(w)} × {r1(h)} mm ({inch(w)} × {inch(h)} in)
+          </li>
+          <li>
+            <b>File with bleed</b> {r1(w + 2 * BLEED)} × {r1(h + 2 * BLEED)} mm, {px(w + 2 * BLEED).toLocaleString()} ×{' '}
+            {px(h + 2 * BLEED).toLocaleString()} px
+          </li>
+          <li>
+            <b>Safe area</b> {r1(w - 2 * SAFE)} × {r1(h - 2 * SAFE)} mm
+          </li>
+          <li>
+            <b>Full-bleed photo</b> at least {px(w + 2 * BLEED).toLocaleString()} × {px(h + 2 * BLEED).toLocaleString()}{' '}
+            px for a sharp print
+          </li>
+          <li>
+            <b>On a sheet</b>{' '}
+            {SHEET_NAMES.map(([id, name]) => {
+              const count = perSheet(design, id);
+              return count ? `${count} per ${name}` : `doesn’t fit on ${name}`;
+            }).join(', ')}
+          </li>
+          {size.instax && <li>Instax-style: the photo window is fixed, so this size uses the Instax frame layout.</li>}
+          {size.shape === 'circle' && <li>Round: the bleed wraps around the edge of a button badge.</li>}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/** The layouts to draw and what is needed to draw them. */
+interface LayoutGridProps {
+  layouts: readonly (readonly [LayoutId, string, ...unknown[]])[];
+  design: Design;
+  width: number;
+  height: number;
+  thumbPhotos: Photo[];
+  fontTick: number;
+  onUse: (layout: LayoutId) => void;
+}
+
+/**
+ * Every layout drawn at the size, with its photo count and the pixels each slot needs.
+ * @param props the layouts, the design, the trim size, the photos to draw, the font tick and using one
+ */
+function LayoutGrid({ layouts, design, width, height, thumbPhotos, fontTick, onUse }: Readonly<LayoutGridProps>) {
+  return (
+    <ul className="sg-layouts">
+      {layouts.map(([id, name]) => {
+        const layoutDesign = { ...design, layout: id };
+        const count = computeLayout(id, { x: 0, y: 0, w: width, h: height, e: 0 }, layoutDesign).slots.length;
+        return (
+          <li key={id} className="sg-layout">
+            <div className="cv">
+              <LayoutThumb layout={id} design={layoutDesign} photos={thumbPhotos} fontTick={fontTick} />
+            </div>
+            <b>{name}</b>
+            <small className="count">{photoCount(count)}</small>
+            <small className="need">{slotNeeds(layoutDesign, id, width, height)}</small>
+            <button type="button" className="sbtn accent" onClick={() => onUse(id)}>
+              Use this
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Whether a layout passes the photo-count and words filters.
+ * @param layout the layout
+ * @param design the design at this size
+ * @param width the trim width
+ * @param height the trim height
+ * @param photos the photo-count filter
+ * @param words the words filter
+ * @returns true when it passes both
+ */
+function layoutMatches(
+  layout: LayoutId,
+  design: Design,
+  width: number,
+  height: number,
+  photos: PhotosFilter,
+  words: WordsFilter,
+): boolean {
+  const computed = computeLayout(layout, { x: 0, y: 0, w: width, h: height, e: 0 }, { ...design, layout }),
+    slots = computed.slots.length;
+  if (photos !== 'any' && (photos === '3' ? slots < 3 : slots !== +photos)) return false;
+  const hasWords = !!computed.text || !!computed.arc || !!computed.calGrid || !!computed.calYear;
+  if (words === 'any') return true;
+  return words === 'words' ? hasWords : !hasWords;
+}
+
+/** The sizes guide page: products, size filters and table, the selected size, and its layouts. */
 export function SizeGuide() {
   const current = useApp((state) => state.design.product),
     fontTick = useApp((state) => state.ui.fontTick),
     photos = useApp((state) => state.photos);
-  const fromHash = /^#\/sizes\/(postcard|calendar|frame|magnet)\b/.exec(location.hash)?.[1] as ProductId | undefined;
-  const [product, setProduct] = useState<ProductId>(fromHash ?? current);
+  const fromHash = /^#\/sizes\/(postcard|calendar|frame|magnet)\b/.exec(location.hash)?.[1];
+  const [product, setProduct] = useState<ProductId>(isOneOf(PRODUCT_IDS, fromHash) ? fromHash : current);
   const all = sizesFor(product).filter((candidate) => candidate.id !== 'custom');
   const [shapeF, setShapeF] = useState<ShapeFilter>('all'),
     [scaleF, setScaleF] = useState<ScaleFilter>('all'),
     [query, setQuery] = useState(''),
     [photosF, setPhotosF] = useState<PhotosFilter>('any'),
-    [wordsF, setWordsF] = useState<'any' | 'words' | 'photo'>('any');
+    [wordsF, setWordsF] = useState<WordsFilter>('any');
   const sizes = all.filter(
-    (candidate) =>
-      SHAPE_TEST[shapeF](candidate) &&
-      SCALE_TEST[scaleF](candidate) &&
-      (!query.trim() ||
-        `${candidate.name} ${candidate.inch ?? ''} ${candidate.tag ?? ''} ${Math.round(candidate.S)}×${Math.round(candidate.L)}`
-          .toLowerCase()
-          .includes(query.trim().toLowerCase())),
+    (candidate) => SHAPE_TEST[shapeF](candidate) && SCALE_TEST[scaleF](candidate) && matchesQuery(candidate, query),
   );
   const [sizeId, setSizeId] = useState<string | null>(null);
-  const size =
-    all.find((candidate) => candidate.id === sizeId) ??
-    sizes.find((candidate) => candidate.tag === 'Most popular') ??
-    sizes[0] ??
-    all[0];
+  const size = pickSize(all, sizes, sizeId);
   const [orientPick, setOrient] = useState<Orient | null>(null);
   const square = size.L === size.S;
   const orient = square ? 'portrait' : (orientPick ?? defaultOrient(size, product));
@@ -184,20 +523,23 @@ export function SizeGuide() {
   );
   const { w, h } = trim(size, orient);
   const layoutsAll = size.instax ? layoutsFor(product).filter(([id]) => id === 'instax') : layoutsFor(product);
-  const layouts = layoutsAll.filter(([id]) => {
-    const computed = computeLayout(id, { x: 0, y: 0, w, h, e: 0 }, { ...design, layout: id }),
-      slots = computed.slots.length;
-    if (photosF !== 'any' && (photosF === '3' ? slots < 3 : slots !== +photosF)) return false;
-    const words = !!computed.text || !!computed.arc || !!computed.calGrid || !!computed.calYear;
-    return wordsF === 'any' || (wordsF === 'words' ? words : !words);
-  });
+  const layouts = layoutsAll.filter(([id]) => layoutMatches(id, design, w, h, photosF, wordsF));
   const prod = productOf(product);
+  const orientWord = orient === 'landscape' ? 'horizontal' : 'vertical';
 
   const use = (layout: LayoutId) => {
     switchProduct(product);
     selectSize(size);
     if (!size.instax) setDesign({ orient, layout });
     setUI({ screen: 'studio', pane: 'layout', side: 'front', slot: 0, calPage: 0 });
+  };
+  const chooseProduct = (next: ProductId) => {
+    setProduct(next);
+    setSizeId(null);
+    setOrient(null);
+    setShapeF('all');
+    setScaleF('all');
+    setPhotosF('any');
   };
 
   return (
@@ -215,32 +557,7 @@ export function SizeGuide() {
             Every size Chitthi prints, what the numbers mean, and how each layout sits on it. Pick a product, then a
             size, to see its layouts drawn at that size.
           </p>
-          <dl className="sg-terms">
-            <div>
-              <dt>
-                <i className="k-trim" /> Trim
-              </dt>
-              <dd>The finished size after cutting. This is the size you order.</dd>
-            </div>
-            <div>
-              <dt>
-                <i className="k-bleed" /> Bleed ({BLEED} mm)
-              </dt>
-              <dd>
-                Extra picture around the edge that is cut off, so no white slivers show if the cut is slightly off.
-              </dd>
-            </div>
-            <div>
-              <dt>
-                <i className="k-safe" /> Safe area ({SAFE} mm in)
-              </dt>
-              <dd>Keep faces and words inside it: anything outside may be trimmed.</dd>
-            </div>
-            <div>
-              <dt>{DPI} dpi</dt>
-              <dd>Print resolution. Pixels = millimetres ÷ 25.4 × {DPI}. Photos with fewer pixels print softer.</dd>
-            </div>
-          </dl>
+          <GuideTerms />
         </header>
 
         <div className="sg-products">
@@ -252,62 +569,20 @@ export function SizeGuide() {
               productDef.name,
               <ProductIcon key={productDef.id} id={productDef.id} />,
             ])}
-            onChange={(next) => {
-              setProduct(next);
-              setSizeId(null);
-              setOrient(null);
-              setShapeF('all');
-              setScaleF('all');
-              setPhotosF('any');
-            }}
+            onChange={chooseProduct}
           />
         </div>
         <div className="sg-filters" role="group" aria-label="Filter sizes">
-          <div className="chips">
-            {(
-              [
-                ['all', 'Any shape'],
-                ['square-corner', 'Square corners'],
-                ['rounded', 'Rounded corners'],
-                ['round', 'Round'],
-                ['square', 'Square format'],
-              ] as [ShapeFilter, string][]
-            )
-              .filter(([shape]) => shape === 'all' || all.some(SHAPE_TEST[shape]))
-              .map(([shape, label]) => (
-                <button
-                  key={shape}
-                  type="button"
-                  className="chip"
-                  aria-pressed={shapeF === shape}
-                  onClick={() => setShapeF(shape)}
-                >
-                  {label}
-                </button>
-              ))}
-          </div>
-          <div className="chips">
-            {(
-              [
-                ['all', 'Any size'],
-                ['small', 'Small (up to 10 cm)'],
-                ['medium', 'Medium (10–25 cm)'],
-                ['large', 'Large (over 25 cm)'],
-              ] as [ScaleFilter, string][]
-            )
-              .filter(([scale]) => scale === 'all' || all.some(SCALE_TEST[scale]))
-              .map(([scale, label]) => (
-                <button
-                  key={scale}
-                  type="button"
-                  className="chip"
-                  aria-pressed={scaleF === scale}
-                  onClick={() => setScaleF(scale)}
-                >
-                  {label}
-                </button>
-              ))}
-          </div>
+          <Chips
+            options={SHAPE_OPTIONS.filter(([shape]) => shape === 'all' || all.some(SHAPE_TEST[shape]))}
+            value={shapeF}
+            onChange={setShapeF}
+          />
+          <Chips
+            options={SCALE_OPTIONS.filter(([scale]) => scale === 'all' || all.some(SCALE_TEST[scale]))}
+            value={scaleF}
+            onChange={setScaleF}
+          />
           <input
             type="search"
             aria-label="Search sizes"
@@ -320,75 +595,15 @@ export function SizeGuide() {
           <b>{prod.name}:</b> {prod.blurb} Paper: {prod.paper}
         </p>
 
-        <div className="sg-tablewrap">
-          <table className="sg-table">
-            <caption className="vh">{prod.name} sizes</caption>
-            <thead>
-              <tr>
-                <th scope="col">Size</th>
-                <th scope="col">Trim</th>
-                <th scope="col">With bleed</th>
-                <th scope="col">Pixels at {DPI} dpi</th>
-                <th scope="col">Per A4 / A3 sheet</th>
-                <th scope="col">Shape</th>
-              </tr>
-            </thead>
-            {SIZE_GROUPS.filter((group) => sizes.some((candidate) => candidate.grp === group)).map((group) => (
-              <tbody key={group}>
-                <tr className="sg-grp">
-                  <th colSpan={6} scope="rowgroup">
-                    {group}
-                  </th>
-                </tr>
-                {sizes
-                  .filter((candidate) => candidate.grp === group)
-                  .map((sizeDef) => {
-                    const sizeOrient = defaultOrient(sizeDef, product),
-                      trimmed = trim(sizeDef, sizeOrient),
-                      sd = guideDesign(product, sizeDef, sizeOrient);
-                    return (
-                      <tr
-                        key={sizeDef.id}
-                        aria-selected={sizeDef.id === size.id}
-                        onClick={() => (setSizeId(sizeDef.id), setOrient(null))}
-                      >
-                        <th scope="row">
-                          <button
-                            type="button"
-                            className="linkbtn"
-                            onClick={() => (setSizeId(sizeDef.id), setOrient(null))}
-                          >
-                            {sizeDef.name}
-                          </button>
-                          {sizeDef.tag && <em>{sizeDef.tag}</em>}
-                        </th>
-                        <td>
-                          {r1(trimmed.w)} × {r1(trimmed.h)} mm
-                          <small>{sizeDef.inch ?? `${inch(trimmed.w)} × ${inch(trimmed.h)} in`}</small>
-                        </td>
-                        <td>
-                          {r1(trimmed.w + 2 * BLEED)} × {r1(trimmed.h + 2 * BLEED)} mm
-                        </td>
-                        <td>
-                          {px(trimmed.w + 2 * BLEED).toLocaleString()} × {px(trimmed.h + 2 * BLEED).toLocaleString()}
-                        </td>
-                        <td>
-                          {perSheet(sd, 'a4') || '–'} / {perSheet(sd, 'a3') || '–'}
-                        </td>
-                        <td>
-                          {sizeDef.shape === 'circle'
-                            ? 'Round'
-                            : sizeDef.corner || sizeDef.instax
-                              ? `${sizeDef.corner ?? 3} mm corners`
-                              : 'Square corners'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            ))}
-          </table>
-        </div>
+        <SizeTable
+          product={product}
+          sizes={sizes}
+          selectedId={size.id}
+          onPick={(id) => {
+            setSizeId(id);
+            setOrient(null);
+          }}
+        />
         {!sizes.length && (
           <p className="hint">
             No {prod.name.toLowerCase()} size matches these filters.{' '}
@@ -410,131 +625,33 @@ export function SizeGuide() {
           crop marks.
         </p>
 
-        <section className="sg-detail" aria-labelledby="sgSize">
-          <div className="sg-fig">
-            <SizeDiagram s={size} o={orient} />
-            {!square && (
-              <Seg<Orient>
-                label="Orientation"
-                value={orient}
-                options={[
-                  ['landscape', 'Horizontal'],
-                  ['portrait', 'Vertical'],
-                ]}
-                onChange={setOrient}
-              />
-            )}
-          </div>
-          <div>
-            <h2 id="sgSize">
-              {size.name} <small>{prod.name}</small>
-            </h2>
-            <ul className="sg-facts">
-              <li>
-                <b>Trim</b> {r1(w)} × {r1(h)} mm ({inch(w)} × {inch(h)} in)
-              </li>
-              <li>
-                <b>File with bleed</b> {r1(w + 2 * BLEED)} × {r1(h + 2 * BLEED)} mm,{' '}
-                {px(w + 2 * BLEED).toLocaleString()} × {px(h + 2 * BLEED).toLocaleString()} px
-              </li>
-              <li>
-                <b>Safe area</b> {r1(w - 2 * SAFE)} × {r1(h - 2 * SAFE)} mm
-              </li>
-              <li>
-                <b>Full-bleed photo</b> at least {px(w + 2 * BLEED).toLocaleString()} ×{' '}
-                {px(h + 2 * BLEED).toLocaleString()} px for a sharp print
-              </li>
-              <li>
-                <b>On a sheet</b>{' '}
-                {(
-                  [
-                    ['a4', 'A4'],
-                    ['a3', 'A3'],
-                    ['1319', '13×19 in'],
-                  ] as const
-                )
-                  .map(([id, name]) => {
-                    const count = perSheet(design, id);
-                    return count ? `${count} per ${name}` : `doesn’t fit on ${name}`;
-                  })
-                  .join(', ')}
-              </li>
-              {size.instax && (
-                <li>Instax-style: the photo window is fixed, so this size uses the Instax frame layout.</li>
-              )}
-              {size.shape === 'circle' && <li>Round: the bleed wraps around the edge of a button badge.</li>}
-            </ul>
-          </div>
-        </section>
+        <SizeDetail
+          product={product}
+          size={size}
+          orient={orient}
+          square={square}
+          design={design}
+          onOrient={setOrient}
+        />
 
         <h2 className="sg-h2">
           {layouts.length} of {layoutsAll.length} layout{layoutsAll.length > 1 ? 's' : ''} at {size.name},{' '}
-          {square ? 'square' : orient === 'landscape' ? 'horizontal' : 'vertical'}
+          {square ? 'square' : orientWord}
         </h2>
         <div className="sg-filters" role="group" aria-label="Filter layouts">
-          <div className="chips">
-            {(
-              [
-                ['any', 'Any number of photos'],
-                ['0', 'No photo'],
-                ['1', '1 photo'],
-                ['2', '2 photos'],
-                ['3', '3 or more'],
-              ] as [PhotosFilter, string][]
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className="chip"
-                aria-pressed={photosF === key}
-                onClick={() => setPhotosF(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="chips">
-            {(
-              [
-                ['any', 'With or without words'],
-                ['words', 'With words'],
-                ['photo', 'Photos only'],
-              ] as ['any' | 'words' | 'photo', string][]
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className="chip"
-                aria-pressed={wordsF === key}
-                onClick={() => setWordsF(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Chips options={PHOTOS_OPTIONS} value={photosF} onChange={setPhotosF} />
+          <Chips options={WORDS_OPTIONS} value={wordsF} onChange={setWordsF} />
         </div>
         {!layouts.length && <p className="hint">No layout at this size matches these filters.</p>}
-        <ul className="sg-layouts">
-          {layouts.map(([id, name]) => {
-            const ld = { ...design, layout: id };
-            const count = computeLayout(id, { x: 0, y: 0, w, h, e: 0 }, ld).slots.length;
-            return (
-              <li key={id} className="sg-layout">
-                <div className="cv">
-                  <LayoutThumb layout={id} design={ld} photos={thumbPhotos} fontTick={fontTick} />
-                </div>
-                <b>{name}</b>
-                <small className="count">
-                  {count === 0 ? 'No photo' : count === 1 ? '1 photo' : `${count} photos`}
-                </small>
-                <small className="need">{slotNeeds(ld, id, w, h)}</small>
-                <button type="button" className="sbtn accent" onClick={() => use(id)}>
-                  Use this
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <LayoutGrid
+          layouts={layouts}
+          design={design}
+          width={w}
+          height={h}
+          thumbPhotos={thumbPhotos}
+          fontTick={fontTick}
+          onUse={use}
+        />
       </main>
     </div>
   );

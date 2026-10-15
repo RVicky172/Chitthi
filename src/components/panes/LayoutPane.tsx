@@ -5,9 +5,9 @@ import { SIZE_GROUPS, sizeLabel } from '../../data/sizes';
 import { slotCount } from '../../engine/layout';
 import { selectSize } from '../../state/actions';
 import { setDesign, setUI, useApp } from '../../state/store';
-import type { CalendarSettings, FrameStyle, MatWidth, SizeDef } from '../../types';
+import type { CalendarSettings, FrameStyle, MatWidth, ProductId, SizeDef } from '../../types';
 import { LayoutThumb } from '../canvases';
-import { Pane, Section, Seg } from '../common';
+import { Pane, photoCount, Section, Seg } from '../common';
 
 function SizeIcon({ s, land }: Readonly<{ s: SizeDef; land: boolean }>) {
   const long = s.L || 150,
@@ -42,7 +42,13 @@ function SizeIcon({ s, land }: Readonly<{ s: SizeDef; land: boolean }>) {
   );
 }
 
-const photoCount = (count: number) => (count === 0 ? 'No photo' : count === 1 ? '1 photo' : `${count} photos`);
+/** What the colour around the photo is called, per product. */
+const FRAME_LABELS: Record<ProductId, string> = {
+  frame: 'Mat colour',
+  calendar: 'Paper colour',
+  magnet: 'Border colour',
+  postcard: 'Frame colour',
+};
 
 /** Size, orientation and layout in one step: they all decide the shape of the card and its photo slots. */
 export function LayoutPane() {
@@ -57,14 +63,8 @@ export function LayoutPane() {
   const sizes = sizesFor(design.product),
     groups = SIZE_GROUPS.filter((group) => sizes.some((size) => size.grp === group)),
     setCal = (patch: Partial<CalendarSettings>) => setDesign({ cal: { ...design.cal, ...patch } });
-  const frameLabel =
-    design.product === 'frame'
-      ? 'Mat colour'
-      : design.product === 'calendar'
-        ? 'Paper colour'
-        : design.product === 'magnet'
-          ? 'Border colour'
-          : 'Frame colour';
+  const frameLabel = FRAME_LABELS[design.product];
+  const pagesNote = design.cal.months === 12 ? '12 months' : 'Single month';
   return (
     <Pane
       title="Size and layout"
@@ -114,11 +114,7 @@ export function LayoutPane() {
         </div>
       </Section>
       {design.product === 'calendar' && (
-        <Section
-          id="layout.calendar"
-          title="Pages"
-          note={design.layout === 'cal-strip' ? 'One page' : design.cal.months === 12 ? '12 months' : 'Single month'}
-        >
+        <Section id="layout.calendar" title="Pages" note={design.layout === 'cal-strip' ? 'One page' : pagesNote}>
           {design.layout === 'cal-strip' ? (
             <p className="hint">The Year strip puts all twelve months on one page under your photo.</p>
           ) : (
