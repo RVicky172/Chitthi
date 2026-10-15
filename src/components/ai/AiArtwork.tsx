@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { ART_STYLES, type ArtStyle } from '../../ai/prompts/artwork';
-import { aiPhotoName, aiReadyAsync, blobToJpegDataUrl, generateArt, slotShape, suggestSubject, thumbUrl, type Readiness } from '../../ai/service';
+import {
+  aiPhotoName,
+  aiReadyAsync,
+  blobToJpegDataUrl,
+  generateArt,
+  slotShape,
+  suggestSubject,
+  thumbUrl,
+  type Readiness,
+} from '../../ai/service';
 import { AiError } from '../../ai/types';
 import { calPages } from '../../engine/design';
 import { toast } from '../../lib/toast';
@@ -22,15 +31,15 @@ interface Candidate {
 }
 
 export default function AiArtwork({ wide = false }: { wide?: boolean }) {
-  const d = useApp((s) => s.design),
-    calPage = useApp((s) => s.ui.calPage);
+  const design = useApp((state) => state.design),
+    calPage = useApp((state) => state.ui.calPage);
   const { active, count } = usePhotoSlots();
-  const page = Math.min(calPage, calPages(d) - 1);
+  const page = Math.min(calPage, calPages(design) - 1);
   const [ready, setReady] = useState<Readiness | null>(null);
-  const [subject, setSubject] = useState(() => suggestSubject(d, page));
+  const [subject, setSubject] = useState(() => suggestSubject(design, page));
   const [style, setStyle] = useState<ArtStyle>('photo');
   const [people, setPeople] = useState(false);
-  const [n, setN] = useState(2);
+  const [howMany, setHowMany] = useState(2);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [cands, setCands] = useState<Candidate[]>([]);
@@ -43,31 +52,37 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
     void aiReadyAsync('image').then(setReady);
     return () => {
       ctl.current?.abort();
-      for (const c of live.current) URL.revokeObjectURL(c.thumb);
+      for (const candidate of live.current) URL.revokeObjectURL(candidate.thumb);
     };
   }, []);
 
   const clear = () => {
-    for (const c of cands) URL.revokeObjectURL(c.thumb);
+    for (const candidate of cands) URL.revokeObjectURL(candidate.thumb);
     setCands([]);
   };
-  const shape = slotShape(d, active);
+  const shape = slotShape(design, active);
 
   const run = async () => {
     ctl.current?.abort();
-    const c = new AbortController();
-    ctl.current = c;
+    const controller = new AbortController();
+    ctl.current = controller;
     clear();
     setBusy(true);
     setErr('');
     try {
-      const r = await generateArt(d, active, { subject: subject.trim() || suggestSubject(d, page), style, people, n }, c.signal);
-      setMeta({ provider: r.provider, model: r.model });
+      const result = await generateArt(
+        design,
+        active,
+        { subject: subject.trim() || suggestSubject(design, page), style, people, n: howMany },
+        controller.signal,
+      );
+      setMeta({ provider: result.provider, model: result.model });
       const out: Candidate[] = [];
-      for (const blob of r.blobs) out.push({ blob, thumb: await thumbUrl(blob) });
+      for (const blob of result.blobs) out.push({ blob, thumb: await thumbUrl(blob) });
       setCands(out);
-    } catch (e) {
-      if (!(e instanceof AiError && e.kind === 'cancelled')) setErr(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    } catch (error) {
+      if (!(error instanceof AiError && error.kind === 'cancelled'))
+        setErr(error instanceof Error ? error.message : 'Something went wrong. Try again.');
     } finally {
       setBusy(false);
     }
@@ -81,8 +96,8 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
       await storePhotos([ph]);
       await putOnCard({ id: '', added: Date.now(), ...ph });
       toast(`Added${count > 1 ? ` to slot ${active + 1}` : ''}. AI picture made with ${meta.provider}.`);
-    } catch (e) {
-      logError('handled', e);
+    } catch (error) {
+      logError('handled', error);
       toast('That picture couldn’t be added. Try again.');
     } finally {
       setUI({ loading: null });
@@ -103,12 +118,12 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
     <div className={`aiw${wide ? ' wide' : ''}`}>
       <label className="f">
         Describe the picture
-        <textarea rows={2} value={subject} maxLength={400} onChange={(e) => setSubject(e.target.value)} />
+        <textarea rows={2} value={subject} maxLength={400} onChange={(event) => setSubject(event.target.value)} />
       </label>
       <div className="row">
         <label className="f">
           Style
-          <select value={style} onChange={(e) => setStyle(e.target.value as ArtStyle)}>
+          <select value={style} onChange={(event) => setStyle(event.target.value as ArtStyle)}>
             {ART_STYLES.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
@@ -118,10 +133,10 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
         </label>
         <label className="f">
           Pictures to choose from
-          <select value={n} onChange={(e) => setN(+e.target.value)}>
-            {[1, 2, 3, 4].map((k) => (
-              <option key={k} value={k}>
-                {k}
+          <select value={howMany} onChange={(event) => setHowMany(+event.target.value)}>
+            {[1, 2, 3, 4].map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </select>
@@ -131,8 +146,9 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
         People may appear (never a real person)
       </Check>
       <p className="hint">
-        Shaped for {count > 1 ? `slot ${active + 1}` : 'the photo'} ({shape.aspect}){shape.space ? `, calm at the ${shape.space} for the words` : ''}. No
-        lettering or logos. Uses {n} of today’s picture requests and your {ready?.providerName ?? 'provider'} credit.
+        Shaped for {count > 1 ? `slot ${active + 1}` : 'the photo'} ({shape.aspect})
+        {shape.space ? `, calm at the ${shape.space} for the words` : ''}. No lettering or logos. Uses {howMany} of
+        today’s picture requests and your {ready?.providerName ?? 'provider'} credit.
       </p>
       <div className="inline">
         <button type="button" className="btn primary" disabled={busy} onClick={() => void run()}>
@@ -156,17 +172,19 @@ export default function AiArtwork({ wide = false }: { wide?: boolean }) {
       )}
       {cands.length > 0 && (
         <ul className="aigrid">
-          {cands.map((c, i) => (
-            <li key={c.thumb}>
-              <img src={c.thumb} alt={`Choice ${i + 1}`} />
-              <button type="button" className="btn" onClick={() => void use(c)}>
+          {cands.map((candidate, index) => (
+            <li key={candidate.thumb}>
+              <img src={candidate.thumb} alt={`Choice ${index + 1}`} />
+              <button type="button" className="btn" onClick={() => void use(candidate)}>
                 Use this
               </button>
             </li>
           ))}
         </ul>
       )}
-      <p className="hint">AI pictures are marked as such in your library, the print pack’s credits and the Print step.</p>
+      <p className="hint">
+        AI pictures are marked as such in your library, the print pack’s credits and the Print step.
+      </p>
     </div>
   );
 }

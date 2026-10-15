@@ -28,12 +28,12 @@ function DpiBadge({ dpi }: { dpi: number | null }) {
 }
 
 export function PhotosPane() {
-  const d = useApp((s) => s.design),
-    photos = useApp((s) => s.photos);
+  const design = useApp((state) => state.design),
+    photos = useApp((state) => state.photos);
   const [msgs, setMsgs] = useState<['err' | 'warn', string][]>([]);
   const [over, setOver] = useState(false);
-  const { w, h } = cardMM(d);
-  const dpis = photoDpi({ d, photos });
+  const { w, h } = cardMM(design);
+  const dpis = photoDpi({ d: design, photos });
   const { count } = usePhotoSlots();
 
   const take = async (list: FileList | null) => {
@@ -43,34 +43,34 @@ export function PhotosPane() {
   return (
     <Pane
       title="Photos"
-      lead={`Add up to ${maxPhotos(d.product)} photos${d.product === 'calendar' ? ', one for each month' : ''}. The original resolution goes into your print file.`}
+      lead={`Add up to ${maxPhotos(design.product)} photos${design.product === 'calendar' ? ', one for each month' : ''}. The original resolution goes into your print file.`}
       next="size and layout"
       onNext={() => setUI({ pane: 'layout' })}
     >
       <label
         className={`drop${over ? ' over' : ''}`}
-        onDragEnter={(e) => {
-          e.preventDefault();
+        onDragEnter={(event) => {
+          event.preventDefault();
           setOver(true);
         }}
-        onDragOver={(e) => {
-          e.preventDefault();
+        onDragOver={(event) => {
+          event.preventDefault();
           setOver(true);
         }}
         onDragLeave={() => setOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
+        onDrop={(event) => {
+          event.preventDefault();
           setOver(false);
-          void take(e.dataTransfer.files);
+          void take(event.dataTransfer.files);
         }}
       >
         <input
           type="file"
           multiple
           accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-          onChange={(e) => {
-            void take(e.target.files);
-            e.target.value = '';
+          onChange={(event) => {
+            void take(event.target.files);
+            event.target.value = '';
           }}
         />
         <span className="drop-ico">
@@ -81,9 +81,9 @@ export function PhotosPane() {
       </label>
       {msgs.length > 0 && (
         <ul className="msgs" role="alert">
-          {msgs.map(([k, m], i) => (
-            <li key={i} className={k}>
-              {m}
+          {msgs.map(([key, message], index) => (
+            <li key={index} className={key}>
+              {message}
             </li>
           ))}
         </ul>
@@ -91,108 +91,129 @@ export function PhotosPane() {
       {count > 0 && (
         <p className="hint">
           Your layout holds <b>{count === 1 ? '1 photo' : `${count} photos`}</b>
-          {photos.length < count ? `, add ${count - photos.length} more to fill it.` : '. Tap a photo under the preview to swap it in.'}
+          {photos.length < count
+            ? `, add ${count - photos.length} more to fill it.`
+            : '. Tap a photo under the preview to swap it in.'}
         </p>
       )}
       <PexelsSearch />
       {/* AI pictures are their own section, apart from Pexels: made for this card, not found in a stock library. */}
       <Section id="photos.ai" title="Create pictures with AI" defaultOpen={false}>
-        <p className="hint">A picture made for the selected slot from a description, with your own AI key. It is marked as AI in the credits.</p>
+        <p className="hint">
+          A picture made for the selected slot from a description, with your own AI key. It is marked as AI in the
+          credits.
+        </p>
         <AiArtworkEntry />
       </Section>
       <Section id="photos.store" title="Photo store">
         <PhotoStore />
       </Section>
       {photos.length > 0 && (
-      <Section id="photos.card" title="On this design" note={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}>
-      <div className="inline">
-        <button type="button" className="btn" onClick={autoArrange}>
-          <ArrangeIcon />
-          Auto-arrange in the layout
-        </button>
-        <span className="hint">Best photo for each slot, each cropped around its subject.</span>
-      </div>
-      <ul className="photos">
-        {photos.map((p, i) => (
-          <li key={p.id} className="photo">
-            <PhotoThumb photo={p} />
-            <div className="meta">
-              <b>{shortName(p.name)}</b>
-              <PhotoCredit name={p.name} />
-              <span>
-                {p.sw}×{p.sh} px{p.src !== p.orig ? ' after edits' : ''}, <DpiBadge dpi={dpis[i]} />
-              </span>
-              <div className="zoom">
-                <label htmlFor={`z-${p.id}`}>Zoom</label>
-                <input
-                  id={`z-${p.id}`}
-                  type="range"
-                  min={1}
-                  max={4}
-                  step={0.01}
-                  value={p.zoom}
-                  onChange={(e) => patchPhoto(p.id, { zoom: +e.target.value })}
-                />
-                <label htmlFor={`x-${p.id}`}>Left–right</label>
-                <input
-                  id={`x-${p.id}`}
-                  type="range"
-                  min={-1}
-                  max={1}
-                  step={0.01}
-                  value={p.px}
-                  onChange={(e) => patchPhoto(p.id, { px: +e.target.value })}
-                />
-                <label htmlFor={`y-${p.id}`}>Up–down</label>
-                <input
-                  id={`y-${p.id}`}
-                  type="range"
-                  min={-1}
-                  max={1}
-                  step={0.01}
-                  value={p.py}
-                  onChange={(e) => patchPhoto(p.id, { py: +e.target.value })}
-                />
-                <label htmlFor={`l-${p.id}`}>Look</label>
-                <select
-                  id={`l-${p.id}`}
-                  value={p.look}
-                  style={{ padding: '3px 6px', fontSize: '.84rem' }}
-                  onChange={(e) => patchPhoto(p.id, { look: e.target.value as LookId })}
-                >
-                  {LOOKS.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="acts">
-                <button type="button" className="sbtn accent" onClick={() => setUI({ cropId: p.id })}>
-                  <CropIcon />
-                  Crop
-                </button>
-                <button type="button" className="sbtn" onClick={() => patchPhoto(p.id, { zoom: 1, px: 0, py: 0 })}>
-                  <ResetIcon />
-                  Reset position
-                </button>
-                {i > 0 && (
-                  <button type="button" className="sbtn" onClick={() => setPhotos([p, ...photos.filter((x) => x.id !== p.id)])}>
-                    <StarIcon />
-                    Make first
-                  </button>
-                )}
-                <button type="button" className="sbtn" onClick={() => setPhotos(photos.filter((x) => x.id !== p.id))}>
-                  <TrashIcon />
-                  Remove
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-        <p className="hint">Drag a photo on the card, or use the sliders above, to move it. Zoom enlarges it; with the card focused, arrow keys and + / − work too.</p>
-      </Section>
+        <Section id="photos.card" title="On this design" note={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}>
+          <div className="inline">
+            <button type="button" className="btn" onClick={autoArrange}>
+              <ArrangeIcon />
+              Auto-arrange in the layout
+            </button>
+            <span className="hint">Best photo for each slot, each cropped around its subject.</span>
+          </div>
+          <ul className="photos">
+            {photos.map((photo, index) => (
+              <li key={photo.id} className="photo">
+                <PhotoThumb photo={photo} />
+                <div className="meta">
+                  <b>{shortName(photo.name)}</b>
+                  <PhotoCredit name={photo.name} />
+                  <span>
+                    {photo.sw}×{photo.sh} px{photo.src !== photo.orig ? ' after edits' : ''},{' '}
+                    <DpiBadge dpi={dpis[index]} />
+                  </span>
+                  <div className="zoom">
+                    <label htmlFor={`z-${photo.id}`}>Zoom</label>
+                    <input
+                      id={`z-${photo.id}`}
+                      type="range"
+                      min={1}
+                      max={4}
+                      step={0.01}
+                      value={photo.zoom}
+                      onChange={(event) => patchPhoto(photo.id, { zoom: +event.target.value })}
+                    />
+                    <label htmlFor={`x-${photo.id}`}>Left–right</label>
+                    <input
+                      id={`x-${photo.id}`}
+                      type="range"
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      value={photo.px}
+                      onChange={(event) => patchPhoto(photo.id, { px: +event.target.value })}
+                    />
+                    <label htmlFor={`y-${photo.id}`}>Up–down</label>
+                    <input
+                      id={`y-${photo.id}`}
+                      type="range"
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      value={photo.py}
+                      onChange={(event) => patchPhoto(photo.id, { py: +event.target.value })}
+                    />
+                    <label htmlFor={`l-${photo.id}`}>Look</label>
+                    <select
+                      id={`l-${photo.id}`}
+                      value={photo.look}
+                      style={{ padding: '3px 6px', fontSize: '.84rem' }}
+                      onChange={(event) => patchPhoto(photo.id, { look: event.target.value as LookId })}
+                    >
+                      {LOOKS.map(([look, lookName]) => (
+                        <option key={look} value={look}>
+                          {lookName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="acts">
+                    <button type="button" className="sbtn accent" onClick={() => setUI({ cropId: photo.id })}>
+                      <CropIcon />
+                      Crop
+                    </button>
+                    <button
+                      type="button"
+                      className="sbtn"
+                      onClick={() => patchPhoto(photo.id, { zoom: 1, px: 0, py: 0 })}
+                    >
+                      <ResetIcon />
+                      Reset position
+                    </button>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        className="sbtn"
+                        onClick={() => setPhotos([photo, ...photos.filter((x) => x.id !== photo.id)])}
+                      >
+                        <StarIcon />
+                        Make first
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="sbtn"
+                      onClick={() => setPhotos(photos.filter((x) => x.id !== photo.id))}
+                    >
+                      <TrashIcon />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">
+            Drag a photo on the card, or use the sliders above, to move it. Zoom enlarges it; with the card focused,
+            arrow keys and + / − work too.
+          </p>
+        </Section>
       )}
       <Section id="photos.guide" title="Photo guide" defaultOpen={!photos.length}>
         <ul className="guide-list">
@@ -206,8 +227,12 @@ export function PhotosPane() {
             </b>
             . Most phone cameras are well above this.
           </li>
-          <li>Upload the original photo. Pictures saved from WhatsApp or social media are shrunk and can print soft.</li>
-          <li>Keep faces and writing a little away from the edges, because a thin strip is trimmed off when cards are cut.</li>
+          <li>
+            Upload the original photo. Pictures saved from WhatsApp or social media are shrunk and can print soft.
+          </li>
+          <li>
+            Keep faces and writing a little away from the edges, because a thin strip is trimmed off when cards are cut.
+          </li>
           <li>
             Use <b>Crop</b> to choose the part of the photo you want, rotate it or match the shape of your layout.
           </li>

@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { AI_PROVIDERS, providerDef, providersFor, type AiKind, type AiProviderDef, type AiProviderId } from '../../data/aiProviders';
+import {
+  AI_PROVIDERS,
+  providerDef,
+  providersFor,
+  type AiKind,
+  type AiProviderDef,
+  type AiProviderId,
+} from '../../data/aiProviders';
 import { runsHere } from '../../ai/registry';
 import { deleteKey, keyStatus, setKey, type KeyInfo } from '../../ai/secrets';
 import { listModels, testProvider } from '../../ai/service';
@@ -20,7 +27,7 @@ import { logError } from '../../lib/errors';
 type Status = Partial<Record<AiProviderId, KeyInfo>>;
 
 export default function AiSettings() {
-  const [s, setS] = useState<AiSettings>(aiSettings);
+  const [settings, setS] = useState<AiSettings>(aiSettings);
   const [keys, setKeys] = useState<Status>({});
   useEffect(() => {
     const sync = () => {
@@ -36,12 +43,13 @@ export default function AiSettings() {
     <section aria-labelledby="setAi" className="aiset">
       <h3 id="setAi">AI writing and pictures</h3>
       <p className="hint">
-        Use your own account with an AI service to write greetings, quotes, captions and messages, and to make pictures for
-        photo slots. Chitthi has no AI server: requests go from {isDesktop ? 'this app' : 'this browser'} straight to the service
-        you choose, with your key, and only the words and descriptions you ask about are sent, never your photos.
+        Use your own account with an AI service to write greetings, quotes, captions and messages, and to make pictures
+        for photo slots. Chitthi has no AI server: requests go from {isDesktop ? 'this app' : 'this browser'} straight
+        to the service you choose, with your key, and only the words and descriptions you ask about are sent, never your
+        photos.
       </p>
-      <Choice kind="text" s={s} keys={keys} />
-      <Choice kind="image" s={s} keys={keys} />
+      <Choice kind="text" s={settings} keys={keys} />
+      <Choice kind="image" s={settings} keys={keys} />
 
       <details className="aiprov">
         <summary>Keys and services</summary>
@@ -50,8 +58,8 @@ export default function AiSettings() {
             ? 'Keys are encrypted by your operating system and used only by the Chitthi app, which sends each one only to its own service.'
             : 'Keys stay in this browser (or this tab only) and are sent only to their own service. Services marked “desktop app” don’t allow calls from web pages.'}
         </p>
-        {AI_PROVIDERS.map((p) => (
-          <ProviderRow key={p.id} p={p} info={keys[p.id]} />
+        {AI_PROVIDERS.map((provider) => (
+          <ProviderRow key={provider.id} p={provider} info={keys[provider.id]} />
         ))}
       </details>
 
@@ -60,18 +68,34 @@ export default function AiSettings() {
         <div className="row">
           <label className="f">
             Writing requests a day
-            <input type="number" min={1} max={5000} value={s.limits.text} onChange={(e) => setAiSettings({ limits: { ...s.limits, text: Math.max(1, +e.target.value || 1) } })} />
+            <input
+              type="number"
+              min={1}
+              max={5000}
+              value={settings.limits.text}
+              onChange={(event) =>
+                setAiSettings({ limits: { ...settings.limits, text: Math.max(1, +event.target.value || 1) } })
+              }
+            />
           </label>
           <label className="f">
             Picture requests a day
-            <input type="number" min={1} max={1000} value={s.limits.image} onChange={(e) => setAiSettings({ limits: { ...s.limits, image: Math.max(1, +e.target.value || 1) } })} />
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              value={settings.limits.image}
+              onChange={(event) =>
+                setAiSettings({ limits: { ...settings.limits, image: Math.max(1, +event.target.value || 1) } })
+              }
+            />
           </label>
         </div>
         <p className="hint">
-          Used today: {used.text} writing, {used.image} pictures. Each service bills your own account; the limits stop a mistake
-          from running up a bill.
+          Used today: {used.text} writing, {used.image} pictures. Each service bills your own account; the limits stop a
+          mistake from running up a bill.
         </p>
-        <Check checked={s.fallbacks} onChange={(fallbacks) => setAiSettings({ fallbacks })}>
+        <Check checked={settings.fallbacks} onChange={(fallbacks) => setAiSettings({ fallbacks })}>
           Claude: if a model declines a request, let Anthropic retry it on another Claude model (server-side fallback)
         </Check>
       </details>
@@ -107,48 +131,55 @@ function ModelsOnDevice() {
       setRows(
         await Promise.all(
           targets.map(async (target) => {
-            const m = seg.SEG_MODELS[target],
+            const model = seg.SEG_MODELS[target],
               state = await seg.modelState(target);
-            return { target, title: m.title, size: seg.sizeText(m.bytes), state, ...seg.modelRow(state) };
+            return { target, title: model.title, size: seg.sizeText(model.bytes), state, ...seg.modelRow(state) };
           }),
         ),
       );
-    } catch (e) {
-      logError('handled', e);
+    } catch (error) {
+      logError('handled', error);
       setMsg('The models on this device couldn’t be read.');
     }
   };
-  const remove = async (r: ModelRowInfo) => {
+  const remove = async (row: ModelRowInfo) => {
     setBusy(true);
     try {
-      const why = await (await import('../../ai/segment')).deleteModel(r.target);
-      setMsg(why ?? `The ${r.target} model was deleted: ${r.size} freed.`);
+      const why = await (await import('../../ai/segment')).deleteModel(row.target);
+      setMsg(why ?? `The ${row.target} model was deleted: ${row.size} freed.`);
       await load();
-    } catch (e) {
-      logError('handled', e);
-      setMsg(`The ${r.target} model couldn’t be deleted.`);
+    } catch (error) {
+      logError('handled', error);
+      setMsg(`The ${row.target} model couldn’t be deleted.`);
     } finally {
       setBusy(false);
     }
   };
   return (
-    <details className="aiprov" onToggle={(e) => e.currentTarget.open && !rows && void load()}>
+    <details className="aiprov" onToggle={(event) => event.currentTarget.open && !rows && void load()}>
       <summary>AI models on this device</summary>
       <p className="hint">
-        Finding a subject or the sky in a photo uses AI models that run here, not on a server. A downloaded model is kept
-        {isDesktop ? ' in the app’s data folder' : ' in this browser’s private storage for this site'} until you delete it;
-        it is downloaded again, after asking, when it is next needed. Deleting one changes nothing else.
+        Finding a subject or the sky in a photo uses AI models that run here, not on a server. A downloaded model is
+        kept
+        {isDesktop ? ' in the app’s data folder' : ' in this browser’s private storage for this site'} until you delete
+        it; it is downloaded again, after asking, when it is next needed. Deleting one changes nothing else.
       </p>
       {rows ? (
         <ul className="aimodels">
-          {rows.map((r) => (
-            <li key={r.target}>
+          {rows.map((row) => (
+            <li key={row.target}>
               <span>
-                <b>{r.title}</b> <small>{r.size}</small>
+                <b>{row.title}</b> <small>{row.size}</small>
               </span>
-              <span className="hint">{r.status}</span>
-              {r.canDelete && (
-                <button type="button" className="sbtn" disabled={busy} aria-label={`Delete the ${r.target} model`} onClick={() => void remove(r)}>
+              <span className="hint">{row.status}</span>
+              {row.canDelete && (
+                <button
+                  type="button"
+                  className="sbtn"
+                  disabled={busy}
+                  aria-label={`Delete the ${row.target} model`}
+                  onClick={() => void remove(row)}
+                >
                   Delete
                 </button>
               )}
@@ -183,13 +214,17 @@ function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }
           {kind === 'text' ? 'Writes words' : 'Makes pictures'}
           <select
             value={cur.provider}
-            onChange={(e) => setAiSettings({ [kind]: { provider: e.target.value as AiProviderId | '', model: '' } } as Partial<AiSettings>)}
+            onChange={(event) =>
+              setAiSettings({
+                [kind]: { provider: event.target.value as AiProviderId | '', model: '' },
+              } as Partial<AiSettings>)
+            }
           >
             <option value="">Off</option>
-            {list.map((p) => (
-              <option key={p.id} value={p.id} disabled={!runsHere(p)}>
-                {p.name}
-                {!runsHere(p) ? ' (desktop app)' : ''}
+            {list.map((provider) => (
+              <option key={provider.id} value={provider.id} disabled={!runsHere(provider)}>
+                {provider.name}
+                {!runsHere(provider) ? ' (desktop app)' : ''}
               </option>
             ))}
           </select>
@@ -202,11 +237,13 @@ function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }
             placeholder={suggested[0] ?? 'model name'}
             value={cur.model}
             disabled={!def}
-            onChange={(e) => setAiSettings({ [kind]: { ...cur, model: e.target.value.trim() } } as Partial<AiSettings>)}
+            onChange={(event) =>
+              setAiSettings({ [kind]: { ...cur, model: event.target.value.trim() } } as Partial<AiSettings>)
+            }
           />
           <datalist id={`ai-models-${kind}`}>
-            {options.map((m) => (
-              <option key={m} value={m} />
+            {options.map((model) => (
+              <option key={model} value={model} />
             ))}
           </datalist>
         </label>
@@ -226,12 +263,16 @@ function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }
               onClick={async () => {
                 setBusy(true);
                 try {
-                  const m = await listModels(def.id, kind);
-                  setModels(m);
-                  toast(m.length ? `${m.length} models loaded: pick one from the Model list.` : 'No models were listed; type the model name.');
-                } catch (e) {
-                  logError('handled', e);
-                  toast(e instanceof Error ? e.message : 'The model list couldn’t be loaded.');
+                  const listed = await listModels(def.id, kind);
+                  setModels(listed);
+                  toast(
+                    listed.length
+                      ? `${listed.length} models loaded: pick one from the Model list.`
+                      : 'No models were listed; type the model name.',
+                  );
+                } catch (error) {
+                  logError('handled', error);
+                  toast(error instanceof Error ? error.message : 'The model list couldn’t be loaded.');
                 } finally {
                   setBusy(false);
                 }
@@ -262,9 +303,9 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
     setMsg(null);
     try {
       setMsg({ ok: true, text: await testProvider(p.id) });
-    } catch (e) {
-      logError('handled', e);
-      setMsg({ ok: false, text: e instanceof Error ? e.message : 'The test failed.' });
+    } catch (error) {
+      logError('handled', error);
+      setMsg({ ok: false, text: error instanceof Error ? error.message : 'The test failed.' });
     } finally {
       setBusy(false);
     }
@@ -274,26 +315,38 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
       <summary>
         <b>{p.name}</b>
         <small>
-          {p.kinds.map((k) => (k === 'text' ? 'words' : 'pictures')).join(' + ')}
+          {p.kinds.map((kind) => (kind === 'text' ? 'words' : 'pictures')).join(' + ')}
           {p.web === 'desktop' ? ' · desktop app' : ''}
-          {!p.key ? ' · no key needed' : info?.has ? ` · key saved${info.where === 'session' ? ' (this tab)' : ''}` : ''}
+          {!p.key
+            ? ' · no key needed'
+            : info?.has
+              ? ` · key saved${info.where === 'session' ? ' (this tab)' : ''}`
+              : ''}
         </small>
       </summary>
       {p.note && <p className="hint">{p.note}</p>}
-      {!here && <p className="hint bad">This service doesn’t allow calls from web pages. Use it in the Chitthi desktop app.</p>}
+      {!here && (
+        <p className="hint bad">This service doesn’t allow calls from web pages. Use it in the Chitthi desktop app.</p>
+      )}
       {editableBase && (
         <label className="f">
           Base URL
           <span className="px-search">
-            <input type="url" placeholder={p.base || 'https://…/v1'} value={base} onChange={(e) => setBase(e.target.value)} onBlur={saveBase} />
+            <input
+              type="url"
+              placeholder={p.base || 'https://…/v1'}
+              value={base}
+              onChange={(event) => setBase(event.target.value)}
+              onBlur={saveBase}
+            />
           </span>
         </label>
       )}
       {p.key && here && (
         <form
           className="setkey"
-          onSubmit={async (e) => {
-            e.preventDefault();
+          onSubmit={async (event) => {
+            event.preventDefault();
             if (!draft.trim()) return;
             if (editableBase) saveBase();
             await setKey(p.id, draft, { session: !remember, base: editableBase ? base.trim() : '' });
@@ -303,7 +356,14 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
         >
           <label className="f">
             {info?.has ? 'Replace your key' : 'Your API key'}
-            <input type="password" autoComplete="off" spellCheck={false} placeholder="Paste the key here" value={draft} onChange={(e) => setDraft(e.target.value)} />
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Paste the key here"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
           </label>
           {!isDesktop && (
             <Check checked={remember} onChange={setRemember}>
@@ -315,7 +375,11 @@ function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
               {busy ? 'Testing…' : 'Save and test'}
             </button>
             {info?.has && (
-              <button type="button" className="btn" onClick={() => void deleteKey(p.id).then(() => setMsg({ ok: true, text: 'Key removed.' }))}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void deleteKey(p.id).then(() => setMsg({ ok: true, text: 'Key removed.' }))}
+              >
                 Remove key
               </button>
             )}
@@ -347,16 +411,21 @@ function AgentConnect() {
   useEffect(() => {
     void desktop!.agent!.status().then(setSt);
   }, []);
-  const exe = desktop?.info.platform === 'darwin' ? '/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio' : '%LOCALAPPDATA%\\Programs\\Chitthi Studio\\Chitthi Studio.exe';
-  const copy = (t: string) => void navigator.clipboard.writeText(t).then(() => toast('Copied.'));
-  const live = st?.on ? `claude mcp add --transport http chitthi-live ${st.url} --header "Authorization: Bearer ${st.token}"` : '';
+  const exe =
+    desktop?.info.platform === 'darwin'
+      ? '/Applications/Chitthi Studio.app/Contents/MacOS/Chitthi Studio'
+      : '%LOCALAPPDATA%\\Programs\\Chitthi Studio\\Chitthi Studio.exe';
+  const copy = (text: string) => void navigator.clipboard.writeText(text).then(() => toast('Copied.'));
+  const live = st?.on
+    ? `claude mcp add --transport http chitthi-live ${st.url} --header "Authorization: Bearer ${st.token}"`
+    : '';
   const headless = `claude mcp add chitthi -- "${exe}" --mcp`;
   return (
     <details className="aiprov" open={!!st?.on}>
       <summary>Connect an AI agent (MCP)</summary>
       <p className="hint">
-        Let Claude Code, Claude Desktop, VS Code or Cursor use Chitthi’s tools: build designs, write words, check print quality and
-        export print packs. See docs/MCP.md.
+        Let Claude Code, Claude Desktop, VS Code or Cursor use Chitthi’s tools: build designs, write words, check print
+        quality and export print packs. See docs/MCP.md.
       </p>
       <Check
         checked={!!st?.on}
@@ -370,7 +439,9 @@ function AgentConnect() {
       </Check>
       {st?.on && (
         <>
-          <p className="hint">Only programs on this computer with the token can connect. It stops when you turn this off or close Chitthi.</p>
+          <p className="hint">
+            Only programs on this computer with the token can connect. It stops when you turn this off or close Chitthi.
+          </p>
           <code className="aicmd">{live}</code>
           <button type="button" className="btn" onClick={() => copy(live)}>
             Copy the Claude Code command

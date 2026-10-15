@@ -18,18 +18,18 @@ function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
   const re = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
   let last = 0,
-    m: RegExpExecArray | null,
-    k = 0;
-  while ((m = re.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    if (m[1]) out.push(<strong key={k++}>{m[1]}</strong>);
-    else if (m[2]) out.push(<code key={k++}>{m[2]}</code>);
+    match: RegExpExecArray | null,
+    key = 0;
+  while ((match = re.exec(text))) {
+    if (match.index > last) out.push(text.slice(last, match.index));
+    if (match[1]) out.push(<strong key={key++}>{match[1]}</strong>);
+    else if (match[2]) out.push(<code key={key++}>{match[2]}</code>);
     else {
-      const href = m[4],
+      const href = match[4],
         external = /^https?:/.test(href);
       out.push(
-        <a key={k++} href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-          {m[3]}
+        <a key={key++} href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+          {match[3]}
         </a>,
       );
     }
@@ -45,16 +45,16 @@ function Block({ b }: { b: DocBlock }) {
   if ('list' in b)
     return (
       <ul>
-        {b.list.map((t, i) => (
-          <li key={i}>{inline(t)}</li>
+        {b.list.map((item, index) => (
+          <li key={index}>{inline(item)}</li>
         ))}
       </ul>
     );
   if ('steps' in b)
     return (
       <ol className="docs-steps">
-        {b.steps.map((t, i) => (
-          <li key={i}>{inline(t)}</li>
+        {b.steps.map((step, index) => (
+          <li key={index}>{inline(step)}</li>
         ))}
       </ol>
     );
@@ -69,17 +69,25 @@ function Block({ b }: { b: DocBlock }) {
       <table>
         <thead>
           <tr>
-            {b.table.head.map((h, i) => (
-              <th key={i} scope="col">
-                {inline(h)}
+            {b.table.head.map((heading, index) => (
+              <th key={index} scope="col">
+                {inline(heading)}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {b.table.rows.map((r, i) => (
-            <tr key={i}>
-              {r.map((c, j) => (j === 0 ? <th key={j} scope="row">{inline(c)}</th> : <td key={j}>{inline(c)}</td>))}
+          {b.table.rows.map((row, index) => (
+            <tr key={index}>
+              {row.map((cell, column) =>
+                column === 0 ? (
+                  <th key={column} scope="row">
+                    {inline(cell)}
+                  </th>
+                ) : (
+                  <td key={column}>{inline(cell)}</td>
+                ),
+              )}
             </tr>
           ))}
         </tbody>
@@ -88,7 +96,7 @@ function Block({ b }: { b: DocBlock }) {
   );
 }
 
-const GROUPS = [...new Set(DOC_PAGES.map((p) => p.group))];
+const GROUPS = [...new Set(DOC_PAGES.map((page) => page.group))];
 
 export function DocsPage() {
   const [route, setRoute] = useState(() => parse(location.hash));
@@ -103,10 +111,10 @@ export function DocsPage() {
     if (route.section) document.getElementById(`doc-${route.section}`)?.scrollIntoView({ block: 'start' });
     else window.scrollTo(0, 0);
   }, [page.id, route.section]);
-  const i = DOC_PAGES.indexOf(page),
-    prev = DOC_PAGES[i - 1],
-    next = DOC_PAGES[i + 1];
-  const href = (p: DocPage, section?: string) => `#/docs/${p.id}${section ? `/${section}` : ''}`;
+  const index = DOC_PAGES.indexOf(page),
+    prev = DOC_PAGES[index - 1],
+    next = DOC_PAGES[index + 1];
+  const href = (target: DocPage, section?: string) => `#/docs/${target.id}${section ? `/${section}` : ''}`;
 
   return (
     <div className="landing docs">
@@ -115,26 +123,30 @@ export function DocsPage() {
         <nav className="docs-side" aria-label="Documentation">
           <label className="docs-pick">
             <span>Page</span>
-            <select aria-label="Documentation page" value={page.id} onChange={(e) => (location.hash = href(docPage(e.target.value)))}>
-              {GROUPS.map((g) => (
-                <optgroup key={g} label={g}>
-                  {DOC_PAGES.filter((p) => p.group === g).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
+            <select
+              aria-label="Documentation page"
+              value={page.id}
+              onChange={(event) => (location.hash = href(docPage(event.target.value)))}
+            >
+              {GROUPS.map((group) => (
+                <optgroup key={group} label={group}>
+                  {DOC_PAGES.filter((candidate) => candidate.group === group).map((groupPage) => (
+                    <option key={groupPage.id} value={groupPage.id}>
+                      {groupPage.title}
                     </option>
                   ))}
                 </optgroup>
               ))}
             </select>
           </label>
-          {GROUPS.map((g) => (
-            <Fragment key={g}>
-              <h2>{g}</h2>
+          {GROUPS.map((group) => (
+            <Fragment key={group}>
+              <h2>{group}</h2>
               <ul>
-                {DOC_PAGES.filter((p) => p.group === g).map((p) => (
-                  <li key={p.id}>
-                    <a href={href(p)} aria-current={p === page ? 'page' : undefined}>
-                      {p.title}
+                {DOC_PAGES.filter((candidate) => candidate.group === group).map((groupPage) => (
+                  <li key={groupPage.id}>
+                    <a href={href(groupPage)} aria-current={groupPage === page ? 'page' : undefined}>
+                      {groupPage.title}
                     </a>
                   </li>
                 ))}
@@ -149,19 +161,24 @@ export function DocsPage() {
             <p className="lsec-sub">{page.summary}</p>
             {page.sections.length > 1 && (
               <nav className="docs-toc" aria-label="On this page">
-                {page.sections.map((s) => (
-                  <a key={s.id} href={href(page, s.id)}>
-                    {s.title}
+                {page.sections.map((section) => (
+                  <a key={section.id} href={href(page, section.id)}>
+                    {section.title}
                   </a>
                 ))}
               </nav>
             )}
           </header>
-          {page.sections.map((s) => (
-            <section key={s.id} id={`doc-${s.id}`} className="docs-sec" aria-labelledby={`doch-${s.id}`}>
-              <h2 id={`doch-${s.id}`}>{s.title}</h2>
-              {s.blocks.map((b, k) => (
-                <Block key={k} b={b} />
+          {page.sections.map((section) => (
+            <section
+              key={section.id}
+              id={`doc-${section.id}`}
+              className="docs-sec"
+              aria-labelledby={`doch-${section.id}`}
+            >
+              <h2 id={`doch-${section.id}`}>{section.title}</h2>
+              {section.blocks.map((block, index) => (
+                <Block key={index} b={block} />
               ))}
             </section>
           ))}

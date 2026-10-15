@@ -88,16 +88,23 @@ import type { PaneId, ProductId } from '../types';
  */
 const base: LucideProps = { strokeWidth: 1.9, 'aria-hidden': true };
 
-const PANE_ICONS = { photos: Images, layout: LayoutTemplate, occasion: Sparkles, words: Type, back: Mail, print: Printer };
+const PANE_ICONS = {
+  photos: Images,
+  layout: LayoutTemplate,
+  occasion: Sparkles,
+  words: Type,
+  back: Mail,
+  print: Printer,
+};
 export const PaneIcon = ({ id }: { id: PaneId }) => {
-  const I = PANE_ICONS[id];
-  return <I {...base} />;
+  const Icon = PANE_ICONS[id];
+  return <Icon {...base} />;
 };
 
 const PRODUCT_ICONS = { postcard: Mail, calendar: CalendarDays, frame: Frame, magnet: Magnet };
 export const ProductIcon = ({ id }: { id: ProductId }) => {
-  const I = PRODUCT_ICONS[id];
-  return <I {...base} />;
+  const Icon = PRODUCT_ICONS[id];
+  return <Icon {...base} />;
 };
 
 export const GalleryIcon = () => <LayoutGrid {...base} />;
@@ -158,10 +165,15 @@ export const HeightIcon = () => <ChevronsUpDown {...base} />;
 export const LayersIcon = () => <Layers {...base} />;
 export const ScissorsIcon = () => <Scissors {...base} />;
 /** The timeline's edit tools (202) and its switches. */
-const TOOL_ICONS = { select: MousePointer2, roll: SquareSplitHorizontal, slip: ChevronsLeftRight, slide: MoveHorizontal };
+const TOOL_ICONS = {
+  select: MousePointer2,
+  roll: SquareSplitHorizontal,
+  slip: ChevronsLeftRight,
+  slide: MoveHorizontal,
+};
 export const EditToolIcon = ({ tool }: { tool: keyof typeof TOOL_ICONS }) => {
-  const I = TOOL_ICONS[tool];
-  return <I {...base} />;
+  const Icon = TOOL_ICONS[tool];
+  return <Icon {...base} />;
 };
 export const MagneticIcon = () => <FoldHorizontal {...base} />;
 export const SnapIcon = () => <Magnet {...base} />;
@@ -177,7 +189,17 @@ export const LaptopIcon = () => <Laptop {...base} />;
 
 /** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
 export const InstagramIcon = () => (
-  <svg width={24} height={24} fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+  <svg
+    width={24}
+    height={24}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
     <rect x="3" y="3" width="18" height="18" rx="5" />
     <circle cx="12" cy="12" r="4.2" />
     <circle cx="17.4" cy="6.6" r="0.6" fill="currentColor" />

@@ -19,10 +19,16 @@ export function Seg<T extends string>({
 }) {
   return (
     <div className="seg" role="group" aria-label={label}>
-      {options.map(([v, l, icon]) => (
-        <button key={v} type="button" aria-pressed={v === value} title={icon ? l : undefined} onClick={() => onChange(v)}>
+      {options.map(([optionValue, optionLabel, icon]) => (
+        <button
+          key={optionValue}
+          type="button"
+          aria-pressed={optionValue === value}
+          title={icon ? optionLabel : undefined}
+          onClick={() => onChange(optionValue)}
+        >
           {icon}
-          <span className="seg-l">{l}</span>
+          <span className="seg-l">{optionLabel}</span>
         </button>
       ))}
     </div>
@@ -42,7 +48,7 @@ export function Check({
 }) {
   return (
     <label className="check" id={id}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {children}
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /> {children}
     </label>
   );
 }
@@ -108,7 +114,8 @@ function saveFold(id: string, open: boolean): void {
     /* storage blocked: the section still toggles */
   }
 }
-const foldAll = (scope: string, open: boolean) => window.dispatchEvent(new CustomEvent(EVT, { detail: { scope, open } }));
+const foldAll = (scope: string, open: boolean) =>
+  window.dispatchEvent(new CustomEvent(EVT, { detail: { scope, open } }));
 
 /*
  * Revealing a section from elsewhere (the feature finder): it opens, scrolls into view and focuses its first field.
@@ -142,11 +149,11 @@ export function Section({
   const scope = useContext(SectionScope);
   const [open, setOpen] = useState(() => readFolds()[id] ?? defaultOpen);
   useEffect(() => {
-    const on = (e: Event) => {
-      const d = (e as CustomEvent<{ scope: string; open: boolean }>).detail;
-      if (d.scope !== scope) return;
-      setOpen(d.open);
-      saveFold(id, d.open);
+    const on = (event: Event) => {
+      const detail = (event as CustomEvent<{ scope: string; open: boolean }>).detail;
+      if (detail.scope !== scope) return;
+      setOpen(detail.open);
+      saveFold(id, detail.open);
     };
     window.addEventListener(EVT, on);
     return () => window.removeEventListener(EVT, on);
@@ -162,7 +169,9 @@ export function Section({
       setTimeout(() => {
         const el = document.getElementById(body);
         el?.closest('.sec')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-        el?.querySelector<HTMLElement>('input:not([type=checkbox]):not([type=radio]), textarea, select, button')?.focus({ preventScroll: true });
+        el?.querySelector<HTMLElement>('input:not([type=checkbox]):not([type=radio]), textarea, select, button')?.focus(
+          { preventScroll: true },
+        );
       }, 450);
     };
     reveal();
@@ -198,12 +207,20 @@ const YEAR_MIN = 1900,
   YEAR_MAX = 2200;
 
 /** Calendar year: type any year, or step with − and +. A half-typed year is kept locally until it's complete. */
-export function YearField({ value, onChange, label = 'Year' }: { value: number; onChange: (y: number) => void; label?: string }) {
+export function YearField({
+  value,
+  onChange,
+  label = 'Year',
+}: {
+  value: number;
+  onChange: (y: number) => void;
+  label?: string;
+}) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
   const ok = (y: number) => Number.isInteger(y) && y >= YEAR_MIN && y <= YEAR_MAX;
-  const step = (k: number) => {
-    const y = Math.min(YEAR_MAX, Math.max(YEAR_MIN, value + k));
+  const step = (by: number) => {
+    const y = Math.min(YEAR_MAX, Math.max(YEAR_MIN, value + by));
     if (y !== value) onChange(y);
   };
   return (
@@ -219,16 +236,16 @@ export function YearField({ value, onChange, label = 'Year' }: { value: number; 
           min={YEAR_MIN}
           max={YEAR_MAX}
           value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            const y = +e.target.value;
-            if (e.target.value.length === 4 && ok(y)) onChange(y);
+          onChange={(event) => {
+            setDraft(event.target.value);
+            const y = +event.target.value;
+            if (event.target.value.length === 4 && ok(y)) onChange(y);
           }}
           onBlur={() => setDraft(String(value))}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-              e.preventDefault();
-              step(e.key === 'ArrowUp' ? 1 : -1);
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              step(event.key === 'ArrowUp' ? 1 : -1);
             }
           }}
         />
@@ -242,16 +259,16 @@ export function YearField({ value, onChange, label = 'Year' }: { value: number; 
 
 /** "Photo by … on Pexels" for a photo that came from Pexels (linked to its Pexels page when the id is known). */
 export function PhotoCredit({ name }: { name: string }) {
-  const c = creditOf(name);
-  if (!c) {
-    const a = aiCreditOf(name);
-    return a ? <span className="credit">AI picture · {a.made}</span> : null;
+  const credit = creditOf(name);
+  if (!credit) {
+    const aiCredit = aiCreditOf(name);
+    return aiCredit ? <span className="credit">AI picture · {aiCredit.made}</span> : null;
   }
   return (
     <span className="credit">
-      Photo by {c.photographer} on{' '}
-      {c.url ? (
-        <a href={c.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+      Photo by {credit.photographer} on{' '}
+      {credit.url ? (
+        <a href={credit.url} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
           Pexels
         </a>
       ) : (

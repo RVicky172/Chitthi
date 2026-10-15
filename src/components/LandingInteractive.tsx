@@ -11,53 +11,53 @@ import { ProductIcon } from './icons';
  * renders), so what the page shows is what the studio makes.
  */
 
-const mm = (n: number) => `${+n.toFixed(2)}`;
-const px = (n: number) => Math.round((n / 25.4) * 300);
+const mm = (value: number) => `${+value.toFixed(2)}`;
+const px = (millimetres: number) => Math.round((millimetres / 25.4) * 300);
 
 /** Four products as tabs: pick one to see its real examples, sizes and layouts. Arrow keys move between tabs. */
 export function ProductExplorer({ shots, open }: { shots: ShowcaseImage[]; open: (p: ProductId) => void }) {
   const [id, setId] = useState<ProductId>('postcard');
   const [pick, setPick] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const product = PRODUCTS.find((p) => p.id === id)!;
-  const examples = shots.filter((s) => s.render === 'front' && s.product === id);
+  const product = PRODUCTS.find((candidate) => candidate.id === id)!;
+  const examples = shots.filter((shot) => shot.render === 'front' && shot.product === id);
   const big = examples[Math.min(pick, examples.length - 1)];
-  const sizes = sizesFor(id).filter((s) => s.id !== 'custom');
+  const sizes = sizesFor(id).filter((size) => size.id !== 'custom');
   const layouts = layoutsFor(id).length;
 
   const choose = (next: ProductId) => {
     setId(next);
     setPick(0);
   };
-  const onKey = (e: KeyboardEvent, i: number) => {
-    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+  const onKey = (event: KeyboardEvent, index: number) => {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
-    e.preventDefault();
-    const n = (i + step + PRODUCTS.length) % PRODUCTS.length;
-    choose(PRODUCTS[n].id);
-    tabs.current[n]?.focus();
+    event.preventDefault();
+    const next = (index + step + PRODUCTS.length) % PRODUCTS.length;
+    choose(PRODUCTS[next].id);
+    tabs.current[next]?.focus();
   };
 
   return (
     <div className="ld-explore">
       <div className="ld-tabs" role="tablist" aria-label="Products">
-        {PRODUCTS.map((p, i) => (
+        {PRODUCTS.map((tab, index) => (
           <button
-            key={p.id}
+            key={tab.id}
             ref={(el) => {
-              tabs.current[i] = el;
+              tabs.current[index] = el;
             }}
             type="button"
             role="tab"
-            id={`ld-tab-${p.id}`}
-            aria-selected={p.id === id}
+            id={`ld-tab-${tab.id}`}
+            aria-selected={tab.id === id}
             aria-controls="ld-tabpanel"
-            tabIndex={p.id === id ? 0 : -1}
-            onClick={() => choose(p.id)}
-            onKeyDown={(e) => onKey(e, i)}
+            tabIndex={tab.id === id ? 0 : -1}
+            onClick={() => choose(tab.id)}
+            onKeyDown={(event) => onKey(event, index)}
           >
-            <ProductIcon id={p.id} />
-            {p.name}
+            <ProductIcon id={tab.id} />
+            {tab.name}
           </button>
         ))}
       </div>
@@ -65,14 +65,27 @@ export function ProductExplorer({ shots, open }: { shots: ShowcaseImage[]; open:
         <div className="ld-panel-art">
           {big && (
             <span className="trim" key={big.id}>
-              <img src={big.src} width={big.w} height={big.h} alt={`${big.title}: a ${product.name.toLowerCase()} made with Chitthi`} loading="lazy" decoding="async" />
+              <img
+                src={big.src}
+                width={big.w}
+                height={big.h}
+                alt={`${big.title}: a ${product.name.toLowerCase()} made with Chitthi`}
+                loading="lazy"
+                decoding="async"
+              />
             </span>
           )}
           {examples.length > 1 && (
             <div className="ld-thumbs" role="group" aria-label={`${product.name} examples`}>
-              {examples.map((s, i) => (
-                <button key={s.id} type="button" aria-pressed={s === big} aria-label={s.title} onClick={() => setPick(i)}>
-                  <img src={s.src} alt="" loading="lazy" decoding="async" />
+              {examples.map((shot, index) => (
+                <button
+                  key={shot.id}
+                  type="button"
+                  aria-pressed={shot === big}
+                  aria-label={shot.title}
+                  onClick={() => setPick(index)}
+                >
+                  <img src={shot.src} alt="" loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>
@@ -96,11 +109,11 @@ export function ProductExplorer({ shots, open }: { shots: ShowcaseImage[]; open:
             </div>
           </dl>
           <ul className="ld-size-list" aria-label={`Some ${product.name.toLowerCase()} sizes`}>
-            {sizes.slice(0, 5).map((s) => (
-              <li key={s.id}>
-                <span>{s.name}</span>
+            {sizes.slice(0, 5).map((size) => (
+              <li key={size.id}>
+                <span>{size.name}</span>
                 <span>
-                  {mm(s.L)} × {mm(s.S)} mm
+                  {mm(size.L)} × {mm(size.S)} mm
                 </span>
               </li>
             ))}
@@ -119,7 +132,7 @@ export function ProductExplorer({ shots, open }: { shots: ShowcaseImage[]; open:
   );
 }
 
-const POSTCARDS = SIZES.filter((s) => s.grp === 'Postcards');
+const POSTCARDS = SIZES.filter((size) => size.grp === 'Postcards');
 const BLEEDS = [
   { label: '3 mm', mm: 3 },
   { label: '⅛ in', mm: 3.175 },
@@ -128,8 +141,8 @@ const BLEEDS = [
 /** The safe area sits 4 mm inside the trim (see the sizes guide). */
 const SAFE = 4;
 /** One scale for every size: the drawing area fits the largest postcard with the largest bleed, plus crop marks. */
-const VW = Math.max(...POSTCARDS.map((s) => s.L)) + 2 * 5 + 24,
-  VH = Math.max(...POSTCARDS.map((s) => s.S)) + 2 * 5 + 24;
+const VW = Math.max(...POSTCARDS.map((size) => size.L)) + 2 * 5 + 24,
+  VH = Math.max(...POSTCARDS.map((size) => size.S)) + 2 * 5 + 24;
 
 /**
  * A postcard size drawn to scale: bleed, trim and safe area, the pixels needed at 300 dpi, and the print pack those
@@ -138,17 +151,17 @@ const VW = Math.max(...POSTCARDS.map((s) => s.L)) + 2 * 5 + 24,
 export function PrintReady() {
   const [sizeId, setSizeId] = useState('4x6');
   const [bleed, setBleed] = useState(3);
-  const size = POSTCARDS.find((s) => s.id === sizeId) ?? POSTCARDS[0];
-  const W = size.L,
-    H = size.S,
-    dw = W + 2 * bleed,
-    dh = H + 2 * bleed;
+  const size = POSTCARDS.find((candidate) => candidate.id === sizeId) ?? POSTCARDS[0];
+  const width = size.L,
+    height = size.S,
+    dw = width + 2 * bleed,
+    dh = height + 2 * bleed;
   const slug = `chitthi-diwali-${size.id}`;
   const spec = [
-    ['Trim (final) size', `${mm(W)} × ${mm(H)} mm`],
-    ['Bleed', `${BLEEDS.find((b) => b.mm === bleed)?.label} on every edge`],
+    ['Trim (final) size', `${mm(width)} × ${mm(height)} mm`],
+    ['Bleed', `${BLEEDS.find((option) => option.mm === bleed)?.label} on every edge`],
     ['Document size', `${mm(dw)} × ${mm(dh)} mm`],
-    ['Safe area', `${mm(W - 2 * SAFE)} × ${mm(H - 2 * SAFE)} mm`],
+    ['Safe area', `${mm(width - 2 * SAFE)} × ${mm(height - 2 * SAFE)} mm`],
     ['Resolution', `300 dpi → ${px(dw)} × ${px(dh)} px`],
   ];
 
@@ -158,9 +171,15 @@ export function PrintReady() {
         <div className="ld-ctl">
           <span id="ld-size-l">Postcard size</span>
           <div className="ld-size-chips" role="group" aria-labelledby="ld-size-l">
-            {POSTCARDS.map((s) => (
-              <button key={s.id} type="button" className="chip" aria-pressed={s.id === sizeId} onClick={() => setSizeId(s.id)}>
-                {s.name}
+            {POSTCARDS.map((postcard) => (
+              <button
+                key={postcard.id}
+                type="button"
+                className="chip"
+                aria-pressed={postcard.id === sizeId}
+                onClick={() => setSizeId(postcard.id)}
+              >
+                {postcard.name}
               </button>
             ))}
           </div>
@@ -168,9 +187,14 @@ export function PrintReady() {
         <div className="ld-ctl">
           <span id="ld-bleed-l">Bleed</span>
           <div className="seg" role="group" aria-labelledby="ld-bleed-l">
-            {BLEEDS.map((b) => (
-              <button key={b.label} type="button" aria-pressed={b.mm === bleed} onClick={() => setBleed(b.mm)}>
-                {b.label}
+            {BLEEDS.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={option.mm === bleed}
+                onClick={() => setBleed(option.mm)}
+              >
+                {option.label}
               </button>
             ))}
           </div>
@@ -178,27 +202,44 @@ export function PrintReady() {
       </div>
 
       <figure className="ld-sheet">
-        <svg viewBox={`0 0 ${VW} ${VH}`} role="img" aria-label={`${size.name}, drawn to scale: ${spec.map((r) => r.join(' ')).join(', ')}`}>
+        <svg
+          viewBox={`0 0 ${VW} ${VH}`}
+          role="img"
+          aria-label={`${size.name}, drawn to scale: ${spec.map((row) => row.join(' ')).join(', ')}`}
+        >
           <g transform={`translate(${(VW - dw) / 2} ${(VH - dh) / 2})`}>
-          <rect className="s-bleed" x="0" y="0" width={dw} height={dh} />
-          <rect className="s-trim" x={bleed} y={bleed} width={W} height={H} />
-          <rect className="s-photo" x={bleed} y={bleed} width={W * 0.56} height={H} />
-          <rect className="s-safe" x={bleed + SAFE} y={bleed + SAFE} width={W - 2 * SAFE} height={H - 2 * SAFE} />
-          {[0.3, 0.42, 0.54].map((f) => (
-            <rect key={f} className="s-line" x={bleed + W * 0.62} y={bleed + H * f} width={W * (f === 0.3 ? 0.3 : 0.24)} height={H * 0.035} />
-          ))}
-          {/* crop marks at the trim corners, outside the bleed */}
-          {[
-            [bleed, bleed],
-            [bleed + W, bleed],
-            [bleed, bleed + H],
-            [bleed + W, bleed + H],
-          ].map(([x, y]) => (
-            <g key={`${x}-${y}`} className="s-crop">
-              <line x1={x} x2={x} y1={y < dh / 2 ? -10 : dh + 2} y2={y < dh / 2 ? -2 : dh + 10} />
-              <line y1={y} y2={y} x1={x < dw / 2 ? -10 : dw + 2} x2={x < dw / 2 ? -2 : dw + 10} />
-            </g>
-          ))}
+            <rect className="s-bleed" x="0" y="0" width={dw} height={dh} />
+            <rect className="s-trim" x={bleed} y={bleed} width={width} height={height} />
+            <rect className="s-photo" x={bleed} y={bleed} width={width * 0.56} height={height} />
+            <rect
+              className="s-safe"
+              x={bleed + SAFE}
+              y={bleed + SAFE}
+              width={width - 2 * SAFE}
+              height={height - 2 * SAFE}
+            />
+            {[0.3, 0.42, 0.54].map((share) => (
+              <rect
+                key={share}
+                className="s-line"
+                x={bleed + width * 0.62}
+                y={bleed + height * share}
+                width={width * (share === 0.3 ? 0.3 : 0.24)}
+                height={height * 0.035}
+              />
+            ))}
+            {/* crop marks at the trim corners, outside the bleed */}
+            {[
+              [bleed, bleed],
+              [bleed + width, bleed],
+              [bleed, bleed + height],
+              [bleed + width, bleed + height],
+            ].map(([x, y]) => (
+              <g key={`${x}-${y}`} className="s-crop">
+                <line x1={x} x2={x} y1={y < dh / 2 ? -10 : dh + 2} y2={y < dh / 2 ? -2 : dh + 10} />
+                <line y1={y} y2={y} x1={x < dw / 2 ? -10 : dw + 2} x2={x < dw / 2 ? -2 : dw + 10} />
+              </g>
+            ))}
           </g>
         </svg>
         <figcaption>
@@ -217,10 +258,10 @@ export function PrintReady() {
 
       <div className="ld-ready-out">
         <dl className="ld-spec">
-          {spec.map(([k, v]) => (
-            <div key={k}>
-              <dt>{k}</dt>
-              <dd>{v}</dd>
+          {spec.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
             </div>
           ))}
         </dl>

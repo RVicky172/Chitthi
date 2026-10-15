@@ -23,11 +23,15 @@ import { ArrangeIcon, CloseIcon, CropIcon, PhotosIcon, PlusIcon, SuggestIcon } f
  */
 
 const SUGGEST = 10;
-type Drag = { kind: 'slot'; slot: number } | { kind: 'month'; page: number } | { kind: 'card'; id: string } | { kind: 'lib'; sp: StoredPhoto };
+type Drag =
+  | { kind: 'slot'; slot: number }
+  | { kind: 'month'; page: number }
+  | { kind: 'card'; id: string }
+  | { kind: 'lib'; sp: StoredPhoto };
 let dragging: Drag | null = null;
 
 export function PhotoTray() {
-  const design = useApp((s) => s.design);
+  const design = useApp((state) => state.design);
   // A calendar of several months gets one row of month tiles instead of slots plus a separate month strip.
   if (design.product === 'calendar' && calPages(design) > 1) return <CalendarDock />;
   return <CardDock />;
@@ -35,7 +39,7 @@ export function PhotoTray() {
 
 function CardDock() {
   const { count, active, filled, photos } = usePhotoSlots();
-  const product = useApp((s) => s.design.product);
+  const product = useApp((state) => state.design.product);
   const { list } = useLibrary();
   const ranked = useRankedLibrary(list);
   const [over, setOver] = useState<number | null>(null);
@@ -43,10 +47,10 @@ function CardDock() {
 
   const target = count > 1 ? active : 0,
     current = filled[target];
-  const inSlots = new Set(filled.map((p) => p?.id));
+  const inSlots = new Set(filled.map((photo) => photo?.id));
   // The design's photos that aren't in a slot on this page come first: they're already chosen.
-  const spare = photos.filter((p) => !inSlots.has(p.id));
-  const libPicks = ranked.slice(0, Math.max(0, SUGGEST - spare.length)).map((r) => r.photo);
+  const spare = photos.filter((photo) => !inSlots.has(photo.id));
+  const libPicks = ranked.slice(0, Math.max(0, SUGGEST - spare.length)).map((pick) => pick.photo);
   const total = spare.length + ranked.length;
 
   const add = async (files: FileList | null) => {
@@ -54,75 +58,90 @@ function CardDock() {
     const msgs = await addFiles([...files]);
     if (msgs.length) toast(msgs[0][1]);
   };
-  const intoSlot = async (d: Drag, slot: number) => {
-    if (d.kind === 'slot') {
+  const intoSlot = async (dragged: Drag, slot: number) => {
+    if (dragged.kind === 'slot') {
       // Swap the two slots' photos.
-      const a = filled[d.slot],
-        b = filled[slot];
-      if (a && b && a.id !== b.id) {
+      const from = filled[dragged.slot],
+        to = filled[slot];
+      if (from && to && from.id !== to.id) {
         const list = [...getState().photos],
-          ia = list.findIndex((p) => p.id === a.id),
-          ib = list.findIndex((p) => p.id === b.id);
+          ia = list.findIndex((photo) => photo.id === from.id),
+          ib = list.findIndex((photo) => photo.id === to.id);
         [list[ia], list[ib]] = [list[ib], list[ia]];
         setPhotos(list);
       }
-    } else if (d.kind === 'card') placePhoto(d.id, slot);
-    else if (d.kind === 'lib') {
+    } else if (dragged.kind === 'card') placePhoto(dragged.id, slot);
+    else if (dragged.kind === 'lib') {
       selectSlot(slot);
-      await putOnCard(d.sp);
+      await putOnCard(dragged.sp);
     }
     selectSlot(slot);
   };
   const dropProps = (slot: number) => ({
-    onDragOver: (e: DragEvent) => {
+    onDragOver: (event: DragEvent) => {
       if (!dragging) return;
-      e.preventDefault();
+      event.preventDefault();
       setOver(slot);
     },
-    onDragLeave: () => setOver((o) => (o === slot ? null : o)),
-    onDrop: (e: DragEvent) => {
-      e.preventDefault();
+    onDragLeave: () => setOver((overSlot) => (overSlot === slot ? null : overSlot)),
+    onDrop: (event: DragEvent) => {
+      event.preventDefault();
       setOver(null);
       if (dragging) void intoSlot(dragging, slot);
       dragging = null;
     },
   });
-  const dragFrom = (d: Drag) => ({
+  const dragFrom = (dragged: Drag) => ({
     draggable: true,
-    onDragStart: (e: DragEvent) => {
-      dragging = d;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', 'chitthi-photo');
+    onDragStart: (event: DragEvent) => {
+      dragging = dragged;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', 'chitthi-photo');
     },
     onDragEnd: () => {
       dragging = null;
       setOver(null);
     },
   });
-  const remove = (p: Photo) => setPhotos(getState().photos.filter((x) => x.id !== p.id));
+  const remove = (photo: Photo) => setPhotos(getState().photos.filter((x) => x.id !== photo.id));
 
   return (
     <div className="dock" role="group" aria-label="Photos on the design">
-      <div className="dock-slots" role="radiogroup" aria-label={product === 'calendar' ? 'Photo slots on this month' : 'Photo slots'}>
-        {filled.map((p, i) => (
-          <div key={i} className={`dock-slot${i === target ? ' on' : ''}${over === i ? ' over' : ''}`} {...dropProps(i)}>
+      <div
+        className="dock-slots"
+        role="radiogroup"
+        aria-label={product === 'calendar' ? 'Photo slots on this month' : 'Photo slots'}
+      >
+        {filled.map((photo, slot) => (
+          <div
+            key={slot}
+            className={`dock-slot${slot === target ? ' on' : ''}${over === slot ? ' over' : ''}`}
+            {...dropProps(slot)}
+          >
             <button
               type="button"
               role="radio"
-              aria-checked={i === target}
-              aria-label={`Slot ${i + 1}${p ? `: ${p.name}` : ', empty'}`}
-              title={p ? `Slot ${i + 1}: ${p.name}. Drag onto another slot to swap.` : `Slot ${i + 1} is empty`}
-              onClick={() => selectSlot(i)}
-              {...(p ? dragFrom({ kind: 'slot', slot: i }) : {})}
+              aria-checked={slot === target}
+              aria-label={`Slot ${slot + 1}${photo ? `: ${photo.name}` : ', empty'}`}
+              title={
+                photo ? `Slot ${slot + 1}: ${photo.name}. Drag onto another slot to swap.` : `Slot ${slot + 1} is empty`
+              }
+              onClick={() => selectSlot(slot)}
+              {...(photo ? dragFrom({ kind: 'slot', slot: slot }) : {})}
             >
-              {p ? <PhotoThumb photo={p} /> : <PlusIcon />}
+              {photo ? <PhotoThumb photo={photo} /> : <PlusIcon />}
             </button>
-            {count > 1 && <b className="dock-num">{i + 1}</b>}
+            {count > 1 && <b className="dock-num">{slot + 1}</b>}
           </div>
         ))}
         {current && (
           <div className="dock-acts" aria-label={`Selected slot ${target + 1}`}>
-            <button type="button" title="Crop this photo" aria-label="Crop the photo in the selected slot" onClick={() => setUI({ cropId: current.id })}>
+            <button
+              type="button"
+              title="Crop this photo"
+              aria-label="Crop the photo in the selected slot"
+              onClick={() => setUI({ cropId: current.id })}
+            >
               <CropIcon />
             </button>
             <button
@@ -140,23 +159,29 @@ function CardDock() {
       <div className="dock-suggest">
         <span className="dock-label">{count > 1 ? `Suggested for slot ${target + 1}` : 'Suggested photos'}</span>
         <ul tabIndex={0} aria-label={`Tap a photo to put it in slot ${target + 1}, or drag it onto any slot`}>
-          {spare.map((p) => (
-            <li key={p.id}>
+          {spare.map((photo) => (
+            <li key={photo.id}>
               <button
                 type="button"
                 className="dock-ph mine"
-                title={`${p.name} (on this design)`}
-                onClick={() => placePhoto(p.id, target)}
-                {...dragFrom({ kind: 'card', id: p.id })}
+                title={`${photo.name} (on this design)`}
+                onClick={() => placePhoto(photo.id, target)}
+                {...dragFrom({ kind: 'card', id: photo.id })}
               >
-                <PhotoThumb photo={p} />
+                <PhotoThumb photo={photo} />
               </button>
             </li>
           ))}
-          {libPicks.map((s) => (
-            <li key={s.id}>
-              <button type="button" className="dock-ph" title={s.name} onClick={() => void putOnCard(s)} {...dragFrom({ kind: 'lib', sp: s })}>
-                <img src={s.thumb || s.url} alt="" loading="lazy" decoding="async" draggable={false} />
+          {libPicks.map((pick) => (
+            <li key={pick.id}>
+              <button
+                type="button"
+                className="dock-ph"
+                title={pick.name}
+                onClick={() => void putOnCard(pick)}
+                {...dragFrom({ kind: 'lib', sp: pick })}
+              >
+                <img src={pick.thumb || pick.url} alt="" loading="lazy" decoding="async" draggable={false} />
               </button>
             </li>
           ))}
@@ -170,9 +195,9 @@ function CardDock() {
             type="file"
             multiple
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              void add(e.target.files);
-              e.target.value = '';
+            onChange={(event) => {
+              void add(event.target.files);
+              event.target.value = '';
             }}
           />
           <PlusIcon />
@@ -188,7 +213,12 @@ function CardDock() {
         >
           <ArrangeIcon />
         </button>
-        <button type="button" className="dock-tool wide" title="See and choose from all your photos" onClick={() => setUI({ library: true, libraryTab: 'mine' })}>
+        <button
+          type="button"
+          className="dock-tool wide"
+          title="See and choose from all your photos"
+          onClick={() => setUI({ library: true, libraryTab: 'mine' })}
+        >
           <PhotosIcon />
           <span>All photos{total > libPicks.length + spare.length ? ` (${total})` : ''}</span>
         </button>
@@ -203,9 +233,9 @@ function CardDock() {
  * Suggestions open on demand above the dock, so the row stays one line high.
  */
 function CalendarDock() {
-  const design = useApp((s) => s.design),
-    photos = useApp((s) => s.photos),
-    calPage = useApp((s) => s.ui.calPage);
+  const design = useApp((state) => state.design),
+    photos = useApp((state) => state.photos),
+    calPage = useApp((state) => state.ui.calPage);
   const { count, active, filled } = usePhotoSlots();
   const { list } = useLibrary();
   const ranked = useRankedLibrary(list);
@@ -215,16 +245,19 @@ function CalendarDock() {
     row = useRef<HTMLUListElement>(null);
   const pages = calPages(design),
     page = Math.min(calPage, pages - 1),
-    n = photos.length,
+    photoCount = photos.length,
     slotsPer = Math.max(1, count),
     target = slotsPer > 1 ? active : 0,
     current = filled[target],
     monthName = MONTHS[calMonth(design, page).month];
-  const photoAt = (p: number, slot = 0) => (n ? photos[slotPhotoIndex(slot, n, p, slotsPer)] : null);
+  const photoAt = (pageIndex: number, slot = 0) =>
+    photoCount ? photos[slotPhotoIndex(slot, photoCount, pageIndex, slotsPer)] : null;
   // Photos not shown in any month (a list longer than the months need), then the library's best matches.
-  const used = new Set(Array.from({ length: pages * slotsPer }, (_, i) => photoAt(Math.floor(i / slotsPer), i % slotsPer)?.id));
-  const spare = photos.filter((p) => !used.has(p.id)),
-    libPicks = ranked.slice(0, Math.max(0, SUGGEST - spare.length)).map((r) => r.photo);
+  const used = new Set(
+    Array.from({ length: pages * slotsPer }, (_, index) => photoAt(Math.floor(index / slotsPer), index % slotsPer)?.id),
+  );
+  const spare = photos.filter((photo) => !used.has(photo.id)),
+    libPicks = ranked.slice(0, Math.max(0, SUGGEST - spare.length)).map((pick) => pick.photo);
 
   // Keep the shown month in view as it changes (arrows, keyboard, clicks elsewhere).
   useEffect(() => {
@@ -235,8 +268,9 @@ function CalendarDock() {
   // Close the suggestions on an outside click or Esc.
   useEffect(() => {
     if (!suggest) return;
-    const off = (e: Event) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setSuggest(false);
+    const off = (event: Event) => {
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !box.current?.contains(event.target as Node))
+        setSuggest(false);
     };
     document.addEventListener('pointerdown', off);
     document.addEventListener('keydown', off);
@@ -246,33 +280,33 @@ function CalendarDock() {
     };
   }, [suggest]);
 
-  const show = (p: number) => setUI({ calPage: p, side: 'front' });
+  const show = (pageIndex: number) => setUI({ calPage: pageIndex, side: 'front' });
   /** Puts a photo into the selected slot of month p, or swaps two months. */
-  const intoMonth = async (d: Drag, p: number) => {
-    show(p);
-    if (d.kind === 'month') {
-      if (d.page === p || !n) return;
+  const intoMonth = async (dragged: Drag, pageIndex: number) => {
+    show(pageIndex);
+    if (dragged.kind === 'month') {
+      if (dragged.page === pageIndex || !photoCount) return;
       const list = [...getState().photos];
-      for (let s = 0; s < slotsPer; s++) {
-        const a = slotPhotoIndex(s, n, d.page, slotsPer),
-          b = slotPhotoIndex(s, n, p, slotsPer);
-        if (a !== b) [list[a], list[b]] = [list[b], list[a]];
+      for (let slot = 0; slot < slotsPer; slot++) {
+        const from = slotPhotoIndex(slot, photoCount, dragged.page, slotsPer),
+          to = slotPhotoIndex(slot, photoCount, pageIndex, slotsPer);
+        if (from !== to) [list[from], list[to]] = [list[to], list[from]];
       }
       setPhotos(list);
-    } else if (d.kind === 'card') placePhoto(d.id, target);
-    else if (d.kind === 'lib') await putOnCard(d.sp);
+    } else if (dragged.kind === 'card') placePhoto(dragged.id, target);
+    else if (dragged.kind === 'lib') await putOnCard(dragged.sp);
   };
   const add = async (files: FileList | null) => {
     if (!files?.length) return;
     const msgs = await addFiles([...files]);
     if (msgs.length) toast(msgs[0][1]);
   };
-  const dragFrom = (d: Drag) => ({
+  const dragFrom = (dragged: Drag) => ({
     draggable: true,
-    onDragStart: (e: DragEvent) => {
-      dragging = d;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', 'chitthi-photo');
+    onDragStart: (event: DragEvent) => {
+      dragging = dragged;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', 'chitthi-photo');
     },
     onDragEnd: () => {
       dragging = null;
@@ -283,34 +317,34 @@ function CalendarDock() {
   return (
     <div className="dock cal" role="group" aria-label="Calendar photos" ref={box}>
       <ul className="dock-months" ref={row} role="tablist" aria-label="Months">
-        {Array.from({ length: pages }, (_, p) => {
-          const ph = photoAt(p),
-            { month, year } = calMonth(design, p);
+        {Array.from({ length: pages }, (_, pageIndex) => {
+          const ph = photoAt(pageIndex),
+            { month, year } = calMonth(design, pageIndex);
           return (
             <li
-              key={p}
-              className={`dock-month${p === page ? ' on' : ''}${over === p ? ' over' : ''}`}
-              onDragOver={(e) => {
+              key={pageIndex}
+              className={`dock-month${pageIndex === page ? ' on' : ''}${over === pageIndex ? ' over' : ''}`}
+              onDragOver={(event) => {
                 if (!dragging) return;
-                e.preventDefault();
-                setOver(p);
+                event.preventDefault();
+                setOver(pageIndex);
               }}
-              onDragLeave={() => setOver((o) => (o === p ? null : o))}
-              onDrop={(e) => {
-                e.preventDefault();
+              onDragLeave={() => setOver((overPage) => (overPage === pageIndex ? null : overPage))}
+              onDrop={(event) => {
+                event.preventDefault();
                 setOver(null);
-                if (dragging) void intoMonth(dragging, p);
+                if (dragging) void intoMonth(dragging, pageIndex);
                 dragging = null;
               }}
             >
               <button
                 type="button"
                 role="tab"
-                aria-selected={p === page}
+                aria-selected={pageIndex === page}
                 aria-label={`${MONTHS[month]} ${year}${ph ? `: ${ph.name}` : ', no photo'}`}
                 title={`${MONTHS[month]} ${year}${ph ? '. Drag onto another month to swap photos.' : ''}`}
-                onClick={() => show(p)}
-                {...(ph ? dragFrom({ kind: 'month', page: p }) : {})}
+                onClick={() => show(pageIndex)}
+                {...(ph ? dragFrom({ kind: 'month', page: pageIndex }) : {})}
               >
                 {ph ? <PhotoThumb photo={ph} /> : <PlusIcon />}
               </button>
@@ -323,14 +357,27 @@ function CalendarDock() {
       <div className="dock-acts cal-acts" aria-label={monthName}>
         {slotsPer > 1 && (
           <span className="dock-slotpick" role="radiogroup" aria-label="Photo slot">
-            {filled.map((_, i) => (
-              <button key={i} type="button" role="radio" aria-checked={i === target} title={`Slot ${i + 1}`} onClick={() => selectSlot(i)}>
-                {i + 1}
+            {filled.map((_, slot) => (
+              <button
+                key={slot}
+                type="button"
+                role="radio"
+                aria-checked={slot === target}
+                title={`Slot ${slot + 1}`}
+                onClick={() => selectSlot(slot)}
+              >
+                {slot + 1}
               </button>
             ))}
           </span>
         )}
-        <button type="button" title={`Crop ${monthName}'s photo`} aria-label="Crop this month's photo" disabled={!current} onClick={() => current && setUI({ cropId: current.id })}>
+        <button
+          type="button"
+          title={`Crop ${monthName}'s photo`}
+          aria-label="Crop this month's photo"
+          disabled={!current}
+          onClick={() => current && setUI({ cropId: current.id })}
+        >
           <CropIcon />
         </button>
         <button
@@ -350,21 +397,40 @@ function CalendarDock() {
             type="file"
             multiple
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              void add(e.target.files);
-              e.target.value = '';
+            onChange={(event) => {
+              void add(event.target.files);
+              event.target.value = '';
             }}
           />
           <PlusIcon />
           <span className="vh">Add photos</span>
         </label>
-        <button type="button" className="dock-tool" disabled={!photos.length} title="Auto-arrange: crop every month around its subject" aria-label="Auto-arrange photos" onClick={autoArrange}>
+        <button
+          type="button"
+          className="dock-tool"
+          disabled={!photos.length}
+          title="Auto-arrange: crop every month around its subject"
+          aria-label="Auto-arrange photos"
+          onClick={autoArrange}
+        >
           <ArrangeIcon />
         </button>
-        <button type="button" className="dock-tool" aria-expanded={suggest} title={`Photos that suit ${monthName}`} aria-label="Suggested photos" onClick={() => setSuggest((v) => !v)}>
+        <button
+          type="button"
+          className="dock-tool"
+          aria-expanded={suggest}
+          title={`Photos that suit ${monthName}`}
+          aria-label="Suggested photos"
+          onClick={() => setSuggest((shown) => !shown)}
+        >
           <SuggestIcon />
         </button>
-        <button type="button" className="dock-tool wide" title="See and choose from all your photos" onClick={() => setUI({ library: true, libraryTab: 'mine' })}>
+        <button
+          type="button"
+          className="dock-tool wide"
+          title="See and choose from all your photos"
+          onClick={() => setUI({ library: true, libraryTab: 'mine' })}
+        >
           <PhotosIcon />
           <span>All photos</span>
         </button>
@@ -374,21 +440,35 @@ function CalendarDock() {
         <div className="dock-pop" role="dialog" aria-label="Suggested photos">
           <span className="dock-label">Suggested for {monthName} · tap to use, or drag onto any month</span>
           <ul>
-            {spare.map((p) => (
-              <li key={p.id}>
-                <button type="button" className="dock-ph mine" title={`${p.name} (on this calendar)`} onClick={() => placePhoto(p.id, target)} {...dragFrom({ kind: 'card', id: p.id })}>
-                  <PhotoThumb photo={p} />
+            {spare.map((photo) => (
+              <li key={photo.id}>
+                <button
+                  type="button"
+                  className="dock-ph mine"
+                  title={`${photo.name} (on this calendar)`}
+                  onClick={() => placePhoto(photo.id, target)}
+                  {...dragFrom({ kind: 'card', id: photo.id })}
+                >
+                  <PhotoThumb photo={photo} />
                 </button>
               </li>
             ))}
             {libPicks.map((sp) => (
               <li key={sp.id}>
-                <button type="button" className="dock-ph" title={sp.name} onClick={() => void putOnCard(sp)} {...dragFrom({ kind: 'lib', sp })}>
+                <button
+                  type="button"
+                  className="dock-ph"
+                  title={sp.name}
+                  onClick={() => void putOnCard(sp)}
+                  {...dragFrom({ kind: 'lib', sp })}
+                >
                   <img src={sp.thumb || sp.url} alt="" loading="lazy" decoding="async" draggable={false} />
                 </button>
               </li>
             ))}
-            {!spare.length && !libPicks.length && <li className="dock-empty">No more photos in your library. Add some, or search Pexels.</li>}
+            {!spare.length && !libPicks.length && (
+              <li className="dock-empty">No more photos in your library. Add some, or search Pexels.</li>
+            )}
           </ul>
         </div>
       )}

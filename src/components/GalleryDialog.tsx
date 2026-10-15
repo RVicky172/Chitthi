@@ -2,7 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LAYOUTS, layoutName } from '../data/layouts';
 import { db } from '../lib/db';
 import { toast } from '../lib/toast';
-import { downloadQuotePack, exportBackup, importBackup, newCard, open3D, openDesign, saveDesign } from '../state/actions';
+import {
+  downloadQuotePack,
+  exportBackup,
+  importBackup,
+  newCard,
+  open3D,
+  openDesign,
+  saveDesign,
+} from '../state/actions';
 import { setDesign, setUI, useApp } from '../state/store';
 import type { LayoutId, SavedDesign } from '../types';
 import { Seg } from './common';
@@ -13,12 +21,20 @@ import { isDesktop } from '../platform/desktop';
 
 const close = () => setUI({ gallery: false });
 
-function GalleryCard({ d, onDeleted, pick }: { d: SavedDesign; onDeleted: () => void; pick?: { on: boolean; toggle: () => void } }) {
+function GalleryCard({
+  d,
+  onDeleted,
+  pick,
+}: {
+  d: SavedDesign;
+  onDeleted: () => void;
+  pick?: { on: boolean; toggle: () => void };
+}) {
   const [sure, setSure] = useState(false);
   useEffect(() => {
     if (!sure) return;
-    const t = setTimeout(() => setSure(false), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSure(false), 3000);
+    return () => clearTimeout(timer);
   }, [sure]);
   const view = () => void open3D({ front: d.front, back: d.back, w: d.w, h: d.h, round: d.round, title: d.name });
   const radius = d.round ? 6 : 2;
@@ -26,18 +42,28 @@ function GalleryCard({ d, onDeleted, pick }: { d: SavedDesign; onDeleted: () => 
     <article className={`gcard${pick?.on ? ' picked' : ''}`}>
       {pick && (
         <label className="gpick">
-          <input type="checkbox" checked={pick.on} onChange={pick.toggle} /> <span className="vh">Include {d.name} in the quote</span>
+          <input type="checkbox" checked={pick.on} onChange={pick.toggle} />{' '}
+          <span className="vh">Include {d.name} in the quote</span>
         </label>
       )}
-      <button type="button" className="gthumb" title={pick ? 'Include in the quote' : 'Open in 3D'} onClick={pick ? pick.toggle : view}>
-        <div className="flipper" style={{ width: d.w >= d.h ? '100%' : `${(d.w / d.h) * 100}%`, aspectRatio: `${d.w}/${d.h}` }}>
+      <button
+        type="button"
+        className="gthumb"
+        title={pick ? 'Include in the quote' : 'Open in 3D'}
+        onClick={pick ? pick.toggle : view}
+      >
+        <div
+          className="flipper"
+          style={{ width: d.w >= d.h ? '100%' : `${(d.w / d.h) * 100}%`, aspectRatio: `${d.w}/${d.h}` }}
+        >
           <img src={d.front} alt={`Front of ${d.name}`} style={{ borderRadius: radius }} />
           <img className="b" src={d.back} alt="" style={{ borderRadius: radius }} />
         </div>
       </button>
       <b>{d.name}</b>
       <small>
-        {d.size}, {new Date(d.updated).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+        {d.size},{' '}
+        {new Date(d.updated).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
       </small>
       <div className="acts">
         <button
@@ -75,12 +101,12 @@ function GalleryCard({ d, onDeleted, pick }: { d: SavedDesign; onDeleted: () => 
   );
 }
 
-const layoutOf = (d: SavedDesign): LayoutId => d.design?.layout ?? 'full';
+const layoutOf = (saved: SavedDesign): LayoutId => saved.design?.layout ?? 'full';
 
 /** Full-screen gallery of saved designs, grouped by layout (in Layout-step order), newest first within each group. */
 export function GalleryDialog() {
-  const open = useApp((s) => s.ui.gallery),
-    name = useApp((s) => s.design.designName);
+  const open = useApp((state) => state.ui.gallery),
+    name = useApp((state) => state.design.designName);
   const dlg = useRef<HTMLDialogElement>(null);
   const [list, setList] = useState<SavedDesign[] | null>(null);
   const [error, setError] = useState(false);
@@ -94,16 +120,16 @@ export function GalleryDialog() {
   const [quoteStep, setQuoteStep] = useState('');
   const togglePick = (id: string) =>
     setPicked((cur) => {
-      const n = new Set(cur);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
 
   const load = useCallback(() => {
     db.all()
-      .then((l) => {
-        setList(l);
+      .then((loaded) => {
+        setList(loaded);
         setError(false);
       })
       .catch(() => setError(true));
@@ -124,16 +150,16 @@ export function GalleryDialog() {
 
   const groups = useMemo(() => {
     const by = new Map<LayoutId, SavedDesign[]>();
-    for (const d of list ?? []) {
-      const k = layoutOf(d);
-      by.set(k, [...(by.get(k) ?? []), d]);
+    for (const saved of list ?? []) {
+      const layout = layoutOf(saved);
+      by.set(layout, [...(by.get(layout) ?? []), saved]);
     }
     return LAYOUTS.filter(([id]) => by.has(id)).map(([id]) => ({
       id,
-      items: by.get(id)!.sort((a, b) => b.updated - a.updated),
+      items: by.get(id)!.sort((left, right) => right.updated - left.updated),
     }));
   }, [list]);
-  const shown = filter === 'all' ? groups : groups.filter((g) => g.id === filter);
+  const shown = filter === 'all' ? groups : groups.filter((group) => group.id === filter);
 
   return (
     <dialog ref={dlg} className="galdlg" aria-labelledby="galTitle" onClose={close}>
@@ -145,7 +171,7 @@ export function GalleryDialog() {
             type="text"
             placeholder="Name this design, e.g. Diwali card for Nani"
             value={name}
-            onChange={(e) => setDesign({ designName: e.target.value })}
+            onChange={(event) => setDesign({ designName: event.target.value })}
           />
         </label>
         <button type="button" className="btn primary" onClick={() => void saveDesign(false)}>
@@ -219,9 +245,15 @@ export function GalleryDialog() {
           <button type="button" className="chip" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
             All ({list?.length ?? 0})
           </button>
-          {groups.map((g) => (
-            <button key={g.id} type="button" className="chip" aria-pressed={filter === g.id} onClick={() => setFilter(g.id)}>
-              {layoutName(g.id)} ({g.items.length})
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              className="chip"
+              aria-pressed={filter === group.id}
+              onClick={() => setFilter(group.id)}
+            >
+              {layoutName(group.id)} ({group.items.length})
             </button>
           ))}
         </div>
@@ -229,11 +261,13 @@ export function GalleryDialog() {
 
       <div className="galbody">
         {tab === 'samples' && <SampleGallery />}
-        {tab === 'mine' && error && <div className="empty">The gallery isn’t available {isDesktop ? 'right now' : 'in this browser'}.</div>}
+        {tab === 'mine' && error && (
+          <div className="empty">The gallery isn’t available {isDesktop ? 'right now' : 'in this browser'}.</div>
+        )}
         {tab === 'mine' && !error && !list && (
           <div className="gal" aria-busy="true" aria-label="Loading saved designs">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="gcard">
+            {[0, 1, 2, 3].map((slot) => (
+              <div key={slot} className="gcard">
                 <span className="skel gthumb-skel" />
                 <span className="skel line-skel" />
                 <span className="skel line-skel short" />
@@ -242,20 +276,28 @@ export function GalleryDialog() {
           </div>
         )}
         {tab === 'mine' && !error && list && !list.length && (
-          <div className="empty">No saved designs yet. Use “Save” to keep this card with its photos and settings, or start from a sample.</div>
+          <div className="empty">
+            No saved designs yet. Use “Save” to keep this card with its photos and settings, or start from a sample.
+          </div>
         )}
-        {tab === 'mine' && shown.map((g) => (
-          <section key={g.id} className="galgroup" aria-label={layoutName(g.id)}>
-            <h3>
-              {layoutName(g.id)} <small>{g.items.length}</small>
-            </h3>
-            <div className="gal">
-              {g.items.map((d) => (
-                <GalleryCard key={d.id} d={d} onDeleted={load} pick={picking ? { on: picked.has(d.id), toggle: () => togglePick(d.id) } : undefined} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {tab === 'mine' &&
+          shown.map((group) => (
+            <section key={group.id} className="galgroup" aria-label={layoutName(group.id)}>
+              <h3>
+                {layoutName(group.id)} <small>{group.items.length}</small>
+              </h3>
+              <div className="gal">
+                {group.items.map((saved) => (
+                  <GalleryCard
+                    key={saved.id}
+                    d={saved}
+                    onDeleted={load}
+                    pick={picking ? { on: picked.has(saved.id), toggle: () => togglePick(saved.id) } : undefined}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
       </div>
 
       <div className="galfoot">
@@ -278,10 +320,10 @@ export function GalleryDialog() {
             type="file"
             className="vh"
             accept=".json,.chitthi,application/json"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void importBackup(f);
-              e.target.value = '';
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importBackup(file);
+              event.target.value = '';
             }}
           />
         </label>

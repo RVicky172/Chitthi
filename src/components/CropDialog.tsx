@@ -21,8 +21,8 @@ type Action = { t: 'move'; sx: number; sy: number; ox: number; oy: number } | { 
 const HANDLE = 16;
 
 export function CropDialog() {
-  const cropId = useApp((s) => s.ui.cropId);
-  const photo = useApp((s) => s.photos.find((p) => p.id === s.ui.cropId) ?? null);
+  const cropId = useApp((state) => state.ui.cropId);
+  const photo = useApp((state) => state.photos.find((candidate) => candidate.id === state.ui.cropId) ?? null);
   const dlg = useRef<HTMLDialogElement>(null),
     cv = useRef<HTMLCanvasElement>(null),
     stage = useRef<HTMLDivElement>(null);
@@ -43,69 +43,69 @@ export function CropDialog() {
     if (aspect !== 'fit') return aspect;
     const { design, photos } = getState(),
       { w, h } = cardMM(design);
-    const L = computeLayout(design.layout, { x: 0, y: 0, w, h, e: 0 }, design),
-      i = photos.findIndex((p) => p.id === cropId),
-      n = photos.length || 1;
-    const s = L.slots.find((_, k) => k % n === i);
-    return s ? s.w / s.h : w / h;
+    const computed = computeLayout(design.layout, { x: 0, y: 0, w, h, e: 0 }, design),
+      index = photos.findIndex((candidate) => candidate.id === cropId),
+      count = photos.length || 1;
+    const slot = computed.slots.find((_, slotIndex) => slotIndex % count === index);
+    return slot ? slot.w / slot.h : w / h;
   }, [aspect, cropId]);
 
   const draw = useCallback(() => {
-    const c = cv.current?.getContext('2d'),
-      s = st.current;
-    if (!c || !s.disp || !cv.current || !photo) return;
-    const k = cv.current.width / s.DW,
-      cr = s.cr;
-    c.setTransform(1, 0, 0, 1, 0, 0);
-    c.clearRect(0, 0, cv.current.width, cv.current.height);
-    c.drawImage(s.disp, 0, 0);
-    c.scale(k, k);
-    c.fillStyle = 'rgba(0,0,0,.55)';
-    c.beginPath();
-    c.rect(0, 0, s.DW, s.DH);
-    c.rect(cr.x, cr.y, cr.w, cr.h);
-    c.fill('evenodd');
-    c.strokeStyle = '#fff';
-    c.lineWidth = 1.5;
-    c.strokeRect(cr.x, cr.y, cr.w, cr.h);
-    c.strokeStyle = 'rgba(255,255,255,.45)';
-    c.lineWidth = 1;
-    c.beginPath();
-    for (let i = 1; i < 3; i++) {
-      c.moveTo(cr.x + (cr.w * i) / 3, cr.y);
-      c.lineTo(cr.x + (cr.w * i) / 3, cr.y + cr.h);
-      c.moveTo(cr.x, cr.y + (cr.h * i) / 3);
-      c.lineTo(cr.x + cr.w, cr.y + (cr.h * i) / 3);
+    const context = cv.current?.getContext('2d'),
+      view = st.current;
+    if (!context || !view.disp || !cv.current || !photo) return;
+    const scale = cv.current.width / view.DW,
+      cr = view.cr;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, cv.current.width, cv.current.height);
+    context.drawImage(view.disp, 0, 0);
+    context.scale(scale, scale);
+    context.fillStyle = 'rgba(0,0,0,.55)';
+    context.beginPath();
+    context.rect(0, 0, view.DW, view.DH);
+    context.rect(cr.x, cr.y, cr.w, cr.h);
+    context.fill('evenodd');
+    context.strokeStyle = '#fff';
+    context.lineWidth = 1.5;
+    context.strokeRect(cr.x, cr.y, cr.w, cr.h);
+    context.strokeStyle = 'rgba(255,255,255,.45)';
+    context.lineWidth = 1;
+    context.beginPath();
+    for (let third = 1; third < 3; third++) {
+      context.moveTo(cr.x + (cr.w * third) / 3, cr.y);
+      context.lineTo(cr.x + (cr.w * third) / 3, cr.y + cr.h);
+      context.moveTo(cr.x, cr.y + (cr.h * third) / 3);
+      context.lineTo(cr.x + cr.w, cr.y + (cr.h * third) / 3);
     }
-    c.stroke();
-    c.fillStyle = '#fff';
-    for (const [a, b] of [
+    context.stroke();
+    context.fillStyle = '#fff';
+    for (const [cornerX, cornerY] of [
       [cr.x, cr.y],
       [cr.x + cr.w, cr.y],
       [cr.x, cr.y + cr.h],
       [cr.x + cr.w, cr.y + cr.h],
     ])
-      c.fillRect(a - 6, b - 6, 12, 12);
-    const o = photo.orig,
-      rw = rot % 180 ? o.naturalHeight : o.naturalWidth,
-      rh = rot % 180 ? o.naturalWidth : o.naturalHeight;
-    setInfo(`Crop keeps ${Math.round((cr.w / s.DW) * rw)}×${Math.round((cr.h / s.DH) * rh)} px of the original.`);
+      context.fillRect(cornerX - 6, cornerY - 6, 12, 12);
+    const original = photo.orig,
+      rw = rot % 180 ? original.naturalHeight : original.naturalWidth,
+      rh = rot % 180 ? original.naturalWidth : original.naturalHeight;
+    setInfo(`Crop keeps ${Math.round((cr.w / view.DW) * rw)}×${Math.round((cr.h / view.DH) * rh)} px of the original.`);
   }, [photo, rot]);
 
   const fullCrop = useCallback(() => {
-    const s = st.current,
-      a = aspectValue();
-    if (!a) {
-      s.cr = { x: 0, y: 0, w: s.DW, h: s.DH };
+    const view = st.current,
+      ratio = aspectValue();
+    if (!ratio) {
+      view.cr = { x: 0, y: 0, w: view.DW, h: view.DH };
       return;
     }
-    let w = s.DW,
-      h = w / a;
-    if (h > s.DH) {
-      h = s.DH;
-      w = h * a;
+    let width = view.DW,
+      height = width / ratio;
+    if (height > view.DH) {
+      height = view.DH;
+      width = height * ratio;
     }
-    s.cr = { x: (s.DW - w) / 2, y: (s.DH - h) / 2, w, h };
+    view.cr = { x: (view.DW - width) / 2, y: (view.DH - height) / 2, w: width, h: height };
   }, [aspectValue]);
 
   // Open / close with the store.
@@ -126,40 +126,40 @@ export function CropDialog() {
   useEffect(() => {
     if (!photo || !cropId) return;
     const id = requestAnimationFrame(() => {
-      const o = photo.orig,
-        iw = o.naturalWidth,
-        ih = o.naturalHeight,
+      const original = photo.orig,
+        iw = original.naturalWidth,
+        ih = original.naturalHeight,
         rw = rot % 180 ? ih : iw,
         rh = rot % 180 ? iw : ih;
       const box = stage.current,
         el = cv.current,
-        s = st.current;
+        view = st.current;
       if (!box || !el) return;
       const sc = Math.min((box.clientWidth - 24) / rw, (box.clientHeight - 24) / rh, 1),
         dpr = Math.min(window.devicePixelRatio || 1, 2);
-      s.DW = Math.max(40, rw * sc);
-      s.DH = Math.max(40, rh * sc);
-      el.style.width = `${s.DW}px`;
-      el.style.height = `${s.DH}px`;
-      el.width = Math.round(s.DW * dpr);
-      el.height = Math.round(s.DH * dpr);
-      const d = document.createElement('canvas');
-      d.width = el.width;
-      d.height = el.height;
-      const x = d.getContext('2d');
+      view.DW = Math.max(40, rw * sc);
+      view.DH = Math.max(40, rh * sc);
+      el.style.width = `${view.DW}px`;
+      el.style.height = `${view.DH}px`;
+      el.width = Math.round(view.DW * dpr);
+      el.height = Math.round(view.DH * dpr);
+      const output = document.createElement('canvas');
+      output.width = el.width;
+      output.height = el.height;
+      const x = output.getContext('2d');
       if (!x) return;
-      const k = d.width / rw;
+      const scale = output.width / rw;
       x.imageSmoothingQuality = 'high';
-      x.scale(k, k);
+      x.scale(scale, scale);
       x.translate(rw / 2, rh / 2);
       x.rotate((rot * Math.PI) / 180);
       if (flip) x.scale(-1, 1);
-      x.drawImage(o, -iw / 2, -ih / 2);
-      s.disp = d;
-      if (s.first) {
-        const c = photo.crop;
-        s.cr = { x: c.x * s.DW, y: c.y * s.DH, w: c.w * s.DW, h: c.h * s.DH };
-        s.first = false;
+      x.drawImage(original, -iw / 2, -ih / 2);
+      view.disp = output;
+      if (view.first) {
+        const crop = photo.crop;
+        view.cr = { x: crop.x * view.DW, y: crop.y * view.DH, w: crop.w * view.DW, h: crop.h * view.DH };
+        view.first = false;
       } else fullCrop();
       draw();
       el.focus();
@@ -167,8 +167,8 @@ export function CropDialog() {
     return () => cancelAnimationFrame(id);
   }, [photo, cropId, rot, flip, fullCrop, draw]);
 
-  const chooseAspect = (a: Aspect) => {
-    setAspect(a);
+  const chooseAspect = (choice: Aspect) => {
+    setAspect(choice);
   };
   useEffect(() => {
     if (!st.current.first && st.current.disp) {
@@ -177,10 +177,13 @@ export function CropDialog() {
     }
   }, [aspect, fullCrop, draw]);
 
-  const pos = (e: PointerEvent) => {
-    const r = cv.current!.getBoundingClientRect(),
-      s = st.current;
-    return [((e.clientX - r.left) * s.DW) / r.width, ((e.clientY - r.top) * s.DH) / r.height] as const;
+  const pos = (event: PointerEvent) => {
+    const box = cv.current!.getBoundingClientRect(),
+      view = st.current;
+    return [
+      ((event.clientX - box.left) * view.DW) / box.width,
+      ((event.clientY - box.top) * view.DH) / box.height,
+    ] as const;
   };
   const corners = (cr: Rect) =>
     [
@@ -193,7 +196,14 @@ export function CropDialog() {
   const apply = () => {
     if (!photo) return;
     const { cr, DW, DH } = st.current;
-    patchPhoto(photo.id, { rot, flip, crop: { x: cr.x / DW, y: cr.y / DH, w: cr.w / DW, h: cr.h / DH }, zoom: 1, px: 0, py: 0 });
+    patchPhoto(photo.id, {
+      rot,
+      flip,
+      crop: { x: cr.x / DW, y: cr.y / DH, w: cr.w / DW, h: cr.h / DH },
+      zoom: 1,
+      px: 0,
+      py: 0,
+    });
     dlg.current?.close();
     toast('Crop applied.');
   };
@@ -202,13 +212,13 @@ export function CropDialog() {
     <dialog className="crop" ref={dlg} aria-labelledby="cropTitle" onClose={() => setUI({ cropId: null })}>
       <div className="dhead">
         <h2 id="cropTitle">Crop photo</h2>
-        <button type="button" className="btn" onClick={() => setRot((r) => (r + 270) % 360)}>
+        <button type="button" className="btn" onClick={() => setRot((turn) => (turn + 270) % 360)}>
           ⟲ Rotate left
         </button>
-        <button type="button" className="btn" onClick={() => setRot((r) => (r + 90) % 360)}>
+        <button type="button" className="btn" onClick={() => setRot((turn) => (turn + 90) % 360)}>
           ⟳ Rotate right
         </button>
-        <button type="button" className="btn" onClick={() => setFlip((f) => !f)}>
+        <button type="button" className="btn" onClick={() => setFlip((flipped) => !flipped)}>
           Mirror
         </button>
         <button
@@ -231,16 +241,16 @@ export function CropDialog() {
       <div className="dhead">
         <span className="hint">Shape</span>
         <div className="chips">
-          {ASPECTS.map(([l, v]) => (
+          {ASPECTS.map(([label, value]) => (
             <button
-              key={l}
+              key={label}
               type="button"
               className="chip"
-              aria-pressed={aspect === v}
-              style={aspect === v ? { background: 'var(--text)', color: 'var(--panel)' } : undefined}
-              onClick={() => chooseAspect(v)}
+              aria-pressed={aspect === value}
+              style={aspect === value ? { background: 'var(--text)', color: 'var(--panel)' } : undefined}
+              onClick={() => chooseAspect(value)}
             >
-              {l}
+              {label}
             </button>
           ))}
         </div>
@@ -251,50 +261,57 @@ export function CropDialog() {
           id="cropCv"
           tabIndex={0}
           aria-label="Crop area. Drag to move, drag corners to resize, arrow keys to nudge."
-          onPointerDown={(e) => {
-            const [mx, my] = pos(e),
-              s = st.current,
-              cr = s.cr;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            const hit = corners(cr).find(([, a, b]) => Math.abs(mx - a) < HANDLE && Math.abs(my - b) < HANDLE);
+          onPointerDown={(event) => {
+            const [mx, my] = pos(event),
+              view = st.current,
+              cr = view.cr;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const hit = corners(cr).find(
+              ([, cornerX, cornerY]) => Math.abs(mx - cornerX) < HANDLE && Math.abs(my - cornerY) < HANDLE,
+            );
             if (hit)
-              s.act = {
+              view.act = {
                 t: 'resize',
                 ax: hit[0].includes('l') ? cr.x + cr.w : cr.x,
                 ay: hit[0].includes('t') ? cr.y + cr.h : cr.y,
               };
             else if (mx >= cr.x && mx <= cr.x + cr.w && my >= cr.y && my <= cr.y + cr.h)
-              s.act = { t: 'move', sx: mx, sy: my, ox: cr.x, oy: cr.y };
-            else s.act = { t: 'resize', ax: mx, ay: my };
+              view.act = { t: 'move', sx: mx, sy: my, ox: cr.x, oy: cr.y };
+            else view.act = { t: 'resize', ax: mx, ay: my };
           }}
-          onPointerMove={(e) => {
-            const [mx, my] = pos(e),
-              s = st.current,
-              a = s.act;
-            if (!a) {
-              const on = corners(s.cr).some(([, x, y]) => Math.abs(mx - x) < HANDLE && Math.abs(my - y) < HANDLE);
-              e.currentTarget.style.cursor = on ? 'nwse-resize' : 'move';
+          onPointerMove={(event) => {
+            const [mx, my] = pos(event),
+              view = st.current,
+              active = view.act;
+            if (!active) {
+              const on = corners(view.cr).some(([, x, y]) => Math.abs(mx - x) < HANDLE && Math.abs(my - y) < HANDLE);
+              event.currentTarget.style.cursor = on ? 'nwse-resize' : 'move';
               return;
             }
-            if (a.t === 'move') {
-              s.cr = {
-                ...s.cr,
-                x: Math.max(0, Math.min(s.DW - s.cr.w, a.ox + mx - a.sx)),
-                y: Math.max(0, Math.min(s.DH - s.cr.h, a.oy + my - a.sy)),
+            if (active.t === 'move') {
+              view.cr = {
+                ...view.cr,
+                x: Math.max(0, Math.min(view.DW - view.cr.w, active.ox + mx - active.sx)),
+                y: Math.max(0, Math.min(view.DH - view.cr.h, active.oy + my - active.sy)),
               };
             } else {
               const asp = aspectValue(),
-                sx = mx < a.ax ? -1 : 1,
-                sy = my < a.ay ? -1 : 1;
-              let w = Math.min(Math.abs(mx - a.ax), sx < 0 ? a.ax : s.DW - a.ax),
-                h = Math.min(Math.abs(my - a.ay), sy < 0 ? a.ay : s.DH - a.ay);
+                sx = mx < active.ax ? -1 : 1,
+                sy = my < active.ay ? -1 : 1;
+              let width = Math.min(Math.abs(mx - active.ax), sx < 0 ? active.ax : view.DW - active.ax),
+                height = Math.min(Math.abs(my - active.ay), sy < 0 ? active.ay : view.DH - active.ay);
               if (asp) {
-                if (w / h > asp) w = h * asp;
-                else h = w / asp;
+                if (width / height > asp) width = height * asp;
+                else height = width / asp;
               }
-              w = Math.max(w, 20);
-              h = Math.max(h, 20);
-              s.cr = { x: sx < 0 ? a.ax - w : a.ax, y: sy < 0 ? a.ay - h : a.ay, w, h };
+              width = Math.max(width, 20);
+              height = Math.max(height, 20);
+              view.cr = {
+                x: sx < 0 ? active.ax - width : active.ax,
+                y: sy < 0 ? active.ay - height : active.ay,
+                w: width,
+                h: height,
+              };
             }
             draw();
           }}
@@ -304,18 +321,21 @@ export function CropDialog() {
           onPointerCancel={() => {
             st.current.act = null;
           }}
-          onKeyDown={(e) => {
-            const k = (
-              { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, [number, number]>
-            )[e.key];
-            if (!k) return;
-            e.preventDefault();
-            const s = st.current,
-              step = e.shiftKey ? 20 : 4;
-            s.cr = {
-              ...s.cr,
-              x: Math.max(0, Math.min(s.DW - s.cr.w, s.cr.x + k[0] * step)),
-              y: Math.max(0, Math.min(s.DH - s.cr.h, s.cr.y + k[1] * step)),
+          onKeyDown={(event) => {
+            const nudge = (
+              { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<
+                string,
+                [number, number]
+              >
+            )[event.key];
+            if (!nudge) return;
+            event.preventDefault();
+            const view = st.current,
+              step = event.shiftKey ? 20 : 4;
+            view.cr = {
+              ...view.cr,
+              x: Math.max(0, Math.min(view.DW - view.cr.w, view.cr.x + nudge[0] * step)),
+              y: Math.max(0, Math.min(view.DH - view.cr.h, view.cr.y + nudge[1] * step)),
             };
             draw();
           }}

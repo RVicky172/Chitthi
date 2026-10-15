@@ -36,15 +36,15 @@ const ASPECT: Record<PexelsOrientation, string> = { landscape: '4 / 3', portrait
  * are filtered to the shape of the selected photo slot, so they drop into the layout without heavy cropping.
  */
 export function PexelsSearch({ wide = false }: { wide?: boolean }) {
-  const d = useApp((s) => s.design),
-    calPage = useApp((s) => s.ui.calPage);
+  const design = useApp((state) => state.design),
+    calPage = useApp((state) => state.ui.calPage);
   const { count, active } = usePhotoSlots();
-  const page = Math.min(calPage, calPages(d) - 1);
-  const fit = slotOrientation(d, active);
+  const page = Math.min(calPage, calPages(design) - 1);
+  const fit = slotOrientation(design, active);
   // Only the parts of the design that change the suggestions (not every keystroke in the greeting).
   const ideas = useMemo(
-    () => pexelsSuggestions(d, page),
-    [d.product, d.themeId, d.useOccasion, d.layout, d.cal.start, d.cal.months, page],
+    () => pexelsSuggestions(design, page),
+    [design.product, design.themeId, design.useOccasion, design.layout, design.cal.start, design.cal.months, page],
   );
   const [text, setText] = useState('');
   const [query, setQuery] = useState<string | null>(null); // null: follow the suggestions
@@ -56,32 +56,35 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
   const [keyTick, setKeyTick] = useState(0);
   const run = useRef(0);
 
-  const q = query ?? ideas[0] ?? 'nature';
+  const searchFor = query ?? ideas[0] ?? 'nature';
   const orientation = shape === 'fit' ? fit : shape === 'any' ? null : shape;
 
-  useEffect(() => onPexelsKey(() => setKeyTick((k) => k + 1)), []);
+  useEffect(() => onPexelsKey(() => setKeyTick((tick) => tick + 1)), []);
 
   const search = async (pageNo: number) => {
     const id = ++run.current;
     if (pageNo === 1) setStatus({ kind: 'loading' });
     else setMore(true);
     try {
-      const r = await searchPexels(q, orientation, pageNo);
+      const result = await searchPexels(searchFor, orientation, pageNo);
       if (id !== run.current) return;
       setStatus((cur) => ({
         kind: 'ready',
-        photos: pageNo > 1 && cur.kind === 'ready' ? [...cur.photos, ...r.photos.filter((p) => !cur.photos.some((x) => x.id === p.id))] : r.photos,
-        more: !!r.next_page,
+        photos:
+          pageNo > 1 && cur.kind === 'ready'
+            ? [...cur.photos, ...result.photos.filter((photo) => !cur.photos.some((x) => x.id === photo.id))]
+            : result.photos,
+        more: !!result.next_page,
         page: pageNo,
-        total: r.total_results,
+        total: result.total_results,
       }));
-    } catch (e) {
+    } catch (error) {
       if (id !== run.current) return;
       // A missing or refused key is a state the panel explains (add a key), not a failure to report.
-      if (e instanceof PexelsKeyError) setStatus({ kind: 'key', refused: e.refused });
+      if (error instanceof PexelsKeyError) setStatus({ kind: 'key', refused: error.refused });
       else {
-        logError('handled', e);
-        setStatus({ kind: 'error', msg: e instanceof Error ? e.message : 'The search didn’t work.' });
+        logError('handled', error);
+        setStatus({ kind: 'error', msg: error instanceof Error ? error.message : 'The search didn’t work.' });
       }
     } finally {
       if (id === run.current) setMore(false);
@@ -92,19 +95,19 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
   // Search whenever the words, the slot shape or the key change.
   useEffect(() => {
     if (!hidden) void search(1);
-  }, [q, orientation, keyTick, hidden]);
+  }, [searchFor, orientation, keyTick, hidden]);
 
-  const add = async (p: PexelsPhoto) => {
-    setBusy(p.id);
+  const add = async (photo: PexelsPhoto) => {
+    setBusy(photo.id);
     // The preview shows a loader too: the full-size photo can take a few seconds.
-    setUI({ loading: `Downloading ${p.photographer}’s photo from Pexels…` });
+    setUI({ loading: `Downloading ${photo.photographer}’s photo from Pexels…` });
     try {
-      const ph = await fetchPexels(p);
+      const ph = await fetchPexels(photo);
       await storePhotos([ph]);
       await putOnCard({ id: '', added: Date.now(), ...ph });
-      toast(`Added to ${where}. Photo by ${p.photographer} on Pexels.`);
-    } catch (e) {
-      logError('handled', e);
+      toast(`Added to ${where}. Photo by ${photo.photographer} on Pexels.`);
+    } catch (error) {
+      logError('handled', error);
       toast('That photo couldn’t be downloaded from Pexels. Try another one.');
     } finally {
       setBusy(null);
@@ -113,8 +116,8 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
   };
 
   const where =
-    d.product === 'calendar' && d.layout !== 'cal-strip'
-      ? `${count > 1 ? `slot ${active + 1} of ` : ''}${MONTHS[calMonth(d, page).month]}`
+    design.product === 'calendar' && design.layout !== 'cal-strip'
+      ? `${count > 1 ? `slot ${active + 1} of ` : ''}${MONTHS[calMonth(design, page).month]}`
       : count > 1
         ? `slot ${active + 1}`
         : 'the card';
@@ -132,13 +135,19 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
       <form
         className="px-search"
         role="search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const t = text.trim();
-          setQuery(t || null);
+        onSubmit={(event) => {
+          event.preventDefault();
+          const trimmed = text.trim();
+          setQuery(trimmed || null);
         }}
       >
-        <input type="search" aria-label="Search Pexels photos" placeholder={`Search free photos, e.g. ${ideas[0] ?? 'sunset'}`} value={text} onChange={(e) => setText(e.target.value)} />
+        <input
+          type="search"
+          aria-label="Search Pexels photos"
+          placeholder={`Search free photos, e.g. ${ideas[0] ?? 'sunset'}`}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
         <button type="submit" className="btn icon" aria-label="Search">
           <SearchIcon />
         </button>
@@ -149,7 +158,7 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
             key={x}
             type="button"
             className="chip"
-            aria-pressed={q === x}
+            aria-pressed={searchFor === x}
             onClick={() => {
               setText('');
               setQuery(x);
@@ -185,33 +194,37 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
           <p className="hint" aria-live="polite">
             {status.kind === 'ready'
               ? status.photos.length
-                ? `Tap a photo to put it in ${where}. “${q}”${orientation ? `, ${SHAPE_NAMES[orientation]} photos` : ''}.`
-                : `Nothing found for “${q}”. Try other words, or a different shape.`
-              : `Searching Pexels for “${q}”…`}
+                ? `Tap a photo to put it in ${where}. “${searchFor}”${orientation ? `, ${SHAPE_NAMES[orientation]} photos` : ''}.`
+                : `Nothing found for “${searchFor}”. Try other words, or a different shape.`
+              : `Searching Pexels for “${searchFor}”…`}
           </p>
-          <ul className="px-grid" aria-busy={status.kind === 'loading'} style={{ '--px-aspect': ASPECT[tileShape] } as CSSProperties}>
+          <ul
+            className="px-grid"
+            aria-busy={status.kind === 'loading'}
+            style={{ '--px-aspect': ASPECT[tileShape] } as CSSProperties}
+          >
             {status.kind === 'ready'
-              ? status.photos.map((p) => (
-                  <li key={p.id}>
+              ? status.photos.map((photo) => (
+                  <li key={photo.id}>
                     <button
                       type="button"
                       className="px-ph"
-                      style={{ background: p.avg_color }}
+                      style={{ background: photo.avg_color }}
                       disabled={busy !== null}
-                      aria-busy={busy === p.id}
-                      title={`${p.alt || 'Photo'} by ${p.photographer}`}
-                      onClick={() => void add(p)}
+                      aria-busy={busy === photo.id}
+                      title={`${photo.alt || 'Photo'} by ${photo.photographer}`}
+                      onClick={() => void add(photo)}
                     >
                       <img
-                        src={wide ? p.src.large : p.src.medium}
-                        alt={p.alt || `Photo by ${p.photographer}`}
+                        src={wide ? photo.src.large : photo.src.medium}
+                        alt={photo.alt || `Photo by ${photo.photographer}`}
                         loading="lazy"
                         decoding="async"
-                        className={loaded.has(p.id) ? 'loaded' : undefined}
-                        onLoad={() => setLoaded((s) => new Set(s).add(p.id))}
+                        className={loaded.has(photo.id) ? 'loaded' : undefined}
+                        onLoad={() => setLoaded((loadedIds) => new Set(loadedIds).add(photo.id))}
                       />
-                      {!loaded.has(p.id) && <span className="px-shimmer" aria-hidden="true" />}
-                      {busy === p.id && (
+                      {!loaded.has(photo.id) && <span className="px-shimmer" aria-hidden="true" />}
+                      {busy === photo.id && (
                         <span className="px-busy">
                           <span className="spinner" aria-hidden="true" />
                           Adding…
@@ -221,18 +234,18 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
                     {/* Pexels asks for a linked credit: "Photo by … on Pexels". */}
                     <p className="px-by">
                       Photo by{' '}
-                      <a href={p.photographer_url} target="_blank" rel="noopener noreferrer">
-                        {p.photographer}
+                      <a href={photo.photographer_url} target="_blank" rel="noopener noreferrer">
+                        {photo.photographer}
                       </a>{' '}
                       on{' '}
-                      <a href={p.url} target="_blank" rel="noopener noreferrer">
+                      <a href={photo.url} target="_blank" rel="noopener noreferrer">
                         Pexels
                       </a>
                     </p>
                   </li>
                 ))
-              : Array.from({ length: wide ? 12 : 6 }, (_, i) => (
-                  <li key={i}>
+              : Array.from({ length: wide ? 12 : 6 }, (_, index) => (
+                  <li key={index}>
                     <span className="skel px-skel" />
                   </li>
                 ))}

@@ -31,7 +31,12 @@ import { PexelsSearch } from './PexelsSearch';
 
 type Filter = 'fit' | 'all' | 'card' | 'unused' | 'uploads' | 'pexels' | PhotoShape;
 type Sort = 'rel' | 'new' | 'old' | 'name' | 'fit' | 'size';
-type Refine = { hue?: Hue; light?: 'bright' | 'dark'; mood?: 'colourful' | 'muted' | 'warm' | 'cool'; quality?: 'print' | 'sharp' };
+type Refine = {
+  hue?: Hue;
+  light?: 'bright' | 'dark';
+  mood?: 'colourful' | 'muted' | 'warm' | 'cool';
+  quality?: 'print' | 'sharp';
+};
 const HUE_SWATCH: Record<Hue, string> = {
   red: '#d63a3a',
   orange: '#ef8a2e',
@@ -80,21 +85,21 @@ const FILTERS: [Filter, string][] = [
  * shows only photos whose shape suits it, with how sharp each one will print there.
  */
 export function PhotoLibrary() {
-  const open = useApp((s) => s.ui.library),
-    design = useApp((s) => s.design),
-    photos = useApp((s) => s.photos);
+  const open = useApp((state) => state.ui.library),
+    design = useApp((state) => state.design),
+    photos = useApp((state) => state.photos);
   const { list } = useLibrary();
   const { count, active, filled } = usePhotoSlots();
   useDimsTick();
   const dlg = useRef<HTMLDialogElement>(null);
-  const tab = useApp((s) => s.ui.libraryTab),
+  const tab = useApp((state) => state.ui.libraryTab),
     setTab = (libraryTab: 'mine' | 'pexels' | 'ai') => setUI({ libraryTab });
   const [filter, setFilter] = useState<Filter>('fit');
   const [sort, setSort] = useState<Sort>('rel');
   const [refine, setRefine] = useState<Refine>({});
   const [relevantOnly, setRelevantOnly] = useState(false);
   useTraitsTick();
-  const [q, setQ] = useState('');
+  const [query, setQ] = useState('');
   const [msgs, setMsgs] = useState<['err' | 'warn', string][]>([]);
   const [over, setOver] = useState(false);
   const [sure, setSure] = useState<string | null>(null);
@@ -111,8 +116,8 @@ export function PhotoLibrary() {
   }, [open, count]);
   useEffect(() => {
     if (!sure) return;
-    const t = setTimeout(() => setSure(null), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSure(null), 3000);
+    return () => clearTimeout(timer);
   }, [sure]);
 
   const slot = useMemo(() => slotInfo(design, active), [design, active]);
@@ -120,15 +125,25 @@ export function PhotoLibrary() {
     const byKey = new Map<string, Item>();
     (list ?? []).forEach((sp) => {
       const key = keyOfStored(sp);
-      byKey.set(key, { key, view: sp.thumb || sp.url, sp, name: sp.name, id: sp.id, added: sp.added, card: -1, w: sp.w, h: sp.h });
+      byKey.set(key, {
+        key,
+        view: sp.thumb || sp.url,
+        sp,
+        name: sp.name,
+        id: sp.id,
+        added: sp.added,
+        card: -1,
+        w: sp.w,
+        h: sp.h,
+      });
       if (sp.w && sp.h) rememberDims(key, sp.w, sp.h);
     });
-    photos.forEach((p, i) => {
-      const key = photoKey(p.url),
+    photos.forEach((photo, index) => {
+      const key = photoKey(photo.url),
         it = byKey.get(key);
-      if (it) it.card = i;
-      else byKey.set(key, { key, view: p.url, name: p.name, added: 0, card: i });
-      rememberDims(key, p.orig.naturalWidth, p.orig.naturalHeight);
+      if (it) it.card = index;
+      else byKey.set(key, { key, view: photo.url, name: photo.name, added: 0, card: index });
+      rememberDims(key, photo.orig.naturalWidth, photo.orig.naturalHeight);
     });
     return [...byKey.values()];
   }, [list, photos]);
@@ -140,32 +155,33 @@ export function PhotoLibrary() {
   }, [open, list, photos]);
   const theme = resolveTheme(design);
   const score = (it: Item) => {
-    const t = traitsOf(it.key);
-    return t ? relevance(t, slot, theme) : 0;
+    const traits = traitsOf(it.key);
+    return traits ? relevance(traits, slot, theme) : 0;
   };
   // Search matches the name and the words the analysis found (bright, blue, warm, sky, sharp…).
   const byName = (it: Item) => {
-    if (!q.trim()) return true;
+    if (!query.trim()) return true;
     const hay = `${it.name} ${traitsOf(it.key)?.tags.join(' ') ?? ''}`.toLowerCase();
-    return q
+    return query
       .toLowerCase()
       .split(/\s+/)
       .filter(Boolean)
-      .every((w) => hay.includes(w));
+      .every((word) => hay.includes(word));
   };
   const refined = (it: Item) => {
-    const t = traitsOf(it.key);
+    const traits = traitsOf(it.key);
     if (!refine.hue && !refine.light && !refine.mood && !refine.quality && !relevantOnly) return true;
-    if (!t) return false;
-    if (refine.hue && t.hue !== refine.hue) return false;
-    if (refine.light && !t.tags.includes(refine.light)) return false;
-    if (refine.mood && !t.tags.includes(refine.mood)) return false;
-    if (refine.quality === 'sharp' && t.sharpness < 0.3) return false;
-    if (refine.quality === 'print' && slot && 25.4 / Math.max(slot.wmm / t.w, slot.hmm / t.h) < 250) return false;
-    if (relevantOnly && relevance(t, slot, theme) < 0.62) return false;
+    if (!traits) return false;
+    if (refine.hue && traits.hue !== refine.hue) return false;
+    if (refine.light && !traits.tags.includes(refine.light)) return false;
+    if (refine.mood && !traits.tags.includes(refine.mood)) return false;
+    if (refine.quality === 'sharp' && traits.sharpness < 0.3) return false;
+    if (refine.quality === 'print' && slot && 25.4 / Math.max(slot.wmm / traits.w, slot.hmm / traits.h) < 250)
+      return false;
+    if (relevantOnly && relevance(traits, slot, theme) < 0.62) return false;
     return true;
   };
-  const hues = [...new Set(items.map((it) => traitsOf(it.key)?.hue).filter((h): h is Hue => !!h))];
+  const hues = [...new Set(items.map((it) => traitsOf(it.key)?.hue).filter((hue): hue is Hue => !!hue))];
   const shown = items
     .filter((it) => {
       const dm = dimsOf(it.key),
@@ -190,15 +206,16 @@ export function PhotoLibrary() {
           return true;
       }
     })
-    .sort((a, b) => {
-      const da = dimsOf(a.key),
-        db = dimsOf(b.key);
-      if (sort === 'rel') return score(b) - score(a);
-      if (sort === 'name') return a.name.localeCompare(b.name);
-      if (sort === 'old') return a.added - b.added;
+    .sort((left, right) => {
+      const da = dimsOf(left.key),
+        db = dimsOf(right.key);
+      if (sort === 'rel') return score(right) - score(left);
+      if (sort === 'name') return left.name.localeCompare(right.name);
+      if (sort === 'old') return left.added - right.added;
       if (sort === 'size') return (db ? db.w * db.h : 0) - (da ? da.w * da.h : 0);
-      if (sort === 'fit' && slot) return (da ? cropLoss(da.w, da.h, slot.aspect) : 1) - (db ? cropLoss(db.w, db.h, slot.aspect) : 1);
-      return b.added - a.added;
+      if (sort === 'fit' && slot)
+        return (da ? cropLoss(da.w, da.h, slot.aspect) : 1) - (db ? cropLoss(db.w, db.h, slot.aspect) : 1);
+      return right.added - left.added;
     });
 
   // With "Fits this slot", the other photos are still offered below, dimmed: they need more cropping.
@@ -222,92 +239,100 @@ export function PhotoLibrary() {
   const placeItem = async (it: Item) => {
     if (it.sp) await putOnCard(it.sp);
     else {
-      const p = getState().photos.find((x) => photoKey(x.url) === it.key);
-      if (p) placePhoto(p.id, active);
+      const photo = getState().photos.find((x) => photoKey(x.url) === it.key);
+      if (photo) placePhoto(photo.id, active);
     }
   };
   const crop = async (it: Item) => {
     if (it.card < 0) await placeItem(it);
-    const ph = getState().photos.find((p) => photoKey(p.url) === it.key);
+    const ph = getState().photos.find((candidate) => photoKey(candidate.url) === it.key);
     if (ph) setUI({ cropId: ph.id });
   };
-  const takeOff = (it: Item) => setPhotos(getState().photos.filter((p) => photoKey(p.url) !== it.key));
+  const takeOff = (it: Item) => setPhotos(getState().photos.filter((photo) => photoKey(photo.url) !== it.key));
 
   const card = (it: Item, dim = false) => {
-                const dm = dimsOf(it.key),
-                  dpi = dm && slot ? slotDpi(dm.w, dm.h, slot) : null,
-                  sh = dpi ? sharpness(dpi) : null,
-                  inSlot = filled.findIndex((p) => !!p && photoKey(p.url) === it.key);
-                return (
-                  <li key={it.key} className={`lib-item${dim ? ' dim' : ''}`}>
-                    <button type="button" className="lib-ph" title={count ? `Put in ${where}` : it.name} onClick={() => void placeItem(it)} disabled={!count}>
-                      <img
-                        src={it.view}
-                        alt={it.name}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      {inSlot >= 0 && <b className="lib-badge">{count > 1 ? `Slot ${inSlot + 1}` : 'On design'}</b>}
-                      {inSlot < 0 && it.card >= 0 && <b className="lib-badge muted">On design</b>}
-                    </button>
-                    <div className="lib-meta">
-                      <span className="lib-name">{shortName(it.name)}</span>
-                      <PhotoCredit name={it.name} />
-                      <span className="lib-facts">
-                        {dm ? `${dm.w.toLocaleString()} × ${dm.h.toLocaleString()} · ${SHAPE_LABEL[shapeOf(dm.w, dm.h)]}` : '…'}
-                        {sh && <em className={`q ${sh === 'sharp' ? 'good' : sh === 'fine' ? 'ok' : 'low'}`}>{`${sh} (${dpi} dpi)`}</em>}
-                      </span>
-                      {traitsOf(it.key) && (
-                        <span className="lib-tags">
-                          <b title="How well this photo suits the selected slot: shape, print sharpness, focus and colours">
-                            {Math.round(score(it) * 100)}% match
-                          </b>
-                          {traitsOf(it.key)!.tags.slice(0, 4).join(' · ')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="lib-acts">
-                      {count > 0 && (
-                        <button type="button" className="sbtn accent" onClick={() => void placeItem(it)}>
-                          {count > 1 ? `Use in slot ${active + 1}` : 'Use'}
-                        </button>
-                      )}
-                      {count > 0 && (
-                        <button type="button" className="sbtn" aria-label={`Crop ${it.name}`} onClick={() => void crop(it)}>
-                          <CropIcon />
-                          Crop
-                        </button>
-                      )}
-                      {it.card >= 0 && (
-                        <button type="button" className="sbtn" onClick={() => takeOff(it)}>
-                          Take off
-                        </button>
-                      )}
-                      {it.id && (
-                        <button
-                          type="button"
-                          className={`sbtn danger${sure === it.id ? ' sure' : ''}`}
-                          aria-label={sure === it.id ? `Tap again to delete ${it.name}` : `Delete ${it.name} from the library`}
-                          onClick={() => {
-                            if (sure !== it.id) setSure(it.id ?? null);
-                            else {
-                              setSure(null);
-                              void removeStored(it.id!);
-                            }
-                          }}
-                        >
-                          <TrashIcon />
-                          {sure === it.id ? 'Sure?' : ''}
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                );
+    const dm = dimsOf(it.key),
+      dpi = dm && slot ? slotDpi(dm.w, dm.h, slot) : null,
+      sh = dpi ? sharpness(dpi) : null,
+      inSlot = filled.findIndex((photo) => !!photo && photoKey(photo.url) === it.key);
+    return (
+      <li key={it.key} className={`lib-item${dim ? ' dim' : ''}`}>
+        <button
+          type="button"
+          className="lib-ph"
+          title={count ? `Put in ${where}` : it.name}
+          onClick={() => void placeItem(it)}
+          disabled={!count}
+        >
+          <img src={it.view} alt={it.name} loading="lazy" decoding="async" />
+          {inSlot >= 0 && <b className="lib-badge">{count > 1 ? `Slot ${inSlot + 1}` : 'On design'}</b>}
+          {inSlot < 0 && it.card >= 0 && <b className="lib-badge muted">On design</b>}
+        </button>
+        <div className="lib-meta">
+          <span className="lib-name">{shortName(it.name)}</span>
+          <PhotoCredit name={it.name} />
+          <span className="lib-facts">
+            {dm ? `${dm.w.toLocaleString()} × ${dm.h.toLocaleString()} · ${SHAPE_LABEL[shapeOf(dm.w, dm.h)]}` : '…'}
+            {sh && (
+              <em className={`q ${sh === 'sharp' ? 'good' : sh === 'fine' ? 'ok' : 'low'}`}>{`${sh} (${dpi} dpi)`}</em>
+            )}
+          </span>
+          {traitsOf(it.key) && (
+            <span className="lib-tags">
+              <b title="How well this photo suits the selected slot: shape, print sharpness, focus and colours">
+                {Math.round(score(it) * 100)}% match
+              </b>
+              {traitsOf(it.key)!.tags.slice(0, 4).join(' · ')}
+            </span>
+          )}
+        </div>
+        <div className="lib-acts">
+          {count > 0 && (
+            <button type="button" className="sbtn accent" onClick={() => void placeItem(it)}>
+              {count > 1 ? `Use in slot ${active + 1}` : 'Use'}
+            </button>
+          )}
+          {count > 0 && (
+            <button type="button" className="sbtn" aria-label={`Crop ${it.name}`} onClick={() => void crop(it)}>
+              <CropIcon />
+              Crop
+            </button>
+          )}
+          {it.card >= 0 && (
+            <button type="button" className="sbtn" onClick={() => takeOff(it)}>
+              Take off
+            </button>
+          )}
+          {it.id && (
+            <button
+              type="button"
+              className={`sbtn danger${sure === it.id ? ' sure' : ''}`}
+              aria-label={sure === it.id ? `Tap again to delete ${it.name}` : `Delete ${it.name} from the library`}
+              onClick={() => {
+                if (sure !== it.id) setSure(it.id ?? null);
+                else {
+                  setSure(null);
+                  void removeStored(it.id!);
+                }
+              }}
+            >
+              <TrashIcon />
+              {sure === it.id ? 'Sure?' : ''}
+            </button>
+          )}
+        </div>
+      </li>
+    );
   };
 
   const where = count > 1 ? `slot ${active + 1}` : count ? 'the photo slot' : '';
   return (
-    <dialog ref={dlg} className="galdlg libdlg" aria-labelledby="libTitle" onClose={() => setUI({ library: false, libraryTab: 'mine' })}>
+    <dialog
+      ref={dlg}
+      className="galdlg libdlg"
+      aria-labelledby="libTitle"
+      onClose={() => setUI({ library: false, libraryTab: 'mine' })}
+    >
       <div className="galbar">
         <h2 id="libTitle">Photos</h2>
         <span className="hint">
@@ -331,15 +356,20 @@ export function PhotoLibrary() {
             multiple
             hidden
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              void upload(e.target.files);
-              e.target.value = '';
+            onChange={(event) => {
+              void upload(event.target.files);
+              event.target.value = '';
             }}
           />
           <AddPhotoIcon />
           {busy ? 'Adding…' : 'Upload'}
         </label>
-        <button type="button" className="btn icon ghost galx" aria-label="Close photos" onClick={() => dlg.current?.close()}>
+        <button
+          type="button"
+          className="btn icon ghost galx"
+          aria-label="Close photos"
+          onClick={() => dlg.current?.close()}
+        >
           <CloseIcon />
         </button>
       </div>
@@ -351,17 +381,26 @@ export function PhotoLibrary() {
             {slot && (
               <>
                 {' '}
-                · {where} is <b>{SHAPE_LABEL[slot.shape].toLowerCase()}</b>, {Math.round(slot.wmm)} × {Math.round(slot.hmm)} mm
+                · {where} is <b>{SHAPE_LABEL[slot.shape].toLowerCase()}</b>, {Math.round(slot.wmm)} ×{' '}
+                {Math.round(slot.hmm)} mm
               </>
             )}
           </span>
           {count > 1 && (
             <div className="chips" role="radiogroup" aria-label="Slot to fill">
-              {filled.map((_, i) => {
-                const si = slotInfo(design, i);
+              {filled.map((_, slotIndex) => {
+                const si = slotInfo(design, slotIndex);
                 return (
-                  <button key={i} type="button" role="radio" className="chip" aria-checked={i === active} aria-pressed={i === active} onClick={() => selectSlot(i)}>
-                    Slot {i + 1}
+                  <button
+                    key={slotIndex}
+                    type="button"
+                    role="radio"
+                    className="chip"
+                    aria-checked={slotIndex === active}
+                    aria-pressed={slotIndex === active}
+                    onClick={() => selectSlot(slotIndex)}
+                  >
+                    Slot {slotIndex + 1}
                     {si ? ` · ${SHAPE_LABEL[si.shape]}` : ''}
                   </button>
                 );
@@ -382,22 +421,28 @@ export function PhotoLibrary() {
       ) : (
         <div
           className={`galbody lib-body${over ? ' over' : ''}`}
-          onDragOver={(e) => {
-            e.preventDefault();
+          onDragOver={(event) => {
+            event.preventDefault();
             setOver(true);
           }}
           onDragLeave={() => setOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
+          onDrop={(event) => {
+            event.preventDefault();
             setOver(false);
-            void upload(e.dataTransfer.files);
+            void upload(event.dataTransfer.files);
           }}
         >
           <div className="lib-filters">
             <div className="chips" aria-label="Show">
-              {FILTERS.filter(([f]) => f !== 'fit' || count > 0).map(([f, l]) => (
-                <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-                  {f === 'fit' && count > 1 ? `Fits slot ${active + 1}` : l}
+              {FILTERS.filter(([filterId]) => filterId !== 'fit' || count > 0).map(([filterId, label]) => (
+                <button
+                  key={filterId}
+                  type="button"
+                  className="chip"
+                  aria-pressed={filter === filterId}
+                  onClick={() => setFilter(filterId)}
+                >
+                  {filterId === 'fit' && count > 1 ? `Fits slot ${active + 1}` : label}
                 </button>
               ))}
             </div>
@@ -405,10 +450,10 @@ export function PhotoLibrary() {
               type="search"
               aria-label="Search photos"
               placeholder="Search: name, blue, bright, warm, sky…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              value={query}
+              onChange={(event) => setQ(event.target.value)}
             />
-            <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
               <option value="rel">Most relevant</option>
               <option value="new">Newest first</option>
               <option value="old">Oldest first</option>
@@ -419,28 +464,44 @@ export function PhotoLibrary() {
           </div>
           <div className="lib-refine" role="group" aria-label="Refine by what's in the photos">
             <span className="lib-refine-l">Colour</span>
-            {hues.map((h) => (
+            {hues.map((hue) => (
               <button
-                key={h}
+                key={hue}
                 type="button"
                 className="swatch"
-                title={h}
-                aria-label={`${h} photos`}
-                aria-pressed={refine.hue === h}
-                style={{ background: HUE_SWATCH[h] }}
-                onClick={() => setRefine((r) => ({ ...r, hue: r.hue === h ? undefined : h }))}
+                title={hue}
+                aria-label={`${hue} photos`}
+                aria-pressed={refine.hue === hue}
+                style={{ background: HUE_SWATCH[hue] }}
+                onClick={() => setRefine((previous) => ({ ...previous, hue: previous.hue === hue ? undefined : hue }))}
               />
             ))}
             <span className="lib-refine-l">Light</span>
-            {(['bright', 'dark'] as const).map((k) => (
-              <button key={k} type="button" className="chip" aria-pressed={refine.light === k} onClick={() => setRefine((r) => ({ ...r, light: r.light === k ? undefined : k }))}>
-                {k}
+            {(['bright', 'dark'] as const).map((light) => (
+              <button
+                key={light}
+                type="button"
+                className="chip"
+                aria-pressed={refine.light === light}
+                onClick={() =>
+                  setRefine((previous) => ({ ...previous, light: previous.light === light ? undefined : light }))
+                }
+              >
+                {light}
               </button>
             ))}
             <span className="lib-refine-l">Mood</span>
-            {(['colourful', 'muted', 'warm', 'cool'] as const).map((k) => (
-              <button key={k} type="button" className="chip" aria-pressed={refine.mood === k} onClick={() => setRefine((r) => ({ ...r, mood: r.mood === k ? undefined : k }))}>
-                {k}
+            {(['colourful', 'muted', 'warm', 'cool'] as const).map((mood) => (
+              <button
+                key={mood}
+                type="button"
+                className="chip"
+                aria-pressed={refine.mood === mood}
+                onClick={() =>
+                  setRefine((previous) => ({ ...previous, mood: previous.mood === mood ? undefined : mood }))
+                }
+              >
+                {mood}
               </button>
             ))}
             <span className="lib-refine-l">Quality</span>
@@ -449,13 +510,29 @@ export function PhotoLibrary() {
                 ['print', 'Print-sharp here'],
                 ['sharp', 'In focus'],
               ] as const
-            ).map(([k, l]) => (
-              <button key={k} type="button" className="chip" aria-pressed={refine.quality === k} onClick={() => setRefine((r) => ({ ...r, quality: r.quality === k ? undefined : k }))}>
-                {l}
+            ).map(([quality, label]) => (
+              <button
+                key={quality}
+                type="button"
+                className="chip"
+                aria-pressed={refine.quality === quality}
+                onClick={() =>
+                  setRefine((previous) => ({
+                    ...previous,
+                    quality: previous.quality === quality ? undefined : quality,
+                  }))
+                }
+              >
+                {label}
               </button>
             ))}
             <label className="check">
-              <input type="checkbox" checked={relevantOnly} onChange={(e) => setRelevantOnly(e.target.checked)} /> Relevant only
+              <input
+                type="checkbox"
+                checked={relevantOnly}
+                onChange={(event) => setRelevantOnly(event.target.checked)}
+              />{' '}
+              Relevant only
             </label>
           </div>
           {count > 0 && (
@@ -463,35 +540,41 @@ export function PhotoLibrary() {
               <button type="button" className="btn" onClick={autoArrange} disabled={!photos.length}>
                 Auto-arrange photos in the layout
               </button>
-              <button type="button" className="btn" onClick={() => list && void smartFill(list)} disabled={!list?.length}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => list && void smartFill(list)}
+                disabled={!list?.length}
+              >
                 Fill empty slots with the best matches
               </button>
               <span className="hint">
-                Photos are analysed for shape, colour, brightness and sharpness, and each crop is centred on its subject.
+                Photos are analysed for shape, colour, brightness and sharpness, and each crop is centred on its
+                subject.
               </span>
             </div>
           )}
           {msgs.length > 0 && (
             <ul className="msgs" role="alert">
-              {msgs.map(([k, m], i) => (
-                <li key={i} className={k}>
-                  {m}
+              {msgs.map(([key, message], index) => (
+                <li key={index} className={key}>
+                  {message}
                 </li>
               ))}
             </ul>
           )}
           {filter === 'fit' && slot && (
             <p className="hint">
-              Showing photos whose shape suits {where}: the automatic crop keeps at least 80% of each. Any photo can still be
-              cropped by hand.
+              Showing photos whose shape suits {where}: the automatic crop keeps at least 80% of each. Any photo can
+              still be cropped by hand.
             </p>
           )}
           {shown.length ? (
-            <ul className="lib-grid">
-              {shown.map((it) => card(it))}
-            </ul>
+            <ul className="lib-grid">{shown.map((it) => card(it))}</ul>
           ) : rest.length ? (
-            <p className="hint">No photo has the right shape for {where} yet: the closest are below. Crop one to fit exactly.</p>
+            <p className="hint">
+              No photo has the right shape for {where} yet: the closest are below. Crop one to fit exactly.
+            </p>
           ) : (
             <div className="empty lib-empty">
               <AddPhotoIcon />
@@ -512,9 +595,9 @@ export function PhotoLibrary() {
               <h3 className="lib-h3">Other shapes: cropped more to fill {where}</h3>
               <ul className="lib-grid">
                 {rest
-                  .sort((a, b) => {
-                    const da = dimsOf(a.key)!,
-                      db = dimsOf(b.key)!;
+                  .sort((left, right) => {
+                    const da = dimsOf(left.key)!,
+                      db = dimsOf(right.key)!;
                     return cropLoss(da.w, da.h, slot!.aspect) - cropLoss(db.w, db.h, slot!.aspect);
                   })
                   .map((it) => card(it, true))}

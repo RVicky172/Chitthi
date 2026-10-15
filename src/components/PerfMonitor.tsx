@@ -12,16 +12,28 @@ import { logError } from '../lib/errors';
  */
 
 const MB = 1024 * 1024;
-const mb = (b?: number) =>
-  b === undefined ? '–' : b >= 1024 * MB ? `${(b / 1024 / MB).toFixed(1)} GB` : b >= MB ? `${Math.round(b / MB)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
+const mb = (bytes?: number) =>
+  bytes === undefined
+    ? '–'
+    : bytes >= 1024 * MB
+      ? `${(bytes / 1024 / MB).toFixed(1)} GB`
+      : bytes >= MB
+        ? `${Math.round(bytes / MB)} MB`
+        : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 type Level = '' | 'warn' | 'bad';
-const level = (v: number | undefined, warn: number, bad: number): Level => (v === undefined ? '' : v >= bad ? 'bad' : v >= warn ? 'warn' : '');
+const level = (value: number | undefined, warn: number, bad: number): Level =>
+  value === undefined ? '' : value >= bad ? 'bad' : value >= warn ? 'warn' : '';
 
 function Spark({ values, max }: { values: (number | undefined)[]; max?: number }) {
-  const v = values.map((x) => x ?? 0);
-  if (v.length < 2) return <svg className="spark" viewBox="0 0 100 24" aria-hidden="true" />;
-  const top = max ?? Math.max(1, ...v) * 1.15;
-  const pts = v.map((x, i) => `${((i / (v.length - 1)) * 100).toFixed(1)},${(23 - (Math.min(x, top) / top) * 22).toFixed(1)}`).join(' ');
+  const filled = values.map((x) => x ?? 0);
+  if (filled.length < 2) return <svg className="spark" viewBox="0 0 100 24" aria-hidden="true" />;
+  const top = max ?? Math.max(1, ...filled) * 1.15;
+  const pts = filled
+    .map(
+      (x, index) =>
+        `${((index / (filled.length - 1)) * 100).toFixed(1)},${(23 - (Math.min(x, top) / top) * 22).toFixed(1)}`,
+    )
+    .join(' ');
   return (
     <svg className="spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
       <polyline points={`0,24 ${pts} 100,24`} className="spark-fill" />
@@ -30,7 +42,19 @@ function Spark({ values, max }: { values: (number | undefined)[]; max?: number }
   );
 }
 
-function Metric({ name, value, sub, lv = '', spark }: { name: string; value: string; sub?: string; lv?: Level; spark?: React.ReactNode }) {
+function Metric({
+  name,
+  value,
+  sub,
+  lv = '',
+  spark,
+}: {
+  name: string;
+  value: string;
+  sub?: string;
+  lv?: Level;
+  spark?: React.ReactNode;
+}) {
   return (
     <div className={`pm-row ${lv}`}>
       <div className="pm-head">
@@ -49,42 +73,62 @@ export function PerfMonitor() {
     [small, setSmall] = useState(() => matchMedia('(max-width: 600px)').matches);
   useEffect(
     () =>
-      watchPerf((s, i) => {
-        setSamples(s);
-        setInfo({ ...i });
+      watchPerf((sample, latest) => {
+        setSamples(sample);
+        setInfo({ ...latest });
       }),
     [],
   );
   const last = samples[samples.length - 1];
   const desk = info?.where === 'desktop';
-  const series = <K extends keyof PerfSample>(k: K) => samples.map((s) => s[k] as number | undefined);
+  const series = <K extends keyof PerfSample>(key: K) => samples.map((sample) => sample[key] as number | undefined);
   const heapShare = last?.heap && last.heapLimit ? (last.heap / last.heapLimit) * 100 : undefined;
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(perfReport());
       toast(`Performance report copied (${samples.length} seconds of samples).`);
-    } catch (e) {
-      logError('handled', e);
+    } catch (error) {
+      logError('handled', error);
       toast('Couldn’t copy: the browser blocked the clipboard.');
     }
   };
 
-  const headline = !last ? 'Measuring…' : desk ? `CPU ${last.cpu ?? 0}% · ${last.fps} fps` : `Busy ${last.busy}% · ${last.fps} fps`;
+  const headline = !last
+    ? 'Measuring…'
+    : desk
+      ? `CPU ${last.cpu ?? 0}% · ${last.fps} fps`
+      : `Busy ${last.busy}% · ${last.fps} fps`;
   return (
     <aside className={`pm${small ? ' small' : ''}`} aria-label="Performance monitor">
       <div className="pm-top">
-        <button type="button" className="pm-title" aria-expanded={!small} title={small ? 'Show details' : 'Hide details'} onClick={() => setSmall(!small)}>
+        <button
+          type="button"
+          className="pm-title"
+          aria-expanded={!small}
+          title={small ? 'Show details' : 'Hide details'}
+          onClick={() => setSmall(!small)}
+        >
           <ActivityIcon />
           <span>{small ? headline : 'Performance'}</span>
           {!small && <em>{desk ? 'desktop' : 'web'}</em>}
         </button>
         {!small && (
-          <button type="button" className="pm-btn" onClick={() => void copy()} title="Copy a JSON report of the last two minutes">
+          <button
+            type="button"
+            className="pm-btn"
+            onClick={() => void copy()}
+            title="Copy a JSON report of the last two minutes"
+          >
             Copy report
           </button>
         )}
-        <button type="button" className="pm-btn icon" aria-label="Close the performance monitor" onClick={() => setPerf(false)}>
+        <button
+          type="button"
+          className="pm-btn icon"
+          aria-label="Close the performance monitor"
+          onClick={() => setPerf(false)}
+        >
           <CloseIcon />
         </button>
       </div>
@@ -99,7 +143,7 @@ export function PerfMonitor() {
               sub={
                 last?.cpuBy
                   ? Object.entries(last.cpuBy)
-                      .map(([k, v]) => `${k} ${v}%`)
+                      .map(([part, percent]) => `${part} ${percent}%`)
                       .join(' · ') + ` (of one core; ${info?.cores} cores)`
                   : undefined
               }
@@ -110,11 +154,25 @@ export function PerfMonitor() {
               value={`${last?.busy ?? 0}%`}
               lv={level(last?.busy, 20, 50)}
               spark={<Spark values={series('busy')} max={100} />}
-              sub={info?.longTaskSupported ? `${last?.longTasks ?? 0} long tasks this second · browsers don't report CPU use` : 'Long tasks aren’t reported by this browser; see input delay'}
+              sub={
+                info?.longTaskSupported
+                  ? `${last?.longTasks ?? 0} long tasks this second · browsers don't report CPU use`
+                  : 'Long tasks aren’t reported by this browser; see input delay'
+              }
             />
           )}
-          <Metric name="Input delay (worst, last second)" value={`${last?.lag ?? 0} ms`} lv={level(last?.lag, 50, 200)} spark={<Spark values={series('lag')} />} />
-          <Metric name="Frames per second" value={`${last?.fps ?? 0}`} spark={<Spark values={series('fps')} max={70} />} sub="How many frames the browser managed to draw; drops mean the page was busy" />
+          <Metric
+            name="Input delay (worst, last second)"
+            value={`${last?.lag ?? 0} ms`}
+            lv={level(last?.lag, 50, 200)}
+            spark={<Spark values={series('lag')} />}
+          />
+          <Metric
+            name="Frames per second"
+            value={`${last?.fps ?? 0}`}
+            spark={<Spark values={series('fps')} max={70} />}
+            sub="How many frames the browser managed to draw; drops mean the page was busy"
+          />
           {desk && (
             <Metric
               name="Memory (whole app)"
@@ -129,7 +187,11 @@ export function PerfMonitor() {
             value={info?.heapSupported ? mb(last?.heap) : 'not reported'}
             lv={level(heapShare, 60, 85)}
             spark={info?.heapSupported ? <Spark values={series('heap')} /> : undefined}
-            sub={info?.heapSupported && last?.heapLimit ? `limit ${mb(last.heapLimit)}` : 'Only Chromium browsers report it'}
+            sub={
+              info?.heapSupported && last?.heapLimit
+                ? `limit ${mb(last.heapLimit)}`
+                : 'Only Chromium browsers report it'
+            }
           />
           <div className="pm-grid">
             <Metric
@@ -139,9 +201,15 @@ export function PerfMonitor() {
               lv={level((last?.photoBytes ?? 0) + (last?.undoBytes ?? 0), 400 * MB, 900 * MB)}
             />
             <Metric name="Elements" value={`${last?.dom ?? 0}`} lv={level(last?.dom, 4000, 8000)} />
-            <Metric name={desk ? 'Saved data' : 'Storage'} value={mb(info?.storageUsed)} sub={info?.storageQuota ? `of ${mb(info.storageQuota)}` : undefined} />
+            <Metric
+              name={desk ? 'Saved data' : 'Storage'}
+              value={mb(info?.storageUsed)}
+              sub={info?.storageQuota ? `of ${mb(info.storageQuota)}` : undefined}
+            />
           </div>
-          <p className="pm-note">Samples once a second while open; nothing is sent anywhere. Copy the report to compare two runs.</p>
+          <p className="pm-note">
+            Samples once a second while open; nothing is sent anywhere. Copy the report to compare two runs.
+          </p>
         </div>
       )}
     </aside>

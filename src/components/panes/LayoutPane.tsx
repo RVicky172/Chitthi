@@ -10,18 +10,18 @@ import { LayoutThumb } from '../canvases';
 import { Pane, Section, Seg } from '../common';
 
 function SizeIcon({ s, land }: { s: SizeDef; land: boolean }) {
-  const L = s.L || 150,
-    S = s.S || 100,
-    w = land ? L : S,
-    h = land ? S : L,
-    k = 26 / Math.max(w, h);
+  const long = s.L || 150,
+    short = s.S || 100,
+    width = land ? long : short,
+    height = land ? short : long,
+    scale = 26 / Math.max(width, height);
   return (
     <svg viewBox="0 0 30 30" aria-hidden="true">
       <rect
-        x={15 - (w * k) / 2}
-        y={15 - (h * k) / 2}
-        width={w * k}
-        height={h * k}
+        x={15 - (width * scale) / 2}
+        y={15 - (height * scale) / 2}
+        width={width * scale}
+        height={height * scale}
         rx={s.instax ? 1.6 : 0.8}
         fill="none"
         stroke="currentColor"
@@ -30,10 +30,10 @@ function SizeIcon({ s, land }: { s: SizeDef; land: boolean }) {
       />
       {s.instax && (
         <rect
-          x={15 - (w * k) / 2 + 2.2}
-          y={15 - (h * k) / 2 + 2.2}
-          width={w * k - 4.4}
-          height={h * k * 0.68}
+          x={15 - (width * scale) / 2 + 2.2}
+          y={15 - (height * scale) / 2 + 2.2}
+          width={width * scale - 4.4}
+          height={height * scale * 0.68}
           fill="currentColor"
           opacity=".35"
         />
@@ -42,96 +42,110 @@ function SizeIcon({ s, land }: { s: SizeDef; land: boolean }) {
   );
 }
 
-const photoCount = (n: number) => (n === 0 ? 'No photo' : n === 1 ? '1 photo' : `${n} photos`);
+const photoCount = (count: number) => (count === 0 ? 'No photo' : count === 1 ? '1 photo' : `${count} photos`);
 
 /** Size, orientation and layout in one step: they all decide the shape of the card and its photo slots. */
 export function LayoutPane() {
-  const d = useApp((s) => s.design),
-    photos = useApp((s) => s.photos),
-    fontTick = useApp((s) => s.ui.fontTick);
-  const land = d.orient === 'landscape';
+  const design = useApp((state) => state.design),
+    photos = useApp((state) => state.photos),
+    fontTick = useApp((state) => state.ui.fontTick);
+  const land = design.orient === 'landscape';
   // Thumbnails redraw at low priority so typing and dragging stay smooth.
-  const dd = useDeferredValue(d),
+  const dd = useDeferredValue(design),
     pp = useDeferredValue(photos);
-  const need = slotCount(d.layout, d);
-  const sizes = sizesFor(d.product),
-    groups = SIZE_GROUPS.filter((g) => sizes.some((s) => s.grp === g)),
-    setCal = (p: Partial<CalendarSettings>) => setDesign({ cal: { ...d.cal, ...p } });
+  const need = slotCount(design.layout, design);
+  const sizes = sizesFor(design.product),
+    groups = SIZE_GROUPS.filter((group) => sizes.some((size) => size.grp === group)),
+    setCal = (patch: Partial<CalendarSettings>) => setDesign({ cal: { ...design.cal, ...patch } });
   const frameLabel =
-    d.product === 'frame' ? 'Mat colour' : d.product === 'calendar' ? 'Paper colour' : d.product === 'magnet' ? 'Border colour' : 'Frame colour';
+    design.product === 'frame'
+      ? 'Mat colour'
+      : design.product === 'calendar'
+        ? 'Paper colour'
+        : design.product === 'magnet'
+          ? 'Border colour'
+          : 'Frame colour';
   return (
     <Pane
       title="Size and layout"
-      lead={`${productOf(d.product).name}: choose the size and how your photos sit on it. Each layout shows how many photos it holds.`}
+      lead={`${productOf(design.product).name}: choose the size and how your photos sit on it. Each layout shows how many photos it holds.`}
       next="occasion"
       onNext={() => setUI({ pane: 'occasion' })}
     >
       <Seg
         label="Orientation"
-        value={d.orient}
+        value={design.orient}
         options={[
           ['landscape', 'Horizontal'],
           ['portrait', 'Vertical'],
         ]}
         onChange={(orient) => setDesign({ orient })}
       />
-      <Section id="layout.layouts" title="Layout" note={layoutsFor(d.product).find(([id]) => id === d.layout)?.[1]}>
-      {need > photos.length && (
-        <p className="hint">
-          This layout holds {photoCount(need).toLowerCase()} and you’ve added {photos.length}.{' '}
-          <button type="button" className="linkbtn" onClick={() => setUI({ pane: 'photos' })}>
-            Add more photos
-          </button>{' '}
-          or photos will repeat.
-        </p>
-      )}
-      <div className="grid">
-        {layoutsFor(d.product).map(([id, name]) => (
-          <button
-            key={id}
-            type="button"
-            className="tile layout"
-            aria-pressed={id === d.layout}
-            onClick={() => setDesign({ layout: id })}
-          >
-            <div className="cv">
-              <LayoutThumb layout={id} design={dd} photos={pp} fontTick={fontTick} />
-            </div>
-            <span>{name}</span>
-            <small className="count">{photoCount(slotCount(id, dd))}</small>
-          </button>
-        ))}
-      </div>
+      <Section
+        id="layout.layouts"
+        title="Layout"
+        note={layoutsFor(design.product).find(([id]) => id === design.layout)?.[1]}
+      >
+        {need > photos.length && (
+          <p className="hint">
+            This layout holds {photoCount(need).toLowerCase()} and you’ve added {photos.length}.{' '}
+            <button type="button" className="linkbtn" onClick={() => setUI({ pane: 'photos' })}>
+              Add more photos
+            </button>{' '}
+            or photos will repeat.
+          </p>
+        )}
+        <div className="grid">
+          {layoutsFor(design.product).map(([id, name]) => (
+            <button
+              key={id}
+              type="button"
+              className="tile layout"
+              aria-pressed={id === design.layout}
+              onClick={() => setDesign({ layout: id })}
+            >
+              <div className="cv">
+                <LayoutThumb layout={id} design={dd} photos={pp} fontTick={fontTick} />
+              </div>
+              <span>{name}</span>
+              <small className="count">{photoCount(slotCount(id, dd))}</small>
+            </button>
+          ))}
+        </div>
       </Section>
-      {d.product === 'calendar' && (
-        <Section id="layout.calendar" title="Pages" note={d.layout === 'cal-strip' ? 'One page' : d.cal.months === 12 ? '12 months' : 'Single month'}>
-          {d.layout === 'cal-strip' ? (
+      {design.product === 'calendar' && (
+        <Section
+          id="layout.calendar"
+          title="Pages"
+          note={design.layout === 'cal-strip' ? 'One page' : design.cal.months === 12 ? '12 months' : 'Single month'}
+        >
+          {design.layout === 'cal-strip' ? (
             <p className="hint">The Year strip puts all twelve months on one page under your photo.</p>
           ) : (
             <Seg<'1' | '12'>
               label="Pages"
-              value={String(d.cal.months) as '1' | '12'}
+              value={String(design.cal.months) as '1' | '12'}
               options={[
                 ['12', '12 months'],
                 ['1', 'Single month'],
               ]}
-              onChange={(v) => {
-                setCal({ months: +v as 1 | 12 });
+              onChange={(value) => {
+                setCal({ months: +value as 1 | 12 });
                 setUI({ calPage: 0 });
               }}
             />
           )}
           <p className="hint">
-            Each month takes the next photo in your list, so add one photo per month for a full year. The year, the first
-            month and the week start are in the Front step.
+            Each month takes the next photo in your list, so add one photo per month for a full year. The year, the
+            first month and the week start are in the Front step.
           </p>
         </Section>
       )}
-      {d.product === 'frame' && (
+      {design.product === 'frame' && (
         <Section id="layout.mat" title="Mat border">
           <Seg<MatWidth>
             label="Mat border"
-            value={d.mat}
+            value={design.mat}
             options={[
               ['none', 'None'],
               ['thin', 'Thin'],
@@ -143,76 +157,78 @@ export function LayoutPane() {
         </Section>
       )}
       <Section id="layout.frame" title={frameLabel}>
-      {d.product === 'postcard' && (
-        <p className="hint" style={{ marginTop: 2 }}>
-          For Polaroid, Instax frame and Photo strip layouts.
-        </p>
-      )}
-      {d.product === 'magnet' && (
-        <p className="hint" style={{ marginTop: 2 }}>
-          For Photo and caption, Mini Polaroid and the gaps between photos.
-        </p>
-      )}
-      <Seg<FrameStyle>
-        label={frameLabel}
-        value={d.frame}
-        options={[
-          ['white', 'White'],
-          ['cream', 'Cream'],
-          ['black', 'Black'],
-          ['occasion', 'Occasion'],
-        ]}
-        onChange={(frame) => setDesign({ frame })}
-      />
+        {design.product === 'postcard' && (
+          <p className="hint" style={{ marginTop: 2 }}>
+            For Polaroid, Instax frame and Photo strip layouts.
+          </p>
+        )}
+        {design.product === 'magnet' && (
+          <p className="hint" style={{ marginTop: 2 }}>
+            For Photo and caption, Mini Polaroid and the gaps between photos.
+          </p>
+        )}
+        <Seg<FrameStyle>
+          label={frameLabel}
+          value={design.frame}
+          options={[
+            ['white', 'White'],
+            ['cream', 'Cream'],
+            ['black', 'Black'],
+            ['occasion', 'Occasion'],
+          ]}
+          onChange={(frame) => setDesign({ frame })}
+        />
       </Section>
-      <Section id="layout.size" title="Size" note={sizes.find((s) => s.id === d.sizeId)?.name}>
-      <p className="hint">
-        Not sure which size?{' '}
-        <button type="button" className="linkbtn" onClick={() => setUI({ screen: 'sizes' })}>
-          Compare every size and layout
-        </button>{' '}
-        with measurements, pixels and sheet counts.
-      </p>
-      {groups.map((g) => (
-        <div key={g}>
-          <p className="grp">{g === 'Large and custom' && d.product !== 'postcard' ? 'Custom' : g}</p>
-          <div className="grid">
-            {sizes.filter((s) => s.grp === g).map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="tile size"
-                aria-pressed={s.id === d.sizeId}
-                onClick={() => selectSize(s)}
-              >
-                <SizeIcon s={s} land={land} />
-                <b>{s.name}</b>
-                <span>{sizeLabel(s)}</span>
-                {s.tag && <em>{s.tag}</em>}
-              </button>
+      <Section id="layout.size" title="Size" note={sizes.find((size) => size.id === design.sizeId)?.name}>
+        <p className="hint">
+          Not sure which size?{' '}
+          <button type="button" className="linkbtn" onClick={() => setUI({ screen: 'sizes' })}>
+            Compare every size and layout
+          </button>{' '}
+          with measurements, pixels and sheet counts.
+        </p>
+        {groups.map((group) => (
+          <div key={group}>
+            <p className="grp">{group === 'Large and custom' && design.product !== 'postcard' ? 'Custom' : group}</p>
+            <div className="grid">
+              {sizes
+                .filter((size) => size.grp === group)
+                .map((size) => (
+                  <button
+                    key={size.id}
+                    type="button"
+                    className="tile size"
+                    aria-pressed={size.id === design.sizeId}
+                    onClick={() => selectSize(size)}
+                  >
+                    <SizeIcon s={size} land={land} />
+                    <b>{size.name}</b>
+                    <span>{sizeLabel(size)}</span>
+                    {size.tag && <em>{size.tag}</em>}
+                  </button>
+                ))}
+            </div>
+          </div>
+        ))}
+        {design.sizeId === 'custom' && (
+          <div className="row">
+            {(['w', 'h'] as const).map((side) => (
+              <label key={side} className="f">
+                {side === 'w' ? 'Width' : 'Height'} (mm)
+                <input
+                  type="number"
+                  min={40}
+                  max={420}
+                  value={design.custom[side]}
+                  onChange={(event) => {
+                    const value = parseFloat(event.target.value);
+                    if (value > 0) setDesign({ custom: { ...design.custom, [side]: Math.min(420, value) } });
+                  }}
+                />
+              </label>
             ))}
           </div>
-        </div>
-      ))}
-      {d.sizeId === 'custom' && (
-        <div className="row">
-          {(['w', 'h'] as const).map((k) => (
-            <label key={k} className="f">
-              {k === 'w' ? 'Width' : 'Height'} (mm)
-              <input
-                type="number"
-                min={40}
-                max={420}
-                value={d.custom[k]}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (v > 0) setDesign({ custom: { ...d.custom, [k]: Math.min(420, v) } });
-                }}
-              />
-            </label>
-          ))}
-        </div>
-      )}
+        )}
       </Section>
     </Pane>
   );
