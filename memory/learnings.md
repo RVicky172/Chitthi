@@ -285,3 +285,10 @@ effects moved into small hooks, two appeared (`set-state-in-effect` for a width 
 `immutability` for writing `scrollLeft` on a ref passed in as a hook argument). Lint each new component file right
 after a split. Fixes that keep behaviour: let a ResizeObserver's first callback set the size (it fires on observing),
 and create the ref inside the hook that writes through it, returning it.
+
+## 2026-10-15 — A hook that returns an object used as an effect dependency must memoise it (407 T051)
+
+Folding several stable `useCallback`s into one returned object (`useStageSources` → `{ stage, videoFor, sound }`)
+makes a new object on every render; an effect that lists it (the stage's playback loop, which renders every frame)
+would restart each frame. `useMemo` the object over the callbacks. Likewise list a format's id, not the object a
+lookup like `vFormat(id)` returns, in effect dependencies.
