@@ -277,3 +277,11 @@ Cap anything that compounds (copying layers to every photo filled memory and kil
   `declare const self: DedicatedWorkerGlobalScope;` once instead of casting at each `postMessage`.
 - Frozen-copy harnesses on code that crashed on junk: classify a `TypeError` from the old copy as a crash and require
   only that the new code doesn't crash there; compare every other outcome exactly, so real changes still fail.
+
+## 2026-10-15 — Splitting a component can surface React compiler findings (407 T050)
+
+The `react-hooks` compiler rules skip functions they can't analyse, so the 328-line `Timeline` showed none; once its
+effects moved into small hooks, two appeared (`set-state-in-effect` for a width set in a layout effect,
+`immutability` for writing `scrollLeft` on a ref passed in as a hook argument). Lint each new component file right
+after a split. Fixes that keep behaviour: let a ResizeObserver's first callback set the size (it fires on observing),
+and create the ref inside the hook that writes through it, returning it.

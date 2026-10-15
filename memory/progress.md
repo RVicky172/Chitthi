@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T050 (Timeline.tsx split)
+
+**Done:** `components/studio/Timeline.tsx` (1,278 lines) → `Timeline`, `PictureRow`, `CutMarks`, `TimelineBars`,
+`TrackHead`, `Transport`, `timelineDrag`, `timelineActions`; all at 0 findings, React compiler rules included (two
+findings the split exposed fixed). Check and build green, entry 312 KB. Timeline e2e and manual checks wait for 290.
+Commit `eec62bd`.
+**Next:** T051 (split `VideoWorkspace.tsx`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-15 — 407 T043 (agent/ and ai/ cleaned)
 
 **Done:** `agent/` split by job behind the `tools.ts` registry (D-045); MCP tools, prompts and resources
