@@ -183,7 +183,10 @@ export function Paper3D() {
   const { cam, tilt, spin, actual, pan, setCamAnim } = camera;
 
   const pieces = useMemo(() => allPieces(pick), [pick]);
-  const shown = pieces.filter((piece) => groups.has(piece.group) && !hidden.has(piece.id));
+  const shown = useMemo(
+    () => pieces.filter((piece) => groups.has(piece.group) && !hidden.has(piece.id)),
+    [pieces, groups, hidden],
+  );
   const selected = pieces.find((piece) => piece.id === sel) ?? null;
   // The sheet view needs a product piece: the selected one, else the first product piece on show.
   const sheetPiece =
@@ -194,7 +197,7 @@ export function Paper3D() {
   const scene = useMemo(() => {
     if (mode === 'sheet') return onSheet(sheetPiece, sheet, lift);
     return mode === 'stack' ? stacked(shown) : sideBySide(shown);
-  }, [mode, shown.map((piece) => piece.id).join(), sheetPiece?.id, sheet, lift, pick]);
+  }, [mode, shown, sheetPiece, sheet, lift]);
   useFaces(scene, showFaces, photosTick);
 
   useEffect(() => {

@@ -233,7 +233,12 @@ export function YearField({
   label?: string;
 }>) {
   const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  // A new year from outside replaces the half-typed one (during render, so no frame shows the old draft).
+  const [shownValue, setShownValue] = useState(value);
+  if (value !== shownValue) {
+    setShownValue(value);
+    setDraft(String(value));
+  }
   const ok = (y: number) => Number.isInteger(y) && y >= YEAR_MIN && y <= YEAR_MAX;
   const step = (by: number) => {
     const y = Math.min(YEAR_MAX, Math.max(YEAR_MIN, value + by));

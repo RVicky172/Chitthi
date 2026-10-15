@@ -1268,7 +1268,7 @@
         "T056": {
           "text": "React (AC-12): fix the `recommended-latest` findings (27 at the start: state set in effects, refs read in render, memoization, purity, mutation) and review every `useEffect` (106) against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx`, `src/main.tsx` join `FINISHED`; run `npm run test:e2e` and `npm test` against the baselines (Q9).",
           "section": "Clean-up: components/",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1283,7 +1283,9 @@
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; react-hooks findings 0; e2e and self-test as the baselines",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-15",
+          "doneOn": null
         },
         "T060": {
           "text": "`tests/selftest/`: names and JSDoc (size rules exempt for tests); run `npm test` (Q9).",

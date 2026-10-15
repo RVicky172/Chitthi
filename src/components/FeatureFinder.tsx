@@ -25,13 +25,19 @@ import { SearchIcon } from './icons';
  * opens the right step and section, or runs the action.
  */
 
+/** What a command may need from the open finder when it runs. */
+interface CommandTools {
+  /** Opens the finder's file picker. */
+  pickFiles: () => void;
+}
+
 interface Cmd {
   id: string;
   group: string;
   title: string;
   /** Extra words people might search with. */
   words: string;
-  run: () => void;
+  run: (tools: CommandTools) => void;
   /** Only offered when this is true. */
   when?: () => boolean;
 }
@@ -45,17 +51,16 @@ const is = (product: string) => () => getState().design.product === product;
 /**
  * The commands for the studio's steps: photos, the media studio, size and layout, help, occasion, words and the
  * calendar.
- * @param pickFiles opens the file picker
  * @returns the commands
  */
-function stepCommands(pickFiles: () => void): Cmd[] {
+function stepCommands(): Cmd[] {
   return [
     {
       id: 'upload',
       group: 'Photos',
       title: 'Add photos from this device',
       words: 'upload import pictures images files',
-      run: () => {
+      run: ({ pickFiles }) => {
         studio('photos');
         pickFiles();
       },
@@ -499,10 +504,9 @@ function otherCommands(): Cmd[] {
 
 /**
  * Every command the finder offers.
- * @param pickFiles opens the file picker
  * @returns the commands
  */
-const commands = (pickFiles: () => void): Cmd[] => [...stepCommands(pickFiles), ...otherCommands()];
+const commands = (): Cmd[] => [...stepCommands(), ...otherCommands()];
 
 /**
  * Every search word must appear in the title or keywords; titles that start with the query rank first.
@@ -532,18 +536,26 @@ export function FeatureFinder() {
     files = useRef<HTMLInputElement>(null);
   const [query, setQ] = useState('');
   const [sel, setSel] = useState(0);
-  const all = useMemo(() => commands(() => files.current?.click()), []);
+  const all = useMemo(() => commands(), []);
   const list = rank(
     all.filter((command) => !command.when || command.when()),
     query,
   );
 
+  // Opening starts with an empty search (during render, not in the effect below).
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setQ('');
+      setSel(0);
+    }
+  }
+
   useEffect(() => {
     const el = dlg.current;
     if (!el) return;
     if (open && !el.open) {
-      setQ('');
-      setSel(0);
       el.showModal();
       requestAnimationFrame(() => input.current?.focus());
     } else if (!open && el.open) el.close();
@@ -565,10 +577,9 @@ export function FeatureFinder() {
     if (!command) return;
     dlg.current?.close();
     // Let the dialog close before steps move or other dialogs open.
-    setTimeout(command.run, 30);
+    setTimeout(() => command.run({ pickFiles: () => files.current?.click() }), 30);
   };
 
-  let lastGroup = '';
   return (
     <dialog ref={dlg} className="finder" aria-label="Find a feature" onClose={() => setUI({ finder: false })}>
       <div className="finder-search">
@@ -603,8 +614,7 @@ export function FeatureFinder() {
       </div>
       <ul id="finderList" className="finder-list" role="listbox" aria-label="Features">
         {list.map((command, index) => {
-          const head = command.group !== lastGroup ? command.group : null;
-          lastGroup = command.group;
+          const head = list.at(index - 1)?.group !== command.group || index === 0 ? command.group : null;
           return (
             <li key={command.id} role="presentation">
               {head && !query && <p className="finder-group">{head}</p>}

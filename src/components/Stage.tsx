@@ -194,16 +194,13 @@ export function Stage() {
   const layout = useRef<Layout | null>(null),
     drag = useRef<Drag | null>(null);
   const [box, setBox] = useState({ w: 600, h: 400 });
-  const [flipKey, setFlipKey] = useState(0);
   const [dragging, setDragging] = useState(false);
 
-  // Play the flip whenever the side changes: the Front/Back toggle, the F key, or moving between steps.
-  const lastSide = useRef(side);
-  useEffect(() => {
-    if (lastSide.current === side) return;
-    lastSide.current = side;
-    setFlipKey((key) => key + 1);
-  }, [side]);
+  // Play the flip whenever the side changes: the Front/Back toggle, the F key, or moving between steps (counted
+  // during render, so the flip starts with the new side's first frame).
+  const [flip, setFlip] = useState({ side, key: 0 });
+  if (flip.side !== side) setFlip({ side, key: flip.key + 1 });
+  const flipKey = flip.key;
 
   useLayoutEffect(() => {
     const el = wrap.current;

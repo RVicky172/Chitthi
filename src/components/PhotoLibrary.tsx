@@ -205,15 +205,22 @@ export function PhotoLibrary() {
   const [sure, setSure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Opening starts without messages, on the photos that fit when the card has slots (during render, not in an effect).
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setMsgs([]);
+      setFilter(count ? 'fit' : 'all');
+    }
+  }
+
   useEffect(() => {
     const dialog = dlg.current;
     if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-      setMsgs([]);
-      setFilter(count ? 'fit' : 'all');
-    } else if (!open && dialog.open) dialog.close();
-  }, [open, count]);
+    if (open && !dialog.open) dialog.showModal();
+    else if (!open && dialog.open) dialog.close();
+  }, [open]);
   useEffect(() => {
     if (!sure) return;
     const timer = setTimeout(() => setSure(null), 3000);

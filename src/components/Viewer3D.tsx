@@ -243,6 +243,42 @@ function ViewerBar(props: Readonly<ViewerBarProps>) {
   );
 }
 
+/**
+ * The view the viewer opens in.
+ * @param faces what is shown
+ * @returns the faces' own start, else the ring for several pages, else the card
+ */
+function startMode(faces: ViewerFaces): Mode {
+  return faces.start ?? (faces.pages && faces.pages.length > 1 ? 'ring' : 'card');
+}
+
+/**
+ * The viewer's view state, back at the start whenever new faces open (during render, so the first frame already
+ * shows the start).
+ * @param faces what is shown
+ * @returns the zoom, the single page, the view, the wall calendar's turned pages and the envelope's state, with setters
+ */
+function useViewState(faces: ViewerFaces | null) {
+  const [zoomPct, setZoomPct] = useState(100);
+  /** The page shown in the single-page view (a month picked in the ring), or the card's front. */
+  const [pageSrc, setPageSrc] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('card');
+  const [cur, setCur] = useState(0); // wall calendar: pages turned so far
+  const [opened, setOpened] = useState(false); // envelope: flap open and card out
+  const [shownFaces, setShownFaces] = useState<ViewerFaces | null>(null);
+  if (faces !== shownFaces) {
+    setShownFaces(faces);
+    if (faces) {
+      setZoomPct(100);
+      setPageSrc(null);
+      setMode(startMode(faces));
+      setCur(0);
+      setOpened(false);
+    }
+  }
+  return { zoomPct, setZoomPct, pageSrc, setPageSrc, mode, setMode, cur, setCur, opened, setOpened };
+}
+
 /** Full-screen 3D card you can spin and flip. Calendars can also show every month at once. */
 export function Viewer3D() {
   const faces = useApp((state) => state.ui.viewer);
@@ -252,16 +288,12 @@ export function Viewer3D() {
     zoomBox = useRef<HTMLDivElement>(null),
     prefix = useRef('');
   const motion = useRef<Motion>(newMotion());
-  const [zoomPct, setZoomPct] = useState(100);
-  /** The page shown in the single-page view (a month picked in the ring), or the card's front. */
-  const [pageSrc, setPageSrc] = useState<string | null>(null);
   const [auto, setAuto] = useState(() => !matchMedia('(prefers-reduced-motion: reduce)').matches);
   const size = useViewerSize(faces);
   const pages = faces?.pages ?? [];
   const many = pages.length > 1;
-  const [mode, setMode] = useState<Mode>('card');
-  const [cur, setCur] = useState(0); // wall calendar: pages turned so far
-  const [opened, setOpened] = useState(false); // envelope: flap open and card out
+  const { zoomPct, setZoomPct, pageSrc, setPageSrc, mode, setMode, cur, setCur, opened, setOpened } =
+    useViewState(faces);
   const envelope = faces?.envelope;
 
   // All pages in the ring: every month, then the year page on the back.
@@ -269,6 +301,7 @@ export function Viewer3D() {
   const ringCount = ring.length,
     step = ringCount ? 360 / ringCount : 0;
 
+  // Open / close the dialog with the store, the camera at its opening pose.
   useEffect(() => {
     const dialog = dlg.current;
     if (!dialog) return;
@@ -276,13 +309,8 @@ export function Viewer3D() {
       if (dialog.open) dialog.close();
       return;
     }
-    const start: Mode = faces.start ?? (faces.pages && faces.pages.length > 1 ? 'ring' : 'card');
-    Object.assign(motion.current, { ...openPose(start), target: null, drag: null, vry: 0, vrx: 0, zoom: 1, zoomTo: 1 });
-    setZoomPct(100);
-    setPageSrc(null);
-    setMode(start);
-    setCur(0);
-    setOpened(false);
+    const pose = openPose(startMode(faces));
+    Object.assign(motion.current, { ...pose, target: null, drag: null, vry: 0, vrx: 0, zoom: 1, zoomTo: 1 });
     if (!dialog.open) dialog.showModal();
   }, [faces]);
 

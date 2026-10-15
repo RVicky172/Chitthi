@@ -238,9 +238,10 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
   const cur = s[kind],
     list = providersFor(kind),
     def = cur.provider ? providerDef(cur.provider) : undefined;
-  const [models, setModels] = useState<string[] | null>(null);
+  // The models listed by a service, kept with the service they came from: another service shows none.
+  const [loaded, setLoaded] = useState<{ provider: AiProviderId; models: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => setModels(null), [cur.provider]);
+  const models = loaded?.provider === cur.provider ? loaded.models : undefined;
   const suggested = (kind === 'text' ? def?.textModels : def?.imageModels) ?? [];
   const options = [...new Set([...(models ?? []), ...suggested])];
   const ready = def && (!def.key || keys[def.id]?.has) && runsHere(def);
@@ -248,7 +249,7 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
     setBusy(true);
     try {
       const listed = await listModels(provider, kind);
-      setModels(listed);
+      setLoaded({ provider, models: listed });
       toast(
         listed.length
           ? `${listed.length} models loaded: pick one from the Model list.`

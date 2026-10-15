@@ -30,6 +30,10 @@ const FINISHED = [
   'src/components/studio/**',
   // 407 T054: the media studio's shared panels and canvas editing (LayerPanel split by job).
   'src/components/ig/**',
+  // 407 T055–T056: the rest of the UI and the app's root (React compiler findings fixed, effects reviewed).
+  'src/components/**',
+  'src/App.tsx',
+  'src/main.tsx',
 ];
 
 /** The code the standards rules apply to. */

@@ -87,19 +87,28 @@ export function CropDialog() {
     view.cr = fittedCrop(view.DW, view.DH, aspectValue());
   }, [aspectValue]);
 
-  // Open / close with the store.
-  useEffect(() => {
-    const dialog = dlg.current;
-    if (!dialog) return;
+  // A different photo opened: start the tool from its turn and mirroring (during render, not in an effect, so the
+  // first preview already uses them). Later edits of the same photo must not reset the tool.
+  const [openedId, setOpenedId] = useState<string | null>(null);
+  if (cropId !== openedId) {
+    setOpenedId(cropId);
     if (cropId && photo) {
       setRot(photo.rot);
       setFlip(photo.flip);
       setAspect(0);
+    }
+  }
+
+  // Open / close the dialog with the store.
+  const isOpen = Boolean(cropId && photo);
+  useEffect(() => {
+    const dialog = dlg.current;
+    if (!dialog) return;
+    if (isOpen) {
       st.current.first = true;
       if (!dialog.open) dialog.showModal();
     } else if (dialog.open) dialog.close();
-    // Runs only when a different photo is opened; later photo edits must not reset the tool.
-  }, [cropId]);
+  }, [cropId, isOpen]);
 
   // Build the rotated preview image whenever the photo, rotation or mirroring changes.
   useEffect(() => {

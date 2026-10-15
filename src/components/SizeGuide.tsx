@@ -501,17 +501,22 @@ export function SizeGuide() {
     photos = useApp((state) => state.photos);
   const fromHash = /^#\/sizes\/(postcard|calendar|frame|magnet)\b/.exec(location.hash)?.[1];
   const [product, setProduct] = useState<ProductId>(isOneOf(PRODUCT_IDS, fromHash) ? fromHash : current);
-  const all = sizesFor(product).filter((candidate) => candidate.id !== 'custom');
+  const all = useMemo(() => sizesFor(product).filter((candidate) => candidate.id !== 'custom'), [product]);
   const [shapeF, setShapeF] = useState<ShapeFilter>('all'),
     [scaleF, setScaleF] = useState<ScaleFilter>('all'),
     [query, setQuery] = useState(''),
     [photosF, setPhotosF] = useState<PhotosFilter>('any'),
     [wordsF, setWordsF] = useState<WordsFilter>('any');
-  const sizes = all.filter(
-    (candidate) => SHAPE_TEST[shapeF](candidate) && SCALE_TEST[scaleF](candidate) && matchesQuery(candidate, query),
+  const sizes = useMemo(
+    () =>
+      all.filter(
+        (candidate) => SHAPE_TEST[shapeF](candidate) && SCALE_TEST[scaleF](candidate) && matchesQuery(candidate, query),
+      ),
+    [all, shapeF, scaleF, query],
   );
   const [sizeId, setSizeId] = useState<string | null>(null);
-  const size = pickSize(all, sizes, sizeId);
+  // Memoised (not for speed) so the compiler treats the size as fixed for the design below.
+  const size = useMemo(() => pickSize(all, sizes, sizeId), [all, sizes, sizeId]);
   const [orientPick, setOrient] = useState<Orient | null>(null);
   const square = size.L === size.S;
   const orient = square ? 'portrait' : (orientPick ?? defaultOrient(size, product));

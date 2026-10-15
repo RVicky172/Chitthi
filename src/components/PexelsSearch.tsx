@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type CSSProperties } from 'react';
 import { MONTHS } from '../data/products';
 import { calPages } from '../engine/design';
 import { calMonth } from '../engine/calendarDraw';
@@ -31,6 +31,17 @@ type Status =
 
 const SHAPE_NAMES: Record<PexelsOrientation, string> = { landscape: 'wide', portrait: 'tall', square: 'square' };
 const ASPECT: Record<PexelsOrientation, string> = { landscape: '4 / 3', portrait: '3 / 4', square: '1 / 1' };
+
+/**
+ * The results so far with a further page added after them, leaving out photos already shown.
+ * @param shown the results so far
+ * @param page the next page's photos
+ * @returns the combined list
+ */
+function withNewPhotos(shown: PexelsPhoto[], page: PexelsPhoto[]): PexelsPhoto[] {
+  const shownIds = new Set(shown.map((photo) => photo.id));
+  return [...shown, ...page.filter((photo) => !shownIds.has(photo.id))];
+}
 
 /**
  * The orientation to search for.
@@ -212,11 +223,8 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
   const { count, active } = usePhotoSlots();
   const page = Math.min(calPage, calPages(design) - 1);
   const fit = slotOrientation(design, active);
-  // Only the parts of the design that change the suggestions (not every keystroke in the greeting).
-  const ideas = useMemo(
-    () => pexelsSuggestions(design, page),
-    [design.product, design.themeId, design.useOccasion, design.layout, design.cal.start, design.cal.months, page],
-  );
+  // A few table lookups: cheap enough to work out on each render (the search follows only the first word).
+  const ideas = pexelsSuggestions(design, page);
   const [text, setText] = useState('');
   const [query, setQuery] = useState<string | null>(null); // null: follow the suggestions
   const [shape, setShape] = useState<Shape>('fit');
@@ -232,41 +240,67 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
 
   useEffect(() => onPexelsKey(() => setKeyTick((tick) => tick + 1)), []);
 
-  const search = async (pageNo: number) => {
+  /**
+   * Fetches one page of results into the status (the caller shows that it is loading).
+   * A promise chain rather than `await`: React's lint reads state set after an `await` as set synchronously in the
+   * effect that starts the search.
+   * @param pageNo the page, from 1
+   * @returns when the page is in (or the search failed, or a newer one replaced it)
+   */
+  const fetchPage = (pageNo: number): Promise<void> => {
     const id = ++run.current;
+    const isLatest = () => id === run.current;
+    return searchPexels(searchFor, orientation, pageNo)
+      .then(
+        (result) => {
+          if (!isLatest()) return;
+          setStatus((cur) => ({
+            kind: 'ready',
+            photos: pageNo > 1 && cur.kind === 'ready' ? withNewPhotos(cur.photos, result.photos) : result.photos,
+            more: !!result.next_page,
+            page: pageNo,
+            total: result.total_results,
+          }));
+        },
+        (error: unknown) => {
+          if (!isLatest()) return;
+          // A missing or refused key is a state the panel explains (add a key), not a failure to report.
+          if (error instanceof PexelsKeyError) setStatus({ kind: 'key', refused: error.refused });
+          else {
+            logError('handled', error);
+            setStatus({ kind: 'error', msg: error instanceof Error ? error.message : 'The search didn’t work.' });
+          }
+        },
+      )
+      .finally(() => {
+        if (isLatest()) setMore(false);
+      });
+  };
+
+  /**
+   * Shows the loading state, then fetches a page (the first page replaces the results, later ones add to them).
+   * @param pageNo the page, from 1
+   * @returns when the page is in
+   */
+  const search = (pageNo: number) => {
     if (pageNo === 1) setStatus({ kind: 'loading' });
     else setMore(true);
-    try {
-      const result = await searchPexels(searchFor, orientation, pageNo);
-      if (id !== run.current) return;
-      setStatus((cur) => ({
-        kind: 'ready',
-        photos:
-          pageNo > 1 && cur.kind === 'ready'
-            ? [...cur.photos, ...result.photos.filter((photo) => !cur.photos.some((x) => x.id === photo.id))]
-            : result.photos,
-        more: !!result.next_page,
-        page: pageNo,
-        total: result.total_results,
-      }));
-    } catch (error) {
-      if (id !== run.current) return;
-      // A missing or refused key is a state the panel explains (add a key), not a failure to report.
-      if (error instanceof PexelsKeyError) setStatus({ kind: 'key', refused: error.refused });
-      else {
-        logError('handled', error);
-        setStatus({ kind: 'error', msg: error instanceof Error ? error.message : 'The search didn’t work.' });
-      }
-    } finally {
-      if (id === run.current) setMore(false);
-    }
+    return fetchPage(pageNo);
   };
 
   const hidden = pexelsHidden();
-  // Search whenever the words, the slot shape or the key change.
+  // Search whenever the words, the slot shape or the key change: loading shows from this render, the fetch starts
+  // in the effect.
+  const searchKey = hidden ? null : `${searchFor}\n${orientation ?? ''}\n${String(keyTick)}`;
+  const [searchedKey, setSearchedKey] = useState<string | null>(null);
+  if (searchKey !== searchedKey) {
+    setSearchedKey(searchKey);
+    if (searchKey !== null) setStatus({ kind: 'loading' });
+  }
+  const searchFirstPage = useEffectEvent(() => void fetchPage(1));
   useEffect(() => {
-    if (!hidden) void search(1);
-  }, [searchFor, orientation, keyTick, hidden]);
+    if (searchKey !== null) searchFirstPage();
+  }, [searchKey]);
 
   const where = targetName(design, count, active, page);
   const add = async (photo: PexelsPhoto) => {

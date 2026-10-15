@@ -56,19 +56,29 @@ export function SettingsDialog() {
     else if (!open && el.open) el.close();
   }, [open]);
 
-  // Refresh the status whenever the dialog opens or the key changes.
+  // Opening starts from the saved key and an empty form (during render, so the first frame is already fresh).
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setSaved(pexelsKey());
+      setHidden(pexelsHidden());
+      setAccess(null);
+      setDraft('');
+      setTest({ kind: 'idle' });
+    }
+  }
+
+  // While open: ask how the key reaches Pexels, and refresh the status whenever the key changes.
   useEffect(() => {
     if (!open) return;
-    const sync = () => {
+    void pexelsAccess().then(setAccess);
+    return onPexelsKey(() => {
       setSaved(pexelsKey());
       setHidden(pexelsHidden());
       setAccess(null);
       void pexelsAccess().then(setAccess);
-    };
-    sync();
-    setDraft('');
-    setTest({ kind: 'idle' });
-    return onPexelsKey(sync);
+    });
   }, [open]);
 
   const save = async () => {

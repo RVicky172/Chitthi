@@ -140,8 +140,8 @@ export function useFit(ref: RefObject<HTMLElement | null>, frameWidth: number, f
     const element = ref.current;
     if (!element) return;
     const observer = new ResizeObserver(() => setBox({ width: element.clientWidth, height: element.clientHeight }));
+    // Observing calls back once with the current size, before the next paint.
     observer.observe(element);
-    setBox({ width: element.clientWidth, height: element.clientHeight });
     return () => observer.disconnect();
   }, [ref]);
   const scale = Math.min((box.width - margin) / frameWidth, (box.height - margin) / frameHeight);

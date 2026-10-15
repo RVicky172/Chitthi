@@ -319,3 +319,20 @@ allow them unless the file uses the name bare. Renaming a destructured prop rena
 use `.at(0)` / `.at(1)`. A closure flag (`let live = true` cleared in an effect's cleanup) reads as "always falsy"
 after an earlier check; `const closed = new AbortController()` alone doesn't help either (the property narrows): read it
 through a function, `isClosed = () => closed.signal.aborted`.
+
+## 2026-10-15 — React compiler lint: async, `use`, and resets on a prop change (407 T056)
+
+- `set-state-in-effect` treats state set after an `await` as set synchronously when the effect calls the async
+  function (even through `useEffectEvent`). Write the fetch as a promise chain (`.then(onResult, onError).finally()`):
+  setters inside callbacks pass.
+- A local function named `use` is read as React's `use()` hook, so its body counts as render code (`Date.now()` in
+  it was a `purity` error). Rename it. A `Date.now()` in an async handler can still be flagged: move the handler's work
+  to a module function.
+- State reset when a prop or store value changes (dialog opens, a new photo, a new year from outside) moves from an
+  effect to render: `const [seen, setSeen] = useState(initial); if (value !== seen) { setSeen(value); …resets }`.
+  Start `seen` at `null` / `false` when the component can mount already open (lazy dialogs), or the first reset is
+  skipped. DOM work (`showModal`, ref writes) stays in the effect.
+- A callback that reads a ref, passed to a function called during render (`commands(() => ref.current.click())` in a
+  `useMemo`), is a `refs` error: hand it over when the command runs instead (`command.run({ pickFiles })`).
+- `preserve-manual-memoization` ("dependency may be modified later") on a value from a plain function call: memoise
+  the value it comes from too, so the compiler treats it as frozen.

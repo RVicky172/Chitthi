@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ART_STYLES, type ArtStyle } from '../../ai/prompts/artwork';
 import {
   aiPhotoName,
@@ -31,6 +31,33 @@ interface Candidate {
 }
 
 /**
+ * Saves a chosen picture to the photo library and puts it on the card, with a loader and a note.
+ * @param cand the chosen picture
+ * @param subject what was described (names the photo)
+ * @param meta the service and model that made it
+ * @param slotNote where it went, e.g. " to slot 2" ('' for a single photo)
+ */
+async function addToCard(
+  cand: Candidate,
+  subject: string,
+  meta: Readonly<{ provider: string; model: string }>,
+  slotNote: string,
+): Promise<void> {
+  setUI({ loading: 'Adding the picture…' });
+  try {
+    const ph = { name: aiPhotoName(subject, meta.provider, meta.model), url: await blobToJpegDataUrl(cand.blob) };
+    await storePhotos([ph]);
+    await putOnCard({ id: '', added: Date.now(), ...ph });
+    toast(`Added${slotNote}. AI picture made with ${meta.provider}.`);
+  } catch (error) {
+    logError('handled', error);
+    toast('That picture couldn’t be added. Try again.');
+  } finally {
+    setUI({ loading: null });
+  }
+}
+
+/**
  * AI pictures: describe a subject, pick a style, and put a generated picture on the design.
  * @param props whether it fills the photo library (wide)
  */
@@ -50,7 +77,9 @@ export default function AiArtwork({ wide = false }: Readonly<{ wide?: boolean }>
   const [meta, setMeta] = useState<{ provider: string; model: string } | null>(null);
   const ctl = useRef<AbortController | null>(null);
   const live = useRef<Candidate[]>([]);
-  live.current = cands;
+  useLayoutEffect(() => {
+    live.current = cands;
+  });
 
   useEffect(() => {
     void aiReadyAsync('image').then(setReady);
@@ -92,21 +121,8 @@ export default function AiArtwork({ wide = false }: Readonly<{ wide?: boolean }>
     }
   };
 
-  const use = async (cand: Candidate) => {
-    if (!meta) return;
-    setUI({ loading: 'Adding the picture…' });
-    try {
-      const ph = { name: aiPhotoName(subject, meta.provider, meta.model), url: await blobToJpegDataUrl(cand.blob) };
-      await storePhotos([ph]);
-      await putOnCard({ id: '', added: Date.now(), ...ph });
-      const slotNote = count > 1 ? ` to slot ${active + 1}` : '';
-      toast(`Added${slotNote}. AI picture made with ${meta.provider}.`);
-    } catch (error) {
-      logError('handled', error);
-      toast('That picture couldn’t be added. Try again.');
-    } finally {
-      setUI({ loading: null });
-    }
+  const addPicture = (cand: Candidate) => {
+    if (meta) void addToCard(cand, subject, meta, count > 1 ? ` to slot ${active + 1}` : '');
   };
 
   if (ready && !ready.ready)
@@ -180,7 +196,7 @@ export default function AiArtwork({ wide = false }: Readonly<{ wide?: boolean }>
           {cands.map((candidate, index) => (
             <li key={candidate.thumb}>
               <img src={candidate.thumb} alt={`Choice ${index + 1}`} />
-              <button type="button" className="btn" onClick={() => void use(candidate)}>
+              <button type="button" className="btn" onClick={() => addPicture(candidate)}>
                 Use this
               </button>
             </li>
