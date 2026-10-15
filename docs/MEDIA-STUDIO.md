@@ -234,7 +234,7 @@ step.
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
 | Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/videoStore.ts` (state, history, `change`); actions in `videoTracks.ts`, `videoClips.ts`, `videoBox.ts`, `videoKeys.ts`, `videoLayers.ts`, `videoTransitions.ts`, `videoMedia.ts`, `videoExportJob.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
-| Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx`, `VideoWorkspace.tsx`, `Timeline.tsx` with `PictureRow.tsx`, `CutMarks.tsx`, `TimelineBars.tsx`, `TrackHead.tsx`, `Transport.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
+| Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx`, `VideoWorkspace.tsx` with `VideoStage.tsx`, `ClipInspector.tsx`, `VideoPanels.tsx`, `VideoExport.tsx`, `Timeline.tsx` with `PictureRow.tsx`, `CutMarks.tsx`, `TimelineBars.tsx`, `TrackHead.tsx`, `Transport.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
 | Styles | `src/styles/36-media-studio.css` (workspace, timeline), `src/styles/35-instagram.css` (panels and controls) |
 | Agent tools for the photo studio (MCP): batch, framing, colour, masks, presets, LUTs, preview, export | `src/agent/photoTools.ts` |
 

@@ -168,7 +168,8 @@ src/
     showcase.ts              Renders the landing examples for npm run build:showcase
     printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
-                           VideoWorkspace, Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
+                           VideoWorkspace with VideoStage, ClipInspector, VideoPanels, VideoExport and videoFields,
+                           Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
                            Timeline, PictureRow, CutMarks, TimelineBars, TrackHead, Transport, timelineDrag,
                            timelineActions, timelineRows), ig/ = editing
                            panels shared by photos and video (layers, masks, curves, colour mixer, looks), panes/ = the
@@ -667,7 +668,7 @@ across every pool, and `made`, every frame decoded so far: the self-tests read i
 (AC-11, AC-12). `undecodableForTests` (a `WeakSet` of files, empty in the app) makes a self-test's file fail as an
 undecodable codec.
 
-**Preview (`components/studio/previewFrame.ts`, `VideoStage` in `VideoWorkspace.tsx`).** `stageSource()` makes the
+**Preview (`components/studio/previewFrame.ts`, `VideoStage.tsx`).** `stageSource()` makes the
 stage's picture source: where `VideoDecoder` exists, a `DecodePool` (`poolLimits(1, …)`; Mediabunny is imported with the
 first lane, not with the editor) wrapped by `poolSource`, which draws a clip in fallback from a muted `<video>`
 (`videoElementSource`, the pre-204 path); without `VideoDecoder` (Q7), `<video>` elements alone. `pausedAt` /
