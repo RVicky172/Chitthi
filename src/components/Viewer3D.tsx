@@ -1,86 +1,73 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { setUI, useApp } from '../state/store';
+import type { ViewerFaces } from '../types';
 import { Seg } from './common';
+import {
+  advance,
+  dragTo,
+  HOME_RY,
+  newMotion,
+  openPose,
+  pageUnder,
+  paintTurn,
+  pointerCancel,
+  pointerDown,
+  pointerUp,
+  SWITCH_RX,
+  touchDistance,
+  type Mode,
+  type Motion,
+} from './viewer3dMotion';
+import { CardView, EnvelopeView, RingView, WallView, type ViewerPage } from './Viewer3DFaces';
 
-type Mode = 'card' | 'ring' | 'wall' | 'envelope';
+/** The hint under the scene, per view. */
+const HINTS: Record<Exclude<Mode, 'envelope'>, string> = {
+  ring: 'Flick to spin through the year · tap a month to bring it forward · double-click to open it · scroll to zoom.',
+  wall: 'Tap the calendar to turn the page. Drag to tilt it.',
+  card: 'Drag or flick to turn · double-click to flip · scroll or pinch to zoom · keys: arrows, F, +/−, R, Space.',
+};
 
-/** Full-screen 3D card you can spin and flip. Calendars can also show every month at once. */
-export function Viewer3D() {
-  const faces = useApp((state) => state.ui.viewer);
-  const dlg = useRef<HTMLDialogElement>(null),
-    card = useRef<HTMLDivElement>(null),
-    shadow = useRef<HTMLDivElement>(null);
-  const motion = useRef({
-    rx: -10,
-    ry: -28,
-    target: null as number | null,
-    drag: null as null | {
-      x: number;
-      y: number;
-      rx: number;
-      ry: number;
-      moved: boolean;
-      t: number;
-      px: number;
-      py: number;
-    },
-    /** Spin left over from a flick, in degrees per frame; decays each frame. */
-    vry: 0,
-    vrx: 0,
-    zoom: 1,
-    zoomTo: 1,
-    /** Pointer position over the scene (−1…1), for the hover tilt. */
-    hx: 0,
-    hy: 0,
-    tx: 0,
-    ty: 0,
-    /** Active touch points, for pinch zoom. */
-    touches: new Map<number, { x: number; y: number }>(),
-    pinch: null as null | { d: number; zoom: number },
-  });
-  const zoomBox = useRef<HTMLDivElement>(null);
-  const [zoomPct, setZoomPct] = useState(100);
-  /** The page shown in the single-page view (a month picked in the ring), or the card's front. */
-  const [pageSrc, setPageSrc] = useState<string | null>(null);
-  const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const [auto, setAuto] = useState(!reduce);
-  const [size, setSize] = useState({ w: 600, h: 400, vw: 1200 });
-  const pages = faces?.pages ?? [];
-  const many = pages.length > 1;
-  const [mode, setMode] = useState<Mode>('card');
-  const [cur, setCur] = useState(0); // wall calendar: pages turned so far
-  const [opened, setOpened] = useState(false); // envelope: flap open and card out
-  const env = faces?.envelope;
+/**
+ * The corners of the card on screen.
+ * @param faces what is shown, if anything
+ * @param width the card's width on screen
+ * @returns a circle, the card's own corner, a rounded photo's corner, or 2 px
+ */
+function cornerRadius(faces: ViewerFaces | null, width: number): number | string {
+  if (!faces) return 2;
+  if (faces.circle) return '50%';
+  if (faces.corner) return (width * faces.corner) / faces.w;
+  return faces.round ? (width * 3) / faces.w : 2;
+}
 
-  // All pages in the ring: every month, then the year page on the back.
-  const ring = faces ? [...pages, ...(many ? [{ src: faces.back, label: 'Year at a glance' }] : [])] : [];
-  const ringCount = ring.length,
-    step = ringCount ? 360 / ringCount : 0;
+/**
+ * The views on offer: the calendar views when there are several pages, the card, and the envelope when there is one.
+ * @param many whether there are several pages
+ * @param hasEnvelope whether there is an envelope
+ * @returns the views with their names
+ */
+function modesFor(many: boolean, hasEnvelope: boolean): [Mode, string][] {
+  const modes: [Mode, string][] = [];
+  if (many) modes.push(['ring', 'All months'], ['wall', 'Wall calendar']);
+  modes.push(['card', many ? 'Single page' : 'Card']);
+  if (hasEnvelope) modes.push(['envelope', 'Envelope']);
+  return modes;
+}
 
-  useEffect(() => {
-    const el = dlg.current;
-    if (!el) return;
-    if (faces) {
-      const start: Mode = faces.start ?? (faces.pages && faces.pages.length > 1 ? 'ring' : 'card');
-      Object.assign(motion.current, {
-        rx: start === 'envelope' ? -12 : -10,
-        ry: start === 'envelope' ? 158 : start === 'ring' ? 0 : -28,
-        target: null,
-        drag: null,
-        vry: 0,
-        vrx: 0,
-        zoom: 1,
-        zoomTo: 1,
-      });
-      setZoomPct(100);
-      setPageSrc(null);
-      setMode(start);
-      setCur(0);
-      setOpened(false);
-      if (!el.open) el.showModal();
-    } else if (el.open) el.close();
-  }, [faces]);
+/** The viewer's size: the card fitted to the window, and the window's width. */
+interface ViewerSize {
+  w: number;
+  h: number;
+  vw: number;
+}
 
+/**
+ * The card's size on screen, fitted to the window and kept up to date as it resizes.
+ * @param faces what is shown, if anything
+ * @returns the size
+ */
+function useViewerSize(faces: ViewerFaces | null): ViewerSize {
+  const [size, setSize] = useState<ViewerSize>({ w: 600, h: 400, vw: 1200 });
   useEffect(() => {
     if (!faces) return;
     const fit = () => {
@@ -97,72 +84,224 @@ export function Viewer3D() {
     };
     fit();
     window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
+    return () => {
+      window.removeEventListener('resize', fit);
+    };
+  }, [faces]);
+  return size;
+}
+
+/** The elements the loop moves. */
+interface SpinTargets {
+  object: RefObject<HTMLDivElement | null>;
+  shadow: RefObject<HTMLDivElement | null>;
+  zoomBox: RefObject<HTMLDivElement | null>;
+  /** A transform before the turn (the ring's distance). */
+  prefix: RefObject<string>;
+}
+
+/**
+ * The animation loop while the viewer is open: advances the motion and draws it every frame.
+ * @param faces what is shown (no loop when closed)
+ * @param motion the motion
+ * @param auto whether it turns on its own
+ * @param mode the view
+ * @param targets the elements it moves
+ */
+function useSpinLoop(
+  faces: ViewerFaces | null,
+  motion: RefObject<Motion>,
+  auto: boolean,
+  mode: Mode,
+  targets: SpinTargets,
+): void {
+  const { object, shadow, zoomBox, prefix } = targets;
+  useEffect(() => {
+    if (!faces) return;
+    let frame = 0;
+    const tick = () => {
+      const now = motion.current;
+      const { rx, ry } = advance(now, auto, mode);
+      if (zoomBox.current) zoomBox.current.style.transform = `scale(${now.zoom})`;
+      if (object.current) paintTurn(object.current, prefix.current, rx, ry);
+      if (shadow.current)
+        shadow.current.style.transform = `scaleX(${mode === 'card' ? 0.35 + 0.65 * Math.abs(Math.cos((now.ry * Math.PI) / 180)) : 1})`;
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [faces, auto, mode, motion, object, shadow, zoomBox, prefix]);
+}
+
+/** What the viewer's bar shows and does. */
+interface ViewerBarProps {
+  title: string;
+  mode: Mode;
+  modes: [Mode, string][];
+  onMode: (mode: Mode) => void;
+  opened: boolean;
+  onToggleOpened: () => void;
+  onFlip: () => void;
+  onTurn: (direction: 1 | -1) => void;
+  /** Wall calendar: pages turned, and the pages. */
+  turnedCount: number;
+  pages: ViewerPage[];
+  auto: boolean;
+  onAuto: (auto: boolean) => void;
+  zoomPct: number;
+  onZoomBy: (factor: number) => void;
+  onZoomReset: () => void;
+  onResetView: () => void;
+  onClose: () => void;
+}
+
+/**
+ * The viewer's bar: title, view, open / flip / month buttons for the view, turn slowly, zoom, reset and close.
+ * @param props what it shows and its actions
+ */
+function ViewerBar(props: Readonly<ViewerBarProps>) {
+  const { mode, turnedCount, pages } = props;
+  return (
+    <div className="vbar">
+      <h2 id="vTitle">{props.title}</h2>
+      {props.modes.length > 1 && (
+        <div className="vmode">
+          <Seg<Mode> label="View" value={mode} options={props.modes} onChange={props.onMode} />
+        </div>
+      )}
+      {mode === 'envelope' && (
+        <button type="button" className="btn" aria-pressed={props.opened} onClick={props.onToggleOpened}>
+          {props.opened ? 'Close envelope' : 'Open envelope'}
+        </button>
+      )}
+      {(mode === 'card' || mode === 'envelope') && (
+        <button type="button" className="btn" title="Flip (F, or double-click)" onClick={props.onFlip}>
+          Flip card
+        </button>
+      )}
+      {(mode === 'ring' || mode === 'wall') && (
+        <span className="vnav">
+          <button
+            type="button"
+            className="btn"
+            aria-label="Previous month"
+            disabled={mode === 'wall' && turnedCount === 0}
+            onClick={() => props.onTurn(-1)}
+          >
+            ‹
+          </button>
+          {mode === 'wall' && <span aria-live="polite">{pages.at(turnedCount)?.label}</span>}
+          <button
+            type="button"
+            className="btn"
+            aria-label="Next month"
+            disabled={mode === 'wall' && turnedCount >= pages.length - 1}
+            onClick={() => props.onTurn(1)}
+          >
+            ›
+          </button>
+        </span>
+      )}
+      {(mode === 'card' || mode === 'ring') && (
+        <label className="check">
+          <input type="checkbox" checked={props.auto} onChange={(event) => props.onAuto(event.target.checked)} /> Turn
+          slowly
+        </label>
+      )}
+      <span className="vzoom-ctl" role="group" aria-label="Zoom">
+        <button
+          type="button"
+          className="btn"
+          aria-label="Zoom out"
+          title="Zoom out (−)"
+          onClick={() => props.onZoomBy(1 / 1.2)}
+        >
+          −
+        </button>
+        <button type="button" className="btn vzoom-pct" title="Actual size (0)" onClick={props.onZoomReset}>
+          {props.zoomPct}%
+        </button>
+        <button
+          type="button"
+          className="btn"
+          aria-label="Zoom in"
+          title="Zoom in (+)"
+          onClick={() => props.onZoomBy(1.2)}
+        >
+          +
+        </button>
+      </span>
+      <button type="button" className="btn" title="Reset view (R)" onClick={props.onResetView}>
+        Reset view
+      </button>
+      <button type="button" className="btn" onClick={props.onClose}>
+        Close
+      </button>
+    </div>
+  );
+}
+
+/** Full-screen 3D card you can spin and flip. Calendars can also show every month at once. */
+export function Viewer3D() {
+  const faces = useApp((state) => state.ui.viewer);
+  const dlg = useRef<HTMLDialogElement>(null),
+    object = useRef<HTMLDivElement>(null),
+    shadow = useRef<HTMLDivElement>(null),
+    zoomBox = useRef<HTMLDivElement>(null),
+    prefix = useRef('');
+  const motion = useRef<Motion>(newMotion());
+  const [zoomPct, setZoomPct] = useState(100);
+  /** The page shown in the single-page view (a month picked in the ring), or the card's front. */
+  const [pageSrc, setPageSrc] = useState<string | null>(null);
+  const [auto, setAuto] = useState(() => !matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const size = useViewerSize(faces);
+  const pages = faces?.pages ?? [];
+  const many = pages.length > 1;
+  const [mode, setMode] = useState<Mode>('card');
+  const [cur, setCur] = useState(0); // wall calendar: pages turned so far
+  const [opened, setOpened] = useState(false); // envelope: flap open and card out
+  const envelope = faces?.envelope;
+
+  // All pages in the ring: every month, then the year page on the back.
+  const ring: ViewerPage[] = faces ? [...pages, ...(many ? [{ src: faces.back, label: 'Year at a glance' }] : [])] : [];
+  const ringCount = ring.length,
+    step = ringCount ? 360 / ringCount : 0;
+
+  useEffect(() => {
+    const dialog = dlg.current;
+    if (!dialog) return;
+    if (!faces) {
+      if (dialog.open) dialog.close();
+      return;
+    }
+    const start: Mode = faces.start ?? (faces.pages && faces.pages.length > 1 ? 'ring' : 'card');
+    Object.assign(motion.current, { ...openPose(start), target: null, drag: null, vry: 0, vrx: 0, zoom: 1, zoomTo: 1 });
+    setZoomPct(100);
+    setPageSrc(null);
+    setMode(start);
+    setCur(0);
+    setOpened(false);
+    if (!dialog.open) dialog.showModal();
   }, [faces]);
 
   // Ring geometry: pages sized so the whole ring fits the window, the front page nearest the viewer.
   const aspect = faces ? faces.w / faces.h : 1;
-  let pw = ringCount
+  let pageWidth = ringCount
     ? Math.min(size.w * 0.55, (Math.min(size.vw * 0.92, 1500) / (1 + 1 / Math.tan(Math.PI / ringCount))) * 0.9)
     : 0;
-  if (pw / aspect > size.h * 0.75) pw = size.h * 0.75 * aspect;
-  const ringRadius = ringCount ? pw / 2 / Math.tan(Math.PI / ringCount) + pw * 0.14 : 0;
-  const pre = useRef('');
-  pre.current = mode === 'ring' ? `translateZ(${-ringRadius}px) ` : '';
+  if (pageWidth / aspect > size.h * 0.75) pageWidth = size.h * 0.75 * aspect;
+  const ringRadius = ringCount ? pageWidth / 2 / Math.tan(Math.PI / ringCount) + pageWidth * 0.14 : 0;
+  useLayoutEffect(() => {
+    prefix.current = mode === 'ring' ? `translateZ(${-ringRadius}px) ` : '';
+  });
+  useSpinLoop(faces, motion, auto, mode, { object, shadow, zoomBox, prefix });
 
-  useEffect(() => {
-    if (!faces) return;
-    let raf = 0;
-    const tick = () => {
-      const now = motion.current;
-      const coasting = Math.abs(now.vry) > 0.02 || Math.abs(now.vrx) > 0.02;
-      if (now.target !== null) {
-        now.ry += (now.target - now.ry) * 0.12;
-        if (Math.abs(now.target - now.ry) < 0.3) {
-          now.ry = now.target;
-          now.target = null;
-        }
-      } else if (!now.drag && coasting) {
-        // Momentum after a flick: keeps turning and slows down, like a card spun on a table.
-        now.ry += now.vry;
-        now.rx = Math.max(-55, Math.min(55, now.rx + now.vrx));
-        now.vry *= 0.93;
-        now.vrx *= 0.9;
-      } else if (!now.drag && auto && mode !== 'wall' && mode !== 'envelope') now.ry += mode === 'ring' ? 0.12 : 0.22;
-      // Hover tilt: the object leans a little towards the pointer when it's not being turned.
-      const lean =
-        !now.drag && !coasting && now.target === null && (mode === 'card' || mode === 'envelope' || mode === 'wall');
-      now.tx += ((lean ? now.hx * 7 : 0) - now.tx) * 0.08;
-      now.ty += ((lean ? -now.hy * 6 : 0) - now.ty) * 0.08;
-      now.zoom += (now.zoomTo - now.zoom) * 0.15;
-      if (zoomBox.current) zoomBox.current.style.transform = `scale(${now.zoom})`;
-      const rx = now.rx + now.ty,
-        ry = now.ry + now.tx;
-      if (card.current) {
-        card.current.style.transform = `${pre.current}rotateX(${rx}deg) rotateY(${ry}deg)`;
-        // Light from the upper left: each face darkens as it turns away, and the highlight slides across it.
-        const rad = Math.PI / 180,
-          facing = Math.cos(ry * rad) * Math.cos(rx * rad);
-        card.current.style.setProperty('--gx', `${(((ry % 360) + 360) % 360) / 3.6}%`);
-        card.current.style.setProperty('--gy', `${50 - rx}%`);
-        card.current.style.setProperty(
-          '--shadeF',
-          `${Math.max(0, 0.08 - facing * 0.08 + (1 - Math.max(0, facing)) * 0.35)}`,
-        );
-        card.current.style.setProperty(
-          '--shadeB',
-          `${Math.max(0, 0.08 + facing * 0.08 + (1 - Math.max(0, -facing)) * 0.35)}`,
-        );
-      }
-      if (shadow.current)
-        shadow.current.style.transform = `scaleX(${mode === 'card' ? 0.35 + 0.65 * Math.abs(Math.cos((now.ry * Math.PI) / 180)) : 1})`;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [faces, auto, mode]);
-
-  /** Turn the ring so page i faces the viewer (the shortest way round). */
+  /**
+   * Turn the ring so a page faces the viewer (the shortest way round).
+   * @param index the page
+   */
   const face = (index: number) => {
     const now = motion.current,
       want = -index * step;
@@ -170,9 +309,9 @@ export function Viewer3D() {
   };
   const frontIndex = () =>
     ringCount ? ((Math.round(-motion.current.ry / step) % ringCount) + ringCount) % ringCount : 0;
-  const turn = (dir: 1 | -1) => {
-    if (mode === 'ring') face(frontIndex() + dir);
-    else if (mode === 'wall') setCur((current) => Math.max(0, Math.min(pages.length - 1, current + dir)));
+  const turn = (direction: 1 | -1) => {
+    if (mode === 'ring') face(frontIndex() + direction);
+    else if (mode === 'wall') setCur((current) => Math.max(0, Math.min(pages.length - 1, current + direction)));
   };
   const flip = () => {
     const now = motion.current;
@@ -187,226 +326,133 @@ export function Viewer3D() {
   const switchMode = (nextMode: Mode, keepPage = false) => {
     if (!keepPage) setPageSrc(null);
     setMode(nextMode);
-    motion.current.vry = motion.current.vrx = 0;
     const now = motion.current;
+    now.vry = now.vrx = 0;
     now.target = null;
-    now.rx = nextMode === 'wall' ? -6 : nextMode === 'envelope' ? -12 : -10;
-    now.ry = nextMode === 'card' ? -28 : nextMode === 'wall' ? -12 : nextMode === 'envelope' ? 158 : 0;
+    now.rx = SWITCH_RX[nextMode];
+    now.ry = HOME_RY[nextMode];
     setOpened(false);
   };
-  const modes: [Mode, string][] = [
-    ...(many
-      ? ([
-          ['ring', 'All months'],
-          ['wall', 'Wall calendar'],
-        ] as [Mode, string][])
-      : []),
-    ['card', many ? 'Single page' : 'Card'],
-    ...(env ? ([['envelope', 'Envelope']] as [Mode, string][]) : []),
-  ];
-  // Envelope size on screen, leaving room above for the card sliding out.
-  const eScale = env ? Math.min(Math.min(size.vw * 0.55, 820) / env.w, (size.h * 0.72) / env.h) : 0,
-    ew = env ? env.w * eScale : 0,
-    eh = env ? env.h * eScale : 0,
-    portraitCard = !!faces && faces.h > faces.w,
-    cw = faces ? (portraitCard ? faces.h : faces.w) * eScale : 0,
-    ch = faces ? (portraitCard ? faces.w : faces.h) * eScale : 0;
+  const resetView = () => {
+    const now = motion.current;
+    now.vry = now.vrx = 0;
+    setZoom(1);
+    now.rx = mode === 'wall' ? -6 : -10;
+    const home = HOME_RY[mode];
+    now.target = home + Math.round((now.ry - home) / 360) * 360;
+  };
+  /**
+   * Turns the card or envelope a little with the arrow keys (the ring and wall calendar turn a page).
+   * @param degrees how far, and which way
+   */
+  const nudge = (degrees: number) => {
+    const now = motion.current;
+    if (mode === 'ring' || mode === 'wall') turn(degrees > 0 ? 1 : -1);
+    else {
+      now.vry = 0;
+      now.target = (now.target ?? now.ry) + degrees;
+    }
+  };
 
-  const radius = !faces
-    ? 2
-    : faces.circle
-      ? '50%'
-      : faces.corner
-        ? (size.w * faces.corner) / faces.w
-        : faces.round
-          ? (size.w * 3) / faces.w
-          : 2;
-  const title = faces?.title ?? '3D preview';
+  const keyActions: Partial<Record<string, () => void>> = {
+    arrowright: () => nudge(30),
+    arrowleft: () => nudge(-30),
+    arrowup: () => (motion.current.rx = Math.max(-55, motion.current.rx - 8)),
+    arrowdown: () => (motion.current.rx = Math.min(55, motion.current.rx + 8)),
+    '+': () => setZoom(motion.current.zoomTo * 1.2),
+    '=': () => setZoom(motion.current.zoomTo * 1.2),
+    '-': () => setZoom(motion.current.zoomTo / 1.2),
+    '0': () => setZoom(1),
+    f: () => {
+      if (mode === 'card' || mode === 'envelope') flip();
+    },
+    o: () => {
+      if (mode === 'envelope') setOpened((wasOpened) => !wasOpened);
+    },
+    r: () => {
+      const now = motion.current;
+      now.vry = now.vrx = 0;
+      setZoom(1);
+      now.rx = -10;
+      now.target = HOME_RY[mode] + Math.round(now.ry / 360) * 360;
+    },
+    ' ': () => setAuto((wasAuto) => !wasAuto),
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) return;
+    const key = event.key.toLowerCase();
+    const action = keyActions[key];
+    if (!action || (key === ' ' && target.tagName === 'BUTTON')) return;
+    event.preventDefault();
+    action();
+  };
+
+  /**
+   * A tap (no drag): bring the tapped page to the front, turn the wall calendar's page, or open the envelope.
+   * @param x the tap, client pixels
+   * @param y the tap, client pixels
+   */
+  const onTap = (x: number, y: number) => {
+    if (mode === 'ring') {
+      const page = pageUnder(x, y);
+      if (page !== null) face(page);
+    } else if (mode === 'wall') setCur((current) => (current < pages.length - 1 ? current + 1 : 0));
+    else if (mode === 'envelope') setOpened((wasOpened) => !wasOpened);
+  };
+
+  // Envelope size on screen, leaving room above for the card sliding out.
+  const envelopeScale = envelope
+      ? Math.min(Math.min(size.vw * 0.55, 820) / envelope.w, (size.h * 0.72) / envelope.h)
+      : 0,
+    portraitCard = !!faces && faces.h > faces.w;
+  const hint =
+    mode === 'envelope' ? `${envelope?.name ?? ''} envelope. Tap it to open, drag to turn it over.` : HINTS[mode];
   return (
     <dialog
       className="viewer"
       ref={dlg}
       aria-labelledby="vTitle"
       onClose={() => setUI({ viewer: null })}
-      onKeyDown={(event) => {
-        const now = motion.current,
-          target = event.target as HTMLElement;
-        if (/^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) return;
-        const key = event.key.toLowerCase();
-        const act: Record<string, () => void> = {
-          arrowright: () =>
-            mode === 'ring' || mode === 'wall' ? turn(1) : ((now.vry = 0), (now.target = (now.target ?? now.ry) + 30)),
-          arrowleft: () =>
-            mode === 'ring' || mode === 'wall' ? turn(-1) : ((now.vry = 0), (now.target = (now.target ?? now.ry) - 30)),
-          arrowup: () => (now.rx = Math.max(-55, now.rx - 8)),
-          arrowdown: () => (now.rx = Math.min(55, now.rx + 8)),
-          '+': () => setZoom(now.zoomTo * 1.2),
-          '=': () => setZoom(now.zoomTo * 1.2),
-          '-': () => setZoom(now.zoomTo / 1.2),
-          '0': () => setZoom(1),
-          f: () => (mode === 'card' || mode === 'envelope' ? flip() : undefined),
-          o: () => (mode === 'envelope' ? setOpened((x) => !x) : undefined),
-          r: () => {
-            now.vry = now.vrx = 0;
-            setZoom(1);
-            now.rx = -10;
-            now.target =
-              (mode === 'card' ? -28 : mode === 'envelope' ? 158 : mode === 'wall' ? -12 : 0) +
-              Math.round(now.ry / 360) * 360;
-          },
-          ' ': () => setAuto((wasAuto) => !wasAuto),
-        };
-        const fn = act[key];
-        if (!fn || (key === ' ' && target.tagName === 'BUTTON')) return;
-        event.preventDefault();
-        fn();
-      }}
+      onKeyDown={onKeyDown}
     >
-      <div className="vbar">
-        <h2 id="vTitle">{title}</h2>
-        {modes.length > 1 && (
-          <div className="vmode">
-            <Seg<Mode> label="View" value={mode} options={modes} onChange={(nextMode) => switchMode(nextMode)} />
-          </div>
-        )}
-        {mode === 'envelope' && (
-          <button
-            type="button"
-            className="btn"
-            aria-pressed={opened}
-            onClick={() => setOpened((wasOpened) => !wasOpened)}
-          >
-            {opened ? 'Close envelope' : 'Open envelope'}
-          </button>
-        )}
-        {(mode === 'card' || mode === 'envelope') && (
-          <button type="button" className="btn" title="Flip (F, or double-click)" onClick={flip}>
-            Flip card
-          </button>
-        )}
-        {(mode === 'ring' || mode === 'wall') && (
-          <span className="vnav">
-            <button
-              type="button"
-              className="btn"
-              aria-label="Previous month"
-              disabled={mode === 'wall' && cur === 0}
-              onClick={() => turn(-1)}
-            >
-              ‹
-            </button>
-            {mode === 'wall' && <span aria-live="polite">{pages[cur]?.label}</span>}
-            <button
-              type="button"
-              className="btn"
-              aria-label="Next month"
-              disabled={mode === 'wall' && cur >= pages.length - 1}
-              onClick={() => turn(1)}
-            >
-              ›
-            </button>
-          </span>
-        )}
-        {(mode === 'card' || mode === 'ring') && (
-          <label className="check">
-            <input type="checkbox" checked={auto} onChange={(event) => setAuto(event.target.checked)} /> Turn slowly
-          </label>
-        )}
-        <span className="vzoom-ctl" role="group" aria-label="Zoom">
-          <button
-            type="button"
-            className="btn"
-            aria-label="Zoom out"
-            title="Zoom out (−)"
-            onClick={() => setZoom(motion.current.zoomTo / 1.2)}
-          >
-            −
-          </button>
-          <button type="button" className="btn vzoom-pct" title="Actual size (0)" onClick={() => setZoom(1)}>
-            {zoomPct}%
-          </button>
-          <button
-            type="button"
-            className="btn"
-            aria-label="Zoom in"
-            title="Zoom in (+)"
-            onClick={() => setZoom(motion.current.zoomTo * 1.2)}
-          >
-            +
-          </button>
-        </span>
-        <button
-          type="button"
-          className="btn"
-          title="Reset view (R)"
-          onClick={() => {
-            const now = motion.current;
-            now.vry = now.vrx = 0;
-            setZoom(1);
-            now.rx = mode === 'wall' ? -6 : -10;
-            const home = mode === 'card' ? -28 : mode === 'wall' ? -12 : mode === 'envelope' ? 158 : 0;
-            now.target = home + Math.round((now.ry - home) / 360) * 360;
-          }}
-        >
-          Reset view
-        </button>
-        <button type="button" className="btn" onClick={() => dlg.current?.close()}>
-          Close
-        </button>
-      </div>
+      <ViewerBar
+        title={faces?.title ?? '3D preview'}
+        mode={mode}
+        modes={modesFor(many, !!envelope)}
+        onMode={(nextMode) => switchMode(nextMode)}
+        opened={opened}
+        onToggleOpened={() => setOpened((wasOpened) => !wasOpened)}
+        onFlip={flip}
+        onTurn={turn}
+        turnedCount={cur}
+        pages={pages}
+        auto={auto}
+        onAuto={setAuto}
+        zoomPct={zoomPct}
+        onZoomBy={(factor) => setZoom(motion.current.zoomTo * factor)}
+        onZoomReset={() => setZoom(1)}
+        onResetView={resetView}
+        onClose={() => dlg.current?.close()}
+      />
       <div
         className="vscene"
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
-          const now = motion.current;
-          now.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
-          if (now.touches.size === 2) {
-            // Two fingers: pinch to zoom instead of turning.
-            const [first, second] = [...now.touches.values()];
-            now.pinch = { d: Math.hypot(first.x - second.x, first.y - second.y), zoom: now.zoomTo };
-            now.drag = null;
-            return;
-          }
-          now.drag = {
-            x: event.clientX,
-            y: event.clientY,
-            rx: now.rx,
-            ry: now.ry,
-            moved: false,
-            t: performance.now(),
-            px: event.clientX,
-            py: event.clientY,
-          };
-          now.target = null;
-          now.vry = now.vrx = 0;
+          pointerDown(motion.current, event.pointerId, event.clientX, event.clientY);
         }}
         onPointerMove={(event) => {
-          const held = motion.current,
+          const now = motion.current,
             box = event.currentTarget.getBoundingClientRect();
-          held.hx = ((event.clientX - box.left) / box.width) * 2 - 1;
-          held.hy = ((event.clientY - box.top) / box.height) * 2 - 1;
-          if (held.touches.has(event.pointerId))
-            held.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
-          if (held.pinch && held.touches.size === 2) {
-            const [first, second] = [...held.touches.values()];
-            setZoom(held.pinch.zoom * (Math.hypot(first.x - second.x, first.y - second.y) / held.pinch.d));
+          now.hx = ((event.clientX - box.left) / box.width) * 2 - 1;
+          now.hy = ((event.clientY - box.top) / box.height) * 2 - 1;
+          if (now.touches.has(event.pointerId))
+            now.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          if (now.pinch && now.touches.size === 2) {
+            setZoom(now.pinch.zoom * (touchDistance(now.touches) / now.pinch.d));
             return;
           }
-          if (!held.drag) return;
-          const dx = event.clientX - held.drag.x,
-            dy = event.clientY - held.drag.y,
-            speed = mode === 'ring' ? 0.25 : 0.4;
-          if (Math.abs(dx) + Math.abs(dy) > 4) held.drag.moved = true;
-          // Velocity from the last move, for the momentum when the pointer lets go.
-          const now = performance.now(),
-            dt = Math.max(8, now - held.drag.t);
-          held.vry = ((event.clientX - held.drag.px) * speed * 16) / dt;
-          held.vrx = (-(event.clientY - held.drag.py) * 0.3 * 16) / dt;
-          held.drag.t = now;
-          held.drag.px = event.clientX;
-          held.drag.py = event.clientY;
-          held.ry = held.drag.ry + dx * speed;
-          held.rx = Math.max(-55, Math.min(55, held.drag.rx - dy * 0.3));
+          dragTo(now, event.clientX, event.clientY, mode);
         }}
         onPointerLeave={() => {
           motion.current.hx = motion.current.hy = 0;
@@ -416,154 +462,57 @@ export function Viewer3D() {
           if (mode === 'card' || mode === 'envelope') flip();
           else if (mode === 'ring') {
             // Open the double-clicked month on its own.
-            const hit = document
-              .elementsFromPoint(event.clientX, event.clientY)
-              .find((el) => el instanceof HTMLElement && el.dataset.page);
-            const index = hit instanceof HTMLElement ? +(hit.dataset.page ?? 0) : frontIndex();
-            setPageSrc(ring[index]?.src ?? null);
+            const index = pageUnder(event.clientX, event.clientY) ?? frontIndex();
+            setPageSrc(ring.at(index)?.src ?? null);
             switchMode('card', true);
           }
         }}
         onPointerUp={(event) => {
-          const now = motion.current;
-          now.touches.delete(event.pointerId);
-          if (now.pinch) {
-            if (now.touches.size < 2) now.pinch = null;
-            return;
-          }
-          const tap = now.drag && !now.drag.moved;
-          // A slow release shouldn't coast: only keep speed from a real flick.
-          if (now.drag && performance.now() - now.drag.t > 80) now.vry = now.vrx = 0;
-          now.vry = Math.max(-8, Math.min(8, now.vry));
-          now.drag = null;
-          if (!tap) return;
-          now.vry = now.vrx = 0;
-          // A tap (no drag): bring the tapped page to the front, or turn the wall calendar's page.
-          if (mode === 'ring') {
-            const hit = document
-              .elementsFromPoint(event.clientX, event.clientY)
-              .find((el) => el instanceof HTMLElement && el.dataset.page);
-            if (hit instanceof HTMLElement) face(+(hit.dataset.page ?? 0));
-          } else if (mode === 'wall') setCur((current) => (current < pages.length - 1 ? current + 1 : 0));
-          else if (mode === 'envelope') setOpened((wasOpened) => !wasOpened);
+          if (pointerUp(motion.current, event.pointerId)) onTap(event.clientX, event.clientY);
         }}
-        onPointerCancel={(event) => {
-          const now = motion.current;
-          now.drag = null;
-          now.pinch = null;
-          now.touches.delete(event.pointerId);
-        }}
+        onPointerCancel={(event) => pointerCancel(motion.current, event.pointerId)}
       >
         <div className="vzoom" ref={zoomBox}>
           {faces && mode === 'card' && (
-            <div className="vcard" ref={card} style={{ width: size.w, height: size.h }}>
-              <div className="core" style={{ borderRadius: radius }} />
-              <div className="face f" style={{ borderRadius: radius }}>
-                <img src={pageSrc ?? faces.front} alt="Front of the card" />
-                <i className="shade" />
-                <i className="gloss" />
-              </div>
-              <div className="face b" style={{ borderRadius: radius }}>
-                <img src={faces.back} alt="Back of the card" />
-                <i className="shade b" />
-                <i className="gloss" />
-              </div>
-            </div>
+            <CardView
+              faces={faces}
+              objectRef={object}
+              width={size.w}
+              height={size.h}
+              radius={cornerRadius(faces, size.w)}
+              pageSrc={pageSrc}
+            />
           )}
           {faces && mode === 'ring' && (
-            <div className="vring" ref={card} style={{ width: pw, height: pw / aspect }}>
-              {ring.map((pg, index) => (
-                <figure
-                  key={index}
-                  className="vpage"
-                  data-page={index}
-                  style={{ transform: `rotateY(${index * step}deg) translateZ(${ringRadius}px)` }}
-                >
-                  <div className="face f" data-page={index}>
-                    <img src={pg.src} alt={pg.label} data-page={index} />
-                    <i className="gloss" />
-                  </div>
-                  <div className="face b" />
-                  <figcaption>{pg.label}</figcaption>
-                </figure>
-              ))}
-            </div>
+            <RingView
+              ring={ring}
+              objectRef={object}
+              pageWidth={pageWidth}
+              aspect={aspect}
+              step={step}
+              radius={ringRadius}
+            />
           )}
           {faces && mode === 'wall' && (
-            <div className="vwall" ref={card} style={{ width: size.w * 0.86, height: (size.w * 0.86) / aspect }}>
-              <div className="vbind" aria-hidden="true" />
-              {pages.map((pg, index) => {
-                const turned = index < cur;
-                // Turned pages go up over the binding and hang behind; the rest stack underneath the current one.
-                const transform = turned
-                  ? `rotateX(${354 - (cur - 1 - index) * 0.5}deg) translateZ(${-(cur - index) * 0.6}px)`
-                  : `translateZ(${-(index - cur) * 0.7}px)`;
-                return (
-                  <div
-                    key={index}
-                    className="vleaf"
-                    style={{ transform: transform, zIndex: turned ? 0 : pages.length - index }}
-                    aria-hidden={index !== cur}
-                  >
-                    <div className="face f">
-                      <img src={pg.src} alt={pg.label} />
-                      <i className="gloss" />
-                    </div>
-                    <div className="face b" />
-                  </div>
-                );
-              })}
-            </div>
+            <WallView pages={pages} objectRef={object} width={size.w * 0.86} aspect={aspect} turnedCount={cur} />
           )}
-          {faces && env && mode === 'envelope' && (
-            <div className={`venv${opened ? ' open' : ''}`} ref={card} style={{ width: ew, height: eh }}>
-              <div className="face f">
-                <img src={env.front} alt={`Envelope, address side (${env.name})`} />
-                <i className="gloss" />
-              </div>
-              <div className="venv-card" style={{ width: cw, height: ch, left: (ew - cw) / 2, top: (eh - ch) / 2 }}>
-                <div className="venv-slide" style={{ transform: opened ? `translateY(${-ch * 0.5}px)` : 'none' }}>
-                  <div className="face f" style={{ transform: 'rotateY(180deg)' }}>
-                    <img
-                      src={faces.front}
-                      alt="The card inside"
-                      style={
-                        portraitCard
-                          ? {
-                              width: ch,
-                              height: cw,
-                              transform: `translate(${(cw - ch) / 2}px, ${(ch - cw) / 2}px) rotate(-90deg)`,
-                            }
-                          : undefined
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="face b">
-                <img src={env.body} alt="Envelope, back" />
-              </div>
-              <div
-                className="venv-flap"
-                style={{ transform: `rotateY(180deg) translateZ(3px) rotateX(${opened ? 196 : 0}deg)` }}
-              >
-                <img className="out" src={env.flap} alt="" />
-                <img className="in" src={env.liner} alt="" />
-              </div>
-            </div>
+          {faces && envelope && mode === 'envelope' && (
+            <EnvelopeView
+              faces={faces}
+              envelope={envelope}
+              objectRef={object}
+              width={envelope.w * envelopeScale}
+              height={envelope.h * envelopeScale}
+              cardWidth={(portraitCard ? faces.h : faces.w) * envelopeScale}
+              cardHeight={(portraitCard ? faces.w : faces.h) * envelopeScale}
+              portraitCard={portraitCard}
+              opened={opened}
+            />
           )}
         </div>
-        <div className="vshadow" ref={shadow} style={{ width: (mode === 'ring' ? pw * 3 : size.w) * 0.85 }} />
+        <div className="vshadow" ref={shadow} style={{ width: (mode === 'ring' ? pageWidth * 3 : size.w) * 0.85 }} />
       </div>
-      <p className="vhint">
-        {mode === 'envelope'
-          ? `${env?.name ?? ''} envelope. Tap it to open, drag to turn it over.`
-          : mode === 'ring'
-            ? 'Flick to spin through the year · tap a month to bring it forward · double-click to open it · scroll to zoom.'
-            : mode === 'wall'
-              ? 'Tap the calendar to turn the page. Drag to tilt it.'
-              : 'Drag or flick to turn · double-click to flip · scroll or pinch to zoom · keys: arrows, F, +/−, R, Space.'}
-      </p>
+      <p className="vhint">{hint}</p>
     </dialog>
   );
 }
