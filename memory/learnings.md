@@ -300,3 +300,22 @@ lookup like `vFormat(id)` returns, in effect dependencies.
 casts go. Spreading a union value keeps the union (`{ ...part, combine }` stays a `MaskPart`), so replace a generic
 `patch(id, Partial<MaskPart>)` + `as MaskPart` with whole typed parts built where the kind is already narrowed. A
 factory returning the union (`newPart('linear')`) narrows with `part.kind === 'linear' ? { ...part, … } : part`.
+
+## 2026-10-15 — Mass renames through the language service, with a scope check (407 T055)
+
+590 one-letter names in 44 files were renamed with a scratch script on `ts.createLanguageService` +
+`findRenameLocations` (with `providePrefixAndSuffixTextForRename`, so `{ x }` becomes `{ x: newX }`), from a plan of
+`"line:col:old": "new"` per file, applied bottom-up and skipped when the text at the position isn't the old name
+(earlier renames on the line move columns: re-dump and rerun). The rename itself never checks for capture: before
+each one, `checker.getSymbolsInScope` at every location must not already hold the new name (it caught `theme`,
+`slot`, `page`, `size`, `product`, `count`, `row`…). Lib globals clash too (`event` is `window.event`):
+allow them unless the file uses the name bare. Renaming a destructured prop renames the property and keeps the local
+(`{ sample: r }`): rename the local next. tsc stays green throughout; review a diff per batch.
+
+## 2026-10-15 — Regex groups, `[first, second]` and `??` under both checks (407 T055)
+
+`match[4] ?? ''` is "unnecessary" to the lint (groups are `string`) but needed under `noUncheckedIndexedAccess`;
+`match.at(4) ?? ''` satisfies both. The same goes for destructuring a spread array (`const [a, b] = [...map.values()]`):
+use `.at(0)` / `.at(1)`. A closure flag (`let live = true` cleared in an effect's cleanup) reads as "always falsy"
+after an earlier check; `const closed = new AbortController()` alone doesn't help either (the property narrows): read it
+through a function, `isClosed = () => closed.signal.aborted`.

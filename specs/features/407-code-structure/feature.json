@@ -1241,7 +1241,7 @@
         "T055": {
           "text": "The other components (`App`, the print studio, dialogs, `Paper3D`, `Landing*`, `DocsPage` …): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: components/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1256,8 +1256,14 @@
             "src/App.tsx"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "5dd2ca6"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** The rest of `components/` (`components/` root, `ai/`, `panes/`), `App.tsx` and `main.tsx`: 1,241 lint findings and 73 unchecked-index errors in 44 files, now 0 except 19 React compiler findings left for T056 (16 in `components/`, 3 in `ai/`). Names: 590 one-letter names renamed through the TypeScript language service (every reference and shorthand property, with a scope check against shadowing; scratch tool, see learnings). Long components split by job: `Paper3D` (861 lines, a 484-line component) into `paper3dScene.ts`, `useMatCamera.ts`, `Paper3DParts.tsx` and the page; `Viewer3D` (538 lines, complexity 48) into `viewer3dMotion.ts`, `Viewer3DFaces.tsx` and the dialog; `PhotoLibrary` (513) into `photoLibraryItems.ts`, `PhotoLibraryParts.tsx` and the dialog; `CropDialog` (321) with `cropGeometry.ts`; `SizeGuide` (386), `CalendarFront` (472), `Landing` (359), `Stage` (267), `PerfMonitor`, `PexelsSearch`, `FeatureFinder` (421-line command list in two). `icons.tsx` exports are documented function components. Casts and `!` replaced by guards (`isOneOf`, `isObjectLike`, `.at()`, typed tuples), nested ternaries by helpers or tables, async handlers called with `void`; `photoCount` shared by LayoutPane and SizeGuide; DocsPage's link regex keeps a reasoned disable (bundled docs text only). Two behaviours kept on purpose: the gallery still leaves out saves with an unknown layout, and the 3D viewer's per-mode poses are unchanged. New unit tests: `cropGeometry` (9) and `viewer3dMotion` (5), checked by breaking the 20 px minimum. `npm run check` green (1,700 tests), `npm run build` green, entry 313 KB. Standards report total 4,785 → 3,485; `src/components` and `src/components/ai` show only the React column. Docs: `specs/lld.md`, `docs/PERFORMANCE.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
         },
         "T056": {
           "text": "React (AC-12): fix the `recommended-latest` findings (27 at the start: state set in effects, refs read in render, memoization, purity, mutation) and review every `useEffect` (106) against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx`, `src/main.tsx` join `FINISHED`; run `npm run test:e2e` and `npm test` against the baselines (Q9).",
