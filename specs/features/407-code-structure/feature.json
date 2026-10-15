@@ -1215,7 +1215,7 @@
         "T054": {
           "text": "`components/ig/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: components/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1229,10 +1229,14 @@
             "src/components/ig/**"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "3127584"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `components/ig/` (eight files, 313 findings: 166 one-letter names, 67 JSDoc, 30 type findings, 28 sonar, 18 unchecked-index errors, one React compiler finding) at 0 and in `FINISHED` (`src/components/ig/**`). `LayerPanel.tsx` (489 lines; 911 once formatted and documented) is split into `LayerPanel.tsx` (adding text, shapes, stickers and images; the list; the brush; 390), `LayerProperties.tsx` (the selected layer: kind, size, turn, opacity, blend, mask, timing; 444) and `LayerControls.tsx` (`Swatches`, `LpRange`, `formatClock`; TransitionPanel imports `LpRange` from it). `MaskPanel` (283 lines) becomes `MaskList`, `SelectedMask`, `PartRow` and `BrushSettings`; part changes are typed spreads through `replacePart` instead of `{ ...part, ...patch } as MaskPart`, `PartSettings` takes a numeric `PartPatch` and reads settings with `settingOf` (no `as unknown as Record`), the combine and blend selects are checked with `isOneOf`, new AI / fade / spot parts are narrowed by kind, and the AI status text is `aiStatusText` (no nested ternaries); `MaskInspector` keys are `NumericAdjustment`. `useLayerPointer` (125 lines, complexity 17) gets `drawingToExtend`, `startStroke`, `paintStroke`, `startEdit`, `draggedLayer` and `editWithKey`; its options ref is written in a layout effect (the React compiler finding: no ref write during render). `CurveEditor` gets `movePoint`, `graphPosition` (from the event's own SVG, so no ref) and `widestGap`; `LookPicker`'s `applySaved` moves out and `counted` replaces the nested plural ternary. Props are `Readonly` interfaces throughout. No unit tests cover these UI files (no DOM); behaviour reviewed line by line, e2e and self-test run in T056. `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Standards report total 5,098 → 4,785; `src/components/ig` 0. Docs: `docs/MEDIA-STUDIO.md`."
+          ],
           "startedOn": "2026-10-15",
-          "doneOn": null
+          "doneOn": "2026-10-15"
         },
         "T055": {
           "text": "The other components (`App`, the print studio, dialogs, `Paper3D`, `Landing*`, `DocsPage` …): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",

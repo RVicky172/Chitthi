@@ -292,3 +292,11 @@ Folding several stable `useCallback`s into one returned object (`useStageSources
 makes a new object on every render; an effect that lists it (the stage's playback loop, which renders every frame)
 would restart each frame. `useMemo` the object over the callbacks. Likewise list a format's id, not the object a
 lookup like `vFormat(id)` returns, in effect dependencies.
+
+## 2026-10-15 — Casts on union patches are rarely needed (407 T054)
+
+`Partial<Layer>` (a union) is distributive, so a handler typed `(patch: Partial<Layer>) => void` can be passed where
+`(patch: Partial<TextLayer>) => void` is expected: type each kind's panel by its kind and the `as Partial<TextLayer>`
+casts go. Spreading a union value keeps the union (`{ ...part, combine }` stays a `MaskPart`), so replace a generic
+`patch(id, Partial<MaskPart>)` + `as MaskPart` with whole typed parts built where the kind is already narrowed. A
+factory returning the union (`newPart('linear')`) narrows with `part.kind === 'linear' ? { ...part, … } : part`.
