@@ -1051,7 +1051,7 @@
         "T042": {
           "text": "`data/` (names and JSDoc; size rules exempt), `lib/` and `platform/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`.",
           "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1069,8 +1069,14 @@
             "eslint.config.js"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "72078fe"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `src/data/` (148 findings, 12 unchecked-index errors), `src/lib/` (273, 4) and `src/platform/` (16) at 0 and in `FINISHED` (a planted short name fails lint). Layer breaks in `data/` fixed (D-044): the sample loader moves to `state/samples.ts` (`sampleCredits`, `buildSample`; manifest entries checked), the built-in presets and `presetApplied` join `engine/presets.ts` (`ColourPreset`, `keysOf` instead of a cast), `PhotoType` moves to `types.ts`; `data/presets.ts` is gone. Never-empty tables (`TH`, `PRODUCTS`, `IG_FORMATS`, `DOC_PAGES`, font weights) are non-empty tuples, so their `[0]` fallback needs no `firstOf` (data may not import engine); theme headings fall back to the design's. New `lib/idb.ts`: the open / one-request-per-transaction code `db`, `userFonts` and `userLuts` each had; reads return `unknown` and each list keeps the records with the fields it uses (shallow guards); `DesktopBridge.db.presetAll()` is `unknown[]`. Splits: `marksFor` (complexity 20) → `publicMarks`; Pexels `request` (16) → `checkResponse`, `noteAllowance`, `searchResultOf` (results checked, no cast); `makeZip` → header writers; `fileSink` → desktop / picker sinks (no `!`, picker found by a guard); `perf` counters in two objects, `addMetrics`. Credit regexes no longer start with `\\s*` (super-linear); `shortName` trims, so names come out the same. `menu.ts`: `execCommand` kept for a field's own undo (no replacement; one commented disable), unknown menu commands ignored with `Object.hasOwn`. Behaviour checked by a scratch harness against frozen copies (not committed): every data lookup and table, 3,000 holiday months with own dates, every sample / showcase / print-sample design, presets incl. curve and mixer presets, 80,000 names through the credit parsers plus 3,000 credit texts, 200 ZIPs (byte-identical) and CRCs, photo keys, 400 random designs through `fontsFor`, `pexelsSuggestions`, `slotOrientation`: identical; 17 of 18 planted changes failed it (after longer alt texts and object-valued presets were added; the 18th gives equal weights). `crc32` on 20 MB: old 84–90 ms, new 86–89 ms. Behaviour notes: malformed stored designs, photos, fonts, LUT records and Pexels results are skipped instead of passed on. `npm run check` green (1,686 tests), `npm run build` green: entry 312 KB (311), start-up JavaScript 465,232 → 466,768 bytes. Standards report total 6,570. Docs: `specs/lld.md` module map and storage, `docs/MEDIA-STUDIO.md`, `docs/PERFORMANCE.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
         },
         "T043": {
           "text": "`agent/` and `ai/` (agent tool names and schemas unchanged): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`; run `npm run test:mcp` (Q9).",

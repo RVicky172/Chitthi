@@ -11,6 +11,17 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T041 committed, T042 (data/, lib/, platform/ cleaned)
+
+**Done:** T041's work (left uncommitted on 2026-10-14) checked green and committed (`b2686a3`). T042: `src/data/`,
+`src/lib/`, `src/platform/` at 0 findings and 0 unchecked-index errors, in `FINISHED`. Layer breaks in `data/` fixed
+(D-044: sample loader → `state/samples.ts`, built-in presets → `engine/presets.ts`, `PhotoType` → `types.ts`);
+`lib/idb.ts` shared by db / userFonts / userLuts, stored records checked when read. Checked identical against frozen
+copies (17 of 18 plants caught, the 18th equivalent). Check green (1,686 tests), build green, entry 312 KB, start-up
+JS +1.5 KB. Commit `72078fe`.
+**Next:** T043 (`agent/`, `ai/`; `npm run test:mcp`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-14 — 407 T040 (state/video.ts split by job and cleaned)
 
 **Done:** `state/video.ts` → `videoStore`, `videoTracks`, `videoClips`, `videoBox`, `videoKeys`, `videoLayers`,
