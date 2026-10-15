@@ -168,7 +168,9 @@ src/
     showcase.ts              Renders the landing examples for npm run build:showcase
     printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
-                           VideoWorkspace with VideoStage, ClipInspector, VideoPanels, VideoExport and videoFields,
+                           PhotoWorkspace with PhotoStage, PhotoEditPanel, PhotoPanels, PhotoStrip, PhotoExport,
+                           photoRender and photoMaskTool; VideoWorkspace with VideoStage, ClipInspector, VideoPanels,
+                           VideoExport and videoFields,
                            Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
                            Timeline, PictureRow, CutMarks, TimelineBars, TrackHead, Transport, timelineDrag,
                            timelineActions, timelineRows), ig/ = editing
