@@ -266,3 +266,14 @@ grouping window (800 ms), the 80-step undo limit and a selection restored by und
 previous action 40 % of the time, time gaps clustered around the window, acting mostly on the selected item, redo
 right after undo, and short deterministic sequences for limits; log how often each action really changes the state.
 Cap anything that compounds (copying layers to every photo filled memory and killed the Vitest worker, exit 134).
+
+## 2026-10-15 — Record lookups and worker `self` under both checks (407 T043)
+
+- A record lookup (`outputs[name]`) is "always defined" to `no-unnecessary-condition` (flag off) but `| undefined`
+  under `noUncheckedIndexedAccess`; an annotation (`const x: T | undefined = record[k]`) doesn't help, the lint
+  narrows to the assigned type. `Object.entries(record).find(([key]) => key === name)?.[1]` or a `Partial<Record>`
+  type satisfies both. Arrays: `.at()` (above).
+- In a worker file with `/// <reference lib="webworker" />`, `self` is still typed as the window; write
+  `declare const self: DedicatedWorkerGlobalScope;` once instead of casting at each `postMessage`.
+- Frozen-copy harnesses on code that crashed on junk: classify a `TypeError` from the old copy as a crash and require
+  only that the new code doesn't crash there; compare every other outcome exactly, so real changes still fail.

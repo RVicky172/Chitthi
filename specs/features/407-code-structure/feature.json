@@ -1081,7 +1081,7 @@
         "T043": {
           "text": "`agent/` and `ai/` (agent tool names and schemas unchanged): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`; run `npm run test:mcp` (Q9).",
           "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1099,8 +1099,14 @@
             "eslint.config.js"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; `npm run test:mcp` passes",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "33e1e24"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `src/agent/` (≈ 300 lint findings) and `src/ai/` (≈ 370, 37 unchecked-index errors) at 0 and in `FINISHED`. Agent tools split by job (D-045): `tools.ts` is the registry over `catalogTools`, `designTools`, `cardPhotoTools`, `aiTools`, `outputTools`, `galleryTools` and `photoTools` (with `maskTools`, `presetTools`), sharing `designSummary`, `photoStudioInfo`, `photoEdits`; helpers renamed (`objectSchema`, `stringArg` …); `run` / `read` may return directly (28 `async` handlers without await); `check_design` (complexity 20) → `photoIssues` / `printIssues`, `set_calendar` (20) → `calendarWith` / `captionsFrom`; casts and `!` replaced by guards (`isOneOf`, `recordArg`, generic setting copies, `MaskDraft` before the mask gate); the bridge finds tools with `toolNamed`. MCP surface checked byte-identical before / after (56 tools: names, titles, descriptions, schemas, flags, order; 5 prompts' texts; 5 resources). `ai/`: `transport` (complexity 26) → `sendFromDesktop` / `sendFromWeb`, host rules checked when read; `service` (`slotShape` 19 → `quietSide`), answers read through `listIn` / `textOf`; `settings` through `mergeAiSettings()` (provider a `string`); `secrets` without casts or dynamic deletes; providers read JSON with `providers/read.ts`; Anthropic params typed without casts; `parseJsonLoose` and `baseFor` without super-linear regexes; segment download split (`readDownload`, `keepModel`), worker typed via `declare const self`. Behaviour checked by a scratch harness against frozen copies (not committed): 3,000 aspect / HTTP-error / loose-JSON cases, 2,000 prompt sets, 1,500 designs through `textBudget` / `slotShape` / `suggestSubject` / `aiPhotoName`, 600 writeWords / writeCaptions / writeMessages calls through a fake provider with junk answers, every provider × URL × base through `keyAllowed` / `isResultHost`, 3,000 stored settings, 400 key stores, `normalise`, argument readers: identical, except 185 inputs where the old code crashed with a TypeError (now a handled message) and object values where text belongs ('' instead of \"[object Object]\"); 18 of 19 planted changes failed it (after adding long error details and look-alike hosts; the 19th is equivalent). Behaviour notes: arguments outside a schema enum are refused with a ToolError (were stored). `npm run test:mcp` passes (56 tools, resources, prompts, exports, DNG → 16-bit TIFF). `npm run check` green (1,686 tests), `npm run build` green: entry 312 KB, start-up JavaScript 466,768 bytes (unchanged), 9 provider chunks on demand. Standards report total 6,570 → 5,863. Docs: `specs/lld.md` module map, `docs/MCP.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
         },
         "T050": {
           "text": "Split `components/studio/Timeline.tsx` (1,321 lines) into the timeline, picture rows, track header and menus, keyframe and cut marks, transport (plan §5), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
