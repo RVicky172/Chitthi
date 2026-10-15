@@ -11,6 +11,16 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T043 (agent/ and ai/ cleaned)
+
+**Done:** `agent/` split by job behind the `tools.ts` registry (D-045); MCP tools, prompts and resources
+byte-identical by snapshot; `ai/` transport, service, settings, secrets, providers and segment cleaned, answers and
+stored data read through guards. Both in `FINISHED`. Old-vs-new harness identical (185 old crashes now handled; 18 of
+19 plants caught). `test:mcp` passes; check green (1,686 tests), build green, entry 312 KB, start-up JS unchanged.
+Standards total 5,863. Commit `33e1e24`.
+**Next:** T050 (split `components/studio/Timeline.tsx`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-15 — 407 T041 committed, T042 (data/, lib/, platform/ cleaned)
 
 **Done:** T041's work (left uncommitted on 2026-10-14) checked green and committed (`b2686a3`). T042: `src/data/`,
