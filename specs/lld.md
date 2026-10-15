@@ -852,7 +852,8 @@ App
 │  └─ Stage                      side toggle, guides, month pager, 3D button (phones: a View menu), live canvas (drag, wheel, keys),
 │                                MonthStrip (calendars), PhotoTray (slots + store)
 ├─ FeatureFinder (Ctrl+K: search every feature; opens the step and reveals the section, or runs the action)
-├─ CropDialog, GalleryDialog (+ SampleGallery), PhotoLibrary, SettingsDialog (key, fonts),
+├─ CropDialog (geometry in cropGeometry.ts), GalleryDialog (+ SampleGallery),
+│  PhotoLibrary (items in photoLibraryItems.ts, card and refine bar in PhotoLibraryParts.tsx), SettingsDialog (key, fonts),
 │  Viewer3D (card / ring / wall / envelope modes), Toast
 └─ PerfMonitor (lazy; while ui.perf is on)
 ```
@@ -888,7 +889,7 @@ Steps are built from `Section` (`components/common.tsx`): a titled, collapsible 
 `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
 when its step isn't on screen yet; the feature finder uses it. `lib/fullscreen.ts` wraps the Fullscreen API.
 
-The 3D viewer (`Viewer3D.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,
+The 3D viewer (`Viewer3D.tsx`; its motion maths in `viewer3dMotion.ts`, the four views in `Viewer3DFaces.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,
 decaying 7% a frame), hover tilt towards the pointer, smoothed zoom (wheel, pinch, buttons, 50–260%), and per-face
 shading from the angle to a light at the upper left. Keys: arrows turn (or change month), F flips, O opens the
 envelope, +/−/0 zoom, R resets, Space toggles turning. Double-click flips, or opens a month from the ring.
@@ -916,7 +917,7 @@ the title and date fonts, grid, date position and alignment together; the matchi
 *Words on the months*, then *On the photo* (quote, signature, position, darkening), shown only when the words
 sit on the photo.
 
-**Paper sizes in 3D** (`Paper3D.tsx`) uses CSS 3D like the viewer. `allPieces()` builds every product size (in the
+**Paper sizes in 3D** (`Paper3D.tsx`; the pieces, faces and arrangements in `paper3dScene.ts`, the camera in `useMatCamera.ts`, the piece, camera bar, list and details in `Paper3DParts.tsx`) uses CSS 3D like the viewer. `allPieces()` builds every product size (in the
 chosen orientation), the distinct envelopes they need (`envelopeSpec`), the `SHEETS` and two references (a bank
 card and a ₹10 coin), all in millimetres. Three arrangements: `sideBySide` (rows packed by area, each row on a
 shared baseline with a label strip), `stacked` (largest first, a few pixels apart in Z) and `onSheet` (the pieces

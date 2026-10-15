@@ -40,7 +40,7 @@ under 10 ms, JS heap 40–50 MB, 7 MB of decoded photo pixels, about 1,100 page 
 | Undo history | Up to 100 steps. Each crop, rotation or colour look makes a new canvas, and undo keeps the old ones; once canvases only the history holds pass **320 MB**, the oldest steps go (at least 10 stay) | `state/store.ts` (`commit`, `historyStats`) |
 | Sample gallery | Keeps two small JPEG thumbnails per sample; the decoded photos are dropped after drawing and reloaded for **Use this** (they used to stay in memory: ~7 MB each, 14 samples) | `components/SampleGallery.tsx`, `state/samples.ts` |
 | Pexels | Last 60 searches cached (JSON only); photos download one at a time when chosen | `lib/pexels.ts` |
-| Paper sizes in 3D | One ≤ 420 px JPEG per size, drawn once (about 3 MB in all) | `components/Paper3D.tsx` |
+| Paper sizes in 3D | One ≤ 420 px JPEG per size, drawn once (about 3 MB in all) | `components/paper3dScene.ts` |
 | AI pictures | One job at a time; candidates are `Blob`s with ≤ 320 px object-URL thumbnails, revoked on close; only the chosen one becomes a JPEG | `ai/service.ts`, `components/ai/AiArtwork.tsx` |
 | Desktop AI requests | Responses capped at 40 MB, 180 s, 2 at a time | `electron/ai.cjs` |
 | Agent previews | `render_preview` ≤ 1024 px; exports go to disk, not into the reply | `agent/tools.ts` |
