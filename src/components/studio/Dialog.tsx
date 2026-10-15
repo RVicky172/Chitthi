@@ -1,14 +1,26 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { CloseIcon } from '../icons';
 
-/** A modal sheet for the studio (the export panel): native <dialog>, so focus stays inside and Escape closes it. */
-export function StudioDialog({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+/** A studio dialog. */
+interface StudioDialogProps {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}
+
+/**
+ * A modal sheet for the studio (the export panel): native <dialog>, so focus stays inside and Escape closes it. Its
+ * contents are rendered only while it is open.
+ * @param props whether it is open, closing it, its title and contents
+ */
+export function StudioDialog({ open, onClose, title, children }: Readonly<StudioDialogProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
   }, [open]);
   return (
     <dialog
@@ -16,9 +28,9 @@ export function StudioDialog({ open, onClose, title, children }: { open: boolean
       className="mst-dialog"
       aria-label={title}
       onClose={onClose}
-      onClick={(e) => {
+      onClick={(event) => {
         // A click on the backdrop (outside the sheet) closes it.
-        if (e.target === e.currentTarget) onClose();
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div className="mst-dialog-body">

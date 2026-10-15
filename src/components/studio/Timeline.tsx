@@ -12,7 +12,7 @@ import { PictureRow, type DropMarker } from './PictureRow';
 import { onTimelineKey, selectedItem, type SelectedItem } from './timelineActions';
 import { LayerRow, MusicRow, type SnapTime } from './TimelineBars';
 import { RULER_PX, rulerLabel, SNAP_PX, startDrag, tickStep, toFrame, TRACK_PX } from './timelineDrag';
-import { describeClipChange, describeKeyChange, describeTransitionChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds, type RowTarget } from './timelineRows';
+import { describeClipChange, describeKeyChange, describeTransitionChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
 import { AddTrackButton, TrackHead } from './TrackHead';
 
 /*
@@ -226,7 +226,7 @@ export function Timeline() {
       return rect ? [{ trackId: track.id, top: rect.top, bottom: rect.bottom }] : [];
     });
   // The picture row (or the new-track strip: the ruler above the top row) under a pointer, or null.
-  const rowTargetAt = (clientY: number): RowTarget | null => rowUnderPointer(rowBounds(), clientY, RULER_PX);
+  const rowTargetAt = (clientY: number): string | null => rowUnderPointer(rowBounds(), clientY, RULER_PX);
   // Where a clip dragged onto another row, or files dragged over the timeline, would land: drawn as a marker there.
   const [dropMarker, setDropMarker] = useState<DropMarker | null>(null);
 

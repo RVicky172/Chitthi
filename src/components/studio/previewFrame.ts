@@ -11,10 +11,17 @@ import type { Layer } from '../../engine/layers';
 import { logError } from '../../lib/errors';
 import { isDesktop } from '../../platform/desktop';
 
+/** What the stage needs of a clip. */
 export interface PreviewClip extends FrameClip, TimedClip {
+  /** The clip's file as a URL (for its <video>). */
   url: string;
+  /** The clip's file (for the decoder pool). */
+  file: Blob;
+  /** A photo's prepared still. */
   still?: HTMLCanvasElement | null;
 }
+
+/** A picture to draw, with its size in pixels. */
 export interface Picture {
   image: CanvasImageSource;
   w: number;
@@ -35,50 +42,63 @@ export interface StageFrame<C extends FrameClip = FrameClip> {
 }
 /** Where a video clip's pictures come from: the frame showing at a source time (resolves when it can be drawn). */
 export interface PreviewSource {
+  /** The picture at a source time (null when a newer ask superseded it). */
   frame(clip: PreviewClip, srcTime: number): Promise<Picture | null>;
   dispose(): void;
 }
 
-/** One <video> per clip, seeked to the asked time (the stage as it was before the pool). `onFrame` runs when a seek
- * lands or data arrives, so the stage can redraw. */
-export function videoElementSource(
-  onFrame: () => void = () => undefined,
-): PreviewSource & { element(clip: PreviewClip): HTMLVideoElement } {
-  const els = new Map<string, HTMLVideoElement>();
-  const element = (c: PreviewClip) => {
-    let v = els.get(c.id);
-    if (!v) {
-      v = document.createElement('video');
-      v.preload = 'auto';
-      v.playsInline = true;
-      v.muted = true;
-      v.src = c.url;
-      v.addEventListener('seeked', onFrame);
-      v.addEventListener('loadeddata', onFrame);
-      els.set(c.id, v);
+/**
+ * Waits for a media element's event.
+ * @param element the element
+ * @param type the event
+ * @returns resolves on the event
+ */
+const eventOf = (element: HTMLMediaElement, type: 'loadedmetadata' | 'seeked' | 'loadeddata'): Promise<void> =>
+  new Promise((resolve) => {
+    element.addEventListener(type, () => resolve(), { once: true });
+  });
+
+/**
+ * One <video> per clip, seeked to the asked time (the stage as it was before the pool).
+ * @param onFrame runs when a seek lands or data arrives, so the stage can redraw
+ * @returns the source, and each clip's element
+ */
+export function videoElementSource(onFrame: () => void = () => undefined): PreviewSource & { element(clip: PreviewClip): HTMLVideoElement } {
+  const elements = new Map<string, HTMLVideoElement>();
+  const element = (clip: PreviewClip) => {
+    let video = elements.get(clip.id);
+    if (!video) {
+      video = document.createElement('video');
+      video.preload = 'auto';
+      video.playsInline = true;
+      video.muted = true;
+      video.src = clip.url;
+      video.addEventListener('seeked', onFrame);
+      video.addEventListener('loadeddata', onFrame);
+      elements.set(clip.id, video);
     }
-    return v;
+    return video;
   };
   return {
     element,
-    async frame(c, srcTime) {
-      const v = element(c);
-      if (v.readyState < 1) await new Promise((r) => v.addEventListener('loadedmetadata', r, { once: true }));
-      if (Math.abs(v.currentTime - srcTime) > 0.02) {
-        const landed = new Promise((r) => v.addEventListener('seeked', r, { once: true }));
-        v.currentTime = srcTime;
+    async frame(clip, srcTime) {
+      const video = element(clip);
+      if (video.readyState < 1) await eventOf(video, 'loadedmetadata');
+      if (Math.abs(video.currentTime - srcTime) > 0.02) {
+        const landed = eventOf(video, 'seeked');
+        video.currentTime = srcTime;
         await landed;
       }
-      if (v.readyState < 2) await new Promise((r) => v.addEventListener('loadeddata', r, { once: true }));
-      return { image: v, w: v.videoWidth, h: v.videoHeight };
+      if (video.readyState < 2) await eventOf(video, 'loadeddata');
+      return { image: video, w: video.videoWidth, h: video.videoHeight };
     },
     dispose() {
-      for (const v of els.values()) {
-        v.pause();
-        v.removeAttribute('src');
-        v.load();
+      for (const video of elements.values()) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
       }
-      els.clear();
+      elements.clear();
     },
   };
 }
@@ -86,36 +106,41 @@ export function videoElementSource(
 /**
  * A clip as the decoder pool sees it. `lead` (206): the half of the transition leading into it, seconds; its lane is
  * primed that much before its in point, so a transition's first frame is ready (the pool primes at `in`).
+ * @param clip the clip
+ * @param lead the transition's leading half, seconds
+ * @returns the clip for the pool
  */
-export const poolClip = (c: PreviewClip & { file: Blob }, lead = 0): PoolClip => ({
-  id: c.id,
-  file: c.file,
-  in: Math.max(0, c.in - lead),
-  out: c.out,
-  start: c.start,
-  track: c.track,
+export const poolClip = (clip: PreviewClip, lead = 0): PoolClip => ({
+  id: clip.id,
+  file: clip.file,
+  in: Math.max(0, clip.in - lead),
+  out: clip.out,
+  start: clip.start,
+  track: clip.track,
 });
 
 /**
  * Pictures from the decoder pool (204 §3): exact frames, latest wins (a superseded ask resolves to null). A clip the
  * pool can't decode (its fallback reason is set) is drawn from `fallback`, the <video> path, as it previews today
  * (Q6). The pool keeps the frame until a newer one replaces it, so the picture can be drawn as soon as it resolves.
+ * @param pool the decoder pool
+ * @param fallback the <video> source for clips the pool can't decode
+ * @returns the source
  */
 export function poolSource(pool: DecodePool, fallback: PreviewSource): PreviewSource {
   return {
-    async frame(c, srcTime) {
-      const clip = c as PreviewClip & { file: Blob };
-      const why = pool.fallback(c.id);
+    async frame(clip, srcTime) {
+      const why = pool.fallback(clip.id);
       if (why) {
         noteFallback(clip.file, why);
-        return fallback.frame(c, srcTime);
+        return fallback.frame(clip, srcTime);
       }
       try {
-        const f = await pool.frame(poolClip(clip), srcTime);
-        return f ? { image: f.image, w: f.width, h: f.height } : null;
-      } catch (e) {
-        noteFallback(clip.file, pool.fallback(c.id) ?? (e instanceof Error ? e.message : String(e)));
-        return fallback.frame(c, srcTime);
+        const decoded = await pool.frame(poolClip(clip), srcTime);
+        return decoded ? { image: decoded.image, w: decoded.width, h: decoded.height } : null;
+      } catch (error) {
+        noteFallback(clip.file, pool.fallback(clip.id) ?? (error instanceof Error ? error.message : String(error)));
+        return fallback.frame(clip, srcTime);
       }
     },
     dispose() {
@@ -168,13 +193,13 @@ export async function pausedFrame<C extends PreviewClip>(
   source: PreviewSource,
 ): Promise<StageFrame<C>> {
   const { at, items: stack } = pausedAt(project, playhead, fps);
-  const pictures = await Promise.all(
-    stack.map(({ clip, local }) => (clip.kind === 'video' ? source.frame(clip, clip.in + local) : photoPicture(clip))),
+  const items = await Promise.all(
+    stack.map(async ({ clip, local, mix }): Promise<StageItem<C>> => {
+      const pic = clip.kind === 'video' ? await source.frame(clip, clip.in + local) : photoPicture(clip);
+      return { clip, local, pic, ...(mix ? { mix } : {}) };
+    }),
   );
-  return {
-    at,
-    items: stack.map((stackItem, index) => ({ clip: stackItem.clip, local: stackItem.local, pic: pictures[index], ...(stackItem.mix ? { mix: stackItem.mix } : {}) })),
-  };
+  return { at, items };
 }
 
 /**
@@ -220,7 +245,7 @@ export function drawPreview(
   height: number,
   view: { layers: Layer[]; total: number; fadeOut: boolean },
   frame: StageFrame<PreviewClip>,
-) {
+): void {
   renderStack(
     context,
     width,
@@ -240,13 +265,20 @@ export function drawPreview(
   );
 }
 
-/** Mediabunny loads with the first clip the pool opens, not with the editor. */
-const lazyMediabunny: FrameSourceFactory = async (file, opts) => (await import('../../engine/frameSource')).mediabunnySource(file, opts);
+/**
+ * Mediabunny loads with the first clip the pool opens, not with the editor.
+ * @param file the clip's file
+ * @param options the frame source's options
+ * @returns the frame source
+ */
+const lazyMediabunny: FrameSourceFactory = async (file, options) => (await import('../../engine/frameSource')).mediabunnySource(file, options);
 
 /**
  * The stage's picture source: the decoder pool where the browser has WebCodecs' VideoDecoder, with <video> elements for
  * clips it can't decode; <video> elements alone where it hasn't (Q7: Firefox before 130, Safari before 26). Clip
  * sound plays from previewSound.ts's <audio> elements (204 T034); these <video> elements stay muted.
+ * @param onFrame runs when a fallback <video> has a new frame, so the stage can redraw
+ * @returns the source, the pool (null without VideoDecoder), its limits and the fallback elements
  */
 export function stageSource(onFrame: () => void = () => undefined) {
   const elements = videoElementSource(onFrame);
@@ -258,7 +290,7 @@ export function stageSource(onFrame: () => void = () => undefined) {
     source,
     pool,
     limits,
-    element: elements.element,
+    element: (clip: PreviewClip) => elements.element(clip),
     dispose() {
       liveStages.delete(stage);
       pool?.dispose();
@@ -281,27 +313,46 @@ const cantDecode = new WeakMap<Blob, string>();
 const noteListeners = new Set<() => void>();
 let notesVersion = 0;
 
-/** Records that the pool can't decode `file`, with the reason (which names the file). */
+/**
+ * Records that the pool can't decode a file, with the reason (which names the file).
+ * @param file the clip's file
+ * @param reason why
+ */
 export function noteFallback(file: Blob, reason: string): void {
   if (cantDecode.get(file) === reason) return;
   cantDecode.set(file, reason);
   logError('handled', new Error(reason));
   notesVersion++;
-  for (const l of noteListeners) l();
+  for (const listener of noteListeners) listener();
 }
 
-/** The note for a clip on `file`: "This clip can’t be exported here: <reason>", or null. */
+/**
+ * The note for a clip on a file.
+ * @param file the clip's file
+ * @returns "This clip can’t be exported here: <reason>", or null
+ */
 export function fallbackNote(file: Blob): string | null {
   const why = cantDecode.get(file);
   return why ? `This clip can’t be exported here: ${why}` : null;
 }
 
-const subscribeNotes = (l: () => void) => {
-  noteListeners.add(l);
-  return () => void noteListeners.delete(l);
+/**
+ * Subscribes to new notes.
+ * @param listener called when a file gets a note
+ * @returns the unsubscribe function
+ */
+const subscribeNotes = (listener: () => void) => {
+  noteListeners.add(listener);
+  return () => {
+    noteListeners.delete(listener);
+  };
 };
 
-/** A clip's note, redrawn when the pool finds it can't decode the file. */
+/**
+ * A clip's note, redrawn when the pool finds it can't decode the file.
+ * @param file the clip's file
+ * @returns the note, or null
+ */
 export function useFallbackNote(file: Blob): string | null {
   useSyncExternalStore(subscribeNotes, () => notesVersion);
   return fallbackNote(file);

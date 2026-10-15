@@ -26,6 +26,8 @@ const FINISHED = [
   // 407 T043: the agent tools (split by job) and the AI services.
   'src/agent/**',
   'src/ai/**',
+  // 407 T050–T053: the media studio's workspace (timeline, video and photo editors split by job).
+  'src/components/studio/**',
 ];
 
 /** The code the standards rules apply to. */

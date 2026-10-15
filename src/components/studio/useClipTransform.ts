@@ -23,7 +23,11 @@ import { handleRadius } from '../ig/useLayerPointer';
  * through the router, so dragging it sets a keyframe at the playhead for each animated value it changes.
  */
 
-/** A clip's box as shown at the playhead (its keyframes evaluated). */
+/**
+ * A clip's box as shown at the playhead (its keyframes evaluated).
+ * @param clip the clip
+ * @returns its box at the playhead
+ */
 const shownBox = (clip: VClip): ClipTransform => transformAt(clip, getVideo().t - clip.start);
 
 /** A drag in progress on a clip's box. */
@@ -41,7 +45,12 @@ interface BoxDrag {
 
 let dragCount = 0;
 
-/** A pointer's position in the canvas's own pixels (the frame's pixels). */
+/**
+ * A pointer's position in the canvas's own pixels (the frame's pixels).
+ * @param canvas the stage canvas
+ * @param event the pointer's client position
+ * @returns the point in canvas pixels
+ */
 function canvasPoint(canvas: HTMLCanvasElement, event: { clientX: number; clientY: number }): Point {
   const rect = canvas.getBoundingClientRect();
   return { x: ((event.clientX - rect.left) * canvas.width) / rect.width, y: ((event.clientY - rect.top) * canvas.height) / rect.height };
@@ -50,6 +59,7 @@ function canvasPoint(canvas: HTMLCanvasElement, event: { clientX: number; client
 /**
  * The selected clip whose box the stage shows: a picture clip showing at the playhead, not on a locked track, with no
  * layer selected; on the main track only when it has a transform (a full-frame main clip has nothing to drag).
+ * @returns the clip, or null
  */
 function editableClip(): VClip | null {
   const state = getVideo();
@@ -66,15 +76,57 @@ function editableClip(): VClip | null {
  * @param point the press, frame pixels
  * @param frameWidth the canvas width
  * @param frameHeight the canvas height
+ * @returns the clip, or null
  */
 function overlayClipAt(point: Point, frameWidth: number, frameHeight: number): VClip | null {
   const stack = frameStack(projectOf(getVideo()), getVideo().t);
-  for (let index = stack.length - 1; index >= 0; index--) {
-    const { clip } = stack[index];
-    if (clip.track === MAIN_VIDEO) continue;
-    if (partAt(clipBoxPixels(shownBox(clip), frameWidth, frameHeight), point.x, point.y, 0) === 'move') return clip;
+  const topFirst = stack.map((stackItem) => stackItem.clip).reverse();
+  return topFirst.find((clip) => clip.track !== MAIN_VIDEO && partAt(clipBoxPixels(shownBox(clip), frameWidth, frameHeight), point.x, point.y, 0) === 'move') ?? null;
+}
+
+/**
+ * The clip and box part a press on the stage acts on: a part of the selected clip's box, else the overlay clip under
+ * the press (selected now, ready to be moved).
+ * @param stage the stage canvas
+ * @param point the press, frame pixels
+ * @returns the clip and the part, or null when the press is on no clip's box
+ */
+function pressedBox(stage: HTMLCanvasElement, point: Point): { clip: VClip; part: BoxPart } | null {
+  const selected = editableClip();
+  const partPressed = selected ? partAt(clipBoxPixels(shownBox(selected), stage.width, stage.height), point.x, point.y, handleRadius(stage)) : null;
+  if (selected && partPressed) return { clip: selected, part: partPressed };
+  const pressed = overlayClipAt(point, stage.width, stage.height);
+  if (!pressed) return null;
+  selectClip(pressed.id);
+  const nowEditable = editableClip();
+  return nowEditable ? { clip: nowEditable, part: 'move' } : null;
+}
+
+/**
+ * The lines a move snapped to.
+ * @param context the stage's 2D context
+ * @param guides the snap lines
+ * @param frame the canvas's size and handle radius
+ * @param frame.width the canvas width
+ * @param frame.height the canvas height
+ * @param frame.radius the handle radius
+ */
+function drawGuides(context: CanvasRenderingContext2D, guides: SnapGuide[], frame: { width: number; height: number; radius: number }): void {
+  context.save();
+  context.strokeStyle = '#d97706';
+  context.lineWidth = Math.max(1, frame.radius / 4);
+  for (const guide of guides) {
+    context.beginPath();
+    if (guide.axis === 'x') {
+      context.moveTo(guide.at, 0);
+      context.lineTo(guide.at, frame.height);
+    } else {
+      context.moveTo(0, guide.at);
+      context.lineTo(frame.width, guide.at);
+    }
+    context.stroke();
   }
-  return null;
+  context.restore();
 }
 
 /**
@@ -87,7 +139,7 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
   const drag = useRef<BoxDrag | null>(null);
   const guides = useRef<SnapGuide[]>([]);
 
-  /** Applies a new transform to the dragged clip, showing a refusal once. */
+  // Applies a new transform to the dragged clip, showing a refusal once.
   const apply = (current: BoxDrag, transform: ClipTransform) => {
     const refusal = setClipTransformAt(current.clipId, transform, current.undoKey);
     if (refusal && refusal !== current.lastRefusal) toast(refusal);
@@ -97,20 +149,9 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
   const down = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const stage = event.currentTarget;
     const point = canvasPoint(stage, event);
-    const selected = editableClip();
-    const partPressed = selected ? partAt(clipBoxPixels(shownBox(selected), stage.width, stage.height), point.x, point.y, handleRadius(stage)) : null;
-    let clip: VClip;
-    let part: BoxPart;
-    if (selected && partPressed) [clip, part] = [selected, partPressed];
-    else {
-      // Not on the selected clip's box: select the overlay clip under the press, ready to be dragged.
-      const pressed = overlayClipAt(point, stage.width, stage.height);
-      if (!pressed) return;
-      selectClip(pressed.id);
-      const nowEditable = editableClip();
-      if (!nowEditable) return;
-      [clip, part] = [nowEditable, 'move'];
-    }
+    const pressed = pressedBox(stage, point);
+    if (!pressed) return;
+    const { clip, part } = pressed;
     const start = shownBox(clip);
     drag.current = {
       clipId: clip.id,
@@ -152,7 +193,7 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
     }
   };
 
-  /** Arrow keys move the selected clip's box; returns whether the key was used. */
+  // Arrow keys move the selected clip's box; returns whether the key was used.
   const key = (event: ReactKeyboardEvent<HTMLCanvasElement>): boolean => {
     const clip = editableClip();
     const moved = clip && nudgedTransform(shownBox(clip), event.key, event.shiftKey);
@@ -163,33 +204,13 @@ export function useClipTransform(canvas: RefObject<HTMLCanvasElement | null>, re
     return true;
   };
 
-  /**
-   * Draws the selected clip's box with its handles, and the lines a move snapped to.
-   * @param context the stage's 2D context
-   * @param frameWidth the canvas width
-   * @param frameHeight the canvas height
-   */
+  // Draws the selected clip's box with its handles, and the lines a move snapped to.
   const drawBox = (context: CanvasRenderingContext2D, frameWidth: number, frameHeight: number) => {
     const clip = editableClip();
     const stage = canvas.current;
     if (!clip || !stage) return;
     drawSelection(context, clipBoxPixels(shownBox(clip), frameWidth, frameHeight), handleRadius(stage));
-    if (!drag.current || !guides.current.length) return;
-    context.save();
-    context.strokeStyle = '#d97706';
-    context.lineWidth = Math.max(1, handleRadius(stage) / 4);
-    for (const guide of guides.current) {
-      context.beginPath();
-      if (guide.axis === 'x') {
-        context.moveTo(guide.at, 0);
-        context.lineTo(guide.at, frameHeight);
-      } else {
-        context.moveTo(0, guide.at);
-        context.lineTo(frameWidth, guide.at);
-      }
-      context.stroke();
-    }
-    context.restore();
+    if (drag.current && guides.current.length) drawGuides(context, guides.current, { width: frameWidth, height: frameHeight, radius: handleRadius(stage) });
   };
 
   return { background: { down, move, up, key }, drawBox };

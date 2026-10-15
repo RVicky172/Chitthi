@@ -11,7 +11,7 @@ import { useFallbackNote } from './previewFrame';
 import { clipNow, refuseLocked, sayOnce } from './timelineActions';
 import type { SnapTime } from './TimelineBars';
 import { dragKey, startDrag, toFrame } from './timelineDrag';
-import { clipLabel, type RowTarget } from './timelineRows';
+import { clipLabel } from './timelineRows';
 
 /*
  * One picture track's row: its clips (with filmstrips), their trims and drags with the edit tool, the gaps between
@@ -22,7 +22,7 @@ import { clipLabel, type RowTarget } from './timelineRows';
 
 /** A drop marker on a row: where a clip or files would land. */
 export interface DropMarker {
-  target: RowTarget;
+  target: string;
   at: number;
 }
 
@@ -58,7 +58,7 @@ interface DragContext {
   tool: Tool;
   snap: SnapTime;
   snapSpan: SnapSpan;
-  rowTargetAt: (clientY: number) => RowTarget | null;
+  rowTargetAt: (clientY: number) => string | null;
   setDropMarker: (marker: DropMarker | null) => void;
   setReorder: (update: Reorder | null | ((previous: Reorder | null) => Reorder | null)) => void;
   /** Where the dragged clip would go in the order, from its centre in pixels. */
@@ -288,7 +288,7 @@ interface PictureRowProps {
   /** Registers the row's element, so drags can tell which row the pointer is over. */
   rowRef: (element: HTMLDivElement | null) => void;
   /** The picture row (or `'new'`, above the top row) under a pointer, or null. */
-  rowTargetAt: (clientY: number) => RowTarget | null;
+  rowTargetAt: (clientY: number) => string | null;
   /** Where a clip from another row or a dropped file would land on this row, in seconds; null when nothing is. */
   dropMarkerAt: number | null;
   /** Shows (or, with null, hides) the drop marker on a row: the timeline draws it. */

@@ -15,11 +15,12 @@ export interface RowBounds {
   bottom: number;
 }
 
-/** Where a dragged clip or dropped file goes: a picture track's id, or `'new'` for a new track above the top row. */
-export type RowTarget = string | 'new';
-
-/** Whether a track holds pictures (the main track or an overlay track). */
-const isPictureTrack = (track: Track) => track.kind === 'video' || track.kind === 'overlay';
+/**
+ * Whether a track holds pictures (the main track or an overlay track).
+ * @param track the track
+ * @returns true for picture tracks
+ */
+const isPictureTrack = (track: Track): boolean => track.kind === 'video' || track.kind === 'overlay';
 
 /**
  * The picture tracks as the timeline lists them.
@@ -37,10 +38,10 @@ export function pictureTracksTopFirst(tracks: Track[]): Track[] {
  * @param newTrackZone how many pixels above the top row count as "a new track"
  * @returns the track id of the row (a row owns its top edge), `'new'` just above the top row, or null elsewhere
  */
-export function rowUnderPointer(rows: RowBounds[], clientY: number, newTrackZone: number): RowTarget | null {
+export function rowUnderPointer(rows: RowBounds[], clientY: number, newTrackZone: number): string | null {
   const row = rows.find((bounds) => clientY >= bounds.top && clientY < bounds.bottom);
   if (row) return row.trackId;
-  const topRow = rows[0];
+  const topRow = rows.at(0);
   return topRow && clientY < topRow.top && clientY >= topRow.top - newTrackZone ? 'new' : null;
 }
 
@@ -74,26 +75,42 @@ export function describeClipChange(before: TimedClip[], after: TimedClip[], trac
     const old = previous.get(clip.id);
     return !old || movedInTime(old, clip) || old.tf !== clip.tf;
   });
-  const announced = changed.find((clip) => clip.id === selectedId) ?? changed[0];
-  if (announced) {
-    const track = tracks.find((candidate) => candidate.id === announced.track)!;
-    const numberOnTrack = after.filter((clip) => clip.track === announced.track).indexOf(announced) + 1;
-    const old = previous.get(announced.id);
-    if (old && !movedInTime(old, announced)) return describeTransform(clipLabel(track, numberOnTrack), announced.tf ?? IDENTITY);
-    const end = announced.start + clipLength(announced);
-    const span = `${clipLabel(track, numberOnTrack)}, ${announced.start.toFixed(1)} s to ${end.toFixed(1)} s`;
-    return announced.kind === 'video' ? `${span}, playing its source from ${announced.in.toFixed(1)} s` : span;
-  }
+  const announced = changed.find((clip) => clip.id === selectedId) ?? changed.at(0);
+  if (announced) return describeChangedClip(announced, previous.get(announced.id), after, tracks);
   const afterIds = new Set(after.map((clip) => clip.id));
   const removed = before.filter((clip) => pictureTrackIds.has(clip.track) && !afterIds.has(clip.id));
-  if (!removed.length) return '';
-  const track = tracks.find((candidate) => candidate.id === removed[0].track)!;
+  const track = tracks.find((candidate) => candidate.id === removed.at(0)?.track);
+  if (!track) return '';
   const left = after.filter((clip) => clip.track === track.id).length;
   const what = removed.length === 1 ? 'Clip' : `${removed.length} clips`;
   return track.id === MAIN_VIDEO ? `${what} removed, ${left} left` : `${what} removed from ${track.name}, ${left} left`;
 }
 
-/** Whether a clip changed track, start, length or source start (anything but its box). */
+/**
+ * What to announce about one changed clip: its track, number, times and source start, or, when only its box changed,
+ * its new position and size.
+ * @param clip the clip after the change
+ * @param old the clip before it (undefined for a new clip)
+ * @param after every clip after the change
+ * @param tracks the project's tracks
+ * @returns the announcement ('' for a clip on no known track)
+ */
+function describeChangedClip(clip: TimedClip, old: TimedClip | undefined, after: TimedClip[], tracks: Track[]): string {
+  const track = tracks.find((candidate) => candidate.id === clip.track);
+  if (!track) return '';
+  const label = clipLabel(track, after.filter((candidate) => candidate.track === clip.track).indexOf(clip) + 1);
+  if (old && !movedInTime(old, clip)) return describeTransform(label, clip.tf ?? IDENTITY);
+  const end = clip.start + clipLength(clip);
+  const span = `${label}, ${clip.start.toFixed(1)} s to ${end.toFixed(1)} s`;
+  return clip.kind === 'video' ? `${span}, playing its source from ${clip.in.toFixed(1)} s` : span;
+}
+
+/**
+ * Whether a clip changed track, start, length or source start (anything but its box).
+ * @param before the clip before the change
+ * @param after the clip after it
+ * @returns true when it moved or changed length or source start
+ */
 function movedInTime(before: TimedClip, after: TimedClip): boolean {
   return before.track !== after.track || before.start !== after.start || clipLength(before) !== clipLength(after) || before.in !== after.in;
 }
@@ -114,12 +131,13 @@ export interface KeyTime {
  * diamond's first key are one diamond.
  * @param item a clip or layer
  * @param fps the project's frame rate
+ * @returns the diamonds, in time order
  */
 export function keyTimes(item: { keys?: Keyframes<string> }, fps: number = V_FPS): KeyTime[] {
   const all: { t: number; prop: string; ease: Ease }[] = [];
   for (const [prop, list] of Object.entries(item.keys ?? {}))
     for (const key of list ?? []) all.push({ t: key.t, prop, ease: key.ease });
-  all.sort((a, b) => a.t - b.t);
+  all.sort((first, second) => first.t - second.t);
   const out: KeyTime[] = [];
   for (const key of all) {
     const last = out.at(-1);
@@ -131,11 +149,17 @@ export function keyTimes(item: { keys?: Keyframes<string> }, fps: number = V_FPS
   return out;
 }
 
-/** A diamond's shape (D3): rounded for an ease (or mixed), square for hold, pointed for linear. */
+/**
+ * A diamond's shape (D3): rounded for an ease (or mixed), square for hold, pointed for linear.
+ * @param ease the key's interpolation
+ * @returns the shape
+ */
 export function easeShape(ease: Ease | 'mixed'): 'round' | 'square' | 'pointed' {
-  return ease === 'hold' ? 'square' : ease === 'linear' ? 'pointed' : 'round';
+  if (ease === 'hold') return 'square';
+  return ease === 'linear' ? 'pointed' : 'round';
 }
 
+/** The interpolations' names. */
 const EASE_NAMES: Record<Ease | 'mixed', string> = {
   linear: 'Linear',
   'ease-in': 'Ease in',
@@ -144,12 +168,21 @@ const EASE_NAMES: Record<Ease | 'mixed', string> = {
   hold: 'Hold',
   mixed: 'Mixed',
 };
-/** An interpolation's name, as the lane's menu shows it. */
+/**
+ * An interpolation's name, as the lane's menu shows it.
+ * @param ease the interpolation
+ * @returns its name
+ */
 export const easeName = (ease: Ease | 'mixed'): string => EASE_NAMES[ease];
 
-/** An animated value's name, as the inspector's field shows it (a clip's turn is "Rotation", a layer's "Turn"). */
+/**
+ * An animated value's name, as the inspector's field shows it (a clip's turn is "Rotation", a layer's "Turn").
+ * @param prop the value
+ * @param on whether it is a clip's or a layer's
+ * @returns its name (the value itself when unknown)
+ */
 export function keyPropName(prop: string, on: 'clip' | 'layer'): string {
-  const names: Record<string, string> = {
+  const names: Partial<Record<string, string>> = {
     x: 'X',
     y: 'Y',
     w: 'Size',
@@ -178,48 +211,65 @@ export function describeKeyChange(
   fps: number = V_FPS,
 ): string {
   if (before === after || JSON.stringify(before ?? {}) === JSON.stringify(after ?? {})) return '';
-  const at = (t: number) => `${(offset + t).toFixed(2)} s`;
-  const was = keyTimes({ keys: before }, fps),
-    now = keyTimes({ keys: after }, fps);
-  if (!now.length) return was.length ? `${name}: animation removed` : '';
-  if (!was.length) return `${name}: animated, keyframe at ${at(now[0].t)}`;
-  const near = (a: number, b: number) => Math.abs(a - b) < 0.5 / fps;
-  const added = now.filter((time) => !was.some((old) => near(old.t, time.t))),
-    removed = was.filter((time) => !now.some((time2) => near(time2.t, time.t)));
-  if (added.length === 1 && removed.length === 1)
-    return `${name}: keyframe moved from ${at(removed[0].t)} to ${at(added[0].t)}`;
-  if (added.length && !removed.length) return `${name}: keyframe added at ${at(added[0].t)}`;
-  if (removed.length && !added.length) return `${name}: keyframe at ${at(removed[0].t)} removed`;
-  // The same times: a value's key added or removed at one of them, or a key's interpolation or value changed.
-  for (const prop of new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])) {
-    const old: Keyframe[] = before?.[prop] ?? [],
-      next: Keyframe[] = after?.[prop] ?? [];
-    for (const key of next) {
-      const match = old.find((candidate) => near(candidate.t, key.t));
-      if (!match) return `${name}: keyframe added at ${at(key.t)}`;
-      if (match.ease !== key.ease) return `${name}: keyframe at ${at(key.t)}, ${easeName(key.ease)}`;
-      if (match.v !== key.v) return `${name}: keyframe at ${at(key.t)} changed`;
+  const at = (time: number) => `${(offset + time).toFixed(2)} s`;
+  const near = (first: number, second: number) => Math.abs(first - second) < 0.5 / fps;
+  const was = keyTimes({ keys: before }, fps);
+  const now = keyTimes({ keys: after }, fps);
+  const firstNow = now.at(0);
+  if (!firstNow) return was.length ? `${name}: animation removed` : '';
+  if (!was.length) return `${name}: animated, keyframe at ${at(firstNow.t)}`;
+  const addedTimes = now.filter((time) => !was.some((old) => near(old.t, time.t)));
+  const added = addedTimes.at(0);
+  const removedTimes = was.filter((time) => !now.some((other) => near(other.t, time.t)));
+  const removed = removedTimes.at(0);
+  if (added && removed && addedTimes.length === 1 && removedTimes.length === 1) return `${name}: keyframe moved from ${at(removed.t)} to ${at(added.t)}`;
+  if (added && !removed) return `${name}: keyframe added at ${at(added.t)}`;
+  if (removed && !added) return `${name}: keyframe at ${at(removed.t)} removed`;
+  return sameTimesChange(before, after, near) ?? `${name}: keyframes changed`;
+
+  /**
+   * At the same times: a value's key added or removed at one of them, or a key's interpolation or value changed.
+   * @param oldKeys the keys before
+   * @param newKeys the keys after
+   * @param isNear whether two times are within half a frame
+   * @returns the announcement, or null when none of these changed
+   */
+  function sameTimesChange(oldKeys: Keyframes<string> | undefined, newKeys: Keyframes<string> | undefined, isNear: (first: number, second: number) => boolean): string | null {
+    for (const prop of new Set([...Object.keys(oldKeys ?? {}), ...Object.keys(newKeys ?? {})])) {
+      const old: Keyframe[] = oldKeys?.[prop] ?? [];
+      const next: Keyframe[] = newKeys?.[prop] ?? [];
+      for (const key of next) {
+        const match = old.find((candidate) => isNear(candidate.t, key.t));
+        if (!match) return `${name}: keyframe added at ${at(key.t)}`;
+        if (match.ease !== key.ease) return `${name}: keyframe at ${at(key.t)}, ${easeName(key.ease)}`;
+        if (match.v !== key.v) return `${name}: keyframe at ${at(key.t)} changed`;
+      }
+      const gone = old.find((key) => !next.some((candidate) => isNear(candidate.t, key.t)));
+      if (gone) return `${name}: keyframe at ${at(gone.t)} removed`;
     }
-    const gone = old.find((key) => !next.some((candidate) => near(candidate.t, key.t)));
-    if (gone) return `${name}: keyframe at ${at(gone.t)} removed`;
+    return null;
   }
-  return `${name}: keyframes changed`;
 }
 
 /* ---------- The Transitions panel (206 §6) ---------- */
+
+/** What the Transitions panel's cut depends on. */
+interface PanelState {
+  clips: TimedClip[];
+  tracks: Track[];
+  selected: string | null;
+  /** The selected cut (its outgoing clip), or null. */
+  transitionSel: string | null;
+}
 
 /**
  * The cut the Transitions panel acts on (AC-8): the selected cut (its outgoing clip's id), else the cut at the selected
  * clip's end, or at its start when nothing touches its end; or why there is none (no selection, a clip touching no
  * other, a locked track).
+ * @param state the clips, tracks, selected clip and selected cut
  * @returns the cut's outgoing clip and its track, or the reason
  */
-export function panelCut(state: {
-  clips: TimedClip[];
-  tracks: Track[];
-  selected: string | null;
-  transitionSel: string | null;
-}): { clip: string; track: string } | { why: string } {
+export function panelCut(state: PanelState): { clip: string; track: string } | { why: string } {
   const byId = (id: string | null) => state.clips.find((clip) => clip.id === id);
   const cut = (clip: TimedClip | undefined) => (clip ? cutsOf(state.clips, clip.track).find(([before]) => before.id === clip.id) : undefined);
   const chosen = cut(byId(state.transitionSel));
@@ -247,24 +297,41 @@ export const TRANSITION_NAMES: Record<TransitionKind, string> = {
   zoom: 'Zoom',
 };
 
-/** A transition's name with its option: "Wipe up", "Dip to white", "Cross-dissolve". */
+/**
+ * A transition's name with its option: "Wipe up", "Dip to white", "Cross-dissolve".
+ * @param transition the transition
+ * @returns its name
+ */
 export function transitionName(transition: Transition): string {
   if (transition.kind === 'dip') return `Dip to ${transition.colour ?? 'black'}`;
   if (transition.kind === 'wipe' || transition.kind === 'slide') return `${TRANSITION_NAMES[transition.kind]} ${transition.dir ?? 'left'}`;
   return TRANSITION_NAMES[transition.kind];
 }
 
-/** A transition's block on its row: centred on the cut (seconds), as wide as the transition, in pixels at `zoom`. */
-export function transitionBlock(cut: number, dur: number, zoom: number): { left: number; width: number } {
-  return { left: (cut - dur / 2) * zoom, width: dur * zoom };
+/**
+ * A transition's block on its row: centred on the cut, as wide as the transition.
+ * @param cut the cut's time, seconds
+ * @param length the transition's length, seconds
+ * @param zoom pixels per second
+ * @returns its left edge and width in pixels
+ */
+export function transitionBlock(cut: number, length: number, zoom: number): { left: number; width: number } {
+  return { left: (cut - length / 2) * zoom, width: length * zoom };
 }
 
 /**
  * A transition's length after dragging one of its block's edges `dx` pixels: it changes on both sides of the cut (the
  * end edge right or the start edge left lengthens it), to the nearest frame, from 0.1 s up to `room`.
+ * @param length the length before the drag, seconds
+ * @param dx how far the edge was dragged, pixels
+ * @param side which edge
+ * @param zoom pixels per second
+ * @param fps the project's frame rate
+ * @param room the longest it can be, seconds
+ * @returns the new length
  */
-export function draggedLength(dur: number, dx: number, side: 'start' | 'end', zoom: number, fps: number, room: number): number {
-  const wanted = dur + ((side === 'end' ? 2 : -2) * dx) / zoom;
+export function draggedLength(length: number, dx: number, side: 'start' | 'end', zoom: number, fps: number, room: number): number {
+  const wanted = length + ((side === 'end' ? 2 : -2) * dx) / zoom;
   const onFrames = Math.round(wanted * fps) / fps;
   return Math.min(room, Math.max(TRANSITION_LIMITS.min, onFrames));
 }
@@ -273,6 +340,10 @@ export function draggedLength(dur: number, dx: number, side: 'start' | 'end', zo
  * What to announce after a change to the picture tracks' transitions (the timeline's live region): the first one
  * added, changed or removed, with its cut's clips and its length; '' when none changed. A transition gone with its
  * clip isn't announced here (the clip change is).
+ * @param before the clips before the change
+ * @param after the clips after it
+ * @param tracks the project's tracks
+ * @returns the announcement
  */
 export function describeTransitionChange(before: TimedClip[], after: TimedClip[], tracks: Track[]): string {
   const previous = new Map(before.map((clip) => [clip.id, clip]));
@@ -282,8 +353,8 @@ export function describeTransitionChange(before: TimedClip[], after: TimedClip[]
     return clip && track ? clipLabel(track, clips.filter((candidate) => candidate.track === clip.track).indexOf(clip) + 1, true) : 'a clip';
   };
   for (const clip of after) {
-    const old = previous.get(clip.id)?.transition,
-      now = clip.transition;
+    const old = previous.get(clip.id)?.transition;
+    const now = clip.transition;
     if (now && JSON.stringify(old) !== JSON.stringify(now)) {
       const between = `between ${name(after, clip.id)} and ${name(after, now.to)}, ${now.dur.toFixed(2)} s`;
       return old ? `${transitionName(now)} ${between}` : `${transitionName(now)} added ${between}`;
