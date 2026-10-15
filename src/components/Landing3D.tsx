@@ -10,7 +10,7 @@ import type { ShowcaseImage } from '../data/showcase';
 const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Tilts its content towards the pointer (a few degrees), easing back to rest when the pointer leaves. */
-export function TiltStage({ children, className }: { children: ReactNode; className?: string }) {
+export function TiltStage({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -73,7 +73,7 @@ function useVisible<T extends HTMLElement>(): [RefObject<T | null>, boolean] {
 }
 
 /** A card turning slowly in 3D, front and back, with a little thickness. Drag to spin it yourself. */
-export function SpinCard({ front, back }: { front?: ShowcaseImage; back?: ShowcaseImage }) {
+export function SpinCard({ front, back }: Readonly<{ front?: ShowcaseImage; back?: ShowcaseImage }>) {
   const [box, visible] = useVisible<HTMLDivElement>();
   const card = useRef<HTMLDivElement>(null);
   const st = useRef({
@@ -153,13 +153,13 @@ export function EnvelopeScene({
   flap,
   liner,
   card,
-}: {
+}: Readonly<{
   front?: ShowcaseImage;
   body?: ShowcaseImage;
   flap?: ShowcaseImage;
   liner?: ShowcaseImage;
   card?: ShowcaseImage;
-}) {
+}>) {
   const [box, visible] = useVisible<HTMLDivElement>();
   const obj = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);

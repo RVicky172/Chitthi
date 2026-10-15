@@ -39,7 +39,7 @@ function inline(text: string): ReactNode[] {
   return out;
 }
 
-function Block({ b }: { b: DocBlock }) {
+function Block({ b }: Readonly<{ b: DocBlock }>) {
   if ('p' in b) return <p>{inline(b.p)}</p>;
   if ('note' in b) return <p className="docs-note">{inline(b.note)}</p>;
   if ('list' in b)

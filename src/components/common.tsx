@@ -5,18 +5,22 @@ import { ArrowIcon, ChevronIcon } from './icons';
 /** Small label shown above each pane title, e.g. "Step 2 of 7". */
 export const StepLabel = createContext<string | null>(null);
 
+/**
+ * A segmented control: one pressed button among a few options.
+ * @param props the value, the options, the change handler and the group's label
+ */
 export function Seg<T extends string>({
   value,
   options,
   onChange,
   label,
-}: {
+}: Readonly<{
   value: T;
   /** [value, label] or [value, label, icon] */
   options: [T, string, ReactNode?][];
   onChange: (v: T) => void;
   label: string;
-}) {
+}>) {
   return (
     <div className="seg" role="group" aria-label={label}>
       {options.map(([optionValue, optionLabel, icon]) => (
@@ -35,17 +39,21 @@ export function Seg<T extends string>({
   );
 }
 
+/**
+ * A labelled checkbox.
+ * @param props whether it is checked, the change handler, the label and an optional id
+ */
 export function Check({
   checked,
   onChange,
   children,
   id,
-}: {
+}: Readonly<{
   checked: boolean;
   onChange: (v: boolean) => void;
   children: ReactNode;
   id?: string;
-}) {
+}>) {
   return (
     <label className="check" id={id}>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /> {children}
@@ -53,19 +61,23 @@ export function Check({
   );
 }
 
+/**
+ * A print studio step: its title, a note, its sections and a Next button.
+ * @param props the title, the note, the content and the next step
+ */
 export function Pane({
   title,
   lead,
   children,
   next,
   onNext,
-}: {
+}: Readonly<{
   title: string;
   lead?: string;
   children: ReactNode;
   next?: string;
   onNext?: () => void;
-}) {
+}>) {
   const step = useContext(StepLabel);
   return (
     <div className="pane">
@@ -123,6 +135,10 @@ const foldAll = (scope: string, open: boolean) =>
  */
 let pendingReveal: string | null = null;
 const REVEAL = 'chitthi:reveal';
+/**
+ * Opens a section, scrolls it into view and focuses its first field, once it is on screen.
+ * @param id the section's id
+ */
 export function revealSection(id: string): void {
   pendingReveal = id;
   window.dispatchEvent(new CustomEvent(REVEAL, { detail: id }));
@@ -138,14 +154,14 @@ export function Section({
   note,
   defaultOpen = true,
   children,
-}: {
+}: Readonly<{
   id: string;
   title: ReactNode;
   /** Short status shown beside the title, e.g. "2 of 12 written". */
   note?: ReactNode;
   defaultOpen?: boolean;
   children: ReactNode;
-}) {
+}>) {
   const scope = useContext(SectionScope);
   const [open, setOpen] = useState(() => readFolds()[id] ?? defaultOpen);
   useEffect(() => {
@@ -211,11 +227,11 @@ export function YearField({
   value,
   onChange,
   label = 'Year',
-}: {
+}: Readonly<{
   value: number;
   onChange: (y: number) => void;
   label?: string;
-}) {
+}>) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
   const ok = (y: number) => Number.isInteger(y) && y >= YEAR_MIN && y <= YEAR_MAX;
@@ -258,7 +274,7 @@ export function YearField({
 }
 
 /** "Photo by … on Pexels" for a photo that came from Pexels (linked to its Pexels page when the id is known). */
-export function PhotoCredit({ name }: { name: string }) {
+export function PhotoCredit({ name }: Readonly<{ name: string }>) {
   const credit = creditOf(name);
   if (!credit) {
     const aiCredit = aiCreditOf(name);

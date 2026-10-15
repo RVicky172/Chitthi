@@ -197,7 +197,7 @@ function ModelsOnDevice() {
 }
 
 /** The service and model for one kind of work. */
-function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }) {
+function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys: Status }>) {
   const cur = s[kind],
     list = providersFor(kind),
     def = cur.provider ? providerDef(cur.provider) : undefined;
@@ -288,7 +288,7 @@ function Choice({ kind, s, keys }: { kind: AiKind; s: AiSettings; keys: Status }
 }
 
 /** One provider: key status, save and test, remove, base URL for local and custom services. */
-function ProviderRow({ p, info }: { p: AiProviderDef; info?: KeyInfo }) {
+function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>) {
   const [draft, setDraft] = useState('');
   // Web: a key lasts for this tab unless the user chooses to keep it (browser storage isn't encrypted).
   const [remember, setRemember] = useState(false);

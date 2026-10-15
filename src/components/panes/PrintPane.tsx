@@ -357,7 +357,7 @@ function PexelsNotice() {
 }
 
 /** AI pictures on the design: what made them, and what disclosing them means. */
-function AiNotice({ made }: { made: string[] }) {
+function AiNotice({ made }: Readonly<{ made: string[] }>) {
   return (
     <>
       <ul className="tips">

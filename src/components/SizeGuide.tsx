@@ -68,7 +68,7 @@ const perSheet = (design: Design, sheet: Design['exp']['sheet']) => {
 };
 
 /** The piece drawn to scale: bleed (red), trim (the card), safe area (blue), with its measurements. */
-function SizeDiagram({ s, o }: { s: SizeDef; o: Orient }) {
+function SizeDiagram({ s, o }: Readonly<{ s: SizeDef; o: Orient }>) {
   const { w, h } = trim(s, o),
     bledWidth = w + 2 * BLEED,
     bledHeight = h + 2 * BLEED,

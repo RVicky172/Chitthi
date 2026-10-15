@@ -32,7 +32,7 @@ import { ensureFonts, fontsFor } from './lib/fonts';
 import { loadUserFonts } from './lib/userFonts';
 import { useDesktopMenu } from './platform/menu';
 import { restoreWork, saveDesign, switchProduct } from './state/actions';
-import { bumpFonts, commit, getState, hashOf, redo, screenOf, setUI, undo, useApp } from './state/store';
+import { bumpFonts, commit, getState, hashOf, redo, screenOf, setUI, undo, useApp, type UIState } from './state/store';
 import type { PaneId, ProductId } from './types';
 
 const PRODUCT_NAMES: Record<ProductId, string> = {
@@ -51,6 +51,38 @@ const PANES: Record<PaneId, ComponentType> = {
   print: PrintPane,
 };
 
+/**
+ * The screen the URL names; the print studio for anything else.
+ * @param props the screen
+ */
+function ScreenView({ screen }: Readonly<{ screen: UIState['screen'] }>) {
+  switch (screen) {
+    case 'home':
+      return <Landing />;
+    case 'sizes':
+      return <SizeGuide />;
+    case 'paper':
+      return <Paper3D />;
+    case 'docs':
+      return <DocsPage />;
+    case 'instagram':
+      return <InstagramStudio />;
+    default:
+      return <Studio />;
+  }
+}
+
+/**
+ * Which side of the card a step is about: Back shows the back, Print keeps the side shown, the rest show the front.
+ * @param pane the step
+ * @returns the side, or null to leave it
+ */
+const sideForPane = (pane: PaneId): 'front' | 'back' | null => {
+  if (pane === 'back') return 'back';
+  return pane === 'print' ? null : 'front';
+};
+
+/** The app: the screen the URL names, its dialogs, the toast, and keyboard shortcuts. */
 export default function App() {
   const screen = useApp((state) => state.ui.screen),
     cropOpen = useApp((state) => !!state.ui.cropId),
@@ -129,19 +161,7 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
-        {screen === 'home' ? (
-          <Landing />
-        ) : screen === 'sizes' ? (
-          <SizeGuide />
-        ) : screen === 'paper' ? (
-          <Paper3D />
-        ) : screen === 'docs' ? (
-          <DocsPage />
-        ) : screen === 'instagram' ? (
-          <InstagramStudio />
-        ) : (
-          <Studio />
-        )}
+        <ScreenView screen={screen} />
       </Suspense>
       <Suspense fallback={null}>
         {cropOpen && <CropDialog />}
@@ -167,7 +187,7 @@ function Studio() {
 
   // Show the side of the card the step is about: Back flips to the back, the design steps flip to the front.
   useEffect(() => {
-    const side = pane === 'back' ? 'back' : pane === 'print' ? null : 'front';
+    const side = sideForPane(pane);
     if (side && side !== getState().ui.side) setUI({ side });
   }, [pane]);
 
@@ -190,7 +210,7 @@ function Studio() {
     let timer = 0;
     const settle = () => {
       clearTimeout(timer);
-      const id = STEPS[Math.round(el.scrollLeft / el.clientWidth)]?.[0];
+      const id = STEPS.at(Math.round(el.scrollLeft / el.clientWidth))?.[0];
       if (id && id !== getState().ui.pane) setUI({ pane: id });
     };
     const onScroll = () => {

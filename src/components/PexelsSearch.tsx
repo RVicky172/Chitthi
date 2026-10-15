@@ -35,7 +35,7 @@ const ASPECT: Record<PexelsOrientation, string> = { landscape: '4 / 3', portrait
  * Search Pexels from inside the Photos step. Suggestions come from the design (month, occasion, product) and results
  * are filtered to the shape of the selected photo slot, so they drop into the layout without heavy cropping.
  */
-export function PexelsSearch({ wide = false }: { wide?: boolean }) {
+export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
   const design = useApp((state) => state.design),
     calPage = useApp((state) => state.ui.calPage);
   const { count, active } = usePhotoSlots();
@@ -284,7 +284,7 @@ export function PexelsSearch({ wide = false }: { wide?: boolean }) {
 }
 
 /** No key on this device and no server proxy: point to Settings, the one place the key is entered. */
-function KeyForm({ refused }: { refused: boolean }) {
+function KeyForm({ refused }: Readonly<{ refused: boolean }>) {
   return (
     <div className="px-key">
       <p className="hint">

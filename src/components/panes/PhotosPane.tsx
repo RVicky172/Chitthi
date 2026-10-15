@@ -16,7 +16,7 @@ import { Pane, PhotoCredit, Section } from '../common';
 import { AddPhotoIcon, ArrangeIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
 import { autoArrange } from '../../state/traits';
 
-function DpiBadge({ dpi }: { dpi: number | null }) {
+function DpiBadge({ dpi }: Readonly<{ dpi: number | null }>) {
   if (dpi === null) return <span className="q">not used in this layout</span>;
   const cls = dpi >= 250 ? 'good' : dpi >= 150 ? 'ok' : 'low';
   const txt = dpi >= 250 ? 'sharp in print' : dpi >= 150 ? 'fine in print' : 'may print soft';

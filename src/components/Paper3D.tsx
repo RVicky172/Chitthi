@@ -794,7 +794,7 @@ export function Paper3D() {
 }
 
 /** The selected piece's numbers: size, bleed, pixels, paper, sheets and envelope. */
-function Details({ pc, onDesign, onSheet }: { pc: Piece; onDesign: (pc: Piece) => void; onSheet: () => void }) {
+function Details({ pc, onDesign, onSheet }: Readonly<{ pc: Piece; onDesign: (pc: Piece) => void; onSheet: () => void }>) {
   const [, name, col] = groupOf(pc.group);
   const design = pc.design,
     product = design && pc.group !== 'envelope' ? design.product : null,

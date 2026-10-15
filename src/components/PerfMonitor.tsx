@@ -24,7 +24,7 @@ type Level = '' | 'warn' | 'bad';
 const level = (value: number | undefined, warn: number, bad: number): Level =>
   value === undefined ? '' : value >= bad ? 'bad' : value >= warn ? 'warn' : '';
 
-function Spark({ values, max }: { values: (number | undefined)[]; max?: number }) {
+function Spark({ values, max }: Readonly<{ values: (number | undefined)[]; max?: number }>) {
   const filled = values.map((x) => x ?? 0);
   if (filled.length < 2) return <svg className="spark" viewBox="0 0 100 24" aria-hidden="true" />;
   const top = max ?? Math.max(1, ...filled) * 1.15;
@@ -48,13 +48,13 @@ function Metric({
   sub,
   lv = '',
   spark,
-}: {
+}: Readonly<{
   name: string;
   value: string;
   sub?: string;
   lv?: Level;
   spark?: React.ReactNode;
-}) {
+}>) {
   return (
     <div className={`pm-row ${lv}`}>
       <div className="pm-head">

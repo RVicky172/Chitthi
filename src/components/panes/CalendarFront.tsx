@@ -83,7 +83,7 @@ const styleOf = (cal: CalendarSettings) =>
   )?.[0];
 
 /** A size slider with its value and a way back to the layout's own size. */
-function SizeSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function SizeSlider({ label, value, onChange }: Readonly<{ label: string; value: number; onChange: (v: number) => void }>) {
   const scale = value || 1;
   return (
     <label className="f sizef">

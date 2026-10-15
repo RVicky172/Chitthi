@@ -41,7 +41,7 @@ const SHOTS = SHOWCASE_JSON as ShowcaseImage[];
 const shot = (id: string, render: ShowcaseRender = 'front') =>
   SHOTS.find((candidate) => candidate.id === id && candidate.render === render);
 
-function Shot({ img, className, eager }: { img?: ShowcaseImage; className?: string; eager?: boolean }) {
+function Shot({ img, className, eager }: Readonly<{ img?: ShowcaseImage; className?: string; eager?: boolean }>) {
   if (!img) return null;
   return (
     <img
@@ -120,7 +120,7 @@ const FEATURES: [ReactNode, string, string][] = [
   ],
 ];
 
-function CTAs({ open }: { open: (p: ProductId) => void }) {
+function CTAs({ open }: Readonly<{ open: (p: ProductId) => void }>) {
   return (
     <div className="hero-cta">
       <button type="button" className="btn primary big" onClick={() => open('postcard')}>

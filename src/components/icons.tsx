@@ -96,74 +96,257 @@ const PANE_ICONS = {
   back: Mail,
   print: Printer,
 };
-export const PaneIcon = ({ id }: { id: PaneId }) => {
+/**
+ * A print studio pane's icon.
+ * @param props the pane
+ */
+export function PaneIcon({ id }: Readonly<{ id: PaneId }>) {
   const Icon = PANE_ICONS[id];
   return <Icon {...base} />;
-};
+}
 
 const PRODUCT_ICONS = { postcard: Mail, calendar: CalendarDays, frame: Frame, magnet: Magnet };
-export const ProductIcon = ({ id }: { id: ProductId }) => {
+/**
+ * A print product's icon.
+ * @param props the product
+ */
+export function ProductIcon({ id }: Readonly<{ id: ProductId }>) {
   const Icon = PRODUCT_ICONS[id];
   return <Icon {...base} />;
-};
+}
 
-export const GalleryIcon = () => <LayoutGrid {...base} />;
-export const PhotosIcon = () => <Images {...base} />;
-export const CheckIcon = () => <Check {...base} strokeWidth={2.6} />;
-export const UndoIcon = () => <Undo2 {...base} />;
-export const RedoIcon = () => <Redo2 {...base} />;
-export const SaveIcon = () => <Save {...base} />;
-export const DownloadIcon = () => <Download {...base} strokeWidth={2.1} />;
-export const CubeIcon = () => <Box {...base} />;
-export const SunIcon = () => <Sun {...base} />;
-export const MoonIcon = () => <Moon {...base} />;
-export const ArrowIcon = () => <ArrowRight {...base} strokeWidth={2.1} />;
-export const ChevronIcon = () => <ChevronDown {...base} strokeWidth={2.2} />;
-export const ExpandIcon = () => <Expand {...base} />;
-export const FullscreenIcon = ({ on }: { on: boolean }) => (on ? <Minimize {...base} /> : <Maximize {...base} />);
-export const PrevIcon = () => <ChevronLeft {...base} strokeWidth={2.2} />;
-export const NextIcon = () => <ChevronRight {...base} strokeWidth={2.2} />;
-export const CloseIcon = () => <X {...base} strokeWidth={2.1} />;
-export const PlusIcon = () => <Plus {...base} strokeWidth={2.1} />;
-export const AddPhotoIcon = () => <ImagePlus {...base} strokeWidth={1.6} />;
-export const CropIcon = () => <Crop {...base} />;
-export const ResetIcon = () => <RotateCcw {...base} />;
-export const StarIcon = () => <Star {...base} />;
-export const TrashIcon = () => <Trash2 {...base} />;
-export const EditIcon = () => <Pencil {...base} />;
-export const PackIcon = () => <Package {...base} />;
-export const ArrangeIcon = () => <WandSparkles {...base} />;
-export const SuggestIcon = () => <Lightbulb {...base} />;
-export const SearchIcon = () => <Search {...base} />;
-export const SettingsIcon = () => <Settings {...base} />;
-export const RulerIcon = () => <Ruler {...base} />;
-export const DocsIcon = () => <BookOpen {...base} />;
-export const MoreIcon = () => <Ellipsis {...base} />;
-export const MenuIcon = () => <Menu {...base} />;
-export const ActivityIcon = () => <Activity {...base} />;
-export const RotateLeftIcon = () => <RotateCcw {...base} />;
-export const RotateRightIcon = () => <RotateCw {...base} />;
-export const FlipIcon = () => <FlipHorizontal2 {...base} />;
-export const ShareIcon = () => <Share2 {...base} />;
-export const AdjustIcon = () => <SlidersHorizontal {...base} />;
-export const PipetteIcon = () => <Pipette {...base} />;
-export const ReelIcon = () => <Clapperboard {...base} />;
-export const YouTubeIcon = () => <MonitorPlay {...base} />;
-export const ImageIcon = () => <Image {...base} />;
-export const TypeIcon = () => <Type {...base} />;
-export const ShapesIcon = () => <Shapes {...base} />;
-export const BrushIcon = () => <Brush {...base} />;
-export const MaskIcon = () => <Blend {...base} />;
+/** The gallery icon. */
+export function GalleryIcon() {
+  return <LayoutGrid {...base} />;
+}
+/** The photos icon. */
+export function PhotosIcon() {
+  return <Images {...base} />;
+}
+/** The check icon. */
+export function CheckIcon() {
+  return <Check {...base} strokeWidth={2.6} />;
+}
+/** The undo icon. */
+export function UndoIcon() {
+  return <Undo2 {...base} />;
+}
+/** The redo icon. */
+export function RedoIcon() {
+  return <Redo2 {...base} />;
+}
+/** The save icon. */
+export function SaveIcon() {
+  return <Save {...base} />;
+}
+/** The download icon. */
+export function DownloadIcon() {
+  return <Download {...base} strokeWidth={2.1} />;
+}
+/** The cube icon (3D views). */
+export function CubeIcon() {
+  return <Box {...base} />;
+}
+/** The sun icon. */
+export function SunIcon() {
+  return <Sun {...base} />;
+}
+/** The moon icon. */
+export function MoonIcon() {
+  return <Moon {...base} />;
+}
+/** The arrow icon. */
+export function ArrowIcon() {
+  return <ArrowRight {...base} strokeWidth={2.1} />;
+}
+/** The chevron icon. */
+export function ChevronIcon() {
+  return <ChevronDown {...base} strokeWidth={2.2} />;
+}
+/** The expand icon. */
+export function ExpandIcon() {
+  return <Expand {...base} />;
+}
+/**
+ * The full screen icon: leave full screen when in it, enter it otherwise.
+ * @param props whether the window is full screen
+ */
+export function FullscreenIcon({ on }: Readonly<{ on: boolean }>) {
+  return on ? <Minimize {...base} /> : <Maximize {...base} />;
+}
+/** The previous icon. */
+export function PrevIcon() {
+  return <ChevronLeft {...base} strokeWidth={2.2} />;
+}
+/** The next icon. */
+export function NextIcon() {
+  return <ChevronRight {...base} strokeWidth={2.2} />;
+}
+/** The close icon. */
+export function CloseIcon() {
+  return <X {...base} strokeWidth={2.1} />;
+}
+/** The plus icon. */
+export function PlusIcon() {
+  return <Plus {...base} strokeWidth={2.1} />;
+}
+/** The add photo icon. */
+export function AddPhotoIcon() {
+  return <ImagePlus {...base} strokeWidth={1.6} />;
+}
+/** The crop icon. */
+export function CropIcon() {
+  return <Crop {...base} />;
+}
+/** The reset icon. */
+export function ResetIcon() {
+  return <RotateCcw {...base} />;
+}
+/** The star icon. */
+export function StarIcon() {
+  return <Star {...base} />;
+}
+/** The trash icon. */
+export function TrashIcon() {
+  return <Trash2 {...base} />;
+}
+/** The edit icon. */
+export function EditIcon() {
+  return <Pencil {...base} />;
+}
+/** The pack icon (the print pack). */
+export function PackIcon() {
+  return <Package {...base} />;
+}
+/** The arrange icon. */
+export function ArrangeIcon() {
+  return <WandSparkles {...base} />;
+}
+/** The suggest icon. */
+export function SuggestIcon() {
+  return <Lightbulb {...base} />;
+}
+/** The search icon. */
+export function SearchIcon() {
+  return <Search {...base} />;
+}
+/** The settings icon. */
+export function SettingsIcon() {
+  return <Settings {...base} />;
+}
+/** The ruler icon. */
+export function RulerIcon() {
+  return <Ruler {...base} />;
+}
+/** The docs icon. */
+export function DocsIcon() {
+  return <BookOpen {...base} />;
+}
+/** The more icon. */
+export function MoreIcon() {
+  return <Ellipsis {...base} />;
+}
+/** The menu icon. */
+export function MenuIcon() {
+  return <Menu {...base} />;
+}
+/** The activity icon. */
+export function ActivityIcon() {
+  return <Activity {...base} />;
+}
+/** The rotate left icon. */
+export function RotateLeftIcon() {
+  return <RotateCcw {...base} />;
+}
+/** The rotate right icon. */
+export function RotateRightIcon() {
+  return <RotateCw {...base} />;
+}
+/** The flip icon. */
+export function FlipIcon() {
+  return <FlipHorizontal2 {...base} />;
+}
+/** The share icon. */
+export function ShareIcon() {
+  return <Share2 {...base} />;
+}
+/** The adjust icon. */
+export function AdjustIcon() {
+  return <SlidersHorizontal {...base} />;
+}
+/** The pipette icon. */
+export function PipetteIcon() {
+  return <Pipette {...base} />;
+}
+/** The reel icon (Reels and Shorts). */
+export function ReelIcon() {
+  return <Clapperboard {...base} />;
+}
+/** The YouTube icon (a monitor with a play button). */
+export function YouTubeIcon() {
+  return <MonitorPlay {...base} />;
+}
+/** The image icon. */
+export function ImageIcon() {
+  return <Image {...base} />;
+}
+/** The type icon. */
+export function TypeIcon() {
+  return <Type {...base} />;
+}
+/** The shapes icon. */
+export function ShapesIcon() {
+  return <Shapes {...base} />;
+}
+/** The brush icon. */
+export function BrushIcon() {
+  return <Brush {...base} />;
+}
+/** The mask icon (two overlapping circles). */
+export function MaskIcon() {
+  return <Blend {...base} />;
+}
 /** Transitions between clips (206): two clips meeting at a cut. */
-export const TransitionIcon = () => <BetweenHorizontalStart {...base} />;
-export const MusicIcon = () => <Music {...base} />;
-/** Track headers: the icon shows the state (pressed = hidden, muted, locked). */
-export const HideIcon = ({ on }: { on: boolean }) => (on ? <EyeOff {...base} /> : <Eye {...base} />);
-export const MuteIcon = ({ on }: { on: boolean }) => (on ? <VolumeX {...base} /> : <Volume2 {...base} />);
-export const LockIcon = ({ on }: { on: boolean }) => (on ? <Lock {...base} /> : <LockOpen {...base} />);
-export const HeightIcon = () => <ChevronsUpDown {...base} />;
-export const LayersIcon = () => <Layers {...base} />;
-export const ScissorsIcon = () => <Scissors {...base} />;
+export function TransitionIcon() {
+  return <BetweenHorizontalStart {...base} />;
+}
+/** The music icon. */
+export function MusicIcon() {
+  return <Music {...base} />;
+}
+/**
+ * Track headers: the icon shows the state (pressed = hidden, muted, locked). The hide icon: an eye, crossed out when hidden.
+ * @param props whether the track is hidden
+ */
+export function HideIcon({ on }: Readonly<{ on: boolean }>) {
+  return on ? <EyeOff {...base} /> : <Eye {...base} />;
+}
+/**
+ * The mute icon: a speaker, crossed out when muted.
+ * @param props whether the track is muted
+ */
+export function MuteIcon({ on }: Readonly<{ on: boolean }>) {
+  return on ? <VolumeX {...base} /> : <Volume2 {...base} />;
+}
+/**
+ * The lock icon: closed when locked, open when not.
+ * @param props whether the track is locked
+ */
+export function LockIcon({ on }: Readonly<{ on: boolean }>) {
+  return on ? <Lock {...base} /> : <LockOpen {...base} />;
+}
+/** The height icon. */
+export function HeightIcon() {
+  return <ChevronsUpDown {...base} />;
+}
+/** The layers icon. */
+export function LayersIcon() {
+  return <Layers {...base} />;
+}
+/** The scissors icon. */
+export function ScissorsIcon() {
+  return <Scissors {...base} />;
+}
 /** The timeline's edit tools (202) and its switches. */
 const TOOL_ICONS = {
   select: MousePointer2,
@@ -171,56 +354,98 @@ const TOOL_ICONS = {
   slip: ChevronsLeftRight,
   slide: MoveHorizontal,
 };
-export const EditToolIcon = ({ tool }: { tool: keyof typeof TOOL_ICONS }) => {
+/**
+ * A timeline edit tool's icon.
+ * @param props the tool
+ */
+export function EditToolIcon({ tool }: Readonly<{ tool: keyof typeof TOOL_ICONS }>) {
   const Icon = TOOL_ICONS[tool];
   return <Icon {...base} />;
-};
-export const MagneticIcon = () => <FoldHorizontal {...base} />;
-export const SnapIcon = () => <Magnet {...base} />;
-export const PlayIcon = () => <Play {...base} />;
-export const PauseIcon = () => <Pause {...base} />;
-export const SkipBackIcon = () => <SkipBack {...base} />;
-export const SkipForwardIcon = () => <SkipForward {...base} />;
-export const ZoomInIcon = () => <ZoomIn {...base} />;
-export const ZoomOutIcon = () => <ZoomOut {...base} />;
-export const CopyIcon = () => <Copy {...base} />;
-export const FolderIcon = () => <FolderOpen {...base} />;
-export const LaptopIcon = () => <Laptop {...base} />;
+}
+/** The magnetic icon. */
+export function MagneticIcon() {
+  return <FoldHorizontal {...base} />;
+}
+/** The snap icon. */
+export function SnapIcon() {
+  return <Magnet {...base} />;
+}
+/** The play icon. */
+export function PlayIcon() {
+  return <Play {...base} />;
+}
+/** The pause icon. */
+export function PauseIcon() {
+  return <Pause {...base} />;
+}
+/** The skip back icon. */
+export function SkipBackIcon() {
+  return <SkipBack {...base} />;
+}
+/** The skip forward icon. */
+export function SkipForwardIcon() {
+  return <SkipForward {...base} />;
+}
+/** The zoom in icon. */
+export function ZoomInIcon() {
+  return <ZoomIn {...base} />;
+}
+/** The zoom out icon. */
+export function ZoomOutIcon() {
+  return <ZoomOut {...base} />;
+}
+/** The copy icon. */
+export function CopyIcon() {
+  return <Copy {...base} />;
+}
+/** The folder icon. */
+export function FolderIcon() {
+  return <FolderOpen {...base} />;
+}
+/** The laptop icon. */
+export function LaptopIcon() {
+  return <Laptop {...base} />;
+}
 
 /** Brand glyph (Lucide no longer ships brand logos), drawn on the same 24px grid and stroke. */
-export const InstagramIcon = () => (
-  <svg
-    width={24}
-    height={24}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.9}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
-    <rect x="3" y="3" width="18" height="18" rx="5" />
-    <circle cx="12" cy="12" r="4.2" />
-    <circle cx="17.4" cy="6.6" r="0.6" fill="currentColor" />
-  </svg>
-);
+export function InstagramIcon() {
+  return (
+    <svg
+      width={24}
+      height={24}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.4" cy="6.6" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
 
-export const Logo = () => (
-  <svg className="logo" viewBox="0 0 120 120" aria-hidden="true">
-    <defs>
-      <path id="ring" d="M60,60 m-40,0 a40,40 0 1,1 80,0 a40,40 0 1,1 -80,0" />
-    </defs>
-    <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" strokeWidth="3.5" />
-    <circle cx="60" cy="60" r="31" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    <text fontFamily="Hind, sans-serif" fontSize="11.5" fontWeight="600" fill="currentColor">
-      {/* Spread evenly round the whole ring (circumference 251): the last ✦ meets the first letter. */}
-      <textPath href="#ring" startOffset="1%" textLength="244" lengthAdjust="spacing">
-        CHITTHI ✦ PRINT STUDIO ✦
-      </textPath>
-    </text>
-    <text x="60" y="68" textAnchor="middle" fontFamily="Rozha One, serif" fontSize="21" fill="currentColor">
-      चिट्ठी
-    </text>
-  </svg>
-);
+/** Chitthi's postmark logo, with the name in Devanagari. */
+export function Logo() {
+  return (
+    <svg className="logo" viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <path id="ring" d="M60,60 m-40,0 a40,40 0 1,1 80,0 a40,40 0 1,1 -80,0" />
+      </defs>
+      <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" strokeWidth="3.5" />
+      <circle cx="60" cy="60" r="31" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <text fontFamily="Hind, sans-serif" fontSize="11.5" fontWeight="600" fill="currentColor">
+        {/* Spread evenly round the whole ring (circumference 251): the last ✦ meets the first letter. */}
+        <textPath href="#ring" startOffset="1%" textLength="244" lengthAdjust="spacing">
+          CHITTHI ✦ PRINT STUDIO ✦
+        </textPath>
+      </text>
+      <text x="60" y="68" textAnchor="middle" fontFamily="Rozha One, serif" fontSize="21" fill="currentColor">
+        चिट्ठी
+      </text>
+    </svg>
+  );
+}

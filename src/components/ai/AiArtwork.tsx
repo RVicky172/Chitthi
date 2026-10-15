@@ -30,7 +30,7 @@ interface Candidate {
   blob: Blob;
 }
 
-export default function AiArtwork({ wide = false }: { wide?: boolean }) {
+export default function AiArtwork({ wide = false }: Readonly<{ wide?: boolean }>) {
   const design = useApp((state) => state.design),
     calPage = useApp((state) => state.ui.calPage);
   const { active, count } = usePhotoSlots();

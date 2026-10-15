@@ -9,7 +9,7 @@ import type { CalendarSettings, FrameStyle, MatWidth, SizeDef } from '../../type
 import { LayoutThumb } from '../canvases';
 import { Pane, Section, Seg } from '../common';
 
-function SizeIcon({ s, land }: { s: SizeDef; land: boolean }) {
+function SizeIcon({ s, land }: Readonly<{ s: SizeDef; land: boolean }>) {
   const long = s.L || 150,
     short = s.S || 100,
     width = land ? long : short,

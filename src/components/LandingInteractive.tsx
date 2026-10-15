@@ -15,7 +15,7 @@ const mm = (value: number) => `${+value.toFixed(2)}`;
 const px = (millimetres: number) => Math.round((millimetres / 25.4) * 300);
 
 /** Four products as tabs: pick one to see its real examples, sizes and layouts. Arrow keys move between tabs. */
-export function ProductExplorer({ shots, open }: { shots: ShowcaseImage[]; open: (p: ProductId) => void }) {
+export function ProductExplorer({ shots, open }: Readonly<{ shots: ShowcaseImage[]; open: (p: ProductId) => void }>) {
   const [id, setId] = useState<ProductId>('postcard');
   const [pick, setPick] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);

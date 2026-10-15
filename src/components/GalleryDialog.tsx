@@ -25,11 +25,11 @@ function GalleryCard({
   d,
   onDeleted,
   pick,
-}: {
+}: Readonly<{
   d: SavedDesign;
   onDeleted: () => void;
   pick?: { on: boolean; toggle: () => void };
-}) {
+}>) {
   const [sure, setSure] = useState(false);
   useEffect(() => {
     if (!sure) return;

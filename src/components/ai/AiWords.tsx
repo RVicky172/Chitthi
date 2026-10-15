@@ -44,7 +44,7 @@ function fontsForLanguage(lang: string): Partial<{ headFont: string; quoteFont: 
   };
 }
 
-export default function AiWords({ mode }: { mode: WordsMode }) {
+export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
   const design = useApp((state) => state.design),
     photos = useApp((state) => state.photos);
   const [pref, setPref] = useState(loadPref);
