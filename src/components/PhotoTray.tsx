@@ -30,6 +30,53 @@ type Drag =
   | { kind: 'lib'; sp: StoredPhoto };
 let dragging: Drag | null = null;
 
+/**
+ * Adds photo files to the design and the library, telling the user about the first problem, if any.
+ * @param files the chosen or dropped files
+ */
+async function addPhotoFiles(files: FileList | null): Promise<void> {
+  if (!files?.length) return;
+  const first = (await addFiles([...files])).at(0);
+  if (first) toast(first[1]);
+}
+
+/**
+ * Drag handlers for a photo that can be dragged onto a slot or month.
+ * @param dragged what is dragged
+ * @param onEnd called when the drag ends (clears the drop highlight)
+ * @returns the props to spread on the element
+ */
+function dragSource(dragged: Drag, onEnd: () => void) {
+  return {
+    draggable: true,
+    onDragStart: (event: DragEvent) => {
+      dragging = dragged;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', 'chitthi-photo');
+    },
+    onDragEnd: () => {
+      dragging = null;
+      onEnd();
+    },
+  };
+}
+
+/**
+ * Swaps two items of a list in place (nothing when either index is out of range).
+ * @param list the list
+ * @param first one index
+ * @param second the other
+ */
+function swapIn(list: Photo[], first: number, second: number): void {
+  if (first < 0 || second < 0) return;
+  const firstItem = list.at(first),
+    secondItem = list.at(second);
+  if (firstItem === undefined || secondItem === undefined) return;
+  list[first] = secondItem;
+  list[second] = firstItem;
+}
+
+/** The dock under the stage: the design's photo slots (or a calendar's months), suggestions and adding photos. */
 export function PhotoTray() {
   const design = useApp((state) => state.design);
   // A calendar of several months gets one row of month tiles instead of slots plus a separate month strip.
@@ -53,21 +100,16 @@ function CardDock() {
   const libPicks = ranked.slice(0, Math.max(0, SUGGEST - spare.length)).map((pick) => pick.photo);
   const total = spare.length + ranked.length;
 
-  const add = async (files: FileList | null) => {
-    if (!files?.length) return;
-    const msgs = await addFiles([...files]);
-    if (msgs.length) toast(msgs[0][1]);
-  };
   const intoSlot = async (dragged: Drag, slot: number) => {
     if (dragged.kind === 'slot') {
       // Swap the two slots' photos.
-      const from = filled[dragged.slot],
-        to = filled[slot];
+      const from = filled.at(dragged.slot),
+        to = filled.at(slot);
       if (from && to && from.id !== to.id) {
         const list = [...getState().photos],
           ia = list.findIndex((photo) => photo.id === from.id),
           ib = list.findIndex((photo) => photo.id === to.id);
-        [list[ia], list[ib]] = [list[ib], list[ia]];
+        swapIn(list, ia, ib);
         setPhotos(list);
       }
     } else if (dragged.kind === 'card') placePhoto(dragged.id, slot);
@@ -91,18 +133,7 @@ function CardDock() {
       dragging = null;
     },
   });
-  const dragFrom = (dragged: Drag) => ({
-    draggable: true,
-    onDragStart: (event: DragEvent) => {
-      dragging = dragged;
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', 'chitthi-photo');
-    },
-    onDragEnd: () => {
-      dragging = null;
-      setOver(null);
-    },
-  });
+  const dragFrom = (dragged: Drag) => dragSource(dragged, () => setOver(null));
   const remove = (photo: Photo) => setPhotos(getState().photos.filter((x) => x.id !== photo.id));
 
   return (
@@ -122,7 +153,7 @@ function CardDock() {
               type="button"
               role="radio"
               aria-checked={slot === target}
-              aria-label={`Slot ${slot + 1}${photo ? `: ${photo.name}` : ', empty'}`}
+              aria-label={`Slot ${slot + 1}${photo ? ': ' + photo.name : ', empty'}`}
               title={
                 photo ? `Slot ${slot + 1}: ${photo.name}. Drag onto another slot to swap.` : `Slot ${slot + 1} is empty`
               }
@@ -181,7 +212,7 @@ function CardDock() {
                 onClick={() => void putOnCard(pick)}
                 {...dragFrom({ kind: 'lib', sp: pick })}
               >
-                <img src={pick.thumb || pick.url} alt="" loading="lazy" decoding="async" draggable={false} />
+                <img src={pick.thumb ?? pick.url} alt="" loading="lazy" decoding="async" draggable={false} />
               </button>
             </li>
           ))}
@@ -196,7 +227,7 @@ function CardDock() {
             multiple
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
             onChange={(event) => {
-              void add(event.target.files);
+              void addPhotoFiles(event.target.files);
               event.target.value = '';
             }}
           />
@@ -249,9 +280,9 @@ function CalendarDock() {
     slotsPer = Math.max(1, count),
     target = slotsPer > 1 ? active : 0,
     current = filled[target],
-    monthName = MONTHS[calMonth(design, page).month];
+    monthName = MONTHS.at(calMonth(design, page).month) ?? '';
   const photoAt = (pageIndex: number, slot = 0) =>
-    photoCount ? photos[slotPhotoIndex(slot, photoCount, pageIndex, slotsPer)] : null;
+    photoCount ? (photos.at(slotPhotoIndex(slot, photoCount, pageIndex, slotsPer)) ?? null) : null;
   // Photos not shown in any month (a list longer than the months need), then the library's best matches.
   const used = new Set(
     Array.from({ length: pages * slotsPer }, (_, index) => photoAt(Math.floor(index / slotsPer), index % slotsPer)?.id),
@@ -261,9 +292,10 @@ function CalendarDock() {
 
   // Keep the shown month in view as it changes (arrows, keyboard, clicks elsewhere).
   useEffect(() => {
-    const el = row.current?.children[page] as HTMLElement | undefined,
+    const el = row.current?.children.item(page),
       ul = row.current;
-    if (el && ul) ul.scrollTo({ left: el.offsetLeft - (ul.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
+    if (el instanceof HTMLElement && ul)
+      ul.scrollTo({ left: el.offsetLeft - (ul.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
   }, [page]);
   // Close the suggestions on an outside click or Esc.
   useEffect(() => {
@@ -281,7 +313,11 @@ function CalendarDock() {
   }, [suggest]);
 
   const show = (pageIndex: number) => setUI({ calPage: pageIndex, side: 'front' });
-  /** Puts a photo into the selected slot of month p, or swaps two months. */
+  /**
+   * Puts a photo into the selected slot of a month, or swaps two months.
+   * @param dragged what was dropped
+   * @param pageIndex the month's page
+   */
   const intoMonth = async (dragged: Drag, pageIndex: number) => {
     show(pageIndex);
     if (dragged.kind === 'month') {
@@ -290,36 +326,22 @@ function CalendarDock() {
       for (let slot = 0; slot < slotsPer; slot++) {
         const from = slotPhotoIndex(slot, photoCount, dragged.page, slotsPer),
           to = slotPhotoIndex(slot, photoCount, pageIndex, slotsPer);
-        if (from !== to) [list[from], list[to]] = [list[to], list[from]];
+        if (from !== to) swapIn(list, from, to);
       }
       setPhotos(list);
     } else if (dragged.kind === 'card') placePhoto(dragged.id, target);
     else if (dragged.kind === 'lib') await putOnCard(dragged.sp);
   };
-  const add = async (files: FileList | null) => {
-    if (!files?.length) return;
-    const msgs = await addFiles([...files]);
-    if (msgs.length) toast(msgs[0][1]);
-  };
-  const dragFrom = (dragged: Drag) => ({
-    draggable: true,
-    onDragStart: (event: DragEvent) => {
-      dragging = dragged;
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', 'chitthi-photo');
-    },
-    onDragEnd: () => {
-      dragging = null;
-      setOver(null);
-    },
-  });
+  const dragFrom = (dragged: Drag) => dragSource(dragged, () => setOver(null));
 
   return (
     <div className="dock cal" role="group" aria-label="Calendar photos" ref={box}>
       <ul className="dock-months" ref={row} role="tablist" aria-label="Months">
         {Array.from({ length: pages }, (_, pageIndex) => {
           const ph = photoAt(pageIndex),
-            { month, year } = calMonth(design, pageIndex);
+            { month, year } = calMonth(design, pageIndex),
+            monthLabel = MONTHS.at(month) ?? '',
+            photoNote = ph ? `: ${ph.name}` : ', no photo';
           return (
             <li
               key={pageIndex}
@@ -341,14 +363,14 @@ function CalendarDock() {
                 type="button"
                 role="tab"
                 aria-selected={pageIndex === page}
-                aria-label={`${MONTHS[month]} ${year}${ph ? `: ${ph.name}` : ', no photo'}`}
-                title={`${MONTHS[month]} ${year}${ph ? '. Drag onto another month to swap photos.' : ''}`}
+                aria-label={`${monthLabel} ${year}${photoNote}`}
+                title={`${monthLabel} ${year}${ph ? '. Drag onto another month to swap photos.' : ''}`}
                 onClick={() => show(pageIndex)}
                 {...(ph ? dragFrom({ kind: 'month', page: pageIndex }) : {})}
               >
                 {ph ? <PhotoThumb photo={ph} /> : <PlusIcon />}
               </button>
-              <span>{MONTHS[month].slice(0, 3)}</span>
+              <span>{monthLabel.slice(0, 3)}</span>
             </li>
           );
         })}
@@ -398,7 +420,7 @@ function CalendarDock() {
             multiple
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
             onChange={(event) => {
-              void add(event.target.files);
+              void addPhotoFiles(event.target.files);
               event.target.value = '';
             }}
           />
@@ -462,7 +484,7 @@ function CalendarDock() {
                   onClick={() => void putOnCard(sp)}
                   {...dragFrom({ kind: 'lib', sp })}
                 >
-                  <img src={sp.thumb || sp.url} alt="" loading="lazy" decoding="async" draggable={false} />
+                  <img src={sp.thumb ?? sp.url} alt="" loading="lazy" decoding="async" draggable={false} />
                 </button>
               </li>
             ))}

@@ -9,7 +9,7 @@ import { renderCard } from '../engine/render';
 import { open3D } from '../state/actions';
 import { selectSlot } from '../state/photoSlots';
 import { getState, patchPhoto, setUI, useApp } from '../state/store';
-import type { Layout, Photo, Rect } from '../types';
+import type { Design, Layout, Photo, ProductId, Rect } from '../types';
 import { Seg } from './common';
 import { CubeIcon, PrevIcon, NextIcon } from './icons';
 import { MoreMenu } from './MoreMenu';
@@ -24,6 +24,159 @@ interface Drag {
   py: number;
 }
 
+/**
+ * The change a key makes to the photo in the selected slot: arrows move it (Shift: further), + and - zoom.
+ * @param photo the photo
+ * @param key the key
+ * @param shift whether Shift is held
+ * @returns the change, or null for other keys
+ */
+function keyEdit(photo: Photo, key: string, shift: boolean): Partial<Photo> | null {
+  const step = shift ? 0.2 : 0.05,
+    clamp = (value: number) => Math.max(-1, Math.min(1, value));
+  const edits: Partial<Record<string, Partial<Photo>>> = {
+    ArrowLeft: { px: clamp(photo.px - step) },
+    ArrowRight: { px: clamp(photo.px + step) },
+    ArrowUp: { py: clamp(photo.py - step) },
+    ArrowDown: { py: clamp(photo.py + step) },
+    '+': { zoom: Math.min(4, photo.zoom * 1.1) },
+    '=': { zoom: Math.min(4, photo.zoom * 1.1) },
+    '-': { zoom: Math.max(1, photo.zoom / 1.1) },
+  };
+  return edits[key] ?? null;
+}
+
+/** What the canvas calls each product in its name. */
+const PRODUCT_NOUNS: Record<ProductId, string> = {
+  postcard: 'postcard',
+  calendar: 'calendar',
+  frame: 'print',
+  magnet: 'magnet',
+};
+
+/**
+ * The canvas's corners: square with guides shown, else round, the size's corner, or 2 px.
+ * @param guides whether the print guides show
+ * @param circle whether the size is round
+ * @param corner the size's corner, mm
+ * @param scale pixels per mm
+ * @returns the border radius
+ */
+function canvasRadius(guides: boolean, circle: boolean, corner: number, scale: number): number | string {
+  if (guides) return 2;
+  if (circle) return '50%';
+  return corner ? corner * scale : 2;
+}
+
+/** The design and what the bar shows. */
+interface StageBarProps {
+  design: Design;
+  side: 'front' | 'back';
+  guides: boolean;
+  proof: boolean;
+  page: number;
+  pages: number;
+}
+
+/**
+ * The bar above the card: front or back, print guides and colours, the month (calendars), 3D, and a menu on phones.
+ * @param props the design, the side, the toggles and the calendar page
+ */
+function StageBar({ design, side, guides, proof, page, pages }: Readonly<StageBarProps>) {
+  const isCal = design.product === 'calendar';
+  return (
+    <div className="stagebar">
+      <div className="pill">
+        <Seg
+          label="Side"
+          value={side}
+          options={[
+            ['front', 'Front'],
+            ['back', 'Back'],
+          ]}
+          onChange={(value) => setUI({ side: value })}
+        />
+      </div>
+      <div className="pill hide-sm">
+        <label className="check">
+          <input type="checkbox" checked={guides} onChange={(event) => setUI({ guides: event.target.checked })} /> Print
+          guides
+        </label>
+        <label
+          className="check"
+          title="How colours come out on paper: very bright blues, greens and pinks print duller than on screen. The print files are not changed."
+        >
+          <input type="checkbox" checked={proof} onChange={(event) => setUI({ proof: event.target.checked })} /> Print
+          colours
+        </label>
+        {guides && (
+          <span className="legend">
+            <span>
+              <i style={{ color: '#FF5C7A' }} />
+              Trim
+            </span>
+            <span>
+              <i style={{ color: '#7FB0FF' }} />
+              Safe
+            </span>
+          </span>
+        )}
+      </div>
+      {isCal && side === 'front' && pages > 1 && (
+        <div className="pill month" role="group" aria-label="Month shown">
+          <button
+            type="button"
+            className="pbtn"
+            aria-label="Previous month"
+            disabled={page === 0}
+            onClick={() => setUI({ calPage: page - 1 })}
+          >
+            <PrevIcon />
+          </button>
+          <span aria-live="polite">
+            {(MONTHS.at(calMonth(design, page).month) ?? '').slice(0, 3)} {calMonth(design, page).year}
+          </span>
+          <button
+            type="button"
+            className="pbtn"
+            aria-label="Next month"
+            disabled={page >= pages - 1}
+            onClick={() => setUI({ calPage: page + 1 })}
+          >
+            <NextIcon />
+          </button>
+        </div>
+      )}
+      <div className="pill">
+        <button type="button" className="pbtn" aria-label="3D view" onClick={() => void open3D()}>
+          <CubeIcon />
+          <span className="hide-sm">3D view</span>
+        </button>
+      </div>
+      {/* Phones: the two view toggles fold into a menu so the bar stays on one row above the card. */}
+      <MoreMenu
+        className="show-sm pill-menu"
+        label="View options"
+        items={[
+          {
+            key: 'guides',
+            label: 'Print guides (trim and safe area)',
+            checked: guides,
+            onSelect: () => setUI({ guides: !guides }),
+          },
+          {
+            key: 'proof',
+            label: 'Print colours (how colours print)',
+            checked: proof,
+            onSelect: () => setUI({ proof: !proof }),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+/** The print studio's preview: the card drawn at its size, with photos to drag, wheel and key into place. */
 export function Stage() {
   const design = useApp((state) => state.design),
     photos = useApp((state) => state.photos);
@@ -90,9 +243,10 @@ export function Stage() {
       px = ((x - canvasBox.left) * cv.current.width) / canvasBox.width,
       py = ((y - canvasBox.top) * cv.current.height) / canvasBox.height;
     for (let slot = drawn.slots.length - 1; slot >= 0; slot--) {
-      const rect = drawn.slots[slot].d;
-      if (px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h)
-        return { d: rect, ph: list[slotPhotoIndex(slot, list.length, page, drawn.slots.length)], slot: slot };
+      const rect = drawn.slots.at(slot)?.d,
+        photo = list.at(slotPhotoIndex(slot, list.length, page, drawn.slots.length));
+      if (rect && photo && px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h)
+        return { d: rect, ph: photo, slot };
     }
     return null;
   };
@@ -114,94 +268,7 @@ export function Stage() {
   const draggable = side === 'front' && photos.length > 0;
   return (
     <section className="stage" aria-label="Postcard preview">
-      <div className="stagebar">
-        <div className="pill">
-          <Seg
-            label="Side"
-            value={side}
-            options={[
-              ['front', 'Front'],
-              ['back', 'Back'],
-            ]}
-            onChange={(value) => setUI({ side: value })}
-          />
-        </div>
-        <div className="pill hide-sm">
-          <label className="check">
-            <input type="checkbox" checked={guides} onChange={(event) => setUI({ guides: event.target.checked })} />{' '}
-            Print guides
-          </label>
-          <label
-            className="check"
-            title="How colours come out on paper: very bright blues, greens and pinks print duller than on screen. The print files are not changed."
-          >
-            <input type="checkbox" checked={proof} onChange={(event) => setUI({ proof: event.target.checked })} /> Print
-            colours
-          </label>
-          {guides && (
-            <span className="legend">
-              <span>
-                <i style={{ color: '#FF5C7A' }} />
-                Trim
-              </span>
-              <span>
-                <i style={{ color: '#7FB0FF' }} />
-                Safe
-              </span>
-            </span>
-          )}
-        </div>
-        {isCal && side === 'front' && pages > 1 && (
-          <div className="pill month" role="group" aria-label="Month shown">
-            <button
-              type="button"
-              className="pbtn"
-              aria-label="Previous month"
-              disabled={page === 0}
-              onClick={() => setUI({ calPage: page - 1 })}
-            >
-              <PrevIcon />
-            </button>
-            <span aria-live="polite">
-              {MONTHS[calMonth(design, page).month].slice(0, 3)} {calMonth(design, page).year}
-            </span>
-            <button
-              type="button"
-              className="pbtn"
-              aria-label="Next month"
-              disabled={page >= pages - 1}
-              onClick={() => setUI({ calPage: page + 1 })}
-            >
-              <NextIcon />
-            </button>
-          </div>
-        )}
-        <div className="pill">
-          <button type="button" className="pbtn" aria-label="3D view" onClick={() => void open3D()}>
-            <CubeIcon />
-            <span className="hide-sm">3D view</span>
-          </button>
-        </div>
-        {/* Phones: the two view toggles fold into a menu so the bar stays on one row above the card. */}
-        <MoreMenu
-          className="show-sm pill-menu"
-          label="View options"
-          items={[
-            {
-              key: 'guides',
-              label: 'Print guides (trim and safe area)',
-              checked: guides,
-              onSelect: () => setUI({ guides: !guides }),
-            },
-            {
-              key: 'proof',
-              label: 'Print colours (how colours print)',
-              checked: proof,
-              onSelect: () => setUI({ proof: !proof }),
-            },
-          ]}
-        />
-      </div>
+      <StageBar design={design} side={side} guides={guides} proof={proof} page={page} pages={pages} />
       <div className="cardwrap" ref={wrap} aria-busy={!!loading}>
         {loading && (
           <div className="stage-loading" role="status">
@@ -215,35 +282,24 @@ export function Stage() {
             ref={cv}
             role="img"
             tabIndex={draggable ? 0 : undefined}
-            aria-label={`${side === 'front' ? 'Front' : 'Back'} of the ${design.product === 'frame' ? 'print' : design.product === 'magnet' ? 'magnet' : design.product}${draggable ? '. Arrow keys move the photo in the selected slot, Shift for bigger steps, plus and minus to zoom.' : ''}`}
+            aria-label={`${side === 'front' ? 'Front' : 'Back'} of the ${PRODUCT_NOUNS[design.product]}${draggable ? '. Arrow keys move the photo in the selected slot, Shift for bigger steps, plus and minus to zoom.' : ''}`}
             onKeyDown={(event) => {
               // Keyboard equivalent of dragging / wheel-zooming the photo in the selected slot.
               const drawn = layout.current,
                 list = getState().photos;
               if (!draggable || !drawn?.slots.length || !list.length) return;
               const slot = Math.min(getState().ui.slot, drawn.slots.length - 1),
-                ph = list[slotPhotoIndex(slot, list.length, page, drawn.slots.length)],
-                step = event.shiftKey ? 0.2 : 0.05,
-                clamp = (value: number) => Math.max(-1, Math.min(1, value));
-              const move: Record<string, () => void> = {
-                ArrowLeft: () => patchPhoto(ph.id, { px: clamp(ph.px - step) }),
-                ArrowRight: () => patchPhoto(ph.id, { px: clamp(ph.px + step) }),
-                ArrowUp: () => patchPhoto(ph.id, { py: clamp(ph.py - step) }),
-                ArrowDown: () => patchPhoto(ph.id, { py: clamp(ph.py + step) }),
-                '+': () => patchPhoto(ph.id, { zoom: Math.min(4, ph.zoom * 1.1) }),
-                '=': () => patchPhoto(ph.id, { zoom: Math.min(4, ph.zoom * 1.1) }),
-                '-': () => patchPhoto(ph.id, { zoom: Math.max(1, ph.zoom / 1.1) }),
-              };
-              const fn = move[event.key];
-              if (!fn) return;
+                ph = list.at(slotPhotoIndex(slot, list.length, page, drawn.slots.length));
+              const edit = ph ? keyEdit(ph, event.key, event.shiftKey) : null;
+              if (!ph || !edit) return;
               event.preventDefault();
-              fn();
+              patchPhoto(ph.id, edit);
             }}
             className={`${flipKey ? 'flip' : ''} ${draggable ? 'draggable' : ''} ${dragging ? 'dragging' : ''}`}
             style={{
               width: tw * scale,
               height: th * scale,
-              borderRadius: guides ? 2 : circle ? '50%' : corner ? corner * scale : 2,
+              borderRadius: canvasRadius(guides, circle, corner, scale),
             }}
             onPointerDown={(event) => {
               const hitPhoto = hit(event.clientX, event.clientY);

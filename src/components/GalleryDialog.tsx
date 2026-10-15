@@ -13,6 +13,7 @@ import {
 } from '../state/actions';
 import { setDesign, setUI, useApp } from '../state/store';
 import type { LayoutId, SavedDesign } from '../types';
+import { isObjectLike, isOneOf } from '../engine/guards';
 import { Seg } from './common';
 import { CloseIcon, EditIcon, GalleryIcon, TrashIcon } from './icons';
 import { SampleGallery } from './SampleGallery';
@@ -69,9 +70,8 @@ function GalleryCard({
         <button
           type="button"
           className="sbtn accent"
-          onClick={async () => {
-            await openDesign(d.id);
-            close();
+          onClick={() => {
+            void openDesign(d.id).then(close);
           }}
         >
           <EditIcon />
@@ -83,14 +83,15 @@ function GalleryCard({
         <button
           type="button"
           className="sbtn"
-          onClick={async () => {
+          onClick={() => {
             if (!sure) {
               setSure(true);
               return;
             }
-            await db.del(d.id);
-            onDeleted();
-            toast('Design deleted.');
+            void db.del(d.id).then(() => {
+              onDeleted();
+              toast('Design deleted.');
+            });
           }}
         >
           <TrashIcon />
@@ -101,7 +102,18 @@ function GalleryCard({
   );
 }
 
-const layoutOf = (saved: SavedDesign): LayoutId => saved.design?.layout ?? 'full';
+const LAYOUT_IDS: LayoutId[] = LAYOUTS.map(([id]) => id);
+
+/**
+ * A saved design's layout ('full' for an old save without one).
+ * @param saved the saved design
+ * @returns its layout, or null for a layout this version doesn't have (it isn't listed)
+ */
+function layoutOf(saved: SavedDesign): LayoutId | null {
+  const design: unknown = saved.design;
+  if (!isObjectLike(design) || design.layout === undefined) return 'full';
+  return isOneOf(LAYOUT_IDS, design.layout) ? design.layout : null;
+}
 
 /** Full-screen gallery of saved designs, grouped by layout (in Layout-step order), newest first within each group. */
 export function GalleryDialog() {
@@ -113,7 +125,7 @@ export function GalleryDialog() {
   const [filter, setFilter] = useState<LayoutId | 'all'>('all');
   // Samples first for a new user; once they have saved designs, their own come first.
   const [tabChoice, setTab] = useState<'mine' | 'samples' | null>(null);
-  const tab = tabChoice ?? (list && list.length ? 'mine' : 'samples');
+  const tab = tabChoice ?? (list?.length ? 'mine' : 'samples');
   // Picking designs for one quote pack (order sheet + a quote request each).
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
@@ -149,17 +161,18 @@ export function GalleryDialog() {
   }, [open, load]);
 
   const groups = useMemo(() => {
-    const by = new Map<LayoutId, SavedDesign[]>();
+    const by = new Map<LayoutId | null, SavedDesign[]>();
     for (const saved of list ?? []) {
       const layout = layoutOf(saved);
       by.set(layout, [...(by.get(layout) ?? []), saved]);
     }
-    return LAYOUTS.filter(([id]) => by.has(id)).map(([id]) => ({
-      id,
-      items: by.get(id)!.sort((left, right) => right.updated - left.updated),
-    }));
+    return LAYOUTS.flatMap(([id]) => {
+      const items = by.get(id);
+      return items ? [{ id, items: items.toSorted((left, right) => right.updated - left.updated) }] : [];
+    });
   }, [list]);
   const shown = filter === 'all' ? groups : groups.filter((group) => group.id === filter);
+  const savedCount = list?.length ? ` (${list.length})` : '';
 
   return (
     <dialog ref={dlg} className="galdlg" aria-labelledby="galTitle" onClose={close}>
@@ -191,7 +204,7 @@ export function GalleryDialog() {
           value={tab}
           options={[
             ['samples', 'Samples', <Sparkles key="s" aria-hidden="true" strokeWidth={1.9} />],
-            ['mine', `Your designs${list?.length ? ` (${list.length})` : ''}`, <GalleryIcon key="m" />],
+            ['mine', `Your designs${savedCount}`, <GalleryIcon key="m" />],
           ]}
           onChange={setTab}
         />
@@ -211,13 +224,11 @@ export function GalleryDialog() {
                 type="button"
                 className="btn primary"
                 disabled={!picked.size || !!quoteStep}
-                onClick={async () => {
+                onClick={() => {
                   setQuoteStep('Preparing…');
-                  try {
-                    await downloadQuotePack([...picked], setQuoteStep);
-                  } finally {
+                  void downloadQuotePack([...picked], setQuoteStep).finally(() => {
                     setQuoteStep('');
-                  }
+                  });
                 }}
               >
                 {quoteStep || `Quote pack for ${picked.size || ''} design${picked.size === 1 ? '' : 's'}`}

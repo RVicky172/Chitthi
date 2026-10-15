@@ -17,6 +17,7 @@ import { toast } from '../lib/toast';
 import { putOnCard, storePhotos } from '../state/library';
 import { usePhotoSlots } from '../state/photoSlots';
 import { setUI, useApp } from '../state/store';
+import type { Design } from '../types';
 import { Section, Seg } from './common';
 import { ExpandIcon, SearchIcon } from './icons';
 import { logError } from '../lib/errors';
@@ -32,8 +33,178 @@ const SHAPE_NAMES: Record<PexelsOrientation, string> = { landscape: 'wide', port
 const ASPECT: Record<PexelsOrientation, string> = { landscape: '4 / 3', portrait: '3 / 4', square: '1 / 1' };
 
 /**
+ * The orientation to search for.
+ * @param shape the shape chosen
+ * @param fit the selected slot's orientation, if any
+ * @returns the orientation, or null for any
+ */
+function orientationFor(shape: Shape, fit: PexelsOrientation | null): PexelsOrientation | null {
+  if (shape === 'fit') return fit;
+  return shape === 'any' ? null : shape;
+}
+
+/**
+ * Where a photo goes, in words: a calendar month's slot, a slot, or the card.
+ * @param design the design
+ * @param count photo slots in the layout
+ * @param active the selected slot
+ * @param page the calendar page shown
+ * @returns the place
+ */
+function targetName(design: Design, count: number, active: number, page: number): string {
+  const slot = count > 1 ? `slot ${active + 1}` : '';
+  if (design.product === 'calendar' && design.layout !== 'cal-strip') {
+    const month = MONTHS.at(calMonth(design, page).month) ?? '';
+    return slot ? `${slot} of ${month}` : month;
+  }
+  return slot || 'the card';
+}
+
+/**
+ * The line above the results: how to use them, nothing found, or searching.
+ * @param status the search's status
+ * @param where where a photo goes
+ * @param searchFor the words searched
+ * @param orientation the shape searched, if any
+ * @returns the line
+ */
+function statusLine(status: Status, where: string, searchFor: string, orientation: PexelsOrientation | null): string {
+  if (status.kind !== 'ready') return `Searching Pexels for “${searchFor}”…`;
+  if (!status.photos.length) return `Nothing found for “${searchFor}”. Try other words, or a different shape.`;
+  const shapeNote = orientation ? `, ${SHAPE_NAMES[orientation]} photos` : '';
+  return `Tap a photo to put it in ${where}. “${searchFor}”${shapeNote}.`;
+}
+
+/** A result and its state. */
+interface PexelsTileProps {
+  photo: PexelsPhoto;
+  wide: boolean;
+  loaded: boolean;
+  /** The photo being added, if any (every tile is disabled meanwhile). */
+  busy: number | null;
+  onAdd: (photo: PexelsPhoto) => void;
+  onLoaded: (id: number) => void;
+}
+
+/**
+ * A result: the photo (tap to add it) and its linked credit, as Pexels asks.
+ * @param props the photo, its state and the actions
+ */
+function PexelsTile({ photo, wide, loaded, busy, onAdd, onLoaded }: Readonly<PexelsTileProps>) {
+  return (
+    <li>
+      <button
+        type="button"
+        className="px-ph"
+        style={{ background: photo.avg_color }}
+        disabled={busy !== null}
+        aria-busy={busy === photo.id}
+        title={`${photo.alt || 'Photo'} by ${photo.photographer}`}
+        onClick={() => onAdd(photo)}
+      >
+        <img
+          src={wide ? photo.src.large : photo.src.medium}
+          alt={photo.alt || `Photo by ${photo.photographer}`}
+          loading="lazy"
+          decoding="async"
+          className={loaded ? 'loaded' : undefined}
+          onLoad={() => onLoaded(photo.id)}
+        />
+        {!loaded && <span className="px-shimmer" aria-hidden="true" />}
+        {busy === photo.id && (
+          <span className="px-busy">
+            <span className="spinner" aria-hidden="true" />
+            Adding…
+          </span>
+        )}
+      </button>
+      {/* Pexels asks for a linked credit: "Photo by … on Pexels". */}
+      <p className="px-by">
+        Photo by{' '}
+        <a href={photo.photographer_url} target="_blank" rel="noopener noreferrer">
+          {photo.photographer}
+        </a>{' '}
+        on{' '}
+        <a href={photo.url} target="_blank" rel="noopener noreferrer">
+          Pexels
+        </a>
+      </p>
+    </li>
+  );
+}
+
+/** The search's results and what they can do. */
+interface PexelsResultsProps {
+  status: Status;
+  wide: boolean;
+  line: string;
+  tileShape: PexelsOrientation;
+  loaded: Set<number>;
+  busy: number | null;
+  more: boolean;
+  onAdd: (photo: PexelsPhoto) => void;
+  onLoaded: (id: number) => void;
+  onSearch: (page: number) => void;
+}
+
+/**
+ * The results: the key form, an error with Try again, or the grid (placeholders while searching) and More photos.
+ * @param props the status, the layout and the actions
+ */
+function PexelsResults(props: Readonly<PexelsResultsProps>) {
+  const { status, wide, loaded, busy, more } = props;
+  if (status.kind === 'key') return <KeyForm refused={status.refused} />;
+  if (status.kind === 'error')
+    return (
+      <p className="hint" role="alert">
+        {status.msg}{' '}
+        <button type="button" className="linkbtn" onClick={() => props.onSearch(1)}>
+          Try again
+        </button>
+      </p>
+    );
+  return (
+    <>
+      <p className="hint" aria-live="polite">
+        {props.line}
+      </p>
+      <ul
+        className="px-grid"
+        aria-busy={status.kind === 'loading'}
+        style={{ '--px-aspect': ASPECT[props.tileShape] } as CSSProperties}
+      >
+        {status.kind === 'ready'
+          ? status.photos.map((photo) => (
+              <PexelsTile
+                key={photo.id}
+                photo={photo}
+                wide={wide}
+                loaded={loaded.has(photo.id)}
+                busy={busy}
+                onAdd={props.onAdd}
+                onLoaded={props.onLoaded}
+              />
+            ))
+          : Array.from({ length: wide ? 12 : 6 }, (_, index) => (
+              <li key={index}>
+                <span className="skel px-skel" />
+              </li>
+            ))}
+      </ul>
+      {status.kind === 'ready' && status.more && (
+        <button type="button" className="btn" disabled={more} onClick={() => props.onSearch(status.page + 1)}>
+          {more && <span className="spinner" aria-hidden="true" />}
+          {more ? 'Loading…' : 'More photos'}
+        </button>
+      )}
+    </>
+  );
+}
+
+/**
  * Search Pexels from inside the Photos step. Suggestions come from the design (month, occasion, product) and results
  * are filtered to the shape of the selected photo slot, so they drop into the layout without heavy cropping.
+ * @param props whether it fills the photo library (wide) instead of a section of the Photos step
  */
 export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
   const design = useApp((state) => state.design),
@@ -56,8 +227,8 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
   const [keyTick, setKeyTick] = useState(0);
   const run = useRef(0);
 
-  const searchFor = query ?? ideas[0] ?? 'nature';
-  const orientation = shape === 'fit' ? fit : shape === 'any' ? null : shape;
+  const searchFor = query ?? ideas.at(0) ?? 'nature';
+  const orientation = orientationFor(shape, fit);
 
   useEffect(() => onPexelsKey(() => setKeyTick((tick) => tick + 1)), []);
 
@@ -97,14 +268,15 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
     if (!hidden) void search(1);
   }, [searchFor, orientation, keyTick, hidden]);
 
+  const where = targetName(design, count, active, page);
   const add = async (photo: PexelsPhoto) => {
     setBusy(photo.id);
     // The preview shows a loader too: the full-size photo can take a few seconds.
     setUI({ loading: `Downloading ${photo.photographer}’s photo from Pexels…` });
     try {
-      const ph = await fetchPexels(photo);
-      await storePhotos([ph]);
-      await putOnCard({ id: '', added: Date.now(), ...ph });
+      const fetched = await fetchPexels(photo);
+      await storePhotos([fetched]);
+      await putOnCard({ id: '', added: Date.now(), ...fetched });
       toast(`Added to ${where}. Photo by ${photo.photographer} on Pexels.`);
     } catch (error) {
       logError('handled', error);
@@ -114,14 +286,6 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
       setUI({ loading: null });
     }
   };
-
-  const where =
-    design.product === 'calendar' && design.layout !== 'cal-strip'
-      ? `${count > 1 ? `slot ${active + 1} of ` : ''}${MONTHS[calMonth(design, page).month]}`
-      : count > 1
-        ? `slot ${active + 1}`
-        : 'the card';
-  const tileShape = orientation ?? 'square';
 
   if (hidden) return null;
   const body = (
@@ -144,7 +308,7 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
         <input
           type="search"
           aria-label="Search Pexels photos"
-          placeholder={`Search free photos, e.g. ${ideas[0] ?? 'sunset'}`}
+          placeholder={`Search free photos, e.g. ${ideas.at(0) ?? 'sunset'}`}
           value={text}
           onChange={(event) => setText(event.target.value)}
         />
@@ -180,84 +344,18 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
         ]}
         onChange={setShape}
       />
-      {status.kind === 'key' ? (
-        <KeyForm refused={status.refused} />
-      ) : status.kind === 'error' ? (
-        <p className="hint" role="alert">
-          {status.msg}{' '}
-          <button type="button" className="linkbtn" onClick={() => void search(1)}>
-            Try again
-          </button>
-        </p>
-      ) : (
-        <>
-          <p className="hint" aria-live="polite">
-            {status.kind === 'ready'
-              ? status.photos.length
-                ? `Tap a photo to put it in ${where}. “${searchFor}”${orientation ? `, ${SHAPE_NAMES[orientation]} photos` : ''}.`
-                : `Nothing found for “${searchFor}”. Try other words, or a different shape.`
-              : `Searching Pexels for “${searchFor}”…`}
-          </p>
-          <ul
-            className="px-grid"
-            aria-busy={status.kind === 'loading'}
-            style={{ '--px-aspect': ASPECT[tileShape] } as CSSProperties}
-          >
-            {status.kind === 'ready'
-              ? status.photos.map((photo) => (
-                  <li key={photo.id}>
-                    <button
-                      type="button"
-                      className="px-ph"
-                      style={{ background: photo.avg_color }}
-                      disabled={busy !== null}
-                      aria-busy={busy === photo.id}
-                      title={`${photo.alt || 'Photo'} by ${photo.photographer}`}
-                      onClick={() => void add(photo)}
-                    >
-                      <img
-                        src={wide ? photo.src.large : photo.src.medium}
-                        alt={photo.alt || `Photo by ${photo.photographer}`}
-                        loading="lazy"
-                        decoding="async"
-                        className={loaded.has(photo.id) ? 'loaded' : undefined}
-                        onLoad={() => setLoaded((loadedIds) => new Set(loadedIds).add(photo.id))}
-                      />
-                      {!loaded.has(photo.id) && <span className="px-shimmer" aria-hidden="true" />}
-                      {busy === photo.id && (
-                        <span className="px-busy">
-                          <span className="spinner" aria-hidden="true" />
-                          Adding…
-                        </span>
-                      )}
-                    </button>
-                    {/* Pexels asks for a linked credit: "Photo by … on Pexels". */}
-                    <p className="px-by">
-                      Photo by{' '}
-                      <a href={photo.photographer_url} target="_blank" rel="noopener noreferrer">
-                        {photo.photographer}
-                      </a>{' '}
-                      on{' '}
-                      <a href={photo.url} target="_blank" rel="noopener noreferrer">
-                        Pexels
-                      </a>
-                    </p>
-                  </li>
-                ))
-              : Array.from({ length: wide ? 12 : 6 }, (_, index) => (
-                  <li key={index}>
-                    <span className="skel px-skel" />
-                  </li>
-                ))}
-          </ul>
-          {status.kind === 'ready' && status.more && (
-            <button type="button" className="btn" disabled={more} onClick={() => void search(status.page + 1)}>
-              {more && <span className="spinner" aria-hidden="true" />}
-              {more ? 'Loading…' : 'More photos'}
-            </button>
-          )}
-        </>
-      )}
+      <PexelsResults
+        status={status}
+        wide={wide}
+        line={statusLine(status, where, searchFor, orientation)}
+        tileShape={orientation ?? 'square'}
+        loaded={loaded}
+        busy={busy}
+        more={more}
+        onAdd={(photo) => void add(photo)}
+        onLoaded={(id) => setLoaded((loadedIds) => new Set(loadedIds).add(id))}
+        onSearch={(pageNo) => void search(pageNo)}
+      />
       <p className="hint px-credit">
         Photos provided by{' '}
         <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">
@@ -283,7 +381,10 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
   );
 }
 
-/** No key on this device and no server proxy: point to Settings, the one place the key is entered. */
+/**
+ * No key on this device and no server proxy: point to Settings, the one place the key is entered.
+ * @param props whether Pexels refused the saved key
+ */
 function KeyForm({ refused }: Readonly<{ refused: boolean }>) {
   return (
     <div className="px-key">
