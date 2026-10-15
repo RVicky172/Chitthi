@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { cornerAt, draggedCrop, fittedCrop, nudgedCrop, pressAction, type CropView } from '@/components/cropGeometry';
 
-/** A 400 × 300 photo with a 200 × 100 box at (100, 100). */
+/**
+ * A 400 × 300 photo with a 200 × 100 box at (100, 100).
+ * @returns the crop state
+ */
 const view = (): CropView => ({ DW: 400, DH: 300, cr: { x: 100, y: 100, w: 200, h: 100 }, disp: null, act: null, first: false });
 
 describe('fittedCrop', () => {
