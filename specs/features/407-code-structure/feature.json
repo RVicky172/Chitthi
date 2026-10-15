@@ -1215,7 +1215,7 @@
         "T054": {
           "text": "`components/ig/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
           "section": "Clean-up: components/",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1230,7 +1230,9 @@
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-15",
+          "doneOn": null
         },
         "T055": {
           "text": "The other components (`App`, the print studio, dialogs, `Paper3D`, `Landing*`, `DocsPage` …): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",

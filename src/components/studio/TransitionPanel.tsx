@@ -2,13 +2,21 @@
 // inspector for the selected one. The panel's previews are drawn with the same ops as the preview and the export
 // (transitionOps), on two coloured cards.
 import { useEffect, useRef } from 'react';
-import { DIRECTIONS, TRANSITION_KINDS, TRANSITION_LIMITS, roomFor, transitionOps, type Direction, type TransitionKind } from '../../engine/transitions';
+import {
+  DIRECTIONS,
+  TRANSITION_KINDS,
+  TRANSITION_LIMITS,
+  roomFor,
+  transitionOps,
+  type Direction,
+  type TransitionKind,
+} from '../../engine/transitions';
 import { isOneOf } from '../../engine/guards';
 import { toast } from '../../lib/toast';
 import { getVideo, selectTransition, useVideo, type VClip } from '../../state/videoStore';
 import { removeTransition, setTransition, transitionEveryCut } from '../../state/videoTransitions';
 import { Seg } from '../common';
-import { LpRange } from '../ig/LayerPanel';
+import { LpRange } from '../ig/LayerControls';
 import { tell } from './timelineActions';
 import { TRANSITION_NAMES, panelCut } from './timelineRows';
 
@@ -19,7 +27,10 @@ const DIRECTION_NAMES: Record<Direction, string> = { left: 'Left', right: 'Right
  * Whether the user asked for less motion.
  * @returns true with prefers-reduced-motion (false where it can't be asked)
  */
-const reducedMotion = (): boolean => typeof window !== 'undefined' && 'matchMedia' in window && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  'matchMedia' in window &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
  * Draws a kind at `progress` on a small canvas: an orange card turning into a blue one, with the kind's ops.
@@ -117,14 +128,25 @@ export function TransitionPanel() {
       )}
       <div className="tr-kinds" role="group" aria-label="Transitions">
         {TRANSITION_KINDS.map((kind) => (
-          <button key={kind} type="button" className="tr-kind" aria-pressed={current?.kind === kind} disabled={'why' in target} onClick={() => choose(kind)}>
+          <button
+            key={kind}
+            type="button"
+            className="tr-kind"
+            aria-pressed={current?.kind === kind}
+            disabled={'why' in target}
+            onClick={() => choose(kind)}
+          >
             <KindPreview kind={kind} />
             <span>{TRANSITION_NAMES[kind]}</span>
           </button>
         ))}
       </div>
       {'clip' in target && (
-        <button type="button" className="btn" onClick={() => tell(transitionEveryCut(target.track, current?.kind ?? 'dissolve'))}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => tell(transitionEveryCut(target.track, current?.kind ?? 'dissolve'))}
+        >
           Apply {TRANSITION_NAMES[current?.kind ?? 'dissolve'].toLowerCase()} to every cut
         </button>
       )}
@@ -168,7 +190,9 @@ export function TransitionInspector({ clip }: Readonly<TransitionInspectorProps>
     );
   }
   const next = clips.find((candidate) => candidate.id === transition.to);
-  const withoutIt = clips.map((candidate) => (candidate.id === clip.id ? { ...candidate, transition: undefined } : candidate));
+  const withoutIt = clips.map((candidate) =>
+    candidate.id === clip.id ? { ...candidate, transition: undefined } : candidate,
+  );
   const room = next ? roomFor({ ...clip, transition: undefined }, next, withoutIt) : transition.dur;
   const longest = Math.max(TRANSITION_LIMITS.min, Math.floor(Math.min(TRANSITION_LIMITS.max, room) * fps + 1e-6) / fps);
   return (

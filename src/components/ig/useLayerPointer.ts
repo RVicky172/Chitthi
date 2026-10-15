@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react';
 import { addStroke, scaleLayer, type Box, type DrawLayer, type Layer } from '../../engine/layers';
 import { handleAt, hitLayer, rotationFor } from '../../engine/layerPick';
 import { layerBox } from '../../engine/layerDraw';
@@ -13,6 +21,7 @@ import { brushWidth, type LayerTools } from '../../state/instagram';
  * editor pans the photo with it). With the mask tool (photo editor) every press, move and release goes to `onMask`.
  */
 
+/** The canvas, its layers and the editors' handlers for useLayerPointer. */
 export interface LayerPointerOptions {
   canvas: RefObject<HTMLCanvasElement | null>;
   layers: Layer[];
@@ -30,182 +39,320 @@ export interface LayerPointerOptions {
   onEndStep?: () => void;
   /** The mask brush: canvas pixels of the press and each move, and the release. */
   onMask?: {
-    down: (x: number, y: number, W: number, H: number) => void;
+    down: (x: number, y: number, width: number, height: number) => void;
     move: (x: number, y: number) => void;
     up: () => void;
   };
   onBackground?: {
-    down: (e: ReactPointerEvent<HTMLCanvasElement>) => void;
-    move: (e: ReactPointerEvent<HTMLCanvasElement>) => void;
+    down: (event: ReactPointerEvent<HTMLCanvasElement>) => void;
+    move: (event: ReactPointerEvent<HTMLCanvasElement>) => void;
     up: () => void;
-    key?: (e: ReactKeyboardEvent<HTMLCanvasElement>) => boolean;
+    key?: (event: ReactKeyboardEvent<HTMLCanvasElement>) => boolean;
   };
 }
 
-type Drag =
-  | { mode: 'move' | 'resize' | 'rotate'; id: string; orig: Layer; box: Box; x0: number; y0: number; key: string }
-  | { mode: 'draw'; base: DrawLayer | null; pts: number[]; key: string; others: Layer[]; index: number }
-  | { mode: 'background' }
-  | { mode: 'mask' };
+/** Dragging a layer, or one of its resize / rotate handles, from where the press was. */
+interface EditDrag {
+  mode: 'move' | 'resize' | 'rotate';
+  id: string;
+  original: Layer;
+  box: Box;
+  startX: number;
+  startY: number;
+  key: string;
+}
+
+/** A stroke in progress: the drawing it goes into (or null for a new one), its points and where it sits. */
+interface DrawDrag {
+  mode: 'draw';
+  base: DrawLayer | null;
+  points: number[];
+  key: string;
+  /** The other layers, in order. */
+  others: Layer[];
+  /** Where the drawing goes among `others`. */
+  index: number;
+}
+
+type Drag = EditDrag | DrawDrag | { mode: 'background' } | { mode: 'mask' };
 
 let dragSeq = 0;
 
-/** Canvas pixels for a pointer event. */
-function at(cv: HTMLCanvasElement, e: { clientX: number; clientY: number }): [number, number] {
-  const r = cv.getBoundingClientRect();
-  return [((e.clientX - r.left) * cv.width) / r.width, ((e.clientY - r.top) * cv.height) / r.height];
+/**
+ * Canvas pixels for a pointer event.
+ * @param canvas the canvas
+ * @param event the pointer's position on the screen
+ * @returns x and y in the canvas's own pixels
+ */
+function canvasPoint(canvas: HTMLCanvasElement, event: { clientX: number; clientY: number }): [number, number] {
+  const box = canvas.getBoundingClientRect();
+  return [
+    ((event.clientX - box.left) * canvas.width) / box.width,
+    ((event.clientY - box.top) * canvas.height) / box.height,
+  ];
 }
-/** Handle radius in canvas pixels (about 8 screen pixels at any zoom). */
-export const handleRadius = (cv: HTMLCanvasElement) => 8 * (cv.width / Math.max(1, cv.getBoundingClientRect().width));
 
-export function useLayerPointer(o: LayerPointerOptions) {
+/**
+ * Handle radius in canvas pixels (about 8 screen pixels at any zoom).
+ * @param canvas the canvas
+ * @returns the radius in its own pixels
+ */
+export const handleRadius = (canvas: HTMLCanvasElement) =>
+  8 * (canvas.width / Math.max(1, canvas.getBoundingClientRect().width));
+
+/**
+ * The selected drawing a new stroke goes into: unrotated and (on a video) showing at the playhead; else null.
+ * @param layers the layers
+ * @param selected the selected layer's id
+ * @param time the playhead (video), or undefined
+ * @returns the drawing, or null for a new one
+ */
+function drawingToExtend(layers: Layer[], selected: string | null, time: number | undefined): DrawLayer | null {
+  const layer = layers.find((candidate) => candidate.id === selected);
+  if (layer?.kind !== 'draw' || layer.rot !== 0) return null;
+  const showing = time === undefined || ((layer.start ?? 0) <= time && time < (layer.end ?? Infinity));
+  return showing ? layer : null;
+}
+
+/**
+ * A press with the move tool: a handle of the selected layer, else the topmost layer under the pointer.
+ * @param context the preview's 2D context (for measuring text)
+ * @param canvas the pressed canvas (its size)
+ * @param options the hook's options
+ * @param radius the handle radius, canvas pixels
+ * @param point the press, canvas pixels
+ * @returns the drag, or null when the press is on no layer
+ */
+function startEdit(
+  context: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  options: LayerPointerOptions,
+  radius: number,
+  [x, y]: [number, number],
+): EditDrag | null {
+  const { layers, selected, t: time } = options;
+  const { width, height } = canvas;
+  const selectedLayer = layers.find((layer) => layer.id === selected);
+  if (selectedLayer) {
+    const box = layerBox(context, selectedLayer, width, height),
+      handle = handleAt(box, x, y, radius);
+    if (handle) {
+      const key = `${handle}:${++dragSeq}`;
+      return { mode: handle, id: selectedLayer.id, original: selectedLayer, box, startX: x, startY: y, key };
+    }
+  }
+  const hit = hitLayer(context, layers, x, y, width, height, radius * 0.5, time);
+  if (!hit) return null;
+  if (hit.id !== selected) options.onSelect(hit.id);
+  const box = layerBox(context, hit, width, height);
+  return { mode: 'move', id: hit.id, original: hit, box, startX: x, startY: y, key: `move:${++dragSeq}` };
+}
+
+/**
+ * The layer an edit drag makes at a pointer position. Moving snaps to the centre lines.
+ * @param drag the drag
+ * @param point the pointer, canvas pixels
+ * @param width the canvas width
+ * @param height the canvas height
+ * @returns the changed layer
+ */
+function draggedLayer(drag: EditDrag, [x, y]: [number, number], width: number, height: number): Layer {
+  const { original, box } = drag;
+  if (drag.mode === 'move') {
+    let nextX = original.x + (x - drag.startX) / width,
+      nextY = original.y + (y - drag.startY) / height;
+    if (Math.abs(nextX - 0.5) < 0.012) nextX = 0.5;
+    if (Math.abs(nextY - 0.5) < 0.012) nextY = 0.5;
+    return { ...original, x: nextX, y: nextY };
+  }
+  if (drag.mode === 'resize') {
+    const fromCentre = Math.hypot(x - box.cx, y - box.cy),
+      startFromCentre = Math.max(1, Math.hypot(drag.startX - box.cx, drag.startY - box.cy));
+    return scaleLayer(original, fromCentre / startFromCentre);
+  }
+  return { ...original, rot: rotationFor(box, x, y) };
+}
+
+/**
+ * Keyboard editing of the selected layer: Delete removes it, Escape deselects, arrows nudge (Shift: further), + / -
+ * resize.
+ * @param options the hook's options
+ * @param layer the selected layer
+ * @param event the key press
+ * @returns whether the key was used
+ */
+function editWithKey(
+  options: LayerPointerOptions,
+  layer: Layer,
+  event: ReactKeyboardEvent<HTMLCanvasElement>,
+): boolean {
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    options.onRemove(layer.id);
+    return true;
+  }
+  if (event.key === 'Escape') {
+    options.onSelect(null);
+    return true;
+  }
+  const step = event.shiftKey ? 0.05 : 0.01;
+  const nudges: Partial<Record<string, [number, number]>> = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+  };
+  const nudge = nudges[event.key];
+  if (nudge) {
+    event.preventDefault();
+    options.onUpdate(layer.id, { ...layer, x: layer.x + nudge[0], y: layer.y + nudge[1] }, `nudge:${layer.id}`);
+    return true;
+  }
+  if (event.key === '+' || event.key === '=' || event.key === '-') {
+    event.preventDefault();
+    options.onUpdate(layer.id, scaleLayer(layer, event.key === '-' ? 0.95 : 1.05), `size:${layer.id}`);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * A stroke from a press with the draw tool, going into the selected drawing when it can (drawingToExtend).
+ * @param options the hook's options
+ * @param point the press, canvas pixels
+ * @returns the stroke
+ */
+function startStroke(options: LayerPointerOptions, point: [number, number]): DrawDrag {
+  const { layers } = options;
+  const base = drawingToExtend(layers, options.selected, options.t);
+  const index = base ? layers.indexOf(base) : layers.length;
+  const others = layers.filter((_, layerIndex) => layerIndex !== index);
+  return { mode: 'draw', base, points: [...point], key: `stroke:${++dragSeq}`, others, index };
+}
+
+/**
+ * Rebuilds the drawing with the stroke in progress and hands the layers to `onSetLayers`.
+ * @param stroke the stroke
+ * @param options the hook's options
+ * @param width the canvas width
+ * @param height the canvas height
+ */
+function paintStroke(stroke: DrawDrag, options: LayerPointerOptions, width: number, height: number): void {
+  const { tools, t: time } = options;
+  const lineWidth = brushWidth(tools) * width;
+  let layer = addStroke(stroke.base, stroke.points, tools.brush, tools.brushColor, width, height, lineWidth);
+  if (!layer) return;
+  // A new drawing on a video shows from the playhead to the end, like other new layers.
+  if (!stroke.base && time !== undefined) layer = { ...layer, start: Math.max(0, time) };
+  const layers = stroke.others.slice();
+  layers.splice(stroke.index, 0, layer);
+  options.onSetLayers(layers, stroke.key, layer.id);
+}
+
+/**
+ * Pointer and keyboard handlers for editing layers on a canvas (see the file comment).
+ * @param options the canvas, layers, selection, tools and the editors' handlers
+ * @returns the handlers to spread on the canvas
+ */
+export function useLayerPointer(options: LayerPointerOptions) {
   const drag = useRef<Drag | null>(null);
-  const opts = useRef(o);
-  opts.current = o;
+  const latest = useRef(options);
+  useLayoutEffect(() => {
+    latest.current = options;
+  });
 
-  const ctx = () => o.canvas.current?.getContext('2d') ?? null;
-
-  const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    const cv = e.currentTarget,
-      x = ctx();
-    if (!x) return;
-    cv.setPointerCapture(e.pointerId);
-    cv.focus({ preventScroll: true });
-    const [px, py] = at(cv, e),
-      W = cv.width,
-      H = cv.height;
-    const { layers, selected, tools, t } = opts.current;
-    if (tools.tool === 'mask' && opts.current.onMask) {
+  const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget,
+      context = latest.current.canvas.current?.getContext('2d');
+    if (!context) return;
+    canvas.setPointerCapture(event.pointerId);
+    canvas.focus({ preventScroll: true });
+    const point = canvasPoint(canvas, event);
+    const current = latest.current;
+    if (current.tools.tool === 'mask' && current.onMask) {
       drag.current = { mode: 'mask' };
-      opts.current.onMask.down(px, py, W, H);
+      current.onMask.down(point[0], point[1], canvas.width, canvas.height);
       return;
     }
-    if (tools.tool === 'draw') {
-      const sel = layers.find((l) => l.id === selected);
-      const base = sel && sel.kind === 'draw' && sel.rot === 0 && (t === undefined || ((sel.start ?? 0) <= t && t < (sel.end ?? Infinity))) ? sel : null;
-      const index = base ? layers.indexOf(base) : layers.length;
-      drag.current = { mode: 'draw', base, pts: [px, py], key: `stroke:${++dragSeq}`, others: layers.filter((l) => l !== base), index };
-      paintStroke(W, H);
+    if (current.tools.tool === 'draw') {
+      const stroke = startStroke(current, point);
+      drag.current = stroke;
+      paintStroke(stroke, current, canvas.width, canvas.height);
       return;
     }
-    const r = handleRadius(cv);
-    const sel = layers.find((l) => l.id === selected);
-    if (sel) {
-      const box = layerBox(x, sel, W, H),
-        h = handleAt(box, px, py, r);
-      if (h) {
-        drag.current = { mode: h, id: sel.id, orig: sel, box, x0: px, y0: py, key: `${h}:${++dragSeq}` };
-        return;
-      }
-    }
-    const hit = hitLayer(x, layers, px, py, W, H, r * 0.5, t);
-    if (hit) {
-      if (hit.id !== selected) opts.current.onSelect(hit.id);
-      drag.current = { mode: 'move', id: hit.id, orig: hit, box: layerBox(x, hit, W, H), x0: px, y0: py, key: `move:${++dragSeq}` };
-      return;
-    }
-    if (selected) opts.current.onSelect(null);
+    drag.current = startEdit(context, canvas, current, handleRadius(canvas), point);
+    if (drag.current) return;
+    if (current.selected) current.onSelect(null);
     drag.current = { mode: 'background' };
-    opts.current.onBackground?.down(e);
+    current.onBackground?.down(event);
   };
 
-  /** Rebuilds the drawing with the stroke in progress. */
-  const paintStroke = (W: number, H: number) => {
-    const d = drag.current;
-    if (!d || d.mode !== 'draw') return;
-    const { tools, t } = opts.current;
-    let layer = addStroke(d.base, d.pts, tools.brush, tools.brushColor, W, H, brushWidth(tools) * W);
-    if (!layer) return;
-    // A new drawing on a video shows from the playhead to the end, like other new layers.
-    if (!d.base && t !== undefined) layer = { ...layer, start: Math.max(0, t) };
-    const out = d.others.slice();
-    out.splice(d.index, 0, layer);
-    opts.current.onSetLayers(out, d.key, layer.id);
-  };
-
-  const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    const d = drag.current,
-      cv = e.currentTarget;
-    if (!d) return;
-    if (d.mode === 'background') return opts.current.onBackground?.move(e);
-    const [px, py] = at(cv, e),
-      W = cv.width,
-      H = cv.height;
-    if (d.mode === 'mask') return opts.current.onMask?.move(px, py);
-    if (d.mode === 'draw') {
-      const n = d.pts.length;
-      // Skip points closer than a pixel: smoother lines, smaller files.
-      if (Math.hypot(px - d.pts[n - 2], py - d.pts[n - 1]) < 1.5) return;
-      d.pts.push(px, py);
-      paintStroke(W, H);
+  const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const current = drag.current,
+      canvas = event.currentTarget;
+    if (!current) return;
+    if (current.mode === 'background') {
+      latest.current.onBackground?.move(event);
       return;
     }
-    let next: Layer;
-    if (d.mode === 'move') {
-      let nx = d.orig.x + (px - d.x0) / W,
-        ny = d.orig.y + (py - d.y0) / H;
-      // Snap to the centre lines.
-      if (Math.abs(nx - 0.5) < 0.012) nx = 0.5;
-      if (Math.abs(ny - 0.5) < 0.012) ny = 0.5;
-      next = { ...d.orig, x: nx, y: ny };
-    } else if (d.mode === 'resize') {
-      const f = Math.hypot(px - d.box.cx, py - d.box.cy) / Math.max(1, Math.hypot(d.x0 - d.box.cx, d.y0 - d.box.cy));
-      next = scaleLayer(d.orig, f);
-    } else next = { ...d.orig, rot: rotationFor(d.box, px, py) };
-    opts.current.onUpdate(d.id, next, d.key);
+    const point = canvasPoint(canvas, event);
+    if (current.mode === 'mask') {
+      latest.current.onMask?.move(...point);
+      return;
+    }
+    if (current.mode === 'draw') {
+      const [x, y] = point;
+      // Skip points closer than a pixel: smoother lines, smaller files.
+      if (Math.hypot(x - (current.points.at(-2) ?? x), y - (current.points.at(-1) ?? y)) < 1.5) return;
+      current.points.push(x, y);
+      paintStroke(current, latest.current, canvas.width, canvas.height);
+      return;
+    }
+    latest.current.onUpdate(current.id, draggedLayer(current, point, canvas.width, canvas.height), current.key);
   };
 
   const onPointerUp = () => {
-    const d = drag.current;
+    const ended = drag.current;
     drag.current = null;
-    if (d?.mode === 'background') opts.current.onBackground?.up();
-    if (d?.mode === 'mask') opts.current.onMask?.up();
-    opts.current.onEndStep?.();
+    if (ended?.mode === 'background') latest.current.onBackground?.up();
+    if (ended?.mode === 'mask') latest.current.onMask?.up();
+    latest.current.onEndStep?.();
   };
 
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLCanvasElement>) => {
-    const { layers, selected } = opts.current;
-    const sel = layers.find((l) => l.id === selected);
-    if (sel) {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        opts.current.onRemove(sel.id);
-        return;
-      }
-      if (e.key === 'Escape') {
-        opts.current.onSelect(null);
-        return;
-      }
-      const step = e.shiftKey ? 0.05 : 0.01;
-      const move: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
-      if (move[e.key]) {
-        e.preventDefault();
-        opts.current.onUpdate(sel.id, { ...sel, x: sel.x + move[e.key][0], y: sel.y + move[e.key][1] }, `nudge:${sel.id}`);
-        return;
-      }
-      if (e.key === '+' || e.key === '=' || e.key === '-') {
-        e.preventDefault();
-        opts.current.onUpdate(sel.id, scaleLayer(sel, e.key === '-' ? 0.95 : 1.05), `size:${sel.id}`);
-        return;
-      }
-    }
-    opts.current.onBackground?.key?.(e);
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLCanvasElement>) => {
+    const { layers, selected } = latest.current;
+    const layer = layers.find((candidate) => candidate.id === selected);
+    if (layer && editWithKey(latest.current, layer, event)) return;
+    latest.current.onBackground?.key?.(event);
   };
 
   return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onKeyDown };
 }
 
-/** A number that changes whenever web fonts finish loading, and loads the fonts the layers use: redraw on change. */
+/**
+ * A number that changes whenever web fonts finish loading, and loads the fonts the layers use: redraw on change.
+ * @param layers the layers whose fonts to load
+ * @returns the counter
+ */
 export function useFontsTick(layers: Layer[]): number {
   const [tick, setTick] = useState(0);
-  const fonts = [...new Set(layers.flatMap((l) => (l.kind === 'text' || l.kind === 'shape' ? [l.font] : [])))].join('|');
+  const fonts = [
+    ...new Set(layers.flatMap((layer) => (layer.kind === 'text' || layer.kind === 'shape' ? [layer.font] : []))),
+  ].join('|');
   useEffect(() => {
-    if (fonts) void ensureFonts(fonts.split('|')).then(() => setTick((n) => n + 1));
+    if (fonts)
+      void ensureFonts(fonts.split('|')).then(() => {
+        setTick((count) => count + 1);
+      });
   }, [fonts]);
   useEffect(() => {
-    const on = () => setTick((n) => n + 1);
-    document.fonts.addEventListener('loadingdone', on);
-    return () => document.fonts.removeEventListener('loadingdone', on);
+    const onLoaded = () => {
+      setTick((count) => count + 1);
+    };
+    document.fonts.addEventListener('loadingdone', onLoaded);
+    return () => {
+      document.fonts.removeEventListener('loadingdone', onLoaded);
+    };
   }, []);
   return tick;
 }

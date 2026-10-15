@@ -28,6 +28,8 @@ const FINISHED = [
   'src/ai/**',
   // 407 T050–T053: the media studio's workspace (timeline, video and photo editors split by job).
   'src/components/studio/**',
+  // 407 T054: the media studio's shared panels and canvas editing (LayerPanel split by job).
+  'src/components/ig/**',
 ];
 
 /** The code the standards rules apply to. */
