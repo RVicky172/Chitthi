@@ -58,14 +58,26 @@ export function TiltStage({ children, className }: Readonly<{ children: ReactNod
   );
 }
 
-/** Starts (and stops) something only while the element is on screen. */
+/**
+ * Starts (and stops) something only while the element is on screen.
+ * @returns the element's ref and whether it is on screen
+ */
 function useVisible<T extends HTMLElement>(): [RefObject<T | null>, boolean] {
   const ref = useRef<T>(null);
   const [on, setOn] = useState(false);
   useEffect(() => {
     const el = ref.current;
-    if (!el || !('IntersectionObserver' in window)) return setOn(true);
-    const io = new IntersectionObserver(([entry]) => setOn(entry.isIntersecting), { threshold: 0.25 });
+    if (!el || !('IntersectionObserver' in window)) {
+      setOn(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        const entry = entries.at(0);
+        if (entry) setOn(entry.isIntersecting);
+      },
+      { threshold: 0.25 },
+    );
     io.observe(el);
     return () => io.disconnect();
   }, []);

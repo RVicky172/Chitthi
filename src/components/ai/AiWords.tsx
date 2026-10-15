@@ -12,6 +12,7 @@ import {
 } from '../../ai/service';
 import { AiError } from '../../ai/types';
 import { calMonth } from '../../engine/calendarDraw';
+import { isObjectLike } from '../../engine/guards';
 import { getState, setBack, setDesign, setUI, useApp } from '../../state/store';
 
 /*
@@ -20,18 +21,33 @@ import { getState, setBack, setDesign, setUI, useApp } from '../../state/store';
  * works. Loaded on demand (the button that opens it lives in AiEntry.tsx).
  */
 
+/** What the AI writes: a card's words, a calendar's captions, or the back's message. */
 export type WordsMode = 'card' | 'captions' | 'message';
 
 const PREF = 'chitthi-ai-words';
+/**
+ * The language and tone last chosen on this device.
+ * @returns the preferences (English and warm when none are saved)
+ */
 const loadPref = (): { language: string; tone: string } => {
+  const fallback = { language: 'en', tone: 'warm' };
   try {
-    return { language: 'en', tone: 'warm', ...JSON.parse(localStorage.getItem(PREF) ?? '{}') };
+    const saved: unknown = JSON.parse(localStorage.getItem(PREF) ?? '{}');
+    if (!isObjectLike(saved)) return fallback;
+    return {
+      language: typeof saved.language === 'string' ? saved.language : fallback.language,
+      tone: typeof saved.tone === 'string' ? saved.tone : fallback.tone,
+    };
   } catch {
-    return { language: 'en', tone: 'warm' };
+    return fallback;
   }
 };
 
-/** When the chosen language needs a script the current fonts lack, switch to a font that has it. */
+/**
+ * When the chosen language needs a script the current fonts lack, switch to a font that has it.
+ * @param lang the language's id
+ * @returns the fonts to change
+ */
 function fontsForLanguage(lang: string): Partial<{ headFont: string; quoteFont: string }> {
   const language = AI_LANGUAGES.find((x) => x.id === lang);
   if (!language?.font || language.script === 'latin') return {};
@@ -44,6 +60,10 @@ function fontsForLanguage(lang: string): Partial<{ headFont: string; quoteFont: 
   };
 }
 
+/**
+ * AI writing: language, tone and notes in, suggestions out to use on the card, calendar or back.
+ * @param props what to write
+ */
 export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
   const design = useApp((state) => state.design),
     photos = useApp((state) => state.photos);
@@ -51,6 +71,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
   const [notes, setNotes] = useState('');
   const [ready, setReady] = useState<Readiness | null>(null);
   const [busy, setBusy] = useState(false);
+  const runLabel = mode === 'captions' ? 'Write the month captions' : 'Suggest';
   const [err, setErr] = useState('');
   const [cards, setCards] = useState<WordsOption[]>([]);
   const [msgs, setMsgs] = useState<string[]>([]);
@@ -124,7 +145,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
           <select value={pref.tone} onChange={(event) => setPref({ ...pref, tone: event.target.value })}>
             {AI_TONES.map((tone) => (
               <option key={tone} value={tone}>
-                {tone[0].toUpperCase() + tone.slice(1)}
+                {tone.charAt(0).toUpperCase() + tone.slice(1)}
               </option>
             ))}
           </select>
@@ -146,7 +167,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
       </label>
       <div className="inline">
         <button type="button" className="btn primary" disabled={busy} onClick={() => void run()}>
-          {busy ? 'Writing…' : mode === 'captions' ? 'Write the month captions' : 'Suggest'}
+          {busy ? 'Writing…' : runLabel}
         </button>
         {busy && (
           <button type="button" className="btn ghost" onClick={() => ctl.current?.abort()}>
@@ -209,7 +230,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
           <ol>
             {caps.map((caption, index) => (
               <li key={index}>
-                <b>{MONTHS[caption.month].slice(0, 3)}</b>
+                <b>{(MONTHS.at(caption.month) ?? '').slice(0, 3)}</b>
                 <input
                   type="text"
                   aria-label={`${MONTHS[caption.month]} caption`}

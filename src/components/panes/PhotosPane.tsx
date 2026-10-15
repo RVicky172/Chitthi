@@ -16,10 +16,23 @@ import { Pane, PhotoCredit, Section } from '../common';
 import { AddPhotoIcon, ArrangeIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
 import { autoArrange } from '../../state/traits';
 
+/**
+ * How sharp a photo prints at a resolution: its class and words.
+ * @param dpi the resolution in print
+ * @returns the class and the words
+ */
+function printQuality(dpi: number): [string, string] {
+  if (dpi >= 250) return ['good', 'sharp in print'];
+  return dpi >= 150 ? ['ok', 'fine in print'] : ['low', 'may print soft'];
+}
+
+/**
+ * A photo's print sharpness in its slot, or that the layout doesn't use it.
+ * @param props the resolution in print, or null
+ */
 function DpiBadge({ dpi }: Readonly<{ dpi: number | null }>) {
   if (dpi === null) return <span className="q">not used in this layout</span>;
-  const cls = dpi >= 250 ? 'good' : dpi >= 150 ? 'ok' : 'low';
-  const txt = dpi >= 250 ? 'sharp in print' : dpi >= 150 ? 'fine in print' : 'may print soft';
+  const [cls, txt] = printQuality(dpi);
   return (
     <span className={`q ${cls}`}>
       {txt} ({dpi} dpi)
@@ -27,6 +40,7 @@ function DpiBadge({ dpi }: Readonly<{ dpi: number | null }>) {
   );
 }
 
+/** The Photos step: add photos, see how each prints in its slot, crop, arrange and suggestions. */
 export function PhotosPane() {
   const design = useApp((state) => state.design),
     photos = useApp((state) => state.photos);
@@ -126,7 +140,7 @@ export function PhotosPane() {
                   <PhotoCredit name={photo.name} />
                   <span>
                     {photo.sw}×{photo.sh} px{photo.src !== photo.orig ? ' after edits' : ''},{' '}
-                    <DpiBadge dpi={dpis[index]} />
+                    <DpiBadge dpi={dpis.at(index) ?? null} />
                   </span>
                   <div className="zoom">
                     <label htmlFor={`z-${photo.id}`}>Zoom</label>

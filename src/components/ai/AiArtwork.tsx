@@ -30,6 +30,10 @@ interface Candidate {
   blob: Blob;
 }
 
+/**
+ * AI pictures: describe a subject, pick a style, and put a generated picture on the design.
+ * @param props whether it fills the photo library (wide)
+ */
 export default function AiArtwork({ wide = false }: Readonly<{ wide?: boolean }>) {
   const design = useApp((state) => state.design),
     calPage = useApp((state) => state.ui.calPage);
@@ -95,7 +99,8 @@ export default function AiArtwork({ wide = false }: Readonly<{ wide?: boolean }>
       const ph = { name: aiPhotoName(subject, meta.provider, meta.model), url: await blobToJpegDataUrl(cand.blob) };
       await storePhotos([ph]);
       await putOnCard({ id: '', added: Date.now(), ...ph });
-      toast(`Added${count > 1 ? ` to slot ${active + 1}` : ''}. AI picture made with ${meta.provider}.`);
+      const slotNote = count > 1 ? ` to slot ${active + 1}` : '';
+      toast(`Added${slotNote}. AI picture made with ${meta.provider}.`);
     } catch (error) {
       logError('handled', error);
       toast('That picture couldn’t be added. Try again.');

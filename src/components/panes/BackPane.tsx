@@ -5,6 +5,7 @@ import { FontPicker } from '../FontPicker';
 import { AiWordsEntry } from '../ai/AiEntry';
 import { EnvelopeSection } from './EnvelopeSection';
 
+/** The Back step: the message, signature and address of a card, or the calendar's back. */
 export function BackPane() {
   const back = useApp((state) => state.design.back),
     product = useApp((state) => state.design.product);

@@ -13,9 +13,14 @@ const parse = (hash: string): { page?: string; section?: string } => {
   return { page, section };
 };
 
-/** **bold**, `code` and [text](href) inside a block's text, as React nodes (never as HTML). */
+/**
+ * **bold**, `code` and [text](href) inside a block's text, as React nodes (never as HTML).
+ * @param text the block's text
+ * @returns the nodes
+ */
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
+  // eslint-disable-next-line sonarjs/super-linear-regex -- runs only on the app's own docs text (data/docs), never on input
   const re = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
   let last = 0,
     match: RegExpExecArray | null,
@@ -25,7 +30,7 @@ function inline(text: string): ReactNode[] {
     if (match[1]) out.push(<strong key={key++}>{match[1]}</strong>);
     else if (match[2]) out.push(<code key={key++}>{match[2]}</code>);
     else {
-      const href = match[4],
+      const href = match.at(4) ?? '',
         external = /^https?:/.test(href);
       out.push(
         <a key={key++} href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
@@ -98,6 +103,7 @@ function Block({ b }: Readonly<{ b: DocBlock }>) {
 
 const GROUPS = [...new Set(DOC_PAGES.map((page) => page.group))];
 
+/** The documentation (#/docs): the pages by group, the page shown with its sections, and previous / next. */
 export function DocsPage() {
   const [route, setRoute] = useState(() => parse(location.hash));
   useEffect(() => {
@@ -112,9 +118,9 @@ export function DocsPage() {
     else window.scrollTo(0, 0);
   }, [page.id, route.section]);
   const index = DOC_PAGES.indexOf(page),
-    prev = DOC_PAGES[index - 1],
-    next = DOC_PAGES[index + 1];
-  const href = (target: DocPage, section?: string) => `#/docs/${target.id}${section ? `/${section}` : ''}`;
+    prev = index > 0 ? DOC_PAGES.at(index - 1) : undefined,
+    next = DOC_PAGES.at(index + 1);
+  const href = (target: DocPage, section?: string) => `#/docs/${target.id}${section ? '/' + section : ''}`;
 
   return (
     <div className="landing docs">

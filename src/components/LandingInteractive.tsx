@@ -1,9 +1,9 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { layoutsFor } from '../data/layouts';
-import { PRODUCTS, sizesFor } from '../data/products';
+import { PRODUCTS, productOf, sizesFor } from '../data/products';
 import type { ShowcaseImage } from '../data/showcase';
 import { SIZES } from '../data/sizes';
-import type { ProductId } from '../types';
+import type { ProductId, SizeDef } from '../types';
 import { ProductIcon } from './icons';
 
 /*
@@ -14,14 +14,20 @@ import { ProductIcon } from './icons';
 const mm = (value: number) => `${+value.toFixed(2)}`;
 const px = (millimetres: number) => Math.round((millimetres / 25.4) * 300);
 
-/** Four products as tabs: pick one to see its real examples, sizes and layouts. Arrow keys move between tabs. */
+/** Arrow keys between the product tabs. */
+const TAB_STEPS: Partial<Record<string, number>> = { ArrowRight: 1, ArrowLeft: -1 };
+
+/**
+ * Four products as tabs: pick one to see its real examples, sizes and layouts. Arrow keys move between tabs.
+ * @param props the showcase renders and opening a product in the studio
+ */
 export function ProductExplorer({ shots, open }: Readonly<{ shots: ShowcaseImage[]; open: (p: ProductId) => void }>) {
   const [id, setId] = useState<ProductId>('postcard');
   const [pick, setPick] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const product = PRODUCTS.find((candidate) => candidate.id === id)!;
+  const product = productOf(id);
   const examples = shots.filter((shot) => shot.render === 'front' && shot.product === id);
-  const big = examples[Math.min(pick, examples.length - 1)];
+  const big = examples.at(Math.min(pick, examples.length - 1));
   const sizes = sizesFor(id).filter((size) => size.id !== 'custom');
   const layouts = layoutsFor(id).length;
 
@@ -30,12 +36,13 @@ export function ProductExplorer({ shots, open }: Readonly<{ shots: ShowcaseImage
     setPick(0);
   };
   const onKey = (event: KeyboardEvent, index: number) => {
-    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    const step = TAB_STEPS[event.key] ?? 0;
     if (!step) return;
     event.preventDefault();
-    const next = (index + step + PRODUCTS.length) % PRODUCTS.length;
-    choose(PRODUCTS[next].id);
-    tabs.current[next]?.focus();
+    const next = (index + step + PRODUCTS.length) % PRODUCTS.length,
+      nextProduct = PRODUCTS.at(next);
+    if (nextProduct) choose(nextProduct.id);
+    tabs.current.at(next)?.focus();
   };
 
   return (
@@ -145,13 +152,24 @@ const VW = Math.max(...POSTCARDS.map((size) => size.L)) + 2 * 5 + 24,
   VH = Math.max(...POSTCARDS.map((size) => size.S)) + 2 * 5 + 24;
 
 /**
+ * A postcard size by id, else the first.
+ * @param id the size's id
+ * @returns the size
+ */
+function postcardSize(id: string): SizeDef {
+  const size = POSTCARDS.find((candidate) => candidate.id === id) ?? POSTCARDS.at(0);
+  if (!size) throw new Error('There are no postcard sizes.');
+  return size;
+}
+
+/**
  * A postcard size drawn to scale: bleed, trim and safe area, the pixels needed at 300 dpi, and the print pack those
  * choices produce. The numbers are worked out here exactly as the export does.
  */
 export function PrintReady() {
   const [sizeId, setSizeId] = useState('4x6');
   const [bleed, setBleed] = useState(3);
-  const size = POSTCARDS.find((candidate) => candidate.id === sizeId) ?? POSTCARDS[0];
+  const size = postcardSize(sizeId);
   const width = size.L,
     height = size.S,
     dw = width + 2 * bleed,
@@ -218,23 +236,25 @@ export function PrintReady() {
               width={width - 2 * SAFE}
               height={height - 2 * SAFE}
             />
-            {[0.3, 0.42, 0.54].map((share) => (
+            {[0.3, 0.42, 0.54].map((share, index) => (
               <rect
                 key={share}
                 className="s-line"
                 x={bleed + width * 0.62}
                 y={bleed + height * share}
-                width={width * (share === 0.3 ? 0.3 : 0.24)}
+                width={width * (index === 0 ? 0.3 : 0.24)}
                 height={height * 0.035}
               />
             ))}
             {/* crop marks at the trim corners, outside the bleed */}
-            {[
-              [bleed, bleed],
-              [bleed + width, bleed],
-              [bleed, bleed + height],
-              [bleed + width, bleed + height],
-            ].map(([x, y]) => (
+            {(
+              [
+                [bleed, bleed],
+                [bleed + width, bleed],
+                [bleed, bleed + height],
+                [bleed + width, bleed + height],
+              ] satisfies [number, number][]
+            ).map(([x, y]) => (
               <g key={`${x}-${y}`} className="s-crop">
                 <line x1={x} x2={x} y1={y < dh / 2 ? -10 : dh + 2} y2={y < dh / 2 ? -2 : dh + 10} />
                 <line y1={y} y2={y} x1={x < dw / 2 ? -10 : dw + 2} x2={x < dw / 2 ? -2 : dw + 10} />
