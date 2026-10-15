@@ -225,7 +225,7 @@ step.
 | Presets, LUTs and saved presets panel (both editors) | `src/components/ig/LookPicker.tsx` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
-| Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
+| Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` (state, undo, edits); `instagramLayers.ts`, `instagramMedia.ts`, `instagramExport.ts` |
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts`, `layerDraw.ts`, `layerPick.ts`, `layerGate.ts` |
 | Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
 | Video formats and limits; frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/videoFormats.ts`; `src/engine/video.ts`; `src/engine/videoExport.ts` |

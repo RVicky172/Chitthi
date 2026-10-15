@@ -96,9 +96,13 @@ src/
     store.ts                 App store, undo/redo, persistence, setters
     actions.ts               User actions (photos, products, export, gallery, backup, 3D)
     photoSlots.ts            Photo ↔ slot mapping, slot selection
-    library.ts               Photo store (every upload), putOnCard
+    library.ts               Photo store (every upload), putOnCard, keyOfStored
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
-    instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
+    instagram.ts             Instagram studio's store: batch, selections, tools, undo / redo, `change`, limit, photo
+                             edits (adjust, masks, look to all)
+    instagramLayers.ts       Layer actions of the photo editor (add, update, remove, restack, copy to all)
+    instagramMedia.ts        Photos into the batch (addPhotos; RAW developed on desktop, its embedded JPEG on the web)
+    instagramExport.ts       Rendering the batch at full size (renderBatch, prepareBatch), ZIP, share check
     presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
     videoStore.ts            Video editor's store: kind, tracks, clips, layers, music, playhead, Magnetic, tool, Snap,
                              undo / redo, `change` / `commit` (the one path for undoable changes), loadVideoProject
@@ -113,6 +117,7 @@ src/
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
+    ids.ts                   Record ids (saved designs, stored photos): time + a cryptographic random tag
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
     userLuts.ts              Imported .cube LUTs: IndexedDB storage, loaded into engine/lut.ts when chosen

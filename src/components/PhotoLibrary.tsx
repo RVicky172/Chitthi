@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { layoutName } from '../data/layouts';
 import { productOf } from '../data/products';
 import { addToLibrary } from '../state/actions';
-import { putOnCard, removeStored, useLibrary } from '../state/library';
+import { keyOfStored, putOnCard, removeStored, useLibrary } from '../state/library';
 import {
   cropLoss,
   dimsOf,
@@ -18,7 +18,7 @@ import {
 } from '../state/photoFit';
 import { placePhoto, selectSlot, usePhotoSlots } from '../state/photoSlots';
 import { photoKey } from '../lib/photoKey';
-import { analyzeLibrary, autoArrange, keyOfStored, smartFill, traitsForPhoto, traitsOf, useTraitsTick } from '../state/traits';
+import { analyzeLibrary, autoArrange, smartFill, traitsForPhoto, traitsOf, useTraitsTick } from '../state/traits';
 import { relevance, type Hue } from '../engine/analyze';
 import { resolveTheme } from '../engine/design';
 import { getState, setPhotos, setUI, useApp } from '../state/store';

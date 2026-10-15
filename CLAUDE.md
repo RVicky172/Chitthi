@@ -101,8 +101,9 @@ Packaging: `npm run desktop:pack` (unpacked app in `release/`), `desktop:dist` (
   processing, and the media engines (`instagram.ts`, `layers.ts`, `video.ts`, `videoExport.ts`). Preview and export
   share one code path, so the files match the preview.
 - `src/state/` — small `useSyncExternalStore` stores, each with its own undo/redo: `store.ts` + `actions.ts` (print
-  studio; design autosaves to localStorage), `instagram.ts` (photo batch), `video.ts` (video project). Undo snapshots
-  are immutable arrays; changes with the same key within ~800 ms coalesce into one step (drags, sliders).
+  studio; design autosaves to localStorage), `instagram.ts` (photo batch; actions in `instagram*.ts`), `videoStore.ts`
+  (video project; actions in `video*.ts`). Undo snapshots are immutable arrays; changes with the same key within
+  ~800 ms coalesce into one step (drags, sliders).
 - `src/components/` — UI. `App.tsx` routes by URL hash to screens (`home`, `studio`, `sizes`, `paper`, `instagram`, `docs`);
   screens and dialogs are `lazy()`-loaded.
 

@@ -1092,6 +1092,7 @@ async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Resul
 async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
   const { TOOLS_BY_NAME: T } = await import('@/agent/tools');
   const ig = await import('@/state/instagram');
+  const { addPhotos } = await import('@/state/instagramMedia');
   const { DEFAULT_ADJUST } = await import('@/engine/adjust');
   const { forgetLut } = await import('@/lib/userLuts');
   const call = async (name: string, args: Record<string, unknown> = {}) => T[name].run(args, {});
@@ -1130,7 +1131,7 @@ async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: R
     presetId = '';
   try {
     ig.clearBatch();
-    await ig.addPhotos([{ name: 'selftest.png', blob }]);
+    await addPhotos([{ name: 'selftest.png', blob }]);
     const batch = (await call('get_photo_batch')).json as { photos: { id: string }[] };
     check(batch.photos.length === 1, 'photo tools: the batch lists the photo');
     const item = () => ig.getIg().items[0];

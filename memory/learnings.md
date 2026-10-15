@@ -256,3 +256,13 @@ previous commit (a `git worktree` with a junction to `node_modules` builds in a 
 - A recording `Proxy` that answers every property also answers `then`, so returning it from an `async` function makes
   it a thenable that never settles: the test hangs until its timeout. Return `undefined` for `then` (real jsPDF and GPU
   objects have none).
+
+## 2026-10-14 — Lockstep store harnesses: draw random values once per step, steer towards rare paths (407 T041)
+
+Comparing an old and a new store by running each random step on both: any `random()` called *inside* the per-module
+action runs twice and gives each module a different input (three false failures). Draw every value before the step,
+then apply the same values to both. Plain random steps also left gaps that planted changes slipped through: the undo
+grouping window (800 ms), the 80-step undo limit and a selection restored by undo. What reached them: repeating the
+previous action 40 % of the time, time gaps clustered around the window, acting mostly on the selected item, redo
+right after undo, and short deterministic sequences for limits; log how often each action really changes the state.
+Cap anything that compounds (copying layers to every photo filled memory and killed the Vitest worker, exit 134).

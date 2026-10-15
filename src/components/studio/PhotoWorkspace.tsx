@@ -26,40 +26,10 @@ import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import { desktop, isDesktop } from '../../platform/desktop';
-import {
-  addLayer,
-  addPhotos,
-  adjustAll,
-  applyLookToAll,
-  canShareFiles,
-  clearBatch,
-  copyLayersToAll,
-  adjustPhoto,
-  editPhoto,
-  endStep,
-  getIg,
-  movePhotoTo,
-  prepareBatch,
-  redo,
-  removeLayer,
-  removePhoto,
-  resetPhoto,
-  restackLayer,
-  selectLayer,
-  selectMask,
-  selectPhoto,
-  setIg,
-  setLayers,
-  setLimit,
-  setPicking,
-  setTools,
-  undo,
-  updateLayer,
-  updateMask,
-  useIg,
-  zipOf,
-  type IgItem,
-} from '../../state/instagram';
+import { adjustAll, applyLookToAll, clearBatch, adjustPhoto, editPhoto, endStep, getIg, movePhotoTo, redo, removePhoto, resetPhoto, selectLayer, selectMask, selectPhoto, setIg, setLimit, setPicking, setTools, undo, updateMask, useIg, type IgItem } from '../../state/instagram';
+import { canShareFiles, prepareBatch, zipOf } from '../../state/instagramExport';
+import { addLayer, copyLayersToAll, removeLayer, restackLayer, setLayers, updateLayer } from '../../state/instagramLayers';
+import { addPhotos } from '../../state/instagramMedia';
 import { fullUrl, useLibrary } from '../../state/library';
 import type { StoredPhoto } from '../../types';
 import { Check, Seg } from '../common';

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { putOnCard, removeStored, useLibrary } from '../state/library';
+import { keyOfStored, putOnCard, removeStored, useLibrary } from '../state/library';
 import { usePhotoSlots } from '../state/photoSlots';
 import { dimsOf, fitsSlot, rememberDims, slotInfo, useDimsTick } from '../state/photoFit';
 import { photoKey } from '../lib/photoKey';
-import { keyOfStored } from '../state/traits';
 import { setUI, useApp } from '../state/store';
 import { Check } from './common';
 import { isDesktop } from '../platform/desktop';

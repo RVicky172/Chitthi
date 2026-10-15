@@ -1025,7 +1025,7 @@
         "T041": {
           "text": "`state/store.ts`, `state/actions.ts`, `state/instagram.ts` and the rest of `state/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; `src/state/**` joins `FINISHED`.",
           "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1042,7 +1042,11 @@
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-14):** The rest of `src/state/` (8 modules, 1,875 lines, 445 findings, 14 unchecked-index errors) at 0 and `src/state/**` in `FINISHED`. `state/instagram.ts` (529 lines) split by job like T040: `instagram.ts` (state, selections, undo / redo, `change`, photo edits), `instagramLayers.ts`, `instagramMedia.ts` (addPhotos, RAW), `instagramExport.ts` (renderBatch, prepareBatch, ZIP, share check); no barrel (D2): photoTools, PhotoWorkspace, VideoWorkspace and the self-test import the new modules. `actions.ts`: the two upload loops share `decodeUpload`, `faces` split into `envelopeFaces` / `monthPages`, the import check is a named guard `isImportedRecord`, the quote pack's loop is `quoteParts`, failures go through `reportFailure`. `store.ts`: `screenOf` is a table, undo reads steps through `stepAt`. `traits.ts`: ranking shared by `useRankedLibrary` and `smartFill` (`rankLibrary`), no `!`. `keyOfStored` moved to `library.ts` (traits imported library already). New `lib/ids.ts` (`newRecordId`: crypto random tag instead of `Math.random`) for saved-design and stored-photo ids. `setOccasion(isOn)` keeps its boolean (public API in src/index.ts; one commented lint disable). Behaviour checked by a scratch harness against frozen copies (not committed): 12,000 random steps over 31 actions of the photo store plus focused sequences (100 undo steps, grouping gaps 0–1,000 ms, mask part after undo), 6,000 print-store steps with fake timers (undo, redo, commit, history stats), 1,500 backup / design imports (records and toasts), 500 upload batches (messages, photos, layout), 600 placePhoto + autoArrange runs over every product and layout, photoFit and screenOf: identical; 19 planted changes each failed it (after steering the photo store harness for three that first slipped through). Not covered (DOM / encoder / IndexedDB): the batch render, print downloads, faces, the photo store's thumbnails; reviewed by hand. Small behaviour notes: the library lists sort a copy (`toSorted`), so the background upgrade walks the stored order; a canvas without a 2D context throws 'Canvas unavailable.' in `thumbOf` (was a TypeError); `placePhoto` no longer swaps when the target index is out of range. `npm run check` green (1,686 tests), `npm run build` green: entry 311 KB, start-up JavaScript 465,036 → 465,232 bytes. Docs: `specs/lld.md` module map, `docs/MEDIA-STUDIO.md`, CLAUDE.md layers."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
         },
         "T042": {
           "text": "`data/` (names and JSDoc; size rules exempt), `lib/` and `platform/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`.",

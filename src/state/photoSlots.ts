@@ -12,24 +12,43 @@ import { getState, setPhotos, setUI, useApp } from './store';
  * two list positions, which keeps undo/redo and autosave working unchanged.
  */
 
-/** Calendar month being edited (always 0 for other products). */
-const pageOf = (s: AppState) => (s.design.product === 'calendar' ? Math.min(s.ui.calPage, calPages(s.design) - 1) : 0);
+/**
+ * Calendar month being edited (always 0 for other products).
+ * @param state the store's state
+ * @returns the page index
+ */
+const pageOf = (state: AppState) => (state.design.product === 'calendar' ? Math.min(state.ui.calPage, calPages(state.design) - 1) : 0);
 
-/** Put a photo into a slot (on the current calendar month) by swapping it with whichever photo is there now. */
+/**
+ * Put a photo into a slot (on the current calendar month) by swapping it with whichever photo is there now.
+ * @param id the photo
+ * @param slot the slot (0-based)
+ */
 export function placePhoto(id: string, slot: number): void {
-  const s = getState(),
-    list = s.photos;
+  const state = getState(),
+    list = state.photos;
   if (!list.length) return;
-  const to = slotPhotoIndex(slot, list.length, pageOf(s), slotCount(s.design.layout, s.design)),
-    from = list.findIndex((p) => p.id === id);
+  const to = slotPhotoIndex(slot, list.length, pageOf(state), slotCount(state.design.layout, state.design)),
+    from = list.findIndex((photo) => photo.id === id);
   if (from < 0 || from === to) return;
+  const moving = list.at(from),
+    displaced = list.at(to);
+  if (!moving || !displaced) return;
   const next = [...list];
-  [next[from], next[to]] = [next[to], next[from]];
+  next[from] = displaced;
+  next[to] = moving;
   setPhotos(next);
 }
 
-export const selectSlot = (slot: number) => setUI({ slot });
+/**
+ * Choose the slot the next tapped photo goes into.
+ * @param slot the slot (0-based)
+ */
+export const selectSlot = (slot: number) => {
+  setUI({ slot });
+};
 
+/** The current layout's photo slots and what fills them. */
 export interface PhotoSlots {
   /** Photo slots in the current layout. */
   count: number;
@@ -42,17 +61,23 @@ export interface PhotoSlots {
   photos: Photo[];
 }
 
+/**
+ * The current layout's photo slots and what fills them, for the photo tray and the stage.
+ * @returns the slots; stable until the design, photos, slot or page change
+ */
 export function usePhotoSlots(): PhotoSlots {
-  const d = useApp((s) => s.design),
-    photos = useApp((s) => s.photos),
-    active = useApp((s) => s.ui.slot),
+  const design = useApp((state) => state.design),
+    photos = useApp((state) => state.photos),
+    active = useApp((state) => state.ui.slot),
     page = useApp(pageOf);
-  const count = useMemo(() => slotCount(d.layout, d), [d]);
+  const count = useMemo(() => slotCount(design.layout, design), [design]);
   return useMemo(() => {
-    const n = photos.length;
-    const filled = Array.from({ length: count }, (_, i) => (n ? photos[slotPhotoIndex(i, n, page, count)] : null));
-    const pos = new Map<string, number>();
-    filled.forEach((p, i) => p && !pos.has(p.id) && pos.set(p.id, i));
-    return { count, active: Math.min(active, Math.max(0, count - 1)), filled, slotOf: (id) => pos.get(id) ?? -1, photos };
+    const photoCount = photos.length;
+    const filled = Array.from({ length: count }, (_, slot) => (photoCount ? (photos.at(slotPhotoIndex(slot, photoCount, page, count)) ?? null) : null));
+    const slotById = new Map<string, number>();
+    filled.forEach((photo, slot) => {
+      if (photo && !slotById.has(photo.id)) slotById.set(photo.id, slot);
+    });
+    return { count, active: Math.min(active, Math.max(0, count - 1)), filled, slotOf: (id) => slotById.get(id) ?? -1, photos };
   }, [count, active, photos, page]);
 }
