@@ -137,14 +137,25 @@ src/
     transport.ts             Adds the key for allowed hosts (web) or sends the request to the main process (desktop)
     secrets.ts, settings.ts  Keys (SecretStore); chosen services, models, daily limits and usage
     prompts/                 Versioned templates: words.ts (greetings, captions, messages), artwork.ts (pictures)
-    providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram
+    providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram; read.ts
+                             reads their JSON answers without trusting the shape
     segment/                 AI masks (P1.8): index.ts (models on the device, download + SHA-256 check, segmentPhoto,
                              modelState / deleteModel for Settings, 401), models.ts (the two models, modelRow),
                              worker.ts (ONNX Runtime Web), models/u2netp.onnx
   agent/
-    tools.ts                 The 56 agent tools: JSON Schema input and a handler each (34 for print designs here)
-    photoTools.ts            The 22 photo studio tools: batch, framing, colour, masks (AI too), presets, LUTs, preview, export
-    common.ts                Tool shape, schema helpers, reading an image by path or URL
+    tools.ts                 The registry: the 56 agent tools in the order agents see them, toolNamed
+    catalogTools.ts          Print catalogue: products, sizes, layouts, themes, fonts, festivals (read only)
+    designTools.ts           Print design: new design, size, layout, theme, words, back, calendar, any setting
+    cardPhotoTools.ts        Photos on a print design: slots, calendar pages, files, URLs, Pexels, arrange
+    aiTools.ts               Words, captions and pictures with the user's AI provider (ai/service loaded on use)
+    outputTools.ts           check_design, previews, print pack, PDF, quote request, print specs
+    galleryTools.ts          Saved designs: list, open, save
+    designSummary.ts         The design as an agent sees it, patchDesign (through mergeDesign), the photo list
+    photoTools.ts            The 22 photo studio tools: batch, framing, colour, preview, export, with maskTools.ts
+                             (masks, AI too) and presetTools.ts (presets, LUTs)
+    photoStudioInfo.ts       The batch as an agent sees it; finding the photo or mask an agent names
+    photoEdits.ts            Colour settings' schema and gate (cleanAdjust), mask parts and putMask, AI masks, drawing
+    common.ts                Tool shape, schema helpers (objectSchema …), argument readers, reading an image by path or URL
     prompts.ts               MCP prompts (workflows) and resources (design, specs, photo rules)
     bridge.ts                Page side of MCP: runs one call at a time, returns text, images and files
   platform/
@@ -930,6 +941,6 @@ processed photo canvases only it still holds pass 320 MB (at least 10 steps stay
 | An export format | `engine/printPages.ts` (`pagesOf`), `engine/export.ts` (`buildPack`), `ExportFormat` type, `PrintPane` |
 | A setting | `SettingsDialog.tsx`; keep values in `localStorage` via a small module like `lib/pexels.ts` |
 | An AI provider | [AI.md](../docs/AI.md) → *Adding a provider* |
-| An agent tool | `src/agent/tools.ts` (schema + handler), then document it in [MCP.md](../docs/MCP.md); `npm test` runs every tool |
+| An agent tool | The tool file for its job in `src/agent/` (schema + handler; `tools.ts` lists them in order), then document it in [MCP.md](../docs/MCP.md); `npm test` runs every tool |
 | A prompt template | `src/ai/prompts/*.ts` (bump the version string); MCP workflow prompts in `src/agent/prompts.ts` |
 | A desktop menu command | `MenuAction` (`platform/desktop.ts`), `ACTIONS` (`platform/menu.ts`), template in `electron/main.cjs` |

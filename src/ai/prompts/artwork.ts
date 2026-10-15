@@ -14,8 +14,10 @@ export const ART_STYLES = [
   ['pattern', 'Festive pattern'],
   ['madhubani', 'Madhubani folk art'],
 ] as const;
+/** A picture style's id. */
 export type ArtStyle = (typeof ART_STYLES)[number][0];
 
+/** What a picture is made for. */
 export interface ArtContext {
   subject: string;
   style: ArtStyle;
@@ -36,13 +38,18 @@ const STYLE_WORDS: Record<ArtStyle, string> = {
   madhubani: 'Madhubani folk painting style, fine line work, natural pigments, decorative borders',
 };
 
-export function artPrompt(c: ArtContext): string {
+/**
+ * The prompt for a picture.
+ * @param context subject, style, quiet side, people, mood and colours
+ * @returns the prompt
+ */
+export function artPrompt(context: ArtContext): string {
   return [
-    `${c.subject}, as ${STYLE_WORDS[c.style]}.`,
-    c.mood ? `Mood: ${c.mood}.` : '',
-    c.colours?.length ? `Colour palette leaning towards ${c.colours.join(', ')}.` : '',
-    c.space ? `Keep the ${c.space} part of the picture calm and uncluttered: words will be printed there.` : '',
-    c.people ? 'People may appear, but not any real or famous person.' : 'No people, faces or hands.',
+    `${context.subject}, as ${STYLE_WORDS[context.style]}.`,
+    context.mood ? `Mood: ${context.mood}.` : '',
+    context.colours?.length ? `Colour palette leaning towards ${context.colours.join(', ')}.` : '',
+    context.space ? `Keep the ${context.space} part of the picture calm and uncluttered: words will be printed there.` : '',
+    context.people ? 'People may appear, but not any real or famous person.' : 'No people, faces or hands.',
     'No text, letters, numbers, logos, watermarks or brand names anywhere in the image.',
     'Suitable for printing on a greeting card: rich but not oversaturated colours, nothing important near the edges.',
   ]

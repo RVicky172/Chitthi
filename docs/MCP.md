@@ -157,7 +157,7 @@ MCP client ──stdio──► relay (Electron binary in Node mode, electron/mc
                page: src/agent/bridge.ts → src/agent/tools.ts → store actions and engine
 ```
 
-- **One tool registry** (`src/agent/tools.ts`, Command pattern) describes every tool with a JSON Schema and a handler
+- **One tool registry** (`src/agent/tools.ts`, Command pattern, over one file of tools per job) describes every tool with a JSON Schema and a handler
   that calls existing store actions and engine functions. Calls run one at a time, so parallel agent calls can't
   interleave design edits; in live mode every change is on the Undo stack.
 - **Headless**: Electron's main process can't read stdin on Windows, so `Chitthi --mcp` serves MCP on loopback HTTP and

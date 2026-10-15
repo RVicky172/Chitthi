@@ -9,58 +9,78 @@ import { AiError, parseJsonLoose, type AiCtx, type ProviderModule, type TextRequ
  * The server-side fallback (on by default, Settings → AI) retries a declined request on another Claude model.
  */
 
+/**
+ * The SDK client for one request (its requests go through the transport).
+ * @param ctx the request context
+ * @returns the client
+ */
 function client(ctx: AiCtx): Anthropic {
   return new Anthropic({ apiKey: ctx.sdkKey, dangerouslyAllowBrowser: true, fetch: ctx.http.sdkFetch, maxRetries: 1 });
 }
 
+/**
+ * Structured words from Claude.
+ * @param ctx the request context
+ * @param req the prompts and schema
+ * @returns the parsed JSON
+ */
 async function generateJSON(ctx: AiCtx, req: TextRequest): Promise<unknown> {
-  const c = client(ctx);
-  const fallbacks = aiSettings().fallbacks;
+  const anthropic = client(ctx);
+  const { fallbacks } = aiSettings();
   const params = {
     model: ctx.model,
     max_tokens: req.maxTokens,
     system: req.system,
     messages: [{ role: 'user' as const, content: req.prompt }],
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: req.schema } },
-    ...(fallbacks ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
+    output_config: { effort: 'low' as const, format: { type: 'json_schema' as const, schema: req.schema } },
   };
-  let msg: Anthropic.Beta.BetaMessage | Anthropic.Message;
+  let message: Anthropic.Beta.BetaMessage | Anthropic.Message;
   try {
     // The beta namespace carries the fallback parameter; the plain one is used when it's turned off.
-    msg = fallbacks
-      ? await c.beta.messages.create(params as unknown as Anthropic.Beta.MessageCreateParamsNonStreaming, { signal: ctx.signal })
-      : await c.messages.create(params as unknown as Anthropic.MessageCreateParamsNonStreaming, { signal: ctx.signal });
-  } catch (e) {
-    throw mapError(e);
+    message = fallbacks
+      ? await anthropic.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }, { signal: ctx.signal })
+      : await anthropic.messages.create(params, { signal: ctx.signal });
+  } catch (error) {
+    throw mapError(error);
   }
-  if (msg.stop_reason === 'refusal') throw new AiError('Claude declined this request. Try different words.', 'refused');
-  const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+  if (message.stop_reason === 'refusal') throw new AiError('Claude declined this request. Try different words.', 'refused');
+  const text = message.content.map((block) => (block.type === 'text' ? block.text : '')).join('');
   if (!text) throw new AiError('Claude returned no text. Try again.', 'bad-output');
   return parseJsonLoose(text);
 }
 
+/**
+ * The account's models.
+ * @param ctx the request context
+ * @returns the model ids
+ */
 async function listModels(ctx: AiCtx): Promise<string[]> {
   try {
-    const out: string[] = [];
-    for await (const m of client(ctx).models.list({ limit: 100 })) out.push(m.id);
-    return out;
-  } catch (e) {
-    throw mapError(e);
+    const models: string[] = [];
+    for await (const model of client(ctx).models.list({ limit: 100 })) models.push(model.id);
+    return models;
+  } catch (error) {
+    throw mapError(error);
   }
 }
 
-function mapError(e: unknown): AiError {
-  if (e instanceof AiError) return e;
-  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
+/**
+ * Turns an SDK error into a message worth showing.
+ * @param error what the SDK threw
+ * @returns the error, with its kind
+ */
+function mapError(error: unknown): AiError {
+  if (error instanceof AiError) return error;
+  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError)
     return new AiError('Anthropic didn’t accept the API key.', 'key');
-  if (e instanceof Anthropic.RateLimitError) return new AiError('Anthropic’s rate limit was reached. Wait a little and try again.', 'limit');
-  if (e instanceof Anthropic.APIUserAbortError) return new AiError('Cancelled.', 'cancelled');
-  if (e instanceof Anthropic.BadRequestError) return new AiError(`Anthropic couldn’t use this request (${e.message.slice(0, 160)}).`, 'provider');
-  if (e instanceof Anthropic.APIConnectionError) return new AiError('Couldn’t reach Anthropic. Check your connection.', 'network');
-  if (e instanceof Anthropic.APIError) return new AiError(`Anthropic returned an error ${e.status ?? ''}.`, 'provider');
-  return new AiError(e instanceof Error ? e.message : String(e), 'provider');
+  if (error instanceof Anthropic.RateLimitError) return new AiError('Anthropic’s rate limit was reached. Wait a little and try again.', 'limit');
+  if (error instanceof Anthropic.APIUserAbortError) return new AiError('Cancelled.', 'cancelled');
+  if (error instanceof Anthropic.BadRequestError) return new AiError(`Anthropic couldn’t use this request (${error.message.slice(0, 160)}).`, 'provider');
+  if (error instanceof Anthropic.APIConnectionError) return new AiError('Couldn’t reach Anthropic. Check your connection.', 'network');
+  if (error instanceof Anthropic.APIError) return new AiError(`Anthropic returned an error ${error.status ?? ''}.`, 'provider');
+  return new AiError(error instanceof Error ? error.message : String(error), 'provider');
 }
 
-const mod: ProviderModule = { text: { generateJSON, listModels } };
-export default mod;
-export const text = mod.text;
+const providerModule: ProviderModule = { text: { generateJSON, listModels } };
+export default providerModule;
+export const text = providerModule.text;

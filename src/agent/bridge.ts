@@ -1,6 +1,7 @@
+import { isRecord } from '../engine/guards';
 import { desktop } from '../platform/desktop';
 import { PROMPTS, RESOURCES } from './prompts';
-import { ToolError, TOOLS, TOOLS_BY_NAME, type AgentEnv } from './tools';
+import { toolNamed, ToolError, TOOLS, type AgentEnv } from './tools';
 
 /*
  * Connects the agent tools to the desktop main process (electron/mcp.cjs). The main process forwards each MCP
@@ -10,68 +11,115 @@ import { ToolError, TOOLS, TOOLS_BY_NAME, type AgentEnv } from './tools';
  * user turns on "Let an agent work in this open window".
  */
 
+/** A tool's answer as it goes back over IPC. */
 export interface WireResult {
   ok: boolean;
   text?: string;
   json?: unknown;
   image?: { data: string; mimeType: string };
+  /** Where the desktop app wrote the tool's files. */
   paths?: string[];
   error?: string;
 }
 
-const b64 = async (blob: Blob): Promise<string> => {
+/**
+ * A file's bytes as base64.
+ * @param blob the file
+ * @returns its base64 text
+ */
+async function base64Of(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  let s = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-};
+  let binary = '';
+  for (let start = 0; start < bytes.length; start += 0x8000) binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000));
+  return btoa(binary);
+}
 
-const env: AgentEnv = { readPhoto: desktop?.agent ? (p) => desktop!.agent!.readPhoto(p) : undefined };
+const agentBridge = desktop?.agent;
+const env: AgentEnv = { readPhoto: agentBridge ? (path) => agentBridge.readPhoto(path) : undefined };
 
-async function handle(name: string, args: Record<string, unknown>): Promise<WireResult | unknown> {
-  if (name === '__list')
-    return {
-      tools: TOOLS.map((t) => ({ name: t.name, title: t.title, description: t.description, inputSchema: t.inputSchema, readOnly: !!t.readOnly, destructive: !!t.destructive })),
-      resources: RESOURCES.map(({ uri, name: n, description, mimeType }) => ({ uri, name: n, description, mimeType })),
-      prompts: PROMPTS.map(({ name: n, title, description, arguments: a }) => ({ name: n, title, description, arguments: a })),
-    };
+/**
+ * The tools, resources and prompts an agent can use.
+ * @returns their public descriptions
+ */
+const catalogue = () => ({
+  tools: TOOLS.map((tool) => ({
+    name: tool.name,
+    title: tool.title,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    readOnly: !!tool.readOnly,
+    destructive: !!tool.destructive,
+  })),
+  resources: RESOURCES.map(({ uri, name, description, mimeType }) => ({ uri, name, description, mimeType })),
+  prompts: PROMPTS.map(({ name, title, description, arguments: promptArgs }) => ({ name, title, description, arguments: promptArgs })),
+});
+
+/**
+ * The text arguments of a prompt request.
+ * @param given the request's `arguments`
+ * @returns the arguments that are text
+ */
+function promptArgsOf(given: unknown): Partial<Record<string, string>> {
+  if (!isRecord(given)) return {};
+  return Object.fromEntries(Object.entries(given).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
+/**
+ * Runs a tool and turns its result into the wire form (images as base64, files written by the desktop app).
+ * @param name the tool's name
+ * @param args its arguments
+ * @returns the answer
+ */
+async function runTool(name: string, args: Record<string, unknown>): Promise<WireResult> {
+  const tool = toolNamed(name);
+  if (!tool) throw new ToolError(`Unknown tool ${name}`);
+  const result = await tool.run(args, env);
+  const wire: WireResult = { ok: true, text: result.text, json: result.json };
+  if (result.image) wire.image = { data: await base64Of(result.image), mimeType: result.image.type || 'image/png' };
+  if (result.files?.length && agentBridge)
+    wire.paths = await agentBridge.writeFiles(await Promise.all(result.files.map(async (file) => ({ name: file.name, data: await file.blob.arrayBuffer() }))));
+  return wire;
+}
+
+/**
+ * Answers one call from the main process.
+ * @param name a tool's name, or __list, __resource or __prompt
+ * @param args the call's arguments
+ * @returns the answer
+ */
+async function handle(name: string, args: Record<string, unknown>): Promise<unknown> {
+  if (name === '__list') return catalogue();
   if (name === '__resource') {
-    const r = RESOURCES.find((x) => x.uri === args.uri);
-    if (!r) throw new ToolError(`Unknown resource ${String(args.uri)}`);
-    return { uri: r.uri, mimeType: r.mimeType, text: await r.read() };
+    const resource = RESOURCES.find((candidate) => candidate.uri === args.uri);
+    if (!resource) throw new ToolError(`Unknown resource ${String(args.uri)}`);
+    return { uri: resource.uri, mimeType: resource.mimeType, text: await resource.read() };
   }
   if (name === '__prompt') {
-    const p = PROMPTS.find((x) => x.name === args.name);
-    if (!p) throw new ToolError(`Unknown prompt ${String(args.name)}`);
-    return { description: p.description, text: p.build((args.arguments as Record<string, string>) ?? {}) };
+    const prompt = PROMPTS.find((candidate) => candidate.name === args.name);
+    if (!prompt) throw new ToolError(`Unknown prompt ${String(args.name)}`);
+    return { description: prompt.description, text: prompt.build(promptArgsOf(args.arguments)) };
   }
-  const tool = TOOLS_BY_NAME[name];
-  if (!tool) throw new ToolError(`Unknown tool ${name}`);
-  const r = await tool.run(args ?? {}, env);
-  const out: WireResult = { ok: true, text: r.text, json: r.json };
-  if (r.image) out.image = { data: await b64(r.image), mimeType: r.image.type || 'image/png' };
-  if (r.files?.length && desktop?.agent) out.paths = await desktop.agent.writeFiles(await Promise.all(r.files.map(async (f) => ({ name: f.name, data: await f.blob.arrayBuffer() }))));
-  return out;
+  return runTool(name, args);
 }
 
 let queue: Promise<unknown> = Promise.resolve();
-let installed = false;
+let isInstalled = false;
 
+/** Starts answering the main process's agent calls (once; desktop only). */
 export function installAgentBridge(): void {
-  if (installed || !desktop?.agent) return;
-  installed = true;
-  const agent = desktop.agent;
-  agent.onCall(({ id, name, args }) => {
+  if (isInstalled || !agentBridge) return;
+  isInstalled = true;
+  agentBridge.onCall(({ id, name, args }) => {
     queue = queue.then(async () => {
       try {
-        agent.reply(id, await handle(name, (args as Record<string, unknown>) ?? {}));
-      } catch (e) {
-        agent.reply(id, { ok: false, error: e instanceof Error ? e.message : String(e) } satisfies WireResult);
+        agentBridge.reply(id, await handle(name, isRecord(args) ? args : {}));
+      } catch (error) {
+        agentBridge.reply(id, { ok: false, error: error instanceof Error ? error.message : String(error) } satisfies WireResult);
       }
     });
   });
   // Tells the main process the tools are ready (headless start waits for this).
-  agent.reply(0, { ready: true });
+  agentBridge.reply(0, { ready: true });
 }
 
 installAgentBridge();

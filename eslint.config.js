@@ -23,6 +23,9 @@ const FINISHED = [
   'src/data/**',
   'src/lib/**',
   'src/platform/**',
+  // 407 T043: the agent tools (split by job) and the AI services.
+  'src/agent/**',
+  'src/ai/**',
 ];
 
 /** The code the standards rules apply to. */

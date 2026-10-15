@@ -1,12 +1,19 @@
 import { AiError, httpError, type AiCtx, type ImageRequest, type ProviderModule } from '../types';
+import { fieldOf, listField, textField } from './read';
 
 /*
  * Ideogram v3 (key header "Api-Key"): multipart POST to /v1/ideogram-v3/generate with the aspect as "WxH", then
  * download data[].url (temporary links) without the key. Good at lettering. Desktop app only (no CORS).
  */
 
+/**
+ * Pictures from Ideogram (only those it marks safe).
+ * @param ctx the request context
+ * @param req the prompt, aspect and how many (at most 4)
+ * @returns the pictures
+ */
 async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
-  const res = await ctx.http.fetch('https://api.ideogram.ai/v1/ideogram-v3/generate', {
+  const response = await ctx.http.fetch('https://api.ideogram.ai/v1/ideogram-v3/generate', {
     method: 'POST',
     form: [
       ['prompt', req.prompt],
@@ -16,18 +23,18 @@ async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
     ],
     signal: ctx.signal,
   });
-  if (!res.ok) throw await httpError(res, 'Ideogram');
-  const { data = [] } = (await res.json()) as { data?: { url?: string; is_image_safe?: boolean }[] };
-  const out: Blob[] = [];
-  for (const d of data) {
-    if (!d.url || d.is_image_safe === false) continue;
-    const r = await ctx.http.fetch(d.url, { noAuth: true, signal: ctx.signal });
-    if (r.ok) out.push(await r.blob());
+  if (!response.ok) throw await httpError(response, 'Ideogram');
+  const pictures: Blob[] = [];
+  for (const item of listField(await response.json(), 'data')) {
+    const url = textField(item, 'url');
+    if (!url || fieldOf(item, 'is_image_safe') === false) continue;
+    const download = await ctx.http.fetch(url, { noAuth: true, signal: ctx.signal });
+    if (download.ok) pictures.push(await download.blob());
   }
-  if (!out.length) throw new AiError('Ideogram returned no picture it considered safe. Try a different description.', 'bad-output');
-  return out;
+  if (!pictures.length) throw new AiError('Ideogram returned no picture it considered safe. Try a different description.', 'bad-output');
+  return pictures;
 }
 
 export const image = { generate };
-const mod: ProviderModule = { image };
-export default mod;
+const providerModule: ProviderModule = { image };
+export default providerModule;

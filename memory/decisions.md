@@ -544,3 +544,19 @@ IndexedDB helper, `lib/idb.ts`, returns `unknown`; each reader keeps the records
 **Consequences:** a malformed stored record (or Pexels result) is skipped instead of reaching the UI; the desktop
 bridge's `presetAll()` is typed `unknown[]`. The public library entry (`src/index.ts`) exports `buildSample` /
 `sampleCredits` from `state/samples`.
+
+## D-045 — Agent tools split by job and may return directly; AI answers read through guards (2026-10-15)
+
+**Context:** 407 T043. `agent/tools.ts` (581 lines) and `agent/photoTools.ts` (722) held every tool; 28 handlers were
+`async` with nothing to await. Provider answers, stored AI settings and keys were cast to their expected shapes.
+**Decision:** `tools.ts` is the registry over one file per job (catalogue, design, card photos, AI, output, gallery;
+the photo studio's batch and colour, masks, presets and LUTs), with `designSummary.ts`, `photoStudioInfo.ts` and
+`photoEdits.ts` for what they share; the order agents see is unchanged. `AgentTool.run` and `AgentResource.read`
+return a result or a promise (every caller awaits, so a throw rejects the call either way). Arguments outside a
+schema's `enum` (product, orientation, calendar words and marks) are refused with a `ToolError` instead of being
+stored. Provider JSON goes through `ai/providers/read.ts` (`fieldOf`, `textField`, `listField`); stored settings
+through `mergeAiSettings()` (the chosen provider is a `string`, so a removed provider still gets its message); keys
+and `ai-hosts.json` rules are checked when read.
+**Consequences:** a new tool goes into the file for its job and is listed in `tools.ts`; MCP schemas, names and order
+are byte-identical (checked by snapshot). Malformed answers (an object where text belongs) give '' instead of
+"[object Object]", and inputs that crashed with a TypeError now give the handled message.
