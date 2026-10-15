@@ -1268,7 +1268,7 @@
         "T056": {
           "text": "React (AC-12): fix the `recommended-latest` findings (27 at the start: state set in effects, refs read in render, memoization, purity, mutation) and review every `useEffect` (106) against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx`, `src/main.tsx` join `FINISHED`; run `npm run test:e2e` and `npm test` against the baselines (Q9).",
           "section": "Clean-up: components/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1282,10 +1282,14 @@
             "eslint.config.js"
           ],
           "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; react-hooks findings 0; e2e and self-test as the baselines",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "5a581a9"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** The 19 React compiler findings left after T055 fixed (react-hooks findings in `src/` 0) and all 111 effects reviewed against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx` and `src/main.tsx` join `FINISHED`, the standards report shows 0 for them. State reset on a change moved from effects to render (the stored-previous-value pattern): CropDialog (a new photo; the dialog's open/close stays in an effect on `cropId` + open), FeatureFinder and PhotoLibrary (opening), SettingsDialog (opening; the effect only subscribes and asks how the key reaches Pexels), Viewer3D (new faces; `useViewState` hook, the camera pose stays in the effect), `YearField` (a year from outside), Stage's flip counter (side changes). AiSettings keeps listed models with the service they came from (another service shows none, and a late list for the old service no longer lands on the new one). PexelsSearch: loading set during render on a new search key, the fetch started from the effect through `useEffectEvent` and written as a promise chain (the compiler counts state set after `await` as synchronous); `ideas` worked out per render (table lookups, no hand-picked deps); merging pages is `withNewPhotos`. Refs during render: FeatureFinder's commands get the file picker when they run (`command.run({ pickFiles })`); AiArtwork's live list is written in a layout effect; its add-picture work moved to `addToCard` (a local `use` read as the hook). Memoisation the compiler couldn't keep: Paper3D's scene memo over `shown` (now memoised) instead of an id string; SizeGuide memoises the size chain. Shell's `useFit` drops the extra size set (the ResizeObserver reports on observing). Kept on purpose: the store syncs (pane → side in App, `setKind` in VideoWorkspace), timers, subscriptions, canvas drawing. `npm run check` green (1,700 tests); `npm run build` green, entry 313 KB; `npm run test:e2e` 84 passed / 16 skipped (= baseline); `npm test` 6,203 checks, 0 failed (238 s; baseline 6,203). Not in this task: `src/types.ts` (34 JSDoc) and `src/dev` (100) still show in the report (for T091's “report at 0”)."
+          ],
           "startedOn": "2026-10-15",
-          "doneOn": null
+          "doneOn": "2026-10-15"
         },
         "T060": {
           "text": "`tests/selftest/`: names and JSDoc (size rules exempt for tests); run `npm test` (Q9).",
