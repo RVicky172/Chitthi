@@ -31,8 +31,16 @@ const ACCESS_TEXT: Record<PexelsAccess, [string, string]> = {
 type Test = { kind: 'idle' | 'testing' } | { kind: 'done'; ok: boolean; msg: string };
 
 /** App settings. Today: the Pexels API key for photo search (kept in this browser or this desktop app only). */
+/**
+ * The name of the desktop platform.
+ * @param platform Node's platform id
+ * @returns macOS or Windows
+ */
+const platformName = (platform: string) => (platform === 'darwin' ? 'macOS' : 'Windows');
+
+/** The Settings dialog: Pexels key, AI, your fonts, photo and video effects, and About. */
 export function SettingsDialog() {
-  const open = useApp((s) => s.ui.settings);
+  const open = useApp((state) => state.ui.settings);
   const dlg = useRef<HTMLDialogElement>(null);
   const [access, setAccess] = useState<PexelsAccess | null>(null);
   const [saved, setSaved] = useState(pexelsKey);
@@ -67,20 +75,26 @@ export function SettingsDialog() {
     const key = draft.trim();
     if (!key) return;
     setTest({ kind: 'testing' });
-    const r = await testPexelsKey(key);
-    if (r === 'ok' || r === 'limit') {
+    const result = await testPexelsKey(key);
+    if (result === 'ok' || result === 'limit') {
       setPexelsKey(key);
       setDraft('');
       setTest({
         kind: 'done',
         ok: true,
-        msg: r === 'ok' ? 'Key saved. Photo search is ready.' : 'Key saved. Its search limit for this hour is used up, so results start again later.',
+        msg:
+          result === 'ok'
+            ? 'Key saved. Photo search is ready.'
+            : 'Key saved. Its search limit for this hour is used up, so results start again later.',
       });
     } else
       setTest({
         kind: 'done',
         ok: false,
-        msg: r === 'refused' ? 'Pexels didn’t accept that key. Copy it again from your Pexels API page.' : 'Pexels couldn’t be reached. Check your internet connection and try again.',
+        msg:
+          result === 'refused'
+            ? 'Pexels didn’t accept that key. Copy it again from your Pexels API page.'
+            : 'Pexels couldn’t be reached. Check your internet connection and try again.',
       });
   };
 
@@ -90,7 +104,12 @@ export function SettingsDialog() {
     <dialog ref={dlg} className="setdlg" aria-labelledby="setTitle" onClose={() => setUI({ settings: false })}>
       <div className="dhead">
         <h2 id="setTitle">Settings</h2>
-        <button type="button" className="btn icon ghost" aria-label="Close settings" onClick={() => dlg.current?.close()}>
+        <button
+          type="button"
+          className="btn icon ghost"
+          aria-label="Close settings"
+          onClick={() => dlg.current?.close()}
+        >
           <CloseIcon />
         </button>
       </div>
@@ -115,8 +134,8 @@ export function SettingsDialog() {
           </p>
           <form
             className="setkey"
-            onSubmit={(e) => {
-              e.preventDefault();
+            onSubmit={(event) => {
+              event.preventDefault();
               void save();
             }}
           >
@@ -129,12 +148,12 @@ export function SettingsDialog() {
                   spellCheck={false}
                   placeholder="Paste the key here"
                   value={draft}
-                  onChange={(e) => {
-                    setDraft(e.target.value);
+                  onChange={(event) => {
+                    setDraft(event.target.value);
                     setTest({ kind: 'idle' });
                   }}
                 />
-                <button type="button" className="btn" aria-pressed={show} onClick={() => setShow((v) => !v)}>
+                <button type="button" className="btn" aria-pressed={show} onClick={() => setShow((shown) => !shown)}>
                   {show ? 'Hide' : 'Show'}
                 </button>
               </span>
@@ -173,8 +192,8 @@ export function SettingsDialog() {
           </Check>
           <ul className="tips">
             <li>
-              The key is kept on this device only ({isDesktop ? 'in the Chitthi app' : 'in this browser'}), never inside the app or
-              your saved designs, and it is sent only to api.pexels.com.
+              The key is kept on this device only ({isDesktop ? 'in the Chitthi app' : 'in this browser'}), never inside
+              the app or your saved designs, and it is sent only to api.pexels.com.
             </li>
             <li>A key you save here is used even when the server has one of its own.</li>
             <li>Pexels allows 200 searches an hour per key. Results are reused while the app stays open.</li>
@@ -188,8 +207,8 @@ export function SettingsDialog() {
         <section aria-labelledby="setAbout">
           <h3 id="setAbout">About</h3>
           <p className="hint">
-            Chitthi{desktop ? ` ${desktop.info.version} for ${desktop.info.platform === 'darwin' ? 'macOS' : 'Windows'}` : ' in the browser'}. Your designs
-            and photos stay on this device.{' '}
+            Chitthi{desktop ? ` ${desktop.info.version} for ${platformName(desktop.info.platform)}` : ' in the browser'}
+            . Your designs and photos stay on this device.{' '}
             <button
               type="button"
               className="linkbtn"
@@ -214,26 +233,26 @@ function UserFonts() {
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
     setBusy(true);
-    for (const f of [...files]) {
+    for (const file of [...files]) {
       try {
-        const name = await addUserFont(f);
+        const name = await addUserFont(file);
         toast(`“${name}” added to your fonts.`);
-      } catch (e) {
-        logError('handled', e);
-        toast(e instanceof Error ? e.message : 'That font couldn’t be added.');
+      } catch (error) {
+        logError('handled', error);
+        toast(error instanceof Error ? error.message : 'That font couldn’t be added.');
       }
     }
     setBusy(false);
   };
   const remove = async (name: string) => {
     await removeUserFont(name);
-    const d = getState().design;
+    const design = getState().design;
     // Anything on the current design that used it goes back to a built-in font.
     setDesign({
-      ...(d.headFont === name ? { headFont: 'Rozha One' } : {}),
-      ...(d.quoteFont === name ? { quoteFont: 'Kalam' } : {}),
-      ...(d.back.font === name ? { back: { ...d.back, font: 'Kalam' } } : {}),
-      ...(d.cal.font === name ? { cal: { ...d.cal, font: '' } } : {}),
+      ...(design.headFont === name ? { headFont: 'Rozha One' } : {}),
+      ...(design.quoteFont === name ? { quoteFont: 'Kalam' } : {}),
+      ...(design.back.font === name ? { back: { ...design.back, font: 'Kalam' } } : {}),
+      ...(design.cal.font === name ? { cal: { ...design.cal, font: '' } } : {}),
     });
   };
   return (
@@ -245,10 +264,16 @@ function UserFonts() {
       </p>
       {fonts.length > 0 && (
         <ul className="uf-list">
-          {fonts.map((f) => (
-            <li key={f.n}>
-              <span style={{ fontFamily: `"${f.n}", sans-serif` }}>{f.n}</span>
-              <button type="button" className="btn icon ghost" aria-label={`Delete ${f.n}`} title="Delete" onClick={() => void remove(f.n)}>
+          {fonts.map((font) => (
+            <li key={font.n}>
+              <span style={{ fontFamily: `"${font.n}", sans-serif` }}>{font.n}</span>
+              <button
+                type="button"
+                className="btn icon ghost"
+                aria-label={`Delete ${font.n}`}
+                title="Delete"
+                onClick={() => void remove(font.n)}
+              >
                 <TrashIcon />
               </button>
             </li>
@@ -261,9 +286,9 @@ function UserFonts() {
           hidden
           multiple
           accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
-          onChange={(e) => {
-            void upload(e.target.files);
-            e.target.value = '';
+          onChange={(event) => {
+            void upload(event.target.files);
+            event.target.value = '';
           }}
         />
         {busy ? 'Adding…' : 'Upload fonts'}
@@ -277,21 +302,22 @@ function GpuEffects() {
   const [on, setOn] = useState(gpuEffectsOn);
   const [support] = useState(gpuSupport);
   const any = support.webgpu || support.webgl2;
+  const gpuName = support.webgpu ? 'WebGPU' : 'WebGL2';
   return (
     <section aria-labelledby="setGpu">
       <h3 id="setGpu">Photo &amp; video effects</h3>
       <Check
         checked={on && any}
-        onChange={(v) => {
-          setGpuEffects(v);
-          setOn(v);
+        onChange={(value) => {
+          setGpuEffects(value);
+          setOn(value);
         }}
       >
         Use the graphics card for looks and colour
       </Check>
       <p className="hint">
         {any
-          ? `Faster previews and exports in the photo & video studio, using ${support.webgpu ? 'WebGPU' : 'WebGL2'}. The pictures are the same either way; turn it off if anything looks wrong, and please tell us.`
+          ? `Faster previews and exports in the photo & video studio, using ${gpuName}. The pictures are the same either way; turn it off if anything looks wrong, and please tell us.`
           : 'This browser offers no graphics card access (WebGPU or WebGL2), so effects run on the processor.'}
       </p>
     </section>

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ChevronIcon, MoreIcon } from './icons';
 
+/** A row of a MoreMenu. */
 export interface MenuItem {
   key: string;
   label: string;
@@ -15,19 +16,8 @@ export interface MenuItem {
   current?: boolean;
 }
 
-/**
- * A "More" button with a small menu: where secondary header actions go when there isn't room for them inline.
- * Which rows show at which width is decided in CSS (the row's className), so the same list serves every breakpoint.
- * Closes on Escape, on a click outside, and after choosing an item; arrow keys move between rows.
- */
-export function MoreMenu({
-  items,
-  label = 'More',
-  className = '',
-  icon,
-  text,
-  align = 'right',
-}: {
+/** A MoreMenu's rows and its button. */
+interface MoreMenuProps {
   items: MenuItem[];
   label?: string;
   className?: string;
@@ -36,17 +26,50 @@ export function MoreMenu({
   text?: string;
   /** Which edge of the button the menu lines up with. */
   align?: 'left' | 'right';
-}) {
+}
+
+/**
+ * The row an arrow, Home or End key moves to, wrapping around.
+ * @param key the key
+ * @param current the focused row's index (-1 when none)
+ * @param count how many rows
+ * @returns the row to focus
+ */
+function rowAfterKey(key: string, current: number, count: number): number {
+  if (key === 'Home') return 0;
+  if (key === 'End') return count - 1;
+  return (current + (key === 'ArrowDown' ? 1 : -1) + count) % count;
+}
+
+/**
+ * A "More" button with a small menu: where secondary header actions go when there isn't room for them inline.
+ * Which rows show at which width is decided in CSS (the row's className), so the same list serves every breakpoint.
+ * Closes on Escape, on a click outside, and after choosing an item; arrow keys move between rows.
+ * @param props the rows, the button's label, class, icon and text, and the menu's alignment
+ */
+export function MoreMenu({
+  items,
+  label = 'More',
+  className = '',
+  icon,
+  text,
+  align = 'right',
+}: Readonly<MoreMenuProps>) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null),
     menuId = useId();
+  // Rows hidden by a breakpoint have no layout box; skip them for arrow keys.
+  const rows = () =>
+    [...(box.current?.querySelectorAll<HTMLButtonElement>('.mm-list button:not(:disabled)') ?? [])].filter(
+      (button) => button.offsetParent,
+    );
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    const onDown = (event: PointerEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setOpen(false);
         box.current?.querySelector<HTMLButtonElement>('.mm-btn')?.focus();
       }
@@ -60,15 +83,12 @@ export function MoreMenu({
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
-  // Rows hidden by a breakpoint have no layout box; skip them for arrow keys.
-  const rows = () => [...(box.current?.querySelectorAll<HTMLButtonElement>('.mm-list button:not(:disabled)') ?? [])].filter((b) => b.offsetParent);
-  const onListKey = (e: React.KeyboardEvent) => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
-    e.preventDefault();
+  const onListKey = (event: React.KeyboardEvent) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') return;
+    event.preventDefault();
     const all = rows(),
-      i = all.indexOf(document.activeElement as HTMLButtonElement);
-    const next = e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length;
-    all[next]?.focus();
+      focused = all.findIndex((row) => row === document.activeElement);
+    all.at(rowAfterKey(event.key, focused, all.length))?.focus();
   };
   return (
     <div className={`mm ${className}`} ref={box}>
@@ -80,7 +100,7 @@ export function MoreMenu({
         aria-controls={menuId}
         aria-label={text ? undefined : label}
         title={label}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
       >
         {text ? (
           <>
@@ -95,7 +115,13 @@ export function MoreMenu({
         )}
       </button>
       {open && (
-        <ul className={`mm-list${align === 'left' ? ' mm-left' : ''}`} id={menuId} role="menu" aria-label={label} onKeyDown={onListKey}>
+        <ul
+          className={`mm-list${align === 'left' ? ' mm-left' : ''}`}
+          id={menuId}
+          role="menu"
+          aria-label={label}
+          onKeyDown={onListKey}
+        >
           {items.map((it) => (
             <li key={it.key} role="none" className={it.className}>
               <button

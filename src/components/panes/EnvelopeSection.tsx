@@ -8,7 +8,20 @@ import { postmarkYear } from '../../engine/design';
 import { Check, Section, Seg, YearField } from '../common';
 import { CubeIcon } from '../icons';
 
-function EnvelopeThumb({ face, design, photos, fontTick }: { face: EnvelopeFace; design: Design; photos: Photo[]; fontTick: number }) {
+/** One face of the envelope and what it is drawn from. */
+interface EnvelopeThumbProps {
+  face: EnvelopeFace;
+  design: Design;
+  photos: Photo[];
+  /** Changes when fonts load: redraw. */
+  fontTick: number;
+}
+
+/**
+ * A small drawing of one face of the envelope.
+ * @param props the face, the design, its photos and the font tick
+ */
+function EnvelopeThumb({ face, design, photos, fontTick }: Readonly<EnvelopeThumbProps>) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (ref.current) renderEnvelope(ref.current, face, 300 / envelopeSpec(design).w, { d: design, photos });
@@ -21,20 +34,20 @@ function EnvelopeThumb({ face, design, photos, fontTick }: { face: EnvelopeFace;
  * styled from the design, and exported with the print pack (print-on-envelope PDF and a fold-your-own template).
  */
 export function EnvelopeSection() {
-  const d = useApp((s) => s.design),
-    photos = useApp((s) => s.photos),
-    fontTick = useApp((s) => s.ui.fontTick);
-  const dd = useDeferredValue(d),
+  const design = useApp((state) => state.design),
+    photos = useApp((state) => state.photos),
+    fontTick = useApp((state) => state.ui.fontTick);
+  const dd = useDeferredValue(design),
     pp = useDeferredValue(photos);
-  const e = d.env,
-    set = (p: Partial<EnvelopeSettings>) => setDesign({ env: { ...d.env, ...p } }),
-    spec = envelopeSpec(d);
+  const envelope = design.env,
+    set = (patch: Partial<EnvelopeSettings>) => setDesign({ env: { ...design.env, ...patch } }),
+    spec = envelopeSpec(design);
   return (
-    <Section id="env" title="Envelope" note={e.on ? spec.name : 'off'}>
-      <Check checked={e.on} onChange={(on) => set({ on })}>
+    <Section id="env" title="Envelope" note={envelope.on ? spec.name : 'off'}>
+      <Check checked={envelope.on} onChange={(on) => set({ on })}>
         Make a matching envelope ({spec.name})
       </Check>
-      {e.on && (
+      {envelope.on && (
         <>
           <div className="env-previews">
             <figure>
@@ -46,14 +59,14 @@ export function EnvelopeSection() {
               <figcaption>Flap side</figcaption>
             </figure>
           </div>
-          <p className="hint">{envelopeSummary(d)}. Both are added to the print pack automatically.</p>
+          <p className="hint">{envelopeSummary(design)}. Both are added to the print pack automatically.</p>
           <button type="button" className="btn" onClick={() => void open3D(undefined, 'envelope')}>
             <CubeIcon />
             See it in 3D
           </button>
           <Seg<EnvelopeSettings['style']>
             label="Flap"
-            value={e.style}
+            value={envelope.style}
             options={[
               ['pointed', 'Pointed flap'],
               ['straight', 'Straight flap'],
@@ -63,7 +76,7 @@ export function EnvelopeSection() {
           />
           <Seg<EnvelopeSettings['paper']>
             label="Envelope paper"
-            value={e.paper}
+            value={envelope.paper}
             options={[
               ['occasion', 'Occasion'],
               ['cream', 'Cream'],
@@ -73,39 +86,52 @@ export function EnvelopeSection() {
             onChange={(paper) => set({ paper })}
           />
           <div className="inline">
-            <Check checked={e.art} onChange={(art) => set({ art })}>
+            <Check checked={envelope.art} onChange={(art) => set({ art })}>
               Occasion artwork
             </Check>
-            <Check checked={e.photo} onChange={(photo) => set({ photo })}>
+            <Check checked={envelope.photo} onChange={(photo) => set({ photo })}>
               Your photo in the seal
             </Check>
           </div>
           <PostmarkYear />
           <label className="f">
             Return address (under your name from the back)
-            <textarea rows={2} placeholder={'Flat 4B, Rose Apartments\nPune 411001'} value={e.sender} onChange={(x) => set({ sender: x.target.value })} />
+            <textarea
+              rows={2}
+              placeholder={'Flat 4B, Rose Apartments\nPune 411001'}
+              value={envelope.sender}
+              onChange={(x) => set({ sender: x.target.value })}
+            />
           </label>
-          {d.product !== 'postcard' && (
+          {design.product !== 'postcard' && (
             <>
               <label className="f">
                 From (your name)
-                <input type="text" value={d.back.from} onChange={(x) => setBack({ from: x.target.value })} />
+                <input type="text" value={design.back.from} onChange={(x) => setBack({ from: x.target.value })} />
               </label>
               <label className="f">
                 To (name)
-                <input type="text" value={d.back.to} onChange={(x) => setBack({ to: x.target.value })} />
+                <input type="text" value={design.back.to} onChange={(x) => setBack({ to: x.target.value })} />
               </label>
               <label className="f">
                 Address
-                <textarea rows={3} value={d.back.address} onChange={(x) => setBack({ address: x.target.value })} />
+                <textarea rows={3} value={design.back.address} onChange={(x) => setBack({ address: x.target.value })} />
               </label>
               <label className="f">
                 PIN code
-                <input type="text" inputMode="numeric" maxLength={6} value={d.back.pin} onChange={(x) => setBack({ pin: x.target.value.replace(/\D/g, '') })} />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={design.back.pin}
+                  onChange={(x) => setBack({ pin: x.target.value.replace(/\D/g, '') })}
+                />
               </label>
             </>
           )}
-          {d.product === 'postcard' && <p className="hint">The address and PIN come from the fields above, so envelope and card match.</p>}
+          {design.product === 'postcard' && (
+            <p className="hint">The address and PIN come from the fields above, so envelope and card match.</p>
+          )}
         </>
       )}
     </Section>
@@ -114,21 +140,24 @@ export function EnvelopeSection() {
 
 /** The year on postmarks (the envelope, and the Postage stamp layout): automatic, or one you choose. */
 export function PostmarkYear() {
-  const d = useApp((s) => s.design);
-  const auto = d.product === 'calendar' ? `the calendar’s year (${d.cal.year})` : `this year (${new Date().getFullYear()})`;
+  const design = useApp((state) => state.design);
+  const auto =
+    design.product === 'calendar'
+      ? `the calendar’s year (${design.cal.year})`
+      : `this year (${new Date().getFullYear()})`;
   return (
     <div className="postyear">
       <Seg<'auto' | 'own'>
         label="Postmark year"
-        value={d.postYear ? 'own' : 'auto'}
+        value={design.postYear ? 'own' : 'auto'}
         options={[
           ['auto', 'Postmark: automatic'],
           ['own', 'Choose the year'],
         ]}
-        onChange={(v) => setDesign({ postYear: v === 'own' ? postmarkYear(d) : 0 })}
+        onChange={(year) => setDesign({ postYear: year === 'own' ? postmarkYear(design) : 0 })}
       />
-      {d.postYear ? (
-        <YearField label="Postmark year" value={d.postYear} onChange={(postYear) => setDesign({ postYear })} />
+      {design.postYear ? (
+        <YearField label="Postmark year" value={design.postYear} onChange={(postYear) => setDesign({ postYear })} />
       ) : (
         <p className="hint">The postmark shows {auto}.</p>
       )}

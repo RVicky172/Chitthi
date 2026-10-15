@@ -6,14 +6,32 @@ import { redo, setPerf, setUI, undo, useApp } from '../state/store';
 import { Seg } from './common';
 import { MoreMenu } from './MoreMenu';
 import { canFullscreen, toggleFullscreen, useFullscreen } from '../lib/fullscreen';
-import { ActivityIcon, CubeIcon, DownloadIcon, FullscreenIcon, InstagramIcon, Logo, MoonIcon, PhotosIcon, RedoIcon, RulerIcon, SaveIcon, SearchIcon, SettingsIcon, SunIcon, UndoIcon, ProductIcon } from './icons';
+import {
+  ActivityIcon,
+  CubeIcon,
+  DownloadIcon,
+  FullscreenIcon,
+  InstagramIcon,
+  Logo,
+  MoonIcon,
+  PhotosIcon,
+  RedoIcon,
+  RulerIcon,
+  SaveIcon,
+  SearchIcon,
+  SettingsIcon,
+  SunIcon,
+  UndoIcon,
+  ProductIcon,
+} from './icons';
 
+/** The print studio's top bar: product switch, undo / redo, tools, theme, save and the print pack. */
 export function Header() {
-  const canUndo = useApp((s) => s.canUndo),
-    canRedo = useApp((s) => s.canRedo),
-    product = useApp((s) => s.design.product),
-    onCard = useApp((s) => s.photos.length),
-    perf = useApp((s) => s.ui.perf);
+  const canUndo = useApp((state) => state.canUndo),
+    canRedo = useApp((state) => state.canRedo),
+    product = useApp((state) => state.design.product),
+    onCard = useApp((state) => state.photos.length),
+    perf = useApp((state) => state.ui.perf);
   const full = useFullscreen();
   const [busy, setBusy] = useState(false);
   const [dark, setDark] = useState(isDark);
@@ -35,58 +53,102 @@ export function Header() {
     fullLabel = full ? 'Leave full screen' : 'Full screen';
   return (
     <header className="bar">
-      <button type="button" className="home" title="Chitthi home" aria-label="Chitthi home" onClick={() => setUI({ screen: 'home' })}>
+      <button
+        type="button"
+        className="home"
+        title="Chitthi home"
+        aria-label="Chitthi home"
+        onClick={() => setUI({ screen: 'home' })}
+      >
         <Logo />
         <span className="brand">
           <span className="wordmark">Chitthi</span>
         </span>
       </button>
       <div className="products-switch">
-        <Seg label="What are you making?" value={product} options={PRODUCTS.map((p) => [p.id, p.short, <ProductIcon key={p.id} id={p.id} />])} onChange={switchProduct} />
+        <Seg
+          label="What are you making?"
+          value={product}
+          options={PRODUCTS.map((productDef) => [
+            productDef.id,
+            productDef.short,
+            <ProductIcon key={productDef.id} id={productDef.id} />,
+          ])}
+          onChange={switchProduct}
+        />
       </div>
       <div className="acts">
-        <button type="button" className="btn find-btn hide-sm" title="Find a feature (Ctrl+K)" onClick={() => setUI({ finder: true })}>
+        <button
+          type="button"
+          className="btn find-btn hide-sm"
+          title="Find a feature (Ctrl+K)"
+          onClick={() => setUI({ finder: true })}
+        >
           <SearchIcon />
           <span className="lbl">Find</span>
           <kbd className="lbl">Ctrl K</kbd>
         </button>
-        <button type="button" className="btn photos-btn hide-sm" title="Photo library: upload, crop and choose photos" onClick={() => setUI({ library: true })}>
+        <button
+          type="button"
+          className="btn photos-btn hide-sm"
+          title="Photo library: upload, crop and choose photos"
+          onClick={() => setUI({ library: true })}
+        >
           <PhotosIcon />
           <span className="lbl">Photos</span>
           {onCard > 0 && <b className="count-badge">{onCard}</b>}
         </button>
         <span className="acts-more hide-md">
-        <span className="sep" aria-hidden="true" />
-        <button type="button" className="btn icon ghost" title={themeLabel} aria-label={themeLabel} onClick={toggleTheme}>
-          {dark ? <SunIcon /> : <MoonIcon />}
-        </button>
-        <button
-          type="button"
-          className="btn icon ghost"
-          title="Sizes and layouts guide"
-          aria-label="Sizes and layouts guide"
-          onClick={() => setUI({ screen: 'sizes' })}
-        >
-          <RulerIcon />
-        </button>
-        <button type="button" className="btn icon ghost" title="Settings" aria-label="Settings" onClick={() => setUI({ settings: true })}>
-          <SettingsIcon />
-        </button>
-        {canFullscreen() && (
+          <span className="sep" aria-hidden="true" />
           <button
             type="button"
             className="btn icon ghost"
-            title={fullLabel}
-            aria-label={fullLabel}
-            aria-pressed={full}
-            onClick={() => void toggleFullscreen()}
+            title={themeLabel}
+            aria-label={themeLabel}
+            onClick={toggleTheme}
           >
-            <FullscreenIcon on={full} />
+            {dark ? <SunIcon /> : <MoonIcon />}
           </button>
-        )}
+          <button
+            type="button"
+            className="btn icon ghost"
+            title="Sizes and layouts guide"
+            aria-label="Sizes and layouts guide"
+            onClick={() => setUI({ screen: 'sizes' })}
+          >
+            <RulerIcon />
+          </button>
+          <button
+            type="button"
+            className="btn icon ghost"
+            title="Settings"
+            aria-label="Settings"
+            onClick={() => setUI({ settings: true })}
+          >
+            <SettingsIcon />
+          </button>
+          {canFullscreen() && (
+            <button
+              type="button"
+              className="btn icon ghost"
+              title={fullLabel}
+              aria-label={fullLabel}
+              aria-pressed={full}
+              onClick={() => void toggleFullscreen()}
+            >
+              <FullscreenIcon on={full} />
+            </button>
+          )}
         </span>
         <span className="sep" aria-hidden="true" />
-        <button type="button" className="btn icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!canUndo} onClick={undo}>
+        <button
+          type="button"
+          className="btn icon"
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo"
+          disabled={!canUndo}
+          onClick={undo}
+        >
           <UndoIcon />
         </button>
         <button
@@ -99,12 +161,23 @@ export function Header() {
         >
           <RedoIcon />
         </button>
-        <button type="button" className="btn hide-sm" title="Save to gallery (Ctrl+S)" onClick={() => void saveDesign(false)}>
+        <button
+          type="button"
+          className="btn hide-sm"
+          title="Save to gallery (Ctrl+S)"
+          onClick={() => void saveDesign(false)}
+        >
           <SaveIcon />
           <span className="lbl">Save to gallery</span>
         </button>
         {/* On phones the label is hidden, so the button carries its name itself. */}
-        <button type="button" className="btn primary" disabled={busy} onClick={download} aria-label={busy ? 'Preparing the print pack' : 'Download the print pack'}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={busy}
+          onClick={() => void download()}
+          aria-label={busy ? 'Preparing the print pack' : 'Download the print pack'}
+        >
           <DownloadIcon />
           <span className="lbl">{busy ? 'Preparing…' : 'Print pack'}</span>
         </button>
@@ -113,16 +186,79 @@ export function Header() {
         <MoreMenu
           label="More actions"
           items={[
-            { key: 'find', label: 'Find a feature', icon: <SearchIcon />, onSelect: () => setUI({ finder: true }), className: 'mm-sm' },
-            { key: 'photos', label: onCard ? `Photo library (${onCard} on the card)` : 'Photo library', icon: <PhotosIcon />, onSelect: () => setUI({ library: true }), className: 'mm-sm' },
-            { key: 'save', label: 'Save to gallery', icon: <SaveIcon />, onSelect: () => void saveDesign(false), className: 'mm-sm' },
-            { key: 'theme', label: themeLabel, icon: dark ? <SunIcon /> : <MoonIcon />, onSelect: toggleTheme, className: 'mm-md' },
-            { key: 'sizes', label: 'Sizes and layouts guide', icon: <RulerIcon />, onSelect: () => setUI({ screen: 'sizes' }), className: 'mm-md' },
-            { key: 'paper', label: 'Paper sizes in 3D', icon: <CubeIcon />, onSelect: () => setUI({ screen: 'paper' }) },
-            { key: 'instagram', label: 'Photo & video studio', icon: <InstagramIcon />, onSelect: () => setUI({ screen: 'instagram' }) },
-            { key: 'settings', label: 'Settings', icon: <SettingsIcon />, onSelect: () => setUI({ settings: true }), className: 'mm-md' },
-            ...(canFullscreen() ? [{ key: 'full', label: fullLabel, icon: <FullscreenIcon on={full} />, onSelect: () => void toggleFullscreen(), checked: full, className: 'mm-md' }] : []),
-            { key: 'perf', label: 'Performance monitor', icon: <ActivityIcon />, onSelect: () => setPerf(!perf), checked: perf },
+            {
+              key: 'find',
+              label: 'Find a feature',
+              icon: <SearchIcon />,
+              onSelect: () => setUI({ finder: true }),
+              className: 'mm-sm',
+            },
+            {
+              key: 'photos',
+              label: onCard ? `Photo library (${onCard} on the card)` : 'Photo library',
+              icon: <PhotosIcon />,
+              onSelect: () => setUI({ library: true }),
+              className: 'mm-sm',
+            },
+            {
+              key: 'save',
+              label: 'Save to gallery',
+              icon: <SaveIcon />,
+              onSelect: () => void saveDesign(false),
+              className: 'mm-sm',
+            },
+            {
+              key: 'theme',
+              label: themeLabel,
+              icon: dark ? <SunIcon /> : <MoonIcon />,
+              onSelect: toggleTheme,
+              className: 'mm-md',
+            },
+            {
+              key: 'sizes',
+              label: 'Sizes and layouts guide',
+              icon: <RulerIcon />,
+              onSelect: () => setUI({ screen: 'sizes' }),
+              className: 'mm-md',
+            },
+            {
+              key: 'paper',
+              label: 'Paper sizes in 3D',
+              icon: <CubeIcon />,
+              onSelect: () => setUI({ screen: 'paper' }),
+            },
+            {
+              key: 'instagram',
+              label: 'Photo & video studio',
+              icon: <InstagramIcon />,
+              onSelect: () => setUI({ screen: 'instagram' }),
+            },
+            {
+              key: 'settings',
+              label: 'Settings',
+              icon: <SettingsIcon />,
+              onSelect: () => setUI({ settings: true }),
+              className: 'mm-md',
+            },
+            ...(canFullscreen()
+              ? [
+                  {
+                    key: 'full',
+                    label: fullLabel,
+                    icon: <FullscreenIcon on={full} />,
+                    onSelect: () => void toggleFullscreen(),
+                    checked: full,
+                    className: 'mm-md',
+                  },
+                ]
+              : []),
+            {
+              key: 'perf',
+              label: 'Performance monitor',
+              icon: <ActivityIcon />,
+              onSelect: () => setPerf(!perf),
+              checked: perf,
+            },
           ]}
         />
       </div>

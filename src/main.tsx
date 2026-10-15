@@ -18,10 +18,10 @@ try {
 
 // The desktop app carries the UI fonts offline; the Google Fonts @import in styles.css covers the web.
 if (window.chitthiDesktop?.info.localFonts) {
-  const l = document.createElement('link');
-  l.rel = 'stylesheet';
-  l.href = './fonts/ui.css';
-  document.head.appendChild(l);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = './fonts/ui.css';
+  document.head.appendChild(link);
 }
 
 // Development only: the landing page example renderer used by npm run build:showcase.
@@ -33,7 +33,9 @@ if (import.meta.env.DEV && location.search.includes('selftest')) void import('..
 // Desktop, headless agent mode (`Chitthi --mcp`, opened with ?agent): the MCP tools answer from this page.
 if (window.chitthiDesktop?.agent && /[?&]agent\b/.test(location.search)) void import('./agent/bridge');
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root');
+if (!rootElement) throw new Error('The page has no #root element.');
+createRoot(rootElement).render(
   <StrictMode>
     <ErrorBoundary>
       <App />
