@@ -8,6 +8,8 @@ export type HAlign = 'left' | 'center' | 'right';
 export type ExportFormat = 'pdf' | 'sheet' | 'png';
 export type SheetId = 'a4' | 'a3' | '1319' | 'letter';
 export type LookId = 'none' | 'vivid' | 'warm' | 'cool' | 'bw' | 'tinted' | 'vintage';
+/** A photo file type (engine/photoExport.ts PHOTO_TYPES). */
+export type PhotoType = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff';
 export type ThemeGroup = 'Festivals' | 'Birthdays' | 'Seasons';
 export type PaneId = 'photos' | 'layout' | 'occasion' | 'words' | 'back' | 'print';
 export type FontCat = 'ind' | 'reg' | 'disp' | 'scr' | 'ss' | 'own';

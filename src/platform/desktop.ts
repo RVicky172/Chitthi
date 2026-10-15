@@ -5,6 +5,8 @@ import type { PhotoMeta, SavedDesign, StoredPhoto } from '../types';
  * The desktop (Electron) bridge from electron/preload.cjs. In a normal browser it's absent and every caller falls
  * back to the web behaviour, so one build of the app serves both.
  */
+
+/** The native menu's commands (electron/main.cjs). */
 export type MenuAction =
   | 'new'
   | 'open'
@@ -28,6 +30,7 @@ export type MenuAction =
   | 'find'
   | 'perf';
 
+/** An AI request sent through the main process, which attaches the key (electron/ai.cjs). */
 export interface AiWireRequest {
   provider: string;
   url: string;
@@ -38,6 +41,7 @@ export interface AiWireRequest {
   json?: unknown;
   form?: [string, string | { data: ArrayBuffer; type: string; name: string }][];
 }
+/** The main process's answer to an AI request. */
 export interface AiWireResponse {
   status: number;
   statusText: string;
@@ -47,6 +51,7 @@ export interface AiWireResponse {
   kind?: 'key' | 'network';
 }
 
+/** A .chitthi file the user opened. */
 export interface OpenedFile {
   name: string;
   text: string;
@@ -60,6 +65,7 @@ export interface AppMetrics {
   procs: { type: string; pid: number; cpu: number; mem: number }[];
 }
 
+/** What electron/preload.cjs exposes to the page. */
 export interface DesktopBridge {
   info: { version: string; platform: string; localFonts: boolean };
   /** Shows a native save dialog; resolves to the saved path, or null if cancelled. */
@@ -110,7 +116,7 @@ export interface DesktopBridge {
     libPut(p: StoredPhoto): Promise<unknown>;
     libDel(id: string): Promise<unknown>;
     /** Saved presets of the photo & video editors, as stored (unvalidated). */
-    presetAll(): Promise<SavedPreset[]>;
+    presetAll(): Promise<unknown[]>;
     presetPut(p: SavedPreset): Promise<unknown>;
     presetDel(id: string): Promise<unknown>;
   };
@@ -122,5 +128,7 @@ declare global {
   }
 }
 
+/** The desktop bridge, or undefined in a browser. */
 export const desktop: DesktopBridge | undefined = typeof window !== 'undefined' ? window.chitthiDesktop : undefined;
+/** Whether the app runs in the desktop app. */
 export const isDesktop = !!desktop;

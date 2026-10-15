@@ -1,11 +1,23 @@
-type Listener = (msg: string) => void;
+/** Shows a toast's message. */
+type Listener = (message: string) => void;
 const listeners = new Set<Listener>();
-export function toast(msg: string): void {
-  listeners.forEach((l) => l(msg));
+
+/**
+ * Shows a short message.
+ * @param message the message
+ */
+export function toast(message: string): void {
+  listeners.forEach((listener) => listener(message));
 }
-export function onToast(l: Listener): () => void {
-  listeners.add(l);
+
+/**
+ * Listens for toasts.
+ * @param listener called with each message
+ * @returns a function that stops listening
+ */
+export function onToast(listener: Listener): () => void {
+  listeners.add(listener);
   return () => {
-    listeners.delete(l);
+    listeners.delete(listener);
   };
 }

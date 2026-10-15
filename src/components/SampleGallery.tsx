@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { PRODUCTS } from '../data/products';
-import { SAMPLES, buildSample, sampleCredits, type SampleCredit, type SampleDef } from '../data/samples';
+import { SAMPLES, type SampleCredit, type SampleDef } from '../data/samples';
 import { cardMM } from '../engine/design';
 import { renderCard } from '../engine/render';
 import { ensureFonts, fontsFor } from '../lib/fonts';
 import { open3D, openSample } from '../state/actions';
+import { buildSample, sampleCredits } from '../state/samples';
 import { CubeIcon, ProductIcon } from './icons';
 
 interface Rendered {

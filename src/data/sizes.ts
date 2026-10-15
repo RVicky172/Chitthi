@@ -73,9 +73,14 @@ export const SIZES: SizeDef[] = [
 
 export const SIZE_GROUPS: SizeDef['grp'][] = ['Postcards', 'Instax style', 'Calendars', 'Frame prints', 'Fridge magnets', 'Large and custom'];
 
-export function sizeLabel(s: SizeDef): string {
-  if (s.id === 'custom') return 'Your own size in mm';
-  if (s.shape === 'circle') return `${Math.round(s.L)} mm across`;
-  const mm = `${Math.round(s.S)}×${Math.round(s.L)} mm`;
-  return s.inch ? `${s.inch} (${mm})` : mm;
+/**
+ * A size as people read it.
+ * @param size the size
+ * @returns "100×148 mm", with inches first when it has a name in inches; "58 mm across" for a circle
+ */
+export function sizeLabel(size: SizeDef): string {
+  if (size.id === 'custom') return 'Your own size in mm';
+  if (size.shape === 'circle') return `${Math.round(size.L)} mm across`;
+  const mm = `${Math.round(size.S)}×${Math.round(size.L)} mm`;
+  return size.inch ? `${size.inch} (${mm})` : mm;
 }

@@ -3,7 +3,10 @@ import { toast } from './toast';
 
 /**
  * Hands a generated file to the user and says so. In the browser that's a download; in the desktop app it's a
- * native save dialog. Resolves false if the user cancelled the dialog.
+ * native save dialog.
+ * @param name the file name offered
+ * @param blob the file's contents
+ * @returns false if the user cancelled the dialog
  */
 export async function saveFile(name: string, blob: Blob): Promise<boolean> {
   if (desktop) {
@@ -12,12 +15,12 @@ export async function saveFile(name: string, blob: Blob): Promise<boolean> {
     return !!path;
   }
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   toast(`Downloading ${name}`);
   return true;

@@ -1,5 +1,6 @@
+import { IG_FILTERS } from '../data/instagram';
 import { mergeAdjust, type Adjustments } from './adjust';
-import { isObjectLike } from './guards';
+import { isObjectLike, keysOf } from './guards';
 import { lutFromJson, lutToJson, type Lut } from './lut';
 
 /*
@@ -169,3 +170,29 @@ export function readPresetFile(text: string): PresetFileContents {
     throw new PresetError(`The file holds ${file.presets.length} presets; at most ${PRESET_FILE_MAX} can be imported at once.`);
   return { presets: filePresets(file.presets), luts: fileLuts(file.luts) };
 }
+
+/** A named set of colour settings: only the settings it holds are applied, the rest are kept (as in Lightroom). */
+export interface ColourPreset {
+  /** `look:<look id>` for the built-in presets. */
+  id: string;
+  /** The name shown in the look picker. */
+  name: string;
+  /** The settings it sets; a built-in preset holds just a look, so it keeps every slider. */
+  adjust: Partial<Adjustments>;
+}
+
+/** The ready-made looks, as presets (P1.4). */
+export const BUILT_IN_PRESETS: readonly ColourPreset[] = IG_FILTERS.map(([look, name]) => ({
+  id: `look:${look}`,
+  name,
+  adjust: { look },
+}));
+
+/**
+ * Whether a photo's settings already hold everything a preset sets.
+ * @param adjust the photo's or clip's colour settings
+ * @param preset the preset
+ * @returns true when applying the preset would change nothing
+ */
+export const presetApplied = (adjust: Adjustments, preset: ColourPreset): boolean =>
+  keysOf(preset.adjust).every((key) => JSON.stringify(adjust[key]) === JSON.stringify(preset.adjust[key]));

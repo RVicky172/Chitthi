@@ -9,8 +9,10 @@
  * days. For any other year only the fixed-date days are marked; add a year here from the next DoPT list.
  */
 
+/** A national day, a festival or one of the user's own dates. */
 export type MarkKind = 'national' | 'festival' | 'own';
 
+/** A day marked on a calendar page. */
 export interface DayMark {
   /** Month 1–12 and day of month. */
   m: number;
@@ -28,76 +30,89 @@ const FIXED: DayMark[] = [
   { m: 12, d: 25, name: 'Christmas', kind: 'festival' },
 ];
 
-const f = (m: number, d: number, name: string): DayMark => ({ m, d, name, kind: 'festival' });
+/**
+ * A festival on a date.
+ * @param month month 1–12
+ * @param day day of month
+ * @param name the festival
+ * @returns its mark
+ */
+const festival = (month: number, day: number, name: string): DayMark => ({ m: month, d: day, name, kind: 'festival' });
 
 /** Festivals that move, per year (gazetted holidays plus the widely celebrated restricted ones). */
 const BY_YEAR: Record<number, DayMark[]> = {
   2026: [
-    f(1, 14, 'Makar Sankranti'),
-    f(1, 14, 'Pongal'),
-    f(1, 23, 'Basant Panchami'),
-    f(2, 15, 'Maha Shivratri'),
-    f(3, 4, 'Holi'),
-    f(3, 19, 'Ugadi · Gudi Padwa'),
-    f(3, 21, 'Eid-ul-Fitr'),
-    f(3, 26, 'Ram Navami'),
-    f(3, 31, 'Mahavir Jayanti'),
-    f(4, 3, 'Good Friday'),
-    f(4, 5, 'Easter'),
-    f(4, 14, 'Vaisakhi'),
-    f(5, 1, 'Buddha Purnima'),
-    f(5, 27, 'Bakrid'),
-    f(6, 26, 'Muharram'),
-    f(7, 16, 'Rath Yatra'),
-    f(8, 26, 'Onam'),
-    f(8, 26, 'Milad-un-Nabi'),
-    f(8, 28, 'Raksha Bandhan'),
-    f(9, 4, 'Janmashtami'),
-    f(9, 14, 'Ganesh Chaturthi'),
-    f(10, 20, 'Dussehra'),
-    f(10, 29, 'Karwa Chauth'),
-    f(11, 8, 'Diwali'),
-    f(11, 9, 'Govardhan Puja'),
-    f(11, 11, 'Bhai Dooj'),
-    f(11, 15, 'Chhath Puja'),
-    f(11, 24, 'Guru Nanak Jayanti'),
+    festival(1, 14, 'Makar Sankranti'),
+    festival(1, 14, 'Pongal'),
+    festival(1, 23, 'Basant Panchami'),
+    festival(2, 15, 'Maha Shivratri'),
+    festival(3, 4, 'Holi'),
+    festival(3, 19, 'Ugadi · Gudi Padwa'),
+    festival(3, 21, 'Eid-ul-Fitr'),
+    festival(3, 26, 'Ram Navami'),
+    festival(3, 31, 'Mahavir Jayanti'),
+    festival(4, 3, 'Good Friday'),
+    festival(4, 5, 'Easter'),
+    festival(4, 14, 'Vaisakhi'),
+    festival(5, 1, 'Buddha Purnima'),
+    festival(5, 27, 'Bakrid'),
+    festival(6, 26, 'Muharram'),
+    festival(7, 16, 'Rath Yatra'),
+    festival(8, 26, 'Onam'),
+    festival(8, 26, 'Milad-un-Nabi'),
+    festival(8, 28, 'Raksha Bandhan'),
+    festival(9, 4, 'Janmashtami'),
+    festival(9, 14, 'Ganesh Chaturthi'),
+    festival(10, 20, 'Dussehra'),
+    festival(10, 29, 'Karwa Chauth'),
+    festival(11, 8, 'Diwali'),
+    festival(11, 9, 'Govardhan Puja'),
+    festival(11, 11, 'Bhai Dooj'),
+    festival(11, 15, 'Chhath Puja'),
+    festival(11, 24, 'Guru Nanak Jayanti'),
   ],
   2027: [
-    f(1, 14, 'Makar Sankranti'),
-    f(1, 15, 'Pongal'),
-    f(2, 11, 'Basant Panchami'),
-    f(3, 6, 'Maha Shivratri'),
-    f(3, 10, 'Eid-ul-Fitr'),
-    f(3, 23, 'Holi'),
-    f(3, 26, 'Good Friday'),
-    f(3, 28, 'Easter'),
-    f(4, 7, 'Ugadi · Gudi Padwa'),
-    f(4, 14, 'Vaisakhi'),
-    f(4, 15, 'Ram Navami'),
-    f(4, 19, 'Mahavir Jayanti'),
-    f(5, 17, 'Bakrid'),
-    f(5, 20, 'Buddha Purnima'),
-    f(6, 16, 'Muharram'),
-    f(7, 5, 'Rath Yatra'),
-    f(8, 15, 'Milad-un-Nabi'),
-    f(8, 17, 'Raksha Bandhan'),
-    f(8, 25, 'Janmashtami'),
-    f(9, 4, 'Ganesh Chaturthi'),
-    f(9, 12, 'Onam'),
-    f(10, 9, 'Dussehra'),
-    f(10, 18, 'Karwa Chauth'),
-    f(10, 29, 'Diwali'),
-    f(10, 30, 'Govardhan Puja'),
-    f(10, 31, 'Bhai Dooj'),
-    f(11, 4, 'Chhath Puja'),
-    f(11, 14, 'Guru Nanak Jayanti'),
+    festival(1, 14, 'Makar Sankranti'),
+    festival(1, 15, 'Pongal'),
+    festival(2, 11, 'Basant Panchami'),
+    festival(3, 6, 'Maha Shivratri'),
+    festival(3, 10, 'Eid-ul-Fitr'),
+    festival(3, 23, 'Holi'),
+    festival(3, 26, 'Good Friday'),
+    festival(3, 28, 'Easter'),
+    festival(4, 7, 'Ugadi · Gudi Padwa'),
+    festival(4, 14, 'Vaisakhi'),
+    festival(4, 15, 'Ram Navami'),
+    festival(4, 19, 'Mahavir Jayanti'),
+    festival(5, 17, 'Bakrid'),
+    festival(5, 20, 'Buddha Purnima'),
+    festival(6, 16, 'Muharram'),
+    festival(7, 5, 'Rath Yatra'),
+    festival(8, 15, 'Milad-un-Nabi'),
+    festival(8, 17, 'Raksha Bandhan'),
+    festival(8, 25, 'Janmashtami'),
+    festival(9, 4, 'Ganesh Chaturthi'),
+    festival(9, 12, 'Onam'),
+    festival(10, 9, 'Dussehra'),
+    festival(10, 18, 'Karwa Chauth'),
+    festival(10, 29, 'Diwali'),
+    festival(10, 30, 'Govardhan Puja'),
+    festival(10, 31, 'Bhai Dooj'),
+    festival(11, 4, 'Chhath Puja'),
+    festival(11, 14, 'Guru Nanak Jayanti'),
   ],
 };
 
 /** Years with festival dates built in. */
 export const FESTIVAL_YEARS = Object.keys(BY_YEAR).map(Number);
+/**
+ * Whether a year's moving festivals are built in.
+ * @param year the year
+ * @returns true when its festivals can be marked
+ */
 export const hasFestivals = (year: number): boolean => year in BY_YEAR;
 
+/** A date of the user's own (a birthday, an anniversary). */
 export interface OwnDate {
   /** Month 1–12 and day of month; repeats every year. */
   m: number;
@@ -105,19 +120,42 @@ export interface OwnDate {
   label: string;
 }
 
-/** Everything marked on one month: national days and festivals as chosen, then the user's own dates. */
-export function marksFor(year: number, month0: number, show: 'off' | 'national' | 'all', own: OwnDate[] = []): Map<number, DayMark[]> {
-  const m = month0 + 1,
-    out = new Map<number, DayMark[]>();
-  const add = (x: DayMark) => {
-    const list = out.get(x.d) ?? [];
-    if (!list.some((y) => y.name === x.name)) list.push(x);
-    out.set(x.d, list);
-  };
-  if (show !== 'off') {
-    for (const x of FIXED) if (x.m === m && (show === 'all' || x.kind === 'national')) add(x);
-    if (show === 'all') for (const x of BY_YEAR[year] ?? []) if (x.m === m) add(x);
+/** Which public days a calendar marks. */
+export type MarkShow = 'off' | 'national' | 'all';
+
+/**
+ * The national days and festivals a calendar shows in a month.
+ * @param year the year
+ * @param month month 1–12
+ * @param show which of them to mark
+ * @returns the fixed days, then that year's moving festivals
+ */
+function publicMarks(year: number, month: number, show: MarkShow): DayMark[] {
+  if (show === 'off') return [];
+  const fixed = FIXED.filter((mark) => mark.m === month && (show === 'all' || mark.kind === 'national'));
+  const moving = show === 'all' ? (BY_YEAR[year] ?? []).filter((mark) => mark.m === month) : [];
+  return [...fixed, ...moving];
+}
+
+/**
+ * Everything marked on one month: national days and festivals as chosen, then the user's own dates. A day lists each
+ * name once.
+ * @param year the year
+ * @param month0 the month, 0–11
+ * @param show which public days to mark
+ * @param own the user's own dates (they repeat every year; blank labels are skipped)
+ * @returns the marks by day of month
+ */
+export function marksFor(year: number, month0: number, show: MarkShow, own: OwnDate[] = []): Map<number, DayMark[]> {
+  const month = month0 + 1;
+  const marksByDay = new Map<number, DayMark[]>();
+  const ownMarks = own
+    .filter((date) => date.m === month && date.label.trim())
+    .map((date): DayMark => ({ m: date.m, d: date.d, name: date.label.trim(), kind: 'own' }));
+  for (const mark of [...publicMarks(year, month, show), ...ownMarks]) {
+    const list = marksByDay.get(mark.d) ?? [];
+    if (!list.some((listed) => listed.name === mark.name)) list.push(mark);
+    marksByDay.set(mark.d, list);
   }
-  for (const o of own) if (o.m === m && o.label.trim()) add({ m: o.m, d: o.d, name: o.label.trim(), kind: 'own' });
-  return out;
+  return marksByDay;
 }

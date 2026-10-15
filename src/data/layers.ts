@@ -3,6 +3,7 @@
  * emoji stickers, text styles, drawing brushes and a colour palette.
  */
 
+/** The ready-made shapes' ids. */
 export type ShapeId = 'rect' | 'round' | 'circle' | 'pill' | 'bubble' | 'burst' | 'star' | 'heart' | 'banner' | 'arrow' | 'line';
 
 /** A shape: id, name, default size (width and height, as a share of the frame width), and whether words fit inside. */
@@ -50,6 +51,7 @@ export const PALETTE = ['#ffffff', '#111111', '#f4c430', '#ff6b35', '#e63946', '
 /** Font families offered first for text over photos (any card font or uploaded font can be chosen too). */
 export const TEXT_FONTS = ['Poppins', 'Montserrat', 'Bebas Neue', 'Playfair Display', 'Pacifico', 'Caveat', 'Dancing Script', 'Lobster', 'Rozha One', 'Mukta', 'Kalam', 'Abril Fatface'];
 
+/** A ready-made text style: font, colours, outline, background and shadow. */
 export interface TextStyle {
   id: string;
   name: string;
@@ -72,6 +74,7 @@ export const TEXT_STYLES: TextStyle[] = [
   { id: 'hand', name: 'Handwritten', font: 'Caveat', color: '#111111', bold: true, italic: false, outline: '', bg: '#ffd6e0', shadow: false },
 ];
 
+/** The drawing brushes' ids. */
 export type BrushId = 'pen' | 'marker' | 'highlighter' | 'neon';
 /** A brush: name, width (share of the frame width), opacity, and whether it glows. */
 export interface BrushDef {

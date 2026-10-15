@@ -528,3 +528,19 @@ for every new id. The backends are classes implementing `GpuDevice` (`WebGL2Devi
 same `open…()` functions. No caller detaches a device method (checked), so `this` is safe.
 **Consequences:** a new layout is a builder plus a table entry, not a new `case`; device methods must be called on the
 device (`device.read(t)`), never passed around unbound.
+
+## D-044 — data/ holds data only; stored records are checked when read (2026-10-15)
+
+**Context:** 407 T042. Three files in `src/data/` broke the layer rule (data imports nothing of the app but
+`types.ts`): `samples.ts` loaded photos (engine/photo, lib/credits), `presets.ts` held logic over `Adjustments`
+(engine/adjust), `instagram.ts` took `PhotoType` from engine/photoExport. The IndexedDB code in `lib/db.ts`,
+`lib/userFonts.ts` and `lib/userLuts.ts` returned `any` from the store as typed records.
+**Decision:** the sample loader moves to `state/samples.ts` (`sampleCredits`, `buildSample`; `data/samples.ts` keeps
+the definitions and `SAMPLE_BASE_URL`); the built-in presets and `presetApplied` join `engine/presets.ts`
+(`ColourPreset`); `PhotoType` moves to `src/types.ts`. Built-in tables that are never empty are typed as non-empty
+tuples (`readonly [T, ...T[]]`), so `TABLE[0]` is the fallback without `firstOf` (data may not import engine). One
+IndexedDB helper, `lib/idb.ts`, returns `unknown`; each reader keeps the records that have the fields it relies on
+(shallow guards), and designs and presets still go through `mergeDesign()` / `mergePreset()`.
+**Consequences:** a malformed stored record (or Pexels result) is skipped instead of reaching the UI; the desktop
+bridge's `presetAll()` is typed `unknown[]`. The public library entry (`src/index.ts`) exports `buildSample` /
+`sampleCredits` from `state/samples`.

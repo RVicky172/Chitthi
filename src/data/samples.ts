@@ -1,7 +1,4 @@
-import { productDesign } from '../engine/design';
-import { loadImage, makePhoto } from '../engine/photo';
-import { pexelsIdOf, pexelsName } from '../lib/credits';
-import type { Design, Photo, ProductId } from '../types';
+import type { Design, ProductId } from '../types';
 import { themeById } from './themes';
 
 /*
@@ -9,67 +6,82 @@ import { themeById } from './themes';
  * `npm run fetch:samples` (public/samples/ + samples.json with each photographer's credit). No API key ships.
  */
 
+/** One downloaded photo in samples.json, with its photographer's credit. */
 export interface SampleCredit {
+  /** The id samples refer to (SampleDef.photos). */
   id: string;
+  /** The file name under public/samples/. */
   file: string;
+  /** Pexels' description of the photo. */
   alt: string;
   photographer: string;
   photographerUrl: string;
+  /** The photo's page on Pexels (its number is the Pexels id). */
   pexelsUrl: string;
 }
 
+/** A ready-made sample design. */
 export interface SampleDef {
   id: string;
+  /** The name shown in the gallery and given to the opened design. */
   title: string;
   product: ProductId;
   /** Photo ids from samples.json, in slot order (calendars: one per month). */
   photos: string[];
-  build: (d: Design) => Design;
+  /** Turns the product's default design into the sample. */
+  build: (design: Design) => Design;
 }
 
-const withTheme = (d: Design, id: string): Design => {
-  const t = themeById(id);
+/**
+ * A design dressed in an occasion theme: its group, first heading and quote, and fonts.
+ * @param design the product's design
+ * @param themeId the theme (data/themes.ts)
+ * @returns the themed design
+ */
+function withTheme(design: Design, themeId: string): Design {
+  const theme = themeById(themeId);
   return {
-    ...d,
+    ...design,
     useOccasion: true,
-    themeId: id,
-    group: t.g || d.group,
-    heading: t.heads[0],
-    quote: t.quotes[0],
-    headFont: t.hf,
-    quoteFont: t.qf,
+    themeId,
+    group: theme.g || design.group,
+    heading: theme.heads[0] ?? design.heading,
+    quote: theme.quotes[0] ?? design.quote,
+    headFont: theme.hf,
+    quoteFont: theme.qf,
   };
-};
+}
 
+/** The samples, grouped by product. */
 export const SAMPLES: SampleDef[] = [
   {
     id: 'diwali-arch',
     title: 'Diwali diyas',
     product: 'postcard',
     photos: ['diwali'],
-    build: (d) => ({ ...withTheme(d, 'diwali'), layout: 'arch', insta: 'chitthi.studio' }),
+    build: (design) => ({ ...withTheme(design, 'diwali'), layout: 'arch', insta: 'chitthi.studio' }),
   },
   {
     id: 'holi-full',
     title: 'Holi hai!',
     product: 'postcard',
     photos: ['holi-bowls'],
-    build: (d) => ({ ...withTheme(d, 'holi'), layout: 'full', vAlign: 'bottom' }),
+    build: (design) => ({ ...withTheme(design, 'holi'), layout: 'full', vAlign: 'bottom' }),
   },
   {
     id: 'birthday-polaroid',
     title: 'Birthday wishes',
     product: 'postcard',
     photos: ['stars-hanging'],
-    build: (d) => ({ ...withTheme(d, 'bday'), layout: 'polaroid', orient: 'portrait' }),
+    build: (design) => ({ ...withTheme(design, 'bday'), layout: 'polaroid', orient: 'portrait' }),
   },
   {
     id: 'kerala-stamp',
     title: 'Greetings from Kerala',
     product: 'postcard',
     photos: ['onam-pookalam'],
-    build: (d) => ({
-      ...withTheme(d, 'onam'),
+    build: (design) => ({
+      ...withTheme(design, 'onam'),
       layout: 'stamp',
       heading: 'Greetings from Kerala',
       quote: 'Flower carpets, a banana-leaf sadya and slow afternoons.',
@@ -81,8 +93,8 @@ export const SAMPLES: SampleDef[] = [
     title: 'Incredible India',
     product: 'postcard',
     photos: ['puri-temple', 'mustard-punjab', 'himalaya', 'wheat-fields'],
-    build: (d) => ({
-      ...withTheme(d, 'summer'),
+    build: (design) => ({
+      ...withTheme(design, 'summer'),
       layout: 'collage4',
       heading: 'Incredible India',
       quote: 'Four weeks, four corners, one very full camera roll.',
@@ -93,11 +105,11 @@ export const SAMPLES: SampleDef[] = [
     title: 'A year of India',
     product: 'calendar',
     photos: ['himalaya', 'tea', 'marigold', 'holi-bowls', 'wheat-fields', 'monsoon', 'monsoon-rain', 'lotus', 'mustard-punjab', 'diwali', 'puri-temple', 'kites-line'],
-    build: (d) => ({
-      ...withTheme(d, 'winter'),
+    build: (design) => ({
+      ...withTheme(design, 'winter'),
       layout: 'cal-top',
       heading: 'A year of India',
-      cal: { ...d.cal, start: 0, months: 12 },
+      cal: { ...design.cal, start: 0, months: 12 },
     }),
   },
   {
@@ -105,22 +117,22 @@ export const SAMPLES: SampleDef[] = [
     title: 'Year on one page',
     product: 'calendar',
     photos: ['tea'],
-    build: (d) => ({ ...withTheme(d, 'monsoon'), layout: 'cal-strip', frame: 'cream', cal: { ...d.cal, start: 0, titleAlign: 'left' } }),
+    build: (design) => ({ ...withTheme(design, 'monsoon'), layout: 'cal-strip', frame: 'cream', cal: { ...design.cal, start: 0, titleAlign: 'left' } }),
   },
   {
     id: 'desk-calendar',
     title: 'Monsoon desk calendar',
     product: 'calendar',
     photos: ['monsoon', 'lotus', 'tea'],
-    build: (d) => ({ ...withTheme(d, 'monsoon'), sizeId: 'cal-a5', orient: 'landscape', layout: 'cal-side', frame: 'cream' }),
+    build: (design) => ({ ...withTheme(design, 'monsoon'), sizeId: 'cal-a5', orient: 'landscape', layout: 'cal-side', frame: 'cream' }),
   },
   {
     id: 'temple-frame',
     title: 'Temple at dusk',
     product: 'frame',
     photos: ['puri-sunset'],
-    build: (d) => ({
-      ...withTheme(d, 'autumn'),
+    build: (design) => ({
+      ...withTheme(design, 'autumn'),
       layout: 'frame-caption',
       frame: 'cream',
       mat: 'classic',
@@ -134,72 +146,37 @@ export const SAMPLES: SampleDef[] = [
     title: 'Travel triptych',
     product: 'frame',
     photos: ['himalaya', 'puri-temple', 'wheat-fields'],
-    build: (d) => ({ ...withTheme(d, 'summer'), sizeId: 'fa3', orient: 'landscape', layout: 'frame-trio', mat: 'thin', frame: 'white' }),
+    build: (design) => ({ ...withTheme(design, 'summer'), sizeId: 'fa3', orient: 'landscape', layout: 'frame-trio', mat: 'thin', frame: 'white' }),
   },
   {
     id: 'kids-grid',
     title: 'Colour wall',
     product: 'frame',
     photos: ['kites-line', 'stars-hanging', 'holi-bowls', 'marigold'],
-    build: (d) => ({ ...withTheme(d, 'kids'), sizeId: 'fsq8', orient: 'portrait', layout: 'frame-grid', mat: 'classic', frame: 'white' }),
+    build: (design) => ({ ...withTheme(design, 'kids'), sizeId: 'fsq8', orient: 'portrait', layout: 'frame-grid', mat: 'classic', frame: 'white' }),
   },
   {
     id: 'polaroid-magnet',
     title: 'Polaroid magnet',
     product: 'magnet',
     photos: ['mustard-bloom'],
-    build: (d) => ({ ...withTheme(d, 'spring'), layout: 'mag-polaroid', frame: 'white', heading: 'Spring in Punjab', showQuote: false, showSig: false }),
+    build: (design) => ({ ...withTheme(design, 'spring'), layout: 'mag-polaroid', frame: 'white', heading: 'Spring in Punjab', showQuote: false, showSig: false }),
   },
   {
     id: 'diwali-badge',
     title: 'Diwali badge',
     product: 'magnet',
     photos: ['diwali'],
-    build: (d) => ({ ...withTheme(d, 'diwali'), sizeId: 'mr75', orient: 'portrait', layout: 'mag-badge', sig: 'with love, 2026' }),
+    build: (design) => ({ ...withTheme(design, 'diwali'), sizeId: 'mr75', orient: 'portrait', layout: 'mag-badge', sig: 'with love, 2026' }),
   },
   {
     id: 'travel-magnet',
     title: 'Golden fields',
     product: 'magnet',
     photos: ['wheat-fields'],
-    build: (d) => ({ ...withTheme(d, 'summer'), sizeId: 'm3x3', layout: 'mag-full', heading: 'Punjab', vAlign: 'bottom', hAlign: 'left', showQuote: false, showSig: false }),
+    build: (design) => ({ ...withTheme(design, 'summer'), sizeId: 'm3x3', layout: 'mag-full', heading: 'Punjab', vAlign: 'bottom', hAlign: 'left', showQuote: false, showSig: false }),
   },
 ];
 
-const base = `${import.meta.env.BASE_URL}samples/`;
-let manifest: Promise<SampleCredit[] | null> | null = null;
-
-/** The downloaded photo set, or null when `npm run fetch:samples` hasn't been run. */
-export function sampleCredits(): Promise<SampleCredit[] | null> {
-  manifest ??= fetch(`${base}samples.json`)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((j: { photos?: SampleCredit[] } | null) => (j?.photos?.length ? j.photos : null))
-    .catch(() => null);
-  return manifest;
-}
-
-// Loads in flight, so two samples sharing a photo decode it once. Finished photos are not kept: a decoded
-// 1600 px photo is ~7 MB, and the gallery keeps only its small rendered thumbnails (the browser's HTTP cache makes
-// reloading a sample's photos for "Use this" quick).
-const loading = new Map<string, Promise<Photo>>();
-function samplePhotoFile(c: SampleCredit): Promise<Photo> {
-  let p = loading.get(c.id);
-  if (!p) {
-    const url = base + c.file;
-    p = loadImage(url)
-      .then((img) => makePhoto(img, pexelsName(c.alt, c.photographer, pexelsIdOf(c.pexelsUrl)), url))
-      .finally(() => loading.delete(c.id));
-    loading.set(c.id, p);
-  }
-  return p;
-}
-
-/** A sample's full design plus its loaded photos, ready for replaceCard() or renderCard(). */
-export async function buildSample(def: SampleDef, credits: SampleCredit[]): Promise<{ design: Design; photos: Photo[]; credits: SampleCredit[] }> {
-  const used = def.photos.map((id) => credits.find((c) => c.id === id)).filter((c): c is SampleCredit => !!c);
-  const photos = await Promise.all(used.map(samplePhotoFile));
-  const design = { ...def.build(productDesign(def.product)), designName: def.title };
-  // unique credits (a calendar reuses nothing, but keep the list tidy)
-  const seen = new Set<string>();
-  return { design, photos, credits: used.filter((c) => !seen.has(c.id) && seen.add(c.id)) };
-}
+/** Where `npm run fetch:samples` puts the photos and samples.json (state/samples.ts loads them). */
+export const SAMPLE_BASE_URL = `${import.meta.env.BASE_URL}samples/`;

@@ -1,3 +1,4 @@
+import type { PhotoType } from '../types';
 import { keysOf } from './guards';
 
 /*
@@ -6,9 +7,6 @@ import { keysOf } from './guards';
  * canvas.toBlob() quietly falls back to PNG for a type it can't write, so support is found by encoding a tiny picture
  * and looking at what comes back, once per type, and every export checks the type it got.
  */
-
-/** A photo file type. */
-export type PhotoType = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff';
 
 /** A file type's details. */
 export interface PhotoTypeDef {

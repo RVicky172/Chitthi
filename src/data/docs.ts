@@ -4,6 +4,7 @@
  * Keep it in step with the app and with README.md; the deeper engineering docs stay in docs/*.md on GitHub.
  */
 
+/** One block of a section: a paragraph, a list, numbered steps, a table, code or a note. */
 export type DocBlock =
   | { p: string }
   | { list: string[] }
@@ -12,12 +13,14 @@ export type DocBlock =
   | { code: string }
   | { note: string };
 
+/** A section of a page, with its own anchor. */
 export interface DocSection {
   id: string;
   title: string;
   blocks: DocBlock[];
 }
 
+/** A documentation page. */
 export interface DocPage {
   id: string;
   title: string;
@@ -27,10 +30,10 @@ export interface DocPage {
 }
 
 const GH = 'https://github.com/RVicky172/Chitthi';
-const DOC = (f: string) => `${GH}/blob/main/docs/${f}`;
-const SPEC = (f: string) => `${GH}/blob/main/specs/${f}`;
+const DOC = (fileName: string) => `${GH}/blob/main/docs/${fileName}`;
+const SPEC = (fileName: string) => `${GH}/blob/main/specs/${fileName}`;
 
-export const DOC_PAGES: DocPage[] = [
+export const DOC_PAGES: readonly [DocPage, ...DocPage[]] = [
   {
     id: 'start',
     title: 'Getting started',
@@ -607,4 +610,9 @@ export const DOC_PAGES: DocPage[] = [
   },
 ];
 
-export const docPage = (id: string | undefined): DocPage => DOC_PAGES.find((p) => p.id === id) ?? DOC_PAGES[0];
+/**
+ * A page by its id.
+ * @param id the page id from the route
+ * @returns the page, or the first page for an unknown or missing id
+ */
+export const docPage = (id: string | undefined): DocPage => DOC_PAGES.find((page) => page.id === id) ?? DOC_PAGES[0];

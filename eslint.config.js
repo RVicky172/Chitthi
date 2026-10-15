@@ -19,6 +19,10 @@ const FINISHED = [
   'src/engine/**',
   // 407 T040–T041: the stores (state/video.ts and state/instagram.ts split by job).
   'src/state/**',
+  // 407 T042: specifications as data, the browser and device helpers, the desktop bridge.
+  'src/data/**',
+  'src/lib/**',
+  'src/platform/**',
 ];
 
 /** The code the standards rules apply to. */

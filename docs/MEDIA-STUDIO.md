@@ -214,7 +214,7 @@ step.
 
 | Part | File |
 | --- | --- |
-| Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/data/presets.ts` |
+| Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/engine/presets.ts` |
 | `.cube` parser, tetrahedral lookup and the LUTs loaded this session; imported LUTs on the device | `src/engine/lut.ts`; `src/lib/userLuts.ts` |
 | Saved presets: validation (`mergePreset`) and the preset file; the list and its storage | `src/engine/presets.ts`; `src/state/presets.ts` |
 | Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`, `maskGate.ts`, `maskBrush.ts`, `maskRaster.ts`, `maskPlace.ts`; `src/engine/gpu/mask.ts` |

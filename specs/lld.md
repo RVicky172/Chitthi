@@ -21,13 +21,13 @@ src/
     layouts.ts               LAYOUTS (id, name, product), LOOKS
     themes.ts                25 occasion themes: colours, patterns, fonts, greetings, quotes
     fonts.ts                 46 font families with category and weights
-    samples.ts               Gallery samples built from Pexels photos in public/samples/
+    samples.ts               Gallery samples (definitions) built from Pexels photos in public/samples/; state/samples.ts
+                             loads them
     showcase.ts, .json       Landing page examples (definitions) and their pre-rendered images (manifest)
     printSamples.ts          The 12 print samples for test prints and quotes (npm run build:print-samples)
     docs.ts                  The in-app documentation (#/docs) as pages of blocks, rendered by DocsPage.tsx
     instagram.ts             Instagram post formats and limits
     layers.ts                Layer shapes, stickers, text styles, brushes and palette for photos and video
-    presets.ts               Built-in presets of the photo & video editors (looks)
   engine/                  Framework-free; no React imports
     design.ts                DEFAULT_DESIGN, productDesign, mergeDesign, cardMM, calPages, cornerMM, resolveTheme, inks
     layout.ts                computeLayout (a table of one builder per layout), slotCount, slotPhotoIndex
@@ -52,7 +52,8 @@ src/
     chain.ts                 The Canvas 2D colour chain: look → light → curve → mixer → LUT, one rounding at the end
     detail.ts                Noise reduction, dehaze, clarity, sharpening, grain, sized for a 1080 px frame (P1.3)
     lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
-    presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs)
+    presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs); the built-in
+                             presets (looks) and presetApplied
     masks.ts                 Masks: the model (parts, limits, ranges, new parts and masks)
     maskGate.ts              mergeMasks, mergePart: the gate for masks from outside
     maskBrush.ts             Brush strokes on a raster, painted incrementally while drawing
@@ -104,6 +105,7 @@ src/
     instagramMedia.ts        Photos into the batch (addPhotos; RAW developed on desktop, its embedded JPEG on the web)
     instagramExport.ts       Rendering the batch at full size (renderBatch, prepareBatch), ZIP, share check
     presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
+    samples.ts               Gallery samples: the photo set's manifest (sampleCredits), buildSample
     videoStore.ts            Video editor's store: kind, tracks, clips, layers, music, playhead, Magnetic, tool, Snap,
                              undo / redo, `change` / `commit` (the one path for undoable changes), loadVideoProject
     videoTracks.ts           Track actions (add, rename, move, delete, hide / mute / lock, heights), clipPlace
@@ -116,6 +118,7 @@ src/
     videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
+    idb.ts                   The IndexedDB helpers db, userFonts and userLuts share (open, one request per transaction)
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
     ids.ts                   Record ids (saved designs, stored photos): time + a cryptographic random tag
     pexels.ts                Pexels client, key and settings storage, suggestions
@@ -749,7 +752,9 @@ Full description: [PEXELS.md](../docs/PEXELS.md).
 ### Storage (`lib/db.ts`)
 
 One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPhotos/putWorkPhotos`, and
-`libAll/libPut/libDel` for the photo store.
+`libAll/libPut/libDel` for the photo store. Reads come back unchecked from IndexedDB (`lib/idb.ts`), so each list
+keeps only records with the fields the app relies on (ids, names, urls); designs still pass `mergeDesign()` and presets
+`mergePreset()` when used.
 
 - Browser: IndexedDB database `chitthi` v4 with object stores `designs`, `work` (key `photos`), `library` and
   `libfull`, all keyed by `id`. `library` holds each stored photo's details (name, 320 px JPEG thumbnail, pixel size,

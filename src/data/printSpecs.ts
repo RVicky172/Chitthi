@@ -6,8 +6,10 @@ import type { ProductId } from '../types';
  * Values are the usual Indian print-shop terms (gsm, art card, 4/4 = full colour both sides).
  */
 
+/** What a quote is for: a product or the envelopes. */
 export type QuoteCategory = ProductId | 'envelope';
 
+/** What a print shop needs to quote one category. */
 export interface PrintSpecDef {
   category: QuoteCategory;
   title: string;

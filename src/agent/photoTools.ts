@@ -1,5 +1,4 @@
 import { IG_FORMATS, igFormat, type IgFormatId } from '../data/instagram';
-import { BUILT_IN_PRESETS } from '../data/presets';
 import { ADJUST_RANGES, DEFAULT_ADJUST, LOOK_IDS, mergeAdjust, type Adjustments } from '../engine/adjust';
 import { HSL_BANDS, type ColourMixer, type HslBand } from '../engine/hsl';
 import { mergeEdit, photoPlace, renderIg, type IgEdit } from '../engine/instagram';
@@ -9,14 +8,15 @@ import { LUT_MAX_BYTES, lutById, LutError, parseCube } from '../engine/lut';
 import { aiTargets, MASK_COMBINES, MASK_LIMITS, maskActive, newMask, newPart, type Mask, type MaskCombine, type MaskPart, type PartKind } from '../engine/masks';
 import { frameMask } from '../engine/maskPlace';
 import { mergeMasks } from '../engine/maskGate';
-import { encodableTypes, PHOTO_TYPE_IDS, type PhotoType } from '../engine/photoExport';
-import { PresetError } from '../engine/presets';
+import { encodableTypes, PHOTO_TYPE_IDS } from '../engine/photoExport';
+import { BUILT_IN_PRESETS, PresetError } from '../engine/presets';
 import { ensureFonts } from '../lib/fonts';
 import { ensureLut, getLutLibrary, keepLut, loadLutLibrary } from '../lib/userLuts';
 import { adjustEach, adjustPhoto, clearBatch, editPhoto, getIg, removePhoto, selectPhoto, setIg, setLimit, setMasks, type IgItem } from '../state/instagram';
 import { renderBatch } from '../state/instagramExport';
 import { addPhotos } from '../state/instagramMedia';
 import { deletePreset, exportPresets, getPresets, importPresets, loadPresets, savePreset } from '../state/presets';
+import type { PhotoType } from '../types';
 import { bool, fetchImage, n, num, obj, ok, s, str, toBlob, ToolError, type AgentTool } from './common';
 
 /*
