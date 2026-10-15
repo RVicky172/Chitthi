@@ -11,6 +11,14 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T052 (PhotoWorkspace.tsx split)
+
+**Done:** `PhotoWorkspace.tsx` (1,170 lines) → `PhotoWorkspace`, `PhotoStage`, `photoMaskTool`, `photoRender`,
+`PhotoEditPanel`, `PhotoPanels`, `PhotoStrip`, `PhotoExport`; all at 0. Check and build green, entry 312 KB. Photo
+editor e2e and manual checks wait for 290. Commit `332e543`.
+**Next:** T053 (the rest of `components/studio/`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-15 — 407 T051 (VideoWorkspace.tsx split)
 
 **Done:** `VideoWorkspace.tsx` (1,008 lines) → `VideoWorkspace`, `VideoStage`, `ClipInspector`, `VideoPanels`,
