@@ -11,6 +11,14 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-15 — 407 T053 (the rest of components/studio)
+
+**Done:** `KeyframeLane`, `KeyframeButton`, `TransitionPanel`, `previewFrame`, `previewSound` (now a class),
+`useClipTransform`, `Shell`, `Dialog`, `timelineRows` at 0; `src/components/studio/**` in `FINISHED`. Check and
+build green, entry 312 KB; standards total 5,098.
+**Next:** T054 (`components/ig/`). T020 still waits for review.
+**Blockers:** none
+
 ## 2026-10-15 — 407 T052 (PhotoWorkspace.tsx split)
 
 **Done:** `PhotoWorkspace.tsx` (1,170 lines) → `PhotoWorkspace`, `PhotoStage`, `photoMaskTool`, `photoRender`,
