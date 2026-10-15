@@ -41,11 +41,15 @@ const SHOTS = SHOWCASE_JSON as ShowcaseImage[];
 const shot = (id: string, render: ShowcaseRender = 'front') =>
   SHOTS.find((candidate) => candidate.id === id && candidate.render === render);
 
+/**
+ * A showcase render, lazy unless it is above the fold.
+ * @param props the render, an extra class and whether to load it straight away
+ */
 function Shot({ img, className, eager }: Readonly<{ img?: ShowcaseImage; className?: string; eager?: boolean }>) {
   if (!img) return null;
   return (
     <img
-      className={`shot${className ? ` ${className}` : ''}`}
+      className={['shot', className].filter(Boolean).join(' ')}
       src={img.src}
       width={img.w}
       height={img.h}
@@ -120,6 +124,10 @@ const FEATURES: [ReactNode, string, string][] = [
   ],
 ];
 
+/**
+ * The calls to action: start a postcard or calendar, or open the photo and video studio.
+ * @param props opening a product
+ */
 function CTAs({ open }: Readonly<{ open: (p: ProductId) => void }>) {
   return (
     <div className="hero-cta">
@@ -250,12 +258,242 @@ const EDITOR: [string, string][] = [
 
 type Filter = 'all' | ProductId;
 
-export function Landing() {
-  const open = (product: ProductId) => startProduct(product);
+/** Opening a product in the print studio. */
+interface OpenProps {
+  open: (product: ProductId) => void;
+}
+
+/**
+ * The two studios side by side: print (made to hold) and photo and video (made to post).
+ * @param props opening a product
+ */
+function StudiosSection({ open }: Readonly<OpenProps>) {
+  return (
+    <section id="studios" className="lsec ld-studios">
+      <div className="ld-sec-head">
+        <h2>Two studios, one app</h2>
+        <p className="lsec-sub">They share your photos, fonts and looks. Everything is made on your device, free.</p>
+      </div>
+      <div className="ld-pillars">
+        <article className="ld-pillar">
+          <span className="ld-pillar-tag">
+            <Printer /> Print studio
+          </span>
+          <h3>Made to hold</h3>
+          <Shot img={shot('tinted-postcard')} className="ld-pillar-shot" />
+          <p>
+            Postcards, calendars, framed prints and fridge magnets with Indian festival and season themes, and an
+            envelope to match.
+          </p>
+          <ul className="checks">
+            <li>
+              {SIZES.filter((x) => x.id !== 'custom').length} print sizes and {LAYOUTS.length} layouts
+            </li>
+            <li>Print-ready PDFs with bleed and crop marks</li>
+            <li>A print pack and quote request for the shop</li>
+          </ul>
+          <button type="button" className="btn primary" onClick={() => open('postcard')}>
+            Start a postcard
+          </button>
+        </article>
+        <article className="ld-pillar">
+          <span className="ld-pillar-tag">
+            <Layers /> Photo &amp; video studio
+          </span>
+          <h3>Made to post</h3>
+          <img
+            className="shot ld-pillar-shot ld-screen"
+            src="/showcase/studio-curve.webp"
+            width={1600}
+            height={1000}
+            alt="The photo editor: the Puri temple at sunset with a warm look and an S-shaped tone curve, the light and colour sliders beside it"
+            loading="lazy"
+            decoding="async"
+          />
+          <p>
+            Instagram posts and carousels, Reels and Shorts, and YouTube videos, each at the size and in the format its
+            platform asks for.
+          </p>
+          <ul className="checks">
+            <li>Photo editing with curves, masks found by AI, presets and RAW</li>
+            <li>A video timeline with text, stickers and music</li>
+            <li>MP4s ready for Instagram and YouTube</li>
+          </ul>
+          <a className="btn primary" href="#/instagram">
+            Open the photo &amp; video studio
+          </a>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+/** The photo and video studio's three platforms, each with its sizes, limits and a screenshot. */
+function PlatformsSection() {
+  return (
+    <section id="platforms" className="lsec ld-platforms">
+      <div className="ld-sec-head">
+        <h2>Made for each platform</h2>
+        <p className="lsec-sub">
+          Every platform wants something different. The photo &amp; video studio knows the sizes, limits and file
+          formats, so what you export is ready to post.
+        </p>
+      </div>
+      <ul className="ld-platform-list">
+        {MEDIA.map((medium) => (
+          <li key={medium.id} id={medium.id} className="ld-platform" style={{ '--r': medium.r } as CSSProperties}>
+            <div className="ld-platform-text">
+              <span className="ld-pillar-tag">
+                {medium.icon} {medium.size}
+              </span>
+              <h3>{medium.title}</h3>
+              <small>{medium.where}</small>
+              <p>{medium.text}</p>
+              <ul className="checks">
+                {medium.specs.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+              <a className="btn primary" href={medium.href}>
+                {medium.cta}
+              </a>
+            </div>
+            <img
+              className="shot ld-screen"
+              src={medium.shot}
+              width={1600}
+              height={1000}
+              alt={medium.alt}
+              loading="lazy"
+              decoding="async"
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The photo editor's tools, with a screenshot of its AI masks. */
+function EditorSection() {
+  return (
+    <>
+      <section id="editor" className="lsec ld-editor ld-mat">
+        <div>
+          <h2>A photo editor, not a filter app</h2>
+          <p className="lsec-sub">
+            The tools of a serious photo editor, free for everyone, in the browser and the desktop app. They run on your
+            graphics card, and the preview, the exported photo and every video frame come out exactly the same.
+          </p>
+          <dl className="ld-editor-list">
+            {EDITOR.map(([title, x]) => (
+              <div key={title}>
+                <dt>{title}</dt>
+                <dd>{x}</dd>
+              </div>
+            ))}
+          </dl>
+          <a className="btn primary" href="#/instagram">
+            Edit a photo
+          </a>
+        </div>
+        <img
+          className="shot ld-screen"
+          src="/showcase/studio-editor.webp"
+          width={1600}
+          height={1000}
+          alt="The photo editor's masks: the Puri temple found by AI as the subject and shown in red, with the mask's own exposure, temperature and clarity"
+          loading="lazy"
+          decoding="async"
+        />
+      </section>
+      <p className="ld-credit">Sample photos in the editor screenshots: Pexels.</p>
+    </>
+  );
+}
+
+const EXAMPLE_FILTERS: [Filter, string][] = [
+  ['all', 'All'],
+  ['postcard', 'Postcards'],
+  ['calendar', 'Calendars'],
+  ['frame', 'Photo frames'],
+  ['magnet', 'Magnets'],
+];
+
+/**
+ * Examples made with Chitthi, filtered by product; tapping one starts that product.
+ * @param props opening a product
+ */
+function ExamplesSection({ open }: Readonly<OpenProps>) {
   const [filter, setFilter] = useState<Filter>('all');
   const examples = SHOTS.filter(
     (candidate) => candidate.render === 'front' && (filter === 'all' || candidate.product === filter),
   );
+  return (
+    <section id="examples" className="lsec">
+      <div className="ld-head">
+        <div>
+          <h2>Made with Chitthi</h2>
+          <p className="lsec-sub">
+            Every example here was designed and drawn by Chitthi, with free photos from Pexels.
+          </p>
+        </div>
+        <div className="chips" role="group" aria-label="Show examples of">
+          {EXAMPLE_FILTERS.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className="chip"
+              aria-pressed={filter === key}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ul className="ld-gallery">
+        {examples.map((example) => (
+          <li key={example.id}>
+            <figure>
+              <button
+                type="button"
+                className="ld-shot"
+                onClick={() => open(example.product)}
+                aria-label={`Make a ${example.product} like “${example.title}”`}
+              >
+                <Shot img={example} />
+              </button>
+              <figcaption>
+                <b>{example.title}</b>
+                <span className="ld-pill">
+                  <ProductIcon id={example.product} />
+                  {PRODUCTS.find((product) => product.id === example.product)?.name}
+                </span>
+                <small>
+                  Photo{example.credits.length > 1 ? 's' : ''}:{' '}
+                  {example.credits.map((credit, index) => (
+                    <span key={credit.url}>
+                      {index ? ', ' : ''}
+                      <a href={credit.url} target="_blank" rel="noopener noreferrer">
+                        {credit.name}
+                      </a>
+                    </span>
+                  ))}{' '}
+                  on Pexels
+                </small>
+              </figcaption>
+            </figure>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The landing page: the journey, both studios, platforms, the editor, print products, examples, envelope, 3D and features. */
+export function Landing() {
+  const open = (product: ProductId) => startProduct(product);
   return (
     <div className="landing ld">
       <SiteNav
@@ -292,136 +530,11 @@ export function Landing() {
           </p>
         </Journey>
 
-        <section id="studios" className="lsec ld-studios">
-          <div className="ld-sec-head">
-            <h2>Two studios, one app</h2>
-            <p className="lsec-sub">
-              They share your photos, fonts and looks. Everything is made on your device, free.
-            </p>
-          </div>
-          <div className="ld-pillars">
-            <article className="ld-pillar">
-              <span className="ld-pillar-tag">
-                <Printer /> Print studio
-              </span>
-              <h3>Made to hold</h3>
-              <Shot img={shot('tinted-postcard')} className="ld-pillar-shot" />
-              <p>
-                Postcards, calendars, framed prints and fridge magnets with Indian festival and season themes, and an
-                envelope to match.
-              </p>
-              <ul className="checks">
-                <li>
-                  {SIZES.filter((x) => x.id !== 'custom').length} print sizes and {LAYOUTS.length} layouts
-                </li>
-                <li>Print-ready PDFs with bleed and crop marks</li>
-                <li>A print pack and quote request for the shop</li>
-              </ul>
-              <button type="button" className="btn primary" onClick={() => open('postcard')}>
-                Start a postcard
-              </button>
-            </article>
-            <article className="ld-pillar">
-              <span className="ld-pillar-tag">
-                <Layers /> Photo &amp; video studio
-              </span>
-              <h3>Made to post</h3>
-              <img
-                className="shot ld-pillar-shot ld-screen"
-                src="/showcase/studio-curve.webp"
-                width={1600}
-                height={1000}
-                alt="The photo editor: the Puri temple at sunset with a warm look and an S-shaped tone curve, the light and colour sliders beside it"
-                loading="lazy"
-                decoding="async"
-              />
-              <p>
-                Instagram posts and carousels, Reels and Shorts, and YouTube videos, each at the size and in the format
-                its platform asks for.
-              </p>
-              <ul className="checks">
-                <li>Photo editing with curves, masks found by AI, presets and RAW</li>
-                <li>A video timeline with text, stickers and music</li>
-                <li>MP4s ready for Instagram and YouTube</li>
-              </ul>
-              <a className="btn primary" href="#/instagram">
-                Open the photo &amp; video studio
-              </a>
-            </article>
-          </div>
-        </section>
+        <StudiosSection open={open} />
 
-        <section id="platforms" className="lsec ld-platforms">
-          <div className="ld-sec-head">
-            <h2>Made for each platform</h2>
-            <p className="lsec-sub">
-              Every platform wants something different. The photo &amp; video studio knows the sizes, limits and file
-              formats, so what you export is ready to post.
-            </p>
-          </div>
-          <ul className="ld-platform-list">
-            {MEDIA.map((medium) => (
-              <li key={medium.id} id={medium.id} className="ld-platform" style={{ '--r': medium.r } as CSSProperties}>
-                <div className="ld-platform-text">
-                  <span className="ld-pillar-tag">
-                    {medium.icon} {medium.size}
-                  </span>
-                  <h3>{medium.title}</h3>
-                  <small>{medium.where}</small>
-                  <p>{medium.text}</p>
-                  <ul className="checks">
-                    {medium.specs.map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                  </ul>
-                  <a className="btn primary" href={medium.href}>
-                    {medium.cta}
-                  </a>
-                </div>
-                <img
-                  className="shot ld-screen"
-                  src={medium.shot}
-                  width={1600}
-                  height={1000}
-                  alt={medium.alt}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+        <PlatformsSection />
 
-        <section id="editor" className="lsec ld-editor ld-mat">
-          <div>
-            <h2>A photo editor, not a filter app</h2>
-            <p className="lsec-sub">
-              The tools of a serious photo editor, free for everyone, in the browser and the desktop app. They run on
-              your graphics card, and the preview, the exported photo and every video frame come out exactly the same.
-            </p>
-            <dl className="ld-editor-list">
-              {EDITOR.map(([title, x]) => (
-                <div key={title}>
-                  <dt>{title}</dt>
-                  <dd>{x}</dd>
-                </div>
-              ))}
-            </dl>
-            <a className="btn primary" href="#/instagram">
-              Edit a photo
-            </a>
-          </div>
-          <img
-            className="shot ld-screen"
-            src="/showcase/studio-editor.webp"
-            width={1600}
-            height={1000}
-            alt="The photo editor's masks: the Puri temple found by AI as the subject and shown in red, with the mask's own exposure, temperature and clarity"
-            loading="lazy"
-            decoding="async"
-          />
-        </section>
-        <p className="ld-credit">Sample photos in the editor screenshots: Pexels.</p>
+        <EditorSection />
 
         <div className="ld-divider" id="print">
           <span className="ld-pillar-tag">
@@ -458,72 +571,7 @@ export function Landing() {
           </div>
         </dl>
 
-        <section id="examples" className="lsec">
-          <div className="ld-head">
-            <div>
-              <h2>Made with Chitthi</h2>
-              <p className="lsec-sub">
-                Every example here was designed and drawn by Chitthi, with free photos from Pexels.
-              </p>
-            </div>
-            <div className="chips" role="group" aria-label="Show examples of">
-              {(
-                [
-                  ['all', 'All'],
-                  ['postcard', 'Postcards'],
-                  ['calendar', 'Calendars'],
-                  ['frame', 'Photo frames'],
-                  ['magnet', 'Magnets'],
-                ] as [Filter, string][]
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className="chip"
-                  aria-pressed={filter === key}
-                  onClick={() => setFilter(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <ul className="ld-gallery">
-            {examples.map((example) => (
-              <li key={example.id}>
-                <figure>
-                  <button
-                    type="button"
-                    className="ld-shot"
-                    onClick={() => open(example.product)}
-                    aria-label={`Make a ${example.product} like “${example.title}”`}
-                  >
-                    <Shot img={example} />
-                  </button>
-                  <figcaption>
-                    <b>{example.title}</b>
-                    <span className="ld-pill">
-                      <ProductIcon id={example.product} />
-                      {PRODUCTS.find((product) => product.id === example.product)?.name}
-                    </span>
-                    <small>
-                      Photo{example.credits.length > 1 ? 's' : ''}:{' '}
-                      {example.credits.map((credit, index) => (
-                        <span key={credit.url}>
-                          {index ? ', ' : ''}
-                          <a href={credit.url} target="_blank" rel="noopener noreferrer">
-                            {credit.name}
-                          </a>
-                        </span>
-                      ))}{' '}
-                      on Pexels
-                    </small>
-                  </figcaption>
-                </figure>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ExamplesSection open={open} />
 
         <section id="export" className="lsec ld-ready-sec">
           <div className="ld-sec-head">
