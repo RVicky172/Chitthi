@@ -38,7 +38,9 @@ import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, Instagram
 import { MoreMenu } from '../MoreMenu';
 import { StudioDialog } from './Dialog';
 import { DesktopNote, StudioShell, useFit, type RailItem, type StudioMode } from './Shell';
-import { OPEN_TRANSITIONS, Timeline, Transport } from './Timeline';
+import { OPEN_TRANSITIONS } from './CutMarks';
+import { Timeline } from './Timeline';
+import { Transport } from './Transport';
 
 /*
  * The video editor in the studio layout, for Reels / Shorts (vertical, short, shared to Instagram) and YouTube videos

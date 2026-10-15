@@ -168,7 +168,9 @@ src/
     showcase.ts              Renders the landing examples for npm run build:showcase
     printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
-                           VideoWorkspace, Timeline, Dialog, previewFrame / previewSound: section 4.10), ig/ = editing
+                           VideoWorkspace, Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
+                           Timeline, PictureRow, CutMarks, TimelineBars, TrackHead, Transport, timelineDrag,
+                           timelineActions, timelineRows), ig/ = editing
                            panels shared by photos and video (layers, masks, curves, colour mixer, looks), panes/ = the
                            print studio's step panes, ai/ = AI settings, words and artwork dialogs
   styles.css               Ordered @imports of styles/ (section 8, Styles)
@@ -498,7 +500,7 @@ pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store 
 undo step (`apply`); `magnetic` is in its undo snapshots (D1), `tool` and `snapping` are view settings (D4), and
 `loadVideoProject` starts a project from ready clips (tests).
 
-**The timeline UI (`components/studio/Timeline.tsx`, 202).** The transport has the tool picker (a `radiogroup` of
+**The timeline UI (`components/studio/Timeline.tsx`, 202; clip drags in `PictureRow.tsx`, keys in `timelineActions.ts`, the transport in `Transport.tsx`).** The transport has the tool picker (a `radiogroup` of
 native radios: V / R / Y / U) and the Magnetic / Snap switches (`aria-pressed`). A clip's body and edges call one store
 action per tool (plan §4): Select reorders (Magnetic on) or follows the pointer and calls `moveClipToTime` on release
 (off, with a drop marker), its edges `trimClip` (ripple with Magnetic on or Shift at the press); Roll's edges
@@ -533,7 +535,7 @@ Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: no
   overlays), `addMedia(files, { track, at })` (`NEW_TRACK` makes one), `moveClipToTrack`, `setClipTransform` (a
   key per drag), `applyPreset`, `updateClipWhy` (the inspector shows refusals); every result is checked with
   `limitVideos`; overlay clips are lifted, never rippled (Q8).
-- **The timeline** (`Timeline.tsx`, `timelineRows.ts`): a `PictureRow` per picture track, top first
+- **The timeline** (`Timeline.tsx`, `PictureRow.tsx`, `TrackHead.tsx`, `timelineRows.ts`): a `PictureRow` per picture track, top first
   (`pictureTracksTopFirst`); an overlay `TrackHead` renames (the name becomes a field) and its height menu moves and
   deletes the track; `AddTrackButton` by the ruler; files dropped on a row (`rowUnderPointer`) land there, on the
   ruler in a new track; a Select drag over another row calls `moveClipToTrack`; "Move to" in the transport does it by
