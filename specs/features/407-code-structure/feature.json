@@ -1482,17 +1482,21 @@
         "T092": {
           "text": "Tick the ACs; Status `Implemented`; roadmap 407 ✔️; `memory/progress.md`, `memory/MEMORY.md`; merge into `main` (the standing rule) and push when the maintainer says so; 207 then branches from `main`.",
           "section": "Docs and close",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [],
           "files": [],
           "test": null,
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "c88c9f3"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** AC-1–AC-13 ticked; 407 Implemented, roadmap ✔️; check green (1,706 tests); merged into main (--no-ff), not pushed."
+          ],
           "startedOn": "2026-10-16",
-          "doneOn": null
+          "doneOn": "2026-10-16"
         },
         "T062": {
           "text": "Clean `tests/` (maintainer, 2026-10-16): the 1,894 standards warnings left after T091 (names, JSDoc, sonar, type rules) to 0 across `tests/unit`, `tests/integration`, `tests/support` and `tests/e2e`; `tests/**` joins `FINISHED`. Tests stay exempt from the size rules (Q4). Behaviour-neutral: the same tests, the same counts.",
