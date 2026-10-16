@@ -336,3 +336,13 @@ through a function, `isClosed = () => closed.signal.aborted`.
   `useMemo`), is a `refs` error: hand it over when the command runs instead (`command.run({ pickFiles })`).
 - `preserve-manual-memoization` ("dependency may be modified later") on a value from a plain function call: memoise
   the value it comes from too, so the compiler treats it as frozen.
+
+## 2026-10-16 — Node's FormData.append throws on a string with a third argument (407 T061)
+
+`form.append(name, 'text', undefined)` throws in Node / Electron's main process ("Expected value to be an instance
+of Blob"): with three arguments the value must be a Blob, even when the file name is `undefined`. `electron/ai.cjs`
+did this for every text field, so Stability and Ideogram pictures failed on desktop from 2.5.0 to 2.10.0 (browsers'
+FormData is the same; only the desktop path built forms this way). Pass the file name only for Blobs.
+`tests/unit/electron/*.test.ts` load the `.cjs` modules by a plain `import` (as the scripts tests load `.mjs`); the
+unit tsconfig has no Node types, so the tests use `Uint8Array`, and TypeScript reads the modules' JSDoc types:
+keep those accurate (`{Uint8Array}` for a parser that only indexes bytes).

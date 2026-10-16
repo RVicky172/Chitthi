@@ -15,7 +15,11 @@ Newest first. One entry per working session.
 **Done:** T060 (`67c585c`): `tests/selftest/` names and JSDoc, at 0 in the standards report; tests also exempt from
 `sonarjs/cognitive-complexity` (Q4's size rules). `npm run check` green (1,700 unit tests); `npm test` 6,203 checks,
 0 failed, as the baseline.
-**Next:** T061 (`electron/`: 98 findings; `electron/**` into `FINISHED`; `npm run test:mcp` and `npm test`).
+T061: `electron/` clean (98 findings to 0) and in `FINISHED`; `ai.cjs` request split into helpers, `raw.cjs` PPM
+header reader split out; first unit tests for the main process (`tests/unit/electron/`, 6). **Bug fix:** desktop AI
+form requests (Stability, Ideogram pictures) threw on every text field since 2.5.0 (learnings). `test:mcp` 23 checks,
+`npm test` 6,203 checks, 0 failed.
+**Next:** T070 (`noUncheckedIndexedAccess` for `src/`).
 **Blockers:** none
 
 ## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)

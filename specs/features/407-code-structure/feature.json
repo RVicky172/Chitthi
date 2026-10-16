@@ -1319,7 +1319,7 @@
         "T061": {
           "text": "`electron/` (CommonJS): names, JSDoc, function length and cognitive complexity (no type rules); IPC validation unchanged; `electron/**` joins `FINISHED`; run `npm run test:mcp` and `npm test` (Q9).",
           "section": "Clean-up: tests/selftest/ and electron/",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1335,8 +1335,14 @@
             "eslint.config.js"
           ],
           "test": "`npm run lint` 0 errors; MCP and self-test pass",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "c46e97c"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `electron/` 98 findings to 0 (75 names, 15 JSDoc, 3 cognitive complexity, 5 sonar), `electron/**` in `FINISHED` (no type rules); `ai.cjs` request and host check split into helpers, `raw.cjs` PPM header reader split out; IPC validation unchanged. First unit tests for the main process (`tests/unit/electron/`, 6: AI request bodies and host refusal, the PPM reader). Bug fix found by the test: desktop AI form requests (Stability, Ideogram pictures) threw on every text field since 2.5.0 (`FormData.append` with an undefined file name). Standards total 2,127 to 2,029. `npm run check` green (1,706 unit tests); `test:mcp` 23 checks passed (DNG developed); `npm test` 6,203 checks, 0 failed (246 s)."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
         },
         "T070": {
           "text": "Turn on `noUncheckedIndexedAccess` for `src/` (Q13; the report’s count at 0 after §5) and fix anything left.",
