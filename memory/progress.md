@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-16 — 407 (T020, T062)
+**Done:** T020 approved by the maintainer. T062 (new, maintainer's ask): `tests/` from 1,894 standards warnings to 0
+and in `FINISHED` (`4230113`, `e8b10e9`, `53e47e9`, `1545c69`); the standards report shows 0 for the whole repo.
+Names by a scope-checked rename codemod plus hand picks; `tests/support/defined.ts`, `seededRandom.ts`,
+`codeUnitOrder.ts`; two Sonar rules off for tests (D-048). Gates: check 1,706 tests, lint:full 0, entry 313 KB,
+e2e 84 / 16 skipped, self-test 6,203 / 0 failed.
+**Next:** T092 (tick the ACs, Implemented, roadmap ✔️, merge into `main`; push when the maintainer says).
+**Blockers:** none.
+
 ## 2026-10-16 — 407 (T091)
 **Done:** T091 (`1ae913d`, `68c2fd5`): `src/types.ts` JSDoc, `src/dev/` (showcase, print samples) clean; all of
 `src/` and `electron/` in `FINISHED` (every standards rule an error). Full DoD green: check 1,706 tests, lint:full 0
