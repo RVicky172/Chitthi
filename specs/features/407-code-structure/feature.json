@@ -1372,7 +1372,7 @@
         "T071": {
           "text": "React Compiler (Q11, D3): `oxc-transform-react` (MIT, development dependency) and `react({ compiler: true })`; `logDiagnostics` once, skipped components fixed or noted; remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22); compare e2e, self-test and timings with the baselines; kept only without regression, else turned off with the reason.",
           "section": "Strict index access, React Compiler, performance",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1386,8 +1386,14 @@
             "src/components/**"
           ],
           "test": "`npm run check`, build, e2e and self-test as the baselines; timings no worse",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "3e52948"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** React Compiler tried and turned off (D-046, the maintainer's choice). `react({ compiler: true })` with `oxc-transform-react` 0.152.0 (MIT; the plugin's peer range; marked experimental) built fine; `logDiagnostics` listed 37 skipped functions (12 dynamic `import()` in App's preloads and 3 in AiSettings, 15 `try`/`finally`, 2 `??=` in VideoStage, 2 reorder limits, Timeline's rule suppression, one global update in useClipTransform). e2e with it on: 81 passed / 16 skipped / 3 failed (AI masks, AI models on desktop and phone), repeatable, and passing with it off: `useAiStatus` and `useFallbackNote` read a module Map during render behind a discarded version snapshot, so the compiler memoised the first value. Fixed by returning the value as the snapshot (`3e52948`); the 3 tests then pass with the compiler on. Sizes: compiled components grow ~40 %: whole app, entry 313 → 337 KB (AC-9: ≤ 327); scoped to `components/studio`, `ig`, `ai` via `sources`, entry 314 KB but the studio chunk 201 → 281 kB. Package not added, manual memos kept; self-test and timings not run (it is off). `npm run check` green (1,706 tests)."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
         },
         "T072": {
           "text": "Performance review (plan §7, Q8): measure the hot paths against the baselines (frame drawing `renderStack` / `frameStack` / `drawPair`, the decoder pool, `mixWindow` / `gainCurve`, the photo pipeline, the print renderer); record findings in `performance.md`; change only what measures ≥ 10 % faster with no loss elsewhere, each with before / after numbers.",

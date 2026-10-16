@@ -560,3 +560,16 @@ and `ai-hosts.json` rules are checked when read.
 **Consequences:** a new tool goes into the file for its job and is listed in `tools.ts`; MCP schemas, names and order
 are byte-identical (checked by snapshot). Malformed answers (an object where text belongs) give '' instead of
 "[object Object]", and inputs that crashed with a TypeError now give the handled message.
+
+## D-046 — React Compiler stays off (2026-10-16)
+
+**Context:** 407 T071 (Q11, plan §6, D3). Wired through `@vitejs/plugin-react` 6.1's `compiler` option with
+`oxc-transform-react` 0.152 (the plugin's peer range; its native compiler is marked experimental). Diagnostics: 37
+functions skipped (dynamic `import()`, `try`/`finally`, `??=`, one rule suppression). e2e failed 3 AI-mask tests until
+two external-store hooks were fixed (they read a module Map during render; learnings). Compiled components grow ~40 %:
+whole app, entry 313 → 337 KB (AC-9 allows 327); only the lazy media-studio folders (`sources`), entry 314 KB but the
+studio chunk 201 → 281 kB.
+**Decision:** the maintainer chose to keep it off: Q11's own rule (kept only without regression). `oxc-transform-react`
+is not added; the manual `useMemo` / `useCallback` / `memo` stay; the two hook fixes are kept (correct without it).
+**Consequences:** AC-12 (the Rules of React lint) still applies, so turning it on later is a config change. Look again
+when the native compiler is stable or its output smaller.
