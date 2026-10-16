@@ -1451,7 +1451,7 @@
         "T091": {
           "text": "The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers.",
           "section": "Docs and close",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1461,10 +1461,14 @@
           ],
           "files": [],
           "test": "every command green; numbers recorded",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "1ae913d"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** The last of src/ cleaned: src/types.ts (34 exports given JSDoc), src/dev/showcase.ts and src/dev/printSamples.ts (90 findings: names, typed photos.json, envelope job / spec text / order-sheet rows split into functions, one blobToBase64); src/types.ts, src/index.ts, src/vite-env.d.ts and src/dev/** join FINISHED, so every standards rule is an error for all of src/ and electron/ (AC-5). printSamples checked against a frozen copy by a scratch test (envelope folders, sample ids, ORDER-SHEET.csv, README.txt, PHOTO-CREDITS.txt identical with a fixed clock; 2 planted changes each failed it); showcase.ts is renames and splits only (needs a canvas; a missing credit now throws a clear Error instead of a TypeError). Gates: npm run check green (1,706 tests); lint:full 0 errors; standards report 0 for src/ and electron/ (1,894 warnings left, all in tests/, outside AC-5 and no 407 clean-up task); npm run build green, entry 313 KB (≤ 327, AC-9); check:licenses 168 packages OK; test:e2e 84 passed / 16 skipped (= baseline); npm test 6,203 checks, 0 failed (254 s; baseline 6,203); test:mcp passed."
+          ],
           "startedOn": "2026-10-16",
-          "doneOn": null
+          "doneOn": "2026-10-16"
         },
         "T092": {
           "text": "Tick the ACs; Status `Implemented`; roadmap 407 ✔️; `memory/progress.md`, `memory/MEMORY.md`; merge into `main` (the standing rule) and push when the maintainer says so; 207 then branches from `main`.",
