@@ -34,6 +34,8 @@ const FINISHED = [
   'src/components/**',
   'src/App.tsx',
   'src/main.tsx',
+  // 407 T061: the Electron main process (CommonJS: names, JSDoc, sizes; no type rules).
+  'electron/**',
 ];
 
 /** The code the standards rules apply to. */

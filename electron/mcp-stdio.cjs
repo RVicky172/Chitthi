@@ -38,22 +38,22 @@ async function relay(line) {
     const out = type.includes('text/event-stream')
       ? text
           .split('\n')
-          .filter((l) => l.startsWith('data:'))
-          .map((l) => JSON.parse(l.slice(5).trim()))
+          .filter((eventLine) => eventLine.startsWith('data:'))
+          .map((eventLine) => JSON.parse(eventLine.slice(5).trim()))
       : [JSON.parse(text)];
-    for (const o of out.flat()) write(o);
-  } catch (e) {
-    if (msg && msg.id !== undefined) write({ jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: `Chitthi isn’t answering: ${e && e.message ? e.message : e}` } });
+    for (const reply of out.flat()) write(reply);
+  } catch (error) {
+    if (msg && msg.id !== undefined) write({ jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: `Chitthi isn’t answering: ${error && error.message ? error.message : error}` } });
   }
 }
 
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => {
   buf += chunk;
-  let i;
-  while ((i = buf.indexOf('\n')) >= 0) {
-    const line = buf.slice(0, i).trim();
-    buf = buf.slice(i + 1);
+  let newline;
+  while ((newline = buf.indexOf('\n')) >= 0) {
+    const line = buf.slice(0, newline).trim();
+    buf = buf.slice(newline + 1);
     // One message at a time, in order: MCP clients expect replies to follow their requests.
     if (line) chain = chain.then(() => relay(line));
   }

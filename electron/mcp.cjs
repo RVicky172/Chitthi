@@ -44,7 +44,7 @@ const outDir = () => path.join(app.getPath('documents'), 'Chitthi agent output')
 let nextId = 1;
 const pending = new Map();
 let readyResolve;
-let ready = new Promise((r) => (readyResolve = r));
+let ready = new Promise((resolve) => (readyResolve = resolve));
 let headless = false; // `Chitthi --mcp`: an agent is connected for the life of the process
 
 function call(wc, name, args) {
@@ -60,33 +60,47 @@ function call(wc, name, args) {
   });
 }
 
+/**
+ * A file name with a copy number before its extension.
+ * @param {string} base the file name, e.g. `card.png`
+ * @param {number} copy the copy number
+ * @returns {string} e.g. `card (2).png`
+ */
+const numbered = (base, copy) => base.replace(/(\.[^.]*)?$/, (extension) => ` (${copy})${extension || ''}`);
+
+/**
+ * Registers the agent IPC: tool replies from the page, writing output files, reading photos by path, the live
+ * server's status and switch.
+ * @param {() => Electron.WebContents | null} getLiveContents the open window's page, for the live server
+ */
 function registerAgentIpc(getLiveContents) {
   on('agent:reply', (_e, id, result) => {
     if (id === 0) return readyResolve && readyResolve();
-    const p = pending.get(id);
-    if (!p) return;
-    clearTimeout(p.timer);
+    const waiter = pending.get(id);
+    if (!waiter) return;
+    clearTimeout(waiter.timer);
     pending.delete(id);
-    p.resolve(result);
+    waiter.resolve(result);
   });
   handle('agent:writeFiles', async (_e, files) => {
     const dir = outDir();
     await fsp.mkdir(dir, { recursive: true });
     const out = [];
-    for (const f of Array.isArray(files) ? files.slice(0, 20) : []) {
+    for (const entry of Array.isArray(files) ? files.slice(0, 20) : []) {
       // eslint-disable-next-line no-control-regex -- control characters are not allowed in file names
-      const base = path.basename(String(f.name || 'chitthi-file')).replace(/[<>:"|?*\u0000-\u001f]/g, '_') || 'chitthi-file';
+      const base = path.basename(String(entry.name || 'chitthi-file')).replace(/[<>:"|?*\u0000-\u001f]/g, '_') || 'chitthi-file';
       let file = path.join(dir, base);
-      for (let i = 2; fs.existsSync(file); i++) file = path.join(dir, base.replace(/(\.[^.]*)?$/, (m) => ` (${i})${m || ''}`));
-      await fsp.writeFile(file, Buffer.from(f.data));
+      // An existing name gets a copy number before its extension: "card (2).png".
+      for (let copy = 2; fs.existsSync(file); ) file = path.join(dir, numbered(base, copy++));
+      await fsp.writeFile(file, Buffer.from(entry.data));
       out.push(file);
     }
     return out;
   });
-  handle('agent:readPhoto', async (_e, p) => {
+  handle('agent:readPhoto', async (_e, photoPath) => {
     // Reading a photo by path is for agents only: refused unless an agent can be connected (headless or live).
     if (!headless && !live) throw new Error('Photos can be added by path only while an agent is connected.');
-    const file = path.resolve(String(p || ''));
+    const file = path.resolve(String(photoPath || ''));
     const ext = path.extname(file).toLowerCase(),
       raw = RAW_EXTS.has(ext),
       type = raw ? 'image/x-raw' : PHOTO_TYPES[ext];
@@ -120,40 +134,47 @@ function buildServer(getContents) {
   const list = async () => (listing = listing || (await call(getContents(), '__list', {})));
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: (await list()).tools.map((t) => ({
-      name: t.name,
-      title: t.title,
-      description: t.description,
-      inputSchema: t.inputSchema,
-      annotations: { title: t.title, readOnlyHint: t.readOnly, destructiveHint: t.destructive, openWorldHint: /pexels|write_|generate_/.test(t.name) },
+    tools: (await list()).tools.map((tool) => ({
+      name: tool.name,
+      title: tool.title,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      annotations: { title: tool.title, readOnlyHint: tool.readOnly, destructiveHint: tool.destructive, openWorldHint: /pexels|write_|generate_/.test(tool.name) },
     })),
   }));
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const r = await call(getContents(), req.params.name, req.params.arguments || {});
-    if (!r || !r.ok) return { isError: true, content: [{ type: 'text', text: (r && r.error) || 'The tool failed.' }] };
-    const content = [{ type: 'text', text: r.text || 'Done.' }];
-    if (r.json !== undefined) content.push({ type: 'text', text: JSON.stringify(r.json, null, 2) });
-    if (r.image) content.push({ type: 'image', data: r.image.data, mimeType: r.image.mimeType });
-    if (r.paths && r.paths.length) content.push({ type: 'text', text: `Files written:\n${r.paths.join('\n')}` });
-    return { content, ...(r.json !== undefined && r.json && typeof r.json === 'object' && !Array.isArray(r.json) ? { structuredContent: r.json } : {}) };
+    const reply = await call(getContents(), req.params.name, req.params.arguments || {});
+    if (!reply || !reply.ok) return { isError: true, content: [{ type: 'text', text: (reply && reply.error) || 'The tool failed.' }] };
+    const content = [{ type: 'text', text: reply.text || 'Done.' }];
+    if (reply.json !== undefined) content.push({ type: 'text', text: JSON.stringify(reply.json, null, 2) });
+    if (reply.image) content.push({ type: 'image', data: reply.image.data, mimeType: reply.image.mimeType });
+    if (reply.paths && reply.paths.length) content.push({ type: 'text', text: `Files written:\n${reply.paths.join('\n')}` });
+    return { content, ...(reply.json !== undefined && reply.json && typeof reply.json === 'object' && !Array.isArray(reply.json) ? { structuredContent: reply.json } : {}) };
   });
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: (await list()).resources }));
   server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
-    const r = await call(getContents(), '__resource', { uri: req.params.uri });
-    if (!r || r.ok === false) throw new Error((r && r.error) || 'Unknown resource');
-    return { contents: [{ uri: r.uri, mimeType: r.mimeType, text: r.text }] };
+    const reply = await call(getContents(), '__resource', { uri: req.params.uri });
+    if (!reply || reply.ok === false) throw new Error((reply && reply.error) || 'Unknown resource');
+    return { contents: [{ uri: reply.uri, mimeType: reply.mimeType, text: reply.text }] };
   });
   server.setRequestHandler(ListPromptsRequestSchema, async () => ({ prompts: (await list()).prompts }));
   server.setRequestHandler(GetPromptRequestSchema, async (req) => {
-    const r = await call(getContents(), '__prompt', { name: req.params.name, arguments: req.params.arguments || {} });
-    if (!r || r.ok === false) throw new Error((r && r.error) || 'Unknown prompt');
-    return { description: r.description, messages: [{ role: 'user', content: { type: 'text', text: r.text } }] };
+    const reply = await call(getContents(), '__prompt', { name: req.params.name, arguments: req.params.arguments || {} });
+    if (!reply || reply.ok === false) throw new Error((reply && reply.error) || 'Unknown prompt');
+    return { description: reply.description, messages: [{ role: 'user', content: { type: 'text', text: reply.text } }] };
   });
   return server;
 }
 
 /* ---------- headless: `Chitthi --mcp` over stdio ---------- */
 
+/**
+ * `Chitthi --mcp`: loads the page in a hidden window, waits for its agent tools, then serves MCP on loopback HTTP and
+ * starts the stdio relay (the process quits when the relay ends).
+ * @param {{ url: string, preload: string }} options the page's URL and the preload script
+ * @returns {Promise<void>} once the relay has started
+ * @throws {Error} when the page or its tools don't start
+ */
 async function startHeadless({ url, preload }) {
   headless = true;
   registerAgentIpc(() => null);
@@ -164,8 +185,8 @@ async function startHeadless({ url, preload }) {
     webPreferences: { preload, contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false },
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  await win.loadURL(url).catch((e) => {
-    if (!String(e && e.message).includes('ERR_ABORTED')) throw e;
+  await win.loadURL(url).catch((error) => {
+    if (!String(error && error.message).includes('ERR_ABORTED')) throw error;
   });
   await Promise.race([ready, new Promise((_, rej) => setTimeout(() => rej(new Error('The Chitthi agent tools didn’t start.')), 60_000))]);
   // The protocol runs over loopback HTTP; a relay in Node mode carries the real stdio (see mcp-stdio.cjs).
@@ -174,8 +195,8 @@ async function startHeadless({ url, preload }) {
   const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', CHITTHI_MCP_URL: `http://127.0.0.1:${srv.port}/mcp`, CHITTHI_MCP_TOKEN: srv.token };
   const relay = spawn(process.execPath, [script], { stdio: 'inherit', env, windowsHide: true });
   relay.on('exit', () => app.quit());
-  relay.on('error', (e) => {
-    process.stderr.write(`Chitthi MCP relay failed: ${e.message}
+  relay.on('error', (error) => {
+    process.stderr.write(`Chitthi MCP relay failed: ${error.message}
 `);
     app.exit(1);
   });
@@ -194,7 +215,11 @@ async function startLive(getLiveContents) {
   live = await listen(getLiveContents);
 }
 
-/** An MCP endpoint on 127.0.0.1 (random port) that only accepts requests with the token and no browser Origin. */
+/**
+ * An MCP endpoint on 127.0.0.1 (random port) that only accepts requests with the token and no browser Origin.
+ * @param {() => Electron.WebContents | null} getContents the page the tools run in
+ * @returns {Promise<{ server: import('node:http').Server, port: number, token: string }>} the listening server
+ */
 async function listen(getContents) {
   const token = crypto.randomBytes(24).toString('base64url');
   const srv = http.createServer(async (req, res) => {
@@ -203,7 +228,7 @@ async function listen(getContents) {
       res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: msg }, id: null }));
     };
     try {
-      const u = new URL(req.url || '/', 'http://127.0.0.1');
+      const target = new URL(req.url || '/', 'http://127.0.0.1');
       // Web pages can't reach this: no browser Origin, loopback Host only (DNS rebinding), and the token.
       if (req.headers.origin) return deny(403, 'Browsers may not connect.');
       if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(req.headers.host || ''))) return deny(403, 'Bad host.');
@@ -211,14 +236,14 @@ async function listen(getContents) {
       const given = Buffer.from(auth.replace(/^Bearer\s+/i, ''));
       const want = Buffer.from(token);
       if (given.length !== want.length || !crypto.timingSafeEqual(given, want)) return deny(401, 'Missing or wrong token.');
-      if (u.pathname !== '/mcp') return deny(404, 'Not found.');
+      if (target.pathname !== '/mcp') return deny(404, 'Not found.');
       if (req.method !== 'POST') return deny(405, 'Use POST.');
       const chunks = [];
       let size = 0;
-      for await (const c of req) {
-        size += c.length;
+      for await (const chunk of req) {
+        size += chunk.length;
         if (size > 5 * 1024 * 1024) return deny(413, 'Request too large.');
-        chunks.push(c);
+        chunks.push(chunk);
       }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       // Stateless: a fresh server and transport per request, all driving the same open window.
@@ -230,8 +255,8 @@ async function listen(getContents) {
       });
       await server.connect(transport);
       await transport.handleRequest(req, res, body);
-    } catch (e) {
-      if (!res.headersSent) deny(500, e && e.message ? e.message : 'Server error.');
+    } catch (error) {
+      if (!res.headersSent) deny(500, error && error.message ? error.message : 'Server error.');
     }
   });
   await new Promise((resolve, reject) => {
@@ -241,11 +266,12 @@ async function listen(getContents) {
   return { server: srv, port: srv.address().port, token };
 }
 
+/** Stops the live MCP server, if it runs. */
 async function stopLive() {
   if (!live) return;
-  const s = live.server;
+  const server = live.server;
   live = null;
-  await new Promise((r) => s.close(() => r()));
+  await new Promise((resolve) => server.close(() => resolve()));
 }
 
 app.on('before-quit', () => {

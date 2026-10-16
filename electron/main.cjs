@@ -130,11 +130,11 @@ async function readJson(file) {
 async function readAll(folder) {
   let names;
   try {
-    names = (await fsp.readdir(dir(folder))).filter((n) => n.endsWith('.json'));
+    names = (await fsp.readdir(dir(folder))).filter((name) => name.endsWith('.json'));
   } catch {
     return [];
   }
-  const items = await Promise.all(names.map((n) => readJson(path.join(dir(folder), n))));
+  const items = await Promise.all(names.map((name) => readJson(path.join(dir(folder), name))));
   return items.filter((x) => x && typeof x === 'object');
 }
 function requireId(id) {
@@ -153,29 +153,29 @@ function registerStorage() {
   // analysis), so listing the library never reads or sends the full images.
   handle('db:libAll', async () => {
     const metas = await readAll('photos-meta'),
-      known = new Set(metas.map((m) => m.id));
+      known = new Set(metas.map((meta) => meta.id));
     // Photos saved before the split: make their meta file once.
     let names = [];
     try {
-      names = (await fsp.readdir(dir('photos'))).filter((n) => n.endsWith('.json') && !known.has(n.slice(0, -5)));
+      names = (await fsp.readdir(dir('photos'))).filter((name) => name.endsWith('.json') && !known.has(name.slice(0, -5)));
     } catch {
       /* no photos yet */
     }
-    for (const n of names) {
-      const full = await readJson(path.join(dir('photos'), n));
+    for (const name of names) {
+      const full = await readJson(path.join(dir('photos'), name));
       if (!full || !safeId(full.id)) continue;
       const meta = { ...full, url: '' };
-      await writeJson(path.join(dir('photos-meta'), n), meta);
+      await writeJson(path.join(dir('photos-meta'), name), meta);
       metas.push(meta);
     }
     return metas;
   });
   handle('db:libUrl', async (_e, id) => ((await readJson(path.join(dir('photos'), `${requireId(id)}.json`))) || {}).url || '');
-  handle('db:libPut', async (_e, p) => {
-    const id = requireId(p && p.id);
+  handle('db:libPut', async (_e, photo) => {
+    const id = requireId(photo && photo.id);
     // A details-only update (empty url) keeps the stored full image.
-    if (p.url) await writeJson(path.join(dir('photos'), `${id}.json`), { id, url: p.url });
-    await writeJson(path.join(dir('photos-meta'), `${id}.json`), { ...p, url: '' });
+    if (photo.url) await writeJson(path.join(dir('photos'), `${id}.json`), { id, url: photo.url });
+    await writeJson(path.join(dir('photos-meta'), `${id}.json`), { ...photo, url: '' });
   });
   handle('db:libDel', async (_e, id) => {
     await fsp.rm(path.join(dir('photos'), `${requireId(id)}.json`), { force: true });
@@ -184,11 +184,11 @@ function registerStorage() {
   // Saved presets of the photo & video editors: presets/<id>.json. The page validates what it reads (mergePreset);
   // here only the shape and size are checked, so nothing else lands in the data folder.
   handle('db:presetAll', () => readAll('presets'));
-  handle('db:presetPut', (_e, p) => {
-    const id = requireId(p && p.id);
-    if (typeof p.name !== 'string' || !p.name.trim() || p.name.length > 60) throw new Error('Invalid preset name');
-    if (!p.adjust || typeof p.adjust !== 'object' || Array.isArray(p.adjust)) throw new Error('Invalid preset');
-    const rec = { id, name: p.name, adjust: p.adjust, created: Number.isFinite(p.created) ? p.created : Date.now() };
+  handle('db:presetPut', (_e, preset) => {
+    const id = requireId(preset && preset.id);
+    if (typeof preset.name !== 'string' || !preset.name.trim() || preset.name.length > 60) throw new Error('Invalid preset name');
+    if (!preset.adjust || typeof preset.adjust !== 'object' || Array.isArray(preset.adjust)) throw new Error('Invalid preset');
+    const rec = { id, name: preset.name, adjust: preset.adjust, created: Number.isFinite(preset.created) ? preset.created : Date.now() };
     if (JSON.stringify(rec).length > 64 * 1024) throw new Error('Preset too large');
     return writeJson(path.join(dir('presets'), `${id}.json`), rec);
   });
@@ -207,8 +207,8 @@ function extFilter(name) {
 }
 
 function registerFiles() {
-  handle('desktop:saveFile', async (e, name, data) => {
-    const win = BrowserWindow.fromWebContents(e.sender);
+  handle('desktop:saveFile', async (event, name, data) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     const safeName = path.basename(String(name || 'chitthi-file'));
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       defaultPath: path.join(lastDir || app.getPath('documents'), safeName),
@@ -224,8 +224,8 @@ function registerFiles() {
   // positions, so a long video never has to fit in memory. Only files opened this way can be written.
   const streams = new Map();
   let nextStream = 1;
-  handle('desktop:openWrite', async (e, name) => {
-    const win = BrowserWindow.fromWebContents(e.sender);
+  handle('desktop:openWrite', async (event, name) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     const safeName = path.basename(String(name || 'chitthi-video.mp4'));
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       defaultPath: path.join(lastDir || app.getPath('videos'), safeName),
@@ -239,31 +239,31 @@ function registerFiles() {
     return { id, path: filePath };
   });
   handle('desktop:write', async (_e, id, position, data) => {
-    const s = streams.get(id);
-    if (!s) throw new Error('That file isn’t open.');
+    const stream = streams.get(id);
+    if (!stream) throw new Error('That file isn’t open.');
     if (!Number.isSafeInteger(position) || position < 0) throw new Error('Bad position.');
     const buf = Buffer.from(data);
-    await s.fh.write(buf, 0, buf.length, position);
+    await stream.fh.write(buf, 0, buf.length, position);
   });
   handle('desktop:closeWrite', async (_e, id, keep) => {
-    const s = streams.get(id);
-    if (!s) return null;
+    const stream = streams.get(id);
+    if (!stream) return null;
     streams.delete(id);
-    await s.fh.close();
+    await stream.fh.close();
     if (!keep) {
-      await fsp.rm(s.filePath, { force: true });
+      await fsp.rm(stream.filePath, { force: true });
       return null;
     }
-    savedPaths.add(s.filePath);
-    return s.filePath;
+    savedPaths.add(stream.filePath);
+    return stream.filePath;
   });
   // Only files this session saved can be revealed: the renderer can't probe arbitrary paths.
-  handle('desktop:showInFolder', (_e, p) => {
-    if (savedPaths.has(p)) shell.showItemInFolder(p);
+  handle('desktop:showInFolder', (_e, filePath) => {
+    if (savedPaths.has(filePath)) shell.showItemInFolder(filePath);
   });
   handle('desktop:openExternal', (_e, url) => openExternal(url));
-  handle('desktop:openDesignFile', async (e) => {
-    const win = BrowserWindow.fromWebContents(e.sender);
+  handle('desktop:openDesignFile', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
       properties: ['openFile'],
       filters: [{ name: 'Chitthi design or backup', extensions: ['chitthi', 'json'] }],
@@ -275,10 +275,10 @@ function registerFiles() {
   handle('desktop:metrics', () => ({
     cores: os.cpus().length || 1,
     systemMemory: os.totalmem(),
-    procs: app.getAppMetrics().map((m) => ({ type: m.type, pid: m.pid, cpu: m.cpu.percentCPUUsage, mem: m.memory.workingSetSize * 1024 })),
+    procs: app.getAppMetrics().map((metric) => ({ type: metric.type, pid: metric.pid, cpu: metric.cpu.percentCPUUsage, mem: metric.memory.workingSetSize * 1024 })),
   }));
-  on('desktop:info', (e) => {
-    e.returnValue = { version: app.getVersion(), platform: process.platform, localFonts: hasLocalFonts() };
+  on('desktop:info', (event) => {
+    event.returnValue = { version: app.getVersion(), platform: process.platform, localFonts: hasLocalFonts() };
   });
 }
 
@@ -290,8 +290,8 @@ async function readDesignFile(file) {
 
 function openExternal(url) {
   try {
-    const u = new URL(url);
-    if (u.protocol === 'https:' || u.protocol === 'mailto:') return shell.openExternal(u.toString());
+    const target = new URL(url);
+    if (target.protocol === 'https:' || target.protocol === 'mailto:') return shell.openExternal(target.toString());
   } catch {
     /* ignore malformed */
   }
@@ -320,12 +320,12 @@ function saveWindowState() {
 }
 
 function createWindow() {
-  const s = loadWindowState();
+  const saved = loadWindowState();
   win = new BrowserWindow({
-    width: s.width || 1400,
-    height: s.height || 900,
-    x: s.x,
-    y: s.y,
+    width: saved.width || 1400,
+    height: saved.height || 900,
+    x: saved.x,
+    y: saved.y,
     minWidth: 1024,
     minHeight: 680,
     show: false,
@@ -339,7 +339,7 @@ function createWindow() {
       spellcheck: true,
     },
   });
-  if (s.maximized) win.maximize();
+  if (saved.maximized) win.maximize();
   win.once('ready-to-show', () => win.show());
   win.on('close', saveWindowState);
   win.on('closed', () => {
@@ -352,17 +352,17 @@ function createWindow() {
     openExternal(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e, url) => {
+  win.webContents.on('will-navigate', (event, url) => {
     if (!own(url)) {
-      e.preventDefault();
+      event.preventDefault();
       openExternal(url);
     }
   });
   win.webContents.on('did-finish-load', () => {
     if (pendingFile) {
-      const f = pendingFile;
+      const file = pendingFile;
       pendingFile = null;
-      sendOpenFile(f);
+      sendOpenFile(file);
     }
   });
 
@@ -381,7 +381,7 @@ async function sendOpenFile(file) {
   }
 }
 
-const designArg = (argv) => argv.find((a) => /\.(chitthi|json)$/i.test(a) && fs.existsSync(a));
+const designArg = (argv) => argv.find((arg) => /\.(chitthi|json)$/i.test(arg) && fs.existsSync(arg));
 
 /* ------------------------------------------------------------------ menu */
 
@@ -476,8 +476,8 @@ function checkForUpdates(manual) {
     autoUpdater.autoDownload = true;
     const run = manual ? autoUpdater.checkForUpdates() : autoUpdater.checkForUpdatesAndNotify();
     Promise.resolve(run)
-      .then((r) => {
-        if (manual && (!r || !r.isUpdateAvailable))
+      .then((result) => {
+        if (manual && (!result || !result.isUpdateAvailable))
           dialog.showMessageBox(win, { type: 'info', message: 'Chitthi Studio is up to date.' });
       })
       .catch((err) => {
@@ -503,10 +503,11 @@ if (MCP_MODE) {
     registerFiles();
     registerAi();
     registerRaw();
+    const page = DEV_URL || `${ORIGIN}/index.html`;
     try {
-      await agent.startHeadless({ url: `${DEV_URL || `${ORIGIN}/index.html`}?agent`, preload: path.join(__dirname, 'preload.cjs') });
-    } catch (e) {
-      process.stderr.write(`Chitthi MCP could not start: ${e && e.message ? e.message : e}
+      await agent.startHeadless({ url: `${page}?agent`, preload: path.join(__dirname, 'preload.cjs') });
+    } catch (error) {
+      process.stderr.write(`Chitthi MCP could not start: ${error && error.message ? error.message : error}
 `);
       app.exit(1);
     }
@@ -517,16 +518,16 @@ if (MCP_MODE) {
 } else {
   // Windows/Linux: double-clicking a .chitthi file while Chitthi is open.
   app.on('second-instance', (_e, argv) => {
-    const f = designArg(argv);
-    if (f) sendOpenFile(f);
+    const file = designArg(argv);
+    if (file) sendOpenFile(file);
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
     }
   });
   // macOS: file association and dropping a file on the dock icon.
-  app.on('open-file', (e, file) => {
-    e.preventDefault();
+  app.on('open-file', (event, file) => {
+    event.preventDefault();
     if (app.isReady() && win) sendOpenFile(file);
     else pendingFile = file;
   });
