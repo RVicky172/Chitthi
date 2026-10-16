@@ -8,7 +8,7 @@ import { defineConfig } from '@playwright/test';
 const PORT = 4175;
 
 export default defineConfig({
-  testDir: 'e2e',
+  testDir: 'tests/e2e',
   testMatch: '**/*.measure.ts',
   workers: 1,
   retries: 0,

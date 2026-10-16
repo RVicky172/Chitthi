@@ -8,14 +8,41 @@ no CI on feature branches or pull requests.
 
 | Command | Suite | Runs in | Time |
 | --- | --- | --- | --- |
-| `npm run check` | Fast gate: `typecheck` + `lint` + `test:unit`. Run after every task | Node | ~15 s |
-| `npm run lint` | ESLint (`eslint.config.js`) | Node | ~10 s |
-| `npm run test:unit` | Vitest unit tests, `src/**/*.test.ts` | Node | ~1 s |
-| `npm test` | Self-test, `src/dev/selftest.ts` | Electron against a Vite dev server | ~100 s |
+| `npm run check` | Fast gate: `typecheck` + `lint` + `specs:check` + the structure check (`scripts/check-structure.mjs`) + `test:unit`. Run after every task | Node | ~15 s |
+| `npm run lint` | ESLint (`eslint.config.js`), cached; `lint:full` without the cache | Node | ~4 s cached; ~40 s full |
+| `npm run test:unit` | Vitest, `tests/unit/**` and `tests/integration/**` (and the tooling's own tests under `tools/`) | Node | ~3 s |
+| `npm test` | Self-test, `tests/selftest/selftest.ts` | Electron against a Vite dev server | ~100 s |
 | `npm run test:mcp` | MCP smoke test, `scripts/mcp-smoke.mjs` (run `npm run fetch:libraw` once first) | Electron (headless MCP) + the official MCP client | ~10 s |
-| `npm run test:e2e` | Browser tests with axe, `e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
+| `npm run test:e2e` | Browser tests with axe, `tests/e2e/*.e2e.ts` | Chromium, desktop and phone sizes, against the production build | ~30 s |
 
-`npm run build` also guards the bundle: it fails if the start-up script passes 350 KB or contains AI code.
+`npm run build` also guards the bundle: it fails if the start-up script passes 350 KB or contains AI code, and if
+any chunk holds a module from `tests/` (the `chitthi:no-test-code` plugin in `vite.config.ts`).
+
+## Where tests live
+
+Every test is under `tests/`; `src/` holds only the app (feature 407, D1). `scripts/check-structure.mjs`, part of
+`npm run check`, fails on a test file or a `*.testkit.ts` helper in `src/`, and on app code importing `tests/` (the
+one exception: `src/main.tsx` loads the self-test in development builds only).
+
+```text
+tests/
+  unit/          One module each, mirroring src/: tests/unit/engine/layers.test.ts tests src/engine/layers.ts.
+                 Also unit/electron, unit/scripts (Node code outside src/) and unit/support (the test kits' own tests)
+  integration/   Several modules together, mirroring src/ by the main one: a store with its actions and the
+                 engine (tests/integration/state/video.test.ts), the decoder pool with its frame sources, preview sound
+  support/       Shared test helpers, not tests: fakes (fakeDecoder.ts, fakeAudio.ts), recordingCanvas.ts,
+                 *.testkit.ts (frozen reference code to compare against)
+  e2e/           Playwright, *.e2e.ts; gate.measure.ts is the Phase 1 gate measurement (npm run measure:gate)
+  selftest/      The in-app self-test (selftest.ts) and its check modules (videoChecks, poolChecks,
+                 playbackChecks, exportTiming, perfTiming, helpers)
+```
+
+Tests import the app through the `@/` alias (`@/engine/layers`), so moving a test never breaks its imports.
+`tsconfig.tests.json` type-checks `tests/unit`, `tests/integration` and `tests/support` with the app.
+
+**Unit or integration?** A test is a unit test when it exercises one module (its fakes and pure helpers from
+`src/data/` aside). As soon as it needs a second app module to be real (a store plus the engine, a hook plus its
+store), it is an integration test. Both run under Vitest in Node, without a DOM or canvas.
 
 ## Unit tests (Vitest)
 
@@ -26,8 +53,9 @@ The photo editor: light, curves, mixer, detail, LUT parsing, presets, masks (cac
 nothing, gradients against their formulas, AI parts from a map), GPU node graphs, the TIFF writer, the RAW embedded
 preview reader and a synthetic DNG, segmentation map stretching and the pinned models.
 
-Add a test next to the module as `name.test.ts`. Keep it free of DOM and canvas: anything that needs them belongs in
-the self-test. Test files are type-checked with the app but left out of the library build.
+Add a test as `tests/unit/<same path as the module>.test.ts` (or under `tests/integration/`, see above). Keep it free
+of DOM and canvas: anything that needs them belongs in the self-test. Test files are type-checked with the app but
+never reach `dist/`.
 
 ## Self-test (Electron)
 
@@ -39,7 +67,8 @@ read-back, the 16-bit render against the 8-bit picture and its extra precision, 
 map and the real subject model in its worker; and every photo tool end to end on a generated photo. About 6,100
 checks.
 
-Add a check in `src/dev/selftest.ts` with its `check(condition, 'what')` helper. Run one in the browser by opening
+Add a check in `tests/selftest/selftest.ts` (or the check module for its area) with the `check(condition, 'what')`
+helper. Run one in the browser by opening
 the dev server with `?selftest` and calling `window.__chitthiSelfTest()` in the console.
 
 ## MCP smoke test
@@ -58,9 +87,9 @@ that the home page and studio load without console errors, that every product sw
 survives a reload, and that home, studio and the sizes guide have no serious or critical WCAG 2.2 A/AA problems (axe).
 The photo and video studio files cover the batch, every editing panel (light, curves, detail, presets and LUTs, masks
 with brush, gradients, ranges and the real AI subject model, layers with blend modes and masks), export formats incl.
-16-bit TIFF, RAW files on the web, Reel and YouTube exports; `e2e/docs.e2e.ts` covers the in-app documentation.
-`e2e/instagram.e2e.ts` covers the photo studio: the batch limit, editing and reordering, a ZIP of 1080 px JPEGs,
-the posting flow, the caption counter, and accessibility. `e2e/editors.e2e.ts` covers layers, drawing and undo, and
+16-bit TIFF, RAW files on the web, Reel and YouTube exports; `tests/e2e/docs.e2e.ts` covers the in-app documentation.
+`tests/e2e/instagram.e2e.ts` covers the photo studio: the batch limit, editing and reordering, a ZIP of 1080 px JPEGs,
+the posting flow, the caption counter, and accessibility. `tests/e2e/editors.e2e.ts` covers layers, drawing and undo, and
 exports a Reel with text and generated music, checking the MP4 (`ftyp`, `moov` before `mdat`, H.264, AAC,
 1080 × 1920); edits the timeline by dragging (trim, reorder) and from the keyboard (split); and exports a YouTube video
 into a stand-in for the browser's save picker, checking that it streamed with fast start at 1920 × 1080. `vite preview` sends the production Content Security Policy (from `nginx/security-headers.conf`), and
@@ -77,7 +106,7 @@ of each failed test.
 
 ## Rules
 
-1. **Test-first for pure logic.** Write the failing Vitest test next to the module, then the code.
+1. **Test-first for pure logic.** Write the failing Vitest test in `tests/unit/` (mirroring the module), then the code.
 2. **Anything that renders gets a self-test check**; preview/export parity is checked against Canvas 2D on every GPU
    backend the machine has.
 3. **Agent tools are tested too.** A feature reachable from `src/agent/tools.ts` is covered by the self-test, and by

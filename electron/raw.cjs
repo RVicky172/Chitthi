@@ -19,13 +19,20 @@ const RAW_MAX = 300 * 1024 * 1024;
 const OUT_MAX = 100e6 * 6 + 64;
 const TIMEOUT_MS = 120_000;
 
+/**
+ * Where dcraw_emu is: the app's resources when packaged, else electron/resources/libraw/<platform>-<arch>.
+ * @returns {string} the program's path
+ */
 function helper() {
   const key = `${process.platform}-${process.arch}`;
   const dir = app.isPackaged ? path.join(process.resourcesPath, 'libraw') : path.join(__dirname, 'resources', 'libraw', key);
   return path.join(dir, process.platform === 'win32' ? 'dcraw_emu.exe' : 'dcraw_emu');
 }
 
-/** True when the RAW developer is installed (packaged builds always; from source after npm run fetch:libraw). */
+/**
+ * Whether the RAW developer is installed (packaged builds always; from source after npm run fetch:libraw).
+ * @returns {Promise<boolean>} true when dcraw_emu is there
+ */
 async function available() {
   try {
     await fsp.access(helper());
@@ -35,52 +42,82 @@ async function available() {
   }
 }
 
-/** A binary 16-bit PPM (P6, maxval 65535) as width, height and little-endian RGB values. Throws on anything else. */
-function parsePpm16(buf) {
-  let i = 0;
+/**
+ * Whether a byte is PPM header whitespace (space, newline, carriage return, tab).
+ * @param {number} byte the byte
+ * @returns {boolean} true for whitespace
+ */
+const isSpace = (byte) => byte === 0x20 || byte === 0x0a || byte === 0x0d || byte === 0x09;
+
+/**
+ * Reads a PPM's four header fields (magic, width, height, maxval), skipping whitespace and `#` comments.
+ * @param {Uint8Array} buf the file's bytes
+ * @returns {{ fields: string[], offset: number }} the fields and where the pixels start
+ * @throws {Error} when the header ends early
+ */
+function ppmHeader(buf) {
+  let pos = 0;
   const fields = [];
   while (fields.length < 4) {
-    while (i < buf.length && (buf[i] === 0x20 || buf[i] === 0x0a || buf[i] === 0x0d || buf[i] === 0x09)) i++;
-    if (buf[i] === 0x23) {
-      while (i < buf.length && buf[i] !== 0x0a) i++;
+    while (pos < buf.length && isSpace(buf[pos])) pos++;
+    if (buf[pos] === 0x23) {
+      while (pos < buf.length && buf[pos] !== 0x0a) pos++;
       continue;
     }
-    let s = '';
-    while (i < buf.length && buf[i] > 0x20) s += String.fromCharCode(buf[i++]);
-    if (!s) throw new Error('Not a PPM image');
-    fields.push(s);
+    let field = '';
+    while (pos < buf.length && buf[pos] > 0x20) field += String.fromCharCode(buf[pos++]);
+    if (!field) throw new Error('Not a PPM image');
+    fields.push(field);
   }
-  i++;
-  const [magic, w, h, max] = [fields[0], +fields[1], +fields[2], +fields[3]];
-  if (magic !== 'P6' || max !== 65535 || !(w > 0 && h > 0) || !Number.isInteger(w) || !Number.isInteger(h))
-    throw new Error('Not a 16-bit PPM image');
-  const n = w * h * 3;
-  if (buf.length - i < n * 2) throw new Error('The PPM image is cut short');
-  const out = new Uint16Array(n);
-  for (let k = 0; k < n; k++) out[k] = (buf[i + k * 2] << 8) | buf[i + k * 2 + 1];
-  return { width: w, height: h, data: out };
+  // One whitespace byte separates the header from the pixels.
+  return { fields, offset: pos + 1 };
 }
 
+/**
+ * Reads a binary 16-bit PPM (P6, maxval 65535), as dcraw_emu writes it.
+ * @param {Uint8Array} buf the file's bytes (a Buffer from dcraw_emu)
+ * @returns {{ width: number, height: number, data: Uint16Array }} the size and the RGB samples
+ * @throws {Error} on any other format or a file cut short
+ */
+function parsePpm16(buf) {
+  const { fields, offset } = ppmHeader(buf);
+  const [magic, width, height, max] = [fields[0], +fields[1], +fields[2], +fields[3]];
+  if (magic !== 'P6' || max !== 65535 || !(width > 0 && height > 0) || !Number.isInteger(width) || !Number.isInteger(height))
+    throw new Error('Not a 16-bit PPM image');
+  const count = width * height * 3;
+  if (buf.length - offset < count * 2) throw new Error('The PPM image is cut short');
+  const out = new Uint16Array(count);
+  for (let sample = 0; sample < count; sample++) out[sample] = (buf[offset + sample * 2] << 8) | buf[offset + sample * 2 + 1];
+  return { width, height, data: out };
+}
+
+/**
+ * Develops a RAW file with dcraw_emu into a 16-bit linear sRGB PPM.
+ * @param {string} file the RAW file's path
+ * @param {boolean} half half size (fast) instead of full size with AHD demosaicing
+ * @returns {Promise<Buffer>} the PPM's bytes
+ * @throws {Error} with dcraw_emu's last message when it fails, times out or writes too much
+ */
 function develop(file, half) {
   // -6 -g 1 1: 16-bit linear; -w: camera white balance; -o 1: sRGB primaries; -q 3: AHD for full size; -Z -: stdout.
   const args = ['-6', '-g', '1', '1', '-w', '-o', '1', ...(half ? ['-h'] : ['-q', '3']), '-Z', '-', file];
   return new Promise((resolve, reject) => {
-    const p = spawn(helper(), args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const child = spawn(helper(), args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     const out = [];
     let size = 0,
       err = '';
-    const timer = setTimeout(() => p.kill(), TIMEOUT_MS);
-    p.stdout.on('data', (c) => {
-      size += c.length;
-      if (size > OUT_MAX) p.kill();
-      else out.push(c);
+    const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
+    child.stdout.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > OUT_MAX) child.kill();
+      else out.push(chunk);
     });
-    p.stderr.on('data', (c) => (err = (err + c).slice(-2000)));
-    p.on('error', (e) => {
+    child.stderr.on('data', (chunk) => (err = (err + chunk).slice(-2000)));
+    child.on('error', (error) => {
       clearTimeout(timer);
-      reject(e);
+      reject(error);
     });
-    p.on('close', (code) => {
+    child.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0 && size <= OUT_MAX) resolve(Buffer.concat(out));
       else reject(new Error(err.trim().split('\n').pop() || `dcraw_emu exited with ${code}`));
@@ -88,10 +125,21 @@ function develop(file, half) {
   });
 }
 
+/**
+ * The bytes the page sent, as a Uint8Array.
+ * @param {unknown} bytes a Uint8Array or an ArrayBuffer
+ * @returns {Uint8Array | null} the bytes, or null for anything else
+ */
+function bytesOf(bytes) {
+  if (bytes instanceof Uint8Array) return bytes;
+  return bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : null;
+}
+
+/** Registers the RAW IPC handlers: whether the developer is installed, and developing a file's bytes. */
 function registerRaw() {
   handle('raw:available', () => available());
   handle('raw:develop', async (_e, bytes, name, opts) => {
-    const data = bytes instanceof Uint8Array ? bytes : bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : null;
+    const data = bytesOf(bytes);
     const ext = typeof name === 'string' && name.length <= 255 ? path.extname(name).toLowerCase() : '';
     if (!data || !data.length || data.length > RAW_MAX) throw new Error('That RAW file is empty or larger than 300 MB.');
     if (!RAW_EXTS.has(ext)) throw new Error('That isn’t a camera RAW file.');
@@ -103,8 +151,9 @@ function registerRaw() {
       let ppm;
       try {
         ppm = await develop(file, !(opts && opts.half === false));
-      } catch (e) {
-        throw new Error(`This RAW file couldn’t be developed${e && e.message ? ` (${e.message})` : ''}.`, { cause: e });
+      } catch (error) {
+        const reason = error && error.message ? ` (${error.message})` : '';
+        throw new Error(`This RAW file couldn’t be developed${reason}.`, { cause: error });
       }
       const img = parsePpm16(ppm);
       return { width: img.width, height: img.height, data: img.data };

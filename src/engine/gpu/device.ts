@@ -8,6 +8,7 @@ import type { GpuBackend, GpuDevice } from './types';
  * A lost device (driver reset, too many contexts) is dropped; the next openGpu() opens a fresh one.
  */
 
+/** Which backend to open: one of them, or the best available. */
 export type GpuPreference = GpuBackend | 'auto';
 
 let current: GpuDevice | null = null;
@@ -15,11 +16,16 @@ let opening: Promise<GpuDevice | null> | null = null;
 let openedWith: GpuPreference | null = null;
 let pool: TexturePool | null = null;
 
+/**
+ * Opens a device: WebGPU unless WebGL2 is asked for, else WebGL2 (unless only WebGPU is asked for).
+ * @param prefer which backend
+ * @returns the device, or null when none could be opened
+ */
 async function open(prefer: GpuPreference): Promise<GpuDevice | null> {
   if (prefer !== 'webgl2') {
     const { openWebGPU } = await import('./webgpu');
-    const d = await openWebGPU().catch(() => null);
-    if (d || prefer === 'webgpu') return d;
+    const device = await openWebGPU().catch(() => null);
+    if (device || prefer === 'webgpu') return device;
   }
   const { openWebGL2 } = await import('./webgl2');
   try {
@@ -29,21 +35,28 @@ async function open(prefer: GpuPreference): Promise<GpuDevice | null> {
   }
 }
 
-/** Opens (or reuses) the device. Resolves to null when this browser has no usable GPU path. */
+/**
+ * Opens (or reuses) the device.
+ * @param prefer which backend
+ * @returns the device, or null when this browser has no usable GPU path
+ */
 export function openGpu(prefer: GpuPreference = 'auto'): Promise<GpuDevice | null> {
   if (current && !current.lost && openedWith === prefer) return Promise.resolve(current);
   if (opening && openedWith === prefer) return opening;
   if (current) closeGpu();
   openedWith = prefer;
-  opening = open(prefer).then((d) => {
-    current = d;
+  opening = open(prefer).then((device) => {
+    current = device;
     opening = null;
-    return d;
+    return device;
   });
   return opening;
 }
 
-/** The open device, or null (not opened yet, none available, or lost since). Safe to call while drawing. */
+/**
+ * The open device. Safe to call while drawing.
+ * @returns the device, or null (not opened yet, none available, or lost since)
+ */
 export function gpu(): GpuDevice | null {
   if (current?.lost) {
     current = null;
@@ -52,12 +65,17 @@ export function gpu(): GpuDevice | null {
   return current;
 }
 
-/** The texture pool of the open device, made on first use. */
-export function gpuPool(dev: GpuDevice): TexturePool {
-  if (!pool || dev !== current) pool = new TexturePool(dev);
+/**
+ * The texture pool of the open device, made on first use.
+ * @param device the open device
+ * @returns its pool
+ */
+export function gpuPool(device: GpuDevice): TexturePool {
+  if (!pool || device !== current) pool = new TexturePool(device);
   return pool;
 }
 
+/** Closes the device and its pool; the next openGpu() opens a fresh one. */
 export function closeGpu(): void {
   pool?.clear();
   pool = null;
@@ -67,7 +85,10 @@ export function closeGpu(): void {
   openedWith = null;
 }
 
-/** Which GPU paths this browser offers, without opening a device. For settings and error reports. */
+/**
+ * Which GPU paths this browser offers, without opening a device. For settings and error reports.
+ * @returns whether WebGPU and WebGL2 are there
+ */
 export function gpuSupport(): { webgpu: boolean; webgl2: boolean } {
   const webgpu = typeof navigator !== 'undefined' && !!navigator.gpu;
   let webgl2 = false;

@@ -1,386 +1,520 @@
+import type { jsPDF } from 'jspdf';
 import { layoutName } from '../data/layouts';
 import { PRINT_SPECS, QUOTE_QTY } from '../data/printSpecs';
-import { MONTHS, productOf } from '../data/products';
+import { productOf } from '../data/products';
 import { creditsText } from '../lib/credits';
 import { crc32, makeZip, type ZipEntry } from '../lib/zip';
 import type { Design, RenderInput, Side } from '../types';
-import { calPages, cardMM, sizeOf } from './design';
-import { envelopeSpec, envelopeSummary, renderEnvelope, renderEnvelopeTemplate, templateSheet } from './envelope';
-import { calMonth, renderCard } from './render';
+import { calMonth } from './calendarDraw';
+import { cardMM, sizeOf } from './design';
+import { envelopeSpec, envelopeSummary, templateSheet } from './envelope';
+import { renderEnvelope } from './envelopeDraw';
+import { renderEnvelopeTemplate } from './envelopeTemplate';
+import { baseName, bleedText, monthName, nup, pagesOf, round1, SHEETS, type Imposition, type PrintPage } from './printPages';
+import { renderCard } from './render';
 
-export const SHEETS: Record<Design['exp']['sheet'], [number, number, string]> = {
-  a4: [210, 297, 'A4'],
-  a3: [297, 420, 'A3'],
-  '1319': [330.2, 482.6, '13×19 in'],
-  letter: [215.9, 279.4, 'Letter'],
-};
+/*
+ * Print files: the print PDF (one page per side, or several cards per sheet), PNGs tagged with their dpi, the print
+ * shop's specification, the envelope's files and the whole print pack as a ZIP. Loaded with import() when exporting.
+ */
 
-/** One printed side: postcards and frames have one front; calendars have a front page per month. */
-export interface PrintPage {
-  side: Side;
-  page: number;
-  /** Used in file names, e.g. "front", "front-03-march", "back". */
-  tag: string;
-  label: string;
+/**
+ * A side drawn at the export's resolution and bleed.
+ * @param page the side and page
+ * @param input the design and its photos
+ * @returns the canvas
+ */
+function cardCanvas(page: Pick<PrintPage, 'side' | 'page'>, input: RenderInput): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  renderCard(canvas, page.side, +input.d.exp.dpi / 25.4, +input.d.exp.bleed, input, { page: page.page });
+  return canvas;
 }
 
-export function pagesOf(d: Design): PrintPage[] {
-  const out: PrintPage[] = [];
-  const n = calPages(d);
-  for (let p = 0; p < n; p++) {
-    if (d.product === 'calendar') {
-      const { year, month } = calMonth(d, p);
-      out.push({
-        side: 'front',
-        page: p,
-        tag: d.layout === 'cal-strip' ? 'front-year' : `front-${String(p + 1).padStart(2, '0')}-${MONTHS[month].toLowerCase()}`,
-        label: d.layout === 'cal-strip' ? 'Year strip' : `${MONTHS[month]} ${year}`,
-      });
-    } else out.push({ side: 'front', page: 0, tag: 'front', label: 'Front' });
+/**
+ * A canvas turned a quarter.
+ * @param canvas the canvas
+ * @param direction 1 clockwise, -1 the other way
+ * @returns the turned copy
+ */
+function rotate(canvas: HTMLCanvasElement, direction: 1 | -1): HTMLCanvasElement {
+  const turned = document.createElement('canvas');
+  turned.width = canvas.height;
+  turned.height = canvas.width;
+  const ctx = turned.getContext('2d');
+  if (ctx) {
+    ctx.translate(turned.width / 2, turned.height / 2);
+    ctx.rotate((direction * Math.PI) / 2);
+    ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
   }
-  if (d.exp.back && d.product !== 'magnet') out.push({ side: 'back', page: 0, tag: 'back', label: productOf(d.product).backLabel });
-  return out;
+  return turned;
 }
 
-/** How many cards fit on the chosen sheet (tries both rotations). */
-export function nup(d: Design) {
-  const { w, h } = cardMM(d),
-    b = +d.exp.bleed,
-    gap = d.exp.marks ? 10 : 4,
-    [SW, SH] = SHEETS[d.exp.sheet],
-    m = 8;
-  const fit = (cw: number, ch: number) => ({
-    cols: Math.max(0, Math.floor((SW - 2 * m + gap) / (cw + gap))),
-    rows: Math.max(0, Math.floor((SH - 2 * m + gap) / (ch + gap))),
+/**
+ * Lets the page breathe between heavy steps.
+ * @returns after 20 ms
+ */
+const tick = (): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 20);
   });
-  const a = fit(w + 2 * b, h + 2 * b),
-    r = fit(h + 2 * b, w + 2 * b),
-    rot = r.cols * r.rows > a.cols * a.rows,
-    f = rot ? r : a;
-  return {
-    ...f,
-    rot,
-    cw: rot ? h + 2 * b : w + 2 * b,
-    ch: rot ? w + 2 * b : h + 2 * b,
-    gap,
-    SW,
-    SH,
-    b,
-    w: rot ? h : w,
-    h: rot ? w : h,
-  };
+
+/** A file built. */
+export interface BuiltFile {
+  blob: Blob;
+  name: string;
 }
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const bleedText = (b: number) => (b === 3.175 ? '⅛ in (3.175 mm)' : `${b} mm`);
+/** How pages become images in the PDF. */
+interface PdfImages {
+  /** jsPDF's image format. */
+  format: 'PNG' | 'JPEG';
+  /** A canvas as a data URL. */
+  data: (canvas: HTMLCanvasElement) => string;
+}
 
-export function exportSummary(inp: RenderInput): string {
-  const d = inp.d,
-    { w, h } = cardMM(d),
-    b = +d.exp.bleed,
-    dpi = +d.exp.dpi;
-  const W = Math.round(((w + 2 * b) / 25.4) * dpi),
-    H = Math.round(((h + 2 * b) / 25.4) * dpi);
-  const pages = pagesOf(d).length;
-  let s = `Each side: ${round1(w + 2 * b)} × ${round1(h + 2 * b)} mm${b ? ` (trim size plus ${bleedText(b)} bleed on every edge)` : ''}, ${W} × ${H} px at ${dpi} dpi. ${pages} page${pages > 1 ? 's' : ''} in total.`;
-  if (d.exp.format === 'sheet') {
-    const n = nup(d),
-      name = SHEETS[d.exp.sheet][2];
-    s +=
-      n.cols * n.rows
-        ? ` ${n.cols * n.rows} per ${name} sheet${n.rot ? ', turned sideways' : ''}.`
-        : ` This is too big for ${name}. Pick a larger sheet.`;
+/** A trim box's crop marks: its corner, size, the gap before the marks and their length, mm. */
+interface CropMarks {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  gap: number;
+  length: number;
+}
+
+/**
+ * Crop marks at a trim box's four corners.
+ * @param doc the PDF
+ * @param marks the box and the marks' gap and length
+ */
+function drawCropMarks(doc: jsPDF, marks: CropMarks): void {
+  const { x, y, w, h, gap, length } = marks;
+  doc.setLineWidth(0.12);
+  doc.setDrawColor(0);
+  const corners: [number, number, number, number][] = [
+    [x, y, -1, -1],
+    [x + w, y, 1, -1],
+    [x, y + h, -1, 1],
+    [x + w, y + h, 1, 1],
+  ];
+  for (const [cornerX, cornerY, outX, outY] of corners) {
+    doc.line(cornerX + outX * gap, cornerY, cornerX + outX * (gap + length), cornerY);
+    doc.line(cornerX, cornerY + outY * gap, cornerX, cornerY + outY * (gap + length));
   }
-  if (!inp.photos.length) s += ' No photos yet, so photo areas will show the background.';
-  return s;
 }
 
-export function baseName(d: Design): string {
-  const n = d.designName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40);
-  if (n) return `chitthi-${n}-${sizeOf(d).id}`;
-  return `chitthi-${d.product}-${d.useOccasion ? d.themeId : 'plain'}-${sizeOf(d).id}-${d.orient === 'landscape' ? 'horizontal' : 'vertical'}`;
-}
-
-function cardCanvas(pg: Pick<PrintPage, 'side' | 'page'>, inp: RenderInput): HTMLCanvasElement {
-  const cv = document.createElement('canvas');
-  renderCard(cv, pg.side, +inp.d.exp.dpi / 25.4, +inp.d.exp.bleed, inp, { page: pg.page });
-  return cv;
-}
-function rotate(cv: HTMLCanvasElement, dir: 1 | -1): HTMLCanvasElement {
-  const o = document.createElement('canvas');
-  o.width = cv.height;
-  o.height = cv.width;
-  const c = o.getContext('2d');
-  if (c) {
-    c.translate(o.width / 2, o.height / 2);
-    c.rotate((dir * Math.PI) / 2);
-    c.drawImage(cv, -cv.width / 2, -cv.height / 2);
-  }
-  return o;
-}
-const tick = () => new Promise((r) => setTimeout(r, 20));
-
-/** Print PDF. `format` overrides the design's choice (the print pack always includes a PDF). */
-export async function buildPDF(inp: RenderInput, format: 'pdf' | 'sheet' = inp.d.exp.format === 'sheet' ? 'sheet' : 'pdf') {
-  const { jsPDF } = await import('jspdf');
-  const d = inp.d,
-    png = d.exp.quality === 'png',
-    fmt = png ? 'PNG' : 'JPEG';
-  const data = (cv: HTMLCanvasElement) => (png ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.95));
-  const pages = pagesOf(d);
-  type Doc = InstanceType<typeof jsPDF>;
-  const marks = (doc: Doc, tx: number, ty: number, w: number, h: number, g: number, len: number) => {
-    doc.setLineWidth(0.12);
-    doc.setDrawColor(0);
-    for (const [x, y, sx, sy] of [
-      [tx, ty, -1, -1],
-      [tx + w, ty, 1, -1],
-      [tx, ty + h, -1, 1],
-      [tx + w, ty + h, 1, 1],
-    ]) {
-      doc.line(x + sx * g, y, x + sx * (g + len), y);
-      doc.line(x, y + sy * g, x, y + sy * (g + len));
-    }
-  };
-
-  if (format === 'pdf') {
-    const { w, h } = cardMM(d),
-      b = +d.exp.bleed,
-      slug = d.exp.marks ? 9 : 0,
-      pw = w + 2 * b + 2 * slug,
-      ph = h + 2 * b + 2 * slug;
-    const or = pw > ph ? 'l' : 'p';
-    const doc = new jsPDF({ unit: 'mm', format: [pw, ph], orientation: or, compress: true });
-    for (let i = 0; i < pages.length; i++) {
-      if (i) doc.addPage([pw, ph], or);
-      await tick();
-      doc.addImage(data(cardCanvas(pages[i], inp)), fmt, slug, slug, w + 2 * b, h + 2 * b, pages[i].tag, 'FAST');
-      if (d.exp.marks) {
-        marks(doc, slug + b, slug + b, w, h, b + 1.5, slug - 2);
-        doc.setFontSize(5);
-        doc.setTextColor(120);
-        doc.text(`${pages[i].label} · ${round1(w)}×${round1(h)} mm trim · bleed ${bleedText(b)}`, slug + b, ph - 2.5);
-      }
-    }
-    return { blob: doc.output('blob'), name: `${baseName(d)}-print.pdf` };
-  }
-
-  const n = nup(d);
-  if (!(n.cols * n.rows)) throw new Error('This doesn’t fit on the chosen sheet. Choose a larger sheet.');
-  const doc = new jsPDF({ unit: 'mm', format: [n.SW, n.SH], orientation: 'p', compress: true });
-  const gw = n.cols * n.cw + (n.cols - 1) * n.gap,
-    gh = n.rows * n.ch + (n.rows - 1) * n.gap,
-    x0 = (n.SW - gw) / 2,
-    y0 = (n.SH - gh) / 2;
-  const hasBack = pages.some((p) => p.side === 'back');
-  for (let pi = 0; pi < pages.length; pi++) {
-    const pg = pages[pi];
-    if (pi) doc.addPage([n.SW, n.SH], 'p');
+/**
+ * The print PDF with one page per side, at document size (with crop marks on a slug when asked).
+ * @param input the design and its photos
+ * @param images how pages become images
+ * @param PdfDocument jsPDF
+ * @returns the file
+ */
+async function pagePdf(input: RenderInput, images: PdfImages, PdfDocument: typeof jsPDF): Promise<BuiltFile> {
+  const design = input.d;
+  const { w, h } = cardMM(design);
+  const bleed = +design.exp.bleed;
+  const slug = design.exp.marks ? 9 : 0;
+  const pageWidth = w + 2 * bleed + 2 * slug;
+  const pageHeight = h + 2 * bleed + 2 * slug;
+  const orientation = pageWidth > pageHeight ? 'l' : 'p';
+  const doc = new PdfDocument({ unit: 'mm', format: [pageWidth, pageHeight], orientation, compress: true });
+  const pages = pagesOf(design);
+  for (const [index, page] of pages.entries()) {
+    if (index) doc.addPage([pageWidth, pageHeight], orientation);
     await tick();
-    let cv = cardCanvas(pg, inp);
-    if (n.rot) cv = rotate(cv, pg.side === 'front' ? 1 : -1);
-    const img = data(cv);
-    for (let r = 0; r < n.rows; r++)
-      for (let c = 0; c < n.cols; c++) {
-        const cc = pg.side === 'back' ? n.cols - 1 - c : c; // mirrored so backs line up when flipped on the long edge
-        const x = x0 + cc * (n.cw + n.gap),
-          y = y0 + r * (n.ch + n.gap);
-        doc.addImage(img, fmt, x, y, n.cw, n.ch, 'img' + pi, 'FAST');
-        if (d.exp.marks) marks(doc, x + n.b, y + n.b, n.w, n.h, n.b + 1, 3);
-      }
+    doc.addImage(images.data(cardCanvas(page, input)), images.format, slug, slug, w + 2 * bleed, h + 2 * bleed, page.tag, 'FAST');
+    if (design.exp.marks) {
+      drawCropMarks(doc, { x: slug + bleed, y: slug + bleed, w, h, gap: bleed + 1.5, length: slug - 2 });
+      doc.setFontSize(5);
+      doc.setTextColor(120);
+      doc.text(`${page.label} · ${round1(w)}×${round1(h)} mm trim · bleed ${bleedText(bleed)}`, slug + bleed, pageHeight - 2.5);
+    }
+  }
+  return { blob: doc.output('blob'), name: `${baseName(design)}-print.pdf` };
+}
+
+/**
+ * Lays one side's image on a sheet as often as it fits; backs are mirrored so they line up when flipped on the long edge.
+ * @param doc the PDF
+ * @param imposition how cards sit on the sheet
+ * @param side the side
+ * @param image the side's image, its format and its alias
+ * @param image.data the image as a data URL
+ * @param image.format jsPDF's image format
+ * @param image.alias the image's name in the PDF
+ * @param marks whether to draw crop marks
+ */
+function fillSheet(doc: jsPDF, imposition: Imposition, side: Side, image: { data: string; format: PdfImages['format']; alias: string }, marks: boolean): void {
+  const gridWidth = imposition.cols * imposition.cw + (imposition.cols - 1) * imposition.gap;
+  const gridHeight = imposition.rows * imposition.ch + (imposition.rows - 1) * imposition.gap;
+  const left = (imposition.SW - gridWidth) / 2;
+  const top = (imposition.SH - gridHeight) / 2;
+  for (let row = 0; row < imposition.rows; row++) {
+    for (let column = 0; column < imposition.cols; column++) {
+      const placed = side === 'back' ? imposition.cols - 1 - column : column;
+      const x = left + placed * (imposition.cw + imposition.gap);
+      const y = top + row * (imposition.ch + imposition.gap);
+      doc.addImage(image.data, image.format, x, y, imposition.cw, imposition.ch, image.alias, 'FAST');
+      if (marks) drawCropMarks(doc, { x: x + imposition.b, y: y + imposition.b, w: imposition.w, h: imposition.h, gap: imposition.b + 1, length: 3 });
+    }
+  }
+}
+
+/**
+ * The print PDF with several cards per sheet.
+ * @param input the design and its photos
+ * @param images how pages become images
+ * @param PdfDocument jsPDF
+ * @returns the file
+ * @throws {Error} when no card fits on the sheet
+ */
+async function sheetPdf(input: RenderInput, images: PdfImages, PdfDocument: typeof jsPDF): Promise<BuiltFile> {
+  const design = input.d;
+  const pages = pagesOf(design);
+  const imposition = nup(design);
+  if (!(imposition.cols * imposition.rows)) throw new Error('This doesn’t fit on the chosen sheet. Choose a larger sheet.');
+  const doc = new PdfDocument({ unit: 'mm', format: [imposition.SW, imposition.SH], orientation: 'p', compress: true });
+  const hasBack = pages.some((page) => page.side === 'back');
+  const duplex = hasBack && design.product !== 'calendar' ? ', double-sided, flip on long edge' : '';
+  for (const [index, page] of pages.entries()) {
+    if (index) doc.addPage([imposition.SW, imposition.SH], 'p');
+    await tick();
+    let canvas = cardCanvas(page, input);
+    if (imposition.rot) canvas = rotate(canvas, page.side === 'front' ? 1 : -1);
+    fillSheet(doc, imposition, page.side, { data: images.data(canvas), format: images.format, alias: `img${index}` }, design.exp.marks);
     doc.setFontSize(7);
     doc.setTextColor(120);
-    doc.text(
-      `${pg.label} – print at 100% (actual size)${hasBack && d.product !== 'calendar' ? ', double-sided, flip on long edge' : ''}`,
-      n.SW / 2,
-      n.SH - 4,
-      { align: 'center' },
-    );
+    doc.text(`${page.label} – print at 100% (actual size)${duplex}`, imposition.SW / 2, imposition.SH - 4, { align: 'center' });
   }
-  return { blob: doc.output('blob'), name: `${baseName(d)}-${d.exp.sheet}-sheet.pdf` };
+  return { blob: doc.output('blob'), name: `${baseName(design)}-${design.exp.sheet}-sheet.pdf` };
 }
 
-/** PNG with a pHYs chunk so printers read the intended dpi. */
-export async function buildPNG(pg: Pick<PrintPage, 'side' | 'page' | 'tag'>, inp: RenderInput): Promise<{ blob: Blob; name: string }> {
-  const cv = cardCanvas(pg, inp),
-    dpi = +inp.d.exp.dpi;
-  const blob = await new Promise<Blob>((res, rej) =>
-    cv.toBlob((b) => (b ? res(b) : rej(new Error('The image couldn’t be created.'))), 'image/png'),
-  );
-  const buf = new Uint8Array(await blob.arrayBuffer()),
-    name = `${baseName(inp.d)}-${pg.tag}.png`;
-  if (new TextDecoder('latin1').decode(buf.subarray(0, Math.min(200, buf.length))).includes('pHYs')) return { blob, name };
-  const ppm = Math.round(dpi / 0.0254),
-    ch = new Uint8Array(21),
-    dv = new DataView(ch.buffer);
-  dv.setUint32(0, 9);
-  ch.set([112, 72, 89, 115], 4);
-  dv.setUint32(8, ppm);
-  dv.setUint32(12, ppm);
-  ch[16] = 1;
-  dv.setUint32(17, crc32(ch.subarray(4, 17)));
-  const out = new Uint8Array(buf.length + 21);
-  out.set(buf.subarray(0, 33));
-  out.set(ch, 33);
-  out.set(buf.subarray(33), 54);
-  return { blob: new Blob([out], { type: 'image/png' }), name };
+/**
+ * The print PDF.
+ * @param input the design and its photos
+ * @param format one page per side ('pdf') or several per sheet; overrides the design's choice (the print pack always
+ *   includes a PDF)
+ * @returns the file
+ */
+export async function buildPDF(input: RenderInput, format: 'pdf' | 'sheet' = input.d.exp.format === 'sheet' ? 'sheet' : 'pdf'): Promise<BuiltFile> {
+  const { jsPDF: PdfDocument } = await import('jspdf');
+  const png = input.d.exp.quality === 'png';
+  const images: PdfImages = {
+    format: png ? 'PNG' : 'JPEG',
+    data: (canvas) => (png ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95)),
+  };
+  return format === 'pdf' ? pagePdf(input, images, PdfDocument) : sheetPdf(input, images, PdfDocument);
 }
 
-/** Plain-text brief for the print shop: sizes, bleed, safe area, resolution, paper and how to print each file. */
-export function printSpec(inp: RenderInput, files: string[]): string {
-  const d = inp.d,
-    prod = productOf(d.product),
-    size = sizeOf(d),
-    { w, h } = cardMM(d),
-    b = +d.exp.bleed,
-    dpi = +d.exp.dpi,
-    px = (mm: number) => Math.round((mm / 25.4) * dpi),
-    inch = (mm: number) => round1(mm / 25.4),
-    pages = pagesOf(d),
-    hasBack = pages.some((p) => p.side === 'back');
-  const L: string[] = [];
-  const line = (k: string, v: string) => L.push(`${(k ? k + ':' : '').padEnd(22)}${v}`);
-  L.push('CHITTHI – PRINT SPECIFICATION', '='.repeat(60), '');
-  line('Item', `${prod.name}${d.designName.trim() ? ` – “${d.designName.trim()}”` : ''}`);
-  line('Size', `${size.name}, ${d.orient === 'landscape' ? 'horizontal' : 'vertical'}`);
-  line('Layout', layoutName(d.layout));
-  if (d.product === 'calendar') {
-    const a = calMonth(d, 0),
-      z = calMonth(d, d.cal.months - 1);
-    const strip = d.layout === 'cal-strip',
-      zz = strip ? calMonth({ ...d, cal: { ...d.cal, months: 12 } }, 11) : z;
-    line(
-      'Months',
-      `${MONTHS[a.month]} ${a.year}${strip ? ` – ${MONTHS[zz.month]} ${zz.year} on one page` : d.cal.months > 1 ? ` – ${MONTHS[z.month]} ${z.year} (${d.cal.months} pages)` : ' (single page)'}`,
-    );
-    line('Week starts on', d.cal.weekStart ? 'Monday' : 'Sunday');
+/**
+ * A canvas as a PNG file.
+ * @param canvas the canvas
+ * @returns the file's bytes
+ * @throws {Error} when the browser makes no PNG
+ */
+const pngBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('The image couldn’t be created.'));
+    }, 'image/png');
+  });
+
+/**
+ * A pHYs chunk: the pixels per metre printers read the dpi from.
+ * @param dpi the resolution
+ * @returns the chunk, length and CRC included
+ */
+function physChunk(dpi: number): Uint8Array {
+  const perMetre = Math.round(dpi / 0.0254);
+  const chunk = new Uint8Array(21);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, 9);
+  chunk.set([112, 72, 89, 115], 4);
+  view.setUint32(8, perMetre);
+  view.setUint32(12, perMetre);
+  chunk[16] = 1;
+  view.setUint32(17, crc32(chunk.subarray(4, 17)));
+  return chunk;
+}
+
+/**
+ * A side as a PNG with a pHYs chunk, so printers read the intended dpi.
+ * @param page the side, page and file-name tag
+ * @param input the design and its photos
+ * @returns the file
+ */
+export async function buildPNG(page: Pick<PrintPage, 'side' | 'page' | 'tag'>, input: RenderInput): Promise<BuiltFile> {
+  const blob = await pngBlob(cardCanvas(page, input));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const name = `${baseName(input.d)}-${page.tag}.png`;
+  if (new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(200, bytes.length))).includes('pHYs')) return { blob, name };
+  // The chunk goes right after the IHDR chunk (33 bytes in).
+  const tagged = new Uint8Array(bytes.length + 21);
+  tagged.set(bytes.subarray(0, 33));
+  tagged.set(physChunk(+input.d.exp.dpi), 33);
+  tagged.set(bytes.subarray(33), 54);
+  return { blob: new Blob([tagged], { type: 'image/png' }), name };
+}
+
+/** Writes the specification: label–value lines and section headings. */
+class SpecWriter {
+  readonly lines: string[] = [];
+
+  /**
+   * A label and its value, the value in a column.
+   * @param label the label ('' continues the line before)
+   * @param value the value
+   */
+  line(label: string, value: string): void {
+    this.lines.push(`${(label ? label + ':' : '').padEnd(22)}${value}`);
   }
-  if (d.product === 'magnet')
-    line('Shape', size.shape === 'circle' ? 'Round: cut on the trim circle' : `Rounded corners, ${size.corner ?? 3} mm radius (corner punch after trimming)`);
-  if (d.product === 'frame') line('Mat border', { none: 'None (borderless)', thin: 'Thin', classic: 'Classic', wide: 'Wide' }[d.mat]);
-  L.push('', 'DIMENSIONS', '-'.repeat(60));
-  line('Trim (final) size', `${round1(w)} × ${round1(h)} mm  (${inch(w)} × ${inch(h)} in)`);
-  line('Bleed', b ? `${bleedText(b)} on every edge` : 'None – print edge to edge is not possible without bleed');
-  line('Document size', `${round1(w + 2 * b)} × ${round1(h + 2 * b)} mm  (trim + bleed)`);
-  line('Safe area', `Keep text and faces ${b ? '4 mm' : '5 mm'} inside the trim: ${round1(w - 8)} × ${round1(h - 8)} mm`);
-  line('Resolution', `${dpi} dpi → ${px(w + 2 * b)} × ${px(h + 2 * b)} px per page`);
-  line('Colour', 'sRGB. Digital presses print it as is; offset printers convert to CMYK (expect slightly duller brights).');
-  L.push('', 'PRINTING', '-'.repeat(60));
-  const ps = PRINT_SPECS[d.product];
-  line('One piece', ps.piece);
-  line('Material', ps.stock);
-  line('Weight', ps.weight);
-  line('Finish', ps.finish);
-  line('Colour', ps.colour);
-  ps.finishing.forEach((f, i) => line(i ? '' : 'Finishing', f));
-  line('Paper advice', prod.paper);
-  line('Scale', 'Print at 100% / actual size. Never “fit to page”.');
-  if (hasBack && d.product === 'postcard') line('Sides', 'Double-sided: front on side 1, back on side 2, flip on the LONG edge.');
-  else if (hasBack && d.product === 'calendar')
-    line('Sides', 'Single-sided pages: one per month, plus the year-at-a-glance page as the back cover.');
-  else if (hasBack) line('Sides', 'Front is the photo print; the back label is optional (print it on the reverse, or as a sticker).');
-  else if (d.product === 'magnet') line('Sides', 'Single-sided print, mounted on magnetic sheet.');
-  else line('Sides', 'Single-sided.');
-  line('Cutting', b ? `Cut on the trim line, ${bleedText(b)} in from each edge of the file. Crop marks show where.` : 'Files are exactly trim size.');
-  if (d.exp.format === 'sheet') {
-    const n = nup(d);
-    line('Imposition', `${n.cols * n.rows} up on ${SHEETS[d.exp.sheet][2]} in the sheet PDF (backs mirrored for long-edge duplex).`);
+
+  /**
+   * A section's heading, after a blank line.
+   * @param title the heading
+   */
+  heading(title: string): void {
+    this.lines.push('', title, '-'.repeat(60));
   }
-  if (d.env.on) {
-    const es = envelopeSpec(d),
-      sh = templateSheet(d);
-    L.push('', 'ENVELOPE', '-'.repeat(60));
-    line('Size', envelopeSummary(d));
-    line('Ready-made envelope', `Buy ${es.name} envelopes and print the envelope PDF on them (page 1: address side), or print only the front.`);
-    if (sh)
-      line('Fold your own', `Print the template on ${sh.name} (120–160 gsm), cut on solid lines, fold on dashed lines, glue the bottom flap to the side flaps.`);
+}
+
+/**
+ * A calendar's months as the spec shows them.
+ * @param design the design
+ * @returns e.g. "January 2027 – December 2027 (12 pages)"
+ */
+function monthsText(design: Design): string {
+  const first = calMonth(design, 0);
+  const last = calMonth(design, design.cal.months - 1);
+  const start = `${monthName(first.month)} ${first.year}`;
+  if (design.layout === 'cal-strip') {
+    const yearEnd = calMonth({ ...design, cal: { ...design.cal, months: 12 } }, 11);
+    return `${start} – ${monthName(yearEnd.month)} ${yearEnd.year} on one page`;
   }
-  L.push('', 'QUOTE', '-'.repeat(60));
-  line('Quote request', `See ${baseName(d)}-QUOTE-REQUEST.pdf: previews, this spec and a price grid`);
-  line('Quantities to price', QUOTE_QTY.join(', ') + ' pieces');
-  L.push('', 'FILES IN THIS PACK', '-'.repeat(60));
-  for (const f of files) L.push(`  ${f}`);
-  L.push(
+  if (design.cal.months > 1) return `${start} – ${monthName(last.month)} ${last.year} (${design.cal.months} pages)`;
+  return `${start} (single page)`;
+}
+
+/**
+ * The item: product, size, layout and what is particular to the product.
+ * @param spec the writer
+ * @param design the design
+ */
+function itemSection(spec: SpecWriter, design: Design): void {
+  const size = sizeOf(design);
+  const named = design.designName.trim() ? ` – “${design.designName.trim()}”` : '';
+  spec.line('Item', `${productOf(design.product).name}${named}`);
+  spec.line('Size', `${size.name}, ${design.orient === 'landscape' ? 'horizontal' : 'vertical'}`);
+  spec.line('Layout', layoutName(design.layout));
+  if (design.product === 'calendar') {
+    spec.line('Months', monthsText(design));
+    spec.line('Week starts on', design.cal.weekStart ? 'Monday' : 'Sunday');
+  }
+  if (design.product === 'magnet') {
+    spec.line('Shape', size.shape === 'circle' ? 'Round: cut on the trim circle' : `Rounded corners, ${size.corner ?? 3} mm radius (corner punch after trimming)`);
+  }
+  if (design.product === 'frame') spec.line('Mat border', { none: 'None (borderless)', thin: 'Thin', classic: 'Classic', wide: 'Wide' }[design.mat]);
+}
+
+/**
+ * The dimensions: trim, bleed, document size, safe area, resolution and colour.
+ * @param spec the writer
+ * @param design the design
+ */
+function dimensionsSection(spec: SpecWriter, design: Design): void {
+  const { w, h } = cardMM(design);
+  const bleed = +design.exp.bleed;
+  const dpi = +design.exp.dpi;
+  const pixels = (mm: number) => String(Math.round((mm / 25.4) * dpi));
+  const inches = (mm: number) => String(round1(mm / 25.4));
+  spec.heading('DIMENSIONS');
+  spec.line('Trim (final) size', `${round1(w)} × ${round1(h)} mm  (${inches(w)} × ${inches(h)} in)`);
+  spec.line('Bleed', bleed ? `${bleedText(bleed)} on every edge` : 'None – print edge to edge is not possible without bleed');
+  spec.line('Document size', `${round1(w + 2 * bleed)} × ${round1(h + 2 * bleed)} mm  (trim + bleed)`);
+  spec.line('Safe area', `Keep text and faces ${bleed ? '4 mm' : '5 mm'} inside the trim: ${round1(w - 8)} × ${round1(h - 8)} mm`);
+  spec.line('Resolution', `${dpi} dpi → ${pixels(w + 2 * bleed)} × ${pixels(h + 2 * bleed)} px per page`);
+  spec.line('Colour', 'sRGB. Digital presses print it as is; offset printers convert to CMYK (expect slightly duller brights).');
+}
+
+/**
+ * How the sides are printed.
+ * @param design the design
+ * @param hasBack whether a back is printed
+ * @returns the spec's Sides line
+ */
+function sidesText(design: Design, hasBack: boolean): string {
+  if (hasBack && design.product === 'postcard') return 'Double-sided: front on side 1, back on side 2, flip on the LONG edge.';
+  if (hasBack && design.product === 'calendar') return 'Single-sided pages: one per month, plus the year-at-a-glance page as the back cover.';
+  if (hasBack) return 'Front is the photo print; the back label is optional (print it on the reverse, or as a sticker).';
+  if (design.product === 'magnet') return 'Single-sided print, mounted on magnetic sheet.';
+  return 'Single-sided.';
+}
+
+/**
+ * Printing: the product's print specification, paper, scale, sides, cutting and imposition.
+ * @param spec the writer
+ * @param design the design
+ * @param hasBack whether a back is printed
+ */
+function printingSection(spec: SpecWriter, design: Design, hasBack: boolean): void {
+  const bleed = +design.exp.bleed;
+  const print = PRINT_SPECS[design.product];
+  spec.heading('PRINTING');
+  spec.line('One piece', print.piece);
+  spec.line('Material', print.stock);
+  spec.line('Weight', print.weight);
+  spec.line('Finish', print.finish);
+  spec.line('Colour', print.colour);
+  print.finishing.forEach((finishing, index) => {
+    spec.line(index ? '' : 'Finishing', finishing);
+  });
+  spec.line('Paper advice', productOf(design.product).paper);
+  spec.line('Scale', 'Print at 100% / actual size. Never “fit to page”.');
+  spec.line('Sides', sidesText(design, hasBack));
+  spec.line('Cutting', bleed ? `Cut on the trim line, ${bleedText(bleed)} in from each edge of the file. Crop marks show where.` : 'Files are exactly trim size.');
+  if (design.exp.format === 'sheet') {
+    const imposition = nup(design);
+    spec.line('Imposition', `${imposition.cols * imposition.rows} up on ${SHEETS[design.exp.sheet][2]} in the sheet PDF (backs mirrored for long-edge duplex).`);
+  }
+}
+
+/**
+ * The envelope: its size, a ready-made one, and the fold-your-own template.
+ * @param spec the writer
+ * @param design the design
+ */
+function envelopeSection(spec: SpecWriter, design: Design): void {
+  const envelope = envelopeSpec(design);
+  const sheet = templateSheet(design);
+  spec.heading('ENVELOPE');
+  spec.line('Size', envelopeSummary(design));
+  spec.line('Ready-made envelope', `Buy ${envelope.name} envelopes and print the envelope PDF on them (page 1: address side), or print only the front.`);
+  if (sheet) {
+    spec.line('Fold your own', `Print the template on ${sheet.name} (120–160 gsm), cut on solid lines, fold on dashed lines, glue the bottom flap to the side flaps.`);
+  }
+}
+
+/**
+ * The plain-text brief for the print shop: sizes, bleed, safe area, resolution, paper and how to print each file.
+ * @param input the design and its photos
+ * @param files the pack's file names
+ * @returns the text
+ */
+export function printSpec(input: RenderInput, files: string[]): string {
+  const design = input.d;
+  const hasBack = pagesOf(design).some((page) => page.side === 'back');
+  const spec = new SpecWriter();
+  spec.lines.push('CHITTHI – PRINT SPECIFICATION', '='.repeat(60), '');
+  itemSection(spec, design);
+  dimensionsSection(spec, design);
+  printingSection(spec, design, hasBack);
+  if (design.env.on) envelopeSection(spec, design);
+  spec.heading('QUOTE');
+  spec.line('Quote request', `See ${baseName(design)}-QUOTE-REQUEST.pdf: previews, this spec and a price grid`);
+  spec.line('Quantities to price', QUOTE_QTY.join(', ') + ' pieces');
+  spec.heading('FILES IN THIS PACK');
+  for (const file of files) spec.lines.push(`  ${file}`);
+  spec.lines.push(
     '',
-    ...(d.exp.pngs === false ? [] : ['Front and back PNGs are separate files at the full document size (with bleed), tagged with their dpi.']),
+    ...(design.exp.pngs ? ['Front and back PNGs are separate files at the full document size (with bleed), tagged with their dpi.'] : []),
     'The PDF contains every page in order, with crop marks when selected.',
     '',
     `Created ${new Date().toLocaleString()} with Chitthi.`,
   );
-  return L.join('\n');
+  return spec.lines.join('\n');
 }
 
 /* ---------- envelope ---------- */
 
-const pngBlob = (cv: HTMLCanvasElement) =>
-  new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('The image couldn’t be created.'))), 'image/png'));
-
-/** Envelope front and back at envelope size (page 1 is the address side), to print on a ready-made envelope. */
-export async function buildEnvelopePDF(inp: RenderInput): Promise<{ blob: Blob; name: string }> {
-  const { jsPDF } = await import('jspdf');
-  const s = envelopeSpec(inp.d),
-    px = +inp.d.exp.dpi / 25.4,
-    doc = new jsPDF({ unit: 'mm', format: [s.w, s.h], orientation: 'l', compress: true });
-  (['front', 'back'] as const).forEach((face, i) => {
-    if (i) doc.addPage([s.w, s.h], 'l');
-    const cv = document.createElement('canvas');
-    renderEnvelope(cv, face, px, inp);
-    doc.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, s.w, s.h, `env-${face}`, 'FAST');
+/**
+ * The envelope's front and back at envelope size (page 1 is the address side), to print on a ready-made envelope.
+ * @param input the design and its photos
+ * @returns the file
+ */
+export async function buildEnvelopePDF(input: RenderInput): Promise<BuiltFile> {
+  const { jsPDF: PdfDocument } = await import('jspdf');
+  const envelope = envelopeSpec(input.d);
+  const pxPerMm = +input.d.exp.dpi / 25.4;
+  const doc = new PdfDocument({ unit: 'mm', format: [envelope.w, envelope.h], orientation: 'l', compress: true });
+  (['front', 'back'] as const).forEach((face, index) => {
+    if (index) doc.addPage([envelope.w, envelope.h], 'l');
+    const canvas = document.createElement('canvas');
+    renderEnvelope(canvas, face, pxPerMm, input);
+    doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, envelope.w, envelope.h, `env-${face}`, 'FAST');
   });
-  return { blob: doc.output('blob'), name: `${baseName(inp.d)}-envelope-print.pdf` };
+  return { blob: doc.output('blob'), name: `${baseName(input.d)}-envelope-print.pdf` };
 }
 
-/** The fold-your-own envelope on its sheet, or null when it's too big for a 13×19 in sheet. */
-export async function buildEnvelopeTemplate(inp: RenderInput): Promise<{ blob: Blob; name: string } | null> {
-  const sheet = templateSheet(inp.d);
+/**
+ * The fold-your-own envelope on its sheet.
+ * @param input the design and its photos
+ * @returns the file, or null when it's too big for a 13×19 in sheet
+ */
+export async function buildEnvelopeTemplate(input: RenderInput): Promise<BuiltFile | null> {
+  const sheet = templateSheet(input.d);
   if (!sheet) return null;
-  const { jsPDF } = await import('jspdf');
-  const cv = document.createElement('canvas');
-  renderEnvelopeTemplate(cv, +inp.d.exp.dpi / 25.4, inp);
-  const doc = new jsPDF({ unit: 'mm', format: [sheet.w, sheet.h], orientation: sheet.w > sheet.h ? 'l' : 'p', compress: true });
-  doc.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, sheet.w, sheet.h, 'env-template', 'FAST');
-  return { blob: doc.output('blob'), name: `${baseName(inp.d)}-envelope-template-${sheet.id}.pdf` };
+  const { jsPDF: PdfDocument } = await import('jspdf');
+  const canvas = document.createElement('canvas');
+  renderEnvelopeTemplate(canvas, +input.d.exp.dpi / 25.4, input);
+  const doc = new PdfDocument({ unit: 'mm', format: [sheet.w, sheet.h], orientation: sheet.w > sheet.h ? 'l' : 'p', compress: true });
+  doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, sheet.w, sheet.h, 'env-template', 'FAST');
+  return { blob: doc.output('blob'), name: `${baseName(input.d)}-envelope-template-${sheet.id}.pdf` };
 }
 
-/** The complete print pack: every front and back as separate PNGs, the print PDF and the spec sheet, in one ZIP. */
-export async function buildPack(inp: RenderInput, onStep?: (msg: string) => void): Promise<{ blob: Blob; name: string }> {
+/**
+ * The envelope's files for the pack: front and back PNGs, its PDF and the template.
+ * @param input the design and its photos
+ * @returns the entries
+ */
+async function envelopeEntries(input: RenderInput): Promise<ZipEntry[]> {
   const entries: ZipEntry[] = [];
-  const pages = inp.d.exp.pngs === false ? [] : pagesOf(inp.d);
-  for (const pg of pages) {
-    onStep?.(`Rendering ${pg.label.toLowerCase()}…`);
+  for (const face of ['front', 'back'] as const) {
+    const canvas = document.createElement('canvas');
+    renderEnvelope(canvas, face, +input.d.exp.dpi / 25.4, input);
+    entries.push({ name: `envelope/${baseName(input.d)}-envelope-${face}.png`, data: await pngBlob(canvas) });
+  }
+  const pdf = await buildEnvelopePDF(input);
+  entries.push({ name: `envelope/${pdf.name}`, data: pdf.blob });
+  const template = await buildEnvelopeTemplate(input);
+  if (template) entries.push({ name: `envelope/${template.name}`, data: template.blob });
+  return entries;
+}
+
+/**
+ * The complete print pack: every front and back as separate PNGs, the print PDF, the envelope, the quote request, the
+ * photo credits and the spec sheet, in one ZIP.
+ * @param input the design and its photos
+ * @param onStep told what is being made, for a progress line
+ * @returns the ZIP
+ */
+export async function buildPack(input: RenderInput, onStep?: (message: string) => void): Promise<BuiltFile> {
+  const entries: ZipEntry[] = [];
+  const pages = input.d.exp.pngs ? pagesOf(input.d) : [];
+  for (const page of pages) {
+    onStep?.(`Rendering ${page.label.toLowerCase()}…`);
     await tick();
-    const { blob, name } = await buildPNG(pg, inp);
-    entries.push({ name: `${pg.side === 'front' ? 'front' : 'back'}/${name}`, data: blob });
+    const { blob, name } = await buildPNG(page, input);
+    entries.push({ name: `${page.side === 'front' ? 'front' : 'back'}/${name}`, data: blob });
   }
   onStep?.('Building PDF…');
-  const pdf = await buildPDF(inp);
+  const pdf = await buildPDF(input);
   entries.push({ name: pdf.name, data: pdf.blob });
-  if (inp.d.env.on) {
+  if (input.d.env.on) {
     onStep?.('Making the envelope…');
     await tick();
-    for (const face of ['front', 'back'] as const) {
-      const cv = document.createElement('canvas');
-      renderEnvelope(cv, face, +inp.d.exp.dpi / 25.4, inp);
-      entries.push({ name: `envelope/${baseName(inp.d)}-envelope-${face}.png`, data: await pngBlob(cv) });
-    }
-    const ep = await buildEnvelopePDF(inp);
-    entries.push({ name: `envelope/${ep.name}`, data: ep.blob });
-    const tp = await buildEnvelopeTemplate(inp);
-    if (tp) entries.push({ name: `envelope/${tp.name}`, data: tp.blob });
+    entries.push(...(await envelopeEntries(input)));
   }
   onStep?.('Writing the quote request…');
   const { buildQuoteRequest } = await import('./quote');
-  const quote = await buildQuoteRequest(inp);
+  const quote = await buildQuoteRequest(input);
   entries.push({ name: quote.name, data: quote.blob });
   // Pexels photos: who took them, with links, and what the license allows (see docs/PEXELS.md).
-  const credits = creditsText(inp.photos.map((p) => p.name));
-  if (credits) entries.push({ name: `${baseName(inp.d)}-PHOTO-CREDITS.txt`, data: credits.replace(/\n/g, '\r\n') });
-  const specName = `${baseName(inp.d)}-PRINT-SPEC.txt`;
-  entries.push({ name: specName, data: printSpec(inp, [...entries.map((e) => e.name), specName]).replace(/\n/g, '\r\n') });
+  const credits = creditsText(input.photos.map((photo) => photo.name));
+  if (credits) entries.push({ name: `${baseName(input.d)}-PHOTO-CREDITS.txt`, data: credits.replace(/\n/g, '\r\n') });
+  const specName = `${baseName(input.d)}-PRINT-SPEC.txt`;
+  entries.push({ name: specName, data: printSpec(input, [...entries.map((entry) => entry.name), specName]).replace(/\n/g, '\r\n') });
   onStep?.('Packing…');
-  return { blob: await makeZip(entries), name: `${baseName(inp.d)}-print-pack.zip` };
+  return { blob: await makeZip(entries), name: `${baseName(input.d)}-print-pack.zip` };
 }

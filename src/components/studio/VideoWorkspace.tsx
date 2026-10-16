@@ -1,82 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { drawSelection, layerBox } from '../../engine/layers';
-import { adjacentKey, keyState, layerAt, layersAt, transformAt, volumeAt, type LayerKeyProp } from '../../engine/keyframes';
-import { frameStack } from '../../engine/stack';
-import { halves } from '../../engine/transitions';
-import { MUSIC, PRESETS, lockedReason, type ClipTransform } from '../../engine/timeline';
-import { MOTIONS, bitrateFor, clipLength, fmtTime, formatsFor, vFormat, type Motion, type VFps, type VQuality } from '../../engine/video';
-import { lanePlan } from '../../engine/decodePool';
-import { drawPreview, noteFallback, pausedAt, pausedFrame, heldStageFrame, photoPicture, poolClip, stageSource, useFallbackNote, type Picture, type StageFrame } from './previewFrame';
-import { previewSound, soundPlan } from './previewSound';
-import { KeyframeButton, KeyframeNav } from './KeyframeButton';
-import { TransitionInspector, TransitionPanel } from './TransitionPanel';
-import { clipLabel } from './timelineRows';
-import { useClipTransform } from './useClipTransform';
-import { saveFile } from '../../lib/download';
-import { logError } from '../../lib/errors';
-import { canStreamToDisk } from '../../lib/fileSink';
-import { toast } from '../../lib/toast';
-import { desktop, isDesktop } from '../../platform/desktop';
-import { canShareFiles, getIg, setIg, useIg } from '../../state/instagram';
-import {
-  addMedia,
-  addVLayer,
-  cancelExport,
-  adjustClip,
-  applyPreset,
-  clipPlace,
-  editClip,
-  endVStep,
-  exportVideo,
-  getVideo,
-  limitText,
-  limits,
-  redoV,
-  removeMusic,
-  removeVLayer,
-  restackVLayer,
-  selectVLayer,
-  setKind,
-  setMusicFile,
-  setPlayhead,
-  removeAnimation,
-  setClipTransformAt,
-  setClipVolume,
-  setLayerTimes,
-  toggleKey,
-  updateLayerAt,
-  type KeyProp,
-  type KeyTarget,
-  setPlaying,
-  setVideoOptions,
-  setVLayers,
-  setVTools,
-  undoV,
-  updateClipWhy,
-  updateMusic,
-  useVideo,
-  type VClip,
-  projectOf,
-  total as videoTotal,
-  videoLength,
-} from '../../state/video';
-import { Check, Seg } from '../common';
+import { useEffect, useState } from 'react';
+import { adjacentKey, keyState, layersAt, type LayerKeyProp } from '../../engine/keyframes';
+import { formatsFor, vFormat } from '../../engine/videoFormats';
+import { isDesktop } from '../../platform/desktop';
+import { addVLayer, removeVLayer, restackVLayer, setLayerTimes, updateLayerAt } from '../../state/videoLayers';
+import { getVideo, redoV, selectVLayer, setKind, setPlayhead, setPlaying, setVideoOptions, setVTools, undoV, useVideo, videoLength } from '../../state/videoStore';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
-import { LookPicker } from '../ig/LookPicker';
-import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
-import { AddPhotoIcon, BrushIcon, DownloadIcon, FolderIcon, ImageIcon, InstagramIcon, LayersIcon, MusicIcon, RedoIcon, ReelIcon, ShapesIcon, ShareIcon, TransitionIcon, TrashIcon, TypeIcon, UndoIcon, YouTubeIcon } from '../icons';
+import { BrushIcon, DownloadIcon, ImageIcon, LayersIcon, MusicIcon, RedoIcon, ShapesIcon, TransitionIcon, TypeIcon, UndoIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
+import { ClipInspector, ProjectInspector } from './ClipInspector';
+import { OPEN_TRANSITIONS } from './CutMarks';
 import { StudioDialog } from './Dialog';
-import { DesktopNote, StudioShell, useFit, type RailItem, type StudioMode } from './Shell';
-import { OPEN_TRANSITIONS, Timeline, Transport } from './Timeline';
+import { KeyframeNav } from './KeyframeButton';
+import { StudioShell, type RailItem, type StudioMode } from './Shell';
+import { Timeline } from './Timeline';
+import { tell } from './timelineActions';
+import { TransitionInspector, TransitionPanel } from './TransitionPanel';
+import { Transport } from './Transport';
+import { KeyButton } from './videoFields';
+import { VideoExport } from './VideoExport';
+import { EmptyStage, MediaPanel, MusicPanel } from './VideoPanels';
+import { VideoStage } from './VideoStage';
 
 /*
  * The video editor in the studio layout, for Reels / Shorts (vertical, short, shared to Instagram) and YouTube videos
- * (16:9, long, saved to a file). The stage plays the timeline live; the timeline below edits it directly; the
- * inspector shows the selected clip or layer. State: state/video.ts; drawing: engine/video.ts; export:
- * engine/videoExport.ts (loaded on export).
+ * (16:9, long, saved to a file). The stage plays the timeline live (VideoStage.tsx); the timeline below edits it
+ * directly; the inspector shows the selected clip (ClipInspector.tsx), layer or transition. State: state/video*.ts
+ * (videoStore.ts and its actions); drawing: engine/video.ts; export: engine/videoExport.ts (loaded on export,
+ * VideoExport.tsx).
  */
 
+/** The tool rail's tools. */
 type Tool = 'media' | 'text' | 'elements' | 'draw' | 'transitions' | 'audio' | 'layers';
 const RAIL: RailItem<Tool>[] = [
   { id: 'media', label: 'Media', icon: <ImageIcon /> },
@@ -88,27 +41,167 @@ const RAIL: RailItem<Tool>[] = [
   { id: 'layers', label: 'Layers', icon: <LayersIcon /> },
 ];
 
-const INSTAGRAM_WEB = 'https://www.instagram.com/';
-const YOUTUBE_UPLOAD = 'https://www.youtube.com/upload';
+/** Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo and redo, and Space plays and pauses, anywhere but in a field. */
+function useWorkspaceKeys(): void {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (typingIn(event.target)) return;
+      const key = event.key.toLowerCase();
+      const withCommand = event.ctrlKey || event.metaKey;
+      if (withCommand && key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undoV();
+      } else if (withCommand && (key === 'y' || (key === 'z' && event.shiftKey))) {
+        event.preventDefault();
+        redoV();
+      } else if (key === ' ' && !(event.target instanceof HTMLButtonElement) && !(event.target instanceof Element && event.target.closest('.tl-scroll'))) {
+        event.preventDefault();
+        setPlaying(!getVideo().playing);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+}
 
-export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'photos'>; onMode: (m: StudioMode) => void }) {
+/**
+ * The layer panels' props: the layers as shown at the playhead (205): the fields show animated values, and changes go
+ * through the router, so an animated value gets a keyframe there. A new start alone is the layer's start edge (its
+ * keyframes stay in place).
+ * @returns the props the layer panels share
+ */
+function useLayerPanelProps(): LayerPanelProps {
+  const layers = useVideo((state) => state.layers);
+  const layerSel = useVideo((state) => state.layerSel);
+  const time = useVideo((state) => state.t);
+  const total = useVideo(videoLength);
+  const selectedLayer = layers.find((layer) => layer.id === layerSel);
+  const start = selectedLayer?.start ?? 0;
+  const local = time - start;
+  const previous = selectedLayer ? adjacentKey(selectedLayer, local, -1) : null;
+  const next = selectedLayer ? adjacentKey(selectedLayer, local, 1) : null;
+  return {
+    layers: layersAt(layers, time),
+    selected: layerSel,
+    onSelect: selectVLayer,
+    onAdd: addVLayer,
+    onUpdate: (id, patch, key) =>
+      tell(typeof patch === 'object' && 'start' in patch && !('end' in patch) ? setLayerTimes(id, { start: patch.start }, key) : updateLayerAt(id, patch, key)),
+    keyframes: (props: LayerKeyProp[], label: string) =>
+      selectedLayer && <KeyButton target={{ layer: selectedLayer.id }} props={props} label={label} state={keyState(props[0] && selectedLayer.keys?.[props[0]], local)} time={time} />,
+    keyNav: selectedLayer?.keys && (
+      <KeyframeNav what="layer" previous={previous === null ? null : start + previous} next={next === null ? null : start + next} onSeek={setPlayhead} />
+    ),
+    onRemove: removeVLayer,
+    onRestack: restackVLayer,
+    timing: { duration: total, now: time },
+  };
+}
+
+/** The panel for the rail's tool. */
+interface ToolPanelProps {
+  tool: Tool | null;
+  layerProps: LayerPanelProps;
+}
+
+/**
+ * The panel for the rail's tool (the layer tools need clips first).
+ * @param props the tool and the layer panels' props
+ */
+function ToolPanel({ tool, layerProps }: Readonly<ToolPanelProps>) {
+  const hasClips = useVideo((state) => state.clips.length > 0);
+  const tools = useVideo((state) => state.tools);
+  if (tool === 'media') return <MediaPanel />;
+  if (tool === 'audio') return <MusicPanel />;
+  if (!hasClips) return <p className="hint mst-pad">Add photos or videos first: choose Media in the tool rail.</p>;
+  if (tool === 'text') return <AddText {...layerProps} />;
+  if (tool === 'elements') return <AddElements {...layerProps} />;
+  if (tool === 'draw') return <DrawPanel tools={tools} onTools={setVTools} onNewDrawing={() => selectVLayer(null)} />;
+  if (tool === 'transitions') return <TransitionPanel />;
+  return <LayerList {...layerProps} />;
+}
+
+/** The inspector. */
+interface InspectorProps {
+  layerProps: LayerPanelProps;
+}
+
+/**
+ * The inspector: the selected layer, else the selected cut's transition (206), else the selected clip, else the project.
+ * @param props the layer panels' props
+ */
+function Inspector({ layerProps }: Readonly<InspectorProps>) {
+  const clips = useVideo((state) => state.clips);
+  const layerSel = useVideo((state) => state.layerSel);
+  const selected = useVideo((state) => state.selected);
+  const transitionSel = useVideo((state) => state.transitionSel);
+  if (layerSel) return <LayerProps {...layerProps} />;
+  const cut = clips.find((clip) => clip.id === transitionSel);
+  if (cut) return <TransitionInspector clip={cut} />;
+  const clip = clips.find((candidate) => candidate.id === selected);
+  return clip ? <ClipInspector clip={clip} /> : <ProjectInspector />;
+}
+
+/** The top bar's actions. */
+interface WorkspaceActionsProps {
+  kind: 'reel' | 'vlog';
+  onExport: () => void;
+}
+
+/**
+ * Undo, redo, the video format and Export.
+ * @param props Reel or YouTube video, and opening the export dialog
+ */
+function WorkspaceActions({ kind, onExport }: Readonly<WorkspaceActionsProps>) {
+  const hasClips = useVideo((state) => state.clips.length > 0);
+  const formatId = useVideo((state) => state.format);
+  const canUndo = useVideo((state) => state.canUndo);
+  const canRedo = useVideo((state) => state.canRedo);
+  const format = vFormat(formatId);
+  return (
+    <>
+      <button type="button" className="btn icon ghost" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undoV}>
+        <UndoIcon />
+      </button>
+      <button type="button" className="btn icon ghost" aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redoV}>
+        <RedoIcon />
+      </button>
+      <MoreMenu
+        className="mst-format"
+        text={`${format.ratio} ${format.label}`}
+        label="Video format"
+        items={formatsFor(kind).map((option) => ({
+          key: option.id,
+          label: `${option.ratio} · ${option.label} (${option.w}×${option.h})${option.desktopOnly && !isDesktop ? ' · desktop app' : ''}`,
+          current: option.id === formatId,
+          disabled: !!option.desktopOnly && !isDesktop,
+          onSelect: () => setVideoOptions({ format: option.id }),
+        }))}
+      />
+      <button type="button" className="btn primary" aria-label="Export" disabled={!hasClips} onClick={onExport}>
+        <DownloadIcon />
+        <span className="mst-l">Export</span>
+      </button>
+    </>
+  );
+}
+
+/** The video editor. */
+interface VideoWorkspaceProps {
+  mode: Exclude<StudioMode, 'photos'>;
+  onMode: (mode: StudioMode) => void;
+}
+
+/**
+ * The video editor (see the file's comment).
+ * @param props the studio mode (Reels or YouTube) and switching it
+ */
+export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) {
   const kind = mode === 'vlog' ? 'vlog' : 'reel';
   useEffect(() => setKind(kind), [kind]);
-  const clips = useVideo((s) => s.clips),
-    layers = useVideo((s) => s.layers),
-    layerSel = useVideo((s) => s.layerSel),
-    selected = useVideo((s) => s.selected),
-    transitionSel = useVideo((s) => s.transitionSel),
-    t = useVideo((s) => s.t),
-    format = useVideo((s) => s.format),
-    canUndo = useVideo((s) => s.canUndo),
-    canRedo = useVideo((s) => s.canRedo),
-    tools = useVideo((s) => s.tools);
+  const hasClips = useVideo((state) => state.clips.length > 0);
   const [tool, setTool] = useState<Tool | null>(() => (getVideo().clips.length ? 'text' : 'media'));
-  const [exporting, setExporting] = useState(false);
-  const total = useVideo(videoLength);
-  const f = vFormat(format);
-
+  const [isExporting, setExporting] = useState(false);
   // The timeline's cuts open the Transitions panel (206 D2).
   useEffect(() => {
     const open = () => setTool('transitions');
@@ -120,76 +213,12 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
     return () => setVTools({ tool: 'select' });
   }, [tool]);
   useEffect(() => () => setPlaying(false), []);
-
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      if (typingIn(e.target)) return;
-      const k = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && k === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undoV();
-      } else if ((e.ctrlKey || e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) {
-        e.preventDefault();
-        redoV();
-      } else if (k === ' ' && !(e.target instanceof HTMLButtonElement) && !(e.target as HTMLElement).closest?.('.tl-scroll')) {
-        e.preventDefault();
-        setPlaying(!getVideo().playing);
-      }
-    };
-    document.addEventListener('keydown', on);
-    return () => document.removeEventListener('keydown', on);
-  }, []);
-
-  // The layers as shown at the playhead (205): the fields show animated values, and changes go through the router, so an
-  // animated value gets a keyframe there. A new start alone is the layer's start edge (its keyframes stay in place).
-  const shownLayers = layersAt(layers, t);
-  const selectedLayer = layers.find((l) => l.id === layerSel);
-  const layerLocal = t - (selectedLayer?.start ?? 0);
-  const layerPrevious = selectedLayer ? adjacentKey(selectedLayer, layerLocal, -1) : null,
-    layerNext = selectedLayer ? adjacentKey(selectedLayer, layerLocal, 1) : null;
-  const lp: LayerPanelProps = {
-    layers: shownLayers,
-    selected: layerSel,
-    onSelect: selectVLayer,
-    onAdd: addVLayer,
-    onUpdate: (id, patch, key) =>
-      tell(typeof patch === 'object' && 'start' in patch && !('end' in patch) ? setLayerTimes(id, { start: patch.start }, key) : updateLayerAt(id, patch, key)),
-    keyframes: (props: LayerKeyProp[], label: string) =>
-      selectedLayer && <KeyButton target={{ layer: selectedLayer.id }} props={props} label={label} state={keyState(selectedLayer.keys?.[props[0]], layerLocal)} time={t} />,
-    keyNav: selectedLayer?.keys && (
-      <KeyframeNav
-        what="layer"
-        previous={layerPrevious === null ? null : (selectedLayer.start ?? 0) + layerPrevious}
-        next={layerNext === null ? null : (selectedLayer.start ?? 0) + layerNext}
-        onSeek={setPlayhead}
-      />
-    ),
-    onRemove: removeVLayer,
-    onRestack: restackVLayer,
-    timing: { duration: total, now: t },
+  useWorkspaceKeys();
+  const layerProps = useLayerPanelProps();
+  const openExport = () => {
+    setPlaying(false);
+    setExporting(true);
   };
-  const needClips = <p className="hint mst-pad">Add photos or videos first: choose Media in the tool rail.</p>;
-  const panel =
-    tool === 'media' ? (
-      <MediaPanel />
-    ) : tool === 'audio' ? (
-      <MusicPanel />
-    ) : !clips.length ? (
-      needClips
-    ) : tool === 'text' ? (
-      <AddText {...lp} />
-    ) : tool === 'elements' ? (
-      <AddElements {...lp} />
-    ) : tool === 'draw' ? (
-      <DrawPanel tools={tools} onTools={setVTools} onNewDrawing={() => selectVLayer(null)} />
-    ) : tool === 'transitions' ? (
-      <TransitionPanel />
-    ) : (
-      <LayerList {...lp} />
-    );
-  const clip = clips.find((c) => c.id === selected);
-  // The selected cut (206): its transition in the inspector.
-  const cut = clips.find((c) => c.id === transitionSel);
 
   return (
     <StudioShell
@@ -198,35 +227,10 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
       rail={RAIL}
       tool={tool}
       onTool={setTool}
-      actions={
-        <>
-          <button type="button" className="btn icon ghost" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undoV}>
-            <UndoIcon />
-          </button>
-          <button type="button" className="btn icon ghost" aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redoV}>
-            <RedoIcon />
-          </button>
-          <MoreMenu
-            className="mst-format"
-            text={`${f.ratio} ${f.label}`}
-            label="Video format"
-            items={formatsFor(kind).map((x) => ({
-              key: x.id,
-              label: `${x.ratio} · ${x.label} (${x.w}×${x.h})${x.desktopOnly && !isDesktop ? ' · desktop app' : ''}`,
-              current: x.id === format,
-              disabled: !!x.desktopOnly && !isDesktop,
-              onSelect: () => setVideoOptions({ format: x.id }),
-            }))}
-          />
-          <button type="button" className="btn primary" aria-label="Export" disabled={!clips.length} onClick={() => (setPlaying(false), setExporting(true))}>
-            <DownloadIcon />
-            <span className="mst-l">Export</span>
-          </button>
-        </>
-      }
-      panel={panel}
-      inspector={layerSel ? <LayerProps {...lp} /> : cut ? <TransitionInspector clip={cut} /> : clip ? <ClipPanel clip={clip} /> : <ProjectPanel />}
-      stage={clips.length ? <VideoStage /> : <EmptyStage kind={kind} />}
+      actions={<WorkspaceActions kind={kind} onExport={openExport} />}
+      panel={<ToolPanel tool={tool} layerProps={layerProps} />}
+      inspector={<Inspector layerProps={layerProps} />}
+      stage={hasClips ? <VideoStage /> : <EmptyStage kind={kind} />}
       dock={
         <>
           <Transport />
@@ -234,805 +238,9 @@ export function VideoWorkspace({ mode, onMode }: { mode: Exclude<StudioMode, 'ph
         </>
       }
     >
-      <StudioDialog open={exporting} onClose={() => setExporting(false)} title={kind === 'vlog' ? 'Export for YouTube' : 'Export and post'}>
-        <ExportPanel />
+      <StudioDialog open={isExporting} onClose={() => setExporting(false)} title={kind === 'vlog' ? 'Export for YouTube' : 'Export and post'}>
+        <VideoExport />
       </StudioDialog>
     </StudioShell>
-  );
-}
-
-const ACCEPT = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.mov,.m4v,.mkv';
-
-function EmptyStage({ kind }: { kind: 'reel' | 'vlog' }) {
-  const [msg, setMsg] = useState('');
-  return (
-    <div className="mst-empty">
-      {kind === 'vlog' ? <YouTubeIcon /> : <ReelIcon />}
-      <h2>{kind === 'vlog' ? 'Make a YouTube video' : 'Make a Reel or Short'}</h2>
-      <p>
-        {kind === 'vlog'
-          ? 'Load your clips and photos, trim and arrange them on the timeline, add titles and music, and export a 16:9 MP4 for YouTube.'
-          : 'Photos and clips become a vertical video with movement, text, stickers and music, ready for Instagram Reels or YouTube Shorts.'}
-      </p>
-      <label className="btn primary mst-file">
-        <AddPhotoIcon />
-        Add videos or photos
-        <input type="file" accept={ACCEPT} multiple onChange={(e) => void addMedia([...(e.target.files ?? [])].map((f) => ({ name: f.name, blob: f, type: f.type }))).then((m) => setMsg(m[0] ?? ''))} />
-      </label>
-      {msg && <p className="hint bad">{msg}</p>}
-      <LimitsNote />
-    </div>
-  );
-}
-
-function LimitsNote() {
-  const kind = useVideo((s) => s.kind);
-  const L = limits(kind);
-  return (
-    <DesktopNote>
-      In the browser, {kind === 'vlog' ? 'YouTube videos' : 'Reels'} can be up to {limitText(L.seconds)} long with {L.clips} clips and files up to{' '}
-      {L.fileMB >= 1024 ? `${L.fileMB / 1024} GB` : `${L.fileMB} MB`}, at 30 fps{kind === 'vlog' ? ' and 1080p' : ''}: video processing in a browser tab is limited by its memory and
-      can slow down in the background. The desktop app is the full studio: {kind === 'vlog' ? 'videos up to 3 hours, 1440p and 4K, 60 fps,' : 'Reels up to 3 minutes, 60 fps,'} bigger files, and faster
-      exports with your graphics card.
-    </DesktopNote>
-  );
-}
-
-function MediaPanel() {
-  const photos = useIg((s) => s.items);
-  const [msgs, setMsgs] = useState<string[]>([]);
-  const add = async (files: FileList | File[] | null) => {
-    if (files?.length) setMsgs(await addMedia([...files].map((f) => ({ name: f.name, blob: f, type: f.type }))));
-  };
-  return (
-    <>
-      <div className="ig-group">
-        <h3>Add media</h3>
-        <label
-          className="mst-drop"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            void add(e.dataTransfer.files);
-          }}
-        >
-          <AddPhotoIcon />
-          <span>
-            <b>Choose videos or photos</b> or drop them here
-          </span>
-          <small>MP4, MOV, WebM, MKV · JPG, PNG, WebP</small>
-          <input type="file" accept={ACCEPT} multiple onChange={(e) => void add(e.target.files).then(() => (e.target.value = ''))} />
-        </label>
-        {photos.length > 0 && (
-          <button type="button" className="sbtn" onClick={() => void addMedia(photos.map((p) => ({ name: p.name, blob: p.file }))).then(setMsgs)}>
-            Use the {photos.length} photo{photos.length === 1 ? '' : 's'} from Photos
-          </button>
-        )}
-        {msgs.length > 0 && (
-          <ul className="msgs" role="alert">
-            {msgs.map((m, i) => (
-              <li key={i} className="err">
-                {m}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="ig-group">
-        <LimitsNote />
-        <p className="hint">New clips go to the end of the timeline. Drag them there to reorder; drag their edges to trim.</p>
-      </div>
-    </>
-  );
-}
-
-function VideoStage() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const box = useRef<HTMLDivElement>(null);
-  const clips = useVideo((s) => s.clips),
-    layers = useVideo((s) => s.layers),
-    layerSel = useVideo((s) => s.layerSel),
-    selectedClip = useVideo((s) => s.selected),
-    snapping = useVideo((s) => s.snapping),
-    tools = useVideo((s) => s.tools),
-    format = useVideo((s) => s.format),
-    fadeOut = useVideo((s) => s.fadeOut),
-    music = useVideo((s) => s.music),
-    tracks = useVideo((s) => s.tracks),
-    musicMuted = useVideo((s) => s.tracks.some((tr) => tr.id === MUSIC && tr.muted)),
-    playing = useVideo((s) => s.playing),
-    t = useVideo((s) => s.t);
-  const f = vFormat(format);
-  const { width, height } = useFit(box, f.w, f.h, 56);
-  const tick = useFontsTick(layers);
-  const audio = useRef<HTMLAudioElement | null>(null);
-  const draw = useRef<(frame?: StageFrame<VClip>) => void>(() => undefined);
-  // The selected clip's box on the stage (203 §11): presses that miss every layer, arrow keys, and its drawing.
-  const clipBox = useClipTransform(ref, () => draw.current());
-  // Pictures: the decoder pool (204), with <video> elements for clips it can't decode (sound: below).
-  // Created on first use and again after a cleanup: StrictMode runs effects twice in development, and a source kept in
-  // useMemo would stay disposed (the stage drew nothing).
-  const stageRef = useRef<ReturnType<typeof stageSource> | null>(null);
-  const stage = useCallback(() => (stageRef.current ??= stageSource(() => draw.current())), []);
-  useEffect(
-    () => () => {
-      stageRef.current?.dispose();
-      stageRef.current = null;
-    },
-    [],
-  );
-  const videoFor = useCallback((c: VClip) => stage().element(c), [stage]);
-  // Clip sound (204 §4, D1): <audio> elements for the clip under the playhead and the next ones; lazy like the stage.
-  // `mounted` stops the playback cleanup's last sync from making the stage or the sound again once they're disposed.
-  const soundRef = useRef<ReturnType<typeof previewSound> | null>(null);
-  const mounted = useRef(false);
-  const sound = useCallback(() => (soundRef.current ??= previewSound()), []);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      soundRef.current?.dispose();
-      soundRef.current = null;
-    };
-  }, []);
-  /** The frame drawn last (paused: the exact one once it landed); held while the next one decodes. */
-  const last = useRef<StageFrame<VClip> | null>(null);
-  /** Paused asks: only the newest one is drawn (latest wins). */
-  const asked = useRef(0);
-  /** Does the clip's picture come from the pool? Not without one, nor for a clip it can't decode (noted on the clip). */
-  const usesPool = (c: VClip) => {
-    const pool = stage().pool;
-    const why = pool?.fallback(c.id);
-    if (why) noteFallback(c.file, why);
-    return Boolean(pool && !why);
-  };
-
-  /**
-   * A clip's picture without waiting (playback, and the paused stage until its exact frame lands).
-   * @param stackItem a clip showing now and the seconds into it
-   * @returns a photo's still, the frame the pool has ready for a video, or a fallback clip's <video> once it has data;
-   *   null when none is ready
-   */
-  const pictureNow = (stackItem: { clip: VClip; local: number }): Picture | null => {
-    const clip = stackItem.clip;
-    if (clip.kind === 'photo') return photoPicture(clip);
-    if (usesPool(clip)) {
-      const poolFrame = stage().pool!.peek(poolClip(clip), clip.in + stackItem.local);
-      return poolFrame ? { image: poolFrame.image, w: poolFrame.width, h: poolFrame.height } : null;
-    }
-    const videoElement = videoFor(clip);
-    return videoElement.readyState >= 2 ? { image: videoElement, w: videoElement.videoWidth, h: videoElement.videoHeight } : null;
-  };
-
-  draw.current = (frame) => {
-    const cv = ref.current,
-      x = cv?.getContext('2d');
-    if (!cv || !x || width <= 0) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1),
-      W = Math.round(width * dpr),
-      H = Math.round(height * dpr);
-    if (cv.width !== W || cv.height !== H) {
-      cv.width = W;
-      cv.height = H;
-    }
-    const s = getVideo();
-    let frameToDraw = frame;
-    if (!frameToDraw) {
-      if (s.playing) {
-        // Every visible clip's picture as the pool has it now (each video peeked: holds counted per lane).
-        const stack = frameStack(projectOf(s), s.t);
-        frameToDraw = { at: s.t, items: stack.map((stackItem) => ({ ...stackItem, pic: pictureNow(stackItem) })) };
-      } else {
-        // Paused, until the exact frame lands: photos at once; each video's held picture while it's the same clip.
-        const { at, items: stack } = pausedAt(projectOf(s), s.t, s.fps);
-        frameToDraw = heldStageFrame(at, stack, last.current, pictureNow, usesPool);
-      }
-    }
-    if (!frameToDraw.items.length && !s.clips.length) return;
-    last.current = frameToDraw;
-    const view = { layers: s.layers, total: videoLength(s), fadeOut: s.fadeOut };
-    try {
-      drawPreview(x, W, H, view, frameToDraw);
-    } catch {
-      // A held frame the pool has since released (a clip removed): draw without pictures until the next frame.
-      last.current = { ...frameToDraw, items: frameToDraw.items.map((stackItem) => ({ ...stackItem, pic: null })) };
-      drawPreview(x, W, H, view, last.current);
-    }
-    const sel = s.layerSel && s.layers.find((l) => l.id === s.layerSel && !l.hidden && (l.start ?? 0) <= s.t && s.t < (l.end ?? Infinity));
-    if (sel) drawSelection(x, layerBox(x, layerAt(sel, s.t), W, H), handleRadius(cv));
-    else clipBox.drawBox(x, W, H);
-  };
-
-  /** The clips the pool keeps open at playhead t: those showing and the next to start within 2 s (Q10). */
-  const lookAhead = useCallback(
-    (t: number) => {
-      const pool = stage().pool;
-      if (!pool) return;
-      const plan = lanePlan(projectOf(getVideo()), t, 2);
-      pool.want([...plan.visible, ...plan.next].map((c) => c.id));
-      // Primed from its transition's first frame, when one leads into it (206).
-      for (const c of plan.next) if (usesPool(c)) pool.prepare(poolClip(c, halves(c, getVideo().clips).before));
-    },
-    // usesPool only reads stage
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stage],
-  );
-
-  /** The clip sound at the playhead (playing when playing, kept within a frame), the next clip's pre-seeked; and the
-   * muted <video> of a clip the pool can't decode, for its picture: the current one at the playhead, the rest paused. */
-  const sync = useCallback(
-    (play: boolean) => {
-      if (!mounted.current) return;
-      const s = getVideo(),
-        plan = soundPlan(projectOf(s), s.t);
-      sound().update(plan, play, s.fps);
-      const pool = stage().pool;
-      // Fallback pictures follow what's on screen (frameStack: hidden tracks left out), not the sound plan: a clip on a
-      // muted overlay track is still drawn (203 T034).
-      const onScreen = frameStack(projectOf(s), s.t);
-      for (const clip of s.clips) {
-        if (clip.kind !== 'video' || (pool && !pool.fallback(clip.id))) continue;
-        const videoElement = videoFor(clip);
-        videoElement.muted = true;
-        const shown = onScreen.find((stackItem) => stackItem.clip.id === clip.id);
-        if (shown) {
-          const sourceTime = clip.in + shown.local;
-          if (play) {
-            if (Math.abs(videoElement.currentTime - sourceTime) > 0.3) videoElement.currentTime = sourceTime;
-            if (videoElement.paused) void videoElement.play().catch(() => undefined);
-          } else {
-            videoElement.pause();
-            if (Math.abs(videoElement.currentTime - sourceTime) > 0.02) videoElement.currentTime = sourceTime;
-          }
-        } else if (!videoElement.paused) videoElement.pause();
-      }
-    },
-    [videoFor, stage, sound],
-  );
-
-  // Clips removed from the project give their decoders and frames back.
-  const known = useRef(new Set<string>());
-  useEffect(() => {
-    const now = new Set(clips.map((c) => c.id));
-    for (const id of known.current) if (!now.has(id)) stage().pool?.forget(id);
-    known.current = now;
-  }, [clips, stage]);
-
-  // Paused or scrubbing: draw at once with what's held, then the exact frame of the export's grid when it lands.
-  useEffect(() => {
-    if (playing) return;
-    sync(false);
-    draw.current();
-    const s = getVideo();
-    const n = ++asked.current;
-    void pausedFrame(projectOf(s), s.t, s.fps, stage().source)
-      .then((frame) => {
-        if (n === asked.current && !getVideo().playing) draw.current(frame);
-      })
-      .catch((e: unknown) => logError('handled', e));
-    lookAhead(s.t);
-  }, [clips, tracks, layers, layerSel, selectedClip, snapping, format, fadeOut, t, tick, playing, width, height, sync, stage, lookAhead]);
-
-  // Playback: advance the playhead with the wall clock, keep the clip videos and the music in step.
-  useEffect(() => {
-    if (!playing) return;
-    const s0 = getVideo();
-    const startT = s0.t >= videoLength(s0) - 0.05 ? 0 : s0.t,
-      startWall = performance.now();
-    setPlayhead(startT);
-    if (music) {
-      const a = audio.current ?? new Audio();
-      audio.current = a;
-      if (a.src !== music.url) a.src = music.url;
-      a.volume = music.volume;
-      a.muted = getVideo().tracks.some((tr) => tr.id === MUSIC && tr.muted);
-      a.currentTime = music.offset + startT;
-      void a.play().catch(() => undefined);
-    }
-    let raf = 0;
-    const loop = () => {
-      const now = startT + (performance.now() - startWall) / 1000,
-        end = videoTotal();
-      if (now >= end) {
-        setPlayhead(end);
-        setPlaying(false);
-        return;
-      }
-      setPlayhead(now);
-      sync(true);
-      lookAhead(now);
-      draw.current();
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(raf);
-      audio.current?.pause();
-      sync(false);
-    };
-  }, [playing, music, sync, lookAhead]);
-  // Muting the music track while it plays.
-  useEffect(() => {
-    if (audio.current) audio.current.muted = musicMuted;
-  }, [musicMuted]);
-  useEffect(() => () => audio.current?.pause(), []);
-
-  // The stage edits the layers as shown at the playhead (205 §8), so hit tests and handles match what is drawn; changes go
-  // through the router, so dragging an animated layer sets a keyframe there. A refusal is shown once per drag.
-  const lastRefusal = useRef<string | null>(null);
-  const tellOnce = (refusal: string | null) => {
-    if (refusal && refusal !== lastRefusal.current) toast(refusal);
-    lastRefusal.current = refusal;
-  };
-  const handlers = useLayerPointer({
-    canvas: ref,
-    layers: layersAt(layers, t),
-    selected: layerSel,
-    tools,
-    t,
-    onSelect: selectVLayer,
-    onUpdate: (id, layer, key) => tellOnce(updateLayerAt(id, layer, key)),
-    // A stroke changes only the drawing `sel`: the other layers are stored as they are, not as shown at the playhead.
-    onSetLayers: (ls, key, sel) => {
-      const stored = getVideo().layers;
-      if (ls.length === stored.length && stored.some((l) => l.id === sel && l.keys)) tellOnce(updateLayerAt(sel, ls.find((l) => l.id === sel)!, key));
-      else setVLayers(ls.map((l) => (l.id === sel ? l : (stored.find((s) => s.id === l.id) ?? l))), key, sel);
-    },
-    onRemove: removeVLayer,
-    onEndStep: () => {
-      lastRefusal.current = null;
-      endVStep();
-    },
-    onBackground: clipBox.background,
-  });
-
-  return (
-    <div className="mst-surface" ref={box}>
-      <canvas
-        ref={ref}
-        tabIndex={0}
-        className={`mst-canvas${tools.tool === 'draw' ? ' drawing' : ''}`}
-        style={{ width, height }}
-        aria-label={`Video frame at ${fmtTime(t)}, ${f.ratio}. Drag a layer or an overlay clip to move it, its corner handle to resize, its top handle to turn it; arrow keys move the selected one. Delete removes the selected layer. Space plays and pauses.`}
-        onDoubleClick={() => document.getElementById('layer-text')?.focus()}
-        {...handlers}
-      />
-      <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the frame' : 'Drag a layer or an overlay clip to move it · Space plays'}</p>
-    </div>
-  );
-}
-
-function Range({ id, label, value, min, max, step = 0.1, show, onChange }: { id: string; label: string; value: number; min: number; max: number; step?: number; show: string; onChange: (v: number) => void }) {
-  return (
-    <div className="ig-slider">
-      <label htmlFor={id}>
-        {label} <output htmlFor={id}>{show}</output>
-      </label>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} />
-    </div>
-  );
-}
-
-function ClipPanel({ clip: c }: { clip: VClip }) {
-  // "Clip 2", or "Overlay 1, clip 2": counted on the clip's own track (203). The selector returns the label, a string:
-  // a store selector must return the same value for the same state, or React re-renders forever (an object from
-  // clipPlace is new on every read).
-  const placeLabel = useVideo((s) => {
-    const place = clipPlace(c.id, s);
-    return place ? clipLabel(place.track, place.n) : 'Clip';
-  });
-  /** Changes the clip, showing why when it can't be (the length or videos-at-once limit, a locked track). */
-  const updateClip = (patch: Partial<VClip>, key?: string) => {
-    const refusal = updateClipWhy(c.id, patch, key);
-    if (refusal) toast(refusal);
-  };
-  const room = limits().seconds - (useVideo(videoLength) - clipLength(c));
-  const locked = useVideo((s) => lockedReason(s.tracks, c.track));
-  const cantExport = useFallbackNote(c.file);
-  const t = useVideo((s) => s.t);
-  const local = t - c.start;
-  const volume = volumeAt(c, local);
-  const e = c.edit;
-  return (
-    <div className="lp">
-      {locked && <p className="hint lp-locked">{locked}</p>}
-      <fieldset className="lp-fs" disabled={!!locked}>
-      <div className="ig-group">
-        <h3>
-          {placeLabel} · {c.kind === 'video' ? 'video' : 'photo'}
-        </h3>
-        <p className="hint ig-name" title={c.name}>
-          {c.name} · {c.w}×{c.h}
-          {c.kind === 'video' ? ` · ${fmtTime(c.srcDur)}` : ''}
-        </p>
-        {cantExport && <p className="hint bad" role="status">{cantExport}</p>}
-        {c.kind === 'photo' ? (
-          <>
-            <Range id="v-dur" label="On screen for" value={c.dur} min={0.5} max={Math.max(0.5, Math.min(30, room))} show={`${c.dur.toFixed(1)} s`} onChange={(dur) => updateClip({ dur })} />
-            <span className="lp-label">Movement</span>
-            <div className="chips" role="radiogroup" aria-label="Movement">
-              {MOTIONS.map(([id, label]) => (
-                <button key={id} type="button" role="radio" className="chip" aria-checked={c.motion === id} onClick={() => updateClip({ motion: id as Motion }, '')}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <Range id="v-in" label="Starts at" value={c.in} min={0} max={Math.max(0, c.out - 0.3)} step={1 / 30} show={fmtTime(c.in)} onChange={(v) => updateClip({ in: Math.min(v, c.out - 0.3) }, `trim-in:${c.id}`)} />
-            <Range id="v-out" label="Ends at" value={c.out} min={c.in + 0.3} max={Math.min(c.srcDur, c.in + room)} step={1 / 30} show={fmtTime(c.out)} onChange={(v) => updateClip({ out: Math.max(v, c.in + 0.3) }, `trim-out:${c.id}`)} />
-            <div className="kf-row">
-              <Range id="v-vol" label="Clip sound" value={volume} min={0} max={1} step={0.05} show={volume ? `${Math.round(volume * 100)}%` : 'muted'} onChange={(v) => tell(setClipVolume(c.id, v))} />
-              <KeyButton target={{ clip: c.id }} props={['volume']} label="Clip sound" state={keyState(c.keys?.volume, local)} time={t} />
-            </div>
-          </>
-        )}
-        <Check checked={c.fade} onChange={(fade) => updateClip({ fade }, '')}>
-          Fade in from black
-        </Check>
-      </div>
-      <PositionGroup clip={c} t={t} />
-      <div className="ig-group">
-        <h3>Frame</h3>
-        <Seg<'fill' | 'fit'>
-          label="How the picture fills the frame"
-          value={e.fit}
-          options={[
-            ['fill', 'Fill the frame'],
-            ['fit', 'Whole picture'],
-          ]}
-          onChange={(fit) => editClip(c.id, { fit, px: 0, py: 0 })}
-        />
-        {e.fit === 'fit' && (
-          <Check checked={e.bg === 'blur'} onChange={(on) => editClip(c.id, { bg: on ? 'blur' : '#000000' })}>
-            Blurred background
-          </Check>
-        )}
-        <Range id="v-zoom" label="Zoom" value={e.zoom} min={1} max={3} step={0.01} show={e.zoom.toFixed(2)} onChange={(zoom) => editClip(c.id, { zoom })} />
-        <Range id="v-px" label="Left–right" value={e.px} min={-1} max={1} step={0.01} show={e.px.toFixed(2)} onChange={(px) => editClip(c.id, { px })} />
-        <Range id="v-py" label="Up–down" value={e.py} min={-1} max={1} step={0.01} show={e.py.toFixed(2)} onChange={(py) => editClip(c.id, { py })} />
-      </div>
-      <div className="ig-group">
-        <h3>Colour</h3>
-        <LookPicker idPrefix="v" adjust={e.adjust} onChange={(patch) => adjustClip(c.id, patch)} />
-        <Range id="v-br" label="Brightness" value={e.adjust.brightness} min={-100} max={100} step={1} show={String(e.adjust.brightness)} onChange={(brightness) => adjustClip(c.id, { brightness })} />
-        <Range id="v-ct" label="Contrast" value={e.adjust.contrast} min={-100} max={100} step={1} show={String(e.adjust.contrast)} onChange={(contrast) => adjustClip(c.id, { contrast })} />
-        <Range id="v-sa" label="Saturation" value={e.adjust.saturation} min={-100} max={100} step={1} show={String(e.adjust.saturation)} onChange={(saturation) => adjustClip(c.id, { saturation })} />
-        <Range id="v-wa" label="Warmth" value={e.adjust.warmth} min={-100} max={100} step={1} show={String(e.adjust.warmth)} onChange={(warmth) => adjustClip(c.id, { warmth })} />
-      </div>
-      </fieldset>
-    </div>
-  );
-}
-
-/** The inspector's position-and-size fields: a label, a number in the field's units, and its range. */
-const POSITION_FIELDS: { field: keyof ClipTransform; label: string; unit: string; min: number; max: number; scale: number }[] = [
-  { field: 'x', label: 'X', unit: '%', min: -50, max: 150, scale: 100 },
-  { field: 'y', label: 'Y', unit: '%', min: -50, max: 150, scale: 100 },
-  { field: 'w', label: 'Size', unit: '%', min: 5, max: 400, scale: 100 },
-  { field: 'rot', label: 'Rotation', unit: '°', min: -180, max: 180, scale: 1 },
-  { field: 'opacity', label: 'Opacity', unit: '%', min: 0, max: 100, scale: 100 },
-  { field: 'radius', label: 'Corners', unit: '%', min: 0, max: 50, scale: 100 },
-];
-
-/**
- * A clip's box in the frame (203 §11, AC-5): Full frame and the four corner presets, and number fields for its centre
- * (X, Y), size, rotation, opacity and corner radius. Typing in a field is one undo step per field until another field
- * changes; the stage shows the same box, with handles, for dragging.
- */
-function PositionGroup({ clip, t }: { clip: VClip; t: number }) {
-  const local = t - clip.start;
-  // The box as shown at the playhead (205): animated values from their keyframes, written back through the router.
-  const transform = transformAt(clip, local);
-  const previous = adjacentKey(clip, local, -1),
-    next = adjacentKey(clip, local, 1);
-  return (
-    <div className="ig-group">
-      <h3 className="kf-head">
-        Position and size
-        {clip.keys && <KeyframeNav what="clip" previous={previous === null ? null : clip.start + previous} next={next === null ? null : clip.start + next} onSeek={setPlayhead} />}
-      </h3>
-      <div className="chips" role="group" aria-label="Place the clip">
-        {PRESETS.map(([preset, label]) => (
-          <button key={preset} type="button" className="chip" onClick={() => tell(applyPreset(clip.id, preset))}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="v-position">
-        {POSITION_FIELDS.map(({ field, label, unit, min, max, scale }) => (
-          <div key={field} className="kf-field">
-            <NumberField
-              label={label}
-              unit={unit}
-              min={min}
-              max={max}
-              value={Math.round(transform[field] * scale * 10) / 10}
-              onChange={(value) => tell(setClipTransformAt(clip.id, { [field]: value / scale }, `tf-field:${clip.id}:${field}`))}
-            />
-            <KeyButton target={{ clip: clip.id }} props={[field]} label={label} state={keyState(clip.keys?.[field], local)} time={t} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Shows a refusal (a locked track, a keyframe limit) instead of dropping it. */
-const tell = (refusal: string | null) => refusal && toast(refusal);
-
-/** A keyframe button wired to the store (205): toggles the value(s) at the playhead; its menu removes the animation. */
-function KeyButton({ target, props, label, state, time }: { target: KeyTarget; props: KeyProp[]; label: string; state: ReturnType<typeof keyState>; time: number }) {
-  return <KeyframeButton label={label} state={state} time={time} onToggle={() => tell(toggleKey(target, props))} onRemove={() => tell(removeAnimation(target, props))} />;
-}
-
-/**
- * A number field that keeps what is being typed until it is a number within range, then reports it.
- * @param label the field's name
- * @param unit shown after the field
- * @param value the value shown when not typing
- * @param onChange gets each valid number typed or stepped
- */
-function NumberField({ label, unit, min, max, value, onChange }: { label: string; unit: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-  return (
-    <label className="v-number">
-      <span>{label}</span>
-      <input
-        type="number"
-        inputMode="decimal"
-        min={min}
-        max={max}
-        step={1}
-        value={draft}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          const typed = Number(event.target.value);
-          if (event.target.value.trim() !== '' && Number.isFinite(typed) && typed >= min && typed <= max) onChange(typed);
-        }}
-        onBlur={() => setDraft(String(value))}
-      />
-      <span aria-hidden="true">{unit}</span>
-    </label>
-  );
-}
-
-function ProjectPanel() {
-  const clips = useVideo((s) => s.clips),
-    kind = useVideo((s) => s.kind),
-    total = useVideo(videoLength);
-  const L = limits(kind);
-  return (
-    <div className="lp">
-      <div className="ig-group">
-        <h3>Project</h3>
-        <p className="hint">
-          {clips.length} clip{clips.length === 1 ? '' : 's'} · {fmtTime(total)} of up to {limitText(L.seconds)}.
-        </p>
-        <p className="hint">Choose a clip on the timeline to edit it, or a layer to change it.</p>
-      </div>
-    </div>
-  );
-}
-
-function MusicPanel() {
-  const music = useVideo((s) => s.music);
-  const [msg, setMsg] = useState('');
-  const total = useVideo(videoLength);
-  const locked = useVideo((s) => lockedReason(s.tracks, MUSIC));
-  return (
-    <div className="ig-group">
-      <h3>Music</h3>
-      <p className="hint">Add a song or sound from this device. Use music you have the right to post: Instagram and YouTube may mute or claim recognised songs.</p>
-      {locked && <p className="hint lp-locked">{locked}</p>}
-      <fieldset className="lp-fs" disabled={!!locked}>
-      <label className="sbtn mst-file">
-        <MusicIcon />
-        {music ? 'Choose another sound' : 'Add music'}
-        <input
-          type="file"
-          accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (f) void setMusicFile(f).then((m) => setMsg(m ?? ''));
-          }}
-        />
-      </label>
-      {msg && (
-        <p className="hint bad" role="alert">
-          {msg}
-        </p>
-      )}
-      {music && (
-        <>
-          <p className="hint ig-name" title={music.name}>
-            {music.name} · {fmtTime(music.dur)}
-          </p>
-          <Range id="m-vol" label="Volume" value={music.volume} min={0} max={1} step={0.05} show={`${Math.round(music.volume * 100)}%`} onChange={(volume) => updateMusic({ volume })} />
-          <Range id="m-off" label="Start the song at" value={music.offset} min={0} max={Math.max(0, music.dur - Math.min(total, music.dur))} step={0.5} show={fmtTime(music.offset)} onChange={(offset) => updateMusic({ offset })} />
-          <p className="hint">Or drag the music on the timeline. It fades out over the last seconds. Lower a clip’s own sound in its inspector.</p>
-          <button type="button" className="sbtn" onClick={removeMusic}>
-            <TrashIcon />
-            Remove music
-          </button>
-        </>
-      )}
-      </fieldset>
-    </div>
-  );
-}
-
-function ExportPanel() {
-  const clips = useVideo((s) => s.clips),
-    kind = useVideo((s) => s.kind),
-    format = useVideo((s) => s.format),
-    fps = useVideo((s) => s.fps),
-    fadeOut = useVideo((s) => s.fadeOut),
-    quality = useVideo((s) => s.quality),
-    progress = useVideo((s) => s.progress),
-    result = useVideo((s) => s.result),
-    savedTo = useVideo((s) => s.savedTo);
-  const caption = useIg((s) => s.caption);
-  const total = useVideo(videoLength);
-  const L = limits(kind);
-  const f = vFormat(format);
-  const tooShort = clips.length > 0 && total < L.minSeconds;
-  const shareable = !!result && !isDesktop && canShareFiles([result]);
-  const streams = kind === 'vlog' && canStreamToDisk();
-  const mbps = bitrateFor(f, fps, quality) / 1e6;
-  const sizeMB = ((bitrateFor(f, fps, quality) + 128000) / 8 / 1048576) * total;
-
-  const run = async () => {
-    try {
-      const out = await exportVideo();
-      if (out?.kind === 'file') toast(`Video ready: ${(out.file.size / 1048576).toFixed(1)} MB.`);
-      if (out?.kind === 'saved') toast(`Saved ${out.name.split(/[\\/]/).pop()}.`);
-    } catch (e) {
-      logError('handled', e);
-      toast(e instanceof Error && e.message ? e.message : 'The video couldn’t be made.');
-    }
-  };
-  const post = async () => {
-    if (!result) return;
-    const text = getIg().caption;
-    if (text) await navigator.clipboard?.writeText(text).catch(() => undefined);
-    if (shareable) {
-      try {
-        await navigator.share({ files: [result], text: text || undefined });
-        if (text) toast('Caption copied: paste it into Instagram.');
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-        logError('handled', e);
-      }
-    }
-    await saveFile(result.name, result);
-    if (desktop) await desktop.openExternal(INSTAGRAM_WEB);
-    else window.open(INSTAGRAM_WEB, '_blank', 'noopener');
-    toast('Video saved. On Instagram, choose Create (+), then Reel, and select it.');
-  };
-
-  return (
-    <div className="ig-export">
-      <div className="ig-export-grid">
-        <div>
-          <h3>Video</h3>
-          <p className="hint">
-            {f.ratio} {f.label} · {f.w}×{f.h} · H.264 + AAC sound · {fmtTime(total)}
-          </p>
-          {L.fps.length > 1 && (
-            <>
-              <span className="lp-label">Frame rate</span>
-              <Seg<'30' | '60'>
-                label="Frame rate"
-                value={String(fps) as '30' | '60'}
-                options={[
-                  ['30', '30 fps'],
-                  ['60', '60 fps (smoother motion)'],
-                ]}
-                onChange={(v) => setVideoOptions({ fps: +v as VFps })}
-              />
-            </>
-          )}
-          <span className="lp-label">Quality</span>
-          <Seg<VQuality>
-            label="Quality"
-            value={quality}
-            options={[
-              ['standard', kind === 'vlog' ? 'Standard (YouTube’s recommendation)' : 'Standard (5 Mbit/s)'],
-              ['high', 'High'],
-            ]}
-            onChange={(q) => setVideoOptions({ quality: q })}
-          />
-          <p className="hint">
-            {mbps.toFixed(1)} Mbit/s · about {sizeMB >= 1024 ? `${(sizeMB / 1024).toFixed(1)} GB` : `${Math.max(1, Math.round(sizeMB))} MB`}
-          </p>
-          <Check checked={fadeOut} onChange={(v) => setVideoOptions({ fadeOut: v })}>
-            Fade to black at the end
-          </Check>
-        </div>
-        <div>
-          {kind === 'reel' ? (
-            <>
-              <h3>
-                <label htmlFor="v-caption">Caption</label>
-              </h3>
-              <textarea id="v-caption" rows={3} maxLength={2200} placeholder="Write a caption. It’s copied for you when you post." value={caption} onChange={(e) => setIg({ caption: e.target.value })} />
-            </>
-          ) : (
-            <>
-              <h3>Saving</h3>
-              <p className="hint">
-                {streams
-                  ? 'You choose where to save, then the video is written straight to that file as it is made, so even a long video never has to fit in memory.'
-                  : 'This browser can’t write straight to a file, so the video is built in memory first: keep it short, or use Chrome, Edge or the desktop app.'}{' '}
-                Upload it at{' '}
-                <a href={YOUTUBE_UPLOAD} target="_blank" rel="noopener noreferrer">
-                  youtube.com/upload
-                </a>
-                .
-              </p>
-            </>
-          )}
-          <LimitsNote />
-        </div>
-      </div>
-
-      {progress ? (
-        <div className="v-progress" role="status">
-          <progress max={1} value={progress.frac} aria-label="Export progress" />
-          <span>
-            {Math.round(progress.frac * 100)}% · {progress.phase}
-          </span>
-          <button type="button" className="btn" onClick={cancelExport}>
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <div className="ig-actions">
-          <button type="button" className="btn primary" disabled={!clips.length || tooShort} onClick={() => void run()}>
-            <DownloadIcon />
-            {result || savedTo ? 'Export again' : `Export MP4 (${fmtTime(total)})`}
-          </button>
-          {result && (
-            <>
-              <button type="button" className="btn primary" onClick={() => void post()}>
-                {shareable ? <ShareIcon /> : <InstagramIcon />}
-                {shareable ? 'Share to Instagram' : 'Save and open Instagram'}
-              </button>
-              <button type="button" className="btn" onClick={() => void saveFile(result.name, result)}>
-                <DownloadIcon />
-                Download MP4 ({(result.size / 1048576).toFixed(1)} MB)
-              </button>
-            </>
-          )}
-          {savedTo && (
-            <>
-              <span className="hint">Saved: {savedTo.split(/[\\/]/).pop()}</span>
-              {desktop && (
-                <button type="button" className="btn" onClick={() => void desktop!.showInFolder(savedTo)}>
-                  <FolderIcon />
-                  Show in folder
-                </button>
-              )}
-              <a className="btn" href={YOUTUBE_UPLOAD} target="_blank" rel="noopener noreferrer">
-                <YouTubeIcon />
-                Open YouTube upload
-              </a>
-            </>
-          )}
-        </div>
-      )}
-      <p className="hint">
-        {!clips.length
-          ? 'Add clips to export a video.'
-          : tooShort
-            ? `Instagram needs at least ${L.minSeconds} seconds: lengthen a photo or add a clip.`
-            : 'Exporting renders every frame on this device. Keep this tab in front while it works; browsers slow down background tabs.'}
-      </p>
-    </div>
   );
 }

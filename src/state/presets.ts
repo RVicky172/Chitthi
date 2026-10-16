@@ -24,110 +24,152 @@ import { ensureLut, keepLut } from '../lib/userLuts';
 
 let list: SavedPreset[] = [];
 let loading: Promise<void> | null = null;
-const subs = new Set<() => void>();
-const publish = (next: SavedPreset[]) => {
-  list = [...next].sort((a, b) => a.name.localeCompare(b.name));
-  subs.forEach((f) => f());
-};
-const store = (p: SavedPreset) => db.presetPut(p).catch(() => undefined);
+const listeners = new Set<() => void>();
 
-/** Reads the saved presets, once. */
+/**
+ * Replace the list (kept sorted by name) and tell the listeners.
+ * @param next the presets
+ */
+const publish = (next: SavedPreset[]) => {
+  list = [...next].sort((first, second) => first.name.localeCompare(second.name));
+  listeners.forEach((listener) => {
+    listener();
+  });
+};
+
+/**
+ * Save a preset to storage; without storage it lasts until the page closes.
+ * @param preset the preset
+ * @returns when it is written (never rejects)
+ */
+const store = (preset: SavedPreset) => db.presetPut(preset).catch(() => undefined);
+
+/**
+ * Reads the saved presets, once.
+ * @returns when they are in the list (never rejects: without storage the list stays as it is)
+ */
 export function loadPresets(): Promise<void> {
   loading ??= db
     .presetAll()
     .then((stored) => {
-      const ok = stored.map(mergePreset).filter((p): p is SavedPreset => !!p);
-      publish([...ok, ...list.filter((p) => !ok.some((x) => x.id === p.id))]);
+      const valid = stored.map(mergePreset).filter((preset): preset is SavedPreset => !!preset);
+      publish([...valid, ...list.filter((preset) => !valid.some((saved) => saved.id === preset.id))]);
     })
     .catch(() => undefined);
   return loading;
 }
 
+/**
+ * The saved presets now, by name (components use `usePresets`).
+ * @returns the list
+ */
 export const getPresets = () => list;
 
-/** The saved presets, by name. */
+/**
+ * The saved presets, by name.
+ * @returns the list; the component re-renders when it changes
+ */
 export function usePresets(): SavedPreset[] {
   return useSyncExternalStore(
-    (f) => (subs.add(f), () => subs.delete(f)),
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     () => list,
   );
 }
 
-/** Saves these colour settings under a name (made unique). Returns the preset, or null for an empty name. */
+/**
+ * The names of presets, for making a name unique.
+ * @param presets the presets
+ * @returns their names
+ */
+const namesOf = (presets: readonly SavedPreset[]) => presets.map((preset) => preset.name);
+
+/**
+ * Saves these colour settings under a name (made unique).
+ * @param name the name typed
+ * @param adjust the colour settings
+ * @returns the preset, or null for an empty name
+ */
 export async function savePreset(name: string, adjust: Adjustments): Promise<SavedPreset | null> {
-  const n = cleanName(name);
-  if (!n) return null;
-  const p: SavedPreset = {
-    id: presetId(),
-    name: uniqueName(
-      n,
-      list.map((x) => x.name),
-    ),
-    adjust: { ...adjust },
-    created: Date.now(),
-  };
-  publish([...list, p]);
-  await store(p);
-  return p;
+  const cleaned = cleanName(name);
+  if (!cleaned) return null;
+  const preset: SavedPreset = { id: presetId(), name: uniqueName(cleaned, namesOf(list)), adjust: { ...adjust }, created: Date.now() };
+  publish([...list, preset]);
+  await store(preset);
+  return preset;
 }
 
-/** Renames a preset; an empty name leaves it as it was. Returns the name it ends up with. */
+/**
+ * Renames a preset; an empty name leaves it as it was.
+ * @param id the preset
+ * @param name the new name typed
+ * @returns the name it ends up with ('' when there is no such preset)
+ */
 export async function renamePreset(id: string, name: string): Promise<string> {
-  const p = list.find((x) => x.id === id);
-  const n = cleanName(name);
-  if (!p) return '';
-  if (!n || n === p.name) return p.name;
-  const next = {
-    ...p,
-    name: uniqueName(
-      n,
-      list.filter((x) => x.id !== id).map((x) => x.name),
-    ),
-  };
-  publish(list.map((x) => (x.id === id ? next : x)));
+  const preset = list.find((saved) => saved.id === id);
+  const cleaned = cleanName(name);
+  if (!preset) return '';
+  if (!cleaned || cleaned === preset.name) return preset.name;
+  const next = { ...preset, name: uniqueName(cleaned, namesOf(list.filter((saved) => saved.id !== id))) };
+  publish(list.map((saved) => (saved.id === id ? next : saved)));
   await store(next);
   return next.name;
 }
 
+/**
+ * Delete a preset.
+ * @param id the preset
+ */
 export async function deletePreset(id: string): Promise<void> {
-  publish(list.filter((x) => x.id !== id));
+  publish(list.filter((saved) => saved.id !== id));
   await db.presetDel(id).catch(() => undefined);
 }
 
-/** The preset file for these presets (all saved ones by default), with the LUTs they use that are on this device. */
+/**
+ * The preset file for these presets, with the LUTs they use that are on this device.
+ * @param presets the presets (all saved ones by default)
+ * @returns the file's text
+ */
 export async function exportPresets(presets: readonly SavedPreset[] = list): Promise<string> {
-  const ids = [...new Set(presets.map((p) => p.adjust.lut).filter(Boolean))];
-  const luts = (await Promise.all(ids.map((id) => ensureLut(id).catch(() => undefined)))).filter((l): l is Lut => !!l);
+  const ids = [...new Set(presets.map((preset) => preset.adjust.lut).filter(Boolean))];
+  const luts = (await Promise.all(ids.map((id) => ensureLut(id).catch(() => undefined)))).filter((lut): lut is Lut => !!lut);
   return presetFile(presets, luts);
+}
+
+/** What importing a preset file did. */
+export interface PresetImport {
+  added: number;
+  /** Presets left out because one with the same name and settings is saved. */
+  skipped: number;
+  /** LUTs the file brought. */
+  luts: number;
 }
 
 /**
  * Adds the presets of a preset file and keeps its LUTs. A preset whose name and settings match one already saved is
- * skipped; one whose name alone is taken gets a number. Throws a PresetError when the file isn't a preset file.
+ * skipped; one whose name alone is taken gets a number.
+ * @param file the chosen file
+ * @returns how many were added and skipped, and the LUTs kept
+ * @throws {PresetError} when the file is too big or isn't a preset file
  */
-export async function importPresets(file: File): Promise<{ added: number; skipped: number; luts: number }> {
+export async function importPresets(file: File): Promise<PresetImport> {
   if (file.size > PRESET_FILE_BYTES) throw new PresetError(`That file is over ${PRESET_FILE_BYTES / 1048576} MB.`);
   const { presets, luts } = readPresetFile(await file.text());
   if (!presets.length) throw new PresetError('The file holds no presets.');
   await loadPresets();
-  for (const l of luts) await keepLut(l);
+  for (const lut of luts) await keepLut(lut);
   let added = 0,
     skipped = 0;
   const next = [...list];
-  for (const p of presets) {
-    if (next.some((x) => x.name.toLowerCase() === p.name.toLowerCase() && sameSettings(x.adjust, p.adjust))) {
+  for (const preset of presets) {
+    const lowerName = preset.name.toLowerCase();
+    if (next.some((saved) => saved.name.toLowerCase() === lowerName && sameSettings(saved.adjust, preset.adjust))) {
       skipped++;
       continue;
     }
-    const saved: SavedPreset = {
-      id: presetId(),
-      name: uniqueName(
-        p.name,
-        next.map((x) => x.name),
-      ),
-      adjust: p.adjust,
-      created: Date.now(),
-    };
+    const saved: SavedPreset = { id: presetId(), name: uniqueName(preset.name, namesOf(next)), adjust: preset.adjust, created: Date.now() };
     next.push(saved);
     added++;
     await store(saved);

@@ -1,4 +1,6 @@
+import { isRecord } from '../../engine/guards';
 import { AiError, blobFromBase64, httpError, parseJsonLoose, type AiCtx, type ImageRequest, type JsonSchema, type ProviderModule, type TextRequest } from '../types';
+import { fieldOf, listField, textField } from './read';
 
 /*
  * Google Gemini (generativelanguage.googleapis.com, key in x-goog-api-key). Words: generateContent with a JSON
@@ -8,68 +10,125 @@ import { AiError, blobFromBase64, httpError, parseJsonLoose, type AiCtx, type Im
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
 
-/** Gemini's response schema is an OpenAPI subset: drop keywords it doesn't know. */
-function geminiSchema(s: JsonSchema): JsonSchema {
-  const { additionalProperties: _a, $schema: _s, ...rest } = s as Record<string, unknown>;
-  const out: Record<string, unknown> = { ...rest };
-  if (rest.properties && typeof rest.properties === 'object')
-    out.properties = Object.fromEntries(Object.entries(rest.properties as Record<string, JsonSchema>).map(([k, v]) => [k, geminiSchema(v)]));
-  if (rest.items && typeof rest.items === 'object') out.items = geminiSchema(rest.items as JsonSchema);
-  return out;
+/** JSON Schema keywords Gemini's OpenAPI subset doesn't know. */
+const UNKNOWN_KEYWORDS = new Set(['additionalProperties', '$schema']);
+
+/**
+ * Gemini's response schema is an OpenAPI subset: drop keywords it doesn't know.
+ * @param schema a JSON Schema
+ * @returns the schema without them, nested properties and items too
+ */
+function geminiSchema(schema: JsonSchema): JsonSchema {
+  const converted: Record<string, unknown> = Object.fromEntries(Object.entries(schema).filter(([keyword]) => !UNKNOWN_KEYWORDS.has(keyword)));
+  if (isRecord(schema.properties))
+    converted.properties = Object.fromEntries(
+      Object.entries(schema.properties).map(([name, property]) => [name, isRecord(property) ? geminiSchema(property) : property]),
+    );
+  if (isRecord(schema.items)) converted.items = geminiSchema(schema.items);
+  return converted;
 }
 
-type Part = { text?: string; inlineData?: { data: string; mimeType?: string }; inline_data?: { data: string; mime_type?: string } };
-interface GenResponse {
-  candidates?: { content?: { parts?: Part[] }; finishReason?: string }[];
-  promptFeedback?: { blockReason?: string };
-  output_image?: { data?: string; mime_type?: string };
+/**
+ * Calls generateContent.
+ * @param ctx the request context
+ * @param body the request
+ * @returns the parsed answer
+ * @throws AiError when Gemini blocks the prompt or answers with an error
+ */
+async function call(ctx: AiCtx, body: unknown): Promise<unknown> {
+  const response = await ctx.http.fetch(`${API}/models/${encodeURIComponent(ctx.model)}:generateContent`, { json: body, signal: ctx.signal });
+  if (!response.ok) throw await httpError(response, 'Google Gemini');
+  const answer: unknown = await response.json();
+  if (textField(fieldOf(answer, 'promptFeedback'), 'blockReason')) throw new AiError('Gemini declined this request. Try different words.', 'refused');
+  return answer;
 }
 
-async function call(ctx: AiCtx, body: unknown): Promise<GenResponse> {
-  const res = await ctx.http.fetch(`${API}/models/${encodeURIComponent(ctx.model)}:generateContent`, { json: body, signal: ctx.signal });
-  if (!res.ok) throw await httpError(res, 'Google Gemini');
-  const j = (await res.json()) as GenResponse;
-  if (j.promptFeedback?.blockReason) throw new AiError('Gemini declined this request. Try different words.', 'refused');
-  return j;
-}
+/**
+ * The parts of the first candidate's content.
+ * @param answer the parsed answer
+ * @returns the parts
+ */
+const partsOf = (answer: unknown): unknown[] => listField(fieldOf(listField(answer, 'candidates')[0], 'content'), 'parts');
 
+/**
+ * Structured words.
+ * @param ctx the request context
+ * @param req the prompts and schema
+ * @returns the parsed JSON
+ */
 async function generateJSON(ctx: AiCtx, req: TextRequest): Promise<unknown> {
-  const j = await call(ctx, {
+  const answer = await call(ctx, {
     systemInstruction: { parts: [{ text: req.system }] },
     contents: [{ role: 'user', parts: [{ text: req.prompt }] }],
     generationConfig: { maxOutputTokens: req.maxTokens, responseMimeType: 'application/json', responseSchema: geminiSchema(req.schema) },
   });
-  const text = (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('');
+  const text = partsOf(answer)
+    .map((part) => textField(part, 'text') ?? '')
+    .join('');
   if (!text) throw new AiError('Gemini returned no text. Try again.', 'bad-output');
   return parseJsonLoose(text);
 }
 
+/**
+ * A picture in a response part (inlineData, or the snake_case inline_data).
+ * @param part one part
+ * @returns its picture, or null
+ */
+function pictureOf(part: unknown): Blob | null {
+  const camelCase = fieldOf(part, 'inlineData');
+  const inline = camelCase ?? fieldOf(part, 'inline_data');
+  const data = textField(inline, 'data');
+  if (!data) return null;
+  return blobFromBase64(data, pngIfNone(textField(inline, camelCase == null ? 'mime_type' : 'mimeType')));
+}
+
+/**
+ * A picture's type, PNG when the answer gives none.
+ * @param type the type in the answer
+ * @returns the type
+ */
+const pngIfNone = (type: string | undefined): string => (type === undefined || type === '' ? 'image/png' : type);
+
+/**
+ * Pictures, one request each.
+ * @param ctx the request context
+ * @param req the prompt, aspect and how many (at most 4)
+ * @returns the pictures
+ */
 async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
-  const out: Blob[] = [];
-  for (let i = 0; i < Math.min(4, req.n); i++) {
-    const j = await call(ctx, {
+  const pictures: Blob[] = [];
+  for (let request = 0; request < Math.min(4, req.n); request++) {
+    const answer = await call(ctx, {
       contents: [{ role: 'user', parts: [{ text: req.prompt }] }],
       generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: req.aspect } },
     });
-    const parts = j.candidates?.[0]?.content?.parts ?? [];
-    for (const p of parts) {
-      const d = p.inlineData ?? (p.inline_data ? { data: p.inline_data.data, mimeType: p.inline_data.mime_type } : null);
-      if (d?.data) out.push(blobFromBase64(d.data, d.mimeType || 'image/png'));
+    for (const part of partsOf(answer)) {
+      const picture = pictureOf(part);
+      if (picture) pictures.push(picture);
     }
-    if (j.output_image?.data) out.push(blobFromBase64(j.output_image.data, j.output_image.mime_type || 'image/png'));
+    // The newer "interactions" shape.
+    const outputImage = fieldOf(answer, 'output_image');
+    const data = textField(outputImage, 'data');
+    if (data) pictures.push(blobFromBase64(data, pngIfNone(textField(outputImage, 'mime_type'))));
   }
-  if (!out.length) throw new AiError('Gemini returned no picture. Try a different description.', 'bad-output');
-  return out;
+  if (!pictures.length) throw new AiError('Gemini returned no picture. Try a different description.', 'bad-output');
+  return pictures;
 }
 
+/**
+ * The account's models that can generate content.
+ * @param ctx the request context
+ * @returns their names without the "models/" prefix
+ */
 async function listModels(ctx: AiCtx): Promise<string[]> {
-  const res = await ctx.http.fetch(`${API}/models?pageSize=200`, { signal: ctx.signal });
-  if (!res.ok) throw await httpError(res, 'Google Gemini');
-  const j = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
-  return (j.models ?? []).filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => m.name.replace(/^models\//, ''));
+  const response = await ctx.http.fetch(`${API}/models?pageSize=200`, { signal: ctx.signal });
+  if (!response.ok) throw await httpError(response, 'Google Gemini');
+  return listField(await response.json(), 'models')
+    .filter((model) => listField(model, 'supportedGenerationMethods').includes('generateContent'))
+    .map((model) => (textField(model, 'name') ?? '').replace(/^models\//, ''));
 }
 
-export const text = { generateJSON, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((m) => !/image|embedding|tts|audio/i.test(m)) };
-export const image = { generate, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((m) => /image/i.test(m)) };
-const mod: ProviderModule = { text, image };
-export default mod;
+export const text = { generateJSON, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => !/image|embedding|tts|audio/i.test(model)) };
+export const image = { generate, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => /image/i.test(model)) };
+const providerModule: ProviderModule = { text, image };
+export default providerModule;

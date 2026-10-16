@@ -2,6 +2,24 @@
  * A labelled range slider with its value shown, for the media studio's panels. Double-click resets it.
  */
 
+/** A slider's label, range and value. */
+interface SliderProps {
+  /** The input's id (its label points at it). */
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  /** What a double-click sets: 0, or the minimum when 0 is out of range, unless given. */
+  reset?: number;
+  onChange: (value: number) => void;
+}
+
+/**
+ * A labelled range slider showing its value (two decimals for fine steps, else whole numbers).
+ * @param props the slider's id, label, range, value, reset value and change handler
+ */
 export function Slider({
   id,
   label,
@@ -11,17 +29,7 @@ export function Slider({
   step = 1,
   reset = min < 0 ? 0 : min,
   onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  /** What a double-click sets: 0, or the minimum when 0 is out of range, unless given. */
-  reset?: number;
-  onChange: (v: number) => void;
-}) {
+}: Readonly<SliderProps>) {
   return (
     <div className="ig-slider">
       <label htmlFor={id}>
@@ -34,7 +42,7 @@ export function Slider({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(+e.target.value)}
+        onChange={(event) => onChange(+event.target.value)}
         onDoubleClick={() => onChange(reset)}
       />
     </div>

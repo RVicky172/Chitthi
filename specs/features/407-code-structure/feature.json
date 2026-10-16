@@ -1,0 +1,1531 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "407",
+  "title": "Code structure: a tests folder, coding standards, readable names and JSDoc",
+  "workItem": null,
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-13",
+    "approved": "2026-10-13",
+    "started": "2026-10-13",
+    "done": "2026-10-16"
+  },
+  "git": {
+    "branch": "feat/407-code-structure"
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "The code works, but it is harder to read and change than it should be. Unit tests sit beside the code in `src/` (30 files), so tests and code are mixed when browsing; there are no written coding standards; 34 % of the names declared in `src/` are one letter (5,593 of 16,459), 38 % of exported functions have no JSDoc (333 of 880), 19 files are over 600 lines (the largest 1,443) and 103 functions over 80 lines. 407 moves every test into a top-level `tests/` folder (unit, integration, e2e), writes the standards down (naming, JSDoc, SOLID as applied here, sizes, performance), makes ESLint enforce what it can, and brings the existing code up to them without changing what the app does. (Tests beside the code never reached the build: Vite bundles only what the app imports, and the Docker image and the desktop app ship only `dist/`; 407 keeps that proven by a check.) It comes before 207 so Phase 2’s remaining features are written to the standards from the start.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As the maintainer, I want all tests in one `tests/` folder, split into unit, integration and e2e, so that code and tests don’t mix and I can find any test quickly."
+        },
+        "US-2": {
+          "text": "As a contributor (or an agent), I want written coding standards that the linter checks, so that new code is consistent without anyone having to remember the rules."
+        },
+        "US-3": {
+          "text": "As someone reading the code, I want descriptive names and a JSDoc on every exported function, so that I understand a function without reading its body."
+        },
+        "US-4": {
+          "text": "As the maintainer, I want large files split into modules that each do one job, so that a change touches one small place and is easy to review."
+        },
+        "US-5": {
+          "text": "As a user, I want none of this to change how the app looks, behaves or performs, except where it gets faster."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Tests in one place",
+          "proof": "check",
+          "text": "Every test lives under `tests/`: `tests/unit/` (one module, mirroring `src/`’s paths, e.g. `tests/unit/engine/keyframes.test.ts`), `tests/integration/` (several modules together: the stores, the decoder pool with its fake decoder, the preview sound), `tests/e2e/` (the Playwright tests, from `e2e/`) and `tests/support/` (shared fixtures and fakes, e.g. `timeline.testkit.ts`) (Q1). A check (in `npm run check`) fails if a `*.test.ts` or test helper appears under `src/`.",
+          "done": true
+        },
+        "AC-2": {
+          "group": "Tests in one place",
+          "proof": "check",
+          "text": "After the move the same tests run and pass: `npm run test:unit` runs the same 1,672 unit and integration tests (more if 407 adds any), `npm run test:e2e` the same e2e tests; `npm run check`, the editor’s test explorer and single-test commands (documented in CLAUDE.md) work with the new paths.",
+          "done": true
+        },
+        "AC-3": {
+          "group": "Tests in one place",
+          "proof": "check",
+          "text": "No test code reaches what is shipped: `scripts/check-bundle.mjs` (in `npm run build`) fails if any built file contains a module from `tests/` or test-only code (Vitest, the fakes); the Docker image and the desktop package keep shipping only `dist/` and the listed Electron files.",
+          "done": true
+        },
+        "AC-4": {
+          "group": "Written standards",
+          "proof": "review",
+          "text": "`specs/coding-standards.md` says how code is written here, with a short example of each rule: names (descriptive; the one-letter exceptions of Q3), JSDoc (every exported function, class, React component and type: what it does, its parameters, what it returns, what it throws), SOLID as it applies to this codebase (Q7: one job per module, layers that only depend downwards, small interfaces), sizes (Q4), React (hooks, component size, props), performance (no allocation per frame in the drawing and decoding paths; measure before optimizing), errors (`logError`), comments, and tests (where they go, how they are named). The constitution’s Definition of Done and CLAUDE.md point to it.",
+          "done": true
+        },
+        "AC-5": {
+          "group": "Written standards",
+          "proof": "check",
+          "text": "ESLint enforces the rules it can: name length (Q3’s exceptions only), JSDoc on exports (`eslint-plugin-jsdoc`, BSD-3-Clause, a development dependency only), function length and cognitive complexity (Q4, Q12), the React rules (AC-12), the type rules (AC-13), and the layers’ import direction (`data` → `engine` → `state` → `components`; `engine` never imports `state` or `components`). At the end of 407 `npm run lint` has 0 errors with every rule on as an error for `src/` and `electron/`.",
+          "done": true
+        },
+        "AC-6": {
+          "group": "The existing code brought up to the standards",
+          "proof": "check",
+          "text": "No one-letter names are left in `src/` and `electron/` outside Q3’s exceptions (5,593 in `src/` on 2026-10-13), as the lint rule reports.",
+          "done": true
+        },
+        "AC-7": {
+          "group": "The existing code brought up to the standards",
+          "proof": "check",
+          "text": "Every exported function, class, React component and type in `src/` and `electron/` has a JSDoc (333 exported functions without one on 2026-10-13), as the lint rule reports.",
+          "done": true
+        },
+        "AC-8": {
+          "group": "The existing code brought up to the standards",
+          "proof": "check + review",
+          "text": "Modules that do more than one job are split by responsibility, each with one job and a short header saying what it is for: at least the 19 files over 600 lines on 2026-10-13 are reviewed and the mixed ones split (e.g. `engine/render.ts`, `state/video.ts`, `components/studio/Timeline.tsx`); every function meets Q4’s length and cognitive-complexity limits (103 functions over 80 lines on 2026-10-13). A file’s length alone is a review signal, not a rule (Q4); data files are exempt.",
+          "done": true
+        },
+        "AC-9": {
+          "group": "Nothing changes for users",
+          "proof": "unit + e2e + self-test + MCP (407)",
+          "text": "Behaviour is unchanged: every unit, integration and e2e test, the self-test (~6,100 checks: every product × size × layout, print packs, agent tools) and the MCP test pass before and after; the 201–206 video fixtures export identical inputs and pixel-identical frames; the entry chunk is no larger than before (327 KB). These run at the end of 407 itself, not in 290 (Q9).",
+          "done": true
+        },
+        "AC-10": {
+          "group": "Optimized code",
+          "proof": "timing + review",
+          "text": "A performance review of the hot paths (video frame drawing `renderStack` / `frameStack`, the decoder pool, the sound mix, the photo pipeline, the print renderer) is recorded in `specs/features/407-code-structure/` with measurements; a change is made only where it measures at least 10 % faster (Q8), with before / after numbers; no timing check gets slower.",
+          "done": true
+        },
+        "AC-11": {
+          "group": "Docs",
+          "proof": "review",
+          "text": "CLAUDE.md (commands, single tests, the layers), `specs/testing-strategy.md` (the new layout and what is unit / integration / e2e), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts) and `memory/` describe the new structure; relative links resolve.",
+          "done": true
+        },
+        "AC-12": {
+          "group": "React",
+          "proof": "check",
+          "text": "The code follows the current React rules: every rule of `eslint-plugin-react-hooks` v7’s `recommended-latest` preset (the Rules of React that the React Compiler relies on: purity, immutability, refs, set-state in effects and render, static components, memoization) is an error and passes (27 findings in 16 files on 2026-10-13, today switched off); effects are used only to sync with things outside React (106 `useEffect` today, each one checked). Whether the React Compiler is then turned on is Q11.",
+          "done": true
+        },
+        "AC-13": {
+          "group": "Types",
+          "proof": "check",
+          "text": "Types do the checking, not casts: typescript-eslint’s type-aware `strictTypeChecked` and `stylisticTypeChecked` presets pass; type assertions (`as`, 379 today, 13 of them `as unknown as`) and non-null assertions (`!`, 177 today) are replaced by narrowing, type guards or better types, and the few left carry a comment saying why; object shapes are named `interface`s (121 functions take inline object types today), with utility types (`Pick`, `Omit`, `Partial`, `Readonly` …) where they express a real relation instead of copies; `readonly` where data isn’t changed. Q13 decides which stricter compiler options come in 407.",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13"
+      ],
+      "byId": {
+        "Q1": {
+          "open": false,
+          "text": "The `tests/` layout? _Answer (accepted 2026-10-13):_ `tests/unit/` mirrors `src/` (one test file per module it tests); `tests/integration/` holds tests that drive several modules together (today: `state/*.test.ts`, `decodePool.test.ts` with its fake decoder, `previewSound.test.ts`); `tests/e2e/` takes `e2e/`; `tests/support/` the shared fixtures and fakes (`timeline.testkit.ts`, the fake decoder, the recording canvas). The roadmap dashboard’s own tests stay with that tool (`tools/`, a separate app) until Q6’s follow-up."
+        },
+        "Q2": {
+          "open": false,
+          "text": "The in-app self-test (`src/dev/selftest.ts`, `videoChecks.ts`, `poolChecks.ts`, `playbackChecks.ts`, ~5,000 lines) runs inside the Electron app, in the page. Where does it go? _Answer (accepted 2026-10-13):_ `tests/selftest/`, loaded by `main.tsx` only in development builds (as today, behind `import.meta.env.DEV`), with AC-3’s check proving it never reaches the production build. `src/dev/showcase` and `printSamples` (development pages, not tests) stay in `src/dev/`."
+        },
+        "Q3": {
+          "open": false,
+          "text": "Which one-letter names, if any, are allowed? _Answer (accepted 2026-10-13):_ only `_` for a value that is deliberately unused, and `x` / `y` for a point’s coordinates (they are the axes’ real names); everything else is descriptive: `index` not `i`, `clip` not `c`, `context` not `ctx` or `x`, `width` / `height` not `W` / `H`, `error` not `e`, `event` not `e`. The lint rule (`id-length` with these exceptions) applies to variables, parameters, functions and properties we declare."
+        },
+        "Q4": {
+          "open": false,
+          "text": "Size limits: is a 500-line file limit needed? _Answer (accepted 2026-10-13):_ no hard file limit. Line count is only a proxy; what keeps code maintainable is one job per module (AC-8, Q7), short functions and low cognitive complexity. So: functions at most 80 lines and cognitive complexity at most 15 (errors); React components at most 250 lines (error); a file over 800 lines is a lint **warning** that asks for a review (split if it mixes jobs, keep if it is one cohesive job, e.g. one renderer). Data-only files (`src/data/`, `docs.ts`) and tests are exempt."
+        },
+        "Q5": {
+          "open": false,
+          "text": "All at once or step by step? _Answer (accepted 2026-10-13):_ step by step, one folder per task, each its own commit with every test green, in this order: the tests move first (smallest risk, AC-1–AC-3), then the standards and lint rules as warnings (AC-4, AC-5), then `engine/`, `state/`, `agent/` + `ai/` + `lib/` + `platform/`, `components/`, `dev/` → `tests/selftest/`, `electron/`; each folder’s rules become errors when it is done. Estimated at 3–5 working days of tasks; Phase 2 work (207) waits for it."
+        },
+        "Q6": {
+          "open": false,
+          "text": "Scope: what is cleaned up? _Answer (accepted 2026-10-13):_ the shipped code: `src/` and `electron/`. The development tools (`scripts/`, `tools/specs-index`, `tools/roadmap-dashboard`) follow the same standards for new code but are cleaned up later in their own feature (408), so 407 stays reviewable."
+        },
+        "Q7": {
+          "open": false,
+          "text": "What does SOLID mean here, concretely? _Answer (accepted 2026-10-13):_ **S**: one job per module (e.g. `state/video.ts` becomes the store core and history, clip edits, keyframe actions, transition actions and export; `render.ts` and `Timeline.tsx` split the same way). **O**: products, sizes, layouts, kinds stay data-driven (add a table entry, not a branch), as `src/data/` already does. **L**: few classes here; where an interface has several implementations (frame sources, AI providers, file sinks) each honours it fully. **I**: small props and options interfaces, not one large shared one. **D**: layers depend downwards only (`data` → `engine` → `state` → `components`), enforced by lint; platform differences behind `platform/` and `lib/`. No class hierarchies added for their own sake."
+        },
+        "Q8": {
+          "open": false,
+          "text": "How is “optimized” judged? _Answer (accepted 2026-10-13):_ by measurement, not by eye: the existing timing checks (preview frame time, export speed, the pool’s decode timings, the print renderer’s time per page) before and after; a change goes in only with at least 10 % gain on its path and no loss elsewhere. Readability changes (renames, splits) must not slow anything (checked by the same timings)."
+        },
+        "Q9": {
+          "open": false,
+          "text": "Heavy tests (D-033 puts them in a phase’s test pass)? _Answer (accepted 2026-10-13):_ 407 is not a phase feature and touches every file, so it runs the full Definition of Done itself at its end (e2e, self-test, MCP, licences, build) and after each large folder (components, dev), not deferred to 290."
+        },
+        "Q10": {
+          "open": false,
+          "text": "Order with Phase 2? _Answer (accepted 2026-10-13):_ 407 first (branched from `main`, merged into `main` when done), then 207 branched from the updated `main`, written to the standards from its first line."
+        },
+        "Q11": {
+          "open": false,
+          "text": "The React Compiler? _Answer (accepted 2026-10-13):_ yes, after AC-12, as the last step of 407: `babel-plugin-react-compiler` 1.0 (MIT, a build-time development dependency, nothing new shipped) through the Vite React plugin, for the whole app; then remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22 today). It is worth less here than in most apps (the heavy work is canvas drawing and decoding, outside React, and screens are already lazy-loaded), so it goes in only if the e2e and timing checks show no regression; the gain is mostly simpler components. If the plugin can’t be wired into this Vite version, it waits and AC-12 still applies."
+        },
+        "Q12": {
+          "open": false,
+          "text": "Cognitive complexity (as SonarQube measures it)? The usual ESLint rule is in `eslint-plugin-sonarjs`, which is LGPL-3.0-only; our licence policy allows weak copyleft only with an approved exception (`specs/licensing.md`). (`eslint-plugin-cognitive-complexity` on npm is a security placeholder for a removed malicious package: never install it.) _Answer (accepted 2026-10-13):_ approve an exception for `eslint-plugin-sonarjs` as a **development-only lint tool**: never shipped, never bundled, not modified, so LGPL’s obligations (which apply when distributing it) don’t arise; recorded in `specs/licensing.md` and `memory/decisions.md`. It also brings Sonar’s other maintainability rules (duplicate strings, identical branches, nested ternaries). _Alternative:_ ESLint’s built-in `complexity` (cyclomatic, MIT) only, and SonarQube for IDE in the editor. The maintainer chose `eslint-plugin-sonarjs` (2026-10-13)."
+        },
+        "Q13": {
+          "open": false,
+          "text": "Stricter TypeScript compiler options? `noUncheckedIndexedAccess` (an array or record read may be undefined) catches real bugs but reports 1,400 errors today; `noImplicitReturns` and `noImplicitOverride` report 3. _Answer (accepted 2026-10-13):_ turn on `noImplicitReturns` and `noImplicitOverride` in 407; `noUncheckedIndexedAccess` folder by folder with the clean-up (it touches the same lines), on for the whole of `src/` by 407’s end. `exactOptionalPropertyTypes` waits (it changes how optional fields are written across the document gates)."
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-13",
+        "text": "Created: draft spec with 11 acceptance criteria and 10 open questions with proposed answers (the maintainer asked for a tests folder, coding standards, SOLID, JSDoc and no one-letter names before 207)."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Second pass: no hard file-length limit (Q4: function length and cognitive complexity instead); AC-12 React rules, AC-13 types; Q11 React Compiler, Q12 cognitive complexity (sonarjs is LGPL), Q13 stricter compiler options; measured baselines."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Q1–Q13 accepted as proposed (Q12: `eslint-plugin-sonarjs` under a development-only LGPL exception; Q13 as proposed, D-037); Approved."
+      },
+      {
+        "date": "2026-10-13",
+        "text": "Plan written and approved with the spec (§1–§8, D1–D3, D-037)."
+      },
+      {
+        "date": "2026-10-16",
+        "text": "AC-10 (T072): one measured exception to “no timing check gets slower”, accepted by the maintainer: the Canvas 2D colour path (the fallback without WebGPU) with a look runs 13–22 % slower than before 407 when a photo is first processed without a look and a look is picked after (V8 inlines the split loop differently by warm-up order); looks first, or one look per session, it is as fast or faster. Recorded in `performance.md`."
+      },
+      {
+        "date": "2026-10-16",
+        "text": "T020 approved. Scope widened by the maintainer: `tests/` also goes to 0 in the standards report and into `FINISHED` (T062), after T091 left 1,894 warnings there."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Behaviour-neutral:** no change to what the app shows, saves, exports or how fast it is (except measured speed-ups, AC-10); every test green after every task (AC-9).\n- **Reviewable:** one folder per task and commit; moves (`git mv`) separate from edits, so history follows the files.\n- **Performance budgets kept:** code splitting stays as it is (screens and dialogs lazy-loaded, AI, Mediabunny and other heavy code behind dynamic `import()`; the entry chunk budget of 350 KB checked by `npm run build`, 327 KB today); splits must not pull code into the entry chunk.\n- **Dependencies:** development only (`eslint-plugin-jsdoc` BSD-3-Clause; `babel-plugin-react-compiler` MIT if Q11; `eslint-plugin-sonarjs` LGPL-3.0 only with Q12’s exception), each in `scripts/check-licenses.mjs` as not shipped; nothing new in the shipped app.\n- **Free and open source:** unchanged."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- New features or behaviour changes; UI changes.\n- `scripts/` and `tools/` clean-up (408, Q6).\n- A different test framework (Vitest and Playwright stay).\n- Rewrites for style alone: a module is split or renamed to meet a standard, not redesigned."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-13; D1–D3 as chosen, D-037; the maintainer asked to approve the spec and the plan together) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`tests/` (new: unit, integration, support, e2e, selftest)",
+        "change": "new (moves)",
+        "purpose": "§2: every test and test helper, moved with `git mv`"
+      },
+      {
+        "file": "`src/**/*.test.ts`, `src/engine/timeline.testkit.ts`, `e2e/`, `src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts`",
+        "change": "move",
+        "purpose": "§2: into `tests/`"
+      },
+      {
+        "file": "`vite.config.ts`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.tests.json` (new), `playwright.config.ts`",
+        "change": "modify / new",
+        "purpose": "§2, §4, §6: alias, test globs, test type-checking, stricter options, the build guard, the React Compiler"
+      },
+      {
+        "file": "`scripts/check-structure.mjs`, `scripts/standards-report.mjs` (new), `package.json`",
+        "change": "new / modify",
+        "purpose": "§1, §2: guards and the per-folder report; dev dependencies (`eslint-plugin-jsdoc`, `eslint-plugin-sonarjs`, `oxc-transform-react`)"
+      },
+      {
+        "file": "`eslint.config.js`",
+        "change": "modify",
+        "purpose": "§4: the rules, warnings first, errors per finished folder"
+      },
+      {
+        "file": "`specs/coding-standards.md` (new), `specs/constitution.md`, `CLAUDE.md`, `specs/licensing.md`",
+        "change": "new / modify",
+        "purpose": "§3, §4: the standards; the Definition of Done; the sonarjs exception"
+      },
+      {
+        "file": "`src/**`, `electron/**`",
+        "change": "modify (renames, JSDoc, splits, type and React fixes)",
+        "purpose": "§5: the clean-up, folder by folder"
+      },
+      {
+        "file": "`src/main.tsx`",
+        "change": "modify",
+        "purpose": "§2: the self-test loaded from `tests/selftest/` in development"
+      },
+      {
+        "file": "`specs/features/407-code-structure/performance.md` (new)",
+        "change": "new",
+        "purpose": "§7: measurements and decisions"
+      },
+      {
+        "file": "`specs/testing-strategy.md`, `specs/architecture.md`, `specs/lld.md`, `specs/build.md`, `memory/`",
+        "change": "modify",
+        "purpose": "§8: AC-11"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Renames or splits change behaviour by mistake** (thousands of edits). Mitigation: the type checker, 1,672 unit tests and lint after every task; the full e2e and self-test after `components/` and `tests/selftest/` and at the close; small commits, one folder each, easy to bisect."
+      },
+      {
+        "text": "**Saved projects or agent tools change shape** if a persisted field is renamed. Mitigation: fields in documents (`toDocument`, `mergeProject`, `mergeLayers`, `mergeDesign`) and agent tool schemas keep their names (`id-length` doesn’t check properties); the document tests’ byte-identical round trips and the MCP test catch a slip."
+      },
+      {
+        "text": "**Type-aware lint is slow** on ~50,000 lines. Mitigation: measured when the rules land (§4); ESLint cache; if too slow, type-aware rules on changed files in `npm run check` and a full run at the close."
+      },
+      {
+        "text": "**A licence problem with the new development tools.** `eslint-plugin-sonarjs` is LGPL-3.0: approved as development-only (D-037), recorded in `specs/licensing.md`, never shipped; `oxc-transform-react` and `eslint-plugin-jsdoc` are MIT / BSD-3; versions pinned; `npm run check:licenses` unaffected (they aren’t shipped). Typosquats avoided (`eslint-plugin-cognitive-complexity` is a security placeholder)."
+      },
+      {
+        "text": "**The React Compiler changes rendering** (Q11). Mitigation: it comes last, after the rules pass; diagnostics reviewed; e2e, self-test and timing compared; turned off with the reason if anything regresses."
+      },
+      {
+        "text": "**Size of the work** (~3–5 days, Phase 2 waits). Mitigation: tasks per folder, each mergeable on its own; the branch is merged into `main` when 407 closes, 207 starts from it."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-13 (Q1–Q13, D-037)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Behaviour-neutral; every task green on `npm run check` + build; the full suite after the large folders and at the close (Q9)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "Development dependencies only (jsdoc, sonarjs, oxc-transform-react); splits by job, no new abstractions for their own sake (Q7)."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D-037; the standards in `specs/coding-standards.md`; progress per task."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Unchanged."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "Unchanged."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "One approved development-only exception (sonarjs, LGPL-3.0), recorded; nothing shipped changes."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "Preview and export code paths unchanged in behaviour; fixture export inputs compared."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "`electron/` gets names, JSDoc and sizes only; IPC validation unchanged."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "Entry chunk ≤ 327 KB; no timing regressions (AC-10); e2e axe checks unchanged."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "✅",
+        "notes": "Agent tool names and schemas unchanged (MCP test)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Behaviour-neutral throughout: every step is a move, a rename, a split or a type / lint fix, proven by the existing tests, and committed on its own with `npm run check` green. The order follows Q5: tests move first, then the standards and the lint rules (as warnings), then the code folder by folder (each folder's rules become errors when it is done), then the React Compiler and the performance review, with the full Definition of Done at the end (Q9).\n\n**§1 Baselines (AC-9, AC-10).** Before anything moves: the unit test count (1,672), the e2e pass list, the self-test check count and result, `npm run test:mcp`, the export inputs of the 201–206 fixtures (the self-test's video checks compare them), the entry chunk (327 KB), and the timing numbers of the hot paths (§7). Plus a standards report (`scripts/standards-report.mjs`): per folder and rule, the lint findings and the `noUncheckedIndexedAccess` errors, so each task records its numbers going to 0.\n\n**§2 Tests into `tests/` (AC-1–AC-3, Q1, Q2).** `git mv` only (history follows), then import fixes. `tests/unit/<src path>/x.test.ts` for one-module tests; `tests/integration/` for `state/*.test.ts`, `decodePool.test.ts`, `previewSound.test.ts`; `tests/support/` for `timeline.testkit.ts` and the fakes now inside test files (the fake decoder, the recording canvas, the fake audio element), shared instead of copied; `e2e/` → `tests/e2e/`; `src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts` → `tests/selftest/`, loaded by `main.tsx` only in development (`import.meta.env.DEV`, as today). Tests import the app through a path alias, `@/` → `src/` (D1), set in `vite.config.ts` and the tsconfigs. Config: Vitest `include` the `tests/{unit,integration}` and `tools/` test globs; Playwright `testDir: 'tests/e2e'`; `tsconfig.tests.json` (referenced from `tsconfig.json`) type-checks `tests/`; `tsconfig.app.json` also includes `tests/selftest` (imported by the app in development). Guards: `scripts/check-structure.mjs` (in `npm run check`) fails on a test or test helper under `src/`, and on `src/` importing `tests/` other than `main.tsx`'s development import; a build-only Vite plugin fails `npm run build` if any chunk holds a module from `tests/` (AC-3).\n\n**§3 The written standards (AC-4).** `specs/coding-standards.md`, each rule with a short good / bad example from this codebase: names (Q3; persisted document fields such as a keyframe's `t` / `v` or a box's `x` / `w` keep their names, since renaming them would change saved projects; code destructures them into descriptive names), JSDoc (what, `@param`, `@returns`, `@throws`; no types in JSDoc, TypeScript has them), SOLID as in Q7, sizes (Q4), cognitive complexity (Q12), React (AC-12: the Rules of React, effects only to sync with outside systems, components small, props interfaces named), types (AC-13: interfaces for object shapes, guards over casts, utility types for real relations, `readonly`), layers and imports, errors (`logError`), performance (no allocation per frame on the drawing and decoding paths; measure first), comments, tests (where, naming, one behaviour per `it`). The constitution's Definition of Done and CLAUDE.md link to it.\n\n**§4 The lint and compiler rules (AC-5, AC-12, AC-13, Q4, Q12, Q13).** `eslint.config.js` gains: `id-length` (min 2; exceptions `_`, `x`, `y`; properties not checked, §3); `eslint-plugin-jsdoc` (`require-jsdoc` for exported functions, arrow functions, classes, interfaces and types; `require-param`, `require-returns`, `no-types`); `max-lines-per-function` 80 for `.ts` and 250 for `.tsx` (components), blank lines and comments not counted; `max-lines` 800 as a warning; `eslint-plugin-sonarjs` (recommended, `cognitive-complexity` 15); `eslint-plugin-react-hooks` `recommended-latest`; typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` with `projectService` (type-aware), `consistent-type-definitions: interface`; the layers with core `no-restricted-imports` per folder (`src/data` imports nothing of the app; `src/engine` not `state` / `components`; `src/state` not `components`). Data files (`src/data/`) and tests are exempt from the size rules. Every new rule starts as a **warning**; a list of finished folders in the config turns them into errors there (§5). tsconfig: `noImplicitReturns` and `noImplicitOverride` on now (3 errors fixed); `noUncheckedIndexedAccess` tracked per folder by the standards report and turned on for `src/` when its count is 0 (Q13). `eslint-plugin-sonarjs` gets its development-only exception row in `specs/licensing.md` (D-037).\n\n**§5 The clean-up, folder by folder (AC-6–AC-8, AC-12, AC-13).** In this order, each folder one or more tasks, each task one commit with `npm run check` and `npm run build` green: `engine/` (with its gpu subfolder), `state/`, `data/` + `lib/` + `platform/` + `agent/` + `ai/`, `components/` (studio, ig, then the rest), `tests/selftest/`, `electron/` (CommonJS: names, JSDoc, sizes; no type rules). In each: rename one-letter names to what they hold (`clip`, `index`, `context`, `width`, `event`), add JSDoc, fix casts and non-null assertions with guards and better types, fix the React findings, fix `noUncheckedIndexedAccess` errors, and split modules that mix jobs (known: `engine/render.ts`, `engine/timeline.ts` into tracks / sound plan / document gate, `engine/masks.ts`, `engine/layers.ts`, `state/video.ts` into store core and history / clip edits / keyframes / transitions / media and export, `components/studio/Timeline.tsx` into rows / track header / keyframe and cut marks / transport, `VideoWorkspace.tsx` and `PhotoWorkspace.tsx` into their panels, stage and inspector). Importers are updated to the new modules; no barrel files re-exporting old paths (D2). Then the folder's rules become errors. After `components/` and after `tests/selftest/`: the full e2e and self-test (Q9).\n\n**§6 React Compiler (Q11).** After AC-12's rules pass everywhere: `react({ compiler: true })` in `vite.config.ts` with `oxc-transform-react` (MIT, the plugin's built-in, Rust port of the compiler; a development dependency, D3); `logDiagnostics` once to list components it skips, each fixed or noted. Then remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22). Kept only if the e2e, self-test and timing checks show no regression; else turned off with the reason recorded.\n\n**§7 Performance review (AC-10, Q8).** Measured with the existing tools (the pool and playback timing checks, the export timing, `npm run measure:gate`, the print renderer's time per page, the entry and studio chunk sizes): video frame drawing (`renderStack`, `frameStack`, `drawPair`), the decoder pool, the sound mix (`mixWindow`, `gainCurve`), the photo pipeline and the print renderer. Findings in `specs/features/407-code-structure/performance.md`; a change only with ≥ 10 % gain on its path and no loss elsewhere, with before / after numbers.\n\n**§8 Close (AC-9, AC-11).** The full Definition of Done (`npm run check`, `build`, `test:e2e`, `npm test`, `test:mcp`, `check:licenses`), compared with §1's baselines; docs (CLAUDE.md, `specs/testing-strategy.md`, `architecture.md`, `lld.md`, `build.md`, memory); merged into `main`; 207 branches from it."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```text\ntests/\n  unit/<mirror of src>/...test.ts       one module, its pure inputs\n  integration/state/...test.ts          several modules together: stores, pool + fake decoder, preview sound\n  support/                              timeline.testkit.ts, fakeDecoder.ts, recordingCanvas.ts, fakeAudio.ts\n  e2e/...e2e.ts, gate.measure.ts        Playwright (from e2e/)\n  selftest/selftest.ts, videoChecks.ts, poolChecks.ts, playbackChecks.ts   in-app checks, development builds only\n```\n\n```ts\n// vite.config.ts / tsconfig paths (D1)\nresolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } }\n// tsconfig.*.json: \"paths\": { \"@/*\": [\"./src/*\"] }\n\n// eslint.config.js (shape)\nconst FINISHED = ['src/engine/**', /* … added per §5 task … */];\n// standards rules: 'warn' everywhere, 'error' in FINISHED; size rules off for src/data/** and tests/**\n```\n\n```text\nscripts/check-structure.mjs   tests or test helpers under src/; src/ importing tests/ (except main.tsx's DEV import)\nscripts/standards-report.mjs  per folder × rule: lint findings, noUncheckedIndexedAccess errors (JSON + table)\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Moves before edits**: `git mv` in its own commit, then fixes, so `git log --follow` keeps each file's history.\n- **Warnings first, errors per folder**: the rules land as warnings (the existing code doesn't break the build) and become errors folder by folder, so finished folders can't regress while the rest is cleaned.\n- **The standards report** gives every task its before / after numbers (one-letter names, missing JSDoc, long functions, cognitive complexity, casts, React findings, unchecked index errors) for its result note.\n- **Renames by meaning, not mechanically**: a name says what the value is in that place (`clip`, `stackItem`, `frameIndex`); the editor's rename (TypeScript language service) for exported names so every importer follows; the type checker and the tests catch slips.\n- **Persisted names stay**: fields written to saved projects and agent tool schemas keep their names (renaming them is a format change, out of scope); code destructures them into descriptive locals.\n- **Splits by responsibility**: a split moves whole functions with their JSDoc into a module named for its job; no logic changes in the same commit.\n- **Type-aware lint cost** is measured (`projectService`, ESLint cache); if `npm run lint` gets much slower, the type-aware rules run in `npm run check` only on changed files plus a full run in the close."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | How |\n| --- | --- | --- |\n| AC-1 | check | `check-structure.mjs` in `npm run check` (fails on a test under `src/`; a planted file proves it) |\n| AC-2 | check | the same counts as §1's baseline: 1,672 unit + integration tests, the e2e list; single-test commands in CLAUDE.md tried |\n| AC-3 | check | the build plugin fails on a `tests/` module (proved by importing one on purpose, then removing it) |\n| AC-4 | review | `specs/coding-standards.md` read through; linked from the constitution and CLAUDE.md |\n| AC-5 | check | `npm run lint`: 0 errors with every rule an error for `src/` and `electron/` |\n| AC-6, AC-7, AC-8 | check + review | the standards report at 0 for names, JSDoc, function length and cognitive complexity; the 19 long files reviewed, the split ones listed |\n| AC-9 | unit + e2e + self-test + MCP | the full suite against §1's baselines after `components/`, after `tests/selftest/`, and at the close; identical fixture export inputs; entry chunk ≤ 327 KB |\n| AC-10 | timing + review | `performance.md` with before / after numbers |\n| AC-11 | review | docs and memory updated; relative links resolve |\n| AC-12 | check | `react-hooks` `recommended-latest` as errors: 0 findings (27 at the start) |\n| AC-13 | check | `strictTypeChecked` + `stylisticTypeChecked`: 0 errors; casts and `!` counted down in the report; `noUncheckedIndexedAccess` on |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-13 with the plan)",
+        "markdown": "- **D1 — How tests import the app.** _Chosen:_ a path alias, `@/` → `src/` (`import { valueAt } from '@/engine/keyframes'`), set in Vite and the tsconfigs, for tests only at first. _Alternative:_ relative paths (`../../../src/engine/keyframes`), which break whenever a test or module moves.\n- **D2 — After a split.** _Chosen:_ importers are updated to the new modules; no barrel files that re-export the old path. _Alternative:_ keep the old file as a re-export (fewer import changes, but two ways to import the same thing and a module that does nothing).\n- **D3 — React Compiler wiring.** _Chosen:_ the Vite React plugin's built-in `compiler` option with `oxc-transform-react` (MIT, no Babel in the build). _Alternative:_ the Babel route (`@rolldown/plugin-babel`, `@babel/core`, `babel-plugin-react-compiler`): the reference implementation, but three more development dependencies and a slower build."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nBehaviour-neutral: each task is moves, renames, splits or type / lint fixes, proven by the existing tests (`npm run check` and `npm run build` green), one commit per task. Tasks run one at a time in the main session.\nUnlike phase features (D-033), 407 runs its heavy checks itself (spec Q9): e2e, self-test, MCP and timings run in T001, T013, T014, T043, T056, T060, T061, T071, T072 and T091; nothing is deferred to 290.\nWhen a task is done, record a **Result (YYYY-MM-DD):** note (in single quotes) with `npm run specs -- done 407 Txxx --result '…'`, with the standards report’s before / after numbers for its folder.",
+    "sections": [
+      {
+        "title": "Baselines",
+        "intro": "What “unchanged” is measured against (AC-9, AC-10)."
+      },
+      {
+        "title": "Tests into tests/",
+        "intro": "Moves in their own commits (`git mv`), then import fixes, so history follows each file."
+      },
+      {
+        "title": "Standards and rules",
+        "intro": "The rules land as warnings; each folder’s become errors when its clean-up is done (`FINISHED` in `eslint.config.js`)."
+      },
+      {
+        "title": "Clean-up: engine/",
+        "intro": null
+      },
+      {
+        "title": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+        "intro": null
+      },
+      {
+        "title": "Clean-up: components/",
+        "intro": null
+      },
+      {
+        "title": "Clean-up: tests/selftest/ and electron/",
+        "intro": null
+      },
+      {
+        "title": "Strict index access, React Compiler, performance",
+        "intro": null
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T050",
+        "T051",
+        "T052",
+        "T053",
+        "T054",
+        "T055",
+        "T056",
+        "T060",
+        "T061",
+        "T062",
+        "T070",
+        "T071",
+        "T072",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Record the baselines (plan §1) in `specs/features/407-code-structure/baseline.md`: unit test count (1,672) and per-file counts; the e2e pass list (`npm run test:e2e`); `npm test` (self-test checks, 0 failed); `npm run test:mcp`; the 201–206 fixtures’ export inputs (the self-test’s video checks); entry and studio chunk sizes; the hot-path timings of §7 (pool and playback timing checks, export timing, `npm run measure:gate`, the print renderer per page).",
+          "section": "Baselines",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-10"
+          ],
+          "files": [
+            "specs/features/407-code-structure/baseline.md"
+          ],
+          "test": "every command run; numbers recorded",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** baseline.md: unit 1,672 / 48 files; e2e 84 passed, 16 skipped; self-test 6,203 checks, 0 failed (216 s); MCP 23 checks; entry 327 KB, studio 187.66 kB, Mediabunny 410.38 kB; timings (preview frame median 11.9 ms, exports 2.69 / 2.90 / 13.46 s, 2-minute exports 12.3–13.0 s, pool AC-5 / AC-7 / AC-8 / AC-12, the Phase 1 gate 16.6 ms median); the code measures (34 % one-letter names, 333 exports without JSDoc, 27 React findings, 379 `as`, 177 `!`, 1,400 unchecked index errors). The first e2e run failed 22 tests: the video editor crashed on selecting a clip (a store selector from 203 T054), 206’s cut buttons took the trim drags, and touch targets were under 24 px; fixed on fix/clip-inspector-render-loop and merged into main (3d08be7) first. The print renderer has no timing check yet (T072)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T010": {
+          "text": "Test plumbing before any move (plan §2, D1): the `@/` → `src/` alias in `vite.config.ts` and the tsconfigs; `tsconfig.tests.json` (type-checks `tests/`, referenced from `tsconfig.json`); Vitest `include` for `tests/{unit,integration}/**/*.test.ts` and `tools/**`; Playwright `testDir: tests/e2e`. Nothing moved yet: the same 1,672 tests still run.",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "vite.config.ts",
+            "tsconfig.json",
+            "tsconfig.app.json",
+            "tsconfig.tests.json",
+            "playwright.config.ts"
+          ],
+          "test": "`npm run check`: 1,672 tests",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** vite.config.ts: the `@/` → src/ alias (resolve.alias) and Vitest include for tests/unit, tests/integration, src (until the move) and tools; tsconfig.app.json paths `@/*`. tsconfig.tests.json comes with the first moved tests (T011: an empty project fails tsc -b) and Playwright’s testDir with the e2e move (T013). npm run check green: the same 48 files, 1,672 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T011": {
+          "text": "Move the one-module tests with `git mv` to `tests/unit/<src path>/` (a commit with moves only), then point their imports at `@/…` (D1).",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/**",
+            "src/**/*.test.ts"
+          ],
+          "test": "`npm run check`: the same 1,672 tests, none left under `src/` except the integration ones (T012)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** 27 one-module tests moved with git mv from src/ to tests/unit/<their src path> (git sees all 27 as renames); relative imports rewritten to `@/…` from each file’s old place (26 files); the errors test reads the app source through `/src/**` instead of `../**`. tsconfig.tests.json (the app’s options, the `@/` paths, src/vite-env.d.ts for Vite’s and WebGPU’s types) referenced from tsconfig.json; tests/ linted with src/. npm run check green: 48 files, 1,672 tests; the 3 integration tests stay in src/ until T012."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T012": {
+          "text": "Move the integration tests (`state/*.test.ts`, `decodePool.test.ts`, `previewSound.test.ts`) to `tests/integration/` and the shared helpers to `tests/support/`: `timeline.testkit.ts`, and the fake decoder, recording canvas and fake audio element taken out of the test files that define them (one copy each, used by every test that needs it).",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/integration/**",
+            "tests/support/**"
+          ],
+          "test": "`npm run check`: the same test count; no test or test helper under `src/`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** tests/integration/: state/video, engine/decodePool, components/studio/previewSound tests (git mv, imports to `@/`). tests/support/: timeline.testkit.ts (git mv; its own test in tests/unit/support/), and three fakes taken out of the test files that defined them: fakeDecoder.ts (from the pool test; FAKE_FPS, FRAME_BYTES, FakeFile, FakeFrame), fakeAudio.ts (FakeAudio, from the preview sound test), recordingCanvas.ts (from the transitions test), each with a header and JSDoc; the tests import them under their old local names, unchanged otherwise. The self-test in src/dev imports the test kit from tests/support until T014 moves it. No test or test helper left under src/ (0); npm run check green: 48 files, 1,672 tests."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T013": {
+          "text": "Move `e2e/` to `tests/e2e/` (`git mv`), Playwright and ESLint configs and CLAUDE.md’s single-test commands updated; run `npm run test:e2e` (Q9).",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/e2e/**",
+            "playwright.config.ts",
+            "eslint.config.js",
+            "CLAUDE.md"
+          ],
+          "test": "`npm run test:e2e`: the baseline’s pass list",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** e2e/ moved to tests/e2e/ (git mv); testDir in playwright.config.ts and playwright.measure.config.ts; the TIFF test’s import of the app made relative to its new place; ESLint glob; paths in CLAUDE.md (test:e2e, single tests; test:unit now names tests/unit and tests/integration), README’s tree, specs/build.md, specs/testing-strategy.md, docs/MEDIA-STUDIO.md. npm run test:e2e: 84 passed, 16 skipped (= baseline); measure:gate lists its test; check and build green."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T014": {
+          "text": "Move the in-app self-test (`src/dev/{selftest,videoChecks,poolChecks,playbackChecks}.ts`) to `tests/selftest/` (Q2), loaded by `main.tsx` in development only; `tsconfig.app.json` includes it; run `npm test` (Q9).",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-9"
+          ],
+          "files": [
+            "tests/selftest/**",
+            "src/main.tsx",
+            "tsconfig.app.json"
+          ],
+          "test": "`npm test`: the baseline’s check count, 0 failed",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-13):** The in-app self-test moved from src/dev/ to tests/selftest/ (git mv): selftest, videoChecks, poolChecks, playbackChecks and exportTiming (the timing run’s code); imports of the app as `@/…`, of the test kit as ../support/; main.tsx loads it in development only (import.meta.env.DEV, as before); tsconfig.app.json includes tests/selftest and tests/support; scripts/test.cjs and CLAUDE.md name the new path. showcase and printSamples (development pages) stay in src/dev. npm test: 6,203 checks, 0 failed (= baseline); 0 self-test strings in dist/; check and build green, entry 327 KB."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-13"
+        },
+        "T015": {
+          "text": "Guards (AC-1, AC-3): `scripts/check-structure.mjs` in `npm run check` (a test or test helper under `src/`, or `src/` importing `tests/` other than `main.tsx`’s development import, fails it) with unit tests in `tests/unit/scripts/`; a build-only Vite plugin failing `npm run build` when a chunk holds a module from `tests/`. Proved by planting a test file and a bad import, then removing them.",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "scripts/check-structure.mjs",
+            "tests/unit/scripts/checkStructure.test.ts",
+            "vite.config.ts",
+            "package.json"
+          ],
+          "test": "the planted file and import fail `check` and `build`; removed, both green",
+          "commits": [
+            "3081c0d"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `scripts/check-structure.mjs` runs in `npm run check` (245 files in `src/`, no test files or helpers, no `tests/` imports except the `main.tsx` development self-test); 4 unit tests in `tests/unit/scripts/checkStructure.test.ts` (unit total 1,672 → 1,676). The build-only Vite plugin `chitthi:no-test-code` fails `npm run build` when a chunk holds a module from `tests/`. Proved by planting `src/engine/planted.test.ts` and a `tests/support/fakeAudio` import in `main.tsx`: check-structure reported both (exit 1), and `vite build` failed with \"index-….js contains test code\". Removed, `check` and `build` pass (entry 327 KB)."
+          ],
+          "startedOn": "2026-10-13",
+          "doneOn": "2026-10-14"
+        },
+        "T016": {
+          "text": "The standards report (`scripts/standards-report.mjs`, plan §1): per folder and rule, the ESLint findings of the standards rules (from ESLint’s JSON output) and the `noUncheckedIndexedAccess` errors (`tsc` with the flag); a table and a JSON file; unit tests for its counting on a fixture output. Record the starting numbers in `baseline.md`.",
+          "section": "Tests into tests/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8"
+          ],
+          "files": [
+            "scripts/standards-report.mjs",
+            "tests/unit/scripts/standardsReport.test.ts",
+            "package.json"
+          ],
+          "test": "its unit tests; the report run on the repo",
+          "commits": [
+            "598e5f6"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `npm run standards` (`scripts/standards-report.mjs`, ~6 s): per folder and rule, the standards rules’ ESLint findings (from `eslint --format json`) and the `noUncheckedIndexedAccess` errors (`tsc -p tsconfig.app.json` with the flag, each error once); a table and `standards-report.json` (git-ignored); `--folder` limits it to a folder and its subfolders. 6 unit tests on fixture output (`tests/unit/scripts/standardsReport.test.ts`; unit total 1,682). Starting numbers in `baseline.md`: `src/` 749 (react-hooks/exhaustive-deps 5, unchecked index 744, of which `src/engine` 519), plus 278 in `tests/selftest` and `tests/support`. The report’s 744 replaces T001’s hand count of 1,400."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T020": {
+          "text": "Write `specs/coding-standards.md` (plan §3): names, JSDoc, SOLID as in Q7, sizes (Q4), cognitive complexity, React, types, layers and imports, errors, performance, comments, tests; each rule with a good / bad example from this code. Link it from `specs/constitution.md` (Definition of Done) and CLAUDE.md.",
+          "section": "Standards and rules",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "specs/coding-standards.md",
+            "specs/constitution.md",
+            "CLAUDE.md"
+          ],
+          "test": "review; relative links resolve",
+          "commits": [
+            "549f00f"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `specs/coding-standards.md` reviewed and approved by the maintainer (written in `549f00f`: constitution 2.1.0 DoD item 11, D-038, CLAUDE.md Key Docs row; links resolve)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-16"
+        },
+        "T021": {
+          "text": "Add `eslint-plugin-jsdoc` and `eslint-plugin-sonarjs` as development dependencies (versions pinned; sonarjs’ exception row in `specs/licensing.md`, D-037) and the rules of plan §4 as **warnings**: `id-length` (exceptions `_`, `x`, `y`; properties not checked), JSDoc on exports, `max-lines-per-function` (80 `.ts`, 250 `.tsx`), `max-lines` 800 (warning), sonarjs recommended with `cognitive-complexity` 15, the layers’ `no-restricted-imports`; size rules off for `src/data/` and `tests/`; the `FINISHED` folder list that turns them into errors. Measure `npm run lint`’s time.",
+          "section": "Standards and rules",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "eslint.config.js",
+            "package.json",
+            "package-lock.json",
+            "specs/licensing.md"
+          ],
+          "test": "`npm run lint`: 0 errors (the new findings as warnings); the standards report counts them",
+          "commits": [
+            "7fcd233"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `eslint-plugin-jsdoc` 65.0.0 (BSD-3-Clause; 65.3.2 was a day old, so the newest release at least two weeks old) and `eslint-plugin-sonarjs` 4.2.2 (LGPL-3.0-only, with `@sonarsource/analyzer-commons-configurations`; exception row in `specs/licensing.md`) pinned as dev dependencies; `check:licenses` unchanged (168 shipped packages). Rules of plan §4 as warnings for `src/`, `electron/` and `tests/`: `id-length` (`_`, `x`, `y`; properties not checked), JSDoc on exports (`@returns` not asked of components), `max-lines-per-function` 80 / 250 in `.tsx`, `max-lines` 800 (always a warning), Sonar recommended without its AWS CDK rules plus `cognitive-complexity` 15, layers via `no-restricted-imports` (data may import only `src/types.ts`; planted engine → state / components, gpu → state and state → components imports all reported); size rules off for `src/data/` and `tests/`; `FINISHED` (empty) makes them errors. `npm run lint`: 0 errors, 9,975 warnings; 5.3 s → 13.7 s. Standards report (now grouped by standard; `--by-rule` for every rule), `src/`: names 4,311, JSDoc 2,571, function length 31, files over 800 lines 8, cognitive complexity 73, Sonar other 297, layers 5, unchecked index 744 (numbers in `baseline.md`, `505c4a9`). `npm run check` green (1,683 tests)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T022": {
+          "text": "Turn on `noImplicitReturns` and `noImplicitOverride` (Q13) and fix their 3 errors.",
+          "section": "Standards and rules",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "tsconfig.app.json",
+            "tsconfig.tests.json",
+            "src/**"
+          ],
+          "test": "`npm run check`",
+          "commits": [
+            "423f59d"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `noImplicitReturns` and `noImplicitOverride` on in `tsconfig.app.json` and `tsconfig.tests.json`. They reported the 3 errors expected, all `noImplicitOverride` (TS4114) in `components/ErrorBoundary.tsx` (`state`, `componentDidCatch`, `render`), now marked `override`; `noImplicitReturns` found none. `npm run check` green (1,683 tests, lint 0 errors)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T023": {
+          "text": "Add, as **warnings**: `eslint-plugin-react-hooks` `recommended-latest` (AC-12; 27 findings), typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` with `projectService` and `consistent-type-definitions: interface` (AC-13). Measure the lint time with type-aware rules; if it is too slow, apply plan Techniques’ fallback.",
+          "section": "Standards and rules",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-12",
+            "AC-13"
+          ],
+          "files": [
+            "eslint.config.js"
+          ],
+          "test": "`npm run lint`: 0 errors; the report lists the findings per folder",
+          "commits": [
+            "b07493a"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `eslint-plugin-react-hooks` `recommended-latest` (Rules of Hooks stays an error) and typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` (`projectService`, `consistent-type-definitions: interface`) as warnings, errors in `FINISHED` folders, for `src/` and the type-checked test folders (`tests/e2e` is in no tsconfig); `recommended`’s rules keep their error severity. React: 27 findings in `src/`, the spec’s count (set-state-in-effect 8, refs 6, exhaustive-deps 5, preserve-manual-memoization 3, immutability 2, purity 2, use-memo 1). Types: 1,886 in `src/` (no-confusing-void-expression 850, restrict-template-expressions 576, no-unnecessary-condition 135, no-non-null-assertion 87, no-unnecessary-type-assertion 58 …); Sonar other 297 → 417 (type-aware Sonar rules switch on). `npm run lint`: 0 errors, 12,704 warnings. Lint time 13.7 s → 40.3 s, so the fallback: ESLint’s cache in `npm run lint` (37.9 s cold, 3.4 s warm, 5.5 s after one file changes) and `npm run lint:full` without it, run by CI (D-039). `npm run check` green (1,683 tests). Numbers in `baseline.md`."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T030": {
+          "text": "`engine/` video core (`keyframes`, `transitions`, `stack`, `edits`, `clipBox`, `decodePool`, `frameSource`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/{keyframes,transitions,stack,edits,clipBox,decodePool,frameSource}.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "c036e56"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** The seven video-core files (`keyframes`, `transitions`, `stack`, `edits`, `clipBox`, `decodePool`, `frameSource`) went from 580 lint findings and 38 unchecked-index errors to 0; with the three new one-job modules (`guards.ts`: `isRecord`, `isOneOf`, `keysOf`; `timeSnap.ts`: snapping, out of `edits.ts`; `keyframeGate.ts`: the keyframe document gate and `KEY_LIMITS`, out of `keyframes.ts`) they are in `FINISHED`, so their rules are errors. Complexity splits: `frameStack` 28, `transitionOps` 32, `step` 37, `lanePlan` 26, `mergeTransition` 18, `tidyTransitions` 20, `moveToTrack` 17, `run` 17 → each ≤ 15; casts and `!` replaced by guards and `.at()`. `frameSource`’s test hook is now `refuseDecodingForTests` / `allowDecodingForTests` (the self-test updated; it runs in 407’s next `npm test`). Two strict rules take their usual options (D-040: 1,426 findings in `src/` were safe code). Fixed T021’s layer blocks, which ignored the files they were given. `src/engine` per the report: unchecked index 519 → 481, total 3,335. `npm run check` green (1,683 tests), `npm run build` green (entry 327 KB)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T031": {
+          "text": "Split `engine/timeline.ts` by job (tracks, the sound plan, the project document and its gate; plan §5, D2: importers updated, no barrels), then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/timeline.ts",
+            "src/engine/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "fdec934"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/timeline.ts` (954 lines) split by job: `timeline.ts` (clips, the clip transform, `pack`, `gaps`, `videoAt`, `framePlan`; 277 lines), `tracks.ts` (228), `soundPlan.ts` (126), `projectDoc.ts` (shape, `fromSequence`, `toDocument`; 207) and `projectGate.ts` (`mergeProject`; 679). The 26 importers (src and tests, static and dynamic `import()`) rewritten by script to import each module directly; the `IDENTITY` / `isIdentity` re-export removed (D2: no barrels). Then cleaned to 0 findings and 0 unchecked-index errors, all five in `FINISHED`: `mergeProject` (one ~235-line function) now reads settings, media, tracks, clips and sound in turn, keeping the order of its reasons; `videoAt` 18 and `placeClips` 24 → ≤ 15; casts replaced by guards (`isOneOf` now also takes numbers). `renameTrack` / `moveTrack` return `{ tracks }` like `addTrack` / `deleteTrack` (tests changed first, saw 3 fail). One message differs only for an object `version`: its JSON, not “[object Object]”. `specs/lld.md` and `docs/MEDIA-STUDIO.md` name the new modules. `src/engine` per the report: total 3,335 → 3,113 (unchecked index 481 → 462). `npm run check` green (1,683 tests), `npm run build` green (entry 327 KB). Track tests stay in `timeline.test.ts` for now."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T032": {
+          "text": "`engine/video.ts` and `engine/videoExport.ts` (split `video.ts`’s formats and limits from its drawing): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/video.ts",
+            "src/engine/videoExport.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "28f68e3"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/video.ts` (361 lines) split by job: `videoFormats.ts` (formats, bitrates, frame rates, `limitsFor`; 150 lines) and `video.ts` (the frame drawing only: `renderStack`, `renderFrame`, motions, fades). The clip timing (`ClipTiming`, `clipLength`, `frameRange`, `V_PHOTO_SECONDS`, `formatTime`, was `fmtTime`) and `IDENTITY` / `isIdentity` moved to `timeline.ts` beside the clip transform, so `timeline.ts` no longer imports `video.ts`. 31 importers rewritten by script (static, multi-line and dynamic `import()`), duplicate imports merged; no barrels. `videoExport.ts`: `encodeVideo` (136 lines, complexity 27) and `mixWindow` (19) split into `SoundFeed`, `FramePictures`, `encodeFrames`, `drawFrame`, `planLanes`, `mp4Output`, `scheduleGain`, `scheduleBuffers`, keeping the order of work. 149 lint findings in the two files to 0; 0 unchecked-index errors; all three in `FINISHED`. The re-export test (“has one definition”) removed: there is one definition now. New `tests/unit/engine/video.test.ts` (4 tests) covers `renderStack`’s single-clip steps; dropping an overlay’s fade-in from the drawing passed every unit test before it, and fails it now. The export’s sound mix and frame loop have no unit tests (WebCodecs); the self-test’s export checks cover them in 407’s next `npm test`. `src/engine` per the report: total 3,113 → 2,956 (unchecked index 462 → 454). `npm run check` green (1,686 tests), `npm run build` green (entry 327 KB)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T033": {
+          "text": "Split `engine/render.ts` (1,443 lines, the print renderer) by job, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/render.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "d20a0a7"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/render.ts` (1,442 lines, 390 lint findings, 12 unchecked-index errors) split by job into nine modules, all at 0 and in `FINISHED`: `render.ts` (`renderCard`, `renderThemeTile`, `photoDpi`, guides; 153 lines), `themeBackground.ts` (unit, bleed fill, `drawThemeBg`; 55), `printText.ts` (`wrapLines`, `shrinkFont` (nine hand-written font-shrinking loops), label face, spacing, cap height; 106), `photoSlots.ts` (371), `postalDecor.ts` (285), `frontText.ts` (270), `cardFront.ts` (145), `cardBack.ts` (422), `calendarDraw.ts` (698). Complexity splits: `drawDays` 46, `drawFront` 34, `drawText` 28, `drawBack` 25, `drawLayoutArt` 23, `drawSlot` 22 → each ≤ 15. 12 importers rewritten (no barrels). Behaviour checked by a scratch harness (not committed): the old file copied aside and the new modules drew 11,100 cases (every product × size × orientation × layout × 4–5 variants × front, hint and back) on a recording canvas; the 9 million log lines matched, and planted one-number changes in four modules each failed it. One difference by design: `cal.sundays` / `cal.showYear` / `cal.marks` follow their declared types (`mergeDesign` fills them), so only a saved `null` there would draw differently. The split moved the renderer into the entry chunk (327 → 347 KB); a named `render` chunk in `vite.config.ts` restores the old chunk exactly (D-041), entry 327 KB. `src/engine` per the report: 2,956 → 2,554 (unchecked index 454 → 442); `lint:full` 10,061 → 9,671 warnings. `npm run check` green (1,686 tests), `npm run build` green."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T034": {
+          "text": "Split and clean `engine/layers.ts` and `engine/masks.ts`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/layers.ts",
+            "src/engine/masks.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "bf809f7"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `engine/layers.ts` (884 lines, 225 findings) and `engine/masks.ts` (942, 250), 77 unchecked-index errors between them, split by job into nine modules, all at 0 and in `FINISHED`: `layers.ts` (model, new layers, names, `scaleLayer` without casts, `addStroke`, pictures; 476), `layerDraw.ts` (594), `layerPick.ts` (121), `layerGate.ts` (208); `masks.ts` (model, `PART_DEFAULTS`; 227), `maskGate.ts` (165), `maskBrush.ts` (401), `maskRaster.ts` (392), `maskPlace.ts` (266). Complexity: `rasterShape` 57, `mergeLayers` 49, `rasterPart` 41, `frameMask` 30, `layerName` 18 and the rest → ≤ 15; `rasterPart`’s always-false `base === prev?.full` became an explicit `reuse`. `layers.ts` no longer imports `keyframes.ts` (the import cycle is gone). `guards.ts` gains `isObjectLike` so the gates accept exactly what they did (arrays as objects); `data/layers.ts` `shapeDef` / `brushDef` fall back to named entries. 23 importers rewritten (the self-test’s namespace imports by hand). Behaviour checked by a scratch harness against frozen copies of the old files (not committed): 400 random masks of every part kind with photo samples, 60 brush parts painted step by step (extended, new, erased, undone), 150 frame masks with handles and drags, 1,500 layer sets drawn (every kind, blend, mask, time), picked and scaled, and both gates on 7,000 junk and near-valid inputs: identical; planted one-number changes in four modules each failed it. Hot paths timed old vs new, interleaved (medians): `rasterShape` −4 to +4 %, `rasterMask` and `frameMask` within ±9 % run to run, `paintStroke` −7 to −2 %, painting a stroke +1 to +4 % (for T072). `src/engine` per the report: 2,554 → 2,002 (unchecked index 442 → 365); `lint:full` 9,671 → 9,192. `npm run check` green (1,686 tests), `npm run build` green (entry 327 KB)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T035": {
+          "text": "The photo pipeline (`photo`, `adjust`, `color`, `curve`, `hsl`, `light`, `detail`, `deep`, `raw`, `tiff`, `lut`, `analyze`, `chain`, `sample`, `segments`, `instagram`, `photoExport`, `export`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "0ae1574"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** The 18 photo-pipeline modules (3,196 lines, 950 lint findings, 278 unchecked-index errors) at 0 and in `FINISHED`. Complexity splits: `checkFile` 18 (a table of refusals), `parseCube` 39 (data and keyword lines), `jpegEnd` 31, `buildTiff` 17, `blurImage` 21 and `detailPixels` 42 (one function per effect), `analyzeImage` 39, `renderDeep` 21, `chainPixels` 33, `buildPDF` 40 and `printSpec` 32 (a line writer) → each ≤ 15; casts replaced by typed fallbacks and the guards (`isObjectLike`, `isOneOf`). Behaviour checked by a scratch harness against frozen copies (not committed): every export on random and junk input (colour helpers, mixer, curves, gates, light tables, LUT parsing incl. broken files, chain with and without a LUT, every detail effect, analysis with a fake canvas, file checks, looks, JPEG walking, TIFF bytes, deep render CPU path, `renderIg` on a recording canvas, print pages / imposition / spec for every product): identical; 7 planted changes each failed it. Hot paths timed old vs new, interleaved (1080×1350, medians): chain every step −0 to +3 %, chain light-only 0 to +6 % (after a first split cost 9–20 %: the light maths stay in one function per pixel), `lookPixels` ±noise, `adjustPixels` −4 %, `detailPixels` +2 %, `rawToRgba8` −2 to −11 %, `placeDeep` −21 % (no closure per pixel). Small behaviour notes: `loadImage` rejects with an Error (was the Event); a canvas without a 2D context throws “Canvas unavailable.” in `analyzeImage` / `samplePhoto` (was a TypeError); `exp.pngs` and `masks` follow their types. `src/engine` per the report: 2,002 → 774 (unchecked index 365 → 87); `lint:full` 9,192 → 8,242. `npm run check` green (1,686 tests), `npm run build` green, but the entry chunk is 329 KB (was 327): `export.ts` (+0.7 KB) and `analyze.ts` (+1.0 KB) are in it through `state/`; AC-9 asks ≤ 327 KB, a decision for the maintainer before T091."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T036": {
+          "text": "The print modules (`design`, `layout`, `envelope`, `patterns`, `quote`, `proof`, `presets`) and `engine/gpu/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15. Then `src/engine/**` joins `FINISHED` (its rules are errors).",
+          "section": "Clean-up: engine/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/engine/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; `npm run lint` 0 errors with engine’s rules as errors",
+          "commits": [
+            "afbb134"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** First, the entry-size question from T035 (maintainer chose lazy-loading, D-042, `caf8d3a`): `engine/printPages.ts` holds pages, imposition, summary and file names; `export.ts` loads with `import()` on export (entry 329 → 317 KB). Then the print modules and `engine/gpu/` (≈860 lint findings, ≈100 unchecked-index errors) at 0, and `src/engine/**` in `FINISHED` (rules are errors; a planted short name fails lint). Splits by job (D-043): `computeLayout` (a 626-line switch, complexity 193) → a table of builders in `layoutParts`, `postcardLayouts`, `printLayouts`; `envelope` → `envelopeDraw`, `envelopeTemplate`; `quote` → `quoteWriter`; WebGL2 and WebGPU backends → classes implementing `GpuDevice`; `firstOf` guard for built-in tables. Behaviour checked against frozen copies by scratch harnesses (not committed): 315,840 layout cases, 20,000 junk designs through `mergeDesign`, presets and preset files, `softProof`, 600 envelope faces + 150 templates on a recording canvas (1.2 M calls), every pattern × theme × mode × box (67 M chars of calls), the quote catalog, 60 quote requests and 300 order sheets through a recording jsPDF, GPU node builders (4,000 settings), half floats (all 65,536 halves, 200,000 floats), the graph runner on a fake device, and both backends on recording fake contexts: all identical. 46 of 47 planted changes failed it (after adding inputs for three that slipped through); the 47th, bunting’s control point written as (left + right) / 2, gives equal numbers for the boxes tried. Timing old vs new (medians, interleaved): `softProof` +2–4 % (after inlining the hue maths back; a helper call per pixel cost 9 %), `toHalf` +1 ms per 65³ LUT upload (once per LUT). Standards report: `src/engine` and `src/engine/gpu` 0 (total 8,826 → 7,867); `lint:full` 8,242 → 7,384. `npm run check` green (1,686 tests), `npm run build` green: entry 311 KB (AC-9 ≤ 327), but start-up JavaScript 463,181 → 465,073 bytes (+1.9 KB): the entry fell because envelope geometry became its own start-up chunk (learnings). Docs: `specs/lld.md` module map and §4.1/4.4/4.5, `docs/SPECIFICATIONS.md` (add a layout)."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T040": {
+          "text": "Split `state/video.ts` (1,330 lines) into the store core and history, clip edits, keyframe actions, transition actions, media and export (plan §5, D2), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/state/video*.ts"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "cbd4273"
+          ],
+          "notes": [
+            "**Result (2026-10-14):** `state/video.ts` (1,323 lines, 405 lint findings, 10 unchecked-index errors) split by job into `videoStore` (types, state, selectors, view setters, undo / redo, `change` / `commit`, `loadVideoProject`, Magnetic), `videoTracks`, `videoClips` (clip changes and the edit tools), `videoBox` (box and volume, stored or keyed), `videoKeys`, `videoLayers`, `videoTransitions`, `videoMedia` (files into clips, `addMedia` in small steps, music) and `videoExportJob`: 2,269 lines, 0 findings, 0 unchecked-index errors, in `FINISHED` (`src/state/video*.ts`). The action modules read the store through `getVideo()` at each use, so they see the latest state as the old single `state` variable did; makeStrip shares a filmstrip through `shareStrip` in the store (the history stays private). No barrel (D2): 5 components, the integration test and the self-test (dynamic imports) import the new modules. `isClipKeyProp` / `isLayerKeyProp` exported from engine/keyframes.ts for the keyframe guards. Behaviour checked against the frozen old store by a scratch harness (not committed): 400 projects × 40 random steps over 50 actions (16,000 steps, the whole state and every return value compared after each, fake clock for undo grouping) and 301 `addMedia` calls with stand-in media (including the videos-at-once refusal): identical; 13 planted changes each failed it (after adding inputs for five that first slipped through). Not covered by the harness (DOM / encoder): reading media files, the filmstrip, the export; reviewed by hand; one change there: an in-memory export that gives no file now throws instead of giving a 4-byte file holding “null” (unreachable: the encoder always returns one in memory). 77 integration tests pass unchanged. `npm run check` green (1,686 tests), `npm run build` green, entry 311 KB. Docs: `specs/lld.md` module map, §4.9 store notes, `docs/MEDIA-STUDIO.md`."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T041": {
+          "text": "`state/store.ts`, `state/actions.ts`, `state/instagram.ts` and the rest of `state/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; `src/state/**` joins `FINISHED`.",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/state/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-14):** The rest of `src/state/` (8 modules, 1,875 lines, 445 findings, 14 unchecked-index errors) at 0 and `src/state/**` in `FINISHED`. `state/instagram.ts` (529 lines) split by job like T040: `instagram.ts` (state, selections, undo / redo, `change`, photo edits), `instagramLayers.ts`, `instagramMedia.ts` (addPhotos, RAW), `instagramExport.ts` (renderBatch, prepareBatch, ZIP, share check); no barrel (D2): photoTools, PhotoWorkspace, VideoWorkspace and the self-test import the new modules. `actions.ts`: the two upload loops share `decodeUpload`, `faces` split into `envelopeFaces` / `monthPages`, the import check is a named guard `isImportedRecord`, the quote pack's loop is `quoteParts`, failures go through `reportFailure`. `store.ts`: `screenOf` is a table, undo reads steps through `stepAt`. `traits.ts`: ranking shared by `useRankedLibrary` and `smartFill` (`rankLibrary`), no `!`. `keyOfStored` moved to `library.ts` (traits imported library already). New `lib/ids.ts` (`newRecordId`: crypto random tag instead of `Math.random`) for saved-design and stored-photo ids. `setOccasion(isOn)` keeps its boolean (public API in src/index.ts; one commented lint disable). Behaviour checked by a scratch harness against frozen copies (not committed): 12,000 random steps over 31 actions of the photo store plus focused sequences (100 undo steps, grouping gaps 0–1,000 ms, mask part after undo), 6,000 print-store steps with fake timers (undo, redo, commit, history stats), 1,500 backup / design imports (records and toasts), 500 upload batches (messages, photos, layout), 600 placePhoto + autoArrange runs over every product and layout, photoFit and screenOf: identical; 19 planted changes each failed it (after steering the photo store harness for three that first slipped through). Not covered (DOM / encoder / IndexedDB): the batch render, print downloads, faces, the photo store's thumbnails; reviewed by hand. Small behaviour notes: the library lists sort a copy (`toSorted`), so the background upgrade walks the stored order; a canvas without a 2D context throws 'Canvas unavailable.' in `thumbOf` (was a TypeError); `placePhoto` no longer swaps when the target index is out of range. `npm run check` green (1,686 tests), `npm run build` green: entry 311 KB, start-up JavaScript 465,036 → 465,232 bytes. Docs: `specs/lld.md` module map, `docs/MEDIA-STUDIO.md`, CLAUDE.md layers."
+          ],
+          "startedOn": "2026-10-14",
+          "doneOn": "2026-10-14"
+        },
+        "T042": {
+          "text": "`data/` (names and JSDoc; size rules exempt), `lib/` and `platform/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`.",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/data/**",
+            "src/lib/**",
+            "src/platform/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "72078fe"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `src/data/` (148 findings, 12 unchecked-index errors), `src/lib/` (273, 4) and `src/platform/` (16) at 0 and in `FINISHED` (a planted short name fails lint). Layer breaks in `data/` fixed (D-044): the sample loader moves to `state/samples.ts` (`sampleCredits`, `buildSample`; manifest entries checked), the built-in presets and `presetApplied` join `engine/presets.ts` (`ColourPreset`, `keysOf` instead of a cast), `PhotoType` moves to `types.ts`; `data/presets.ts` is gone. Never-empty tables (`TH`, `PRODUCTS`, `IG_FORMATS`, `DOC_PAGES`, font weights) are non-empty tuples, so their `[0]` fallback needs no `firstOf` (data may not import engine); theme headings fall back to the design's. New `lib/idb.ts`: the open / one-request-per-transaction code `db`, `userFonts` and `userLuts` each had; reads return `unknown` and each list keeps the records with the fields it uses (shallow guards); `DesktopBridge.db.presetAll()` is `unknown[]`. Splits: `marksFor` (complexity 20) → `publicMarks`; Pexels `request` (16) → `checkResponse`, `noteAllowance`, `searchResultOf` (results checked, no cast); `makeZip` → header writers; `fileSink` → desktop / picker sinks (no `!`, picker found by a guard); `perf` counters in two objects, `addMetrics`. Credit regexes no longer start with `\\s*` (super-linear); `shortName` trims, so names come out the same. `menu.ts`: `execCommand` kept for a field's own undo (no replacement; one commented disable), unknown menu commands ignored with `Object.hasOwn`. Behaviour checked by a scratch harness against frozen copies (not committed): every data lookup and table, 3,000 holiday months with own dates, every sample / showcase / print-sample design, presets incl. curve and mixer presets, 80,000 names through the credit parsers plus 3,000 credit texts, 200 ZIPs (byte-identical) and CRCs, photo keys, 400 random designs through `fontsFor`, `pexelsSuggestions`, `slotOrientation`: identical; 17 of 18 planted changes failed it (after longer alt texts and object-valued presets were added; the 18th gives equal weights). `crc32` on 20 MB: old 84–90 ms, new 86–89 ms. Behaviour notes: malformed stored designs, photos, fonts, LUT records and Pexels results are skipped instead of passed on. `npm run check` green (1,686 tests), `npm run build` green: entry 312 KB (311), start-up JavaScript 465,232 → 466,768 bytes. Standards report total 6,570. Docs: `specs/lld.md` module map and storage, `docs/MEDIA-STUDIO.md`, `docs/PERFORMANCE.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T043": {
+          "text": "`agent/` and `ai/` (agent tool names and schemas unchanged): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15; they join `FINISHED`; run `npm run test:mcp` (Q9).",
+          "section": "Clean-up: state/, data/, lib/, platform/, agent/, ai/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9",
+            "AC-13"
+          ],
+          "files": [
+            "src/agent/**",
+            "src/ai/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; `npm run test:mcp` passes",
+          "commits": [
+            "33e1e24"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `src/agent/` (≈ 300 lint findings) and `src/ai/` (≈ 370, 37 unchecked-index errors) at 0 and in `FINISHED`. Agent tools split by job (D-045): `tools.ts` is the registry over `catalogTools`, `designTools`, `cardPhotoTools`, `aiTools`, `outputTools`, `galleryTools` and `photoTools` (with `maskTools`, `presetTools`), sharing `designSummary`, `photoStudioInfo`, `photoEdits`; helpers renamed (`objectSchema`, `stringArg` …); `run` / `read` may return directly (28 `async` handlers without await); `check_design` (complexity 20) → `photoIssues` / `printIssues`, `set_calendar` (20) → `calendarWith` / `captionsFrom`; casts and `!` replaced by guards (`isOneOf`, `recordArg`, generic setting copies, `MaskDraft` before the mask gate); the bridge finds tools with `toolNamed`. MCP surface checked byte-identical before / after (56 tools: names, titles, descriptions, schemas, flags, order; 5 prompts' texts; 5 resources). `ai/`: `transport` (complexity 26) → `sendFromDesktop` / `sendFromWeb`, host rules checked when read; `service` (`slotShape` 19 → `quietSide`), answers read through `listIn` / `textOf`; `settings` through `mergeAiSettings()` (provider a `string`); `secrets` without casts or dynamic deletes; providers read JSON with `providers/read.ts`; Anthropic params typed without casts; `parseJsonLoose` and `baseFor` without super-linear regexes; segment download split (`readDownload`, `keepModel`), worker typed via `declare const self`. Behaviour checked by a scratch harness against frozen copies (not committed): 3,000 aspect / HTTP-error / loose-JSON cases, 2,000 prompt sets, 1,500 designs through `textBudget` / `slotShape` / `suggestSubject` / `aiPhotoName`, 600 writeWords / writeCaptions / writeMessages calls through a fake provider with junk answers, every provider × URL × base through `keyAllowed` / `isResultHost`, 3,000 stored settings, 400 key stores, `normalise`, argument readers: identical, except 185 inputs where the old code crashed with a TypeError (now a handled message) and object values where text belongs ('' instead of \"[object Object]\"); 18 of 19 planted changes failed it (after adding long error details and look-alike hosts; the 19th is equivalent). Behaviour notes: arguments outside a schema enum are refused with a ToolError (were stored). `npm run test:mcp` passes (56 tools, resources, prompts, exports, DNG → 16-bit TIFF). `npm run check` green (1,686 tests), `npm run build` green: entry 312 KB, start-up JavaScript 466,768 bytes (unchanged), 9 provider chunks on demand. Standards report total 6,570 → 5,863. Docs: `specs/lld.md` module map, `docs/MCP.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T050": {
+          "text": "Split `components/studio/Timeline.tsx` (1,321 lines) into the timeline, picture rows, track header and menus, keyframe and cut marks, transport (plan §5), then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "eec62bd"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `components/studio/Timeline.tsx` (1,278 lines, ≈ 180 lint findings; `Timeline` 328 lines, its key handler complexity 26) split by job into `Timeline.tsx` (the component, `useAnnouncements`, `useScroller`, `TimelineHeads`, `Ruler`; 358 lines), `PictureRow.tsx` (clip blocks; the body and edge drags per tool as `onClipBody` / `moveWithSelect` / `onClipEdge`; 370), `CutMarks.tsx` (cuts, `TransitionBlock`, `OPEN_TRANSITIONS`; 131), `TimelineBars.tsx` (`LayerRow`, `MusicRow` with the waveform; 183), `TrackHead.tsx` (`AddTrackButton`, `TrackHead` with `TrackName` / `TrackSwitch`, `HeightMenu`; 312), `Transport.tsx` (`ToolPicker`, `EditSwitches`, `MoveToTrackMenu`; 166), `timelineDrag.ts` (`startDrag`, `dragKey` replacing the shared counter, `toFrame`, sizes, ruler ticks; 97) and `timelineActions.ts` (`tell`, `sayOnce`, `refuseLocked`, `selectedItem`, `keyAtPlayhead`, `onTimelineKey` split into `jumpToKey` / `nudgeSelection` / `deleteSelection` / `plainKeys`; 255). All eight at 0 lint findings (React compiler rules included) and 0 unchecked-index errors; no barrel (VideoWorkspace imports `Timeline`, `Transport`, `OPEN_TRANSITIONS` from their modules). Props are `Readonly`, `!` and casts gone (`instanceof` guards, the KeyProp guard filter). Two React compiler findings the smaller code exposed are fixed: the scroller's width no longer set synchronously in a layout effect (the ResizeObserver reports it on observing), and `useScroller` owns its ref. Behaviour otherwise moved as it was (reviewed line by line; no DOM in the unit tests, so the timeline's e2e and manual checks run in 290, D-033). `components/studio` still holds T051–T053's files. `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Docs: `specs/lld.md`, `docs/MEDIA-STUDIO.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T051": {
+          "text": "Split `components/studio/VideoWorkspace.tsx` into the workspace, its panels, the stage, the clip inspector and the export dialog, then clean them: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "0197ce1"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `components/studio/VideoWorkspace.tsx` (1,008 lines, ≈ 140 lint findings, 2 React compiler findings; `VideoStage` 275 lines, `ExportPanel` and `ClipPanel` with nested ternaries) split by job into `VideoWorkspace.tsx` (the workspace: `useWorkspaceKeys`, `useLayerPanelProps`, `ToolPanel`, `Inspector`, `WorkspaceActions`; 246 lines), `VideoStage.tsx` (`useStageSources` memoised so effects keep their identity, `drawStage` / `frameNow` / `pictureNow`, `syncMedia` + `syncFallbackVideo`, `lookAhead`, `usePlayback`, `useStageLayers`; 407), `ClipInspector.tsx` (`ClipInspector` with `TimingGroup` / `PositionGroup` / `PictureGroups`, `ProjectInspector`; 286), `VideoPanels.tsx` (`MediaPanel`, `MusicPanel`, `EmptyStage`, `LimitsNote`; 192), `VideoExport.tsx` (`ExportSettings`, `ExportDestination`, `ExportActions`, `runExport`, `postToInstagram`; 238) and `videoFields.tsx` (`Range`, `NumberField`, `KeyButton`; 99). All six at 0 lint findings (React compiler rules included) and 0 unchecked-index errors; no barrel. React fixes, behaviour kept: the stage's draw function is set in a layout effect instead of during render; `NumberField` resets its draft from a new value during render (React's previous-value pattern) instead of in an effect; the music `<audio>` is taken by the playback effect when it starts and paused by its cleanup (the separate unmount pause was redundant); casts and `!` gone (the frame-rate choice maps '60' / '30' explicitly; the clipboard is still guarded for insecure contexts). Behaviour otherwise moved as it was (reviewed line by line; the editors' e2e and manual checks run in 290, D-033). `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Docs: `specs/lld.md`, `docs/MEDIA-STUDIO.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T052": {
+          "text": "Split `components/studio/PhotoWorkspace.tsx` the same way, then clean it: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "332e543"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `components/studio/PhotoWorkspace.tsx` (1,170 lines, ≈ 160 lint findings; `PhotoWorkspace` and `PhotoStage` complexity 39, `ExportPanel` 27, the stage's mask handler 18, nested ternaries for the panel, inspector and hint, one React compiler finding) split by job into `PhotoWorkspace.tsx` (the workspace: `useUndoKeys`, `ToolPanel`, `LayersPanel`, `Inspector`, `WorkspaceActions`; 217 lines), `PhotoStage.tsx` (framing keys and pan, the brush cursor, `stageHint`; 207), `photoMaskTool.ts` (`useMaskTool`: brush strokes, gradient handles, range picks, AI-part refining; `pickNeutral` eyedropper; 256), `photoRender.ts` (`usePhotoRender`, mask overlay and gradient guides, `dataUrlToBlob`; 178), `PhotoEditPanel.tsx` (`FrameGroup`, `LightGroup`, `ColourGroup`, `DetailGroups`; 235), `PhotoPanels.tsx` (`PhotoMediaPanel` with `BatchSize` and `LibraryPicker`, `EmptyPhotoStage`; 224), `PhotoStrip.tsx` (161) and `PhotoExport.tsx` (`FileTypeChoice`, `CaptionField`, `statusText`, `postBatch`; 213). All eight at 0 lint findings (React compiler rules included) and 0 unchecked-index errors; InstagramStudio imports `PhotoWorkspace` as before. React fix: the typed batch size resets from a new limit during render (previous-value pattern) instead of in an effect. Casts and `!` gone (the quarter turn found in the turns table, explicit nulls at the batch's ends; the clipboard still guarded for insecure contexts; `busy` keeps its ?? meaning). Behaviour otherwise moved as it was (reviewed line by line; the photo editor's e2e and manual checks run in 290, D-033). `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Docs: `specs/lld.md`, `docs/MEDIA-STUDIO.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T053": {
+          "text": "The rest of `components/studio/` (`KeyframeLane`, `KeyframeButton`, `TransitionPanel`, `previewFrame`, `previewSound`, `useClipTransform`, `Shell`, `Dialog`, `timelineRows`): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "675c0b4"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** The rest of `components/studio/` (nine files, ≈ 195 lint findings and 8 unchecked-index errors: `KeyframeLane`, `KeyframeButton`, `TransitionPanel`, `previewFrame`, `previewSound`, `useClipTransform`, `Shell`, `Dialog`, `timelineRows`) at 0, and with T050–T052 the whole folder at 0 and in `FINISHED` (`src/components/studio/**`; T056 adds the rest of `components/`). Changes: `previewSound` (93 lines of closures) is a `PreviewSound` class with `previewSound()` and `liveSounds` kept for the stage and the self-test; `useClipTransform` (95 lines) gets `pressedBox` and `drawGuides`; `describeKeyChange` (complexity 25) gets `sameTimesChange` and `describeClipChange` gets `describeChangedClip` (no `!`: a clip on no known track says nothing); `KeyframeLane`'s rows are `laneRows` with the KeyProp guards, and `EaseMenu` keeps its latest close handler in a layout effect instead of writing the ref during render (a React compiler finding); `previewFrame`'s `PreviewClip` now declares `file` (no cast in `poolSource`), `pausedFrame` awaits one item per clip (no index lookup), `stageSource`'s `element` is bound; `TransitionPanel`'s kind select is checked with `isOneOf`; `RowTarget` (an alias of `string`) is inlined. Props are `Readonly` interfaces throughout. The timelineRows unit tests (30) and previewSound integration tests (16) pass unchanged. `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Standards report total 5,098; `src/components/studio` 0."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T054": {
+          "text": "`components/ig/`: names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/ig/**"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "3127584"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** `components/ig/` (eight files, 313 findings: 166 one-letter names, 67 JSDoc, 30 type findings, 28 sonar, 18 unchecked-index errors, one React compiler finding) at 0 and in `FINISHED` (`src/components/ig/**`). `LayerPanel.tsx` (489 lines; 911 once formatted and documented) is split into `LayerPanel.tsx` (adding text, shapes, stickers and images; the list; the brush; 390), `LayerProperties.tsx` (the selected layer: kind, size, turn, opacity, blend, mask, timing; 444) and `LayerControls.tsx` (`Swatches`, `LpRange`, `formatClock`; TransitionPanel imports `LpRange` from it). `MaskPanel` (283 lines) becomes `MaskList`, `SelectedMask`, `PartRow` and `BrushSettings`; part changes are typed spreads through `replacePart` instead of `{ ...part, ...patch } as MaskPart`, `PartSettings` takes a numeric `PartPatch` and reads settings with `settingOf` (no `as unknown as Record`), the combine and blend selects are checked with `isOneOf`, new AI / fade / spot parts are narrowed by kind, and the AI status text is `aiStatusText` (no nested ternaries); `MaskInspector` keys are `NumericAdjustment`. `useLayerPointer` (125 lines, complexity 17) gets `drawingToExtend`, `startStroke`, `paintStroke`, `startEdit`, `draggedLayer` and `editWithKey`; its options ref is written in a layout effect (the React compiler finding: no ref write during render). `CurveEditor` gets `movePoint`, `graphPosition` (from the event's own SVG, so no ref) and `widestGap`; `LookPicker`'s `applySaved` moves out and `counted` replaces the nested plural ternary. Props are `Readonly` interfaces throughout. No unit tests cover these UI files (no DOM); behaviour reviewed line by line, e2e and self-test run in T056. `npm run check` green (1,686 tests), `npm run build` green, entry 312 KB. Standards report total 5,098 → 4,785; `src/components/ig` 0. Docs: `docs/MEDIA-STUDIO.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T055": {
+          "text": "The other components (`App`, the print studio, dialogs, `Paper3D`, `Landing*`, `DocsPage` …): names (Q3: what each value holds), JSDoc on every export, casts and non-null assertions replaced by guards and better types, named interfaces for object shapes, `noUncheckedIndexedAccess` errors fixed, functions within 80 lines and cognitive complexity 15.",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/**",
+            "src/App.tsx"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder",
+          "commits": [
+            "5dd2ca6"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** The rest of `components/` (`components/` root, `ai/`, `panes/`), `App.tsx` and `main.tsx`: 1,241 lint findings and 73 unchecked-index errors in 44 files, now 0 except 19 React compiler findings left for T056 (16 in `components/`, 3 in `ai/`). Names: 590 one-letter names renamed through the TypeScript language service (every reference and shorthand property, with a scope check against shadowing; scratch tool, see learnings). Long components split by job: `Paper3D` (861 lines, a 484-line component) into `paper3dScene.ts`, `useMatCamera.ts`, `Paper3DParts.tsx` and the page; `Viewer3D` (538 lines, complexity 48) into `viewer3dMotion.ts`, `Viewer3DFaces.tsx` and the dialog; `PhotoLibrary` (513) into `photoLibraryItems.ts`, `PhotoLibraryParts.tsx` and the dialog; `CropDialog` (321) with `cropGeometry.ts`; `SizeGuide` (386), `CalendarFront` (472), `Landing` (359), `Stage` (267), `PerfMonitor`, `PexelsSearch`, `FeatureFinder` (421-line command list in two). `icons.tsx` exports are documented function components. Casts and `!` replaced by guards (`isOneOf`, `isObjectLike`, `.at()`, typed tuples), nested ternaries by helpers or tables, async handlers called with `void`; `photoCount` shared by LayoutPane and SizeGuide; DocsPage's link regex keeps a reasoned disable (bundled docs text only). Two behaviours kept on purpose: the gallery still leaves out saves with an unknown layout, and the 3D viewer's per-mode poses are unchanged. New unit tests: `cropGeometry` (9) and `viewer3dMotion` (5), checked by breaking the 20 px minimum. `npm run check` green (1,700 tests), `npm run build` green, entry 313 KB. Standards report total 4,785 → 3,485; `src/components` and `src/components/ai` show only the React column. Docs: `specs/lld.md`, `docs/PERFORMANCE.md`."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T056": {
+          "text": "React (AC-12): fix the `recommended-latest` findings (27 at the start: state set in effects, refs read in render, memoization, purity, mutation) and review every `useEffect` (106) against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx`, `src/main.tsx` join `FINISHED`; run `npm run test:e2e` and `npm test` against the baselines (Q9).",
+          "section": "Clean-up: components/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-9",
+            "AC-12"
+          ],
+          "files": [
+            "src/components/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` and `npm run build` green; the standards report shows 0 for the folder; react-hooks findings 0; e2e and self-test as the baselines",
+          "commits": [
+            "5a581a9"
+          ],
+          "notes": [
+            "**Result (2026-10-15):** The 19 React compiler findings left after T055 fixed (react-hooks findings in `src/` 0) and all 111 effects reviewed against “effects only sync with outside systems”; `src/components/**`, `src/App.tsx` and `src/main.tsx` join `FINISHED`, the standards report shows 0 for them. State reset on a change moved from effects to render (the stored-previous-value pattern): CropDialog (a new photo; the dialog's open/close stays in an effect on `cropId` + open), FeatureFinder and PhotoLibrary (opening), SettingsDialog (opening; the effect only subscribes and asks how the key reaches Pexels), Viewer3D (new faces; `useViewState` hook, the camera pose stays in the effect), `YearField` (a year from outside), Stage's flip counter (side changes). AiSettings keeps listed models with the service they came from (another service shows none, and a late list for the old service no longer lands on the new one). PexelsSearch: loading set during render on a new search key, the fetch started from the effect through `useEffectEvent` and written as a promise chain (the compiler counts state set after `await` as synchronous); `ideas` worked out per render (table lookups, no hand-picked deps); merging pages is `withNewPhotos`. Refs during render: FeatureFinder's commands get the file picker when they run (`command.run({ pickFiles })`); AiArtwork's live list is written in a layout effect; its add-picture work moved to `addToCard` (a local `use` read as the hook). Memoisation the compiler couldn't keep: Paper3D's scene memo over `shown` (now memoised) instead of an id string; SizeGuide memoises the size chain. Shell's `useFit` drops the extra size set (the ResizeObserver reports on observing). Kept on purpose: the store syncs (pane → side in App, `setKind` in VideoWorkspace), timers, subscriptions, canvas drawing. `npm run check` green (1,700 tests); `npm run build` green, entry 313 KB; `npm run test:e2e` 84 passed / 16 skipped (= baseline); `npm test` 6,203 checks, 0 failed (238 s; baseline 6,203). Not in this task: `src/types.ts` (34 JSDoc) and `src/dev` (100) still show in the report (for T091's “report at 0”)."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-15"
+        },
+        "T060": {
+          "text": "`tests/selftest/`: names and JSDoc (size rules exempt for tests); run `npm test` (Q9).",
+          "section": "Clean-up: tests/selftest/ and electron/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-7",
+            "AC-9"
+          ],
+          "files": [
+            "tests/selftest/**"
+          ],
+          "test": "`npm test`: the baseline’s checks, 0 failed",
+          "commits": [
+            "67c585c"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `tests/selftest/` at 0 in the standards report (names and JSDoc; shared fixtures in `helpers.ts`); tests also exempt from `sonarjs/cognitive-complexity` with the other Q4 size rules. `npm run check` green (1,700 unit tests); `npm test` 6,203 checks, 0 failed (249 s), as the baseline; preview frame median 13.0 ms, export fastest 2.61 s, 2-minute exports 12.7–13.3 s."
+          ],
+          "startedOn": "2026-10-15",
+          "doneOn": "2026-10-16"
+        },
+        "T061": {
+          "text": "`electron/` (CommonJS): names, JSDoc, function length and cognitive complexity (no type rules); IPC validation unchanged; `electron/**` joins `FINISHED`; run `npm run test:mcp` and `npm test` (Q9).",
+          "section": "Clean-up: tests/selftest/ and electron/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9"
+          ],
+          "files": [
+            "electron/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run lint` 0 errors; MCP and self-test pass",
+          "commits": [
+            "c46e97c"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `electron/` 98 findings to 0 (75 names, 15 JSDoc, 3 cognitive complexity, 5 sonar), `electron/**` in `FINISHED` (no type rules); `ai.cjs` request and host check split into helpers, `raw.cjs` PPM header reader split out; IPC validation unchanged. First unit tests for the main process (`tests/unit/electron/`, 6: AI request bodies and host refusal, the PPM reader). Bug fix found by the test: desktop AI form requests (Stability, Ideogram pictures) threw on every text field since 2.5.0 (`FormData.append` with an undefined file name). Standards total 2,127 to 2,029. `npm run check` green (1,706 unit tests); `test:mcp` 23 checks passed (DNG developed); `npm test` 6,203 checks, 0 failed (246 s)."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T070": {
+          "text": "Turn on `noUncheckedIndexedAccess` for `src/` (Q13; the report’s count at 0 after §5) and fix anything left.",
+          "section": "Strict index access, React Compiler, performance",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "tsconfig.app.json",
+            "tsconfig.tests.json",
+            "src/**"
+          ],
+          "test": "`npm run check`",
+          "commits": [
+            "d2a31cc"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `noUncheckedIndexedAccess` on in `tsconfig.app.json` (`src/`, `tests/selftest`, `tests/support`). The last 11 errors fixed: `src/dev/printSamples.ts` (9: samples and envelope jobs by index go through `entryAt`, which throws a RangeError naming the index; `sampleNumber` for the id prefix), `src/dev/showcase.ts` (1), `tests/support/timeline.testkit.ts` (1, `?? null`). A planted `list[0].toFixed()` fails the typecheck. `tsconfig.tests.json` (unit and integration tests) stays off: 379 errors, nearly all `list[0].field` in assertions, where `!` would only add noise against AC-13; the support kit both share compiles clean under the flag. `npm run check` green (1,706 tests), `npm run build` green, entry 313 KB."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T071": {
+          "text": "React Compiler (Q11, D3): `oxc-transform-react` (MIT, development dependency) and `react({ compiler: true })`; `logDiagnostics` once, skipped components fixed or noted; remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22); compare e2e, self-test and timings with the baselines; kept only without regression, else turned off with the reason.",
+          "section": "Strict index access, React Compiler, performance",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9",
+            "AC-12"
+          ],
+          "files": [
+            "vite.config.ts",
+            "package.json",
+            "src/components/**"
+          ],
+          "test": "`npm run check`, build, e2e and self-test as the baselines; timings no worse",
+          "commits": [
+            "3e52948"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** React Compiler tried and turned off (D-046, the maintainer's choice). `react({ compiler: true })` with `oxc-transform-react` 0.152.0 (MIT; the plugin's peer range; marked experimental) built fine; `logDiagnostics` listed 37 skipped functions (12 dynamic `import()` in App's preloads and 3 in AiSettings, 15 `try`/`finally`, 2 `??=` in VideoStage, 2 reorder limits, Timeline's rule suppression, one global update in useClipTransform). e2e with it on: 81 passed / 16 skipped / 3 failed (AI masks, AI models on desktop and phone), repeatable, and passing with it off: `useAiStatus` and `useFallbackNote` read a module Map during render behind a discarded version snapshot, so the compiler memoised the first value. Fixed by returning the value as the snapshot (`3e52948`); the 3 tests then pass with the compiler on. Sizes: compiled components grow ~40 %: whole app, entry 313 → 337 KB (AC-9: ≤ 327); scoped to `components/studio`, `ig`, `ai` via `sources`, entry 314 KB but the studio chunk 201 → 281 kB. Package not added, manual memos kept; self-test and timings not run (it is off). `npm run check` green (1,706 tests)."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T072": {
+          "text": "Performance review (plan §7, Q8): measure the hot paths against the baselines (frame drawing `renderStack` / `frameStack` / `drawPair`, the decoder pool, `mixWindow` / `gainCurve`, the photo pipeline, the print renderer); record findings in `performance.md`; change only what measures ≥ 10 % faster with no loss elsewhere, each with before / after numbers.",
+          "section": "Strict index access, React Compiler, performance",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "specs/features/407-code-structure/performance.md",
+            "src/**"
+          ],
+          "test": "timings before / after recorded; `npm run check` green",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-16):** Hot paths measured in the Electron renderer against `main` (`3d08be7`): `tests/selftest/perfTiming.ts` (`CHITTHI_TEST_ONLY=perf npm test`), plus an interleaved A/B with `main`'s engine in the same page; findings in `performance.md`. Frame stack and drawing, export with sound, print renderer (first per-page numbers: postcard 6.6, calendar 28.5, magnet 3.0 ms at 300 dpi) and `buildPDF` match `main`. Three regressions from 407's clean-ups found and fixed: `gainCurve` +14 % → −1 % (`valueAt` reads with `=== undefined`, `clampValue` one lookup), `detailPixels` clarity +17 % → −1 % and sharpen +34 % → −10 % (`!` on the blur's 9 typed-array reads, D-047). The Canvas 2D look path stays +13–22 % in one warm-up order (none first; looks first or alone −9 to +6 %), accepted as AC-10's one exception (spec Changelog, D-047). `npm run check` green (1,706 tests)."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T090": {
+          "text": "Docs (AC-11): CLAUDE.md (commands, single tests, layers), `specs/testing-strategy.md` (the layout; unit / integration / e2e / selftest), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts), memory.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11"
+          ],
+          "files": [
+            "CLAUDE.md",
+            "specs/testing-strategy.md",
+            "specs/architecture.md",
+            "specs/lld.md",
+            "specs/build.md"
+          ],
+          "test": "relative links resolve",
+          "commits": [
+            "6d9f065"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** Docs describe the new structure (AC-11). testing-strategy.md: 'Where tests live' (unit / integration / support / e2e / selftest, the @/ alias, unit vs integration, the structure check), the suite table and how-to-add paths; build.md: check, test:unit, npm test paths; lld.md module map: tests/ tree, guards.ts, keyframeGate.ts, timeSnap.ts, the layer panels, scripts, decoder-pool check paths; architecture.md: agent tools by job, the import direction, standards and tests conventions; CLAUDE.md: tests/ layer and the check; docs/MEDIA-STUDIO.md, docs/PERFORMANCE.md, vision/editor-implementation.md: old src/dev and src/**/*.test.ts paths. Every relative link in the changed files resolves; npm run check green (1,706 unit tests). ds-bundle/ (generated copy) left as is."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T091": {
+          "text": "The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-9"
+          ],
+          "files": [],
+          "test": "every command green; numbers recorded",
+          "commits": [
+            "1ae913d"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** The last of src/ cleaned: src/types.ts (34 exports given JSDoc), src/dev/showcase.ts and src/dev/printSamples.ts (90 findings: names, typed photos.json, envelope job / spec text / order-sheet rows split into functions, one blobToBase64); src/types.ts, src/index.ts, src/vite-env.d.ts and src/dev/** join FINISHED, so every standards rule is an error for all of src/ and electron/ (AC-5). printSamples checked against a frozen copy by a scratch test (envelope folders, sample ids, ORDER-SHEET.csv, README.txt, PHOTO-CREDITS.txt identical with a fixed clock; 2 planted changes each failed it); showcase.ts is renames and splits only (needs a canvas; a missing credit now throws a clear Error instead of a TypeError). Gates: npm run check green (1,706 tests); lint:full 0 errors; standards report 0 for src/ and electron/ (1,894 warnings left, all in tests/, outside AC-5 and no 407 clean-up task); npm run build green, entry 313 KB (≤ 327, AC-9); check:licenses 168 packages OK; test:e2e 84 passed / 16 skipped (= baseline); npm test 6,203 checks, 0 failed (254 s; baseline 6,203); test:mcp passed."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T092": {
+          "text": "Tick the ACs; Status `Implemented`; roadmap 407 ✔️; `memory/progress.md`, `memory/MEMORY.md`; merge into `main` (the standing rule) and push when the maintainer says so; 207 then branches from `main`.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": null,
+          "commits": [
+            "c88c9f3"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** AC-1–AC-13 ticked; 407 Implemented, roadmap ✔️; check green (1,706 tests); merged into main (--no-ff), not pushed."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        },
+        "T062": {
+          "text": "Clean `tests/` (maintainer, 2026-10-16): the 1,894 standards warnings left after T091 (names, JSDoc, sonar, type rules) to 0 across `tests/unit`, `tests/integration`, `tests/support` and `tests/e2e`; `tests/**` joins `FINISHED`. Tests stay exempt from the size rules (Q4). Behaviour-neutral: the same tests, the same counts.",
+          "section": "Clean-up: tests/selftest/ and electron/",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "tests/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` green with the same test count; `npm run test:e2e` as the baseline; the standards report at 0 for `tests/`",
+          "commits": [
+            "4230113",
+            "e8b10e9",
+            "53e47e9",
+            "1545c69"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** tests/ from 1,894 standards warnings to 0 and in FINISHED; the standards report shows 0 findings for the whole repo. Names (1,390): renamed scope-safely through the TypeScript language service (a codemod: names from types, calls, receivers and context; every rename checked against the names in its scope), then about 270 doubtful picks and a second audit of letter guesses (32) chosen by hand; no new shadowing (no-shadow 9 before, 9 after). Non-null assertions (166 in all): tests/support/defined.ts (throws with what was missing); browser-side page.evaluate code checks its 2D context. JSDoc: 89 functions given @param / @returns, 8 testkit exports documented. The rest by hand: seeded randoms (tests/support/seededRandom.ts) instead of Math.random() in lut and masks tests, explicit sort order (codeUnitOrder.ts), fakes without async-without-await / empty bodies / void expressions, the fake decoder's reader split out (no functions nested past 4), clock waits instead of fixed timeouts in editors.e2e.ts, one shared brightnessAt in instagram.e2e.ts, nested ternaries as statements. Off for tests/ in eslint.config.js, with the reason there: sonarjs/no-floating-point-equality (exact on purpose) and, for tests/e2e, sonarjs/no-skipped-tests (per-project skips); 3 reasoned eslint-disable-next-line (two plain-http checks, the catch-block regex on the app's own source). Gates: npm run check 1,706 tests (= before); lint:full 0 problems; build entry 313 KB; test:e2e 84 passed / 16 skipped (= baseline); npm test 6,203 checks, 0 failed (248 s)."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
+        }
+      }
+    }
+  }
+}

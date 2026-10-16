@@ -11,6 +11,170 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-16 — 407 (T092, close)
+**Done:** T092: AC-1–AC-13 ticked (each covered by done tasks; T091's full DoD and T062's tests/ clean-up); 407
+`Implemented`, roadmap ✔️; `npm run check` green (1,706 tests). Merged into `main` (`--no-ff`), not pushed.
+**Next:** push `main` when the maintainer says; 207 (speed) branches from `main`.
+**Blockers:** none.
+
+## 2026-10-16 — 407 (T020, T062)
+**Done:** T020 approved by the maintainer. T062 (new, maintainer's ask): `tests/` from 1,894 standards warnings to 0
+and in `FINISHED` (`4230113`, `e8b10e9`, `53e47e9`, `1545c69`); the standards report shows 0 for the whole repo.
+Names by a scope-checked rename codemod plus hand picks; `tests/support/defined.ts`, `seededRandom.ts`,
+`codeUnitOrder.ts`; two Sonar rules off for tests (D-048). Gates: check 1,706 tests, lint:full 0, entry 313 KB,
+e2e 84 / 16 skipped, self-test 6,203 / 0 failed.
+**Next:** T092 (tick the ACs, Implemented, roadmap ✔️, merge into `main`; push when the maintainer says).
+**Blockers:** none.
+
+## 2026-10-16 — 407 (T091)
+**Done:** T091 (`1ae913d`, `68c2fd5`): `src/types.ts` JSDoc, `src/dev/` (showcase, print samples) clean; all of
+`src/` and `electron/` in `FINISHED` (every standards rule an error). Full DoD green: check 1,706 tests, lint:full 0
+errors, standards report 0 for src/ and electron/ (1,894 warnings left, all in `tests/`), build entry 313 KB,
+licences OK, e2e 84 passed / 16 skipped, self-test 6,203 / 0 failed, test:mcp passed.
+**Next:** T020 review by the maintainer (`specs/coding-standards.md`, AC-4), then T092 (ACs, Implemented, merge into
+`main`). Open question: should `tests/` also reach 0 in the standards report?
+**Blockers:** T020 review.
+
+## 2026-10-16 — 407
+**Done:** T060 (`67c585c`): `tests/selftest/` names and JSDoc, at 0 in the standards report; tests also exempt from
+`sonarjs/cognitive-complexity` (Q4's size rules). `npm run check` green (1,700 unit tests); `npm test` 6,203 checks,
+0 failed, as the baseline.
+T061: `electron/` clean (98 findings to 0) and in `FINISHED`; `ai.cjs` request split into helpers, `raw.cjs` PPM
+header reader split out; first unit tests for the main process (`tests/unit/electron/`, 6). **Bug fix:** desktop AI
+form requests (Stability, Ideogram pictures) threw on every text field since 2.5.0 (learnings). `test:mcp` 23 checks,
+`npm test` 6,203 checks, 0 failed.
+T070 (`d2a31cc`): `noUncheckedIndexedAccess` on in `tsconfig.app.json` (last 11 errors in `src/dev` and the timeline test kit); unit-test tsconfig stays off (379 assertion reads). Check green (1,706), entry 313 KB.
+T071: React Compiler tried and kept off (D-046): entry 313 → 337 KB whole-app, studio chunk +40 % scoped; e2e found two external-store hooks that broke under it, fixed (`3e52948`, learnings).
+T072 (not committed yet): performance review in `performance.md`. New harness `tests/selftest/perfTiming.ts`
+(`CHITTHI_TEST_ONLY=perf npm test`). Three regressions from 407 fixed: `gainCurve` +14 % (`valueAt` / `clampValue`
+reads), `detailPixels` clarity +17 % and sharpen +34 % (`?? 0` on the blur's reads → `!`, D-047, standards §8). The
+Canvas 2D look path stays +13–22 % when no look runs first: accepted exception (spec Changelog, D-047). Check green.
+T090 (`6d9f065`): docs describe the new structure (testing-strategy "Where tests live", lld module map with `tests/`,
+architecture conventions, build, CLAUDE.md, old test paths in `docs/`); links resolve, check green.
+**Next:** T091 (the full Definition of Done, every rule an error), then T092 (close, merge). T020 still waits for the
+maintainer's review of `specs/coding-standards.md`.
+**Blockers:** none
+
+## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)
+
+**Done:** the 19 React compiler findings fixed (resets on a change moved from effects to render; a promise chain for
+the Pexels fetch; refs no longer read during render); all 111 effects reviewed; `src/components/**`, `App.tsx`,
+`main.tsx` in `FINISHED`. Check (1,700 tests) and build green, entry 313 KB; e2e 84 / 16 skipped and self-test
+6,203 / 0 failed, both as the baselines. Commit `5a581a9`.
+**Next:** T060 (`tests/selftest/` names and JSDoc, 1,336 findings). `src/types.ts` (34 JSDoc) and `src/dev` (100)
+have no task yet; T091 needs the report at 0. T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-15 — 407 T053 (the rest of components/studio)
+
+**Done:** `KeyframeLane`, `KeyframeButton`, `TransitionPanel`, `previewFrame`, `previewSound` (now a class),
+`useClipTransform`, `Shell`, `Dialog`, `timelineRows` at 0; `src/components/studio/**` in `FINISHED`. Check and
+build green, entry 312 KB; standards total 5,098.
+**Next:** T054 (`components/ig/`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-15 — 407 T052 (PhotoWorkspace.tsx split)
+
+**Done:** `PhotoWorkspace.tsx` (1,170 lines) → `PhotoWorkspace`, `PhotoStage`, `photoMaskTool`, `photoRender`,
+`PhotoEditPanel`, `PhotoPanels`, `PhotoStrip`, `PhotoExport`; all at 0. Check and build green, entry 312 KB. Photo
+editor e2e and manual checks wait for 290. Commit `332e543`.
+**Next:** T053 (the rest of `components/studio/`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-15 — 407 T051 (VideoWorkspace.tsx split)
+
+**Done:** `VideoWorkspace.tsx` (1,008 lines) → `VideoWorkspace`, `VideoStage`, `ClipInspector`, `VideoPanels`,
+`VideoExport`, `videoFields`; all at 0, React compiler rules included. Check and build green, entry 312 KB. Editor
+e2e and manual checks wait for 290. Commit `0197ce1`.
+**Next:** T052 (split `PhotoWorkspace.tsx`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-15 — 407 T050 (Timeline.tsx split)
+
+**Done:** `components/studio/Timeline.tsx` (1,278 lines) → `Timeline`, `PictureRow`, `CutMarks`, `TimelineBars`,
+`TrackHead`, `Transport`, `timelineDrag`, `timelineActions`; all at 0 findings, React compiler rules included (two
+findings the split exposed fixed). Check and build green, entry 312 KB. Timeline e2e and manual checks wait for 290.
+Commit `eec62bd`.
+**Next:** T051 (split `VideoWorkspace.tsx`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-15 — 407 T043 (agent/ and ai/ cleaned)
+
+**Done:** `agent/` split by job behind the `tools.ts` registry (D-045); MCP tools, prompts and resources
+byte-identical by snapshot; `ai/` transport, service, settings, secrets, providers and segment cleaned, answers and
+stored data read through guards. Both in `FINISHED`. Old-vs-new harness identical (185 old crashes now handled; 18 of
+19 plants caught). `test:mcp` passes; check green (1,686 tests), build green, entry 312 KB, start-up JS unchanged.
+Standards total 5,863. Commit `33e1e24`.
+**Next:** T050 (split `components/studio/Timeline.tsx`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-15 — 407 T041 committed, T042 (data/, lib/, platform/ cleaned)
+
+**Done:** T041's work (left uncommitted on 2026-10-14) checked green and committed (`b2686a3`). T042: `src/data/`,
+`src/lib/`, `src/platform/` at 0 findings and 0 unchecked-index errors, in `FINISHED`. Layer breaks in `data/` fixed
+(D-044: sample loader → `state/samples.ts`, built-in presets → `engine/presets.ts`, `PhotoType` → `types.ts`);
+`lib/idb.ts` shared by db / userFonts / userLuts, stored records checked when read. Checked identical against frozen
+copies (17 of 18 plants caught, the 18th equivalent). Check green (1,686 tests), build green, entry 312 KB, start-up
+JS +1.5 KB. Commit `72078fe`.
+**Next:** T043 (`agent/`, `ai/`; `npm run test:mcp`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-14 — 407 T040 (state/video.ts split by job and cleaned)
+
+**Done:** `state/video.ts` → `videoStore`, `videoTracks`, `videoClips`, `videoBox`, `videoKeys`, `videoLayers`,
+`videoTransitions`, `videoMedia`, `videoExportJob`; 0 findings, in `FINISHED`; importers updated (no barrel). Checked
+identical against the frozen old store (16,000 random steps over 50 actions + 301 `addMedia` calls; 13 plants
+caught). Check green (1,686 tests), build green, entry 311 KB. Commit `cbd4273`.
+**Next:** T041 (the rest of `state/`: store.ts, actions.ts, instagram.ts …). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-14 — 407 T036 (print modules and engine/gpu cleaned; src/engine finished)
+
+**Done:** entry-size question settled by the maintainer: lazy-load (D-042, `caf8d3a`): `printPages.ts` split from
+`export.ts`, which loads on export; entry 329 → 317 KB. T036: design, layout (table of builders, D-043), envelope,
+patterns, quote, proof, presets and `engine/gpu/` at 0 findings; `src/engine/**` in `FINISHED`. All checked identical
+against frozen copies (recording canvas, recording jsPDF, fake GPU contexts; 46 of 47 plants caught, the 47th is
+numerically equal). Check green (1,686 tests), build green, entry 311 KB, start-up JS +1.9 KB. Commit `afbb134`.
+**Next:** T040 (split `state/video.ts`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-14 — 407 T035 (the photo pipeline cleaned)
+
+**Done:** 18 modules at 0 findings, in `FINISHED`; checked identical against frozen copies; hot paths within noise
+(chain kept one function per pixel after a split cost 9–20 %). Check green (1,686 tests), build green. Commit `0ae1574`.
+**Open:** entry chunk 329 KB vs AC-9's 327 KB (readable code in `export.ts` and `analyze.ts`, both in the entry
+through `state/`): maintainer to choose (relax AC-9, lazy-load, or trim) before T036 adds more.
+**Next:** T036 (print modules and `engine/gpu/`, then `src/engine/**` joins `FINISHED`). T020 still waits for review.
+**Blockers:** the entry-size decision
+
+## 2026-10-14 — 407 T034 (engine/layers.ts and masks.ts split by job and cleaned)
+
+**Done:** nine modules (`layers`, `layerDraw`, `layerPick`, `layerGate`, `masks`, `maskGate`, `maskBrush`,
+`maskRaster`, `maskPlace`), 0 findings, in `FINISHED`; the layers ↔ keyframes import cycle is gone. Checked against
+frozen copies of the old files by a scratch harness (identical); hot paths timed old vs new, all within noise
+(painting +1–4 %, noted for T072). Check green (1,686 tests), build green, entry 327 KB. Commit `bf809f7`.
+**Next:** T035 (the photo pipeline: 18 engine modules). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-14 — 407 T033 (engine/render.ts split by job and cleaned)
+
+**Done:** `render.ts` → nine modules (`themeBackground`, `printText`, `photoSlots`, `postalDecor`, `frontText`,
+`cardFront`, `cardBack`, `calendarDraw`, `render`), 0 findings, in `FINISHED`. Checked against the old renderer by
+comparing canvas call logs over 11,100 cases (scratch harness, learnings 2026-10-14). The split moved the renderer
+into the entry chunk (327 → 347 KB); a named `render` chunk restores it (D-041). Check green (1,686 tests), build
+green, entry 327 KB. Commits `d20a0a7`, `bc1487b`.
+**Next:** T034 (split and clean `engine/layers.ts` and `engine/masks.ts`). T020 still waits for review.
+**Blockers:** none
+
+## 2026-10-14 — 407 T032 (engine/video.ts split; video and export cleaned)
+
+**Done:** `video.ts` → `videoFormats.ts` (formats, limits) + `video.ts` (drawing); clip timing and `IDENTITY` moved
+into `timeline.ts`; `fmtTime` → `formatTime`. `videoExport.ts`'s `encodeVideo` and `mixWindow` split into small
+parts; all three in `FINISHED`. New `tests/unit/engine/video.test.ts` (an overlay's fade-in in the drawing had no unit
+test). `npm run check` green (1,686 tests), build green (entry 327 KB). Commits `28f68e3`, `bb974b3`.
+**Next:** T033 (split and clean `engine/render.ts`, the print renderer). T020 still waits for the maintainer's review.
+**Blockers:** none
+
 ## 2026-10-13 — 206 T030–T092: ✔️ Implemented
 
 **Done:** T030–T031 drawing (`transitionOps` as data; `drawPair` on layer / pair scratch canvases; recording-canvas

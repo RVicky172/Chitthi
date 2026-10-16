@@ -8,6 +8,7 @@
  * Model names are suggestions: every provider with a models endpoint lists the account's real models in Settings.
  */
 
+/** The AI providers' ids. */
 export type AiProviderId =
   | 'anthropic'
   | 'openai'
@@ -26,8 +27,10 @@ export type AiProviderId =
   | 'replicate'
   | 'ideogram';
 
+/** What a provider makes: words or pictures. */
 export type AiKind = 'text' | 'image';
 
+/** An AI provider, as data. */
 export interface AiProviderDef {
   id: AiProviderId;
   name: string;
@@ -221,8 +224,19 @@ export const AI_PROVIDERS: AiProviderDef[] = [
   },
 ];
 
-export const providerDef = (id: string): AiProviderDef | undefined => AI_PROVIDERS.find((p) => p.id === id);
-export const providersFor = (kind: AiKind): AiProviderDef[] => AI_PROVIDERS.filter((p) => p.kinds.includes(kind));
+/**
+ * A provider by its id.
+ * @param id a provider id (possibly from storage)
+ * @returns the provider, or undefined for an unknown id
+ */
+export const providerDef = (id: string): AiProviderDef | undefined => AI_PROVIDERS.find((provider) => provider.id === id);
+
+/**
+ * The providers that make one kind of thing.
+ * @param kind words or pictures
+ * @returns those providers, in the table's order
+ */
+export const providersFor = (kind: AiKind): AiProviderDef[] => AI_PROVIDERS.filter((provider) => provider.kinds.includes(kind));
 
 /** Languages the words can be written in, with a font that has the script. */
 export const AI_LANGUAGES: { id: string; name: string; font?: string; script: 'latin' | 'deva' | 'other' }[] = [

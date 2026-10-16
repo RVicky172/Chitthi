@@ -7,8 +7,10 @@ import { themeById } from './themes';
  * anything at load. The source photos live in showcase-src/ (Pexels, fetched with npm run fetch:showcase).
  */
 
+/** A picture rendered of a showcase design: a card side or an envelope part. */
 export type ShowcaseRender = 'front' | 'back' | 'envelope-front' | 'envelope-back' | 'envelope-body' | 'envelope-flap' | 'envelope-liner';
 
+/** A design shown on the landing page. */
 export interface ShowcaseDef {
   id: string;
   title: string;
@@ -17,14 +19,33 @@ export interface ShowcaseDef {
   photos: string[];
   /** A photo look applied to every photo of this design. */
   look?: LookId;
-  build: (d: Design) => Design;
+  /** Turns the product's default design into this one. */
+  build: (design: Design) => Design;
+  /** The pictures rendered of it. */
   renders: ShowcaseRender[];
 }
 
-const theme = (d: Design, id: string, words: Partial<Design> = {}): Design => {
-  const t = themeById(id);
-  return { ...d, useOccasion: true, themeId: id, group: t.g || d.group, heading: t.heads[0], quote: t.quotes[0], headFont: t.hf, quoteFont: t.qf, ...words };
-};
+/**
+ * A design dressed in an occasion theme: its group, first heading and quote, and fonts.
+ * @param design the product's design
+ * @param themeId the theme (data/themes.ts)
+ * @param words settings that replace the theme's (heading, quote, signature …)
+ * @returns the themed design
+ */
+function theme(design: Design, themeId: string, words: Partial<Design> = {}): Design {
+  const occasion = themeById(themeId);
+  return {
+    ...design,
+    useOccasion: true,
+    themeId,
+    group: occasion.g || design.group,
+    heading: occasion.heads[0] ?? design.heading,
+    quote: occasion.quotes[0] ?? design.quote,
+    headFont: occasion.hf,
+    quoteFont: occasion.qf,
+    ...words,
+  };
+}
 const back = { from: 'Asha', to: 'Nani Ma', address: '12 Gandhi Road\nC-Scheme, Jaipur', pin: '302001' };
 
 export const SHOWCASE: ShowcaseDef[] = [
@@ -35,8 +56,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     product: 'postcard',
     photos: ['hawamahal'],
     look: 'tinted',
-    build: (d) => ({
-      ...d,
+    build: (design) => ({
+      ...design,
       useOccasion: false,
       plain: { bg: '#F3F1EC', ink: '#1E1D1B', accent: '#A8662E', gradient: false },
       headFont: 'Cormorant Garamond',
@@ -46,13 +67,13 @@ export const SHOWCASE: ShowcaseDef[] = [
       sig: 'Love, Asha',
       layout: 'band',
       back: {
-        ...d.back,
+        ...design.back,
         ...back,
         address: '7 Mall Avenue\nCivil Lines, Lucknow',
         pin: '226001',
         message: 'Dear Nani,\nThe Hawa Mahal is even prettier than in your old photos. Bringing you bangles from the bazaar!',
       },
-      env: { ...d.env, sender: 'Flat 4B, Rose Apartments\nPune 411001' },
+      env: { ...design.env, sender: 'Flat 4B, Rose Apartments\nPune 411001' },
     }),
     renders: ['front', 'back', 'envelope-front', 'envelope-back', 'envelope-body', 'envelope-flap', 'envelope-liner'],
   },
@@ -61,11 +82,11 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Shubh Deepavali',
     product: 'postcard',
     photos: ['rangoli'],
-    build: (d) => ({
-      ...theme(d, 'diwali', { heading: 'Shubh Deepavali', sig: 'Love, Asha' }),
+    build: (design) => ({
+      ...theme(design, 'diwali', { heading: 'Shubh Deepavali', sig: 'Love, Asha' }),
       layout: 'band',
-      back: { ...d.back, ...back, message: 'Dear Nani,\nThe diyas are lit and the house smells of ladoos. Wish you were here!' },
-      env: { ...d.env, sender: 'Flat 4B, Rose Apartments\nPune 411001' },
+      back: { ...design.back, ...back, message: 'Dear Nani,\nThe diyas are lit and the house smells of ladoos. Wish you were here!' },
+      env: { ...design.env, sender: 'Flat 4B, Rose Apartments\nPune 411001' },
     }),
     renders: ['front', 'back', 'envelope-front', 'envelope-back', 'envelope-body', 'envelope-flap', 'envelope-liner'],
   },
@@ -74,8 +95,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Monsoon days',
     product: 'postcard',
     photos: ['monsoon-drops'],
-    build: (d) => ({
-      ...theme(d, 'monsoon', { heading: 'Monsoon days', quote: 'Green everywhere, and chai on the balcony.', sig: 'from Srinagar' }),
+    build: (design) => ({
+      ...theme(design, 'monsoon', { heading: 'Monsoon days', quote: 'Green everywhere, and chai on the balcony.', sig: 'from Srinagar' }),
       layout: 'polaroid',
       orient: 'portrait',
       frame: 'cream',
@@ -87,8 +108,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Greetings from Mysuru',
     product: 'postcard',
     photos: ['temple'],
-    build: (d) => ({
-      ...theme(d, 'summer', { heading: 'Greetings from Mysuru', quote: 'Temple towers, jasmine and the best filter coffee.', sig: 'Wish you were here' }),
+    build: (design) => ({
+      ...theme(design, 'summer', { heading: 'Greetings from Mysuru', quote: 'Temple towers, jasmine and the best filter coffee.', sig: 'Wish you were here' }),
       layout: 'stamp',
     }),
     renders: ['front'],
@@ -98,8 +119,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Festival season',
     product: 'postcard',
     photos: ['spices', 'rangoli', 'lanterns'],
-    build: (d) => ({
-      ...theme(d, 'autumn', { heading: 'Festival season', quote: 'Colours at the market, lamps at the door, lanterns overhead.' }),
+    build: (design) => ({
+      ...theme(design, 'autumn', { heading: 'Festival season', quote: 'Colours at the market, lamps at the door, lanterns overhead.' }),
       layout: 'collage3',
     }),
     renders: ['front'],
@@ -109,10 +130,10 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Mountains wall calendar',
     product: 'calendar',
     photos: ['ladakh', 'sunflower', 'sankranti-kites', 'temple', 'mumbai', 'monsoon-drops', 'hawamahal', 'rangoli', 'lanterns', 'spices', 'holi-bowls', 'diwali-diyas'],
-    build: (d) => ({
-      ...theme(d, 'winter', { heading: 'Our year' }),
+    build: (design) => ({
+      ...theme(design, 'winter', { heading: 'Our year' }),
       layout: 'cal-top',
-      cal: { ...d.cal, start: 0, months: 12, text: 'caption', titleAlign: 'left', captions: ['Pangong Tso, Ladakh', '', '', '', '', '', '', '', '', '', '', ''] },
+      cal: { ...design.cal, start: 0, months: 12, text: 'caption', titleAlign: 'left', captions: ['Pangong Tso, Ladakh', '', '', '', '', '', '', '', '', '', '', ''] },
     }),
     renders: ['front'],
   },
@@ -121,7 +142,7 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Year on one page',
     product: 'calendar',
     photos: ['sunflower'],
-    build: (d) => ({ ...theme(d, 'spring'), layout: 'cal-strip', frame: 'cream', cal: { ...d.cal, start: 0, titleAlign: 'left' } }),
+    build: (design) => ({ ...theme(design, 'spring'), layout: 'cal-strip', frame: 'cream', cal: { ...design.cal, start: 0, titleAlign: 'left' } }),
     renders: ['front'],
   },
   {
@@ -129,8 +150,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Puri, at dusk',
     product: 'frame',
     photos: ['puri-sunset'],
-    build: (d) => ({
-      ...theme(d, 'autumn', { heading: 'Puri, at dusk', showQuote: false, showSig: false }),
+    build: (design) => ({
+      ...theme(design, 'autumn', { heading: 'Puri, at dusk', showQuote: false, showSig: false }),
       sizeId: 'f8x10',
       layout: 'frame-caption',
       mat: 'classic',
@@ -143,7 +164,7 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Sankranti skies',
     product: 'frame',
     photos: ['sankranti-kites', 'mumbai', 'sunflower'],
-    build: (d) => ({ ...theme(d, 'sankranti'), sizeId: 'fa3', orient: 'landscape', layout: 'frame-trio', mat: 'thin', frame: 'white' }),
+    build: (design) => ({ ...theme(design, 'sankranti'), sizeId: 'fa3', orient: 'landscape', layout: 'frame-trio', mat: 'thin', frame: 'white' }),
     renders: ['front'],
   },
   {
@@ -151,8 +172,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Bruno badge',
     product: 'magnet',
     photos: ['puppy'],
-    build: (d) => ({
-      ...theme(d, 'kids', { heading: 'Bruno', sig: 'good boy, always' }),
+    build: (design) => ({
+      ...theme(design, 'kids', { heading: 'Bruno', sig: 'good boy, always' }),
       sizeId: 'mr75',
       orient: 'portrait',
       layout: 'mag-badge',
@@ -165,7 +186,7 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Eid Mubarak',
     product: 'magnet',
     photos: ['lanterns'],
-    build: (d) => ({ ...theme(d, 'eid', { showQuote: false, showSig: false }), sizeId: 'm2x3', orient: 'portrait', layout: 'mag-full', vAlign: 'bottom' }),
+    build: (design) => ({ ...theme(design, 'eid', { showQuote: false, showSig: false }), sizeId: 'm2x3', orient: 'portrait', layout: 'mag-full', vAlign: 'bottom' }),
     renders: ['front'],
   },
   {
@@ -173,8 +194,8 @@ export const SHOWCASE: ShowcaseDef[] = [
     title: 'Temple town',
     product: 'magnet',
     photos: ['temple'],
-    build: (d) => ({
-      ...theme(d, 'pongal', { heading: 'Madurai, 2026', showQuote: false, showSig: false }),
+    build: (design) => ({
+      ...theme(design, 'pongal', { heading: 'Madurai, 2026', showQuote: false, showSig: false }),
       sizeId: 'm25x35',
       orient: 'portrait',
       layout: 'mag-polaroid',

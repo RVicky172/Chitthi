@@ -38,9 +38,9 @@ under 10 ms, JS heap 40–50 MB, 7 MB of decoded photo pixels, about 1,100 page 
 | --- | --- | --- |
 | Photos | Uploads up to 25 MB; the prepared copy is capped at 16 MP; an unedited photo shares its original image | `engine/photo.ts` |
 | Undo history | Up to 100 steps. Each crop, rotation or colour look makes a new canvas, and undo keeps the old ones; once canvases only the history holds pass **320 MB**, the oldest steps go (at least 10 stay) | `state/store.ts` (`commit`, `historyStats`) |
-| Sample gallery | Keeps two small JPEG thumbnails per sample; the decoded photos are dropped after drawing and reloaded for **Use this** (they used to stay in memory: ~7 MB each, 14 samples) | `components/SampleGallery.tsx`, `data/samples.ts` |
+| Sample gallery | Keeps two small JPEG thumbnails per sample; the decoded photos are dropped after drawing and reloaded for **Use this** (they used to stay in memory: ~7 MB each, 14 samples) | `components/SampleGallery.tsx`, `state/samples.ts` |
 | Pexels | Last 60 searches cached (JSON only); photos download one at a time when chosen | `lib/pexels.ts` |
-| Paper sizes in 3D | One ≤ 420 px JPEG per size, drawn once (about 3 MB in all) | `components/Paper3D.tsx` |
+| Paper sizes in 3D | One ≤ 420 px JPEG per size, drawn once (about 3 MB in all) | `components/paper3dScene.ts` |
 | AI pictures | One job at a time; candidates are `Blob`s with ≤ 320 px object-URL thumbnails, revoked on close; only the chosen one becomes a JPEG | `ai/service.ts`, `components/ai/AiArtwork.tsx` |
 | Desktop AI requests | Responses capped at 40 MB, 180 s, 2 at a time | `electron/ai.cjs` |
 | Agent previews | `render_preview` ≤ 1024 px; exports go to disk, not into the reply | `agent/tools.ts` |
@@ -99,7 +99,7 @@ pictures, at most the limit below + 2 open (the videos on screen, the next to st
 frames read ahead, a byte budget, and every frame released when it is replaced
 (the rules are under [Memory rules](#memory-rules); the design is in [lld.md](../specs/lld.md)). How many videos can
 show at once comes from a measurement, `CHITTHI_TEST_ONLY=poolcount npm test` (`poolTiming` in
-`src/dev/playbackChecks.ts`, never part of the default run): 300 back-to-back 1/30 s steps (stricter than playing in
+`tests/selftest/playbackChecks.ts`, never part of the default run): 300 back-to-back 1/30 s steps (stricter than playing in
 real time; 5 warm-up steps left out), each lasting until every clip's frame has arrived and been drawn into a 1280 × 720
 canvas.
 
@@ -117,7 +117,7 @@ Development machine, 2026-10-11 (Electron self-test, desktop limits):
 
 The limit is the largest 1080p30 count with a median ≤ 33 ms and a 95th percentile ≤ 50 ms, minus one for slower
 machines, capped at 3 on the web and 6 in the desktop app and never below 2: **3 on the web, 5 in the desktop app**
-(`videosAtOnce` in `limitsFor()`, `engine/video.ts`). Photos don't count. Without `VideoDecoder` (Firefox before
+(`videosAtOnce` in `limitsFor()`, `engine/videoFormats.ts`). Photos don't count. Without `VideoDecoder` (Firefox before
 130, Safari before 26) there is no pool and the limit is 1. The multi-track timeline (`203`) enforces it: an edit that would put more videos
 on screen at once is refused with the limit. The playback timing with overlays (main + 2 overlay 1080p30 videos,
 `203` AC-12) is measured in the Phase 2 test pass (`290`).

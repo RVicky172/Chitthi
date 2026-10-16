@@ -30,7 +30,14 @@ export const LayoutThumb = memo(function LayoutThumb({
   const { w, h } = cardMM(design);
   useEffect(() => {
     if (ref.current)
-      renderCard(ref.current, 'front', 220 / Math.max(w, h), 0, { d: design, photos }, { layout, hint: true, thumb: true });
+      renderCard(
+        ref.current,
+        'front',
+        220 / Math.max(w, h),
+        0,
+        { d: design, photos },
+        { layout, hint: true, thumb: true },
+      );
   }, [layout, design, photos, fontTick, w, h]);
   return <canvas ref={ref} style={{ width: `${(w / Math.max(w, h)) * 100}%` }} aria-hidden="true" />;
 });
@@ -38,11 +45,17 @@ export const LayoutThumb = memo(function LayoutThumb({
 export const PhotoThumb = memo(function PhotoThumb({ photo }: { photo: Photo }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const c = ref.current?.getContext('2d');
-    if (!c) return;
-    const s = Math.max(116 / photo.sw, 116 / photo.sh);
-    c.clearRect(0, 0, 116, 116);
-    c.drawImage(photo.src, (116 - photo.sw * s) / 2, (116 - photo.sh * s) / 2, photo.sw * s, photo.sh * s);
+    const context = ref.current?.getContext('2d');
+    if (!context) return;
+    const scale = Math.max(116 / photo.sw, 116 / photo.sh);
+    context.clearRect(0, 0, 116, 116);
+    context.drawImage(
+      photo.src,
+      (116 - photo.sw * scale) / 2,
+      (116 - photo.sh * scale) / 2,
+      photo.sw * scale,
+      photo.sh * scale,
+    );
   }, [photo.src, photo.sw, photo.sh]);
   return <canvas ref={ref} width={116} height={116} aria-hidden="true" />;
 });

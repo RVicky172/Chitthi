@@ -1,4 +1,5 @@
 import { AiError, httpError, sleep, type AiCtx, type ImageRequest, type ProviderModule } from '../types';
+import { fieldOf, textField } from './read';
 
 /*
  * Black Forest Labs FLUX (key header "x-key"): POST https://api.bfl.ai/v1/{model} with the size, poll the returned
@@ -6,39 +7,58 @@ import { AiError, httpError, sleep, type AiCtx, type ImageRequest, type Provider
  * No browser (CORS) support, so this runs in the desktop app only.
  */
 
-/** Width and height for an aspect, about 2 megapixels, multiples of 32. */
-function dims(aspect: string): { width: number; height: number } {
-  const [w, h] = aspect.split(':').map(Number),
-    k = Math.sqrt(2_000_000 / (w * h)),
-    r = (n: number) => Math.max(256, Math.round((n * k) / 32) * 32);
-  return { width: r(w), height: r(h) };
+/**
+ * Width and height for an aspect, about 2 megapixels, multiples of 32.
+ * @param aspect "W:H"
+ * @returns the size in pixels (at least 256 each)
+ */
+function sizeFor(aspect: string): { width: number; height: number } {
+  const [aspectWidth = 1, aspectHeight = 1] = aspect.split(':').map(Number);
+  const scale = Math.sqrt(2_000_000 / (aspectWidth * aspectHeight));
+  const pixels = (side: number) => Math.max(256, Math.round((side * scale) / 32) * 32);
+  return { width: pixels(aspectWidth), height: pixels(aspectHeight) };
 }
 
+/**
+ * One picture: submit, poll (up to 150 times, 1.2 s apart), download.
+ * @param ctx the request context
+ * @param req the prompt and aspect
+ * @returns the picture
+ */
 async function one(ctx: AiCtx, req: ImageRequest): Promise<Blob> {
-  const sub = await ctx.http.fetch(`https://api.bfl.ai/v1/${ctx.model}`, { json: { prompt: req.prompt, ...dims(req.aspect) }, signal: ctx.signal });
-  if (!sub.ok) throw await httpError(sub, 'Black Forest Labs');
-  const { polling_url } = (await sub.json()) as { id: string; polling_url: string };
-  for (let i = 0; i < 150; i++) {
+  const submitted = await ctx.http.fetch(`https://api.bfl.ai/v1/${ctx.model}`, { json: { prompt: req.prompt, ...sizeFor(req.aspect) }, signal: ctx.signal });
+  if (!submitted.ok) throw await httpError(submitted, 'Black Forest Labs');
+  const pollingUrl = textField(await submitted.json(), 'polling_url') ?? '';
+  for (let check = 0; check < 150; check++) {
     await sleep(1200, ctx.signal);
-    const res = await ctx.http.fetch(polling_url, { signal: ctx.signal });
-    if (!res.ok) throw await httpError(res, 'Black Forest Labs');
-    const j = (await res.json()) as { status: string; result?: { sample?: string } };
-    if (j.status === 'Ready' && j.result?.sample) {
-      const img = await ctx.http.fetch(j.result.sample, { noAuth: true, signal: ctx.signal });
-      if (!img.ok) throw await httpError(img, 'Black Forest Labs');
-      return img.blob();
+    const polled = await ctx.http.fetch(pollingUrl, { signal: ctx.signal });
+    if (!polled.ok) throw await httpError(polled, 'Black Forest Labs');
+    const answer: unknown = await polled.json();
+    const status = textField(answer, 'status') ?? '';
+    const sample = textField(fieldOf(answer, 'result'), 'sample');
+    if (status === 'Ready' && sample) {
+      const picture = await ctx.http.fetch(sample, { noAuth: true, signal: ctx.signal });
+      if (!picture.ok) throw await httpError(picture, 'Black Forest Labs');
+      return picture.blob();
     }
-    if (/error|failed|moderated/i.test(j.status)) throw new AiError(`Black Forest Labs couldn’t make this picture (${j.status}).`, /moderat/i.test(j.status) ? 'refused' : 'provider');
+    if (/error|failed|moderated/i.test(status))
+      throw new AiError(`Black Forest Labs couldn’t make this picture (${status}).`, /moderat/i.test(status) ? 'refused' : 'provider');
   }
   throw new AiError('Black Forest Labs took too long. Try again.', 'network');
 }
 
+/**
+ * Pictures, one request each.
+ * @param ctx the request context
+ * @param req the prompt, aspect and how many (at most 4)
+ * @returns the pictures
+ */
 async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
-  const out: Blob[] = [];
-  for (let i = 0; i < Math.min(4, req.n); i++) out.push(await one(ctx, req));
-  return out;
+  const pictures: Blob[] = [];
+  for (let count = 0; count < Math.min(4, req.n); count++) pictures.push(await one(ctx, req));
+  return pictures;
 }
 
 export const image = { generate };
-const mod: ProviderModule = { image };
-export default mod;
+const providerModule: ProviderModule = { image };
+export default providerModule;

@@ -1,43 +1,71 @@
 import { AiError, httpError, sleep, type AiCtx, type ImageRequest, type ProviderModule } from '../types';
+import { fieldOf, textField } from './read';
 
 /*
  * Replicate: POST /v1/models/{owner}/{name}/predictions with "Prefer: wait" (up to 60 s), poll urls.get if it
  * isn't finished, then download the output URL(s) from replicate.delivery without the key. Desktop app only (no CORS).
  */
 
-interface Prediction {
-  status: string;
-  output?: string | string[];
-  error?: string;
-  urls?: { get?: string };
+/** The states a prediction ends in. */
+const DONE = ['succeeded', 'failed', 'canceled'];
+
+/**
+ * Polls a prediction until it ends (up to 120 checks, 1.5 s apart, while it has a URL to poll).
+ * @param ctx the request context
+ * @param prediction the prediction as first answered
+ * @returns the last answer
+ */
+async function settled(ctx: AiCtx, prediction: unknown): Promise<unknown> {
+  let latest = prediction;
+  for (let check = 0; check < 120 && !DONE.includes(textField(latest, 'status') ?? ''); check++) {
+    await sleep(1500, ctx.signal);
+    const pollUrl = textField(fieldOf(latest, 'urls'), 'get');
+    if (!pollUrl) break;
+    const polled = await ctx.http.fetch(pollUrl, { signal: ctx.signal });
+    if (!polled.ok) throw await httpError(polled, 'Replicate');
+    latest = await polled.json();
+  }
+  return latest;
 }
 
+/**
+ * A finished prediction's picture URLs.
+ * @param prediction the prediction
+ * @returns the URLs (output is one URL or a list)
+ */
+function outputUrls(prediction: unknown): string[] {
+  const output = fieldOf(prediction, 'output');
+  if (Array.isArray(output)) return output.filter((url): url is string => typeof url === 'string');
+  return typeof output === 'string' && output ? [output] : [];
+}
+
+/**
+ * Pictures from a model's prediction.
+ * @param ctx the request context
+ * @param req the prompt, aspect and how many (at most 4)
+ * @returns the pictures
+ */
 async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
-  const res = await ctx.http.fetch(`https://api.replicate.com/v1/models/${ctx.model}/predictions`, {
+  const response = await ctx.http.fetch(`https://api.replicate.com/v1/models/${ctx.model}/predictions`, {
     headers: { Prefer: 'wait=60' },
     json: { input: { prompt: req.prompt, aspect_ratio: req.aspect, num_outputs: Math.min(4, req.n), output_format: 'png' } },
     signal: ctx.signal,
   });
-  if (!res.ok) throw await httpError(res, 'Replicate');
-  let p = (await res.json()) as Prediction;
-  for (let i = 0; i < 120 && !['succeeded', 'failed', 'canceled'].includes(p.status); i++) {
-    await sleep(1500, ctx.signal);
-    if (!p.urls?.get) break;
-    const r = await ctx.http.fetch(p.urls.get, { signal: ctx.signal });
-    if (!r.ok) throw await httpError(r, 'Replicate');
-    p = (await r.json()) as Prediction;
+  if (!response.ok) throw await httpError(response, 'Replicate');
+  const prediction = await settled(ctx, await response.json());
+  if (textField(prediction, 'status') !== 'succeeded') {
+    const error = textField(prediction, 'error');
+    throw new AiError(`Replicate couldn’t make this picture${error ? ' (' + error.slice(0, 120) + ')' : ''}.`, 'provider');
   }
-  if (p.status !== 'succeeded') throw new AiError(`Replicate couldn’t make this picture${p.error ? ` (${String(p.error).slice(0, 120)})` : ''}.`, 'provider');
-  const urls = Array.isArray(p.output) ? p.output : p.output ? [p.output] : [];
-  const out: Blob[] = [];
-  for (const u of urls) {
-    const r = await ctx.http.fetch(u, { noAuth: true, signal: ctx.signal });
-    if (r.ok) out.push(await r.blob());
+  const pictures: Blob[] = [];
+  for (const url of outputUrls(prediction)) {
+    const download = await ctx.http.fetch(url, { noAuth: true, signal: ctx.signal });
+    if (download.ok) pictures.push(await download.blob());
   }
-  if (!out.length) throw new AiError('Replicate returned no picture.', 'bad-output');
-  return out;
+  if (!pictures.length) throw new AiError('Replicate returned no picture.', 'bad-output');
+  return pictures;
 }
 
 export const image = { generate };
-const mod: ProviderModule = { image };
-export default mod;
+const providerModule: ProviderModule = { image };
+export default providerModule;

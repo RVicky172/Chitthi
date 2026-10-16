@@ -5,11 +5,17 @@ import { AiError, httpError, type AiCtx, type ImageRequest, type ProviderModule 
  * Accept: image/* and get the picture back directly. One picture per request.
  */
 
+/**
+ * Pictures, one request each.
+ * @param ctx the request context (model core, ultra or sd3; core otherwise)
+ * @param req the prompt, aspect and how many (at most 4)
+ * @returns the pictures
+ */
 async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
   const model = ['core', 'ultra', 'sd3'].includes(ctx.model) ? ctx.model : 'core';
-  const out: Blob[] = [];
-  for (let i = 0; i < Math.min(4, req.n); i++) {
-    const res = await ctx.http.fetch(`https://api.stability.ai/v2beta/stable-image/generate/${model}`, {
+  const pictures: Blob[] = [];
+  for (let count = 0; count < Math.min(4, req.n); count++) {
+    const response = await ctx.http.fetch(`https://api.stability.ai/v2beta/stable-image/generate/${model}`, {
       method: 'POST',
       headers: { accept: 'image/*' },
       form: [
@@ -20,13 +26,13 @@ async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
       ],
       signal: ctx.signal,
     });
-    if (!res.ok) throw await httpError(res, 'Stability AI');
-    out.push(await res.blob());
+    if (!response.ok) throw await httpError(response, 'Stability AI');
+    pictures.push(await response.blob());
   }
-  if (!out.length) throw new AiError('Stability AI returned no picture.', 'bad-output');
-  return out;
+  if (!pictures.length) throw new AiError('Stability AI returned no picture.', 'bad-output');
+  return pictures;
 }
 
 export const image = { generate };
-const mod: ProviderModule = { image };
-export default mod;
+const providerModule: ProviderModule = { image };
+export default providerModule;

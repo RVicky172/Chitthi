@@ -1,6 +1,7 @@
 import type { Design, ProductId, SizeDef } from '../types';
 import { SIZES } from './sizes';
 
+/** A product: its names, its sizes and the defaults a new design of it starts from. */
 export interface ProductDef {
   id: ProductId;
   name: string;
@@ -16,7 +17,7 @@ export interface ProductDef {
   defaults: Pick<Design, 'sizeId' | 'orient' | 'layout' | 'frame'> & { exp: Partial<Design['exp']> };
 }
 
-export const PRODUCTS: ProductDef[] = [
+export const PRODUCTS: readonly [ProductDef, ...ProductDef[]] = [
   {
     id: 'postcard',
     short: 'Postcard',
@@ -56,8 +57,18 @@ export const PRODUCTS: ProductDef[] = [
   },
 ];
 
-export const productOf = (id: ProductId): ProductDef => PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0];
-export const sizesFor = (id: ProductId): SizeDef[] => SIZES.filter((s) => (s.products ?? ['postcard']).includes(id));
+/**
+ * A product by its id.
+ * @param id the product
+ * @returns its definition, or the postcard's for an unknown id
+ */
+export const productOf = (id: ProductId): ProductDef => PRODUCTS.find((product) => product.id === id) ?? PRODUCTS[0];
+/**
+ * The sizes a product comes in.
+ * @param id the product
+ * @returns its sizes, in the table's order (a size without products is a postcard size)
+ */
+export const sizesFor = (id: ProductId): SizeDef[] => SIZES.filter((size) => (size.products ?? ['postcard']).includes(id));
 
 export const MONTHS = [
   'January',

@@ -7,6 +7,7 @@
  * and writes one output texture. Colours are straight (not premultiplied) RGBA in 0–1 everywhere inside the device.
  */
 
+/** Which GPU API a device runs on. */
 export type GpuBackend = 'webgpu' | 'webgl2';
 
 /** A texture owned by one device. Opaque to callers. */
@@ -35,6 +36,7 @@ export interface GpuProgram {
   wgsl: string;
 }
 
+/** An open GPU device: textures in, full-frame passes, pictures out. */
 export interface GpuDevice {
   readonly backend: GpuBackend;
   /** Largest texture side this device accepts; bigger pictures stay on the Canvas 2D path. */
@@ -66,7 +68,9 @@ export interface GpuDevice {
   readonly floatTargets: boolean;
   /** Reads a texture back as straight RGBA floats, 0–1, top row first. For the 16-bit TIFF export; slow. */
   readFloat(tex: GpuTexture): Promise<Float32Array>;
+  /** Frees a texture; it must not be used again. */
   release(tex: GpuTexture): void;
+  /** Frees the device and everything on it. */
   destroy(): void;
 }
 

@@ -12,14 +12,20 @@ interface State {
   copied: boolean;
 }
 
-export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
-  state: State = { failed: false, copied: false };
+/** The app's whole tree, shown while nothing has failed to render. */
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+/** Catches render errors and shows the crash screen, with reload and copy-report buttons. */
+export class ErrorBoundary extends Component<Readonly<ErrorBoundaryProps>, State> {
+  override state: State = { failed: false, copied: false };
 
   static getDerivedStateFromError(): Partial<State> {
     return { failed: true };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     logError('render', error);
     if (info.componentStack) console.error(info.componentStack);
   }
@@ -40,8 +46,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     }
   };
 
-  render(): ReactNode {
-    if (!this.state.failed) return this.props.children;
+  override render(): ReactNode {
+    if (!this.state.failed) return <>{this.props.children}</>;
     return (
       <div className="crash" role="alert">
         <h1>Something went wrong</h1>

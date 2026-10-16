@@ -9,10 +9,19 @@ import type { ShowcaseImage } from '../data/showcase';
  */
 
 const BEATS: [string, string][] = [
-  ['A photo on your phone', 'Start from a photo you already have, or find a free one on Pexels without leaving the studio.'],
-  ['Becomes a card', 'Pick a size, a layout and an occasion: festivals, birthdays, seasons, or your own colours and fonts.'],
+  [
+    'A photo on your phone',
+    'Start from a photo you already have, or find a free one on Pexels without leaving the studio.',
+  ],
+  [
+    'Becomes a card',
+    'Pick a size, a layout and an occasion: festivals, birthdays, seasons, or your own colours and fonts.',
+  ],
   ['With a proper back', 'Write the message and the address on a postal back laid out like the real thing.'],
-  ['In a matching envelope', 'The smallest standard envelope it fits, dressed in the same occasion, with your photo in the seal.'],
+  [
+    'In a matching envelope',
+    'The smallest standard envelope it fits, dressed in the same occasion, with your photo in the seal.',
+  ],
   ['Ready for the post', 'Download a print pack with bleed and crop marks, print it at any shop, and send it.'],
 ];
 
@@ -38,18 +47,20 @@ function Postmark() {
   );
 }
 
-export function Journey({
-  front,
-  back,
-  envelope,
-  children,
-}: {
+/** The pictures of the journey and what goes above it. */
+interface JourneyProps {
   front?: ShowcaseImage;
   back?: ShowcaseImage;
   envelope?: ShowcaseImage;
   /** The headline, introduction and calls to action, shown above the steps. */
   children: ReactNode;
-}) {
+}
+
+/**
+ * The landing page's scrolling journey: a card's front, back and envelope, one beat per step.
+ * @param props the pictures and the content above the steps
+ */
+export function Journey({ front, back, envelope, children }: Readonly<JourneyProps>) {
   const ref = useRef<HTMLElement>(null);
   const [step, setStep] = useState(0);
   const [still, setStill] = useState(false);
@@ -61,11 +72,11 @@ export function Journey({
     let raf = 0;
     const update = () => {
       raf = 0;
-      const r = el.getBoundingClientRect(),
-        run = Math.max(1, r.height - innerHeight),
-        p = Math.min(1, Math.max(0, -r.top / run));
-      el.style.setProperty('--p', p.toFixed(4));
-      setStep(Math.min(BEATS.length - 1, Math.floor(p * BEATS.length)));
+      const box = el.getBoundingClientRect(),
+        run = Math.max(1, box.height - innerHeight),
+        progress = Math.min(1, Math.max(0, -box.top / run));
+      el.style.setProperty('--p', progress.toFixed(4));
+      setStep(Math.min(BEATS.length - 1, Math.floor(progress * BEATS.length)));
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -92,12 +103,15 @@ export function Journey({
     };
   }, []);
 
-  /** Scroll to the middle of a beat, so the steps work as a table of contents too. */
-  const goTo = (i: number) => {
+  /**
+   * Scroll to the middle of a beat, so the steps work as a table of contents too.
+   * @param beat the beat's index
+   */
+  const goTo = (beat: number) => {
     const el = ref.current;
     if (!el || still) return;
     const run = el.offsetHeight - innerHeight;
-    const top = el.getBoundingClientRect().top + scrollY + (run * (i + 0.6)) / BEATS.length;
+    const top = el.getBoundingClientRect().top + scrollY + (run * (beat + 0.6)) / BEATS.length;
     window.scrollTo({ top, behavior: 'smooth' });
   };
 
@@ -108,15 +122,15 @@ export function Journey({
         <div className="jn-copy">
           {children}
           <ol className="jn-steps">
-            {BEATS.map(([t, d], i) => (
-              <li key={t} aria-current={!still && i === step ? 'step' : undefined}>
-                <button type="button" onClick={() => goTo(i)} tabIndex={still ? -1 : undefined}>
+            {BEATS.map(([title, text], index) => (
+              <li key={title} aria-current={!still && index === step ? 'step' : undefined}>
+                <button type="button" onClick={() => goTo(index)} tabIndex={still ? -1 : undefined}>
                   <span className="jn-n" aria-hidden="true">
-                    {String(i + 1).padStart(2, '0')}
+                    {String(index + 1).padStart(2, '0')}
                   </span>
-                  <b>{t}</b>
+                  <b>{title}</b>
                 </button>
-                <p>{d}</p>
+                <p>{text}</p>
               </li>
             ))}
           </ol>
@@ -126,11 +140,35 @@ export function Journey({
             <div className="jn-objects" style={{ aspectRatio: `${front.w} / ${front.h}` }}>
               <div className="jn-card">
                 <div className="jn-flip">
-                  <img className="jn-front" src={front.src} width={front.w} height={front.h} alt="" fetchPriority="high" decoding="async" />
-                  <img className="jn-back" src={back.src} width={back.w} height={back.h} alt="" loading="lazy" decoding="async" />
+                  <img
+                    className="jn-front"
+                    src={front.src}
+                    width={front.w}
+                    height={front.h}
+                    alt=""
+                    fetchPriority="high"
+                    decoding="async"
+                  />
+                  <img
+                    className="jn-back"
+                    src={back.src}
+                    width={back.w}
+                    height={back.h}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </div>
               </div>
-              <img className="jn-env" src={envelope.src} width={envelope.w} height={envelope.h} alt="" loading="lazy" decoding="async" />
+              <img
+                className="jn-env"
+                src={envelope.src}
+                width={envelope.w}
+                height={envelope.h}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
               <Postmark />
             </div>
           )}

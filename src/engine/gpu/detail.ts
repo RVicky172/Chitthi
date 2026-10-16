@@ -257,56 +257,67 @@ fn effect(uv: vec2f) -> vec4f {
 }`,
 };
 
-function blurUniforms(k: Kernel, dx: number, dy: number, mode: 0 | 1): Float32Array {
-  const u = new Float32Array(BLUR_PROGRAM.uniforms * 4),
-    n = (k.weights.length - 1) / 2;
-  u.set([dx * k.step, dy * k.step, n, mode]);
-  u.set(k.weights, 4);
-  return u;
+/**
+ * One blur pass's uniforms.
+ * @param kernel the Gaussian kernel
+ * @param stepX the texel step across, in uv
+ * @param stepY the texel step down, in uv
+ * @param mode 0 the first (horizontal) pass, 1 the second
+ * @returns the uniforms: step, radius and mode, then the weights
+ */
+function blurUniforms(kernel: Kernel, stepX: number, stepY: number, mode: 0 | 1): Float32Array {
+  const uniforms = new Float32Array(BLUR_PROGRAM.uniforms * 4);
+  const radius = (kernel.weights.length - 1) / 2;
+  uniforms.set([stepX * kernel.step, stepY * kernel.step, radius, mode]);
+  uniforms.set(kernel.weights, 4);
+  return uniforms;
 }
 
 /**
- * The detail settings as graph nodes for a W×H picture, appended after `base` earlier nodes (their indices start at
- * base). The first reads the node before it ('prev'), or the graph input when base is 0.
+ * The detail settings as graph nodes for a picture, appended after `base` earlier nodes (their indices start at base).
+ * The first reads the node before it ('prev'), or the graph input when base is 0.
+ * @param adjust the detail settings
+ * @param width the picture's width, px
+ * @param height the picture's height, px
+ * @param base how many nodes come before these
+ * @param deep a 16-bit render: the last step doesn't round to 8 bits
+ * @returns the nodes, none when the settings change nothing
  */
-export function detailNodes(a: Adjustments, W: number, H: number, base: number, deep = false): GraphNode[] {
-  if (detailNeutral(a)) return [];
-  const scale = W / DETAIL_WIDTH,
-    tx = 1 / W,
-    ty = 1 / H,
-    nodes: GraphNode[] = [];
-  const add = (n: GraphNode) => base + nodes.push(n) - 1;
-  let img: NodeInput = base > 0 ? base - 1 : 'source';
+export function detailNodes(adjust: Adjustments, width: number, height: number, base: number, deep = false): GraphNode[] {
+  if (detailNeutral(adjust)) return [];
+  const scale = width / DETAIL_WIDTH;
+  const texelX = 1 / width;
+  const texelY = 1 / height;
+  const nodes: GraphNode[] = [];
+  const add = (node: GraphNode): number => base + nodes.push(node) - 1;
+  let picture: NodeInput = base > 0 ? base - 1 : 'source';
   const blur = (from: NodeInput, sigma: number): number => {
-    const k = gaussKernel(sigma);
-    add({ program: BLUR_PROGRAM, uniforms: blurUniforms(k, tx, 0, 0), inputs: [from] });
-    return add({ program: BLUR_PROGRAM, uniforms: blurUniforms(k, 0, ty, 1) });
+    const kernel = gaussKernel(sigma);
+    add({ program: BLUR_PROGRAM, uniforms: blurUniforms(kernel, texelX, 0, 0), inputs: [from] });
+    return add({ program: BLUR_PROGRAM, uniforms: blurUniforms(kernel, 0, texelY, 1) });
   };
   const steps: GraphNode[] = [];
-  const step = (program: GpuProgram, u: number[], inputs: NodeInput[]) => {
+  const step = (program: GpuProgram, values: number[], inputs: NodeInput[]): number => {
     const uniforms = new Float32Array(program.uniforms * 4);
-    uniforms.set(u);
-    const n = { program, uniforms, inputs };
-    steps.push(n);
-    return add(n);
+    uniforms.set(values);
+    const node = { program, uniforms, inputs };
+    steps.push(node);
+    return add(node);
   };
-  if (a.noise > 0) {
-    const p = noiseParams(a.noise, scale);
-    img = step(DENOISE_PROGRAM, [tx * p.step, ty * p.step, 1 / (2 * p.sigmaR * p.sigmaR), p.spatial], [img]);
+  if (adjust.noise > 0) {
+    const params = noiseParams(adjust.noise, scale);
+    picture = step(DENOISE_PROGRAM, [texelX * params.step, texelY * params.step, 1 / (2 * params.sigmaR * params.sigmaR), params.spatial], [picture]);
   }
-  if (a.dehaze) {
-    const dark = add({ program: DARK_PROGRAM, uniforms: new Float32Array(4), inputs: [img] });
-    img = step(DEHAZE_PROGRAM, [a.dehaze / 100], [img, blur(dark, HAZE_SIGMA * scale)]);
+  if (adjust.dehaze) {
+    const dark = add({ program: DARK_PROGRAM, uniforms: new Float32Array(4), inputs: [picture] });
+    picture = step(DEHAZE_PROGRAM, [adjust.dehaze / 100], [picture, blur(dark, HAZE_SIGMA * scale)]);
   }
-  if (a.clarity) img = step(CLARITY_PROGRAM, [(a.clarity / 100) * 0.7], [img, blur(img, CLARITY_SIGMA * scale)]);
-  if (a.sharpen > 0)
-    img = step(
-      SHARPEN_PROGRAM,
-      [(a.sharpen / 100) * 1.5, (a.sharpenMask / 100) * 0.08],
-      [img, blur(img, a.sharpenRadius * scale)],
-    );
-  if (a.grain > 0) step(GRAIN_PROGRAM, [(a.grain / 100) * 0.12, GRAIN_CELL * scale, W, H], [img]);
+  if (adjust.clarity) picture = step(CLARITY_PROGRAM, [(adjust.clarity / 100) * 0.7], [picture, blur(picture, CLARITY_SIGMA * scale)]);
+  if (adjust.sharpen > 0)
+    picture = step(SHARPEN_PROGRAM, [(adjust.sharpen / 100) * 1.5, (adjust.sharpenMask / 100) * 0.08], [picture, blur(picture, adjust.sharpenRadius * scale)]);
+  if (adjust.grain > 0) step(GRAIN_PROGRAM, [(adjust.grain / 100) * 0.12, GRAIN_CELL * scale, width, height], [picture]);
   // The last step rounds to 8 bits, like detailPixels(); it is always the final node. Not in a deep (16-bit) render.
-  if (!deep) steps[steps.length - 1].uniforms[4] = 1;
+  const last = steps.at(-1);
+  if (!deep && last) last.uniforms[4] = 1;
   return nodes;
 }

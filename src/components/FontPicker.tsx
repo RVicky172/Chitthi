@@ -16,14 +16,14 @@ interface Props {
 }
 
 /** Font chooser that previews the user's own words in every family. */
-export function FontPicker({ label, value, sample, weight, onChange, only }: Props) {
+export function FontPicker({ label, value, sample, weight, onChange, only }: Readonly<Props>) {
   const [open, setOpen] = useState(false);
   const [cat, setCat] = useState<'all' | FontCat>('all');
   const root = useRef<HTMLDivElement>(null);
-  const f = fontDef(value);
+  const font = fontDef(value);
   const mine = useUserFonts();
   const [busy, setBusy] = useState(false);
-  const text = (sample.split('\n')[0] || label).slice(0, 34);
+  const text = ((sample.split('\n')[0] ?? '') || label).slice(0, 34);
 
   // The closed button shows the current family in its own face; the open list previews every family.
   useEffect(() => {
@@ -32,15 +32,17 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
   useEffect(() => {
     if (!open) return;
     installFontLinks();
-    const close = (e: MouseEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    const close = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
   // Uploaded fonts are offered everywhere, including the handwriting-only pickers.
-  const list = [...FONTS, ...mine].filter((x) => (only ? only.includes(x.n) || x.c === 'own' : cat === 'all' || x.c === cat));
+  const list = [...FONTS, ...mine].filter((x) =>
+    only ? only.includes(x.n) || x.c === 'own' : cat === 'all' || x.c === cat,
+  );
   const upload = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
@@ -49,9 +51,9 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
       onChange(name);
       setOpen(false);
       toast(`“${name}” added to your fonts. It stays on this device for every design.`);
-    } catch (e) {
-      logError('handled', e);
-      toast(e instanceof Error ? e.message : 'That font couldn’t be added.');
+    } catch (error) {
+      logError('handled', error);
+      toast(error instanceof Error ? error.message : 'That font couldn’t be added.');
     } finally {
       setBusy(false);
     }
@@ -60,24 +62,24 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
     <div
       className="fp"
       ref={root}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false);
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
       }}
     >
       <button type="button" className="fp-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
         <small>{label}</small>
-        <span style={{ fontFamily: `"${f.n}", "Baloo 2", sans-serif`, fontWeight: f[weight] }}>
-          {f.n}
-          {f.note ? ` (${f.note})` : ''}
+        <span style={{ fontFamily: `"${font.n}", "Baloo 2", sans-serif`, fontWeight: font[weight] }}>
+          {font.n}
+          {font.note ? ` (${font.note})` : ''}
         </span>
       </button>
       {open && (
         <div className="fp-pop">
           {!only && (
             <div className="fp-cats">
-              {(Object.keys(FONT_CATS) as ('all' | FontCat)[]).map((k) => (
-                <button key={k} type="button" aria-pressed={k === cat} onClick={() => setCat(k)}>
-                  {FONT_CATS[k]}
+              {(Object.keys(FONT_CATS) as ('all' | FontCat)[]).map((category) => (
+                <button key={category} type="button" aria-pressed={category === cat} onClick={() => setCat(category)}>
+                  {FONT_CATS[category]}
                 </button>
               ))}
             </div>
@@ -87,14 +89,16 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Pro
               type="file"
               hidden
               accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
-              onChange={(e) => {
-                void upload(e.target.files?.[0]);
-                e.target.value = '';
+              onChange={(event) => {
+                void upload(event.target.files?.[0]);
+                event.target.value = '';
               }}
             />
             {busy ? 'Adding font…' : '+ Upload your own font (TTF, OTF, WOFF)'}
           </label>
-          {cat === 'own' && !mine.length && <p className="hint fp-empty">No fonts yet. Upload one and it’s kept for every design.</p>}
+          {cat === 'own' && !mine.length && (
+            <p className="hint fp-empty">No fonts yet. Upload one and it’s kept for every design.</p>
+          )}
           <div className="fp-list" role="listbox" aria-label={label}>
             {list.map((x) => (
               <button

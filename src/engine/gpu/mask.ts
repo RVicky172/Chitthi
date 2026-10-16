@@ -1,5 +1,5 @@
 import type { Adjustments } from '../adjust';
-import type { FrameMask } from '../masks';
+import type { FrameMask } from '../maskPlace';
 import { colourNodes } from './colour';
 import { detailNodes } from './detail';
 import type { GraphNode, NodeInput } from './graph';
@@ -60,27 +60,29 @@ fn effect(uv: vec2f) -> vec4f {
 
 /**
  * Appends one mask's nodes to a graph whose picture so far is `from` (the last node, or the source when the graph is
- * empty): the mask's colour and detail steps, then the mix. Returns the mix node's index, or `from` unchanged when the
- * mask's settings do nothing.
+ * empty): the mask's colour and detail steps, then the mix.
+ * @param nodes the graph, appended to
+ * @param from the picture so far
+ * @param adjust the mask's colour and detail settings
+ * @param mask the mask
+ * @param width the picture's width, px
+ * @param height the picture's height, px
+ * @param deep whether the graph runs at 16 bits (the deep export)
+ * @returns the mix node's index, or `from` unchanged when the mask's settings do nothing
  */
-export function maskNodes(
-  nodes: GraphNode[],
-  from: NodeInput,
-  a: Adjustments,
-  mask: FrameMask,
-  W: number,
-  H: number,
-  deep = false,
-): NodeInput {
+export function maskNodes(nodes: GraphNode[], from: NodeInput, adjust: Adjustments, mask: FrameMask, width: number, height: number, deep = false): NodeInput {
   const start = nodes.length;
   // The colour nodes read 'prev', the detail nodes the node before them: both are `from`, the graph's last output.
-  nodes.push(...colourNodes(a, deep));
-  nodes.push(...detailNodes(a, W, H, nodes.length, deep));
-  if (nodes.length === start) return from;
-  nodes.push({
-    program: deep ? MASK_MIX_DEEP_PROGRAM : MASK_MIX_PROGRAM,
-    uniforms: new Float32Array(4),
-    inputs: [from, nodes.length - 1, { key: mask.key, width: mask.width, height: mask.height, r8: mask.data }],
-  });
-  return nodes.length - 1;
+  nodes.push(...colourNodes(adjust, deep));
+  nodes.push(...detailNodes(adjust, width, height, nodes.length, deep));
+  let picture = from;
+  if (nodes.length > start) {
+    nodes.push({
+      program: deep ? MASK_MIX_DEEP_PROGRAM : MASK_MIX_PROGRAM,
+      uniforms: new Float32Array(4),
+      inputs: [from, nodes.length - 1, { key: mask.key, width: mask.width, height: mask.height, r8: mask.data }],
+    });
+    picture = nodes.length - 1;
+  }
+  return picture;
 }

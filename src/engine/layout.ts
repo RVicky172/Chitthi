@@ -1,46 +1,175 @@
 import type { Box, Design, Layout, LayoutId, Rect, Slot } from '../types';
-import { cardMM, sizeOf } from './design';
+import { cardMM } from './design';
+import type { LayoutBuilder, LayoutContext, SlotIn } from './layoutParts';
+import {
+  arch,
+  band,
+  circle,
+  collage2,
+  collage3,
+  collage4,
+  diagonal,
+  filmstrip,
+  fullPhoto,
+  glass,
+  instax,
+  magazine,
+  minimal,
+  mosaic,
+  offset,
+  photobooth,
+  polaroid,
+  roundWindow,
+  sandwich,
+  scrapbook,
+  split,
+  stamp,
+  textFirst,
+  textOnly,
+  twinArch,
+} from './postcardLayouts';
+import { calendar, framePrint, magnetBadge, magnetCaption, magnetDuo, magnetGrid, magnetQuote } from './printLayouts';
 
-/** Which photo (index into the photo list) fills slot i. Calendars move on through the photos month by month. */
-export const slotPhotoIndex = (i: number, n: number, page = 0, count = 1): number => (n ? (page * count + i) % n : 0);
+/*
+ * Print layouts: where each layout puts its photo slots, its words and its decoration (paper, bands, glass, stamps,
+ * film, calendar title and grid) inside the card. One builder per layout, chosen from a table by the layout's id.
+ */
 
-/** How many photo slots a layout has at the design's current size and orientation. */
-export function slotCount(id: LayoutId, d: Design): number {
-  const { w, h } = cardMM(d);
-  return computeLayout(id, { x: 0, y: 0, w, h, e: 0 }, d).slots.length;
+/**
+ * Which photo fills a slot. Calendars move on through the photos month by month.
+ * @param slot the slot's index
+ * @param photoCount how many photos there are
+ * @param page the calendar page, 0-based
+ * @param slotsPerPage how many slots each page has
+ * @returns an index into the photo list (0 when there are no photos)
+ */
+export const slotPhotoIndex = (slot: number, photoCount: number, page = 0, slotsPerPage = 1): number =>
+  photoCount ? (page * slotsPerPage + slot) % photoCount : 0;
+
+/**
+ * How many photo slots a layout has at the design's current size and orientation.
+ * @param id the layout
+ * @param design the design
+ * @returns the number of slots
+ */
+export function slotCount(id: LayoutId, design: Design): number {
+  const { w, h } = cardMM(design);
+  return computeLayout(id, { x: 0, y: 0, w, h, e: 0 }, design).slots.length;
 }
 
-/** Grow a rect that touches the trim edge so it runs into the bleed. */
-function extend(s: Rect, B: Box): Rect {
-  const e = B.e,
-    tol = 0.5;
-  let l = s.x,
-    t = s.y,
-    r = s.x + s.w,
-    bt = s.y + s.h;
-  if (Math.abs(l - B.x) < tol) l -= e;
-  if (Math.abs(t - B.y) < tol) t -= e;
-  if (Math.abs(r - (B.x + B.w)) < tol) r += e;
-  if (Math.abs(bt - (B.y + B.h)) < tol) bt += e;
-  return { x: l, y: t, w: r - l, h: bt - t };
+/** How close to the trim edge counts as touching it, px. */
+const EDGE_TOLERANCE = 0.5;
+
+/**
+ * Grows a rect that touches the trim edge so it runs into the bleed.
+ * @param rect the rect
+ * @param box the card, with its bleed
+ * @returns the grown rect
+ */
+function extend(rect: Rect, box: Box): Rect {
+  const bleed = box.e;
+  let left = rect.x;
+  let top = rect.y;
+  let right = rect.x + rect.w;
+  let bottom = rect.y + rect.h;
+  if (Math.abs(left - box.x) < EDGE_TOLERANCE) left -= bleed;
+  if (Math.abs(top - box.y) < EDGE_TOLERANCE) top -= bleed;
+  if (Math.abs(right - (box.x + box.w)) < EDGE_TOLERANCE) right += bleed;
+  if (Math.abs(bottom - (box.y + box.h)) < EDGE_TOLERANCE) bottom += bleed;
+  return { x: left, y: top, w: right - left, h: bottom - top };
 }
 
-type SlotIn = Omit<Slot, 'd'>;
+/** Each layout's builder. */
+const BUILDERS: Record<LayoutId, LayoutBuilder> = {
+  full: fullPhoto,
+  magazine,
+  band,
+  textfirst: textFirst,
+  split,
+  sandwich,
+  polaroid,
+  instax,
+  photobooth,
+  arch,
+  window: roundWindow,
+  circle,
+  stamp,
+  collage2,
+  collage3,
+  mosaic,
+  collage4,
+  text: textOnly,
+  offset,
+  diagonal,
+  scrapbook,
+  filmstrip,
+  minimal,
+  'twin-arch': twinArch,
+  glass,
+  'frame-single': framePrint,
+  'frame-caption': framePrint,
+  'frame-duo': framePrint,
+  'frame-trio': framePrint,
+  'frame-grid': framePrint,
+  'frame-feature': framePrint,
+  'cal-top': calendar,
+  'cal-side': calendar,
+  'cal-full': calendar,
+  'cal-duo': calendar,
+  'cal-plain': calendar,
+  'cal-strip': calendar,
+  'cal-glass': calendar,
+  'cal-bold': calendar,
+  'cal-arch': calendar,
+  'mag-full': fullPhoto,
+  'mag-caption': magnetCaption,
+  'mag-polaroid': magnetCaption,
+  'mag-duo': magnetDuo,
+  'mag-grid': magnetGrid,
+  'mag-badge': magnetBadge,
+  'mag-quote': magnetQuote,
+};
 
-/** Computes photo slots and the text zone for a layout inside the card box B (all in canvas pixels). */
-export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
-  const land = B.w >= B.h,
-    m = Math.min(B.w, B.h),
-    pad = m * 0.075,
-    g = m * 0.016,
-    u = m / 100;
-  const R = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h });
-  const rs = (x: number, y: number, w: number, h: number): SlotIn => ({ s: 'rect', x, y, w, h, bleed: true });
-  const plain = (r: Rect, s: Slot['s'] = 'rect'): SlotIn => ({ s, ...r });
-  const right = (x: number) => R(x, B.y + pad, B.x + B.w - x - pad, B.h - pad * 2);
-  // Words under a photo stop well above the bottom edge, clear of the border artwork many occasions draw there.
-  const below = (y: number) => R(B.x + pad, y, B.w - pad * 2, B.y + B.h - y - pad * 1.75);
-  const L: Layout = {
+/**
+ * A coordinate on the trim edge moved out into the bleed.
+ * @param value the coordinate
+ * @param start the card's left (or top) edge
+ * @param size the card's width (or height)
+ * @param bleed the bleed
+ * @returns the coordinate, moved out when it is on an edge
+ */
+function pushToBleed(value: number, start: number, size: number, bleed: number): number {
+  if (Math.abs(value - start) < EDGE_TOLERANCE) return value - bleed;
+  if (Math.abs(value - start - size) < EDGE_TOLERANCE) return value + bleed;
+  return value;
+}
+
+/**
+ * A slot with its drawn area: grown into the bleed where it should be. Polygon slots: corners on the trim edge move
+ * out into the bleed, and the drawn area is their bounding box.
+ * @param slot the slot
+ * @param box the card, with its bleed
+ * @returns the finished slot
+ */
+function finishSlot(slot: SlotIn, box: Box): Slot {
+  if (!slot.pts) return { ...slot, d: slot.bleed ? extend(slot, box) : { x: slot.x, y: slot.y, w: slot.w, h: slot.h } };
+  const pts = slot.pts.map(([x, y]): [number, number] => [pushToBleed(x, box.x, box.w, box.e), pushToBleed(y, box.y, box.h, box.e)]);
+  const xs = pts.map((point) => point[0]);
+  const ys = pts.map((point) => point[1]);
+  const drawn = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  return { ...slot, pts, d: drawn };
+}
+
+/**
+ * Computes the photo slots, the text zone and the decoration for a layout inside the card.
+ * @param id the layout
+ * @param box the card's trim box and bleed (canvas pixels)
+ * @param design the design
+ * @returns the layout
+ */
+export function computeLayout(id: LayoutId, box: Box, design: Design): Layout {
+  const short = Math.min(box.w, box.h);
+  const layout: Layout = {
     slots: [],
     text: null,
     onPhoto: false,
@@ -54,636 +183,10 @@ export function computeLayout(id: LayoutId, B: Box, d: Design): Layout {
     frame: false,
     frameLine: 0,
   };
-  let slots: SlotIn[] = [];
-
-  switch (id) {
-    case 'full':
-      L.bg = false;
-      slots = [rs(B.x, B.y, B.w, B.h)];
-      L.text = R(B.x + pad, B.y + pad, B.w - 2 * pad, B.h - 2 * pad);
-      L.onPhoto = true;
-      L.overlay = true;
-      break;
-    case 'magazine':
-      L.bg = false;
-      slots = [rs(B.x, B.y, B.w, B.h)];
-      L.onPhoto = true;
-      L.overlay = true;
-      L.frameLine = pad * 0.5;
-      L.text = land
-        ? R(B.x + pad * 1.3, B.y + pad * 1.2, B.w * 0.55, B.h - pad * 2.4)
-        : R(B.x + pad * 1.3, B.y + pad * 1.3, B.w - pad * 2.6, B.h * 0.42);
-      break;
-    case 'band':
-      L.bg = false;
-      slots = [rs(B.x, B.y, B.w, B.h)];
-      L.overlay = true;
-      L.band = land ? R(B.x + B.w * 0.6, B.y, B.w * 0.4, B.h) : R(B.x, B.y + B.h * 0.66, B.w, B.h * 0.34);
-      L.text = R(L.band.x + pad * 0.8, L.band.y + pad * 0.8, L.band.w - pad * 1.6, L.band.h - pad * 1.6);
-      break;
-    case 'textfirst':
-      if (land) {
-        slots = [rs(B.x + B.w * 0.42, B.y, B.w * 0.58, B.h)];
-        L.text = R(B.x + pad, B.y + pad, B.w * 0.42 - pad * 1.8, B.h - 2 * pad);
-      } else {
-        slots = [rs(B.x, B.y + B.h * 0.34, B.w, B.h * 0.66)];
-        L.text = R(B.x + pad, B.y + pad, B.w - 2 * pad, B.h * 0.34 - pad * 1.5);
-      }
-      break;
-    case 'split':
-      if (land) {
-        const sw = B.w * 0.52;
-        slots = [rs(B.x, B.y, sw, B.h)];
-        L.text = right(B.x + sw + pad);
-      } else {
-        const sh = B.h * 0.56;
-        slots = [rs(B.x, B.y, B.w, sh)];
-        L.text = below(B.y + sh + pad * 0.8);
-      }
-      break;
-    case 'sandwich':
-      if (land) {
-        slots = [rs(B.x, B.y, B.w * 0.33, B.h), rs(B.x + B.w * 0.67, B.y, B.w * 0.33, B.h)];
-        L.text = R(B.x + B.w * 0.33 + pad * 0.7, B.y + pad, B.w * 0.34 - pad * 1.4, B.h - 2 * pad);
-      } else {
-        slots = [rs(B.x, B.y, B.w, B.h * 0.36), rs(B.x, B.y + B.h * 0.64, B.w, B.h * 0.36)];
-        L.text = R(B.x + pad, B.y + B.h * 0.36 + pad * 0.5, B.w - 2 * pad, B.h * 0.28 - pad);
-      }
-      break;
-    case 'polaroid':
-      if (land) {
-        const ph = B.h - pad * 2,
-          pw = Math.min(ph * 0.84, B.w * 0.5),
-          fm = pw * 0.065;
-        L.paper = R(B.x + pad * 1.2, B.y + pad, pw, ph);
-        const s = Math.min(pw - 2 * fm, ph * 0.78);
-        slots = [plain(R(L.paper.x + (pw - s) / 2, L.paper.y + fm, s, s))];
-        L.text = right(L.paper.x + pw + pad);
-      } else {
-        const pw = B.w - pad * 2.2,
-          ph = B.h - pad * 2,
-          fm = pw * 0.065;
-        L.paper = R(B.x + pad * 1.1, B.y + pad, pw, ph);
-        const s = Math.min(pw - 2 * fm, ph * 0.68);
-        slots = [plain(R(L.paper.x + (pw - s) / 2, L.paper.y + fm, s, s))];
-        const ty = L.paper.y + fm + s + fm;
-        L.text = R(L.paper.x + fm * 1.5, ty, pw - fm * 3, L.paper.y + ph - ty - fm);
-        L.ink = 'frame';
-      }
-      break;
-    case 'instax': {
-      L.bg = false;
-      L.frame = true;
-      L.ink = 'frame';
-      const sz = sizeOf(d);
-      let sl: Rect,
-        rot = false;
-      if (sz.instax) {
-        const sp = sz.instax,
-          nat = sz.native ?? 'portrait',
-          nw = nat === 'portrait' ? sz.S : sz.L,
-          nh = nat === 'portrait' ? sz.L : sz.S;
-        rot = d.orient !== nat;
-        sl = !rot
-          ? R(B.x + (B.w * sp.side) / nw, B.y + (B.h * sp.top) / nh, (B.w * sp.w) / nw, (B.h * sp.h) / nh)
-          : R(B.x + (B.w * sp.top) / nh, B.y + (B.h * sp.side) / nw, (B.w * sp.h) / nh, (B.h * sp.w) / nw);
-      } else {
-        const s = m * 0.07;
-        sl = R(B.x + s, B.y + s, B.w - 2 * s, B.h - s - B.h * 0.22);
-      }
-      slots = [plain(sl)];
-      L.text = rot
-        ? R(sl.x + sl.w + u * 3, sl.y, B.x + B.w - (sl.x + sl.w) - u * 6, sl.h)
-        : R(sl.x + u, sl.y + sl.h + u * 2, sl.w - u * 2, B.y + B.h - (sl.y + sl.h) - u * 4);
-      break;
-    }
-    case 'photobooth':
-      if (!land) {
-        const sw = B.w * 0.46,
-          st = R(B.x + pad * 0.9, B.y + pad * 0.8, sw, B.h - pad * 1.6),
-          fm = sw * 0.07,
-          fh = (st.h - fm * 4) / 3;
-        L.paper = st;
-        slots = [0, 1, 2].map((i) => plain(R(st.x + fm, st.y + fm + i * (fh + fm), sw - 2 * fm, fh)));
-        L.text = right(st.x + sw + pad * 0.9);
-      } else {
-        const sh = B.h * 0.54,
-          st = R(B.x + pad * 0.8, B.y + pad * 0.8, B.w - pad * 1.6, sh),
-          fm = sh * 0.07,
-          fw = (st.w - fm * 4) / 3;
-        L.paper = st;
-        slots = [0, 1, 2].map((i) => plain(R(st.x + fm + i * (fw + fm), st.y + fm, fw, sh - 2 * fm)));
-        L.text = below(st.y + sh + pad * 0.7);
-      }
-      break;
-    case 'arch':
-      if (land) {
-        const ah = B.h - pad * 2.2,
-          aw = Math.min(ah * 0.66, B.w * 0.44),
-          sl = R(B.x + pad * 1.3, B.y + (B.h - ah) / 2, aw, ah);
-        slots = [plain(sl, 'arch')];
-        L.text = right(sl.x + aw + pad);
-      } else {
-        const aw = B.w * 0.64,
-          ah = Math.min(aw * 1.32, B.h * 0.58),
-          sl = R(B.x + (B.w - aw) / 2, B.y + pad * 1.2, aw, ah);
-        slots = [plain(sl, 'arch')];
-        L.text = below(sl.y + ah + pad * 0.7);
-      }
-      break;
-    case 'window':
-      if (land) {
-        const wh = B.h - pad * 2.4,
-          ww = Math.min(B.w * 0.48, wh * 0.82),
-          sl = R(B.x + pad * 1.3, B.y + (B.h - wh) / 2, ww, wh);
-        slots = [plain(sl, 'round')];
-        L.text = right(sl.x + ww + pad);
-      } else {
-        const ww = B.w * 0.8,
-          wh = Math.min(B.h * 0.6, ww * 1.3),
-          sl = R(B.x + (B.w - ww) / 2, B.y + pad * 1.2, ww, wh);
-        slots = [plain(sl, 'round')];
-        L.text = below(sl.y + wh + pad * 0.7);
-      }
-      break;
-    case 'circle':
-      if (land) {
-        const dd = Math.min(B.h - pad * 2.2, B.w * 0.46),
-          sl = R(B.x + pad * 1.3, B.y + (B.h - dd) / 2, dd, dd);
-        slots = [plain(sl, 'circle')];
-        L.text = right(sl.x + dd + pad);
-      } else {
-        const dd = Math.min(B.w * 0.7, B.h * 0.5),
-          sl = R(B.x + (B.w - dd) / 2, B.y + pad * 1.2, dd, dd);
-        slots = [plain(sl, 'circle')];
-        L.text = below(sl.y + dd + pad * 0.7);
-      }
-      break;
-    case 'stamp': {
-      let st: Rect;
-      if (land) {
-        const sh = B.h - pad * 2.6,
-          sw = Math.min(sh * 0.8, B.w * 0.42);
-        st = R(B.x + pad * 1.3, B.y + (B.h - sh) / 2, sw, sh);
-      } else {
-        const sw = B.w * 0.6,
-          sh = Math.min(sw * 1.22, B.h * 0.56);
-        st = R(B.x + (B.w - sw) / 2, B.y + pad * 1.3, sw, sh);
-      }
-      L.stamp = st;
-      const im = u * 3.2;
-      slots = [plain(R(st.x + im, st.y + im, st.w - 2 * im, st.h - 2 * im - u * 5))];
-      L.post = { x: st.x + st.w - u, y: st.y + u * 5, r: u * 8.5 };
-      L.text = land ? right(st.x + st.w + pad + u * 6) : below(st.y + st.h + pad * 0.8);
-      break;
-    }
-    case 'collage2':
-      if (land) {
-        const aw = B.w * 0.6;
-        slots = [rs(B.x, B.y, aw, (B.h - g) / 2), rs(B.x, B.y + (B.h + g) / 2, aw, (B.h - g) / 2)];
-        L.text = right(B.x + aw + pad);
-      } else {
-        const ah = B.h * 0.58;
-        slots = [rs(B.x, B.y, (B.w - g) / 2, ah), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, ah)];
-        L.text = below(B.y + ah + pad * 0.8);
-      }
-      break;
-    case 'collage3':
-      if (land) {
-        const w1 = B.w * 0.38,
-          w2 = B.w * 0.24;
-        slots = [
-          rs(B.x, B.y, w1, B.h),
-          rs(B.x + w1 + g, B.y, w2, (B.h - g) / 2),
-          rs(B.x + w1 + g, B.y + (B.h + g) / 2, w2, (B.h - g) / 2),
-        ];
-        L.text = right(B.x + w1 + g + w2 + pad);
-      } else {
-        const h1 = B.h * 0.36,
-          h2 = B.h * 0.22;
-        slots = [
-          rs(B.x, B.y, B.w, h1),
-          rs(B.x, B.y + h1 + g, (B.w - g) / 2, h2),
-          rs(B.x + (B.w + g) / 2, B.y + h1 + g, (B.w - g) / 2, h2),
-        ];
-        L.text = below(B.y + h1 + g + h2 + pad * 0.8);
-      }
-      break;
-    case 'mosaic':
-      if (land) {
-        const w1 = B.w * 0.42,
-          w2 = B.w * 0.18,
-          sh = (B.h - 2 * g) / 3;
-        slots = [rs(B.x, B.y, w1, B.h), ...[0, 1, 2].map((i) => rs(B.x + w1 + g, B.y + i * (sh + g), w2, sh))];
-        L.text = right(B.x + w1 + g + w2 + pad);
-      } else {
-        const h1 = B.h * 0.46,
-          h2 = B.h * 0.2,
-          sw = (B.w - 2 * g) / 3;
-        slots = [rs(B.x, B.y, B.w, h1), ...[0, 1, 2].map((i) => rs(B.x + i * (sw + g), B.y + h1 + g, sw, h2))];
-        L.text = below(B.y + h1 + g + h2 + pad * 0.7);
-      }
-      break;
-    case 'collage4':
-      if (land) {
-        const aw = B.w * 0.62,
-          cw = (aw - g) / 2,
-          ch = (B.h - g) / 2;
-        slots = [
-          rs(B.x, B.y, cw, ch),
-          rs(B.x + cw + g, B.y, cw, ch),
-          rs(B.x, B.y + ch + g, cw, ch),
-          rs(B.x + cw + g, B.y + ch + g, cw, ch),
-        ];
-        L.text = right(B.x + aw + pad);
-      } else {
-        const ah = B.h * 0.62,
-          cw = (B.w - g) / 2,
-          ch = (ah - g) / 2;
-        slots = [
-          rs(B.x, B.y, cw, ch),
-          rs(B.x + cw + g, B.y, cw, ch),
-          rs(B.x, B.y + ch + g, cw, ch),
-          rs(B.x + cw + g, B.y + ch + g, cw, ch),
-        ];
-        L.text = below(B.y + ah + pad * 0.8);
-      }
-      break;
-    case 'text':
-      L.text = R(B.x + pad * 1.3, B.y + pad * 1.3, B.w - pad * 2.6, B.h - pad * 2.6);
-      break;
-
-    /* ---------- modern postcard layouts ---------- */
-    case 'offset': {
-      // A photo with a solid accent block offset behind it, on plain paper.
-      L.frame = true;
-      L.bg = false;
-      L.ink = 'frame';
-      const o = u * 3.2;
-      const ph = land ? R(B.x + pad, B.y + pad, B.w * 0.5, B.h - 2 * pad - o) : R(B.x + pad, B.y + pad, B.w - 2 * pad - o, B.h * 0.55);
-      L.blocks = [{ r: R(ph.x + o, ph.y + o, ph.w, ph.h), c: 'accent' }];
-      slots = [plain(ph)];
-      L.text = land ? right(ph.x + ph.w + o + pad) : below(ph.y + ph.h + o + pad * 0.7);
-      break;
-    }
-    case 'diagonal': {
-      // Two photos split on a slant, words over the lower part.
-      L.frame = true;
-      L.bg = false;
-      L.overlay = true;
-      const k = g * 0.6;
-      if (land) {
-        const a = B.x + B.w * 0.6,
-          b = B.x + B.w * 0.42;
-        slots = [
-          { s: 'poly', ...R(B.x, B.y, a - B.x, B.h), bleed: true, pts: [[B.x, B.y], [a - k, B.y], [b - k, B.y + B.h], [B.x, B.y + B.h]] },
-          { s: 'poly', ...R(b, B.y, B.x + B.w - b, B.h), bleed: true, pts: [[a + k, B.y], [B.x + B.w, B.y], [B.x + B.w, B.y + B.h], [b + k, B.y + B.h]] },
-        ];
-      } else {
-        const a = B.y + B.h * 0.42,
-          b = B.y + B.h * 0.6;
-        slots = [
-          { s: 'poly', ...R(B.x, B.y, B.w, b - B.y), bleed: true, pts: [[B.x, B.y], [B.x + B.w, B.y], [B.x + B.w, a - k], [B.x, b - k]] },
-          { s: 'poly', ...R(B.x, a, B.w, B.y + B.h - a), bleed: true, pts: [[B.x, b + k], [B.x + B.w, a + k], [B.x + B.w, B.y + B.h], [B.x, B.y + B.h]] },
-        ];
-      }
-      // Words sit on one photo, clear of the slanted seam.
-      if (land) {
-        L.text = R(B.x + B.w * 0.6, B.y + B.h * 0.36, B.w * 0.4 - pad, B.h * 0.64 - pad);
-        L.scrimArea = R(B.x + B.w * 0.42, B.y, B.w * 0.58, B.h);
-      } else {
-        L.text = R(B.x + pad, B.y + B.h * 0.63, B.w - 2 * pad, B.h * 0.37 - pad);
-        L.scrimArea = R(B.x, B.y + B.h * 0.42, B.w, B.h * 0.58);
-      }
-      L.onPhoto = true;
-      break;
-    }
-    case 'scrapbook': {
-      // Three instant prints, tilted and overlapping, taped onto the occasion background.
-      const ps = land ? Math.min(B.h * 0.46, B.w * 0.23) : Math.min(B.w * 0.36, B.h * 0.24),
-        at = (cx: number, cy: number, rot: number): SlotIn => ({ s: 'rect', ...R(cx - ps / 2, cy - ps / 2, ps, ps), rot, print: true });
-      if (land) {
-        slots = [at(B.x + B.w * 0.16, B.y + B.h * 0.34, -0.1), at(B.x + B.w * 0.43, B.y + B.h * 0.3, 0.07), at(B.x + B.w * 0.29, B.y + B.h * 0.66, -0.03)];
-        L.text = right(B.x + B.w * 0.6);
-      } else {
-        slots = [at(B.x + B.w * 0.3, B.y + B.h * 0.17, -0.09), at(B.x + B.w * 0.7, B.y + B.h * 0.2, 0.08), at(B.x + B.w * 0.47, B.y + B.h * 0.42, -0.02)];
-        L.text = below(B.y + B.h * 0.62);
-      }
-      break;
-    }
-    case 'filmstrip': {
-      // Frames on a dark film strip with sprocket holes.
-      const n = 3;
-      if (land) {
-        const fh = B.h * 0.5,
-          band = R(B.x, B.y + pad * 0.9, B.w, fh),
-          hole = fh * 0.13,
-          fw = (B.w - pad * 2 - g * (n - 1)) / n;
-        L.film = { r: band, vertical: false };
-        slots = Array.from({ length: n }, (_, i) => plain(R(B.x + pad + i * (fw + g), band.y + hole * 1.6, fw, fh - hole * 3.2)));
-        L.text = below(band.y + fh + pad * 0.6);
-      } else {
-        const fw = B.w * 0.46,
-          band = R(B.x + pad * 0.8, B.y, fw, B.h),
-          hole = fw * 0.13,
-          fh = (B.h - pad * 2 - g * (n - 1)) / n;
-        L.film = { r: band, vertical: true };
-        slots = Array.from({ length: n }, (_, i) => plain(R(band.x + hole * 1.6, B.y + pad + i * (fh + g), fw - hole * 3.2, fh)));
-        L.text = right(band.x + fw + pad * 0.8);
-      }
-      break;
-    }
-    case 'minimal': {
-      // A small photo, generous white space and a fine hairline.
-      L.frame = true;
-      L.bg = false;
-      L.ink = 'frame';
-      L.hairline = pad * 0.45;
-      L.textFill = 0.22;
-      if (land) {
-        const ph = R(B.x + B.w * 0.12, B.y + B.h * 0.2, B.w * 0.32, B.h * 0.6);
-        slots = [plain(ph)];
-        L.text = R(B.x + B.w * 0.52, B.y + B.h * 0.2, B.w * 0.36, B.h * 0.6);
-      } else {
-        const pw = B.w * 0.56,
-          ph = R(B.x + (B.w - pw) / 2, B.y + B.h * 0.13, pw, pw * 1.22);
-        slots = [plain(ph)];
-        L.text = R(B.x + B.w * 0.16, ph.y + ph.h + B.h * 0.05, B.w * 0.68, B.y + B.h * 0.88 - (ph.y + ph.h + B.h * 0.05));
-      }
-      break;
-    }
-    case 'twin-arch': {
-      // Two jharokha arches side by side.
-      if (land) {
-        const ah = B.h - pad * 2.4,
-          aw = Math.min(ah * 0.6, B.w * 0.27),
-          y = B.y + (B.h - ah) / 2;
-        slots = [plain(R(B.x + pad * 1.1, y, aw, ah), 'arch'), plain(R(B.x + pad * 1.1 + aw + pad * 0.6, y, aw, ah), 'arch')];
-        L.text = right(B.x + pad * 1.1 + aw * 2 + pad * 1.4);
-      } else {
-        const aw = (B.w - pad * 2.4 - pad * 0.6) / 2,
-          ah = Math.min(aw * 1.55, B.h * 0.56);
-        slots = [plain(R(B.x + pad * 1.2, B.y + pad * 1.3, aw, ah), 'arch'), plain(R(B.x + pad * 1.8 + aw, B.y + pad * 1.3, aw, ah), 'arch')];
-        L.text = below(B.y + pad * 1.3 + ah + pad * 0.7);
-      }
-      break;
-    }
-
-    case 'glass': {
-      // The photo edge to edge, words on a frosted-glass panel over it.
-      L.bg = false;
-      slots = [rs(B.x, B.y, B.w, B.h)];
-      L.overlay = true;
-      L.ink = 'dark';
-      L.glass = land
-        ? R(B.x + B.w * 0.56, B.y + B.h * 0.2, B.w * 0.44 - pad * 0.9, B.h * 0.8 - pad * 0.9)
-        : R(B.x + pad * 0.9, B.y + B.h * 0.6, B.w - pad * 1.8, B.h * 0.4 - pad * 0.9);
-      const gi = Math.min(L.glass.w, L.glass.h) * 0.12;
-      L.text = R(L.glass.x + gi, L.glass.y + gi, L.glass.w - 2 * gi, L.glass.h - 2 * gi);
-      break;
-    }
-
-    /* ---------- photo frame prints: photo windows cut into a mat ---------- */
-    case 'frame-single':
-    case 'frame-caption':
-    case 'frame-duo':
-    case 'frame-trio':
-    case 'frame-grid':
-    case 'frame-feature': {
-      L.bg = false;
-      L.frame = true;
-      L.ink = 'frame';
-      const mw = m * { none: 0, thin: 0.045, classic: 0.1, wide: 0.16 }[d.mat],
-        gm = mw ? Math.max(mw * 0.45, m * 0.025) : g,
-        win = (r: Rect) => (mw ? plain(r) : rs(r.x, r.y, r.w, r.h));
-      L.mat = mw > 0;
-      // Traditional mats are a little deeper at the bottom; a caption needs its own strip.
-      const cap = id === 'frame-caption' ? Math.max(m * 0.13, mw) : mw ? mw * 0.18 : 0;
-      const A = R(B.x + mw, B.y + mw, B.w - 2 * mw, B.h - 2 * mw - cap);
-      const along = (r: Rect, n: number, horiz: boolean) =>
-        Array.from({ length: n }, (_, i) =>
-          horiz
-            ? R(r.x + i * ((r.w - gm * (n - 1)) / n + gm), r.y, (r.w - gm * (n - 1)) / n, r.h)
-            : R(r.x, r.y + i * ((r.h - gm * (n - 1)) / n + gm), r.w, (r.h - gm * (n - 1)) / n),
-        );
-      if (id === 'frame-single' || id === 'frame-caption') slots = [win(A)];
-      else if (id === 'frame-duo') slots = along(A, 2, land).map(win);
-      else if (id === 'frame-trio') slots = along(A, 3, land).map(win);
-      else if (id === 'frame-grid') {
-        const [top, bot] = along(A, 2, false);
-        slots = [...along(top, 2, true), ...along(bot, 2, true)].map(win);
-      } else {
-        const big = land ? R(A.x, A.y, A.w * 0.62, A.h) : R(A.x, A.y, A.w, A.h * 0.62),
-          rest = land ? R(A.x + big.w + gm, A.y, A.w - big.w - gm, A.h) : R(A.x, A.y + big.h + gm, A.w, A.h - big.h - gm);
-        slots = [win(big), ...along(rest, 2, !land).map(win)];
-      }
-      if (id === 'frame-caption') L.text = R(A.x, A.y + A.h + cap * 0.12, A.w, cap * (mw ? 0.8 : 0.85));
-      break;
-    }
-
-    /* ---------- calendars: photo area plus a month title and day grid ---------- */
-    case 'cal-top':
-    case 'cal-side':
-    case 'cal-full':
-    case 'cal-duo':
-    case 'cal-plain':
-    case 'cal-strip':
-    case 'cal-glass':
-    case 'cal-bold':
-    case 'cal-arch': {
-      L.frame = true;
-      L.bg = false;
-      L.ink = 'frame';
-      let area: Rect, // where the words, the title and the grid go
-        photo: Rect | null = null; // the visible photo, for words placed on it
-      if (id === 'cal-top' || id === 'cal-duo' || (id === 'cal-strip' && !land)) {
-        const ph = B.h * (id === 'cal-strip' ? 0.5 : land ? 0.5 : 0.56);
-        slots =
-          id === 'cal-duo'
-            ? [rs(B.x, B.y, (B.w - g) / 2, ph), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, ph)]
-            : [rs(B.x, B.y, B.w, ph)];
-        photo = R(B.x, B.y, B.w, ph);
-        area = R(B.x + pad, B.y + ph + pad * 0.55, B.w - 2 * pad, B.h - ph - pad * 1.3);
-      } else if (id === 'cal-side' || id === 'cal-strip') {
-        if (land) {
-          const pw = B.w * (id === 'cal-strip' ? 0.42 : 0.5);
-          slots = [rs(B.x, B.y, pw, B.h)];
-          photo = R(B.x, B.y, pw, B.h);
-          area = R(B.x + pw + pad * 0.9, B.y + pad, B.w - pw - pad * 1.9, B.h - 2 * pad);
-        } else {
-          const ph = B.h * 0.48;
-          photo = R(B.x + pad, B.y + pad, B.w - 2 * pad, ph);
-          slots = [plain(photo)];
-          area = R(B.x + pad, B.y + pad + ph + pad * 0.55, B.w - 2 * pad, B.h - ph - pad * 2.55);
-        }
-      } else if (id === 'cal-glass') {
-        // Full photo, the month on a frosted-glass panel.
-        L.frame = false;
-        L.ink = 'dark';
-        slots = [rs(B.x, B.y, B.w, B.h)];
-        L.glass = land
-          ? R(B.x + B.w * 0.5, B.y + pad * 0.8, B.w * 0.5 - pad * 0.8, B.h - pad * 1.6)
-          : R(B.x + pad * 0.8, B.y + B.h * 0.5, B.w - pad * 1.6, B.h * 0.5 - pad * 0.8);
-        photo = land ? R(B.x, B.y, B.w * 0.5, B.h) : R(B.x, B.y, B.w, B.h * 0.5);
-        const gi = pad * 0.6;
-        area = R(L.glass.x + gi, L.glass.y + gi, L.glass.w - 2 * gi, L.glass.h - 2 * gi);
-      } else if (id === 'cal-bold') {
-        // Editorial: a rounded photo, then a big month number beside the month name, then the dates.
-        const ph = land ? R(B.x + pad * 0.8, B.y + pad * 0.8, B.w * 0.48, B.h - pad * 1.6) : R(B.x + pad * 0.8, B.y + pad * 0.8, B.w - pad * 1.6, B.h * 0.48);
-        slots = [{ ...plain(ph, 'round'), bare: true }];
-        photo = ph;
-        area = land
-          ? R(ph.x + ph.w + pad * 0.9, B.y + pad, B.x + B.w - (ph.x + ph.w) - pad * 1.9, B.h - 2 * pad)
-          : R(B.x + pad, ph.y + ph.h + pad * 0.6, B.w - 2 * pad, B.y + B.h - (ph.y + ph.h) - pad * 1.4);
-      } else if (id === 'cal-arch') {
-        // A jharokha-arch window of photo above (or beside) the month.
-        if (land) {
-          const ah = B.h - pad * 2,
-            aw = Math.min(ah * 0.74, B.w * 0.42),
-            sl = R(B.x + pad * 1.1, B.y + pad, aw, ah);
-          slots = [plain(sl, 'arch')];
-          photo = sl;
-          area = R(sl.x + aw + pad, B.y + pad, B.x + B.w - (sl.x + aw) - pad * 2, B.h - 2 * pad);
-        } else {
-          const aw = B.w * 0.66,
-            ah = Math.min(aw * 1.18, B.h * 0.5),
-            sl = R(B.x + (B.w - aw) / 2, B.y + pad * 1.1, aw, ah);
-          slots = [plain(sl, 'arch')];
-          photo = sl;
-          area = R(B.x + pad, sl.y + ah + pad * 0.6, B.w - 2 * pad, B.y + B.h - (sl.y + ah) - pad * 1.5);
-        }
-      } else if (id === 'cal-full') {
-        slots = [rs(B.x, B.y, B.w, B.h)];
-        L.band = land ? R(B.x + B.w * 0.56, B.y, B.w * 0.44, B.h) : R(B.x, B.y + B.h * 0.6, B.w, B.h * 0.4);
-        photo = land ? R(B.x, B.y, B.w * 0.56, B.h) : R(B.x, B.y, B.w, B.h * 0.6);
-        area = R(L.band.x + pad * 0.7, L.band.y + pad * 0.6, L.band.w - pad * 1.4, L.band.h - pad * 1.2);
-      } else {
-        // Dates only: occasion artwork around a paper card that holds the month.
-        L.frame = false;
-        L.bg = true;
-        L.paper = R(B.x + pad, B.y + pad * 1.4, B.w - 2 * pad, B.h - pad * 2.4);
-        area = R(L.paper.x + pad * 0.8, L.paper.y + pad * 0.8, L.paper.w - pad * 1.6, L.paper.h - pad * 1.6);
-      }
-      // Words: a caption line above the month, or laid over the photo.
-      const place = d.cal.text;
-      if (place === 'photo' && photo) {
-        const ip = Math.min(photo.w, photo.h) * 0.08;
-        L.text = R(photo.x + ip, photo.y + ip, photo.w - 2 * ip, photo.h - 2 * ip);
-        L.onPhoto = true;
-        L.ink = null; // white on the photo, not the paper's ink
-        L.scrimArea = photo;
-      }
-      // Share the area: caption line, month title, day grid, with real gaps between them. The grid keeps at least
-      // 60% of the height; the caption and title shrink together when space is short (landscape desk calendars).
-      const strip = id === 'cal-strip',
-        caption = place === 'caption' || (place === 'photo' && !photo),
-        gap = Math.max(u * 1.8, area.h * 0.03);
-      // Text size scales the caption line, and the title size scales the month title, before they share the room.
-      const ks = (v: number | undefined) => Math.min(1.8, Math.max(0.5, v || 1));
-      let ch = caption ? Math.min(area.h * 0.1, area.w * 0.075) * ks(d.textScale) : 0,
-        th = (strip ? Math.min(area.h * 0.14, area.w * 0.1) : Math.min(area.h * 0.17, area.w * 0.12)) * ks(d.cal.titleScale);
-      const gaps = gap * (caption ? 2 : 1),
-        room = area.h * 0.46 - gaps;
-      if (ch + th > room) {
-        const k = Math.max(0.5, room / (ch + th));
-        ch *= k;
-        th *= k;
-      }
-      let y = area.y;
-      if (caption) {
-        // One line above the month title, a step smaller than it.
-        L.text = R(area.x, y, area.w, ch);
-        L.textFill = 0.72;
-        L.textScaled = true;
-        y += ch + gap;
-      }
-      if (id === 'cal-bold') {
-        // The number is as tall as two title lines; the month name sits beside it on the number's baseline band.
-        const nh = Math.min(th * 1.7, area.h * 0.2),
-          nw = nh * 1.5,
-          tth = nh * 0.5;
-        L.calNum = R(area.x, y, nw, nh);
-        // Sized so the month name's baseline meets the number's baseline.
-        L.calTitle = R(area.x + nw + gap * 0.6, y + nh - tth * 0.78, area.w - nw - gap * 0.6, tth);
-        th = nh;
-      } else L.calTitle = R(area.x, y, area.w, th);
-      y += th + gap;
-      if (strip) L.calYear = R(area.x, y, area.w, area.y + area.h - y);
-      else L.calGrid = R(area.x, y, area.w, area.y + area.h - y);
-      break;
-    }
-
-    /* ---------- fridge magnets: small pieces, one idea each ---------- */
-    case 'mag-full':
-      L.bg = false;
-      slots = [rs(B.x, B.y, B.w, B.h)];
-      L.text = R(B.x + pad, B.y + pad, B.w - 2 * pad, B.h - 2 * pad);
-      L.onPhoto = true;
-      L.overlay = true;
-      break;
-    case 'mag-caption':
-    case 'mag-polaroid': {
-      L.frame = true;
-      L.bg = false;
-      L.ink = 'frame';
-      const pol = id === 'mag-polaroid',
-        side = m * (pol ? 0.075 : 0.05),
-        cap = B.h * (pol ? (land ? 0.25 : 0.22) : land ? 0.22 : 0.18);
-      const ph = R(B.x + side, B.y + side, B.w - 2 * side, B.h - side - cap);
-      slots = [plain(ph)];
-      L.text = R(ph.x + u * 1.5, ph.y + ph.h + cap * 0.14, ph.w - u * 3, cap * 0.72);
-      L.textCenter = true;
-      break;
-    }
-    case 'mag-duo':
-      L.bg = false;
-      L.frame = true;
-      slots = land
-        ? [rs(B.x, B.y, (B.w - g) / 2, B.h), rs(B.x + (B.w + g) / 2, B.y, (B.w - g) / 2, B.h)]
-        : [rs(B.x, B.y, B.w, (B.h - g) / 2), rs(B.x, B.y + (B.h + g) / 2, B.w, (B.h - g) / 2)];
-      break;
-    case 'mag-grid': {
-      L.bg = false;
-      L.frame = true;
-      const cw = (B.w - g) / 2,
-        ch = (B.h - g) / 2;
-      slots = [
-        rs(B.x, B.y, cw, ch),
-        rs(B.x + cw + g, B.y, cw, ch),
-        rs(B.x, B.y + ch + g, cw, ch),
-        rs(B.x + cw + g, B.y + ch + g, cw, ch),
-      ];
-      break;
-    }
-    case 'mag-badge': {
-      // A round photo inside a lettered ring: greeting on the top arc, signature on the bottom one.
-      const r = m / 2 - m * 0.035,
-        band = m * 0.13,
-        cx = B.x + B.w / 2,
-        cy = B.y + B.h / 2,
-        pr = r - band;
-      slots = [plain(R(cx - pr, cy - pr, pr * 2, pr * 2), 'circle')];
-      L.arc = { x: cx, y: cy, r, band };
-      break;
-    }
-    case 'mag-quote':
-      L.text = R(B.x + pad * 1.2, B.y + pad * 1.2, B.w - pad * 2.4, B.h - pad * 2.4);
-      break;
-  }
-  L.slots = slots.map((s) => {
-    if (!s.pts) return { ...s, d: s.bleed ? extend(s, B) : { x: s.x, y: s.y, w: s.w, h: s.h } };
-    // Polygon slots: corners on the trim edge move out into the bleed; d is their bounding box.
-    const tol = 0.5,
-      pts = s.pts.map(([x, y]): [number, number] => [
-        Math.abs(x - B.x) < tol ? x - B.e : Math.abs(x - B.x - B.w) < tol ? x + B.e : x,
-        Math.abs(y - B.y) < tol ? y - B.e : Math.abs(y - B.y - B.h) < tol ? y + B.e : y,
-      ]),
-      xs = pts.map((p) => p[0]),
-      ys = pts.map((p) => p[1]);
-    const d = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-    return { ...s, pts, d };
-  });
-  if (L.band) L.band = extend(L.band, B);
-  if (L.scrimArea) L.scrimArea = extend(L.scrimArea, B);
-  return L;
+  const context: LayoutContext = { id, box, design, landscape: box.w >= box.h, short, pad: short * 0.075, gap: short * 0.016, unit: short / 100, layout };
+  const slots = BUILDERS[id](context);
+  layout.slots = slots.map((slot) => finishSlot(slot, box));
+  if (layout.band) layout.band = extend(layout.band, box);
+  if (layout.scrimArea) layout.scrimArea = extend(layout.scrimArea, box);
+  return layout;
 }

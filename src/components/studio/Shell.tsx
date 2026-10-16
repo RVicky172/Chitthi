@@ -10,43 +10,76 @@ import { ImageIcon, LaptopIcon, Logo, ReelIcon, YouTubeIcon } from '../icons';
  * and inspector into one column, and phones stack everything.
  */
 
+/** What the studio makes: Instagram photos, Reels and Shorts, or YouTube videos. */
 export type StudioMode = 'photos' | 'reel' | 'vlog';
 
-export const MODES: { id: StudioMode; label: string; short: string; hash: string; icon: ReactNode }[] = [
+/** A studio mode in the top bar. */
+interface ModeDef {
+  id: StudioMode;
+  label: string;
+  /** The label on narrow screens. */
+  short: string;
+  /** Its route. */
+  hash: string;
+  icon: ReactNode;
+}
+
+/** The studio's modes, in the top bar's order. */
+export const MODES: ModeDef[] = [
   { id: 'photos', label: 'Instagram photos', short: 'Photos', hash: '#/instagram', icon: <ImageIcon /> },
   { id: 'reel', label: 'Reels & Shorts', short: 'Reels', hash: '#/instagram/video', icon: <ReelIcon /> },
   { id: 'vlog', label: 'YouTube video', short: 'YouTube', hash: '#/instagram/youtube', icon: <YouTubeIcon /> },
 ];
-export const modeOf = (hash: string): StudioMode => (/^#\/instagram\/youtube\b/.test(hash) ? 'vlog' : /^#\/instagram\/video\b/.test(hash) ? 'reel' : 'photos');
+/**
+ * The studio mode a route shows.
+ * @param hash the URL's hash
+ * @returns YouTube for #/instagram/youtube, Reels for #/instagram/video, else photos
+ */
+export function modeOf(hash: string): StudioMode {
+  if (/^#\/instagram\/youtube\b/.test(hash)) return 'vlog';
+  return /^#\/instagram\/video\b/.test(hash) ? 'reel' : 'photos';
+}
 
+/** A tool in the tool rail. */
 export interface RailItem<T extends string> {
   id: T;
   label: string;
   icon: ReactNode;
 }
 
-export function StudioShell<T extends string>(p: {
+/** The workspace's parts. */
+interface StudioShellProps<T extends string> {
   mode: StudioMode;
-  onMode: (m: StudioMode) => void;
+  onMode: (mode: StudioMode) => void;
+  /** The top bar's actions (undo, format, export). */
   actions: ReactNode;
   rail: RailItem<T>[];
+  /** The open tool, or null for none (the panel folds away). */
   tool: T | null;
-  onTool: (t: T | null) => void;
+  onTool: (tool: T | null) => void;
   panel: ReactNode;
   stage: ReactNode;
   inspector: ReactNode;
   dock: ReactNode;
+  /** Dialogs. */
   children?: ReactNode;
-}) {
+}
+
+/**
+ * The media studio's workspace (see the file's comment).
+ * @param props the mode, actions, rail and tool, and the panel, stage, inspector, dock and dialogs
+ */
+export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T>>) {
+  const { mode, onMode, actions, rail, tool, onTool, panel, stage, inspector, dock, children } = props;
   return (
-    <div className={`mst mst-${p.mode}${p.tool ? '' : ' mst-nopanel'}`}>
+    <div className={`mst mst-${mode}${tool ? '' : ' mst-nopanel'}`}>
       <header className="mst-top">
         <a
           className="mst-brand"
           href="#"
           aria-label="Chitthi Studio home"
-          onClick={(e) => {
-            e.preventDefault();
+          onClick={(event) => {
+            event.preventDefault();
             setUI({ screen: 'home' });
           }}
         >
@@ -56,61 +89,76 @@ export function StudioShell<T extends string>(p: {
           </span>
         </a>
         <nav className="mst-modes" aria-label="What to make">
-          {MODES.map((m) => (
-            <button key={m.id} type="button" aria-pressed={p.mode === m.id} onClick={() => p.onMode(m.id)} title={m.label}>
-              {m.icon}
-              <span className="mst-l">{m.label}</span>
-              <span className="mst-s">{m.short}</span>
+          {MODES.map((option) => (
+            <button key={option.id} type="button" aria-pressed={mode === option.id} onClick={() => onMode(option.id)} title={option.label}>
+              {option.icon}
+              <span className="mst-l">{option.label}</span>
+              <span className="mst-s">{option.short}</span>
             </button>
           ))}
         </nav>
-        <div className="mst-actions">{p.actions}</div>
+        <div className="mst-actions">{actions}</div>
       </header>
       <div className="mst-body">
         <nav className="mst-rail" aria-label="Tools">
-          {p.rail.map((r) => (
-            <button key={r.id} type="button" aria-pressed={p.tool === r.id} onClick={() => p.onTool(p.tool === r.id ? null : r.id)}>
-              {r.icon}
-              <span>{r.label}</span>
+          {rail.map((item) => (
+            <button key={item.id} type="button" aria-pressed={tool === item.id} onClick={() => onTool(tool === item.id ? null : item.id)}>
+              {item.icon}
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
         <div className="mst-side">
-          {p.tool && (
-            <section className="mst-panel" aria-label={`${p.rail.find((r) => r.id === p.tool)?.label} tools`}>
-              {p.panel}
+          {tool && (
+            <section className="mst-panel" aria-label={`${rail.find((item) => item.id === tool)?.label ?? ''} tools`}>
+              {panel}
             </section>
           )}
           <aside className="mst-inspector" aria-label="Inspector">
-            {p.inspector}
+            {inspector}
           </aside>
         </div>
-        <main className="mst-stage">{p.stage}</main>
+        <main className="mst-stage">{stage}</main>
       </div>
-      <footer className="mst-dock">{p.dock}</footer>
-      {p.children}
+      <footer className="mst-dock">{dock}</footer>
+      {children}
     </div>
   );
 }
 
-/** The largest size (CSS px) a w×h frame fits in the element, leaving a margin. */
-export function useFit(ref: RefObject<HTMLElement | null>, w: number, h: number, margin = 32): { width: number; height: number } {
+/**
+ * The largest size (CSS px) a frame fits in the element, leaving a margin (at least 120 px wide).
+ * @param ref the element
+ * @param frameWidth the frame's width (any unit)
+ * @param frameHeight its height
+ * @param margin the space left around it, in CSS px
+ * @returns the frame's size in CSS px
+ */
+export function useFit(ref: RefObject<HTMLElement | null>, frameWidth: number, frameHeight: number, margin = 32): { width: number; height: number } {
   const [box, setBox] = useState({ width: 0, height: 0 });
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setBox({ width: el.clientWidth, height: el.clientHeight }));
-    ro.observe(el);
-    setBox({ width: el.clientWidth, height: el.clientHeight });
-    return () => ro.disconnect();
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setBox({ width: element.clientWidth, height: element.clientHeight }));
+    // Observing calls back once with the current size, before the next paint.
+    observer.observe(element);
+    return () => observer.disconnect();
   }, [ref]);
-  const k = Math.min((box.width - margin) / w, (box.height - margin) / h);
-  const width = Math.max(120, Math.floor(w * (Number.isFinite(k) && k > 0 ? k : 0.3)));
-  return { width, height: Math.round((width * h) / w) };
+  const scale = Math.min((box.width - margin) / frameWidth, (box.height - margin) / frameHeight);
+  const width = Math.max(120, Math.floor(frameWidth * (Number.isFinite(scale) && scale > 0 ? scale : 0.3)));
+  return { width, height: Math.round((width * frameHeight) / frameWidth) };
 }
 
-/** A note that browser editing is limited and the desktop app is the full studio. */
-export function DesktopNote({ children }: { children: ReactNode }) {
+/** The desktop note's text. */
+interface DesktopNoteProps {
+  children: ReactNode;
+}
+
+/**
+ * A note that browser editing is limited and the desktop app is the full studio (nothing in the desktop app).
+ * @param props the note's text
+ */
+export function DesktopNote({ children }: Readonly<DesktopNoteProps>) {
   if (isDesktop) return null;
   return (
     <p className="mst-note">

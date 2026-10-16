@@ -39,3 +39,6 @@ Print Samples/
 
 # roadmap dashboard build (npm run roadmap builds it on start)
 tools/roadmap-dashboard/.build/
+
+# the standards report (npm run standards, feature 407)
+standards-report.json

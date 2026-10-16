@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-12)
+## Current State (2026-10-16)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -41,8 +41,12 @@
   timeline cuts; AC-6 (self-test), 8–10, 12–14 wait for 290. Entry 327 KB.
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
-- **Next (roadmap):** merge 206 into `main`; then 207 (speed) or 208 (audio tracks, builds on 205 / 206 sound),
-  branched from `main`; 290 collects the deferred checks.
+- **206 merged** into `main` and pushed (`797bbf2`, 2026-10-13).
+- **407:** `407-code-structure` ✔️ Implemented 2026-10-16, merged into `main` (not pushed): tests in
+  `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md` (AC-4), every standards rule an error for
+  `src/`, `electron/`, `tests/` (`FINISHED`), standards report 0, `noUncheckedIndexedAccess` for `src/`; React
+  Compiler off (D-046); performance review `performance.md` (D-047); entry 313 KB (was 327). D-037–D-048.
+- **Next (roadmap):** 207 (speed) branches from `main`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

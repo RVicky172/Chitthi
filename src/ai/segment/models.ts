@@ -8,6 +8,7 @@ import u2netpUrl from './models/u2netp.onnx?url';
  * first use, only after the user agrees, from a pinned revision, and checked against its SHA-256 before it is used.
  */
 
+/** A segmentation model and its file. */
 export interface SegModel {
   id: string;
   title: string;
@@ -20,10 +21,13 @@ export interface SegModel {
   source: string;
 }
 
+/** The models' input side, in pixels. */
 export const SEG_INPUT = 320;
+/** ImageNet's mean and deviation per colour, for normalising the input. */
 export const SEG_MEAN = [0.485, 0.456, 0.406] as const;
 export const SEG_STD = [0.229, 0.224, 0.225] as const;
 
+/** The model for each target. */
 export const SEG_MODELS: Record<AiTarget, SegModel> = {
   subject: {
     id: 'u2netp',
@@ -47,13 +51,21 @@ export const SEG_MODELS: Record<AiTarget, SegModel> = {
   },
 };
 
-/** "176 MB", for asking before a download. */
+/**
+ * A model's size for asking before a download.
+ * @param bytes the size in bytes
+ * @returns "176 MB"
+ */
 export const sizeText = (bytes: number): string => `${Math.round(bytes / 1e6)} MB`;
 
 /** Where a model is: part of the app, in the device's private storage, only in memory for this session, or absent. */
 export type ModelState = 'bundled' | 'stored' | 'session' | 'none';
 
-/** A model's row in Settings › AI models on this device (401). */
+/**
+ * A model's row in Settings › AI models on this device (401).
+ * @param state where the model is
+ * @returns the status shown and whether it can be deleted
+ */
 export function modelRow(state: ModelState): { status: string; canDelete: boolean } {
   const status = {
     bundled: 'Part of the app',

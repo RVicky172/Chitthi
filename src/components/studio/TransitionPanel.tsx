@@ -2,21 +2,42 @@
 // inspector for the selected one. The panel's previews are drawn with the same ops as the preview and the export
 // (transitionOps), on two coloured cards.
 import { useEffect, useRef } from 'react';
-import { DIRECTIONS, TRANSITION_KINDS, TRANSITION_LIMITS, roomFor, transitionOps, type Direction, type TransitionKind } from '../../engine/transitions';
+import {
+  DIRECTIONS,
+  TRANSITION_KINDS,
+  TRANSITION_LIMITS,
+  roomFor,
+  transitionOps,
+  type Direction,
+  type TransitionKind,
+} from '../../engine/transitions';
+import { isOneOf } from '../../engine/guards';
 import { toast } from '../../lib/toast';
-import { getVideo, removeTransition, selectTransition, setTransition, transitionEveryCut, useVideo, type VClip } from '../../state/video';
+import { getVideo, selectTransition, useVideo, type VClip } from '../../state/videoStore';
+import { removeTransition, setTransition, transitionEveryCut } from '../../state/videoTransitions';
 import { Seg } from '../common';
-import { LpRange } from '../ig/LayerPanel';
+import { LpRange } from '../ig/LayerControls';
+import { tell } from './timelineActions';
 import { TRANSITION_NAMES, panelCut } from './timelineRows';
 
+/** The directions' names. */
 const DIRECTION_NAMES: Record<Direction, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down' };
 
-/** Shows a refusal instead of dropping it. */
-const tell = (refusal: string | null) => refusal && toast(refusal);
+/**
+ * Whether the user asked for less motion.
+ * @returns true with prefers-reduced-motion (false where it can't be asked)
+ */
+const reducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  'matchMedia' in window &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
-/** Draws a kind at `progress` on a small canvas: an orange card turning into a blue one, with the kind's ops. */
+/**
+ * Draws a kind at `progress` on a small canvas: an orange card turning into a blue one, with the kind's ops.
+ * @param context the preview's canvas
+ * @param kind the transition's kind
+ * @param progress 0–1 through it
+ */
 function drawCard(context: CanvasRenderingContext2D, kind: TransitionKind, progress: number): void {
   const { width, height } = context.canvas;
   context.clearRect(0, 0, width, height);
@@ -48,8 +69,16 @@ function drawCard(context: CanvasRenderingContext2D, kind: TransitionKind, progr
   }
 }
 
-/** A kind's small preview: looping over 1.6 s (0.4 s held at each end), a still halfway with reduced motion. */
-function KindPreview({ kind }: { kind: TransitionKind }) {
+/** A kind's preview. */
+interface KindPreviewProps {
+  kind: TransitionKind;
+}
+
+/**
+ * A kind's small preview: looping over 1.6 s (0.4 s held at each end), a still halfway with reduced motion.
+ * @param props the kind
+ */
+function KindPreview({ kind }: Readonly<KindPreviewProps>) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const context = canvas.current?.getContext('2d');
@@ -77,12 +106,12 @@ function KindPreview({ kind }: { kind: TransitionKind }) {
  */
 export function TransitionPanel() {
   // Read field by field (a selector returning a new object would change on every read).
-  const clips = useVideo((s) => s.clips),
-    tracks = useVideo((s) => s.tracks),
-    selected = useVideo((s) => s.selected),
-    transitionSel = useVideo((s) => s.transitionSel);
+  const clips = useVideo((state) => state.clips);
+  const tracks = useVideo((state) => state.tracks);
+  const selected = useVideo((state) => state.selected);
+  const transitionSel = useVideo((state) => state.transitionSel);
   const target = panelCut({ clips, tracks, selected, transitionSel });
-  const current = 'clip' in target ? clips.find((c) => c.id === target.clip)?.transition : undefined;
+  const current = 'clip' in target ? clips.find((clip) => clip.id === target.clip)?.transition : undefined;
   const choose = (kind: TransitionKind) => {
     if (!('clip' in target)) return;
     const refusal = setTransition(target.clip, { kind });
@@ -99,14 +128,25 @@ export function TransitionPanel() {
       )}
       <div className="tr-kinds" role="group" aria-label="Transitions">
         {TRANSITION_KINDS.map((kind) => (
-          <button key={kind} type="button" className="tr-kind" aria-pressed={current?.kind === kind} disabled={'why' in target} onClick={() => choose(kind)}>
+          <button
+            key={kind}
+            type="button"
+            className="tr-kind"
+            aria-pressed={current?.kind === kind}
+            disabled={'why' in target}
+            onClick={() => choose(kind)}
+          >
             <KindPreview kind={kind} />
             <span>{TRANSITION_NAMES[kind]}</span>
           </button>
         ))}
       </div>
       {'clip' in target && (
-        <button type="button" className="btn" onClick={() => tell(transitionEveryCut(target.track, current?.kind ?? 'dissolve'))}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => tell(transitionEveryCut(target.track, current?.kind ?? 'dissolve'))}
+        >
           Apply {TRANSITION_NAMES[current?.kind ?? 'dissolve'].toLowerCase()} to every cut
         </button>
       )}
@@ -114,20 +154,31 @@ export function TransitionPanel() {
   );
 }
 
-/** A clip's name in the panel's sentence. */
+/**
+ * A clip's name in the panel's sentence.
+ * @param id the clip
+ * @returns its name in quotes, or "this clip"
+ */
 function clipName(id: string): string {
-  const clip = getVideo().clips.find((c) => c.id === id);
+  const clip = getVideo().clips.find((candidate) => candidate.id === id);
   return clip ? `“${clip.name}”` : 'this clip';
+}
+
+/** The transition inspector. */
+interface TransitionInspectorProps {
+  /** The clip before the cut. */
+  clip: VClip;
 }
 
 /**
  * The inspector for the selected cut's transition: its kind, direction (wipe, slide) or colour (dip), its length in
  * whole frames up to its room, and Remove transition. Each change is one undo step; a length drag is one step.
+ * @param props the clip before the cut
  */
-export function TransitionInspector({ clip }: { clip: VClip }) {
-  const transition = clip.transition;
-  const fps = useVideo((s) => s.fps);
-  const clips = useVideo((s) => s.clips);
+export function TransitionInspector({ clip }: Readonly<TransitionInspectorProps>) {
+  const { transition } = clip;
+  const fps = useVideo((state) => state.fps);
+  const clips = useVideo((state) => state.clips);
   if (!transition) {
     return (
       <div className="lp">
@@ -138,16 +189,26 @@ export function TransitionInspector({ clip }: { clip: VClip }) {
       </div>
     );
   }
-  const next = clips.find((c) => c.id === transition.to);
-  const room = next ? roomFor({ ...clip, transition: undefined }, next, clips.map((c) => (c.id === clip.id ? { ...c, transition: undefined } : c))) : transition.dur;
-  const most = Math.max(TRANSITION_LIMITS.min, Math.floor(Math.min(TRANSITION_LIMITS.max, room) * fps + 1e-6) / fps);
+  const next = clips.find((candidate) => candidate.id === transition.to);
+  const withoutIt = clips.map((candidate) =>
+    candidate.id === clip.id ? { ...candidate, transition: undefined } : candidate,
+  );
+  const room = next ? roomFor({ ...clip, transition: undefined }, next, withoutIt) : transition.dur;
+  const longest = Math.max(TRANSITION_LIMITS.min, Math.floor(Math.min(TRANSITION_LIMITS.max, room) * fps + 1e-6) / fps);
   return (
     <div className="lp">
       <div className="ig-group">
         <h3>{TRANSITION_NAMES[transition.kind]}</h3>
         <div className="ig-slider">
           <label htmlFor="tr-kind">Kind</label>
-          <select id="tr-kind" value={transition.kind} onChange={(e) => tell(setTransition(clip.id, { kind: e.target.value as TransitionKind }))}>
+          <select
+            id="tr-kind"
+            value={transition.kind}
+            onChange={(event) => {
+              const kind = event.target.value;
+              if (isOneOf(TRANSITION_KINDS, kind)) tell(setTransition(clip.id, { kind }));
+            }}
+          >
             {TRANSITION_KINDS.map((kind) => (
               <option key={kind} value={kind}>
                 {TRANSITION_NAMES[kind]}
@@ -179,7 +240,7 @@ export function TransitionInspector({ clip }: { clip: VClip }) {
           label="Length"
           value={transition.dur}
           min={TRANSITION_LIMITS.min}
-          max={most}
+          max={longest}
           step={1 / fps}
           show={`${transition.dur.toFixed(2)} s`}
           onChange={(dur) => tell(setTransition(clip.id, { dur }, `tr-length:${clip.id}`))}

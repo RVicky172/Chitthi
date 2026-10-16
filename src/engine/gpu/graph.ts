@@ -27,6 +27,7 @@ export interface DataInput {
 /** What a node reads: the node just before it, the graph's input, the output of an earlier node (its index), or data. */
 export type NodeInput = 'prev' | 'source' | number | DataInput;
 
+/** One step of a render graph. */
 export interface GraphNode {
   program: GpuProgram;
   /** program.uniforms × 4 floats. */
@@ -45,43 +46,103 @@ export const DATA_KEPT = 12;
 export class TexturePool {
   private free = new Map<string, GpuTexture[]>();
   private kept = new Map<string, GpuTexture>();
-  private readonly dev: GpuDevice;
-  constructor(dev: GpuDevice) {
-    this.dev = dev;
+  private readonly device: GpuDevice;
+
+  /**
+   * A pool for a device.
+   * @param device the device its textures belong to
+   */
+  constructor(device: GpuDevice) {
+    this.device = device;
   }
+
+  /**
+   * A render target of a size: a spare one, or a new one.
+   * @param width px
+   * @param height px
+   * @returns the target
+   */
   take(width: number, height: number): GpuTexture {
-    return this.free.get(`${width}x${height}`)?.pop() ?? this.dev.target(width, height);
+    return this.free.get(`${width}x${height}`)?.pop() ?? this.device.target(width, height);
   }
-  give(t: GpuTexture): void {
-    const k = `${t.width}x${t.height}`;
-    const list = this.free.get(k) ?? [];
+
+  /**
+   * Gives a render target back, to reuse (or frees it when enough of its size are spare).
+   * @param texture the target
+   */
+  give(texture: GpuTexture): void {
+    const size = `${texture.width}x${texture.height}`;
+    const list = this.free.get(size) ?? [];
     // Enough for the busiest graph (a picture, a blur in two passes and the haze map at once) to run frame after frame
     // without allocating; more would only hold memory.
-    if (list.length >= SPARES) this.dev.release(t);
-    else this.free.set(k, [...list, t]);
+    if (list.length >= SPARES) this.device.release(texture);
+    else this.free.set(size, [...list, texture]);
   }
-  /** The texture for a data input, uploaded on first use; the least recently used goes once DATA_KEPT are held. */
-  data(d: DataInput): GpuTexture {
-    let t = this.kept.get(d.key);
-    if (t) this.kept.delete(d.key);
-    else if (d.rgba) t = this.dev.uploadData(d.rgba, d.width, d.height);
-    else if (d.r8) t = this.dev.uploadMask(d.r8, d.width, d.height);
-    else if (d.image) t = this.dev.upload(d.image, d.width, d.height);
-    else throw new Error(`data input ${d.key} has no contents`);
-    this.kept.set(d.key, t);
-    for (const [k, old] of this.kept) {
+
+  /**
+   * The texture for a data input, uploaded on first use; the least recently used goes once DATA_KEPT are held.
+   * @param input the data input
+   * @returns its texture
+   * @throws when the input has no contents
+   */
+  data(input: DataInput): GpuTexture {
+    let texture = this.kept.get(input.key);
+    if (texture) this.kept.delete(input.key);
+    else if (input.rgba) texture = this.device.uploadData(input.rgba, input.width, input.height);
+    else if (input.r8) texture = this.device.uploadMask(input.r8, input.width, input.height);
+    else if (input.image) texture = this.device.upload(input.image, input.width, input.height);
+    else throw new Error(`data input ${input.key} has no contents`);
+    this.kept.set(input.key, texture);
+    for (const [key, old] of this.kept) {
       if (this.kept.size <= DATA_KEPT) break;
-      this.dev.release(old);
-      this.kept.delete(k);
+      this.device.release(old);
+      this.kept.delete(key);
     }
-    return t;
+    return texture;
   }
+
+  /** Frees every texture the pool holds. */
   clear(): void {
-    for (const list of this.free.values()) for (const t of list) this.dev.release(t);
+    for (const list of this.free.values()) for (const texture of list) this.device.release(texture);
     this.free.clear();
-    for (const t of this.kept.values()) this.dev.release(t);
+    for (const texture of this.kept.values()) this.device.release(texture);
     this.kept.clear();
   }
+}
+
+/** A node's input, resolved: an earlier node's index (-1 for the graph's input) or a data texture. */
+type ResolvedInput = number | GpuTexture;
+
+/**
+ * A node's input, resolved.
+ * @param input the input as the node names it
+ * @param index the node's index
+ * @param pool the pool that holds data textures
+ * @returns a node index (-1 for the graph's input) or a data texture
+ */
+function resolveInput(input: NodeInput, index: number, pool: TexturePool): ResolvedInput {
+  if (input === 'prev') return index - 1;
+  if (input === 'source') return -1;
+  return typeof input === 'number' ? input : pool.data(input);
+}
+
+/**
+ * The last node that reads each node's output.
+ * @param steps the nodes
+ * @param inputs each node's resolved inputs
+ * @returns per node, the index of its last reader, or -1 when nothing reads it
+ * @throws when a node reads a node that comes after it
+ */
+function lastReaders(steps: readonly GraphNode[], inputs: readonly ResolvedInput[][]): number[] {
+  const lastUse = steps.map(() => -1);
+  inputs.forEach((resolved, index) => {
+    for (const input of resolved) {
+      if (typeof input !== 'number') continue;
+      if (input >= index) throw new Error(`node ${index} (${steps.at(index)?.program.id ?? ''}) reads node ${input}, which comes after it`);
+      if (input >= 0) lastUse[input] = Math.max(lastUse.at(input) ?? -1, index);
+    }
+  });
+  return lastUse;
 }
 
 /**
@@ -89,44 +150,46 @@ export class TexturePool {
  * done). With no nodes the result is a copy of the input, so callers handle one case. A node may read any earlier
  * node's output (a blur beside the picture it blurs, for sharpening); each output goes back to the pool as soon as no
  * later node needs it.
+ * @param device the device
+ * @param pool its texture pool
+ * @param input the graph's input picture
+ * @param nodes the nodes, in order
+ * @returns the last node's output
  */
-export function runNodes(
-  dev: GpuDevice,
-  pool: TexturePool,
-  input: GpuTexture,
-  nodes: readonly GraphNode[],
-): GpuTexture {
+export function runNodes(device: GpuDevice, pool: TexturePool, input: GpuTexture, nodes: readonly GraphNode[]): GpuTexture {
   const steps = nodes.length ? nodes : [{ program: COPY_PROGRAM, uniforms: new Float32Array(4) }];
-  // Each input as a node index (-1 for the graph's input) or a data texture.
-  const refs = steps.map((n, i) =>
-    (n.inputs ?? ['prev']).map((r): number | GpuTexture => (r === 'prev' ? i - 1 : r === 'source' ? -1 : typeof r === 'number' ? r : pool.data(r))),
-  );
+  const inputs = steps.map((node, index) => (node.inputs ?? ['prev']).map((named) => resolveInput(named, index, pool)));
   // The last node that reads each output; the final output is kept for the caller.
-  const lastUse = steps.map(() => -1);
-  refs.forEach((rs, i) =>
-    rs.forEach((r) => {
-      if (typeof r !== 'number') return;
-      if (r >= i) throw new Error(`node ${i} (${steps[i].program.id}) reads node ${r}, which comes after it`);
-      if (r >= 0) lastUse[r] = Math.max(lastUse[r], i);
-    }),
-  );
-  const outs: (GpuTexture | null)[] = steps.map(() => null);
-  steps.forEach((n, i) => {
-    const out = pool.take(input.width, input.height);
-    dev.pass(
-      n.program,
-      refs[i].map((r) => (typeof r !== 'number' ? r : r < 0 ? input : outs[r]!)),
-      n.uniforms,
-      out,
+  const lastUse = lastReaders(steps, inputs);
+  const last = steps.length - 1;
+  const outputs: (GpuTexture | null)[] = steps.map(() => null);
+  const outputOf = (index: number): GpuTexture => {
+    const output = outputs.at(index);
+    if (!output) throw new Error(`node ${index}'s output is gone`);
+    return output;
+  };
+  steps.forEach((node, index) => {
+    const resolved = inputs.at(index) ?? [];
+    const output = pool.take(input.width, input.height);
+    device.pass(
+      node.program,
+      resolved.map((reference) => {
+        if (typeof reference !== 'number') return reference;
+        return reference < 0 ? input : outputOf(reference);
+      }),
+      node.uniforms,
+      output,
     );
-    outs[i] = out;
-    for (const r of refs[i])
-      if (typeof r === 'number' && r >= 0 && lastUse[r] === i && r !== steps.length - 1) {
-        pool.give(outs[r]!);
-        outs[r] = null;
+    outputs[index] = output;
+    for (const reference of resolved)
+      if (typeof reference === 'number' && reference >= 0 && lastUse.at(reference) === index && reference !== last) {
+        pool.give(outputOf(reference));
+        outputs[reference] = null;
       }
   });
   // Outputs nobody read (they shouldn't exist, but never leak them).
-  outs.forEach((t, i) => t && i !== steps.length - 1 && lastUse[i] < 0 && pool.give(t));
-  return outs[steps.length - 1]!;
+  outputs.forEach((output, index) => {
+    if (output && index !== last && (lastUse.at(index) ?? -1) < 0) pool.give(output);
+  });
+  return outputOf(last);
 }

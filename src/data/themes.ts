@@ -1,6 +1,6 @@
 import type { Theme } from '../types';
 
-export const TH: Theme[] = [
+export const TH: [Theme, ...Theme[]] = [
   // Festivals
   {
     id: 'diwali',
@@ -537,7 +537,12 @@ export const TH: Theme[] = [
   },
 ];
 
-export const themeById = (id: string): Theme => TH.find((t) => t.id === id) ?? TH[0];
+/**
+ * A theme by its id.
+ * @param id the theme (possibly from storage)
+ * @returns the theme, or the first theme for an unknown id
+ */
+export const themeById = (id: string): Theme => TH.find((theme) => theme.id === id) ?? TH[0];
 
 export const PLAIN = {
   heads: ['Hello!', 'Thinking of you', 'Thank you', 'Congratulations', 'Best wishes', 'Greetings from the hills'],

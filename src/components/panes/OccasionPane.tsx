@@ -5,10 +5,11 @@ import type { ThemeGroup } from '../../types';
 import { ThemeTile } from '../canvases';
 import { Check, Pane, Section, Seg } from '../common';
 
+/** The Occasion pane: the occasion themes, or a plain card with its own colours. */
 export function OccasionPane() {
-  const d = useApp((s) => s.design),
-    fontTick = useApp((s) => s.ui.fontTick);
-  const theme = themeById(d.themeId);
+  const design = useApp((state) => state.design),
+    fontTick = useApp((state) => state.ui.fontTick);
+  const theme = themeById(design.themeId);
   return (
     <Pane
       title="Occasion"
@@ -17,19 +18,19 @@ export function OccasionPane() {
       onNext={() => setUI({ pane: 'words' })}
     >
       <label className="switch">
-        <input type="checkbox" checked={d.useOccasion} onChange={(e) => setOccasion(e.target.checked)} />
+        <input type="checkbox" checked={design.useOccasion} onChange={(event) => setOccasion(event.target.checked)} />
         <span className="track" />
         <span>
           <b>Add an occasion</b>
-          <small>{d.useOccasion ? `Using ${theme.name}` : 'Off: plain card with your own colours'}</small>
+          <small>{design.useOccasion ? `Using ${theme.name}` : 'Off: plain card with your own colours'}</small>
         </span>
       </label>
-      {d.useOccasion ? (
+      {design.useOccasion ? (
         <Section id="occasion.themes" title="Occasions" note={theme.name}>
           <div>
             <Seg<ThemeGroup>
               label="Occasion type"
-              value={d.group}
+              value={design.group}
               options={[
                 ['Festivals', 'Festivals'],
                 ['Birthdays', 'Birthdays'],
@@ -39,24 +40,24 @@ export function OccasionPane() {
             />
           </div>
           <div className="grid">
-            {TH.filter((t) => t.g === d.group).map((t) => (
+            {TH.filter((candidate) => candidate.g === design.group).map((occasion) => (
               <button
-                key={t.id}
+                key={occasion.id}
                 type="button"
                 className="tile theme"
-                aria-pressed={t.id === d.themeId}
-                onClick={() => applyTheme(t.id)}
+                aria-pressed={occasion.id === design.themeId}
+                onClick={() => applyTheme(occasion.id)}
               >
-                <ThemeTile theme={t} fontTick={fontTick} />
-                <span>{t.name}</span>
+                <ThemeTile theme={occasion} fontTick={fontTick} />
+                <span>{occasion.name}</span>
               </button>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-            <Check checked={d.artwork} onChange={(artwork) => setDesign({ artwork })}>
+            <Check checked={design.artwork} onChange={(artwork) => setDesign({ artwork })}>
               Show occasion artwork on the background
             </Check>
-            <Check checked={d.decor} onChange={(decor) => setDesign({ decor })}>
+            <Check checked={design.decor} onChange={(decor) => setDesign({ decor })}>
               {theme.name} decorations over full-size photos
             </Check>
           </div>
@@ -64,15 +65,19 @@ export function OccasionPane() {
       ) : (
         <Section id="occasion.plain" title="Plain card colours">
           <div className="inline" style={{ marginTop: 10 }}>
-            {(['bg', 'ink', 'accent'] as const).map((k) => (
-              <label key={k} className="f">
-                {{ bg: 'Background', ink: 'Text', accent: 'Accent' }[k]}
-                <input type="color" value={d.plain[k]} onChange={(e) => setPlain({ [k]: e.target.value })} />
+            {(['bg', 'ink', 'accent'] as const).map((role) => (
+              <label key={role} className="f">
+                {{ bg: 'Background', ink: 'Text', accent: 'Accent' }[role]}
+                <input
+                  type="color"
+                  value={design.plain[role]}
+                  onChange={(event) => setPlain({ [role]: event.target.value })}
+                />
               </label>
             ))}
           </div>
           <div style={{ marginTop: 8 }}>
-            <Check checked={d.plain.gradient} onChange={(gradient) => setPlain({ gradient })}>
+            <Check checked={design.plain.gradient} onChange={(gradient) => setPlain({ gradient })}>
               Soft gradient
             </Check>
           </div>

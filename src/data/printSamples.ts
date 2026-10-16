@@ -8,6 +8,7 @@ import { themeById } from './themes';
  * fetched with npm run fetch:print-samples.
  */
 
+/** A print sample: a product, size and orientation in a theme, with its photos. */
 export interface PrintSampleDef {
   /** Folder name, e.g. "P1-Diwali-4x6-vertical". */
   id: string;
@@ -110,20 +111,25 @@ export const PRINT_SAMPLES: PrintSampleDef[] = [
   { id: 'C6-Festivals-A5-desk-horizontal', title: 'Festivals of India', product: 'calendar', sizeId: 'cal-a5', orient: 'landscape', themeId: 'holi', layout: 'cal-side', photos: MONTHS_B, captions: CAPTIONS_B },
 ];
 
-/** The design for a sample, built on a fresh design of its product. The postcard back is left blank to write on. */
+/**
+ * The design for a sample, built on a fresh design of its product. The postcard back is left blank to write on.
+ * @param def the sample
+ * @param base a fresh design of the sample's product
+ * @returns the sample's design
+ */
 export function printSampleDesign(def: PrintSampleDef, base: Design): Design {
-  const t = themeById(def.themeId);
-  const d: Design = {
+  const theme = themeById(def.themeId);
+  const design: Design = {
     ...base,
     designName: def.id,
     useOccasion: true,
     themeId: def.themeId,
-    group: t.g || base.group,
-    heading: def.heading ?? (def.product === 'calendar' ? def.title : t.heads[0]),
-    quote: t.quotes[0],
+    group: theme.g || base.group,
+    heading: def.heading ?? (def.product === 'calendar' ? def.title : (theme.heads[0] ?? base.heading)),
+    quote: theme.quotes[0] ?? base.quote,
     sig: 'With love',
-    headFont: t.hf,
-    quoteFont: t.qf,
+    headFont: theme.hf,
+    quoteFont: theme.qf,
     sizeId: def.sizeId,
     orient: def.orient,
     layout: def.layout,
@@ -134,7 +140,7 @@ export function printSampleDesign(def: PrintSampleDef, base: Design): Design {
     env: { ...base.env, on: false },
   };
   if (def.product === 'calendar')
-    d.cal = {
+    design.cal = {
       ...base.cal,
       year: PRINT_SAMPLE_YEAR,
       start: 0,
@@ -144,5 +150,5 @@ export function printSampleDesign(def: PrintSampleDef, base: Design): Design {
       captions: def.captions ?? base.cal.captions,
       titleAlign: 'left',
     };
-  return d;
+  return design;
 }

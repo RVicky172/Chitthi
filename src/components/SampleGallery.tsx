@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { PRODUCTS } from '../data/products';
-import { SAMPLES, buildSample, sampleCredits, type SampleCredit, type SampleDef } from '../data/samples';
+import { SAMPLES, type SampleCredit, type SampleDef } from '../data/samples';
 import { cardMM } from '../engine/design';
 import { renderCard } from '../engine/render';
 import { ensureFonts, fontsFor } from '../lib/fonts';
 import { open3D, openSample } from '../state/actions';
+import { buildSample, sampleCredits } from '../state/samples';
 import { CubeIcon, ProductIcon } from './icons';
 
 interface Rendered {
@@ -25,27 +26,37 @@ const cache = new Map<string, Rendered>();
 async function renderSample(def: SampleDef, credits: SampleCredit[]): Promise<Rendered> {
   const hit = cache.get(def.id);
   if (hit) return hit;
-  const s = await buildSample(def, credits);
-  await ensureFonts(fontsFor(s.design));
-  const { w, h } = cardMM(s.design),
+  const sample = await buildSample(def, credits);
+  await ensureFonts(fontsFor(sample.design));
+  const { w, h } = cardMM(sample.design),
     px = 640 / Math.max(w, h),
     face = (side: 'front' | 'back') => {
       const cv = document.createElement('canvas');
-      renderCard(cv, side, px, 0, { d: s.design, photos: s.photos });
+      renderCard(cv, side, px, 0, { d: sample.design, photos: sample.photos });
       return cv.toDataURL('image/jpeg', 0.86);
     };
-  const r = { def, credits: s.credits, all: credits, front: face('front'), back: face('back'), w, h };
-  cache.set(def.id, r);
-  return r;
+  const rendered = { def, credits: sample.credits, all: credits, front: face('front'), back: face('back'), w, h };
+  cache.set(def.id, rendered);
+  return rendered;
 }
 
-async function applySample(r: Rendered): Promise<void> {
-  const s = await buildSample(r.def, r.all);
-  await openSample(s.design, s.photos);
+async function applySample(rendered: Rendered): Promise<void> {
+  const sample = await buildSample(rendered.def, rendered.all);
+  await openSample(sample.design, sample.photos);
 }
 
-function Credit({ credits }: { credits: SampleCredit[] }) {
-  const [first, ...rest] = credits;
+/** A sample's photo credits. */
+interface CreditProps {
+  credits: SampleCredit[];
+}
+
+/**
+ * The first photographer and Pexels, with how many more.
+ * @param props the credits
+ */
+function Credit({ credits }: Readonly<CreditProps>) {
+  const first = credits.at(0),
+    rest = credits.slice(1);
   if (!first) return null;
   return (
     <small className="credit">
@@ -61,20 +72,43 @@ function Credit({ credits }: { credits: SampleCredit[] }) {
   );
 }
 
-function SampleCard({ r }: { r: Rendered }) {
-  const view = () => void open3D({ front: r.front, back: r.back, w: r.w, h: r.h, round: false, title: r.def.title });
+/** A rendered sample. */
+interface SampleCardProps {
+  sample: Rendered;
+}
+
+/**
+ * A sample's card: its front (turning to the back on hover), title, credits, Use this and 3D.
+ * @param props the rendered sample
+ */
+function SampleCard({ sample }: Readonly<SampleCardProps>) {
+  const view = () =>
+    void open3D({
+      front: sample.front,
+      back: sample.back,
+      w: sample.w,
+      h: sample.h,
+      round: false,
+      title: sample.def.title,
+    });
   return (
     <article className="gcard">
       <button type="button" className="gthumb" title="Open in 3D" onClick={view}>
-        <div className="flipper" style={{ width: r.w >= r.h ? '100%' : `${(r.w / r.h) * 100}%`, aspectRatio: `${r.w}/${r.h}` }}>
-          <img src={r.front} alt={`Front of the ${r.def.title} sample`} />
-          <img className="b" src={r.back} alt="" />
+        <div
+          className="flipper"
+          style={{
+            width: sample.w >= sample.h ? '100%' : `${(sample.w / sample.h) * 100}%`,
+            aspectRatio: `${sample.w}/${sample.h}`,
+          }}
+        >
+          <img src={sample.front} alt={`Front of the ${sample.def.title} sample`} />
+          <img className="b" src={sample.back} alt="" />
         </div>
       </button>
-      <b>{r.def.title}</b>
-      <Credit credits={r.credits} />
+      <b>{sample.def.title}</b>
+      <Credit credits={sample.credits} />
       <div className="acts">
-        <button type="button" className="sbtn accent" onClick={() => void applySample(r)}>
+        <button type="button" className="sbtn accent" onClick={() => void applySample(sample)}>
           Use this
         </button>
         <button type="button" className="sbtn" onClick={view}>
@@ -89,13 +123,16 @@ function SampleCard({ r }: { r: Rendered }) {
 /** Ready-made postcards, calendars and frames built from Pexels photos, grouped by product. */
 export function SampleGallery() {
   const [state, setState] = useState<'loading' | 'missing' | 'ready'>('loading');
-  const [done, setDone] = useState<Rendered[]>(() => SAMPLES.map((d) => cache.get(d.id)).filter((r): r is Rendered => !!r));
+  const [done, setDone] = useState<Rendered[]>(() =>
+    SAMPLES.map((definition) => cache.get(definition.id)).filter((rendered): rendered is Rendered => !!rendered),
+  );
 
   useEffect(() => {
-    let live = true;
+    const closed = new AbortController(),
+      isClosed = () => closed.signal.aborted;
     void (async () => {
       const credits = await sampleCredits();
-      if (!live) return;
+      if (isClosed()) return;
       if (!credits) {
         setState('missing');
         return;
@@ -104,9 +141,9 @@ export function SampleGallery() {
       // One at a time, yielding between samples, so the dialog stays responsive while they render.
       for (const def of SAMPLES) {
         try {
-          const r = await renderSample(def, credits);
-          if (!live) return;
-          setDone((cur) => (cur.some((x) => x.def.id === def.id) ? cur : [...cur, r]));
+          const rendered = await renderSample(def, credits);
+          if (isClosed()) return;
+          setDone((shown) => (shown.some((other) => other.def.id === def.id) ? shown : [...shown, rendered]));
         } catch {
           /* a photo failed to load: skip this sample */
         }
@@ -114,30 +151,29 @@ export function SampleGallery() {
       }
     })();
     return () => {
-      live = false;
+      closed.abort();
     };
   }, []);
 
-  if (state === 'missing')
-    return <div className="empty">Sample designs aren’t included in this build.</div>;
+  if (state === 'missing') return <div className="empty">Sample designs aren’t included in this build.</div>;
 
   return (
     <>
-      {PRODUCTS.map((p) => {
-        const defs = SAMPLES.filter((s) => s.product === p.id);
+      {PRODUCTS.map((product) => {
+        const defs = SAMPLES.filter((sample) => sample.product === product.id);
         return (
-          <section key={p.id} className="galgroup" aria-label={`${p.name} samples`}>
+          <section key={product.id} className="galgroup" aria-label={`${product.name} samples`}>
             <h3>
               <span className="grp-ico">
-                <ProductIcon id={p.id} />
+                <ProductIcon id={product.id} />
               </span>
-              {p.name}s <small>{defs.length}</small>
+              {product.name}s <small>{defs.length}</small>
             </h3>
             <div className="gal">
               {defs.map((def) => {
-                const r = done.find((x) => x.def.id === def.id);
-                return r ? (
-                  <SampleCard key={def.id} r={r} />
+                const rendered = done.find((x) => x.def.id === def.id);
+                return rendered ? (
+                  <SampleCard key={def.id} sample={rendered} />
                 ) : (
                   <div key={def.id} className="gcard" aria-busy="true">
                     <span className="skel gthumb-skel" />

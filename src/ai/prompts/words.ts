@@ -6,8 +6,10 @@ import type { JsonSchema } from '../types';
  * object into a system prompt, a user prompt and the JSON schema of the answer.
  */
 
+/** The words templates' version. */
 export const WORDS_VERSION = 'words-2026-10-1';
 
+/** What front words are written for. */
 export interface WordsContext {
   product: 'postcard' | 'calendar' | 'frame' | 'magnet';
   occasion: string;
@@ -29,19 +31,25 @@ Never use real people's names unless given, never invent facts, and never includ
 Write every piece in the requested language and script. Hinglish means Hindi written in English letters.
 Keep each piece within its character budget: it is printed at a fixed size.`;
 
-export function wordsPrompt(c: WordsContext): { system: string; prompt: string; schema: JsonSchema; schemaName: string } {
+/**
+ * The prompt for front-word options.
+ * @param context the card, language, tone, budgets and names
+ * @returns the system prompt, user prompt and answer schema
+ */
+export function wordsPrompt(context: WordsContext): { system: string; prompt: string; schema: JsonSchema; schemaName: string } {
   const lines = [
-    `Write ${c.count} different options for a ${c.product} for: ${c.occasion}.`,
-    `Language: ${c.language}. Tone: ${c.tone}.`,
-    c.recipient ? `It is for: ${c.recipient}.` : '',
-    c.sender ? `From: ${c.sender}.` : '',
-    c.notes ? `Mention if it fits: ${c.notes}.` : '',
-    `Each option has a greeting (the headline, at most ${c.budget.greeting} characters), a quote or wish (one or two sentences, at most ${c.budget.quote} characters) and a signature line (at most ${c.budget.signature} characters, e.g. "With love").`,
+    `Write ${context.count} different options for a ${context.product} for: ${context.occasion}.`,
+    `Language: ${context.language}. Tone: ${context.tone}.`,
+    context.recipient ? `It is for: ${context.recipient}.` : '',
+    context.sender ? `From: ${context.sender}.` : '',
+    context.notes ? `Mention if it fits: ${context.notes}.` : '',
+    `Each option has a greeting (the headline, at most ${context.budget.greeting} characters), a quote or wish (one or two sentences, at most ${context.budget.quote} characters) and a signature line (at most ${context.budget.signature} characters, e.g. "With love").`,
     'Make the options clearly different from each other in idea, not just wording.',
   ];
   return { system: SYSTEM, prompt: lines.filter(Boolean).join('\n'), schema: WORDS_SCHEMA, schemaName: 'card_words' };
 }
 
+/** The answer's schema: options of greeting, quote and signature. */
 export const WORDS_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
@@ -59,6 +67,7 @@ export const WORDS_SCHEMA: JsonSchema = {
   additionalProperties: false,
 };
 
+/** What calendar captions are written for. */
 export interface CaptionsContext {
   year: number;
   /** The 12 months shown, in page order, with the festivals marked in each. */
@@ -70,19 +79,34 @@ export interface CaptionsContext {
   notes?: string;
 }
 
-export function captionsPrompt(c: CaptionsContext): { system: string; prompt: string; schema: JsonSchema; schemaName: string } {
-  const list = c.months
-    .map((m, i) => `${i + 1}. ${m.name}${m.festivals.length ? ` (festivals: ${m.festivals.join(', ')})` : ''}${m.photo ? ` (photo: ${m.photo})` : ''}`)
-    .join('\n');
+/**
+ * One page of the calendar in the captions prompt.
+ * @param month the page's month, festivals and photo
+ * @param index its place
+ * @returns "3. March 2027 (festivals: Holi) (photo: …)"
+ */
+function pageLine(month: CaptionsContext['months'][number], index: number): string {
+  const festivals = month.festivals.length ? ' (festivals: ' + month.festivals.join(', ') + ')' : '';
+  const photo = month.photo ? ' (photo: ' + month.photo + ')' : '';
+  return `${index + 1}. ${month.name}${festivals}${photo}`;
+}
+
+/**
+ * The prompt for calendar captions.
+ * @param context the year, pages, language, tone, theme and budget
+ * @returns the system prompt, user prompt and answer schema
+ */
+export function captionsPrompt(context: CaptionsContext): { system: string; prompt: string; schema: JsonSchema; schemaName: string } {
+  const list = context.months.map(pageLine).join('\n');
   return {
     system: SYSTEM,
     prompt: [
-      `Write one caption for each page of a ${c.year} wall calendar with the theme "${c.theme}".`,
-      `Language: ${c.language}. Tone: ${c.tone}. At most ${c.budget} characters each.`,
+      `Write one caption for each page of a ${context.year} wall calendar with the theme "${context.theme}".`,
+      `Language: ${context.language}. Tone: ${context.tone}. At most ${context.budget} characters each.`,
       'Name the month’s main festival when there is one; otherwise write about the season or the photo. Don’t repeat the month name.',
-      c.notes ? `Also consider: ${c.notes}.` : '',
+      context.notes ? `Also consider: ${context.notes}.` : '',
       `Pages, in order:\n${list}`,
-      `Return exactly ${c.months.length} captions in the same order.`,
+      `Return exactly ${context.months.length} captions in the same order.`,
     ]
       .filter(Boolean)
       .join('\n'),
@@ -90,6 +114,7 @@ export function captionsPrompt(c: CaptionsContext): { system: string; prompt: st
     schemaName: 'calendar_captions',
   };
 }
+/** The answer's schema: the captions in page order. */
 export const CAPTIONS_SCHEMA: JsonSchema = {
   type: 'object',
   properties: { captions: { type: 'array', items: { type: 'string' } } },
@@ -97,6 +122,7 @@ export const CAPTIONS_SCHEMA: JsonSchema = {
   additionalProperties: false,
 };
 
+/** What back messages are written for. */
 export interface MessageContext {
   occasion: string;
   language: string;
@@ -108,15 +134,20 @@ export interface MessageContext {
   count: number;
 }
 
-export function messagePrompt(c: MessageContext): { system: string; prompt: string; schema: JsonSchema; schemaName: string } {
+/**
+ * The prompt for back messages.
+ * @param context the occasion, language, tone, names, budget and how many
+ * @returns the system prompt, user prompt and answer schema
+ */
+export function messagePrompt(context: MessageContext): { system: string; prompt: string; schema: JsonSchema; schemaName: string } {
   return {
     system: SYSTEM,
     prompt: [
-      `Write ${c.count} different short handwritten-style messages for the back of a postcard for: ${c.occasion}.`,
-      `Language: ${c.language}. Tone: ${c.tone}. At most ${c.budget} characters each, 2–4 short lines, starting with a greeting to the reader.`,
-      c.recipient ? `To: ${c.recipient}.` : '',
-      c.sender ? `From: ${c.sender} (don’t sign it; the card has a From line).` : '',
-      c.notes ? `Mention if it fits: ${c.notes}.` : '',
+      `Write ${context.count} different short handwritten-style messages for the back of a postcard for: ${context.occasion}.`,
+      `Language: ${context.language}. Tone: ${context.tone}. At most ${context.budget} characters each, 2–4 short lines, starting with a greeting to the reader.`,
+      context.recipient ? `To: ${context.recipient}.` : '',
+      context.sender ? `From: ${context.sender} (don’t sign it; the card has a From line).` : '',
+      context.notes ? `Mention if it fits: ${context.notes}.` : '',
     ]
       .filter(Boolean)
       .join('\n'),
@@ -124,6 +155,7 @@ export function messagePrompt(c: MessageContext): { system: string; prompt: stri
     schemaName: 'card_messages',
   };
 }
+/** The answer's schema: the messages. */
 export const MESSAGES_SCHEMA: JsonSchema = {
   type: 'object',
   properties: { messages: { type: 'array', items: { type: 'string' } } },

@@ -1,0 +1,255 @@
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { Tool } from '../../engine/edits';
+import { adjacentKey, isClipKeyProp, isLayerKeyProp } from '../../engine/keyframes';
+import { layerName, type Layer } from '../../engine/layers';
+import { clipLength } from '../../engine/timeline';
+import { lockedReason, MUSIC, type Track } from '../../engine/tracks';
+import { toast } from '../../lib/toast';
+import { deleteGap, nudgeClip, removeClip, rippleDeleteClip, rippleTrimToPlayhead, splitAtPlayheadWhy } from '../../state/videoClips';
+import { deleteKeys, toggleKey, type KeyProp, type KeyTarget } from '../../state/videoKeys';
+import { removeVLayer } from '../../state/videoLayers';
+import { slipMusic } from '../../state/videoMedia';
+import { clipLocked, getVideo, setPlayhead, setPlaying, setTool, setZoom, type VClip } from '../../state/videoStore';
+import { typingIn } from '../ig/LayerPanel';
+import { animatedProps, type LaneItem } from './KeyframeLane';
+import { clipLabel, keyTimes } from './timelineRows';
+
+/*
+ * The timeline's actions that aren't drawing: saying why an edit was refused, the selection as the keyframe lane sees
+ * it, K and Alt + [ / ], and the timeline's keyboard.
+ */
+
+/**
+ * Shows a refusal's reason, if any.
+ * @param why the reason, or null when the edit went through
+ */
+export function tell(why: string | null): void {
+  if (why) toast(why);
+}
+
+/**
+ * A clip as it is now (a drag edits from the store's current state, step by step).
+ * @param id the clip
+ * @returns the clip, or undefined when it is gone
+ */
+export const clipNow = (id: string): VClip | undefined => getVideo().clips.find((clip) => clip.id === id);
+
+/**
+ * Says a drag's refusal once (the same reason would repeat on every pointer move).
+ * @returns a function that shows each new reason
+ */
+export function sayOnce(): (why: string | null) => void {
+  let said = '';
+  return (why) => {
+    if (why && why !== said) toast(why);
+    said = why ?? said;
+  };
+}
+
+/**
+ * Whether a clip is on a locked track (and says why in a toast).
+ * @param id the clip
+ * @returns true when it can't be changed
+ */
+export function refuseLocked(id: string): boolean {
+  const why = clipLocked(id);
+  if (why) toast(why);
+  return !!why;
+}
+
+/**
+ * Whether the music track is locked (and says why in a toast).
+ * @returns true when the music can't be changed
+ */
+export function refuseLockedMusic(): boolean {
+  const why = lockedReason(getVideo().tracks, MUSIC);
+  if (why) toast(why);
+  return !!why;
+}
+
+/** Splits the clip under the playhead (S, the Split button), or says why not (locked, outside a clip, or over the videos-at-once limit). */
+export function splitAtPlayhead(): void {
+  tell(splitAtPlayheadWhy());
+}
+
+/** The edit tools (202, Q5): what dragging a clip or its edge does, and its key. */
+export const EDIT_TOOLS: [tool: Tool, name: string, key: string, what: string][] = [
+  ['select', 'Select', 'V', 'drag a clip to move it, its edges to trim (Shift: ripple)'],
+  ['roll', 'Roll', 'R', 'drag a cut to move it between two clips; the length stays'],
+  ['slip', 'Slip', 'Y', 'drag a video clip to play another part of it, in the same place'],
+  ['slide', 'Slide', 'U', 'drag a clip between its neighbours; they give and take the time'],
+];
+
+/** The selected clip or layer as the keyframe lane sees it (205 §9). */
+export interface SelectedItem {
+  target: KeyTarget;
+  item: LaneItem;
+  /** Its name in labels and announcements. */
+  name: string;
+  /** The row the lane goes under: the clip's track or the layer. */
+  row: string;
+}
+
+/** What the timeline shows, for finding the selection. */
+export interface SelectionContext {
+  pictureTracks: Track[];
+  pictureClips: VClip[];
+  layers: Layer[];
+  /** The selected clip, or null. */
+  selected: string | null;
+  /** The selected layer, or null (it wins over a selected clip). */
+  layerSel: string | null;
+  /** The video's length in seconds. */
+  total: number;
+}
+
+/**
+ * The selected picture clip (when no layer is) or layer.
+ * @param context the tracks, clips, layers and selection
+ * @returns it as the keyframe lane sees it, or null
+ */
+export function selectedItem({ pictureTracks, pictureClips, layers, selected, layerSel, total }: SelectionContext): SelectedItem | null {
+  if (layerSel) {
+    const layer = layers.find((candidate) => candidate.id === layerSel);
+    if (!layer) return null;
+    const start = layer.start ?? 0;
+    const length = Math.max(0, Math.min(layer.end ?? total, total) - start);
+    return { target: { layer: layer.id }, item: { start, length, keys: layer.keys }, name: layerName(layer), row: layer.id };
+  }
+  const clip = pictureClips.find((candidate) => candidate.id === selected);
+  const track = clip && pictureTracks.find((candidate) => candidate.id === clip.track);
+  if (!clip || !track) return null;
+  const numberOnTrack = pictureClips.filter((candidate) => candidate.track === clip.track).indexOf(clip) + 1;
+  return { target: { clip: clip.id }, item: { start: clip.start, length: clipLength(clip), keys: clip.keys }, name: clipLabel(track, numberOnTrack), row: track.id };
+}
+
+/**
+ * K (205 D2): keyframes at the playhead for every animated value of the selection, or, when it has keyframes there,
+ * removes them.
+ * @param keyed the selection
+ * @param time the playhead
+ * @param fps the project's frame rate
+ */
+export function keyAtPlayhead(keyed: SelectedItem | null, time: number, fps: number): void {
+  if (!keyed) {
+    toast('Select a clip or a layer first.');
+    return;
+  }
+  const props = animatedProps(keyed.item);
+  if (!props.length) {
+    toast('Nothing is animated yet: start with a keyframe button in the inspector.');
+    return;
+  }
+  const local = time - keyed.item.start;
+  const isAtKey = keyTimes(keyed.item, fps).some((key) => Math.abs(key.t - local) < 0.5 / fps);
+  const keyProps = props.filter((prop): prop is KeyProp => isClipKeyProp(prop) || isLayerKeyProp(prop));
+  tell(isAtKey ? deleteKeys(keyed.target, 'all', local) : toggleKey(keyed.target, keyProps));
+}
+
+/**
+ * Whether a key press holds Alt without Ctrl or ⌘.
+ * @param event the key press
+ * @returns true for Alt alone (Shift allowed)
+ */
+const altOnly = (event: ReactKeyboardEvent): boolean => event.altKey && !event.ctrlKey && !event.metaKey;
+
+/**
+ * Alt + [ / ] (205 D2): the playhead to the selection's previous / next keyframe (by key position, any layout).
+ * @param keyed the selection
+ * @param back true for the previous keyframe
+ */
+function jumpToKey(keyed: SelectedItem | null, back: boolean): void {
+  if (!keyed) {
+    toast('Select a clip or a layer first.');
+    return;
+  }
+  const { t: time, fps } = getVideo();
+  const next = adjacentKey(keyed.item, time - keyed.item.start, back ? -1 : 1, fps);
+  if (next === null) toast(animatedProps(keyed.item).length ? 'No more keyframes that way.' : 'Nothing is animated yet.');
+  else setPlayhead(keyed.item.start + next);
+}
+
+/**
+ * Alt + ← / → (Q5): nudges the selected clip with the tool, a frame (Shift: a second); kept from the browser's Back.
+ * @param back true for ←
+ * @param bySecond true with Shift
+ */
+function nudgeSelection(back: boolean, bySecond: boolean): void {
+  const state = getVideo();
+  const frames = (back ? -1 : 1) * (bySecond ? state.fps : 1);
+  if (state.selected) tell(nudgeClip(state.selected, frames));
+  else if (state.tool === 'slip' && state.music) tell(slipMusic(frames / state.fps));
+  else toast('Select a clip first.');
+}
+
+/**
+ * Delete: a focused gap closes; a layer goes; a clip goes (Magnetic off: leaves a gap; Shift: ripples).
+ * @param gap the focused gap's element, if any
+ * @param ripple true with Shift
+ */
+function deleteSelection(gap: HTMLElement | null, ripple: boolean): void {
+  const state = getVideo();
+  if (gap) tell(deleteGap(Number(gap.dataset.at)));
+  else if (state.layerSel) removeVLayer(state.layerSel);
+  else if (state.selected && !refuseLocked(state.selected)) {
+    if (ripple) tell(rippleDeleteClip(state.selected));
+    else removeClip(state.selected);
+  }
+}
+
+/**
+ * The plain keys' actions (no Ctrl, ⌘ or Alt).
+ * @param event the key press
+ * @param keyed the selection
+ * @param total the video's length
+ * @returns each key's action
+ */
+function plainKeys(event: ReactKeyboardEvent, keyed: SelectedItem | null, total: number): Partial<Record<string, () => void>> {
+  const state = getVideo();
+  const gap = event.target instanceof Element ? event.target.closest<HTMLElement>('.tl-gap') : null;
+  const remove = () => deleteSelection(gap, event.shiftKey);
+  const step = event.shiftKey ? 1 : 1 / 30;
+  return {
+    ' ': () => setPlaying(!state.playing),
+    s: splitAtPlayhead,
+    k: () => keyAtPlayhead(keyed, state.t, state.fps),
+    q: () => tell(rippleTrimToPlayhead('start')),
+    w: () => tell(rippleTrimToPlayhead('end')),
+    Delete: remove,
+    Backspace: remove,
+    ArrowLeft: () => setPlayhead(state.t - step),
+    ArrowRight: () => setPlayhead(state.t + step),
+    Home: () => setPlayhead(0),
+    End: () => setPlayhead(total),
+    '+': () => setZoom(state.zoom * 1.25),
+    '=': () => setZoom(state.zoom * 1.25),
+    '-': () => setZoom(state.zoom / 1.25),
+    ...Object.fromEntries(EDIT_TOOLS.map(([tool, , key]) => [key.toLowerCase(), () => setTool(tool)])),
+  };
+}
+
+/**
+ * The timeline's keyboard (with the timeline focused; the track headers' buttons and menus handle their own keys).
+ * @param event the key press
+ * @param keyed the selection
+ * @param total the video's length
+ */
+export function onTimelineKey(event: ReactKeyboardEvent, keyed: SelectedItem | null, total: number): void {
+  if (typingIn(event.target) || (event.target instanceof Element && event.target.closest('.tl-heads'))) return;
+  if (altOnly(event) && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
+    event.preventDefault();
+    jumpToKey(keyed, event.code === 'BracketLeft');
+    return;
+  }
+  if (altOnly(event) && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+    event.preventDefault();
+    nudgeSelection(event.key === 'ArrowLeft', event.shiftKey);
+    return;
+  }
+  const actions = plainKeys(event, keyed, total);
+  const action = actions[event.key] ?? actions[event.key.toLowerCase()];
+  if (action && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    event.preventDefault();
+    action();
+  }
+}

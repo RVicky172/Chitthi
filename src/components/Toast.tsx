@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import { onToast } from '../lib/toast';
 
+/** The toast: one short message at a time, announced politely, hidden after a few seconds. */
 export function Toast() {
   // `n` counts toasts: the same message again is drawn (and announced) again.
   const [msg, setMsg] = useState({ text: '', n: 0 }),
     [show, setShow] = useState(false);
   useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    const off = onToast((m) => {
-      setMsg((p) => ({ text: m, n: p.n + 1 }));
+    let timer: ReturnType<typeof setTimeout>;
+    const off = onToast((message) => {
+      setMsg((previous) => ({ text: message, n: previous.n + 1 }));
       setShow(true);
-      clearTimeout(t);
-      t = setTimeout(() => setShow(false), 3400);
+      clearTimeout(timer);
+      timer = setTimeout(() => setShow(false), 3400);
     });
     return () => {
       off();
-      clearTimeout(t);
+      clearTimeout(timer);
     };
   }, []);
   return (

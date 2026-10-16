@@ -9,6 +9,10 @@ import { closeGpu, openGpu } from '../engine/gpu/device';
 
 const KEY = 'chitthi-gpu-effects';
 
+/**
+ * Whether photo and video effects use the graphics card.
+ * @returns true unless the user turned it off on this device
+ */
 export function gpuEffectsOn(): boolean {
   try {
     return localStorage.getItem(KEY) !== '0';
@@ -17,6 +21,10 @@ export function gpuEffectsOn(): boolean {
   }
 }
 
+/**
+ * Turns graphics-card effects on or off, remembers it and opens or closes the GPU device.
+ * @param on true to use the graphics card
+ */
 export function setGpuEffects(on: boolean): void {
   try {
     if (on) localStorage.removeItem(KEY);

@@ -489,7 +489,8 @@ electron/               Desktop main process, preload bridge, IPC guard, AI requ
 plugins/chitthi/        Claude Code plugin: MCP server config and skills
 public/                 Service worker, manifest, icons, sample photos, landing renders
 nginx/                  Web server config, security headers and CSP
-e2e/                    Playwright browser tests
+tests/                  Every test: unit/ (one module, mirroring src/), integration/ (several together), support/ (shared
+                        fixtures and fakes), e2e/ (Playwright browser tests), and the in-app self-test (until it moves there)
 scripts/                Build checks, licence check, downloaders, generators and renderers
 docs/                   Design, operations and planning documentation, screenshots
 ```

@@ -4,11 +4,12 @@
  * photo of a carousel to the first photo's shape.
  */
 
-import type { LookId } from '../types';
-import type { PhotoType } from '../engine/photoExport';
+import type { LookId, PhotoType } from '../types';
 
+/** The post shapes' ids. */
 export type IgFormatId = 'portrait' | 'square' | 'tall' | 'landscape' | 'story';
 
+/** A post shape, in pixels. */
 export interface IgFormat {
   id: IgFormatId;
   label: string;
@@ -21,7 +22,8 @@ export interface IgFormat {
   feed: boolean;
 }
 
-export const IG_FORMATS: IgFormat[] = [
+/** The post shapes; the first is the default. */
+export const IG_FORMATS: readonly [IgFormat, ...IgFormat[]] = [
   { id: 'portrait', label: 'Portrait', ratio: '4:5', w: 1080, h: 1350, use: 'Feed posts and carousels. Takes the most space in the feed: the best default.', feed: true },
   { id: 'square', label: 'Square', ratio: '1:1', w: 1080, h: 1080, use: 'Feed posts and carousels. The classic grid shape.', feed: true },
   { id: 'tall', label: 'Tall portrait', ratio: '3:4', w: 1080, h: 1440, use: 'Feed posts and carousels in the newer 3:4 shape, matching the profile grid.', feed: true },
@@ -29,13 +31,23 @@ export const IG_FORMATS: IgFormat[] = [
   { id: 'story', label: 'Story', ratio: '9:16', w: 1080, h: 1920, use: 'Stories and Reel covers, full screen. Not for feed carousels.', feed: false },
 ];
 
-export const igFormat = (id: IgFormatId): IgFormat => IG_FORMATS.find((f) => f.id === id) ?? IG_FORMATS[0];
+/**
+ * A post shape by its id.
+ * @param id the shape's id (possibly from storage)
+ * @returns the shape, or portrait for an unknown id
+ */
+export const igFormat = (id: IgFormatId): IgFormat => IG_FORMATS.find((format) => format.id === id) ?? IG_FORMATS[0];
 
 /** Instagram allows up to 20 photos in one carousel post. */
 export const IG_MAX_BATCH = 20;
 /** Ready-made batch sizes; the limit can also be typed, from 1 to IG_MAX_BATCH. */
 export const IG_BATCH_PRESETS = [2, 4, 10] as const;
-export const clampBatch = (n: number): number => Math.min(IG_MAX_BATCH, Math.max(1, Math.round(Number.isFinite(n) ? n : 1)));
+/**
+ * A typed batch size made valid.
+ * @param size the size typed
+ * @returns a whole number from 1 to IG_MAX_BATCH (1 for a size that isn't a number)
+ */
+export const clampBatch = (size: number): number => Math.min(IG_MAX_BATCH, Math.max(1, Math.round(Number.isFinite(size) ? size : 1)));
 
 /** Caption limits shown under the caption box. */
 export const IG_CAPTION_MAX = 2200;
@@ -43,6 +55,7 @@ export const IG_HASHTAG_MAX = 30;
 /** Characters shown before "… more" in the feed. */
 export const IG_CAPTION_PREVIEW = 125;
 
+/** A file type a photo batch can be exported as. */
 export type IgFileType = PhotoType;
 /** Export file types (engine/photoExport.ts); WebP and AVIF show only where the browser can write them. */
 export const IG_FILE_TYPES: [IgFileType, string, string][] = [

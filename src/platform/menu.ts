@@ -4,19 +4,43 @@ import { downloadPack, exportBackup, exportDesignFile, importText, newCard, open
 import { getState, redo, setPerf, setUI, undo } from '../state/store';
 import { desktop, type MenuAction } from './desktop';
 
-const typing = () => {
-  const t = document.activeElement as HTMLElement | null;
-  return !!t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
-};
-
-async function openFile(): Promise<void> {
-  const f = await desktop?.openDesignFile();
-  if (f) await importText(f.name, f.text);
+/**
+ * Whether the user is typing in a field.
+ * @returns true while a text field, select or editable element has the focus
+ */
+function isTyping(): boolean {
+  const focused = document.activeElement;
+  return focused instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName) || focused.isContentEditable);
 }
 
-const studio = () => setUI({ screen: 'studio', gallery: false });
+/**
+ * Undoes or redoes the typing in a text field, else a step of the card's history.
+ * @param command which way to go
+ */
+function undoOrRedo(command: 'undo' | 'redo'): void {
+  if (isTyping()) {
+    // The only way to reach a field's own undo stack from a menu; deprecated without a replacement.
+    // eslint-disable-next-line @typescript-eslint/no-deprecated, sonarjs/deprecation
+    document.execCommand(command);
+    return;
+  }
+  if (command === 'undo') undo();
+  else redo();
+}
 
-const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
+/** Opens a .chitthi file chosen in the desktop app's open dialog. */
+async function openFile(): Promise<void> {
+  const file = await desktop?.openDesignFile();
+  if (file) await importText(file.name, file.text);
+}
+
+/** Shows the print studio. */
+function studio(): void {
+  setUI({ screen: 'studio', gallery: false });
+}
+
+/** What each native menu command does. */
+const ACTIONS: Readonly<Record<MenuAction, () => void | Promise<void>>> = {
   new: () => {
     studio();
     newCard();
@@ -28,8 +52,8 @@ const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
   'export-pack': () => downloadPack(),
   backup: exportBackup,
   // Menu clicks: inside a text field, undo the typing; elsewhere, the card history.
-  undo: () => (typing() ? void document.execCommand('undo') : undo()),
-  redo: () => (typing() ? void document.execCommand('redo') : redo()),
+  undo: () => undoOrRedo('undo'),
+  redo: () => undoOrRedo('redo'),
   home: () => setUI({ screen: 'home', gallery: false }),
   studio,
   gallery: () => setUI({ gallery: true }),
@@ -51,8 +75,11 @@ const ACTIONS: Record<MenuAction, () => void | Promise<void>> = {
 export function useDesktopMenu(): void {
   useEffect(() => {
     if (!desktop) return;
-    const offMenu = desktop.onMenu((a) => void ACTIONS[a]?.());
-    const offFile = desktop.onOpenFile((f) => void importText(f.name, f.text));
+    // The main process may send a command this page doesn't know (an older page in a newer app).
+    const offMenu = desktop.onMenu((action) => {
+      if (Object.hasOwn(ACTIONS, action)) void ACTIONS[action]();
+    });
+    const offFile = desktop.onOpenFile((file) => void importText(file.name, file.text));
     return () => {
       offMenu();
       offFile();

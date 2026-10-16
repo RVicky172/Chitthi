@@ -1,30 +1,23 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { BRUSHES, PALETTE, SHAPES, STICKERS, TEXT_FONTS, TEXT_STYLES, shapeDef, type BrushId } from '../../data/layers';
+import { BRUSHES, SHAPES, STICKERS, TEXT_STYLES, shapeDef, type BrushId } from '../../data/layers';
 import {
   addLayerImage,
-  BLEND_MODES,
   layerName,
   newImageLayer,
   newShape,
   newSticker,
   newText,
-  scaleLayer,
-  shapePath,
-  type BlendMode,
   type Layer,
-  type LayerMask,
-  type ShapeLayer,
-  type TextLayer,
 } from '../../engine/layers';
-import { newPart, type LinearPart, type RadialPart } from '../../engine/masks';
+import { shapePath } from '../../engine/layerDraw';
 import type { LayerKeyProp } from '../../engine/keyframes';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import type { LayerTools } from '../../state/instagram';
-import { Check, Seg } from '../common';
-import { FontPicker } from '../FontPicker';
+import { Seg } from '../common';
 import { NextIcon, PlusIcon, PrevIcon, TrashIcon } from '../icons';
-import { PartSettings } from './MaskPanel';
+import { formatClock, LpRange, Swatches } from './LayerControls';
+import { LayerProperties } from './LayerProperties';
 
 /*
  * The layer controls shared by the photo and video editors: add text, shapes, stickers and images; the layer list; the
@@ -32,12 +25,13 @@ import { PartSettings } from './MaskPanel';
  * state and undo history.
  */
 
+/** The layers, the selection and the editor's handlers, for every part of the layer panel. */
 export interface LayerPanelProps {
   layers: Layer[];
   selected: string | null;
   onSelect: (id: string | null) => void;
   onAdd: (layer: Layer) => void;
-  onUpdate: (id: string, patch: Partial<Layer> | ((l: Layer) => Layer), key?: string) => void;
+  onUpdate: (id: string, patch: Partial<Layer> | ((layer: Layer) => Layer), key?: string) => void;
   onRemove: (id: string) => void;
   onRestack: (id: string, by: 1 | -1) => void;
   /** Video: the timeline length and playhead, to set when each layer shows. */
@@ -50,73 +44,67 @@ export interface LayerPanelProps {
   keyNav?: ReactNode;
 }
 
-function Swatches({ value, onChange, none, label }: { value: string; onChange: (c: string) => void; none?: boolean; label: string }) {
-  return (
-    <div className="lp-swatches" role="radiogroup" aria-label={label}>
-      {none && (
-        <button type="button" role="radio" aria-checked={!value} className="lp-sw lp-none" title="None" aria-label="None" onClick={() => onChange('')} />
-      )}
-      {PALETTE.map((c) => (
-        <button key={c} type="button" role="radio" aria-checked={value.toLowerCase() === c} className="lp-sw" style={{ background: c }} title={c} aria-label={c} onClick={() => onChange(c)} />
-      ))}
-      <label className="lp-sw lp-own" title="Any colour">
-        <span className="vh">{label}: any colour</span>
-        <input type="color" value={value || '#ffffff'} onChange={(e) => onChange(e.target.value)} />
-      </label>
-    </div>
-  );
+/** A shape to draw as a button's icon. */
+interface ShapeIconProps {
+  shape: (typeof SHAPES)[number]['id'];
 }
 
-function ShapeIcon({ shape }: { shape: (typeof SHAPES)[number]['id'] }) {
+/**
+ * A shape's icon, drawn in the text colour on a small canvas.
+ * @param props the shape
+ */
+function ShapeIcon({ shape }: Readonly<ShapeIconProps>) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const cv = ref.current,
-      x = cv?.getContext('2d');
-    if (!cv || !x) return;
-    const d = shapeDef(shape),
-      k = Math.min(36 / d.w, 22 / Math.max(d.h, 0.06));
-    x.clearRect(0, 0, cv.width, cv.height);
-    x.save();
-    x.translate(cv.width / 2, cv.height / 2);
-    shapePath(x, shape, d.w * k, Math.max(d.h * k, shape === 'line' ? 3 : 4));
-    x.fillStyle = getComputedStyle(cv).color;
-    x.fill();
-    x.restore();
+    const canvas = ref.current,
+      context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    const definition = shapeDef(shape),
+      scale = Math.min(36 / definition.w, 22 / Math.max(definition.h, 0.06));
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.save();
+    context.translate(canvas.width / 2, canvas.height / 2);
+    shapePath(context, shape, definition.w * scale, Math.max(definition.h * scale, shape === 'line' ? 3 : 4));
+    context.fillStyle = getComputedStyle(canvas).color;
+    context.fill();
+    context.restore();
   }, [shape]);
   return <canvas ref={ref} width={44} height={28} aria-hidden="true" />;
 }
 
-function Range({ id, label, value, min, max, step = 0.01, show, onChange }: { id: string; label: string; value: number; min: number; max: number; step?: number; show: string; onChange: (v: number) => void }) {
-  return (
-    <div className="ig-slider">
-      <label htmlFor={id}>
-        {label} <output htmlFor={id}>{show}</output>
-      </label>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} />
-    </div>
-  );
-}
+/**
+ * New layers on a video start at the playhead (at least half a second before the end).
+ * @param props the panel's timing (video), if any
+ * @param layer the new layer
+ * @returns the layer, placed
+ */
+const placed = (props: Pick<LayerPanelProps, 'timing'>, layer: Layer): Layer =>
+  props.timing ? { ...layer, start: Math.min(props.timing.now, Math.max(0, props.timing.duration - 0.5)) } : layer;
 
-const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
-
-/** New layers on a video start at the playhead. */
-const placed = (p: Pick<LayerPanelProps, 'timing'>, l: Layer): Layer => (p.timing ? { ...l, start: Math.min(p.timing.now, Math.max(0, p.timing.duration - 0.5)) } : l);
-
-/** Text styles to add with one tap. */
-export function AddText(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
+/**
+ * Text styles to add with one tap.
+ * @param props adding a layer, and the timing (video)
+ */
+export function AddText(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'timing'>>) {
   return (
     <div className="ig-group">
       <h3>Add text</h3>
       <div className="lp-styles">
-        {TEXT_STYLES.map((s) => (
+        {TEXT_STYLES.map((style) => (
           <button
-            key={s.id}
+            key={style.id}
             type="button"
             className="lp-style"
-            style={{ fontFamily: `"${s.font}", sans-serif`, fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', color: s.bg ? s.color : undefined, background: s.bg || undefined }}
-            onClick={() => p.onAdd(placed(p, newText(s)))}
+            style={{
+              fontFamily: `"${style.font}", sans-serif`,
+              fontWeight: style.bold ? 700 : 400,
+              fontStyle: style.italic ? 'italic' : 'normal',
+              color: style.bg ? style.color : undefined,
+              background: style.bg || undefined,
+            }}
+            onClick={() => props.onAdd(placed(props, newText(style)))}
           >
-            {s.name}
+            {style.name}
           </button>
         ))}
       </div>
@@ -128,30 +116,44 @@ export function AddText(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
 /** Pictures for image layers are kept at most this many pixels on their longer side. */
 const IMAGE_MAX = 2048;
 
-/** A picture file as a canvas of at most IMAGE_MAX px, kept for image layers. */
-async function loadLayerImage(file: File): Promise<{ id: string; w: number; h: number }> {
-  const bmp = await createImageBitmap(file);
-  const k = Math.min(1, IMAGE_MAX / Math.max(bmp.width, bmp.height)),
-    c = document.createElement('canvas');
-  c.width = Math.max(1, Math.round(bmp.width * k));
-  c.height = Math.max(1, Math.round(bmp.height * k));
-  const x = c.getContext('2d');
-  if (!x) throw new Error('No 2D canvas');
-  x.imageSmoothingQuality = 'high';
-  x.drawImage(bmp, 0, 0, c.width, c.height);
-  bmp.close();
-  return { id: addLayerImage(c), w: c.width, h: c.height };
+/** A picture kept for image layers, and its size. */
+interface LayerImage {
+  id: string;
+  w: number;
+  h: number;
 }
 
-/** Shapes (which can hold words), emoji stickers and images. */
-export function AddElements(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
+/**
+ * A picture file as a canvas of at most IMAGE_MAX px, kept for image layers.
+ * @param file the picture file
+ * @returns the kept picture's id and size
+ */
+async function loadLayerImage(file: File): Promise<LayerImage> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, IMAGE_MAX / Math.max(bitmap.width, bitmap.height)),
+    canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('No 2D canvas');
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return { id: addLayerImage(canvas), w: canvas.width, h: canvas.height };
+}
+
+/**
+ * Shapes (which can hold words), emoji stickers and images.
+ * @param props adding a layer, and the timing (video)
+ */
+export function AddElements(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'timing'>>) {
   const addImage = async (file: File | undefined) => {
     if (!file) return;
     try {
       const { id, w, h } = await loadLayerImage(file);
-      p.onAdd(placed(p, newImageLayer(id, w, h, file.name.replace(/\.[a-z0-9]+$/i, ''))));
-    } catch (e) {
-      logError('handled', e);
+      props.onAdd(placed(props, newImageLayer(id, w, h, file.name.replace(/\.[a-z0-9]+$/i, ''))));
+    } catch (error) {
+      logError('handled', error);
       toast('That picture couldn’t be opened. Try a PNG, JPEG or WebP file.');
     }
   };
@@ -159,20 +161,39 @@ export function AddElements(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
     <>
       <div className="ig-group">
         <h3>Image</h3>
-        <p className="hint">A logo, a frame or a texture over the photo. PNGs keep their transparency; try a blend mode for textures.</p>
+        <p className="hint">
+          A logo, a frame or a texture over the photo. PNGs keep their transparency; try a blend mode for textures.
+        </p>
         <label className="sbtn mst-file">
           Add an image
-          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void addImage(e.target.files?.[0]).then(() => (e.target.value = ''))} />
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) =>
+              void addImage(event.target.files?.[0]).then(() => {
+                event.target.value = '';
+              })
+            }
+          />
         </label>
       </div>
       <div className="ig-group">
         <h3>Shapes</h3>
-        <p className="hint">Boxes, labels, bubbles, bursts and ribbons hold words. Draw over any of them with the Draw tool.</p>
+        <p className="hint">
+          Boxes, labels, bubbles, bursts and ribbons hold words. Draw over any of them with the Draw tool.
+        </p>
         <div className="lp-shapes">
-          {SHAPES.map((s) => (
-            <button key={s.id} type="button" className="lp-shape" title={s.name} aria-label={`Add ${s.name.toLowerCase()}`} onClick={() => p.onAdd(placed(p, newShape(s.id)))}>
-              <ShapeIcon shape={s.id} />
-              <span>{s.name}</span>
+          {SHAPES.map((shape) => (
+            <button
+              key={shape.id}
+              type="button"
+              className="lp-shape"
+              title={shape.name}
+              aria-label={`Add ${shape.name.toLowerCase()}`}
+              onClick={() => props.onAdd(placed(props, newShape(shape.id)))}
+            >
+              <ShapeIcon shape={shape.id} />
+              <span>{shape.name}</span>
             </button>
           ))}
         </div>
@@ -180,9 +201,14 @@ export function AddElements(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
       <div className="ig-group">
         <h3>Stickers</h3>
         <div className="lp-stickers">
-          {STICKERS.map((e) => (
-            <button key={e} type="button" aria-label={`Add sticker ${e}`} onClick={() => p.onAdd(placed(p, newSticker(e)))}>
-              {e}
+          {STICKERS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              aria-label={`Add sticker ${emoji}`}
+              onClick={() => props.onAdd(placed(props, newSticker(emoji)))}
+            >
+              {emoji}
             </button>
           ))}
         </div>
@@ -191,38 +217,78 @@ export function AddElements(p: Pick<LayerPanelProps, 'onAdd' | 'timing'>) {
   );
 }
 
-/** Every layer, front first: select, show or hide, restack, delete. */
-export function LayerList(p: Pick<LayerPanelProps, 'layers' | 'selected' | 'onSelect' | 'onUpdate' | 'onRestack' | 'onRemove' | 'timing' | 'extra'>) {
+/** What the layer list needs from the panel's props. */
+type LayerListProps = Pick<
+  LayerPanelProps,
+  'layers' | 'selected' | 'onSelect' | 'onUpdate' | 'onRestack' | 'onRemove' | 'timing' | 'extra'
+>;
+
+/**
+ * Every layer, front first: select, show or hide, restack, delete.
+ * @param props the layers, the selection, the handlers, the timing (video) and extra actions
+ */
+export function LayerList(props: Readonly<LayerListProps>) {
+  const { layers, selected, timing } = props;
   return (
     <div className="ig-group">
-      <h3>Layers {p.layers.length > 0 && <span className="ig-count">{p.layers.length}</span>}</h3>
-      {p.layers.length === 0 ? (
+      <h3>Layers {layers.length > 0 && <span className="ig-count">{layers.length}</span>}</h3>
+      {layers.length === 0 ? (
         <p className="hint">Nothing added yet. Text, shapes, stickers and drawings appear here, the top one first.</p>
       ) : (
         <ol className="lp-list" aria-label="Layers, front first">
-          {[...p.layers].reverse().map((l, ri) => {
-            const i = p.layers.length - 1 - ri;
+          {[...layers].reverse().map((layer, fromFront) => {
+            const index = layers.length - 1 - fromFront,
+              name = layerName(layer);
             return (
-              <li key={l.id} className={l.id === p.selected ? 'on' : ''}>
-                <button type="button" className="lp-name" aria-pressed={l.id === p.selected} onClick={() => p.onSelect(l.id === p.selected ? null : l.id)}>
-                  {layerName(l)}
-                  {p.timing && (
+              <li key={layer.id} className={layer.id === selected ? 'on' : ''}>
+                <button
+                  type="button"
+                  className="lp-name"
+                  aria-pressed={layer.id === selected}
+                  onClick={() => props.onSelect(layer.id === selected ? null : layer.id)}
+                >
+                  {name}
+                  {timing && (
                     <small>
                       {' '}
-                      {fmt(l.start ?? 0)}–{fmt(Math.min(l.end ?? p.timing.duration, p.timing.duration))}
+                      {formatClock(layer.start ?? 0)}–
+                      {formatClock(Math.min(layer.end ?? timing.duration, timing.duration))}
                     </small>
                   )}
                 </button>
-                <button type="button" className="pbtn" aria-label={`${l.hidden ? 'Show' : 'Hide'} ${layerName(l)}`} aria-pressed={!l.hidden} onClick={() => p.onUpdate(l.id, { hidden: !l.hidden }, '')}>
-                  {l.hidden ? '○' : '●'}
+                <button
+                  type="button"
+                  className="pbtn"
+                  aria-label={`${layer.hidden ? 'Show' : 'Hide'} ${name}`}
+                  aria-pressed={!layer.hidden}
+                  onClick={() => props.onUpdate(layer.id, { hidden: !layer.hidden }, '')}
+                >
+                  {layer.hidden ? '○' : '●'}
                 </button>
-                <button type="button" className="pbtn lp-up" aria-label={`Bring ${layerName(l)} forward`} disabled={i === p.layers.length - 1} onClick={() => p.onRestack(l.id, 1)}>
+                <button
+                  type="button"
+                  className="pbtn lp-up"
+                  aria-label={`Bring ${name} forward`}
+                  disabled={index === layers.length - 1}
+                  onClick={() => props.onRestack(layer.id, 1)}
+                >
                   <PrevIcon />
                 </button>
-                <button type="button" className="pbtn lp-down" aria-label={`Send ${layerName(l)} back`} disabled={i === 0} onClick={() => p.onRestack(l.id, -1)}>
+                <button
+                  type="button"
+                  className="pbtn lp-down"
+                  aria-label={`Send ${name} back`}
+                  disabled={index === 0}
+                  onClick={() => props.onRestack(layer.id, -1)}
+                >
                   <NextIcon />
                 </button>
-                <button type="button" className="pbtn" aria-label={`Delete ${layerName(l)}`} onClick={() => p.onRemove(l.id)}>
+                <button
+                  type="button"
+                  className="pbtn"
+                  aria-label={`Delete ${name}`}
+                  onClick={() => props.onRemove(layer.id)}
+                >
                   <TrashIcon />
                 </button>
               </li>
@@ -230,265 +296,74 @@ export function LayerList(p: Pick<LayerPanelProps, 'layers' | 'selected' | 'onSe
           })}
         </ol>
       )}
-      {p.extra}
+      {props.extra}
     </div>
   );
 }
-
-/** The selected layer's properties (and its timing on a video). */
-export function LayerProps(p: LayerPanelProps) {
-  const sel = p.layers.find((l) => l.id === p.selected);
-  return sel ? <Properties {...p} sel={sel} /> : null;
-}
-
-/** Everything in one column (adding, the list and the properties). */
-export function LayerPanel(p: LayerPanelProps) {
-  return (
-    <div className="lp">
-      <AddText {...p} />
-      <AddElements {...p} />
-      <LayerList {...p} />
-      <LayerProps {...p} />
-    </div>
-  );
-}
-
-export { Range as LpRange, Swatches };
-
-function Properties({ sel, onUpdate, onAdd, timing, keyframes, keyNav }: LayerPanelProps & { sel: Layer }) {
-  const up = (patch: Partial<Layer>, key = `prop:${sel.id}:${Object.keys(patch).join(',')}`) => onUpdate(sel.id, patch, key);
-  /** A control with its keyframe button beside it (video), or alone (photos). */
-  const keyed = (control: ReactNode, props: LayerKeyProp[], label: string) =>
-    keyframes ? (
-      <div className="kf-row">
-        {control}
-        {keyframes(props, label)}
-      </div>
-    ) : (
-      control
-    );
-  return (
-    <div className="ig-group lp-props">
-      <h3 className={keyNav ? 'kf-head' : undefined}>
-        {layerName(sel)}
-        {keyNav}
-      </h3>
-
-      {sel.kind === 'text' && <TextProps l={sel} up={up} />}
-      {sel.kind === 'shape' && <ShapeProps l={sel} up={up} />}
-      {sel.kind === 'draw' && (
-        <p className="hint">
-          A drawing. Move, resize or turn it like any layer; with the Draw tool, new strokes go into it while it is selected and not turned.
-        </p>
-      )}
-
-      {keyframes && keyed(<span className="lp-label">Position</span>, ['x', 'y'], 'Position')}
-      {keyed(
-        <Range
-          id="lp-size"
-          label="Size"
-          value={sel.w}
-          min={0.03}
-          max={2}
-          show={`${Math.round(sel.w * 100)}%`}
-          onChange={(w) => onUpdate(sel.id, (l) => scaleLayer(l, w / l.w), `size:${sel.id}`)}
-        />,
-        ['w'],
-        'Size',
-      )}
-      {keyed(
-        <Range id="lp-rot" label="Turn" value={sel.rot > 180 ? sel.rot - 360 : sel.rot} min={-180} max={180} step={1} show={`${Math.round(sel.rot > 180 ? sel.rot - 360 : sel.rot)}°`} onChange={(r) => up({ rot: (r + 360) % 360 })} />,
-        ['rot'],
-        'Turn',
-      )}
-      {keyed(
-        <Range id="lp-op" label="Opacity" value={sel.opacity} min={0.05} max={1} show={`${Math.round(sel.opacity * 100)}%`} onChange={(opacity) => up({ opacity })} />,
-        ['opacity'],
-        'Opacity',
-      )}
-      <div className="ig-slider">
-        <label htmlFor="lp-blend">Blend</label>
-        <select id="lp-blend" value={sel.blend ?? 'normal'} onChange={(e) => up({ blend: e.target.value === 'normal' ? undefined : (e.target.value as BlendMode) }, '')}>
-          {BLEND_MODES.map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
-      </div>
-      <LayerMaskProps l={sel} up={up} />
-
-      {timing && (
-        <>
-          <Range
-            id="lp-start"
-            label="Appears at"
-            value={sel.start ?? 0}
-            min={0}
-            max={Math.max(0.1, timing.duration - 0.1)}
-            step={0.1}
-            show={fmt(sel.start ?? 0)}
-            onChange={(start) => up(sel.end !== undefined && sel.end <= start ? { start, end: undefined } : { start })}
-          />
-          <Range
-            id="lp-end"
-            label="Disappears at"
-            value={Math.min(sel.end ?? timing.duration, timing.duration)}
-            min={0.1}
-            max={timing.duration}
-            step={0.1}
-            show={sel.end === undefined || sel.end >= timing.duration ? 'the end' : fmt(sel.end)}
-            onChange={(end) => up({ end: end >= timing.duration - 0.05 ? undefined : Math.max(end, (sel.start ?? 0) + 0.1) })}
-          />
-        </>
-      )}
-
-      <div className="inline ig-tools">
-        <button type="button" className="sbtn" onClick={() => onAdd({ ...sel, id: `${sel.id}d${Date.now().toString(36)}`, x: Math.min(0.95, sel.x + 0.04), y: Math.min(0.95, sel.y + 0.04) } as Layer)}>
-          <PlusIcon />
-          Duplicate
-        </button>
-        <button type="button" className="sbtn" onClick={() => up({ x: 0.5, y: 0.5, rot: 0 }, '')}>
-          Centre and straighten
-        </button>
-      </div>
-    </div>
-  );
-}
-
-type Up = (patch: Partial<Layer>, key?: string) => void;
 
 /**
- * A layer's mask (P1.10): a fade (linear gradient) or a spot (radial gradient) placed within the layer, so it moves,
- * turns and grows with it; inverted, the layer fades the other way or shows only outside the spot.
+ * The selected layer's properties (and its timing on a video); nothing when no layer is selected.
+ * @param props the panel's props
  */
-function LayerMaskProps({ l, up }: { l: Layer; up: Up }) {
-  const m = l.mask;
-  const part = m?.parts[0];
-  const set = (mask: LayerMask | undefined, key = '') => up({ mask }, key);
-  if (!m || !part || (part.kind !== 'linear' && part.kind !== 'radial'))
-    return (
-      <div className="ig-newmask" role="group" aria-label="Layer mask">
-        <span className="hint">Mask:</span>
-        <button type="button" className="sbtn" onClick={() => set({ invert: false, parts: [{ ...(newPart('linear') as LinearPart), x: 0.5, y: 0.5, angle: 90, width: 0.8 }] })}>
-          Fade
-        </button>
-        <button type="button" className="sbtn" onClick={() => set({ invert: false, parts: [{ ...(newPart('radial') as RadialPart), rx: 0.5, ry: 0.5, feather: 60 }] })}>
-          Spot
-        </button>
-      </div>
-    );
+export function LayerProps(props: Readonly<LayerPanelProps>) {
+  const layer = props.layers.find((candidate) => candidate.id === props.selected);
+  return layer ? <LayerProperties {...props} layer={layer} /> : null;
+}
+
+/**
+ * Everything in one column (adding, the list and the properties).
+ * @param props the panel's props
+ */
+export function LayerPanel(props: Readonly<LayerPanelProps>) {
   return (
-    <div className="lp-mask">
-      <PartSettings idPrefix="lp-mask" inLayer part={part} onPatch={(patch, k) => set({ ...m, parts: [{ ...part, ...patch } as typeof part] }, `lpmask:${l.id}:${k}`)} />
-      <div className="inline ig-tools">
-        <Check checked={m.invert} onChange={(invert) => set({ ...m, invert })}>
-          Invert the mask
-        </Check>
-        <button type="button" className="sbtn" onClick={() => set(undefined)}>
-          Remove the mask
-        </button>
-      </div>
+    <div className="lp">
+      <AddText {...props} />
+      <AddElements {...props} />
+      <LayerList {...props} />
+      <LayerProps {...props} />
     </div>
   );
 }
 
-function TextProps({ l, up }: { l: TextLayer; up: Up }) {
-  return (
-    <>
-      <label className="f" htmlFor="layer-text">
-        Text
-      </label>
-      <textarea id="layer-text" className="lp-text" rows={3} value={l.text} onChange={(e) => up({ text: e.target.value } as Partial<TextLayer>)} />
-      <FontPicker label="Font" value={l.font} sample={l.text || 'Your words'} weight={l.bold ? 'hw' : 'bw'} onChange={(font) => up({ font } as Partial<TextLayer>, '')} />
-      <div className="lp-fonts" aria-label="Quick fonts">
-        {TEXT_FONTS.slice(0, 6).map((f) => (
-          <button key={f} type="button" className="chip" aria-pressed={l.font === f} style={{ fontFamily: `"${f}", sans-serif` }} onClick={() => up({ font: f } as Partial<TextLayer>, '')}>
-            {f}
-          </button>
-        ))}
-      </div>
-      <Range id="lp-tsize" label="Text size" value={l.size} min={0.02} max={0.3} step={0.002} show={`${Math.round(l.size * 1080)} px`} onChange={(size) => up({ size } as Partial<TextLayer>)} />
-      <Range id="lp-tw" label="Box width" value={l.w} min={0.1} max={1} show={`${Math.round(l.w * 100)}%`} onChange={(w) => up({ w })} />
-      <div className="inline ig-tools">
-        <Seg<TextLayer['align']>
-          label="Alignment"
-          value={l.align}
-          options={[
-            ['left', 'Left'],
-            ['center', 'Centre'],
-            ['right', 'Right'],
-          ]}
-          onChange={(align) => up({ align } as Partial<TextLayer>, '')}
-        />
-        <button type="button" className="sbtn" aria-pressed={l.bold} onClick={() => up({ bold: !l.bold } as Partial<TextLayer>, '')}>
-          <b>B</b> Bold
-        </button>
-        <button type="button" className="sbtn" aria-pressed={l.italic} onClick={() => up({ italic: !l.italic } as Partial<TextLayer>, '')}>
-          <i>I</i> Italic
-        </button>
-      </div>
-      <span className="lp-label">Colour</span>
-      <Swatches label="Text colour" value={l.color} onChange={(color) => up({ color } as Partial<TextLayer>)} />
-      <span className="lp-label">Outline</span>
-      <Swatches label="Outline colour" none value={l.outline} onChange={(outline) => up({ outline } as Partial<TextLayer>)} />
-      <span className="lp-label">Background</span>
-      <Swatches label="Background colour" none value={l.bg} onChange={(bg) => up({ bg } as Partial<TextLayer>)} />
-      <Check checked={l.shadow} onChange={(shadow) => up({ shadow } as Partial<TextLayer>, '')}>
-        Shadow
-      </Check>
-    </>
-  );
+/** The drawing tool's settings and actions. */
+interface DrawPanelProps {
+  tools: LayerTools;
+  onTools: (tools: Partial<LayerTools>) => void;
+  onNewDrawing: () => void;
 }
 
-function ShapeProps({ l, up }: { l: ShapeLayer; up: Up }) {
-  const holds = shapeDef(l.shape).holdsText;
-  return (
-    <>
-      <span className="lp-label">Fill</span>
-      <Swatches label="Fill colour" none value={l.fill} onChange={(fill) => up({ fill } as Partial<ShapeLayer>)} />
-      <span className="lp-label">Border</span>
-      <Swatches label="Border colour" none value={l.stroke} onChange={(stroke) => up({ stroke } as Partial<ShapeLayer>)} />
-      {l.stroke && <Range id="lp-sw" label="Border width" value={l.strokeW} min={0.001} max={0.04} step={0.001} show={`${Math.round(l.strokeW * 1080)} px`} onChange={(strokeW) => up({ strokeW } as Partial<ShapeLayer>)} />}
-      <Range id="lp-sh" label="Height" value={l.h} min={0.01} max={1.5} show={`${Math.round((l.h / l.w) * 100)}% of the width`} onChange={(h) => up({ h } as Partial<ShapeLayer>)} />
-      {holds && (
-        <>
-          <label className="f" htmlFor="layer-text">
-            Words inside
-          </label>
-          <textarea id="layer-text" className="lp-text" rows={2} value={l.text} onChange={(e) => up({ text: e.target.value } as Partial<ShapeLayer>)} />
-          {l.text && (
-            <>
-              <FontPicker label="Font" value={l.font} sample={l.text} weight={l.bold ? 'hw' : 'bw'} onChange={(font) => up({ font } as Partial<ShapeLayer>, '')} />
-              <Range id="lp-stsize" label="Text size" value={l.textSize} min={0.02} max={0.2} step={0.002} show={`${Math.round(l.textSize * 1080)} px`} onChange={(textSize) => up({ textSize } as Partial<ShapeLayer>)} />
-              <span className="lp-label">Text colour</span>
-              <Swatches label="Text colour" value={l.textColor} onChange={(textColor) => up({ textColor } as Partial<ShapeLayer>)} />
-              <Check checked={l.bold} onChange={(bold) => up({ bold } as Partial<ShapeLayer>, '')}>
-                Bold
-              </Check>
-            </>
-          )}
-        </>
-      )}
-    </>
-  );
-}
-
-/** The drawing tool's settings. */
-export function DrawPanel({ tools, onTools, onNewDrawing }: { tools: LayerTools; onTools: (t: Partial<LayerTools>) => void; onNewDrawing: () => void }) {
+/**
+ * The drawing tool's settings: brush, size and colour, and starting a new drawing.
+ * @param props the tools, their change handler and starting a new drawing
+ */
+export function DrawPanel({ tools, onTools, onNewDrawing }: Readonly<DrawPanelProps>) {
   return (
     <div className="lp">
       <div className="ig-group">
         <h3>Brush</h3>
-        <Seg<BrushId> label="Brush" value={tools.brush} options={BRUSHES.map((b) => [b.id, b.name])} onChange={(brush) => onTools({ brush })} />
-        <Range id="lp-bs" label="Brush size" value={tools.brushScale} min={0.5} max={4} step={0.1} show={`${tools.brushScale.toFixed(1)}×`} onChange={(brushScale) => onTools({ brushScale })} />
+        <Seg<BrushId>
+          label="Brush"
+          value={tools.brush}
+          options={BRUSHES.map((brush) => [brush.id, brush.name])}
+          onChange={(brush) => onTools({ brush })}
+        />
+        <LpRange
+          id="lp-bs"
+          label="Brush size"
+          value={tools.brushScale}
+          min={0.5}
+          max={4}
+          step={0.1}
+          show={`${tools.brushScale.toFixed(1)}×`}
+          onChange={(brushScale) => onTools({ brushScale })}
+        />
         <span className="lp-label">Colour</span>
         <Swatches label="Brush colour" value={tools.brushColor} onChange={(brushColor) => onTools({ brushColor })} />
       </div>
       <div className="ig-group">
         <p className="hint">
-          Draw on the preview with a finger, pen or mouse. Strokes go into the selected drawing, so it moves and resizes as one; undo removes the last stroke. Draw over shapes and
-          photos alike.
+          Draw on the preview with a finger, pen or mouse. Strokes go into the selected drawing, so it moves and resizes
+          as one; undo removes the last stroke. Draw over shapes and photos alike.
         </p>
         <button type="button" className="sbtn" onClick={onNewDrawing}>
           <PlusIcon />
@@ -499,5 +374,10 @@ export function DrawPanel({ tools, onTools, onNewDrawing }: { tools: LayerTools;
   );
 }
 
-/** Whether an element is a text field (keyboard shortcuts leave typing alone). */
-export const typingIn = (el: EventTarget | null) => el instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+/**
+ * Whether an element is a text field (keyboard shortcuts leave typing alone).
+ * @param element the event's target
+ * @returns true for inputs, text areas, selects and editable content
+ */
+export const typingIn = (element: EventTarget | null) =>
+  element instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName) || element.isContentEditable);

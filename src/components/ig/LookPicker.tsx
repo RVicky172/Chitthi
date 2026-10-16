@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BUILT_IN_PRESETS, presetApplied } from '../../data/presets';
 import type { Adjustments } from '../../engine/adjust';
 import { lutById, LutError } from '../../engine/lut';
-import { PRESET_NAME_MAX, PresetError, type SavedPreset } from '../../engine/presets';
+import { BUILT_IN_PRESETS, PRESET_NAME_MAX, presetApplied, PresetError, type SavedPreset } from '../../engine/presets';
 import { saveFile } from '../../lib/download';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
@@ -25,18 +24,41 @@ import { TrashIcon } from '../icons';
  * photo (photo editor), export and import as a preset file.
  */
 
-export function LookPicker({
-  adjust: a,
-  onChange,
-  idPrefix,
-  onApplyAll,
-}: {
+/**
+ * A saved preset's LUT is loaded before it is applied; one that is gone is applied without it, with a note.
+ * @param preset the saved preset
+ * @param apply where its settings go
+ */
+async function applySaved(preset: SavedPreset, apply: (adjust: Adjustments) => void): Promise<void> {
+  if (preset.adjust.lut && !(await ensureLut(preset.adjust.lut).catch(() => undefined)))
+    toast(`“${preset.name}” uses a LUT that isn’t on this device, so it is applied without it.`);
+  apply(preset.adjust);
+}
+
+/**
+ * "1 preset", "3 presets".
+ * @param count how many
+ * @param word the singular word
+ * @returns the count and the word
+ */
+const counted = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+/** The settings being edited and where changes go. */
+interface LookPickerProps {
   adjust: Adjustments;
   onChange: (patch: Partial<Adjustments>) => void;
+  /** Prefix for the inputs' ids, unique on the page. */
   idPrefix: string;
   /** Applies settings to every photo of the batch; offered for saved presets when given. */
   onApplyAll?: (adjust: Adjustments) => void;
-}) {
+}
+
+/**
+ * Presets and LUTs: the preset chips, the LUT select with import, amount and removal, saving a preset and the saved
+ * presets.
+ * @param props the settings, their change handler, the id prefix and (photo editor) apply-to-all
+ */
+export function LookPicker({ adjust, onChange, idPrefix, onApplyAll }: Readonly<LookPickerProps>) {
   const luts = useLutLibrary(),
     saved = usePresets();
   const [busy, setBusy] = useState(false);
@@ -44,23 +66,19 @@ export function LookPicker({
     void loadLutLibrary();
     void loadPresets();
   }, []);
-  const missing = !!a.lut && !lutById(a.lut);
-
-  /** A saved preset's LUT is loaded before it is applied; one that is gone shows as missing. */
-  const applySaved = async (p: SavedPreset, apply: (adj: Adjustments) => void) => {
-    if (p.adjust.lut && !(await ensureLut(p.adjust.lut).catch(() => undefined)))
-      toast(`“${p.name}” uses a LUT that isn’t on this device, so it is applied without it.`);
-    apply(p.adjust);
-  };
+  const missing = !!adjust.lut && !lutById(adjust.lut);
 
   const choose = async (id: string) => {
-    if (!id) return onChange({ lut: '' });
+    if (!id) {
+      onChange({ lut: '' });
+      return;
+    }
     setBusy(true);
     try {
       if (await ensureLut(id)) onChange({ lut: id });
       else toast('That LUT isn’t on this device any more.');
-    } catch (e) {
-      logError('handled', e);
+    } catch (error) {
+      logError('handled', error);
       toast('The LUT couldn’t be loaded. Try importing the .cube file again.');
     } finally {
       setBusy(false);
@@ -73,11 +91,11 @@ export function LookPicker({
       const lut = await importCube(file);
       onChange({ lut: lut.id, lutAmount: 100 });
       toast(`LUT “${lut.title}” added (${lut.size}³).`);
-    } catch (e) {
+    } catch (error) {
       // A file that isn't a usable LUT is the file's problem, not the app's: say why, don't report it.
-      if (e instanceof LutError) toast(`That LUT can’t be used. ${e.message}`);
+      if (error instanceof LutError) toast(`That LUT can’t be used. ${error.message}`);
       else {
-        logError('handled', e);
+        logError('handled', error);
         toast('The LUT couldn’t be read.');
       }
     } finally {
@@ -88,41 +106,46 @@ export function LookPicker({
   return (
     <>
       <div className="chips" role="radiogroup" aria-label="Presets">
-        {BUILT_IN_PRESETS.map((p) => (
+        {BUILT_IN_PRESETS.map((preset) => (
           <button
-            key={p.id}
+            key={preset.id}
             type="button"
             role="radio"
             className="chip"
-            aria-checked={presetApplied(a, p)}
-            onClick={() => onChange(p.adjust)}
+            aria-checked={presetApplied(adjust, preset)}
+            onClick={() => onChange(preset.adjust)}
           >
-            {p.name}
+            {preset.name}
           </button>
         ))}
-        {saved.map((p) => (
+        {saved.map((preset) => (
           <button
-            key={p.id}
+            key={preset.id}
             type="button"
             role="radio"
             className="chip"
-            aria-checked={presetApplied(a, p)}
-            onClick={() => void applySaved(p, onChange)}
+            aria-checked={presetApplied(adjust, preset)}
+            onClick={() => void applySaved(preset, onChange)}
           >
-            {p.name}
+            {preset.name}
           </button>
         ))}
       </div>
       <div className="ig-lut">
         <label htmlFor={`${idPrefix}-lut`}>LUT</label>
-        <select id={`${idPrefix}-lut`} value={a.lut} disabled={busy} onChange={(e) => void choose(e.target.value)}>
+        <select
+          id={`${idPrefix}-lut`}
+          value={adjust.lut}
+          disabled={busy}
+          onChange={(event) => void choose(event.target.value)}
+        >
           <option value="">None</option>
-          {luts.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.title}
+          {luts.map((lut) => (
+            <option key={lut.id} value={lut.id}>
+              {lut.title}
             </option>
           ))}
-          {a.lut && !luts.some((l) => l.id === a.lut) && <option value={a.lut}>Missing LUT</option>}
+          {adjust.lut && !luts.some((lut) => lut.id === adjust.lut) && <option value={adjust.lut}>Missing LUT</option>}
         </select>
         <label className="sbtn mst-file">
           Import .cube
@@ -130,16 +153,20 @@ export function LookPicker({
             type="file"
             accept=".cube"
             disabled={busy}
-            onChange={(e) => void add(e.target.files?.[0]).then(() => (e.target.value = ''))}
+            onChange={(event) =>
+              void add(event.target.files?.[0]).then(() => {
+                event.target.value = '';
+              })
+            }
           />
         </label>
       </div>
       {missing && <p className="hint bad">This LUT isn’t on this device any more, so it isn’t applied.</p>}
-      {a.lut && !missing && (
+      {adjust.lut && !missing && (
         <>
           <div className="ig-slider">
             <label htmlFor={`${idPrefix}-lutamt`}>
-              LUT amount <output htmlFor={`${idPrefix}-lutamt`}>{Math.round(a.lutAmount)}</output>
+              LUT amount <output htmlFor={`${idPrefix}-lutamt`}>{Math.round(adjust.lutAmount)}</output>
             </label>
             <input
               id={`${idPrefix}-lutamt`}
@@ -147,8 +174,8 @@ export function LookPicker({
               min={0}
               max={100}
               step={1}
-              value={a.lutAmount}
-              onChange={(e) => onChange({ lutAmount: +e.target.value })}
+              value={adjust.lutAmount}
+              onChange={(event) => onChange({ lutAmount: +event.target.value })}
               onDoubleClick={() => onChange({ lutAmount: 100 })}
             />
           </div>
@@ -156,7 +183,7 @@ export function LookPicker({
             type="button"
             className="sbtn"
             onClick={() => {
-              const id = a.lut;
+              const id = adjust.lut;
               onChange({ lut: '' });
               void forgetLut(id);
               toast('LUT removed from this device.');
@@ -166,23 +193,36 @@ export function LookPicker({
           </button>
         </>
       )}
-      <SavePreset idPrefix={idPrefix} adjust={a} />
-      <PresetManager saved={saved} onApplyAll={onApplyAll && ((p) => void applySaved(p, onApplyAll))} />
+      <SavePreset idPrefix={idPrefix} adjust={adjust} />
+      <PresetManager saved={saved} onApplyAll={onApplyAll && ((preset) => void applySaved(preset, onApplyAll))} />
     </>
   );
 }
 
-function SavePreset({ idPrefix, adjust }: { idPrefix: string; adjust: Adjustments }) {
+/** The settings a new preset would hold. */
+interface SavePresetProps {
+  idPrefix: string;
+  adjust: Adjustments;
+}
+
+/**
+ * Saving the current settings as a named preset.
+ * @param props the id prefix and the settings
+ */
+function SavePreset({ idPrefix, adjust }: Readonly<SavePresetProps>) {
   const [name, setName] = useState('');
   return (
     <form
       className="ig-preset-save"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void savePreset(name, adjust).then((p) => {
-          if (!p) return toast('Give the preset a name first.');
+      onSubmit={(event) => {
+        event.preventDefault();
+        void savePreset(name, adjust).then((preset) => {
+          if (!preset) {
+            toast('Give the preset a name first.');
+            return;
+          }
           setName('');
-          toast(`Preset “${p.name}” saved.`);
+          toast(`Preset “${preset.name}” saved.`);
         });
       }}
     >
@@ -195,7 +235,7 @@ function SavePreset({ idPrefix, adjust }: { idPrefix: string; adjust: Adjustment
         maxLength={PRESET_NAME_MAX}
         placeholder="Name these settings"
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(event) => setName(event.target.value)}
       />
       <button type="submit" className="sbtn" disabled={!name.trim()}>
         Save as preset
@@ -204,7 +244,17 @@ function SavePreset({ idPrefix, adjust }: { idPrefix: string; adjust: Adjustment
   );
 }
 
-function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll?: (p: SavedPreset) => void }) {
+/** The saved presets and, in the photo editor, applying one to every photo. */
+interface PresetManagerProps {
+  saved: SavedPreset[];
+  onApplyAll?: (preset: SavedPreset) => void;
+}
+
+/**
+ * The saved presets: rename, apply to all, delete, and export / import as a preset file.
+ * @param props the saved presets and apply-to-all
+ */
+function PresetManager({ saved, onApplyAll }: Readonly<PresetManagerProps>) {
   const [busy, setBusy] = useState(false);
   const exportAll = async () => {
     setBusy(true);
@@ -214,8 +264,8 @@ function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll
         `chitthi-presets-${new Date().toISOString().slice(0, 10)}.json`,
         new Blob([json], { type: 'application/json' }),
       );
-    } catch (e) {
-      logError('handled', e);
+    } catch (error) {
+      logError('handled', error);
       toast('The presets couldn’t be exported.');
     } finally {
       setBusy(false);
@@ -225,18 +275,18 @@ function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll
     if (!file) return;
     setBusy(true);
     try {
-      const r = await importPresets(file);
+      const result = await importPresets(file);
       toast(
-        `${r.added} preset${r.added === 1 ? '' : 's'} added` +
-          (r.skipped ? `, ${r.skipped} already here` : '') +
-          (r.luts ? `, with ${r.luts} LUT${r.luts === 1 ? '' : 's'}` : '') +
+        `${counted(result.added, 'preset')} added` +
+          (result.skipped ? `, ${result.skipped} already here` : '') +
+          (result.luts ? `, with ${counted(result.luts, 'LUT')}` : '') +
           '.',
       );
-    } catch (e) {
+    } catch (error) {
       // A file that isn't a preset file is the file's problem: say why, don't report it.
-      if (e instanceof PresetError) toast(`Those presets can’t be imported. ${e.message}`);
+      if (error instanceof PresetError) toast(`Those presets can’t be imported. ${error.message}`);
       else {
-        logError('handled', e);
+        logError('handled', error);
         toast('The preset file couldn’t be read.');
       }
     } finally {
@@ -248,22 +298,24 @@ function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll
       <summary>Your presets ({saved.length})</summary>
       {saved.length ? (
         <ul>
-          {saved.map((p) => (
-            <li key={`${p.id}:${p.name}`}>
+          {saved.map((preset) => (
+            <li key={`${preset.id}:${preset.name}`}>
               <input
                 type="text"
-                aria-label={`Name of preset ${p.name}`}
+                aria-label={`Name of preset ${preset.name}`}
                 maxLength={PRESET_NAME_MAX}
-                defaultValue={p.name}
-                onBlur={(e) => {
-                  const el = e.currentTarget;
-                  void renamePreset(p.id, el.value).then((n) => (el.value = n));
+                defaultValue={preset.name}
+                onBlur={(event) => {
+                  const field = event.currentTarget;
+                  void renamePreset(preset.id, field.value).then((name) => {
+                    field.value = name;
+                  });
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') {
-                    e.currentTarget.value = p.name;
-                    e.currentTarget.blur();
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.currentTarget.blur();
+                  if (event.key === 'Escape') {
+                    event.currentTarget.value = preset.name;
+                    event.currentTarget.blur();
                   }
                 }}
               />
@@ -271,8 +323,8 @@ function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll
                 <button
                   type="button"
                   className="sbtn"
-                  aria-label={`Apply ${p.name} to all photos`}
-                  onClick={() => onApplyAll(p)}
+                  aria-label={`Apply ${preset.name} to all photos`}
+                  onClick={() => onApplyAll(preset)}
                 >
                   To all
                 </button>
@@ -280,10 +332,10 @@ function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll
               <button
                 type="button"
                 className="sbtn"
-                aria-label={`Delete preset ${p.name}`}
+                aria-label={`Delete preset ${preset.name}`}
                 onClick={() => {
-                  if (confirm(`Delete the preset “${p.name}”? Photos already edited with it keep their settings.`))
-                    void deletePreset(p.id);
+                  if (confirm(`Delete the preset “${preset.name}”? Photos already edited with it keep their settings.`))
+                    void deletePreset(preset.id);
                 }}
               >
                 <TrashIcon />
@@ -304,7 +356,11 @@ function PresetManager({ saved, onApplyAll }: { saved: SavedPreset[]; onApplyAll
             type="file"
             accept=".json,application/json"
             disabled={busy}
-            onChange={(e) => void importFile(e.target.files?.[0]).then(() => (e.target.value = ''))}
+            onChange={(event) =>
+              void importFile(event.target.files?.[0]).then(() => {
+                event.target.value = '';
+              })
+            }
           />
         </label>
       </div>

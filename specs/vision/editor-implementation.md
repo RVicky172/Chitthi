@@ -73,7 +73,7 @@ What was built, decisions taken along the way, and measurements, so later work c
 ### Definition of done for every work item
 
 1. `npm run lint`, `typecheck`, `build`, `test:unit`, `test`, `test:mcp`, `test:e2e` and `check:licenses` pass.
-2. Pure logic has Vitest tests; anything that renders has a self-test check (`src/dev/selftest.ts`).
+2. Pure logic has Vitest tests; anything that renders has a self-test check (`tests/selftest/selftest.ts`).
 3. The feature is reachable by agents: a tool in `src/agent/tools.ts` (or an extended one), covered by the self-test.
 4. Docs updated: [MEDIA-STUDIO.md](../../docs/MEDIA-STUDIO.md) for behaviour, [lld.md](../lld.md) for structure,
    [licensing.md](../licensing.md) and THIRD_PARTY_NOTICES.md for any new dependency, CHANGELOG.
@@ -91,7 +91,7 @@ Goal: the same pixels as today, produced by a GPU pipeline both editors share. N
 | P0.3 | Done | **Render graph.** Nodes (source, convert to linear, adjust, look, vignette, layers, output) built from the edit model; texture pool; 16-bit float intermediates; sRGB output | new `engine/gpu/graph.ts`, `gpu/nodes/*.ts` | Vitest for graph building (no GPU needed) |
 | P0.4 | Done | **Shaders for today's looks.** Port `lookPixels()` (`engine/photo.ts`) and `adjustPixels()` (`engine/instagram.ts`) to WGSL and GLSL, kept side by side per effect | new `engine/gpu/shaders/` | Golden-image parity (P0.6) |
 | P0.5 | Done | **Wire into the renderers.** `renderIg()` and `renderFrame()` (`engine/video.ts`) call the graph when `settings.gpu` is on; layers (`engine/layers.ts`) still draw with Canvas 2D on top. Video frames go to the GPU without a CPU copy (`importExternalTexture` / `texImage2D` with a `VideoFrame`) | `engine/instagram.ts`, `engine/video.ts`, `engine/videoExport.ts` | Export a Reel and a 1080p video with the flag on and off; compare |
-| P0.6 | Done | **Golden-image tests.** Render a fixed set of photos × looks × adjustment values with Canvas 2D and with each GPU backend; fail if any channel differs by more than 2 levels or the mean by more than 0.5 | `src/dev/selftest.ts`, sample photos (no people) in `public/samples/` | This is the phase gate |
+| P0.6 | Done | **Golden-image tests.** Render a fixed set of photos × looks × adjustment values with Canvas 2D and with each GPU backend; fail if any channel differs by more than 2 levels or the mean by more than 0.5 | `tests/selftest/selftest.ts`, sample photos (no people) in `public/samples/` | This is the phase gate |
 | P0.7 | Done | **Loading and budgets.** The GPU module loads with `import()` on first use of an editor; extend `scripts/check-bundle.mjs` with markers so shader code can't reach the entry chunk | `scripts/check-bundle.mjs` | `npm run build` |
 | P0.8 | Not needed | **Desktop frame path for big files.** Read large videos in chunks through IPC instead of a whole `File` in memory | `electron/main.cjs`, `lib/fileSink.ts`, new IPC handler | MCP smoke test with a 2 GB+ file (manual, recorded in testing-strategy.md) |
 | P0.9 | Done | **Switch over.** Turn `settings.gpu` on by default; keep Canvas 2D as the fallback when no GPU is available | settings, MEDIA-STUDIO.md | Full suite on Chrome, Firefox (WebGL2) and Electron |

@@ -448,3 +448,152 @@ the Transitions panel for it. D3: Zoom grows the outgoing clip 1× → 1.3× whi
 no cut targets; a zoom through.
 **Consequences:** the first task is a spike proving the pool decodes past a clip's out point; 206's UI, golden frames,
 sound and timing are checked in 290.
+
+## D-037 — 407: coding standards, a tests folder, lint enforcement (2026-10-13)
+
+**Context:** the maintainer asked for tests outside `src/`, written coding standards, SOLID, JSDoc and no one-letter
+names, before 207. Baseline: 34 % one-letter names, 333 of 880 exports without JSDoc, 103 functions over 80 lines,
+27 React-rule findings, 379 type assertions and 177 non-null assertions.
+**Decision:** spec Q1–Q13 accepted as proposed. Tests move to `tests/{unit,integration,support,e2e,selftest}`
+(imported through an `@/` alias, D1); `specs/coding-standards.md`; ESLint enforces names (`id-length`, exceptions `_`,
+`x`, `y`; properties exempt so saved formats don't change), JSDoc on exports, function length (80; 250 in `.tsx`),
+cognitive complexity 15 (`eslint-plugin-sonarjs`), React's `recommended-latest` rules, typescript-eslint
+`strictTypeChecked` and the layers' import direction; no hard file-length limit (a warning at 800). Rules land as
+warnings and become errors folder by folder. `noImplicitReturns` / `noImplicitOverride` now,
+`noUncheckedIndexedAccess` by the end. The React Compiler last, through the Vite plugin's `oxc-transform-react` (D3),
+kept only without regressions. No barrel re-exports after splits (D2).
+**Licence:** `eslint-plugin-sonarjs` (LGPL-3.0-only) approved as a development-only lint tool: never shipped, never
+bundled, unmodified, so LGPL's distribution terms don't arise; recorded in `specs/licensing.md`.
+**Alternatives:** a 500-line file limit (rejected: length is a proxy); ESLint's cyclomatic `complexity` only; the Babel
+route for the compiler; tests left beside the code (they never reached the build, but mixed code and tests).
+**Consequences:** ~3–5 days of behaviour-neutral clean-up before 207; the full test suite runs inside 407 (Q9).
+
+## D-038 — The coding standards join the Definition of Done (2026-10-14)
+
+**Context:** 407 T020 wrote `specs/coding-standards.md` (AC-4); the spec asks the Definition of Done to point to it.
+**Decision:** constitution 2.0.0 → 2.1.0 (MINOR: a gate added). Definition of Done item 11: the code follows
+`specs/coding-standards.md`; what lint enforces passes in `npm run check`, the rest is checked in review. It is part
+of **Implemented** (not deferred to a phase's test pass). While 407 runs, the new lint rules are warnings outside its
+finished folders, so item 11 is judged on review there.
+**Consequences:** every feature from 407 on (207 first) is written to the standards from its first line.
+
+## D-039 — `npm run lint` uses ESLint's cache; `lint:full` doesn't (2026-10-14)
+
+**Context:** 407 T023 added typescript-eslint's type-aware presets: `eslint .` went from 13.7 s to 40.3 s. The plan's
+mitigation was ESLint's cache, or the type-aware rules on changed files only.
+**Decision:** `npm run lint` (so `npm run check`) runs `eslint . --cache --cache-strategy content` (cache in
+`node_modules/.cache/eslint/`): 3.4 s warm, 5.5 s after one file changes. `npm run lint:full` runs without it, in CI
+(`ci.yml`) and at a feature's close. All rules stay in one config, so there is one lint, not a fast and a slow split.
+**Trade-off:** ESLint caches per file, so a type-aware finding in a file whose imports changed can be stale until that
+file changes or a full run. Acceptable: CI and the close run in full.
+
+## D-040 — Two strict type-aware rules take their usual options (2026-10-14)
+
+**Context:** 407 T030, the first clean-up. Of `strictTypeChecked`'s findings in `src/`, 576 were
+`restrict-template-expressions` on numbers in template strings and 850 `no-confusing-void-expression` on one-line arrow
+handlers (`onClick={() => setOpen(false)}`): safe code, and changing it would be churn.
+**Decision:** `restrict-template-expressions` with `allowNumber: true` (objects, `null`, `undefined` and unions with
+them are still reported) and `no-confusing-void-expression` with `ignoreArrowShorthand: true`. Together 1,426 → 27.
+The presets stay whole (AC-13); only these options change.
+
+## D-041 — The print renderer is one named chunk (2026-10-14)
+
+**Context:** 407 T033 split `engine/render.ts` (1,442 lines) into nine modules. Lazy screens that only need `calMonth`
+now import `calendarDraw.ts`, so Rolldown kept that in a shared chunk and folded the rest of the renderer into the
+entry chunk: entry 327 → 347 KB (budget 350; 407 keeps it at 327). What loads at start-up was the same: the old
+`render` chunk was already a static import of the entry (`export.ts`, `state/actions.ts`).
+**Decision:** `vite.config.ts` names one chunk, `render`, for the renderer's modules (`PRINT_RENDERER`: `render`,
+`themeBackground`, `printText`, `photoSlots`, `postalDecor`, `frontText`, `cardFront`, `cardBack`, `calendarDraw`,
+`patterns`), with `includeDependenciesRecursively: false` so `design.ts`, `layout.ts` and the rest stay where they
+were. The entry chunk holds the same modules as before (327 KB); `data/holidays.ts` became a small chunk of its own.
+**Consequences:** a new module of the print renderer is added to `PRINT_RENDERER`, or it may land in the entry chunk.
+
+## D-042 — The print-file builders load on export (2026-10-14)
+
+**Context:** 407 T035 left the entry chunk at 329 KB (AC-9: ≤ 327 KB): the readable `export.ts` and `analyze.ts`
+reach the entry through `state/`. Options: relax AC-9, lazy-load, a named chunk that still loads at start, or trim.
+**Decision (maintainer):** lazy-load. `engine/printPages.ts` holds what the studio shows before building (`pagesOf`,
+`nup`, `SHEETS`, `exportSummary`, `baseName`); `engine/export.ts` keeps the builders (PDF, PNG, envelope, pack, spec)
+and `state/actions.ts` loads it with `import()` on the first export, as it already did for `quote.ts`.
+**Consequences:** entry 329 → 317 KB; `export` is a 10.9 KB chunk. Code that only needs pages or the imposition imports
+`printPages.ts`, never `export.ts`, or the builders return to the entry chunk.
+
+## D-043 — Print layouts are a table of builders; GPU backends are classes (2026-10-14)
+
+**Context:** 407 T036. `computeLayout` was one 626-line switch (cognitive complexity 193); `openWebGL2` and
+`openWebGPU` each built their device as one 200+ line object literal of closures (over the 80-line limit).
+**Decision:** `layout.ts` maps every `LayoutId` to a builder (`BUILDERS: Record<LayoutId, LayoutBuilder>`) in
+`postcardLayouts.ts` / `printLayouts.ts`, sharing a `LayoutContext` (`layoutParts.ts`); TypeScript asks for a builder
+for every new id. The backends are classes implementing `GpuDevice` (`WebGL2Device`, `WebGPUDevice`), made by the
+same `open…()` functions. No caller detaches a device method (checked), so `this` is safe.
+**Consequences:** a new layout is a builder plus a table entry, not a new `case`; device methods must be called on the
+device (`device.read(t)`), never passed around unbound.
+
+## D-044 — data/ holds data only; stored records are checked when read (2026-10-15)
+
+**Context:** 407 T042. Three files in `src/data/` broke the layer rule (data imports nothing of the app but
+`types.ts`): `samples.ts` loaded photos (engine/photo, lib/credits), `presets.ts` held logic over `Adjustments`
+(engine/adjust), `instagram.ts` took `PhotoType` from engine/photoExport. The IndexedDB code in `lib/db.ts`,
+`lib/userFonts.ts` and `lib/userLuts.ts` returned `any` from the store as typed records.
+**Decision:** the sample loader moves to `state/samples.ts` (`sampleCredits`, `buildSample`; `data/samples.ts` keeps
+the definitions and `SAMPLE_BASE_URL`); the built-in presets and `presetApplied` join `engine/presets.ts`
+(`ColourPreset`); `PhotoType` moves to `src/types.ts`. Built-in tables that are never empty are typed as non-empty
+tuples (`readonly [T, ...T[]]`), so `TABLE[0]` is the fallback without `firstOf` (data may not import engine). One
+IndexedDB helper, `lib/idb.ts`, returns `unknown`; each reader keeps the records that have the fields it relies on
+(shallow guards), and designs and presets still go through `mergeDesign()` / `mergePreset()`.
+**Consequences:** a malformed stored record (or Pexels result) is skipped instead of reaching the UI; the desktop
+bridge's `presetAll()` is typed `unknown[]`. The public library entry (`src/index.ts`) exports `buildSample` /
+`sampleCredits` from `state/samples`.
+
+## D-045 — Agent tools split by job and may return directly; AI answers read through guards (2026-10-15)
+
+**Context:** 407 T043. `agent/tools.ts` (581 lines) and `agent/photoTools.ts` (722) held every tool; 28 handlers were
+`async` with nothing to await. Provider answers, stored AI settings and keys were cast to their expected shapes.
+**Decision:** `tools.ts` is the registry over one file per job (catalogue, design, card photos, AI, output, gallery;
+the photo studio's batch and colour, masks, presets and LUTs), with `designSummary.ts`, `photoStudioInfo.ts` and
+`photoEdits.ts` for what they share; the order agents see is unchanged. `AgentTool.run` and `AgentResource.read`
+return a result or a promise (every caller awaits, so a throw rejects the call either way). Arguments outside a
+schema's `enum` (product, orientation, calendar words and marks) are refused with a `ToolError` instead of being
+stored. Provider JSON goes through `ai/providers/read.ts` (`fieldOf`, `textField`, `listField`); stored settings
+through `mergeAiSettings()` (the chosen provider is a `string`, so a removed provider still gets its message); keys
+and `ai-hosts.json` rules are checked when read.
+**Consequences:** a new tool goes into the file for its job and is listed in `tools.ts`; MCP schemas, names and order
+are byte-identical (checked by snapshot). Malformed answers (an object where text belongs) give '' instead of
+"[object Object]", and inputs that crashed with a TypeError now give the handled message.
+
+## D-046 — React Compiler stays off (2026-10-16)
+
+**Context:** 407 T071 (Q11, plan §6, D3). Wired through `@vitejs/plugin-react` 6.1's `compiler` option with
+`oxc-transform-react` 0.152 (the plugin's peer range; its native compiler is marked experimental). Diagnostics: 37
+functions skipped (dynamic `import()`, `try`/`finally`, `??=`, one rule suppression). e2e failed 3 AI-mask tests until
+two external-store hooks were fixed (they read a module Map during render; learnings). Compiled components grow ~40 %:
+whole app, entry 313 → 337 KB (AC-9 allows 327); only the lazy media-studio folders (`sources`), entry 314 KB but the
+studio chunk 201 → 281 kB.
+**Decision:** the maintainer chose to keep it off: Q11's own rule (kept only without regression). `oxc-transform-react`
+is not added; the manual `useMemo` / `useCallback` / `memo` stay; the two hook fixes are kept (correct without it).
+**Consequences:** AC-12 (the Rules of React lint) still applies, so turning it on later is a config change. Look again
+when the native compiler is stable or its output smaller.
+
+## D-047 — `!` allowed on measured hot-loop reads; the look path's order-dependent cost accepted (2026-10-16)
+
+**Context:** 407 T072 (AC-10). `noUncheckedIndexedAccess` (T070) put `?? 0` on every typed-array read; in the blur's
+two passes (`engine/detail.ts`) that made clarity 17 % and sharpen 34 % slower in the Electron renderer (V8 15.2;
+Node's V8 13.6 barely shows it). `=== undefined` checks there were worse (+55 %). Separately, the Canvas 2D colour
+chain with a look is 13–22 % slower than before 407 when a photo is processed without a look first (V8's inlining
+budget, after T035's split); seven restructurings didn't fix that order without losing elsewhere.
+**Decision:** the maintainer allowed `!` on the 9 blur reads, inside an `eslint-disable` block with the reason and
+numbers; `specs/coding-standards.md` §8 says when (`=== undefined` on object arrays, `?? 0` by default on typed arrays,
+`!` only where measured). The look path stays as T035 left it, recorded in `performance.md` and the spec's Changelog
+as the one exception to AC-10's "no timing check gets slower".
+**Consequences:** `no-non-null-assertion` stays an error everywhere else. The look path affects only the fallback
+without WebGPU.
+
+## D-048 — Tests follow the standards; two Sonar rules off for tests/ (2026-10-16)
+
+**Context:** 407 T091 left 1,894 standards warnings in `tests/` (outside AC-5). The maintainer asked for them fixed
+(T062).
+**Decision:** `tests/**` joins `FINISHED`: names, JSDoc, no `!` (`tests/support/defined.ts` throws with what was
+missing), seeded randoms (`tests/support/seededRandom.ts`), explicit sort orders. Off for `tests/` in
+`eslint.config.js`, with the reason there: `sonarjs/no-floating-point-equality` (tests compare exact pass-through
+values on purpose) and, for `tests/e2e/`, `sonarjs/no-skipped-tests` (Playwright skips per project, desktop or phone).
+**Consequences:** new test code must pass the same rules as app code; a test that samples at random uses a seed.

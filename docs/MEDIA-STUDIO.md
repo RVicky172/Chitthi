@@ -214,10 +214,10 @@ step.
 
 | Part | File |
 | --- | --- |
-| Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/data/presets.ts` |
+| Formats, limits, looks; built-in presets | `src/data/instagram.ts`, `src/engine/presets.ts` |
 | `.cube` parser, tetrahedral lookup and the LUTs loaded this session; imported LUTs on the device | `src/engine/lut.ts`; `src/lib/userLuts.ts` |
 | Saved presets: validation (`mergePreset`) and the preset file; the list and its storage | `src/engine/presets.ts`; `src/state/presets.ts` |
-| Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`; `src/engine/gpu/mask.ts` |
+| Masks: model, `mergeMasks()`, the brush raster, laying a mask on the frame; on the GPU | `src/engine/masks.ts`, `maskGate.ts`, `maskBrush.ts`, `maskRaster.ts`, `maskPlace.ts`; `src/engine/gpu/mask.ts` |
 | Masks panel and the mask's settings (inspector) | `src/components/ig/MaskPanel.tsx` |
 | AI masks: the models, their download and check, the worker (ONNX Runtime Web); the maps kept per photo; panel status | `src/ai/segment/`; `src/engine/segments.ts`; `src/components/ig/useAiMask.ts` |
 | RAW files: developing with LibRaw (desktop); RAW names, the embedded preview, 8-bit previews from 16-bit data | `electron/raw.cjs`, `scripts/fetch-libraw.mjs`; `src/engine/raw.ts` |
@@ -225,16 +225,16 @@ step.
 | Presets, LUTs and saved presets panel (both editors) | `src/components/ig/LookPicker.tsx` |
 | Colour settings (look, sliders, vignette) as parameters, and `mergeAdjust()` to validate them | `src/engine/adjust.ts` |
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
-| Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` |
-| Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts` |
-| Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` |
-| Video formats, limits and frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/video.ts`; `src/engine/videoExport.ts` |
+| Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` (state, undo, edits); `instagramLayers.ts`, `instagramMedia.ts`, `instagramExport.ts` |
+| Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts`, `layerDraw.ts`, `layerPick.ts`, `layerGate.ts` |
+| Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` (adding, the list, the brush), `LayerProperties.tsx` (the selected layer), `LayerControls.tsx` (swatches, range) |
+| Video formats and limits; frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/videoFormats.ts`; `src/engine/video.ts`; `src/engine/videoExport.ts` |
 | Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
-| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`; `src/engine/layers.ts` |
+| Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layerGate.ts` |
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
-| Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/video.ts` |
+| Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/videoStore.ts` (state, history, `change`); actions in `videoTracks.ts`, `videoClips.ts`, `videoBox.ts`, `videoKeys.ts`, `videoLayers.ts`, `videoTransitions.ts`, `videoMedia.ts`, `videoExportJob.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
-| Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx`, `VideoWorkspace.tsx`, `Timeline.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
+| Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx` with `PhotoStage.tsx`, `PhotoEditPanel.tsx`, `PhotoPanels.tsx`, `PhotoStrip.tsx`, `PhotoExport.tsx`, `VideoWorkspace.tsx` with `VideoStage.tsx`, `ClipInspector.tsx`, `VideoPanels.tsx`, `VideoExport.tsx`, `Timeline.tsx` with `PictureRow.tsx`, `CutMarks.tsx`, `TimelineBars.tsx`, `TrackHead.tsx`, `Transport.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
 | Styles | `src/styles/36-media-studio.css` (workspace, timeline), `src/styles/35-instagram.css` (panels and controls) |
 | Agent tools for the photo studio (MCP): batch, framing, colour, masks, presets, LUTs, preview, export | `src/agent/photoTools.ts` |
 
@@ -268,15 +268,15 @@ agent can set nothing a panel couldn't; in a live session each change is selecte
 around 100 MB. Full-size pixels exist only while one photo is being exported. The batch lasts for the session; the
 format, batch size and file settings are remembered.
 
-**Tests.** Unit: `src/engine/instagram.test.ts` (formats, limits, placement, colour maths) and
-`src/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
-`mergeLayers`), `src/engine/timeline.test.ts` (the track model against the frozen 2.x code in `timeline.testkit.ts`:
+**Tests.** Unit: `tests/unit/engine/instagram.test.ts` (formats, limits, placement, colour maths) and
+`tests/unit/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
+`mergeLayers`), `tests/unit/engine/timeline.test.ts` (the track model against the frozen 2.x code in `tests/support/timeline.testkit.ts`:
 clip placement, frames and sound sources for every 2.x shape; hide, mute and lock; the project document, its round
-trips and 36 malformed documents), `src/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
+trips and 36 malformed documents), `tests/unit/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
 edits, 1,000 seeded random edits per operation through `checkTrack` and `mergeProject`, each operation under 2 ms on
-500 clips) and `src/state/video.test.ts` (the store's edits, undo steps and Magnetic).
-Browser: `e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
-and `e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
+500 clips) and `tests/integration/state/video.test.ts` (the store's edits, undo steps and Magnetic).
+Browser: `tests/e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)
+and `tests/e2e/editors.e2e.ts` (layers, drawing, undo, delete; a Reel exported with text and music and checked for `ftyp`,
 `moov` before `mdat`, H.264, AAC and 1080 × 1920; timeline trim and reorder by dragging, split and delete; a YouTube
 video streamed into a stand-in for the save picker and checked for fast start and 1920 × 1080; clips placed end to
 end; the track headers: Hide, Mute, Lock and its refusals, heights by keyboard, undo, axe and 360 px; the edit tools:
@@ -286,7 +286,7 @@ Self-test: 200 preview frames (4 formats × 5 projects × 10 times) drawn throug
 are compared byte for byte; exports with the video track hidden (decoded: black with the layers), the music muted
 (no sound track) and a 1.5 s gap (45 black frames with the layers, the photos either side). Agents:
 the self-test draws an AI mask from a stand-in map, runs the real subject model in its worker and checks the sky model
-is never downloaded without consent; `e2e/instagram.e2e.ts` finds a subject with the real model under the production
+is never downloaded without consent; `tests/e2e/instagram.e2e.ts` finds a subject with the real model under the production
 CSP (desktop project). RAW and 16-bit: Vitest checks the TIFF writer, the embedded-preview reader and a synthetic DNG
 (`syntheticDng()`, made by the tests, so no camera file or licence is involved); the self-test checks float read-back
 and holds the 16-bit render to the 8-bit picture on each backend; `npm run test:mcp` develops the synthetic DNG with
@@ -378,7 +378,7 @@ the left of the timeline, has:
 Hide, Mute and Lock are undo steps; the height is a view setting that lasts for the session. Each control is a button
 with a name for screen readers, usable from the keyboard; hidden and muted rows are dimmed, locked clips show a lock.
 
-Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`). With Magnetic on the
+Behind this, a project is a set of tracks with clips at a start time (`src/engine/timeline.ts`, tracks in `tracks.ts`). With Magnetic on the
 main video track places its clips end to end exactly as before, so every video looks and sounds the same as in 2.x;
 with it off it keeps gaps. A project also has a document form (JSON, version 1, with `magnetic`) and one validator,
 `mergeProject()`, which reads any document (a 2.x project without a version is converted; with Magnetic off, a clip
@@ -526,7 +526,7 @@ app tells users so and sends long or demanding projects to the desktop app:
 | Encoding | WebCodecs, hardware-accelerated where the browser allows | WebCodecs in Electron, using the graphics card's encoder |
 | Videos on screen at once (main + overlay video clips) | 3 (1 in browsers without WebCodecs' video decoding) | 5 |
 
-Limits live in `limitsFor()` (`src/engine/video.ts`); the notes in the editor read from it. Videos on screen at once
+Limits live in `limitsFor()` (`src/engine/videoFormats.ts`); the notes in the editor read from it. Videos on screen at once
 is measured (see [PERFORMANCE.md](PERFORMANCE.md#videos-on-screen-at-once)) and counts the main track's and the
 overlay tracks' video clips showing at the same moment, hidden tracks included (so showing a track can't break it).
 Photos don't count.

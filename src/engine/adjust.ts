@@ -1,7 +1,8 @@
 import type { LookId } from '../types';
 import { curveNeutral, FLAT_CURVE, mergeCurve, type ToneCurve } from './curve';
-import { FLAT_MIXER, mergeMixer, mixerNeutral, type ColourMixer } from './hsl';
 import { detailNeutral } from './detail';
+import { isObjectLike, isOneOf, keysOf } from './guards';
+import { FLAT_MIXER, mergeMixer, mixerNeutral, type ColourMixer } from './hsl';
 import { lightNeutral } from './light';
 import { LUT_ID, lutById } from './lut';
 
@@ -15,8 +16,10 @@ import { LUT_ID, lutById } from './lut';
 /** Bumped when the stored shape of Adjustments changes; mergeAdjust() reads every older version. */
 export const ADJUST_VERSION = 5; // 2: light and white balance (P1.1); 3: tone curve and colour mixer (P1.2); 4: detail and effects (P1.3); 5: LUT (P1.4). Older versions read with the new settings at their defaults
 
+/** The ready-made looks. */
 export const LOOK_IDS: readonly LookId[] = ['none', 'vivid', 'warm', 'cool', 'bw', 'tinted', 'vintage'];
 
+/** A photo's or a clip's colour settings. */
 export interface Adjustments {
   /** One of the ready-made looks, applied before the sliders. */
   look: LookId;
@@ -54,6 +57,7 @@ export interface Adjustments {
   lutAmount: number;
 }
 
+/** The settings that change nothing. */
 export const DEFAULT_ADJUST: Readonly<Adjustments> = Object.freeze({
   look: 'none',
   brightness: 0,
@@ -105,38 +109,67 @@ export const ADJUST_RANGES = {
   lutAmount: [0, 100],
 } as const satisfies Record<Exclude<keyof Adjustments, 'look' | 'curve' | 'mixer' | 'lut'>, readonly [number, number]>;
 
-type Slider = keyof typeof ADJUST_RANGES;
-const SLIDERS = Object.keys(ADJUST_RANGES) as Slider[];
+/** The slider settings. */
+const SLIDERS = keysOf(ADJUST_RANGES);
 
-/** True when nothing processes the photo's pixels: neutral colour and no detail settings. */
-export const pixelsNeutral = (a: Adjustments): boolean => colourNeutral(a) && detailNeutral(a);
+/**
+ * Whether nothing processes the photo's pixels.
+ * @param adjust the settings
+ * @returns true for neutral colour and no detail settings
+ */
+export const pixelsNeutral = (adjust: Adjustments): boolean => colourNeutral(adjust) && detailNeutral(adjust);
 
-/** True when the colour of the photo is left as it is (the vignette is drawn on top, so it doesn't count). */
-export const colourNeutral = (a: Adjustments): boolean =>
-  a.look === 'none' && !a.brightness && !a.contrast && !a.saturation && !a.warmth && lightNeutral(a) && curveNeutral(a.curve) && mixerNeutral(a.mixer) && lutNeutral(a);
+/**
+ * Whether the colour of the photo is left as it is (the vignette is drawn on top, so it doesn't count).
+ * @param adjust the settings
+ * @returns true when no look, slider, curve, mixer or LUT changes the colour
+ */
+export const colourNeutral = (adjust: Adjustments): boolean =>
+  adjust.look === 'none' &&
+  !adjust.brightness &&
+  !adjust.contrast &&
+  !adjust.saturation &&
+  !adjust.warmth &&
+  lightNeutral(adjust) &&
+  curveNeutral(adjust.curve) &&
+  mixerNeutral(adjust.mixer) &&
+  lutNeutral(adjust);
 
-/** True when no LUT applies: none set, its amount at 0, or its table not loaded in this session. */
-export const lutNeutral = (a: Pick<Adjustments, 'lut' | 'lutAmount'>): boolean => !a.lut || !(a.lutAmount > 0) || !lutById(a.lut);
+/**
+ * Whether no LUT applies.
+ * @param adjust the LUT settings
+ * @returns true when none is set, its amount is 0, or its table isn't loaded in this session
+ */
+export const lutNeutral = (adjust: Pick<Adjustments, 'lut' | 'lutAmount'>): boolean => !adjust.lut || Number.isNaN(adjust.lutAmount) || adjust.lutAmount <= 0 || !lutById(adjust.lut);
 
-const num = (v: unknown, [lo, hi]: readonly [number, number], fallback: number): number =>
-  typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+/**
+ * A number within a range, or a fallback.
+ * @param value anything
+ * @param range the least and the most
+ * @param fallback the value when `value` isn't a finite number
+ * @returns the number
+ */
+const num = (value: unknown, [low, high]: readonly [number, number], fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.min(high, Math.max(low, value)) : fallback;
 
 /**
  * The single gate for colour settings from outside the running app (presets, project files, agent tools): returns a
  * complete, valid Adjustments, whatever it is given. Unknown fields are dropped, numbers are clamped to their ranges,
  * an unknown look becomes 'none'. Reads 2.x edits too, where the look was called `filter` and the settings sat directly
  * in the photo's edit.
+ * @param raw anything
+ * @returns valid settings
  */
 export function mergeAdjust(raw: unknown): Adjustments {
-  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const look = o.look ?? o.filter;
-  const out: Adjustments = {
+  const fields = isObjectLike(raw) ? raw : {};
+  const look = fields.look ?? fields.filter;
+  const adjust: Adjustments = {
     ...DEFAULT_ADJUST,
-    look: LOOK_IDS.includes(look as LookId) ? (look as LookId) : 'none',
-    curve: mergeCurve(o.curve),
-    mixer: mergeMixer(o.mixer),
-    lut: typeof o.lut === 'string' && LUT_ID.test(o.lut) ? o.lut : '',
+    look: isOneOf(LOOK_IDS, look) ? look : 'none',
+    curve: mergeCurve(fields.curve),
+    mixer: mergeMixer(fields.mixer),
+    lut: typeof fields.lut === 'string' && LUT_ID.test(fields.lut) ? fields.lut : '',
   };
-  for (const k of SLIDERS) out[k] = num(o[k], ADJUST_RANGES[k], DEFAULT_ADJUST[k]);
-  return out;
+  for (const slider of SLIDERS) adjust[slider] = num(fields[slider], ADJUST_RANGES[slider], DEFAULT_ADJUST[slider]);
+  return adjust;
 }

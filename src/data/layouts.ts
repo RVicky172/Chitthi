@@ -53,8 +53,18 @@ export const LAYOUTS: [LayoutId, string, ProductId][] = [
   ['mag-grid', 'Four photos', 'magnet'],
   ['mag-quote', 'Words only', 'magnet'],
 ];
-export const layoutName = (id: LayoutId) => LAYOUTS.find((l) => l[0] === id)?.[1] ?? id;
-export const layoutsFor = (p: ProductId) => LAYOUTS.filter((l) => l[2] === p);
+/**
+ * A layout's name.
+ * @param id the layout
+ * @returns its name, or the id for a layout not in the table
+ */
+export const layoutName = (id: LayoutId): string => LAYOUTS.find(([layoutId]) => layoutId === id)?.[1] ?? id;
+/**
+ * The layouts of one product.
+ * @param product the product
+ * @returns its layouts as [id, name, product], in the picker's order
+ */
+export const layoutsFor = (product: ProductId): typeof LAYOUTS => LAYOUTS.filter(([, , layoutProduct]) => layoutProduct === product);
 
 export const LOOKS: [LookId, string][] = [
   ['none', 'Original'],

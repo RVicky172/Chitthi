@@ -21,17 +21,28 @@ src/
     layouts.ts               LAYOUTS (id, name, product), LOOKS
     themes.ts                25 occasion themes: colours, patterns, fonts, greetings, quotes
     fonts.ts                 46 font families with category and weights
-    samples.ts               Gallery samples built from Pexels photos in public/samples/
+    samples.ts               Gallery samples (definitions) built from Pexels photos in public/samples/; state/samples.ts
+                             loads them
     showcase.ts, .json       Landing page examples (definitions) and their pre-rendered images (manifest)
     printSamples.ts          The 12 print samples for test prints and quotes (npm run build:print-samples)
     docs.ts                  The in-app documentation (#/docs) as pages of blocks, rendered by DocsPage.tsx
     instagram.ts             Instagram post formats and limits
     layers.ts                Layer shapes, stickers, text styles, brushes and palette for photos and video
-    presets.ts               Built-in presets of the photo & video editors (looks)
   engine/                  Framework-free; no React imports
     design.ts                DEFAULT_DESIGN, productDesign, mergeDesign, cardMM, calPages, cornerMM, resolveTheme, inks
-    layout.ts                computeLayout, slotCount, slotPhotoIndex
-    render.ts                renderCard and every drawing routine (fronts, backs, calendars, badge, guides)
+    layout.ts                computeLayout (a table of one builder per layout), slotCount, slotPhotoIndex
+    layoutParts.ts           What layout builders share: the context (card, pad, gap, unit) and rect / slot helpers
+    postcardLayouts.ts       The postcard layouts' builders
+    printLayouts.ts          The frame-print, calendar and magnet layouts' builders
+    render.ts                renderCard (one side, bleed, round cut, guides), renderThemeTile, photoDpi
+    themeBackground.ts       The card's unit, the bleed fill, the occasion background (drawThemeBg)
+    printText.ts             wrapLines, shrinkFont, label typeface, letter spacing, cap height
+    photoSlots.ts            Photo slots (shapes, cover photo, hint, outline, print, tape), layout art, mat, glass
+    postalDecor.ts           Stamp, postmark, badge arc lettering, Instagram tag
+    frontText.ts             The front's words (drawText, layoutText) and a calendar page's words
+    cardFront.ts             drawFront: the front, bottom first
+    cardBack.ts              Postcard, frame and magnet backs, the credit line
+    calendarDraw.ts          calMonth, month page and title, day grid and marks, big number, year grid and back
     patterns.ts              Procedural occasion artwork (PAT)
     photo.ts                 File checks, loading, makePhoto / updatePhoto (crop, rotate, looks), lookPixels
     instagram.ts             Instagram posts: placement, colour adjustments, renderIg (docs/MEDIA-STUDIO.md)
@@ -41,8 +52,13 @@ src/
     chain.ts                 The Canvas 2D colour chain: look → light → curve → mixer → LUT, one rounding at the end
     detail.ts                Noise reduction, dehaze, clarity, sharpening, grain, sized for a 1080 px frame (P1.3)
     lut.ts                   .cube parser, tetrahedral lookup, LUTs loaded this session (gpu/lut.ts on the GPU)
-    presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs)
-    masks.ts                 Masks: model, mergeMasks, brush / gradient / range rasters (cached), handles, frameMask
+    presets.ts               Saved presets: mergePreset, names, the preset file (presets plus their LUTs); the built-in
+                             presets (looks) and presetApplied
+    masks.ts                 Masks: the model (parts, limits, ranges, new parts and masks)
+    maskGate.ts              mergeMasks, mergePart: the gate for masks from outside
+    maskBrush.ts             Brush strokes on a raster, painted incrementally while drawing
+    maskRaster.ts            Gradient / range / AI rasters, parts and masks (cached), the photo sample
+    maskPlace.ts             The photo's place on the frame, gradient handles and drags, frameMask
     segments.ts              AI segmentation maps (subject, sky) per picture source, for AI mask parts (P1.8)
     photoExport.ts           Photo file types (JPEG, PNG, WebP, AVIF): which this browser writes, encodePhoto
     raw.ts, tiff.ts          Camera RAW: developed pixels → preview and linear source; 16-bit TIFF writer (P1.9)
@@ -51,31 +67,63 @@ src/
                              types.ts (device contract), device.ts (WebGPU, else WebGL2, else none), webgpu.ts,
                              webgl2.ts, graph.ts (nodes, runNodes), colour.ts, detail.ts, lut.ts, mask.ts (programs
                              mirroring the CPU code), apply.ts (the GPU step of renderIg)
-    layers.ts                Text, shapes, stickers, drawings, images over photos and video: draw (blend, mask), pick, handles
-    video.ts                 Video formats, per-platform limits, clip lengths, frame drawing (renderFrame, NO_PICTURE)
-    timeline.ts              Video project as tracks (201): pack, gaps, videoAt, framePlan, audioPlan, document, mergeProject
+    layers.ts                Text, shapes, stickers, drawings, images over photos and video: the model, new layers,
+                             names, scaleLayer, addStroke, the session's pictures
+    layerDraw.ts             drawLayers (blend, mask), layerBox, wrapText, shapePath
+    layerPick.ts             hitLayer, handles, the selection outline, rotationFor
+    layerGate.ts             mergeLayers: the gate for layers from project files
+    keyframeGate.ts          The gate for keyframes from project files (205): checked, clamped, within 5,000 keys
+    guards.ts                Type guards for outside data (isRecord …): gates narrow `unknown` instead of casting
+    videoFormats.ts          Video formats, bitrates, frame rates, per-platform limits (limitsFor)
+    video.ts                 Frame drawing: renderStack, renderFrame, motions, fades, NO_PICTURE
+    timeline.ts              Video project as tracks (201): clip timing (clipLength, frameRange), the clip transform
+                             (IDENTITY), pack, gaps, videoAt, framePlan
+    tracks.ts                Tracks (201, 203): the main video and music tracks, switches, add / rename / move / delete
+    soundPlan.ts             The export's sound plan (audioPlan) and a clip's sound edges (206)
+    projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
+    projectGate.ts           mergeProject: the gate for project files and 2.x projects
     edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
-                             slide, nudge, snapping, checkTrack
+                             slide, nudge, checkTrack
+    timeSnap.ts              Snapping on the timeline (202): the times a dragged clip, layer or edge snaps to
     decodePool.ts            Decoder pool (204): lanes of decoded frames for the preview and the export, lanePlan,
                              frameTime, poolLimits (section 4.10)
     frameSource.ts           The pool's frames from Mediabunny: inputs shared per file, readers, openFrames() registry
     videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny over framePlan / audioPlan, on export
-    export.ts                pagesOf, nup, buildPDF, buildPNG, printSpec, buildPack, envelope PDFs
-    envelope.ts              Envelope size, front / back / 3D layers, fold-your-own template
+    printPages.ts            pagesOf, nup, SHEETS, exportSummary, baseName: what the studio shows before building
+    export.ts                buildPDF, buildPNG, printSpec, buildPack, envelope PDFs; loaded with import() on export
+    envelope.ts              Envelope size and paper, flap shapes, the template's sheet, envelopeSummary
+    envelopeDraw.ts          renderEnvelope: front / back and the 3D layers (body, flap, liner); drawChitthiMark
+    envelopeTemplate.ts      renderEnvelopeTemplate: the fold-your-own net with cut and fold lines
+    quote.ts, quoteWriter.ts Print-shop documents (catalog, quote request, order sheet) and their jsPDF writer
     color.ts, sample.ts      Colour maths and drawing helpers; painted stand-in photos
   state/
     store.ts                 App store, undo/redo, persistence, setters
     actions.ts               User actions (photos, products, export, gallery, backup, 3D)
     photoSlots.ts            Photo ↔ slot mapping, slot selection
-    library.ts               Photo store (every upload), putOnCard
+    library.ts               Photo store (every upload), putOnCard, keyOfStored
     photoFit.ts              Photo shape vs slot shape, crop loss, print dpi in a slot, learned pixel sizes
-    instagram.ts             Instagram studio batch: photos, edits, layers, undo, limit, render, ZIP, share check
+    instagram.ts             Instagram studio's store: batch, selections, tools, undo / redo, `change`, limit, photo
+                             edits (adjust, masks, look to all)
+    instagramLayers.ts       Layer actions of the photo editor (add, update, remove, restack, copy to all)
+    instagramMedia.ts        Photos into the batch (addPhotos; RAW developed on desktop, its embedded JPEG on the web)
+    instagramExport.ts       Rendering the batch at full size (renderBatch, prepareBatch), ZIP, share check
     presets.ts               Saved presets of the photo & video editors: list, save, rename, delete, export, import
-    video.ts                 Video editor: tracks, clips, layers, music, playhead, undo, lock guards, Magnetic, tool,
-                             Snap, edit actions (through engine/edits.ts), export
+    samples.ts               Gallery samples: the photo set's manifest (sampleCredits), buildSample
+    videoStore.ts            Video editor's store: kind, tracks, clips, layers, music, playhead, Magnetic, tool, Snap,
+                             undo / redo, `change` / `commit` (the one path for undoable changes), loadVideoProject
+    videoTracks.ts           Track actions (add, rename, move, delete, hide / mute / lock, heights), clipPlace
+    videoClips.ts            Clip changes, remove, move, duplicate, split; edit tools (through engine/edits.ts)
+    videoBox.ts              A clip's box and volume, stored or keyed at the playhead; presets
+    videoKeys.ts             Keyframe actions on clips and layers (toggle, remove animation, move, ease, delete)
+    videoLayers.ts           Layer actions; updateLayerAt (keyed at the playhead), setLayerTimes
+    videoTransitions.ts      Transition actions: set, remove, on every cut
+    videoMedia.ts            Photos and videos into clips (addMedia, filmstrips), the music
+    videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
+    idb.ts                   The IndexedDB helpers db, userFonts and userLuts share (open, one request per transaction)
     fonts.ts                 On-demand font loading (Google Fonts or bundled)
+    ids.ts                   Record ids (saved designs, stored photos): time + a cryptographic random tag
     pexels.ts                Pexels client, key and settings storage, suggestions
     userFonts.ts             Uploaded fonts: IndexedDB storage, FontFace registration
     userLuts.ts              Imported .cube LUTs: IndexedDB storage, loaded into engine/lut.ts when chosen
@@ -92,28 +140,42 @@ src/
     transport.ts             Adds the key for allowed hosts (web) or sends the request to the main process (desktop)
     secrets.ts, settings.ts  Keys (SecretStore); chosen services, models, daily limits and usage
     prompts/                 Versioned templates: words.ts (greetings, captions, messages), artwork.ts (pictures)
-    providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram
+    providers/               anthropic, openai, gemini, openaiCompat, stability, fal, bfl, replicate, ideogram; read.ts
+                             reads their JSON answers without trusting the shape
     segment/                 AI masks (P1.8): index.ts (models on the device, download + SHA-256 check, segmentPhoto,
                              modelState / deleteModel for Settings, 401), models.ts (the two models, modelRow),
                              worker.ts (ONNX Runtime Web), models/u2netp.onnx
   agent/
-    tools.ts                 The 56 agent tools: JSON Schema input and a handler each (34 for print designs here)
-    photoTools.ts            The 22 photo studio tools: batch, framing, colour, masks (AI too), presets, LUTs, preview, export
-    common.ts                Tool shape, schema helpers, reading an image by path or URL
+    tools.ts                 The registry: the 56 agent tools in the order agents see them, toolNamed
+    catalogTools.ts          Print catalogue: products, sizes, layouts, themes, fonts, festivals (read only)
+    designTools.ts           Print design: new design, size, layout, theme, words, back, calendar, any setting
+    cardPhotoTools.ts        Photos on a print design: slots, calendar pages, files, URLs, Pexels, arrange
+    aiTools.ts               Words, captions and pictures with the user's AI provider (ai/service loaded on use)
+    outputTools.ts           check_design, previews, print pack, PDF, quote request, print specs
+    galleryTools.ts          Saved designs: list, open, save
+    designSummary.ts         The design as an agent sees it, patchDesign (through mergeDesign), the photo list
+    photoTools.ts            The 22 photo studio tools: batch, framing, colour, preview, export, with maskTools.ts
+                             (masks, AI too) and presetTools.ts (presets, LUTs)
+    photoStudioInfo.ts       The batch as an agent sees it; finding the photo or mask an agent names
+    photoEdits.ts            Colour settings' schema and gate (cleanAdjust), mask parts and putMask, AI masks, drawing
+    common.ts                Tool shape, schema helpers (objectSchema …), argument readers, reading an image by path or URL
     prompts.ts               MCP prompts (workflows) and resources (design, specs, photo rules)
     bridge.ts                Page side of MCP: runs one call at a time, returns text, images and files
   platform/
     desktop.ts               Typed window.chitthiDesktop bridge (absent in browsers)
     menu.ts                  Desktop menu commands → actions
   dev/                     Development only, never in production builds
-    selftest.ts              The checks behind npm test (opened at ?selftest in Electron)
-    poolChecks.ts,           Decoder pool checks (204): in npm test, plus playbackChecks' timings on demand
-      playbackChecks.ts        (CHITTHI_TEST_ONLY=pooltiming / poolcount)
     showcase.ts              Renders the landing examples for npm run build:showcase
     printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
-                           VideoWorkspace, Timeline, Dialog, previewFrame / previewSound: section 4.10), ig/ = editing
-                           panels shared by photos and video (layers, masks, curves, colour mixer, looks), panes/ = the
+                           PhotoWorkspace with PhotoStage, PhotoEditPanel, PhotoPanels, PhotoStrip, PhotoExport,
+                           photoRender and photoMaskTool; VideoWorkspace with VideoStage, ClipInspector, VideoPanels,
+                           VideoExport and videoFields,
+                           Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
+                           Timeline, PictureRow, CutMarks, TimelineBars, TrackHead, Transport, timelineDrag,
+                           timelineActions, timelineRows), ig/ = editing
+                           panels shared by photos and video (LayerPanel with LayerProperties and LayerControls, MaskPanel, curves, colour
+                           mixer, looks), panes/ = the
                            print studio's step panes, ai/ = AI settings, words and artwork dialogs
   styles.css               Ordered @imports of styles/ (section 8, Styles)
   styles/                  The stylesheet split by feature: 01-base.css … 40-site-nav.css, in cascade order
@@ -128,8 +190,17 @@ electron/
   dev.mjs                  Runs Vite + Electron together for development
   resources/               Not in git, fetched before packaging: fonts/ (npm run fetch:fonts) and
                            libraw/<platform>-<arch>/ (npm run fetch:libraw)
-scripts/                   Build, test and fetch scripts (specs/build.md): check-bundle, check-licenses, test, mcp-smoke,
-                           fetch-* (samples, fonts, LibRaw), build-* (showcase, print samples, favicons), spec-tables
+scripts/                   Build, test and fetch scripts (specs/build.md): check-bundle, check-licenses, check-structure,
+                           standards-report, test, mcp-smoke, fetch-* (samples, fonts, LibRaw), build-* (showcase,
+                           print samples, favicons), spec-tables
+tests/                     Every test, none in src/ (specs/testing-strategy.md "Where tests live"):
+  unit/, integration/      Vitest, mirroring src/ (tests/unit/engine/layers.test.ts ↔ src/engine/layers.ts)
+  support/                 Fakes and *.testkit.ts reference code shared by tests
+  e2e/                     Playwright (*.e2e.ts) and the Phase 1 gate measurement
+  selftest/                selftest.ts, the checks behind npm test (opened at ?selftest in Electron; main.tsx loads
+                           it in development builds only), and its modules: videoChecks, poolChecks and
+                           playbackChecks (decoder pool, 204; timings on demand with CHITTHI_TEST_ONLY=pooltiming /
+                           poolcount), exportTiming, perfTiming, helpers
 ```
 
 Dependency rule: `components → state → engine → data`. `engine` never imports from `state` or `components`, so it
@@ -239,10 +310,12 @@ in the selected slot when the card is full.
 - `cardMM(d)` gives the trim size in mm for the orientation (custom sizes are clamped by the UI to 40–420 mm).
 - `renderCard(canvas, side, pxPerMM, bleedMM, input, opts)` sizes the canvas to `(w + 2·bleed) × (h + 2·bleed) ×
   pxPerMM` and defines the box `B = {x: e, y: e, w, h, e}` in canvas pixels, where `e` is the bleed in pixels.
-- `computeLayout(id, B, d)` returns a `Layout` in the same pixel space. Shared metrics: `m = min(w, h)`,
-  `pad = 0.075m`, `gap = 0.016m`, `u = m/100`. Because every value is relative to the box, one layout works at any
-  size and dpi. Helpers: `rs()` makes a bleed slot, `plain()` an inset slot, `right()` / `below()` the text zone
-  beside or under a photo. At the end, slots touching the trim are extended into the bleed (`extend()`).
+- `computeLayout(id, B, d)` returns a `Layout` in the same pixel space, through the layout's builder (`BUILDERS`:
+  `postcardLayouts.ts`, `printLayouts.ts`). Each builder gets a `LayoutContext` (`layoutParts.ts`) with the shared
+  metrics: `short = min(w, h)`, `pad = 0.075·short`, `gap = 0.016·short`, `unit = short/100`. Because every value is
+  relative to the box, one layout works at any size and dpi. Helpers: `bleedSlot()` makes a bleed slot,
+  `plainSlot()` an inset slot, `rightOf()` / `below()` the text zone beside or under a photo. At the end, slots
+  touching the trim are extended into the bleed (`extend()`).
 - **Calendars**: each calendar layout defines a photo region and an *area*. When `cal.text` is `photo`, the text
   zone is the photo inset by 8%, with white ink and the scrim limited to the photo. When it is `caption`, a band
   of `min(0.1·area.h, 0.075·area.w) × textScale` is taken from the top of the area. The title band is
@@ -254,9 +327,9 @@ in the selected slot when the card is full.
   uses an arch slot above (or beside) it.
 - **Badge magnet**: a circular photo of radius `r − band` inside a ring; `arc` describes the ring for lettering.
 
-### 4.2 Rendering (`render.ts`)
+### 4.2 Rendering (`render.ts` and the modules it draws through, §2)
 
-`drawFront` runs in this order:
+`drawFront` (`cardFront.ts`) runs in this order:
 
 1. Background: paper colour (`frame` layouts), occasion gradient and patterns (`bg`), or nothing (full-bleed).
 2. Paper card and stamp shapes.
@@ -306,7 +379,10 @@ Round sizes are then masked white outside the trim circle plus bleed. `drawGuide
 once at full resolution (capped at 16 MP for mobile canvas limits) into an off-screen canvas. `updatePhoto`
 re-processes only when rotation, mirroring, crop or look changed; zoom and position are applied at draw time.
 
-### 4.4 Export (`export.ts`)
+### 4.4 Export (`printPages.ts`, `export.ts`)
+
+`printPages.ts` holds what the studio shows before anything is built (pages, imposition, the summary, file names);
+`export.ts` builds the files and is loaded with `import()` on the first export (D-042).
 
 - `pagesOf(d)`: one front (or one per calendar month, one for the Year strip), plus the back when `exp.back` is on
   and the product prints one (magnets don't).
@@ -342,7 +418,7 @@ sequenceDiagram
   F-->>U: browser download or native Save dialog
 ```
 
-### 4.5 Envelopes (`envelope.ts`)
+### 4.5 Envelopes (`envelope.ts`, `envelopeDraw.ts`, `envelopeTemplate.ts`)
 
 - `envelopeSpec(d)`: the smallest standard envelope with at least 5 mm room around the piece; square pieces get
   square envelopes; bigger pieces get a made-to-measure size.
@@ -394,7 +470,7 @@ removes (`1 − min(r, 1/r)`, where r is the photo aspect divided by the slot as
 most 20%. `slotDpi` is the resolution a photo reaches covering the slot. Pixel sizes of stored photos are learned
 from their thumbnails (`rememberDims`) and cached for the session, so filtering needs no extra decoding.
 
-### 4.9 Video project as tracks (`timeline.ts`, `state/video.ts`)
+### 4.9 Video project as tracks (`timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`, `state/video*.ts`)
 
 A project is `{ tracks, clips, audio, layers, fadeOut }`. A `Track` has an id, a kind (`video`, `overlay`, `audio`), a
 name and `hidden` / `muted` / `locked`; every project has `V1` (main video) and `A1` (music); limits 8 + 8 tracks on
@@ -429,15 +505,15 @@ precision); the music is an `AudioClip` on `A1` with `in` = its offset and `toEn
 the lock check): `rippleDelete`, `lift`, `closeGap`, `closeGaps`, `trim(id, side, delta, { ripple })`, `moveTo` (a
 time, else the nearest free spot that fits, else refused: no overwrite), `reorder`, `roll` (the cut between two
 touching clips), `slip` (videos only), `slide` (needs a clip after it; with `magnetic` it opens no gap), `nudge`
-(Alt + arrows per tool) and `snapTargets` / `snapTime`. Limits: 0.3 s (`MIN_LEN`; a 2.x clip already shorter can't be
+(Alt + arrows per tool); snapping is `snapTargets` / `snapTime` in `engine/timeSnap.ts`. Limits: 0.3 s (`MIN_LEN`; a 2.x clip already shorter can't be
 shortened), the source, 60 s for photos (`PHOTO_MAX`), the project's length. Video edges are clamped to the source
 and starts at 0 where they move (floating-point sums miss them by 1e-16). `checkTrack` is the invariant (sorted, no
 overlap, inside sources, within the limit, nothing newly under 0.3 s); 1,000 seeded edits per operation keep it and
-pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store (`state/video.ts`) wraps each in one
+pass `mergeProject` unchanged; each runs in ≤ 0.02 ms on 500 clips. The store (`state/videoClips.ts`) wraps each in one
 undo step (`apply`); `magnetic` is in its undo snapshots (D1), `tool` and `snapping` are view settings (D4), and
 `loadVideoProject` starts a project from ready clips (tests).
 
-**The timeline UI (`components/studio/Timeline.tsx`, 202).** The transport has the tool picker (a `radiogroup` of
+**The timeline UI (`components/studio/Timeline.tsx`, 202; clip drags in `PictureRow.tsx`, keys in `timelineActions.ts`, the transport in `Transport.tsx`).** The transport has the tool picker (a `radiogroup` of
 native radios: V / R / Y / U) and the Magnetic / Snap switches (`aria-pressed`). A clip's body and edges call one store
 action per tool (plan §4): Select reorders (Magnetic on) or follows the pointer and calls `moveClipToTime` on release
 (off, with a drop marker), its edges `trimClip` (ripple with Magnetic on or Shift at the press); Roll's edges
@@ -460,7 +536,7 @@ Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: no
 - **The transform**: a picture clip may carry `tf?: ClipTransform` = `{ x, y, w, rot, opacity, radius }` (centre and
   width as shares of the frame, degrees, 0–1, corner radius as a share of the shorter side); missing = `IDENTITY`
   (the whole frame). `clampTransform` is its gate, `presetTransform` the inspector's presets (35 % wide, 4 % margin).
-- **Drawing** (`engine/video.ts`): `renderStack(ctx, W, H, items, layers, t, total, fadeOut)`: black, each item, the
+- **Drawing** (`engine/video.ts`): `renderStack(ctx, frameWidth, frameHeight, items, layers, time, total, fadeOut)`: black, each item, the
   layers, the darkness. An item at the identity draws through 2.x's `renderIg` call, so a project without overlays
   is pixel-identical (AC-10); otherwise `intoBox` (translate, rotate, rounded clip, scale `w`), and a see-through
   item (opacity × an overlay's fade-in ramp < 1) is drawn on a scratch canvas and laid down once. `save()` /
@@ -468,11 +544,11 @@ Track heights (`trackView`, 40 / 64 / 96 px) are a view setting in the store: no
   `renderStack` with one item.
 - **The document**: `DocClip.transform` (written only when not the identity), overlay tracks kept, the overlap rule
   on every picture track; 201 / 202 documents round-trip byte-identical.
-- **The store** (`state/video.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for
+- **The store** (`state/videoTracks.ts`, `videoMedia.ts`, `videoBox.ts`, `videoClips.ts`): `addTrack`, `renameTrack`, `moveTrack`, `deleteTrack`, `setTrack` (Mute for
   overlays), `addMedia(files, { track, at })` (`NEW_TRACK` makes one), `moveClipToTrack`, `setClipTransform` (a
   key per drag), `applyPreset`, `updateClipWhy` (the inspector shows refusals); every result is checked with
   `limitVideos`; overlay clips are lifted, never rippled (Q8).
-- **The timeline** (`Timeline.tsx`, `timelineRows.ts`): a `PictureRow` per picture track, top first
+- **The timeline** (`Timeline.tsx`, `PictureRow.tsx`, `TrackHead.tsx`, `timelineRows.ts`): a `PictureRow` per picture track, top first
   (`pictureTracksTopFirst`); an overlay `TrackHead` renames (the name becomes a field) and its height menu moves and
   deletes the track; `AddTrackButton` by the ruler; files dropped on a row (`rowUnderPointer`) land there, on the
   ruler in a new track; a Select drag over another row calls `moveClipToTrack`; "Move to" in the transport does it by
@@ -511,7 +587,7 @@ the stage and the inspector.
   byte-identical. `mergeKeys(raw, props, on, budget)` is the gate: known values only (`__proto__` and unknown names
   dropped), finite times within a day, values clamped, unknown eases → `ease-in-out`, sorted with the last of equal
   times kept, the limits (one `KeyBudget` shared by clips then layers), each reason once; it never throws.
-- **The store** (`state/video.ts`): `toggleKey(target, props)`, `removeAnimation`, `moveKeys` (a drag passes one undo
+- **The store** (`state/videoKeys.ts`, `videoBox.ts`, `videoLayers.ts`): `toggleKey(target, props)`, `removeAnimation`, `moveKeys` (a drag passes one undo
   key), `setKeyEase`, `deleteKeys` (a value's last key stores its value); routers `setClipTransformAt`,
   `setClipVolume`, `updateLayerAt` write an animated value as a key at the playhead and any other as before (auto-key,
   Q4); `setLayerTimes` shifts a layer's keys when only its start moves; split and duplicate carry keys. Each action
@@ -604,7 +680,7 @@ across every pool, and `made`, every frame decoded so far: the self-tests read i
 (AC-11, AC-12). `undecodableForTests` (a `WeakSet` of files, empty in the app) makes a self-test's file fail as an
 undecodable codec.
 
-**Preview (`components/studio/previewFrame.ts`, `VideoStage` in `VideoWorkspace.tsx`).** `stageSource()` makes the
+**Preview (`components/studio/previewFrame.ts`, `VideoStage.tsx`).** `stageSource()` makes the
 stage's picture source: where `VideoDecoder` exists, a `DecodePool` (`poolLimits(1, …)`; Mediabunny is imported with the
 first lane, not with the editor) wrapped by `poolSource`, which draws a clip in fallback from a muted `<video>`
 (`videoElementSource`, the pre-204 path); without `VideoDecoder` (Q7), `<video>` elements alone. `pausedAt` /
@@ -637,14 +713,14 @@ for the self-test. `dispose()` runs in
 `finally`, so after a cancel or an error no frame or decoder is left. A clip the pool can't decode is refused with its
 reason, which usually names the file.
 
-**Limits.** `limitsFor()` (`engine/video.ts`) gives `videosAtOnce`: 3 on the web, 5 on the desktop app, 1 without
+**Limits.** `limitsFor()` (`engine/videoFormats.ts`) gives `videosAtOnce`: 3 on the web, 5 on the desktop app, 1 without
 `VideoDecoder`, set from the AC-15 measurements by Q2's rule (the numbers:
 [PERFORMANCE.md](../docs/PERFORMANCE.md#videos-on-screen-at-once)); `203` enforces it in the edits. The preview's and
 the export's pools use `poolLimits(videosAtOnce, …)` (the limit + 2 decoders).
 
-**Checks.** `decodePool.test.ts` (unit: holds, latest wins, bounds, fallback, reopening); `src/dev/poolChecks.ts` in
+**Checks.** `tests/integration/engine/decodePool.test.ts` ( holds, latest wins, bounds, fallback, reopening); `tests/selftest/poolChecks.ts` in
 the default `npm test` (AC-1–AC-4, AC-9, AC-11, AC-14), with `playbackChecks`' quick checks (AC-12's release, AC-13);
-`src/dev/playbackChecks.ts` timings on demand: `CHITTHI_TEST_ONLY=pooltiming npm test` (AC-5, AC-7, AC-8 and AC-12's
+`tests/selftest/playbackChecks.ts` timings on demand: `CHITTHI_TEST_ONLY=pooltiming npm test` (AC-5, AC-7, AC-8 and AC-12's
 bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: simultaneous videos through the pool);
 `CHITTHI_TEST_ONLY=pool npm test` runs only the pool section of the default run.
 
@@ -702,7 +778,9 @@ Full description: [PEXELS.md](../docs/PEXELS.md).
 ### Storage (`lib/db.ts`)
 
 One interface, `DesktopBridge['db']`: `all/get/put/del` for designs, `getWorkPhotos/putWorkPhotos`, and
-`libAll/libPut/libDel` for the photo store.
+`libAll/libPut/libDel` for the photo store. Reads come back unchecked from IndexedDB (`lib/idb.ts`), so each list
+keeps only records with the fields the app relies on (ids, names, urls); designs still pass `mergeDesign()` and presets
+`mergePreset()` when used.
 
 - Browser: IndexedDB database `chitthi` v4 with object stores `designs`, `work` (key `photos`), `library` and
   `libfull`, all keyed by `id`. `library` holds each stored photo's details (name, 320 px JPEG thumbnail, pixel size,
@@ -784,7 +862,8 @@ App
 │  └─ Stage                      side toggle, guides, month pager, 3D button (phones: a View menu), live canvas (drag, wheel, keys),
 │                                MonthStrip (calendars), PhotoTray (slots + store)
 ├─ FeatureFinder (Ctrl+K: search every feature; opens the step and reveals the section, or runs the action)
-├─ CropDialog, GalleryDialog (+ SampleGallery), PhotoLibrary, SettingsDialog (key, fonts),
+├─ CropDialog (geometry in cropGeometry.ts), GalleryDialog (+ SampleGallery),
+│  PhotoLibrary (items in photoLibraryItems.ts, card and refine bar in PhotoLibraryParts.tsx), SettingsDialog (key, fonts),
 │  Viewer3D (card / ring / wall / envelope modes), Toast
 └─ PerfMonitor (lazy; while ui.perf is on)
 ```
@@ -820,7 +899,7 @@ Steps are built from `Section` (`components/common.tsx`): a titled, collapsible 
 `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
 when its step isn't on screen yet; the feature finder uses it. `lib/fullscreen.ts` wraps the Fullscreen API.
 
-The 3D viewer (`Viewer3D.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,
+The 3D viewer (`Viewer3D.tsx`; its motion maths in `viewer3dMotion.ts`, the four views in `Viewer3DFaces.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,
 decaying 7% a frame), hover tilt towards the pointer, smoothed zoom (wheel, pinch, buttons, 50–260%), and per-face
 shading from the angle to a light at the upper left. Keys: arrows turn (or change month), F flips, O opens the
 envelope, +/−/0 zoom, R resets, Space toggles turning. Double-click flips, or opens a month from the ring.
@@ -848,7 +927,7 @@ the title and date fonts, grid, date position and alignment together; the matchi
 *Words on the months*, then *On the photo* (quote, signature, position, darkening), shown only when the words
 sit on the photo.
 
-**Paper sizes in 3D** (`Paper3D.tsx`) uses CSS 3D like the viewer. `allPieces()` builds every product size (in the
+**Paper sizes in 3D** (`Paper3D.tsx`; the pieces, faces and arrangements in `paper3dScene.ts`, the camera in `useMatCamera.ts`, the piece, camera bar, list and details in `Paper3DParts.tsx`) uses CSS 3D like the viewer. `allPieces()` builds every product size (in the
 chosen orientation), the distinct envelopes they need (`envelopeSpec`), the `SHEETS` and two references (a bank
 card and a ₹10 coin), all in millimetres. Three arrangements: `sideBySide` (rows packed by area, each row on a
 shared baseline with a label strip), `stacked` (largest first, a few pixels apart in Z) and `onSheet` (the pieces
@@ -875,9 +954,9 @@ processed photo canvases only it still holds pass 320 MB (at least 10 steps stay
 | A size, layout or product | [SPECIFICATIONS.md](../docs/SPECIFICATIONS.md) → *Changing specifications* |
 | An occasion theme | `src/data/themes.ts` (colours, patterns from `PAT`, fonts, greetings); new artwork goes in `engine/patterns.ts` |
 | A font | `src/data/fonts.ts`, then `npm run fetch:fonts` for desktop |
-| An export format | `engine/export.ts` (`pagesOf` / `buildPack`), `ExportFormat` type, `PrintPane` |
+| An export format | `engine/printPages.ts` (`pagesOf`), `engine/export.ts` (`buildPack`), `ExportFormat` type, `PrintPane` |
 | A setting | `SettingsDialog.tsx`; keep values in `localStorage` via a small module like `lib/pexels.ts` |
 | An AI provider | [AI.md](../docs/AI.md) → *Adding a provider* |
-| An agent tool | `src/agent/tools.ts` (schema + handler), then document it in [MCP.md](../docs/MCP.md); `npm test` runs every tool |
+| An agent tool | The tool file for its job in `src/agent/` (schema + handler; `tools.ts` lists them in order), then document it in [MCP.md](../docs/MCP.md); `npm test` runs every tool |
 | A prompt template | `src/ai/prompts/*.ts` (bump the version string); MCP workflow prompts in `src/agent/prompts.ts` |
 | A desktop menu command | `MenuAction` (`platform/desktop.ts`), `ACTIONS` (`platform/menu.ts`), template in `electron/main.cjs` |

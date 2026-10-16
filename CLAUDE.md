@@ -46,6 +46,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 | Doc                                                 | Read when                                                      |
 | --------------------------------------------------- | -------------------------------------------------------------- |
 | `specs/constitution.md`                             | Before any design decision; contains the Definition of Done    |
+| `specs/coding-standards.md`                         | Before writing code: names, JSDoc, sizes, React, types, layers |
 | `specs/architecture.md`, `specs/lld.md`             | Before touching shared code or adding a module                 |
 | `specs/tech-stack.md`, `specs/licensing.md`         | Before adding or upgrading any library, model, binary or asset |
 | `specs/testing-strategy.md`                         | Before writing tests                                           |
@@ -59,16 +60,18 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 ```bash
 npm run dev            # Vite dev server, http://localhost:5173
 npm run desktop:dev    # Vite + Electron with hot reload
-npm run check          # fast gate: typecheck + lint + specs:check + unit tests — run before ticking any task
-npm run lint           # ESLint (0 errors required; the 5 react-hooks warnings are known)
+npm run check          # fast gate: typecheck + lint + specs:check + structure (no tests in src/) + unit tests — run before ticking any task
+npm run lint           # ESLint, cached (0 errors; the standards rules are warnings until a folder is in FINISHED)
+npm run lint:full      # ESLint without the cache (CI, the close of a feature): type-aware findings can go stale in the cache
+npm run standards      # per folder and standard: the lint findings and noUncheckedIndexedAccess errors (feature 407)
 npm run check:licenses # every shipped package has an allowed licence (specs/licensing.md)
 npm run typecheck      # TypeScript 7 (typescript-native) tsc -b; 6.0 stays as `typescript` only for typescript-eslint
 npm run build          # typecheck + vite build + scripts/check-bundle.mjs (fails if the entry chunk > 350 KB or contains AI code)
-npm run test:unit      # Vitest: src/**/*.test.ts (pure logic, no DOM/canvas)
-npm test               # Electron self-test (src/dev/selftest.ts, ~6,100 checks: every product × size × layout, print packs, agent tools)
+npm run test:unit      # Vitest: tests/unit (one module) and tests/integration (several together); no DOM/canvas
+npm test               # Electron self-test (tests/selftest/selftest.ts, ~6,100 checks: every product × size × layout, print packs, agent tools)
 npm run test:mcp       # MCP server end to end (scripts/mcp-smoke.mjs); CHITTHI_MCP_APP=<exe> tests a packaged app
 npm run fetch:libraw   # once: LibRaw's RAW developer into electron/resources/libraw (test:mcp develops a DNG with it)
-npm run test:e2e       # Playwright on the production build (e2e/*.e2e.ts), desktop + phone projects, axe checks
+npm run test:e2e       # Playwright on the production build (tests/e2e/*.e2e.ts), desktop + phone projects, axe checks
 npm run roadmap        # roadmap dashboard on http://localhost:5180 (tools/roadmap-dashboard; --port, --no-open)
 npm run specs -- help  # feature / roadmap JSON: new, status, start, block, done, undone, check, sync (tools/specs-index)
 ```
@@ -76,8 +79,8 @@ npm run specs -- help  # feature / roadmap JSON: new, status, start, block, done
 Single tests:
 
 ```bash
-npx vitest run src/engine/layers.test.ts -t "video timeline"
-npx playwright test e2e/editors.e2e.ts -g "YouTube" --project=desktop
+npx vitest run tests/unit/engine/layers.test.ts -t "video timeline"
+npx playwright test tests/e2e/editors.e2e.ts -g "YouTube" --project=desktop
 ```
 
 First Playwright run needs `npx playwright install chromium`. `npm test` and `test:mcp` open Electron (hidden windows);
@@ -94,13 +97,18 @@ Packaging: `npm run desktop:pack` (unpacked app in `release/`), `desktop:dist` (
 - `src/data/` — specifications as data: products, sizes, layouts, themes, fonts, Instagram formats, layer shapes.
   New sizes/layouts/products/themes are added here (see `docs/SPECIFICATIONS.md`), not in rendering code.
 - `src/engine/` — framework-free (no React): print geometry in millimetres (`design.ts`, `layout.ts`), drawing
-  (`render.ts`), export (`export.ts`), photo processing, and the media engines (`instagram.ts`, `layers.ts`,
-  `video.ts`, `videoExport.ts`). Preview and export share one code path, so the files match the preview.
+  (`render.ts`, which draws through `cardFront.ts`, `cardBack.ts`, `calendarDraw.ts` …), export (`export.ts`), photo
+  processing, and the media engines (`instagram.ts`, `layers.ts`, `video.ts`, `videoExport.ts`). Preview and export
+  share one code path, so the files match the preview.
 - `src/state/` — small `useSyncExternalStore` stores, each with its own undo/redo: `store.ts` + `actions.ts` (print
-  studio; design autosaves to localStorage), `instagram.ts` (photo batch), `video.ts` (video project). Undo snapshots
-  are immutable arrays; changes with the same key within ~800 ms coalesce into one step (drags, sliders).
+  studio; design autosaves to localStorage), `instagram.ts` (photo batch; actions in `instagram*.ts`), `videoStore.ts`
+  (video project; actions in `video*.ts`). Undo snapshots are immutable arrays; changes with the same key within
+  ~800 ms coalesce into one step (drags, sliders).
 - `src/components/` — UI. `App.tsx` routes by URL hash to screens (`home`, `studio`, `sizes`, `paper`, `instagram`, `docs`);
   screens and dialogs are `lazy()`-loaded.
+- `tests/` — every test, none in `src/`: `unit/` and `integration/` (Vitest, mirroring `src/`, importing the app as
+  `@/…`), `support/` (fakes, `*.testkit.ts`), `e2e/` (Playwright), `selftest/` (the in-app self-test). Imports go one
+  way, `components → state → engine → data`; ESLint enforces it. Standards: `specs/coding-standards.md`.
 
 ### Print studio
 
@@ -114,12 +122,13 @@ gate for external design data.
   `VideoWorkspace.tsx`, which share `studio/Shell.tsx` (top bar, tool rail, panel, stage, inspector, dock) and
   `studio/Timeline.tsx`. Styles: `styles/36-media-studio.css` (root class `.mst`) and `styles/35-instagram.css`
   (panel controls). Don't use the class `.ig` for new UI: it belongs to the Instagram-handle field on the card back.
-- Layers (text, shapes, stickers, drawings) live in `engine/layers.ts`: positions are shares of the frame, sizes are
-  shares of the frame **width**, so they render identically at any preview size, in exported photos and in every video
-  frame. Editing on a canvas is `components/ig/useLayerPointer.ts`; panels are `components/ig/LayerPanel.tsx`.
-- Video: `engine/video.ts` holds formats, per-platform limits (`limitsFor(kind, isDesktop)`), timeline maths and
-  `renderFrame()` (used by both the live preview and export). `engine/videoExport.ts` (Mediabunny, MPL-2.0, loaded only
-  via dynamic `import()` on export) encodes H.264 + AAC with the index at the front: in memory for Reels (so they can be
+- Layers (text, shapes, stickers, drawings) live in `engine/layers.ts` (drawn by `layerDraw.ts`): positions are shares
+  of the frame, sizes are shares of the frame **width**, so they render identically at any preview size, in exported
+  photos and in every video frame. Editing on a canvas is `components/ig/useLayerPointer.ts`; panels are `components/ig/LayerPanel.tsx`.
+- Video: `engine/videoFormats.ts` holds formats and per-platform limits (`limitsFor(kind, isDesktop)`),
+  `engine/timeline.ts` the timeline maths, and `engine/video.ts` the frame drawing, `renderStack()` / `renderFrame()`
+  (used by both the live preview and export). `engine/videoExport.ts` (Mediabunny, MPL-2.0, loaded only via dynamic
+  `import()` on export) encodes H.264 + AAC with the index at the front: in memory for Reels (so they can be
   shared), streamed to a file for YouTube (`lib/fileSink.ts`: desktop IPC or the File System Access API, with
   Mediabunny's `reserve` fast start). Sound is decoded and mixed in 10-second windows, interleaved with the frames.
 

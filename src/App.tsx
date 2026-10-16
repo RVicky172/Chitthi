@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useRef, type ComponentType, type CSSProperti
 import { StepLabel } from './components/common';
 
 // Screens and dialogs load when first opened, so the studio (or the home page) starts with less to download.
-const named = <K extends string>(load: () => Promise<Record<K, () => JSX.Element | null>>, key: K) => lazy(() => load().then((m) => ({ default: m[key] })));
+const named = <K extends string>(load: () => Promise<Record<K, () => JSX.Element | null>>, key: K) =>
+  lazy(() => load().then((loaded) => ({ default: loaded[key] })));
 const Landing = named(() => import('./components/Landing'), 'Landing');
 const SizeGuide = named(() => import('./components/SizeGuide'), 'SizeGuide');
 const Paper3D = named(() => import('./components/Paper3D'), 'Paper3D');
@@ -31,10 +32,15 @@ import { ensureFonts, fontsFor } from './lib/fonts';
 import { loadUserFonts } from './lib/userFonts';
 import { useDesktopMenu } from './platform/menu';
 import { restoreWork, saveDesign, switchProduct } from './state/actions';
-import { bumpFonts, commit, getState, hashOf, redo, screenOf, setUI, undo, useApp } from './state/store';
+import { bumpFonts, commit, getState, hashOf, redo, screenOf, setUI, undo, useApp, type UIState } from './state/store';
 import type { PaneId, ProductId } from './types';
 
-const PRODUCT_NAMES: Record<ProductId, string> = { postcard: 'postcard', calendar: 'calendar', frame: 'photo frame', magnet: 'fridge magnet' };
+const PRODUCT_NAMES: Record<ProductId, string> = {
+  postcard: 'postcard',
+  calendar: 'calendar',
+  frame: 'photo frame',
+  magnet: 'fridge magnet',
+};
 
 const PANES: Record<PaneId, ComponentType> = {
   photos: PhotosPane,
@@ -45,18 +51,50 @@ const PANES: Record<PaneId, ComponentType> = {
   print: PrintPane,
 };
 
+/**
+ * The screen the URL names; the print studio for anything else.
+ * @param props the screen
+ */
+function ScreenView({ screen }: Readonly<{ screen: UIState['screen'] }>) {
+  switch (screen) {
+    case 'home':
+      return <Landing />;
+    case 'sizes':
+      return <SizeGuide />;
+    case 'paper':
+      return <Paper3D />;
+    case 'docs':
+      return <DocsPage />;
+    case 'instagram':
+      return <InstagramStudio />;
+    default:
+      return <Studio />;
+  }
+}
+
+/**
+ * Which side of the card a step is about: Back shows the back, Print keeps the side shown, the rest show the front.
+ * @param pane the step
+ * @returns the side, or null to leave it
+ */
+const sideForPane = (pane: PaneId): 'front' | 'back' | null => {
+  if (pane === 'back') return 'back';
+  return pane === 'print' ? null : 'front';
+};
+
+/** The app: the screen the URL names, its dialogs, the toast, and keyboard shortcuts. */
 export default function App() {
-  const screen = useApp((s) => s.ui.screen),
-    cropOpen = useApp((s) => !!s.ui.cropId),
-    galleryOpen = useApp((s) => s.ui.gallery),
-    libraryOpen = useApp((s) => s.ui.library),
-    settingsOpen = useApp((s) => s.ui.settings),
-    viewerOpen = useApp((s) => !!s.ui.viewer),
-    perfOpen = useApp((s) => s.ui.perf);
-  const headFont = useApp((s) => s.design.headFont),
-    quoteFont = useApp((s) => s.design.quoteFont),
-    backFont = useApp((s) => s.design.back.font),
-    calFont = useApp((s) => s.design.cal.font);
+  const screen = useApp((state) => state.ui.screen),
+    cropOpen = useApp((state) => !!state.ui.cropId),
+    galleryOpen = useApp((state) => state.ui.gallery),
+    libraryOpen = useApp((state) => state.ui.library),
+    settingsOpen = useApp((state) => state.ui.settings),
+    viewerOpen = useApp((state) => !!state.ui.viewer),
+    perfOpen = useApp((state) => state.ui.perf);
+  const headFont = useApp((state) => state.design.headFont),
+    quoteFont = useApp((state) => state.design.quoteFont),
+    backFont = useApp((state) => state.design.back.font),
+    calFont = useApp((state) => state.design.cal.font);
   useDesktopMenu();
   // Start-up: history baseline, restore last card's photos, redraw when web fonts arrive.
   useEffect(() => {
@@ -71,7 +109,7 @@ export default function App() {
   // Fetch the screens and dialogs that load on demand once the app is idle, so the service worker has them for
   // offline use and they open instantly later.
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       for (const load of [
         () => import('./components/Landing'),
         () => import('./components/SizeGuide'),
@@ -88,7 +126,7 @@ export default function App() {
       ])
         void load().catch(() => undefined);
     }, 4000);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -107,8 +145,8 @@ export default function App() {
   useEffect(() => {
     // #/studio/calendar (or /postcard, /frame, /magnet) opens the studio on that product: shareable links to each product.
     const onHash = () => {
-      const m = /^#\/studio\/(postcard|calendar|frame|magnet)\b/.exec(location.hash);
-      if (m) switchProduct(m[1] as ProductId);
+      const match = /^#\/studio\/(postcard|calendar|frame|magnet)\b/.exec(location.hash);
+      if (match) switchProduct(match[1] as ProductId);
       setUI({ screen: screenOf(location.hash) });
     };
     onHash();
@@ -123,19 +161,7 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
-        {screen === 'home' ? (
-          <Landing />
-        ) : screen === 'sizes' ? (
-          <SizeGuide />
-        ) : screen === 'paper' ? (
-          <Paper3D />
-        ) : screen === 'docs' ? (
-          <DocsPage />
-        ) : screen === 'instagram' ? (
-          <InstagramStudio />
-        ) : (
-          <Studio />
-        )}
+        <ScreenView screen={screen} />
       </Suspense>
       <Suspense fallback={null}>
         {cropOpen && <CropDialog />}
@@ -153,15 +179,15 @@ export default function App() {
 
 /** The design studio: step rail, swipeable step panes and the live preview. */
 function Studio() {
-  const pane = useApp((s) => s.ui.pane),
-    product = useApp((s) => s.design.product);
+  const pane = useApp((state) => state.ui.pane),
+    product = useApp((state) => state.design.product);
   const track = useRef<HTMLDivElement>(null),
     first = useRef(true);
   const idx = STEPS.findIndex(([id]) => id === pane);
 
   // Show the side of the card the step is about: Back flips to the back, the design steps flip to the front.
   useEffect(() => {
-    const side = pane === 'back' ? 'back' : pane === 'print' ? null : 'front';
+    const side = sideForPane(pane);
     if (side && side !== getState().ui.side) setUI({ side });
   }, [pane]);
 
@@ -184,7 +210,7 @@ function Studio() {
     let timer = 0;
     const settle = () => {
       clearTimeout(timer);
-      const id = STEPS[Math.round(el.scrollLeft / el.clientWidth)]?.[0];
+      const id = STEPS.at(Math.round(el.scrollLeft / el.clientWidth))?.[0];
       if (id && id !== getState().ui.pane) setUI({ pane: id });
     };
     const onScroll = () => {
@@ -201,25 +227,26 @@ function Studio() {
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement,
-        typing = /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable;
-      const mod = e.ctrlKey || e.metaKey,
-        k = e.key.toLowerCase();
-      if (mod && k === 's') {
-        e.preventDefault();
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement,
+        typing = /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable;
+      const mod = event.ctrlKey || event.metaKey,
+        key = event.key.toLowerCase();
+      if (mod && key === 's') {
+        event.preventDefault();
         void saveDesign(false);
         return;
       }
       if (typing || document.querySelector('dialog[open]')) return;
-      if (mod && k === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) redo();
+      if (mod && key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redo();
         else undo();
-      } else if (mod && k === 'y') {
-        e.preventDefault();
+      } else if (mod && key === 'y') {
+        event.preventDefault();
         redo();
-      } else if (!mod && !e.altKey && k === 'f') setUI({ side: getState().ui.side === 'front' ? 'back' : 'front' });
+      } else if (!mod && !event.altKey && key === 'f')
+        setUI({ side: getState().ui.side === 'front' ? 'back' : 'front' });
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -236,15 +263,15 @@ function Studio() {
             <i />
           </div>
           <div className="steps" ref={track}>
-            {STEPS.map(([id, label], i) => {
-              const P = PANES[id];
+            {STEPS.map(([id, label], index) => {
+              const PaneView = PANES[id];
               // Only the current pane and its neighbours render, so swipes land on ready content.
               return (
-                <div key={id} className="slide" role="group" aria-label={label} inert={i !== idx}>
-                  {Math.abs(i - idx) <= 1 && (
-                    <StepLabel.Provider value={`Step ${i + 1} of ${STEPS.length}`}>
+                <div key={id} className="slide" role="group" aria-label={label} inert={index !== idx}>
+                  {Math.abs(index - idx) <= 1 && (
+                    <StepLabel.Provider value={`Step ${index + 1} of ${STEPS.length}`}>
                       <Suspense fallback={<div className="screen-loading" aria-busy="true" />}>
-                        <P />
+                        <PaneView />
                       </Suspense>
                     </StepLabel.Provider>
                   )}

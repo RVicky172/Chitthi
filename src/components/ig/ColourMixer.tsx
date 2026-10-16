@@ -8,11 +8,9 @@ import { Seg } from '../common';
  */
 
 type Part = keyof Mixer;
-const PARTS: [Part, string][] = [
-  ['hue', 'Hue'],
-  ['sat', 'Saturation'],
-  ['lum', 'Luminance'],
-];
+const PART_NAMES: Record<Part, string> = { hue: 'Hue', sat: 'Saturation', lum: 'Luminance' };
+const PART_ORDER: Part[] = ['hue', 'sat', 'lum'];
+const PARTS: [Part, string][] = PART_ORDER.map((part) => [part, PART_NAMES[part]]);
 const NAMES: Record<(typeof HSL_BANDS)[number], [string, string]> = {
   red: ['Red', '#e0453a'],
   orange: ['Orange', '#ee8a2c'],
@@ -24,25 +22,32 @@ const NAMES: Record<(typeof HSL_BANDS)[number], [string, string]> = {
   magenta: ['Magenta', '#d34fb4'],
 };
 
-export function ColourMixer({
-  mixer,
-  onChange,
-  idPrefix,
-}: {
+/** The mixer's values and where changes go. */
+interface ColourMixerProps {
   mixer: Mixer;
-  onChange: (m: Mixer) => void;
+  onChange: (mixer: Mixer) => void;
+  /** Prefix for the sliders' ids, unique on the page. */
   idPrefix: string;
-}) {
+}
+
+/**
+ * The colour mixer: one setting (hue, saturation or luminance) at a time, a slider per colour band, and a reset for
+ * the setting shown.
+ * @param props the mixer, its change handler and the id prefix
+ */
+export function ColourMixer({ mixer, onChange, idPrefix }: Readonly<ColourMixerProps>) {
   const [part, setPart] = useState<Part>('hue');
   const values = mixer[part];
-  const set = (i: number, v: number) => onChange({ ...mixer, [part]: values.map((x, k) => (k === i ? v : x)) });
-  const any = values.some((v) => v !== 0);
+  const setBand = (bandIndex: number, value: number) =>
+    onChange({ ...mixer, [part]: values.map((old, index) => (index === bandIndex ? value : old)) });
+  const anyMoved = values.some((value) => value !== 0);
   return (
     <div className="mixer">
       <Seg<Part> label="Colour mixer setting" value={part} options={PARTS} onChange={setPart} />
-      {HSL_BANDS.map((band, i) => {
+      {HSL_BANDS.map((band, bandIndex) => {
         const [name, colour] = NAMES[band],
-          id = `${idPrefix}-${part}-${band}`;
+          id = `${idPrefix}-${part}-${band}`,
+          value = values[bandIndex] ?? 0;
         return (
           <div key={band} className="ig-slider">
             <label htmlFor={id}>
@@ -50,7 +55,7 @@ export function ColourMixer({
                 <i className="mixer-dot" style={{ background: colour }} aria-hidden="true" />
                 {name}
               </span>
-              <output htmlFor={id}>{Math.round(values[i])}</output>
+              <output htmlFor={id}>{Math.round(value)}</output>
             </label>
             <input
               id={id}
@@ -58,9 +63,9 @@ export function ColourMixer({
               min={-100}
               max={100}
               step={1}
-              value={values[i]}
-              onChange={(e) => set(i, +e.target.value)}
-              onDoubleClick={() => set(i, 0)}
+              value={value}
+              onChange={(event) => setBand(bandIndex, +event.target.value)}
+              onDoubleClick={() => setBand(bandIndex, 0)}
             />
           </div>
         );
@@ -68,10 +73,10 @@ export function ColourMixer({
       <button
         type="button"
         className="sbtn"
-        disabled={!any}
+        disabled={!anyMoved}
         onClick={() => onChange({ ...mixer, [part]: values.map(() => 0) })}
       >
-        Reset {PARTS.find(([p]) => p === part)![1].toLowerCase()}
+        Reset {PART_NAMES[part].toLowerCase()}
       </button>
     </div>
   );

@@ -2,13 +2,13 @@ import { defineConfig, devices } from '@playwright/test';
 
 /*
  * Browser tests of the production web build (npm run test:e2e): Playwright builds dist/, serves it with `vite preview`
- * and runs e2e/*.e2e.ts in Chromium, including an axe accessibility scan. The Electron self-test (npm test) covers
+ * and runs tests/e2e/*.e2e.ts in Chromium, including an axe accessibility scan. The Electron self-test (npm test) covers
  * rendering and export in depth; these check the app as a visitor's browser sees it.
  */
 const PORT = 4174;
 
 export default defineConfig({
-  testDir: 'e2e',
+  testDir: 'tests/e2e',
   testMatch: '**/*.e2e.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

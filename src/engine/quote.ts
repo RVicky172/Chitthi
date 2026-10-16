@@ -5,250 +5,50 @@ import type { ShowcaseImage } from '../data/showcase';
 import SHOWCASE_JSON from '../data/showcase.json';
 import type { Design, ProductId, RenderInput, SizeDef } from '../types';
 import { calPages, cardMM, productDesign, sizeOf } from './design';
-import { envelopeSpec, STANDARD, templateSheet } from './envelope';
-import { baseName, nup, pagesOf } from './export';
-import { calMonth, renderCard } from './render';
+import { envelopeSpec, STANDARD, templateSheet, type EnvelopeSpec } from './envelope';
+import { baseName, nup, pagesOf } from './printPages';
+import { calMonth } from './calendarDraw';
+import { CONTENT, INK, jpegOf, latin, MARGIN, MUTED, NO_IMAGE, UMBER, Writer, type PdfImage, type TableColumn } from './quoteWriter';
+import { renderCard } from './render';
 
 /*
  * Documents for print shops, so a customer can ask for a quote:
  *   - buildQuoteCatalog(): every category (postcards, calendars, frames, magnets, envelopes) with samples, material and
  *     finishing specs, every size with bleed and sheet counts, and a blank price-per-piece grid by size and quantity;
- *   - buildQuoteRequest(input): the same for one design, with its own previews; added to every print pack.
- * Built with jsPDF (loaded on demand) in its standard Helvetica, so text is kept to Latin-1.
+ *   - buildQuoteRequest(input): the same for one design, with its own previews; added to every print pack;
+ *   - orderSheetCSV(items): several designs at once, as a spreadsheet.
+ * The PDFs are built with jsPDF (loaded on demand) through quoteWriter.ts.
  */
 
-type Doc = InstanceType<typeof import('jspdf').jsPDF>;
-
-const PAGE_W = 210,
-  PAGE_H = 297,
-  M = 16,
-  CONTENT = PAGE_W - 2 * M;
-const UMBER: [number, number, number] = [122, 74, 43],
-  INK: [number, number, number] = [42, 36, 30],
-  MUTED: [number, number, number] = [106, 94, 82],
-  LINE: [number, number, number] = [214, 202, 184],
-  TINT: [number, number, number] = [246, 238, 226];
-
-/** jsPDF's standard fonts cover Latin-1 only: swap the few other characters our data uses. */
-const latin = (s: string) =>
-  s
-    .replace(/⅛/g, '1/8')
-    .replace(/(\d)⅜/g, '$1 3/8')
-    .replace(/⅜/g, '3/8')
-    .replace(/→/g, '->')
-    .replace(/✦/g, '*')
-    .replace(/₹/g, 'Rs ')
-    // eslint-disable-next-line no-control-regex -- keeps every Latin-1 character the PDF font can draw
-    .replace(/[^\u0000-ÿ–—‘’“”•…]/g, '');
-
-const r1 = (n: number) => Math.round(n * 10) / 10;
-
-/** A small writer over jsPDF: flowing text, tables that break across pages, images and a running footer. */
-class Writer {
-  y = M;
-  constructor(
-    readonly doc: Doc,
-    readonly title: string,
-  ) {}
-  ensure(h: number) {
-    if (this.y + h > PAGE_H - M - 8) this.page();
-  }
-  page() {
-    this.doc.addPage('a4', 'p');
-    this.y = M;
-  }
-  font(size: number, style: 'normal' | 'bold' | 'italic' = 'normal', color = INK) {
-    this.doc.setFont('helvetica', style);
-    this.doc.setFontSize(size);
-    this.doc.setTextColor(...color);
-  }
-  heading(text: string, size = 16) {
-    this.ensure(size * 0.6 + 6);
-    this.font(size, 'bold', UMBER);
-    this.doc.text(latin(text), M, this.y + size * 0.35);
-    this.y += size * 0.45 + 3;
-    this.doc.setDrawColor(...UMBER);
-    this.doc.setLineWidth(0.5);
-    this.doc.line(M, this.y, M + 24, this.y);
-    this.y += 4;
-  }
-  sub(text: string) {
-    this.ensure(9);
-    this.font(10.5, 'bold', INK);
-    this.doc.text(latin(text), M, this.y + 3.5);
-    this.y += 6.5;
-  }
-  para(text: string, size = 9.5, color = MUTED, width = CONTENT) {
-    this.font(size, 'normal', color);
-    const lines = this.doc.splitTextToSize(latin(text), width) as string[];
-    const lh = size * 0.42;
-    this.ensure(lines.length * lh + 2);
-    this.doc.text(lines, M, this.y + size * 0.3);
-    this.y += lines.length * lh + 2.5;
-  }
-  bullets(items: string[], size = 9.5) {
-    for (const it of items) {
-      this.font(size, 'normal', INK);
-      const lines = this.doc.splitTextToSize(latin(it), CONTENT - 5) as string[];
-      const lh = size * 0.42;
-      this.ensure(lines.length * lh + 1.5);
-      this.doc.setFillColor(...UMBER);
-      this.doc.circle(M + 1.2, this.y + 1.8, 0.7, 'F');
-      this.doc.text(lines, M + 4.5, this.y + size * 0.3);
-      this.y += lines.length * lh + 1.6;
-    }
-    this.y += 1.5;
-  }
-  /** Two-column label / value list with wrapping values. */
-  facts(rows: [string, string][]) {
-    const lw = 38;
-    for (const [k, v] of rows) {
-      this.font(9.2, 'normal', INK);
-      const lines = this.doc.splitTextToSize(latin(v), CONTENT - lw - 3) as string[];
-      const h = Math.max(1, lines.length) * 3.9 + 2.6;
-      this.ensure(h);
-      this.doc.setFillColor(...TINT);
-      this.doc.rect(M, this.y, lw, h, 'F');
-      this.font(8.6, 'bold', MUTED);
-      this.doc.text(latin(k), M + 2, this.y + 4.2);
-      this.font(9.2, 'normal', INK);
-      this.doc.text(lines, M + lw + 3, this.y + 4.2);
-      this.doc.setDrawColor(...LINE);
-      this.doc.setLineWidth(0.2);
-      this.doc.line(M, this.y + h, M + CONTENT, this.y + h);
-      this.y += h;
-    }
-    this.y += 4;
-  }
-  /** Table with a repeating header; `blank` columns are left empty for the printer to fill in. */
-  table(cols: { label: string; w: number; align?: 'left' | 'right' | 'center' }[], rows: string[][], rowH = 7) {
-    const header = () => {
-      this.doc.setFillColor(...UMBER);
-      this.doc.rect(M, this.y, CONTENT, rowH, 'F');
-      this.font(7.8, 'bold', [255, 250, 241]);
-      let x = M;
-      for (const c of cols) {
-        const tx = c.align === 'right' ? x + c.w - 2 : c.align === 'center' ? x + c.w / 2 : x + 2;
-        this.doc.text(latin(c.label), tx, this.y + rowH / 2 + 1.3, { align: c.align ?? 'left', maxWidth: c.w - 3 });
-        x += c.w;
-      }
-      this.y += rowH;
-    };
-    this.ensure(rowH * 2);
-    header();
-    rows.forEach((row, i) => {
-      // Cells wrap; the row grows to its tallest cell.
-      this.font(8.4, 'normal', INK);
-      const cells = cols.map((c, k) => this.doc.splitTextToSize(latin(row[k] ?? ''), c.w - 3) as string[]);
-      const h = Math.max(rowH, Math.max(...cells.map((l) => l.length)) * 3.5 + 3.5);
-      if (this.y + h > PAGE_H - M - 8) {
-        this.page();
-        header();
-      }
-      if (i % 2) {
-        this.doc.setFillColor(...TINT);
-        this.doc.rect(M, this.y, CONTENT, h, 'F');
-      }
-      this.font(8.4, 'normal', INK);
-      let x = M;
-      cols.forEach((c, k) => {
-        const lines = cells[k];
-        const tx = c.align === 'right' ? x + c.w - 2 : c.align === 'center' ? x + c.w / 2 : x + 2;
-        if (lines.length && lines[0]) {
-          const top = this.y + h / 2 - ((lines.length - 1) * 3.5) / 2 + 1.3;
-          this.doc.text(lines, tx, top, { align: c.align ?? 'left' });
-        }
-        this.doc.setDrawColor(...LINE);
-        this.doc.setLineWidth(0.15);
-        this.doc.line(x, this.y, x, this.y + h);
-        x += c.w;
-      });
-      this.doc.line(M + CONTENT, this.y, M + CONTENT, this.y + h);
-      this.doc.line(M, this.y + h, M + CONTENT, this.y + h);
-      this.y += h;
-    });
-    this.y += 5;
-  }
-  /** A row of images scaled to one height, centred; skips images that failed to load. */
-  images(list: { data: string; w: number; h: number }[], height: number, gap = 5) {
-    const ok = list.filter((i) => i.data);
-    if (!ok.length) return;
-    let hgt = height,
-      total = ok.reduce((a, i) => a + (i.w / i.h) * hgt, 0) + gap * (ok.length - 1);
-    if (total > CONTENT) {
-      hgt *= (CONTENT - gap * (ok.length - 1)) / (total - gap * (ok.length - 1));
-      total = CONTENT;
-    }
-    this.ensure(hgt + 4);
-    let x = M + (CONTENT - total) / 2;
-    for (const i of ok) {
-      const w = (i.w / i.h) * hgt;
-      this.doc.setFillColor(232, 224, 212);
-      this.doc.rect(x + 0.8, this.y + 0.8, w, hgt, 'F');
-      this.doc.addImage(i.data, 'JPEG', x, this.y, w, hgt, undefined, 'FAST');
-      x += w + gap;
-    }
-    this.y += hgt + 5;
-  }
-  /** Labelled blank lines for the customer or the printer to fill in. */
-  blanks(labels: string[], cols = 2) {
-    const w = (CONTENT - (cols - 1) * 6) / cols;
-    for (let i = 0; i < labels.length; i += cols) {
-      this.ensure(11);
-      labels.slice(i, i + cols).forEach((l, k) => {
-        const x = M + k * (w + 6);
-        this.font(8, 'bold', MUTED);
-        this.doc.text(latin(l), x, this.y + 3);
-        this.doc.setDrawColor(...LINE);
-        this.doc.setLineWidth(0.3);
-        this.doc.line(x, this.y + 9, x + w, this.y + 9);
-      });
-      this.y += 12;
-    }
-    this.y += 2;
-  }
-  footer() {
-    const n = this.doc.getNumberOfPages();
-    for (let i = 1; i <= n; i++) {
-      this.doc.setPage(i);
-      this.font(7.5, 'normal', MUTED);
-      this.doc.text(latin(this.title), M, PAGE_H - 9);
-      this.doc.text(`Page ${i} of ${n}`, PAGE_W - M, PAGE_H - 9, { align: 'right' });
-      this.doc.setDrawColor(...LINE);
-      this.doc.line(M, PAGE_H - 13, PAGE_W - M, PAGE_H - 13);
-    }
-  }
+/** A built document. */
+export interface QuoteFile {
+  blob: Blob;
+  name: string;
 }
 
-/** An image URL or canvas as a JPEG data URL (on white), scaled to at most maxW pixels wide. */
-async function jpeg(src: string | HTMLCanvasElement, maxW = 900): Promise<{ data: string; w: number; h: number }> {
-  try {
-    let bmp: CanvasImageSource, w: number, h: number;
-    if (typeof src === 'string') {
-      const b = await createImageBitmap(await (await fetch(src)).blob());
-      bmp = b;
-      w = b.width;
-      h = b.height;
-    } else {
-      bmp = src;
-      w = src.width;
-      h = src.height;
-    }
-    const k = Math.min(1, maxW / w),
-      cv = document.createElement('canvas');
-    cv.width = Math.round(w * k);
-    cv.height = Math.round(h * k);
-    const c = cv.getContext('2d')!;
-    c.fillStyle = '#FFFFFF';
-    c.fillRect(0, 0, cv.width, cv.height);
-    c.drawImage(bmp, 0, 0, cv.width, cv.height);
-    return { data: cv.toDataURL('image/jpeg', 0.86), w: cv.width, h: cv.height };
-  } catch {
-    return { data: '', w: 1, h: 1 };
-  }
+/** One design in an order sheet. */
+export interface OrderItem {
+  label: string;
+  d: Design;
+  folder?: string;
 }
 
+/**
+ * A number to one decimal.
+ * @param value the number
+ * @returns it, rounded
+ */
+const round1 = (value: number): number => Math.round(value * 10) / 10;
+
+/**
+ * Today's date as words.
+ * @returns e.g. "14 October 2026"
+ */
+const today = (): string => new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** The showcase pictures (docs/showcase), used as samples. */
 const SHOTS = SHOWCASE_JSON as ShowcaseImage[];
+/** Each category's sample pictures: showcase id and render. */
 const SAMPLES: Record<QuoteCategory, [string, ShowcaseImage['render']][]> = {
   postcard: [
     ['diwali-postcard', 'front'],
@@ -273,373 +73,566 @@ const SAMPLES: Record<QuoteCategory, [string, ShowcaseImage['render']][]> = {
     ['diwali-postcard', 'envelope-back'],
   ],
 };
-const sampleImages = (cat: QuoteCategory) =>
+
+/**
+ * A showcase picture as a JPEG.
+ * @param id the showcase id
+ * @param render which render of it
+ * @returns the JPEG, or NO_IMAGE when there is no such picture
+ */
+function showcaseJpeg(id: string, render: ShowcaseImage['render']): Promise<PdfImage> {
+  const shot = SHOTS.find((candidate) => candidate.id === id && candidate.render === render);
+  return shot ? jpegOf(shot.src, 700) : Promise.resolve({ ...NO_IMAGE });
+}
+
+/**
+ * A category's sample pictures (those in the showcase).
+ * @param category the category
+ * @returns the JPEGs
+ */
+const sampleImages = (category: QuoteCategory): Promise<PdfImage[]> =>
   Promise.all(
-    SAMPLES[cat]
-      .map(([id, r]) => SHOTS.find((s) => s.id === id && s.render === r))
-      .filter((s): s is ShowcaseImage => !!s)
-      .map((s) => jpeg(s.src, 700)),
+    SAMPLES[category]
+      .map(([id, render]) => SHOTS.find((shot) => shot.id === id && shot.render === render))
+      .filter((shot): shot is ShowcaseImage => !!shot)
+      .map((shot) => jpegOf(shot.src, 700)),
   );
 
-/** "Classic 4×6 in", or "Jumbo (6×9 in)" when the name doesn't already say the size. */
-const sizeName = (s: SizeDef) => (s.inch && !s.name.includes('×') ? `${s.name} (${s.inch})` : s.name);
+/**
+ * A size's name for the documents.
+ * @param size the size
+ * @returns e.g. "Classic 4×6 in", or "Jumbo (6×9 in)" when the name doesn't already say the size
+ */
+const sizeName = (size: SizeDef): string => (size.inch && !size.name.includes('×') ? `${size.name} (${size.inch})` : size.name);
 
-/** A fresh design of a product at a size, as the studio would start it, for sheet counts. */
-function designAt(p: ProductId, s: SizeDef): Design {
-  const d = productDesign(p);
-  return { ...d, sizeId: s.id, orient: s.native ?? d.orient, exp: { ...d.exp, bleed: '3', marks: true } };
+/**
+ * A fresh design of a product at a size, as the studio would start it, for sheet counts.
+ * @param product the product
+ * @param size the size
+ * @returns the design, with 3 mm bleed and crop marks
+ */
+function designAt(product: ProductId, size: SizeDef): Design {
+  const design = productDesign(product);
+  return { ...design, sizeId: size.id, orient: size.native ?? design.orient, exp: { ...design.exp, bleed: '3', marks: true } };
 }
-const perSheet = (d: Design, sheet: Design['exp']['sheet']) => {
-  const n = nup({ ...d, exp: { ...d.exp, sheet } });
-  return n.cols * n.rows ? String(n.cols * n.rows) : '–';
+
+/**
+ * How many pieces fit on a sheet.
+ * @param design the design
+ * @param sheet the sheet
+ * @returns the count, or '–' when none fit
+ */
+const perSheet = (design: Design, sheet: Design['exp']['sheet']): string => {
+  const imposition = nup({ ...design, exp: { ...design.exp, sheet } });
+  return imposition.cols * imposition.rows ? String(imposition.cols * imposition.rows) : '–';
 };
 
-function specFacts(w: Writer, s: PrintSpecDef) {
-  w.facts([
-    ['One piece', s.piece],
-    ['Material', s.stock],
-    ['Weight', s.weight],
-    ['Finish', s.finish],
-    ['Colour', s.colour],
-    ['Finishing', s.finishing.join('. ') + '.'],
+/**
+ * A size's shape for the documents.
+ * @param size the size
+ * @param words how to say it: the catalog's short words or the request's longer ones
+ * @param words.round a round piece
+ * @param words.corners a piece with rounded corners, given the radius in mm
+ * @param words.rectangle a plain rectangle
+ * @returns the shape
+ */
+function shapeText(size: SizeDef, words: { round: string; corners: (radius: number) => string; rectangle: string }): string {
+  if (size.shape === 'circle') return words.round;
+  if (size.corner || size.instax) return words.corners(size.corner ?? 3);
+  return words.rectangle;
+}
+
+/**
+ * A product's material and finishing facts.
+ * @param writer the writer
+ * @param spec the product's print spec
+ */
+function specFacts(writer: Writer, spec: PrintSpecDef): void {
+  writer.facts([
+    ['One piece', spec.piece],
+    ['Material', spec.stock],
+    ['Weight', spec.weight],
+    ['Finish', spec.finish],
+    ['Colour', spec.colour],
+    ['Finishing', `${spec.finishing.join('. ')}.`],
   ]);
 }
 
-const QTY_COLS = QUOTE_QTY.map((q) => ({ label: `${q} pc${q > 1 ? 's' : ''}`, w: 0, align: 'center' as const }));
-/** Price grid: one row per item, one column per quantity, cells left blank. */
-function priceGrid(w: Writer, items: string[]) {
-  const first = 50,
-    qw = (CONTENT - first) / QUOTE_QTY.length;
+/** The price grid's quantity columns (widths set per grid). */
+const QTY_COLS: TableColumn[] = QUOTE_QTY.map((quantity) => ({ label: `${quantity} pc${quantity > 1 ? 's' : ''}`, w: 0, align: 'center' as const }));
+
+/**
+ * A price grid: one row per item, one column per quantity, cells left blank.
+ * @param writer the writer
+ * @param items the rows' items
+ */
+function priceGrid(writer: Writer, items: string[]): void {
+  const first = 50;
+  const quantityWidth = (CONTENT - first) / QUOTE_QTY.length;
   // Start on a new page rather than leave the heading and a row or two stranded at the bottom.
-  w.ensure(8 * (Math.min(items.length, 5) + 1) + 12);
-  w.sub('Price per piece (INR, excluding GST) — to be filled in by the printer');
-  w.table(
-    [{ label: 'Item', w: first }, ...QTY_COLS.map((c) => ({ ...c, w: qw }))],
-    items.map((i) => [i]),
+  writer.ensure(8 * (Math.min(items.length, 5) + 1) + 12);
+  writer.subheading('Price per piece (INR, excluding GST) — to be filled in by the printer');
+  writer.table(
+    [{ label: 'Item', w: first }, ...QTY_COLS.map((column) => ({ ...column, w: quantityWidth }))],
+    items.map((item) => [item]),
     8,
   );
 }
 
-function generalSpecs(w: Writer) {
-  w.sub('Files we supply');
-  w.bullets([
+/**
+ * What every quote needs to know: the files we supply and what the quote should include.
+ * @param writer the writer
+ */
+function generalSpecs(writer: Writer): void {
+  writer.subheading('Files we supply');
+  writer.bullets([
     'Print-ready PDF (one page per side, trim + 3 mm bleed, crop marks) and separate PNG files, all at 300 dpi.',
     'Colours are sRGB. Please convert to CMYK with your usual profile, or tell us if you need CMYK files.',
     'Keep text and faces 4 mm inside the trim (safe area). Bleed is 3 mm on every edge unless stated.',
     'Sheet PDFs (many up on A4, A3 or 13×19 in, with crop marks and backs mirrored for long-edge duplex) on request.',
     'Every order comes with a PRINT-SPEC.txt listing the trim size, bleed, resolution, paper and finishing.',
   ]);
-  w.sub('Please include in your quote');
-  w.bullets([
+  writer.subheading('Please include in your quote');
+  writer.bullets([
     'Price per piece at each quantity, for each size you can produce (grids below).',
     'Paper you would use if different from ours, and the cost of a hard-copy proof.',
     'Turnaround time, packing, and delivery charges to our city.',
   ]);
 }
 
-/** The full specification and quote catalog for every category. */
-export async function buildQuoteCatalog(): Promise<{ blob: Blob; name: string }> {
+/**
+ * Starts a jsPDF document for the documents.
+ * @returns A4 portrait, mm, compressed
+ */
+async function newDocument(): Promise<Writer['doc']> {
   const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p', compress: true });
-  const w = new Writer(doc, 'Chitthi – print specifications and quote request');
-  const date = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p', compress: true });
+}
 
-  // Cover
-  w.font(26, 'bold', UMBER);
-  doc.text('Chitthi', M, M + 10);
-  w.font(15, 'normal', INK);
-  doc.text('Print specifications and quote request', M, M + 19);
-  w.font(9.5, 'normal', MUTED);
-  doc.text(`Prepared ${date}. Postcards, calendars, photo frame prints, fridge magnets and envelopes.`, M, M + 26);
-  w.y = M + 34;
-  const covers = await Promise.all(
-    (
-      [
-        ['diwali-postcard', 'front'],
-        ['ladakh-calendar', 'front'],
-        ['dadi-frame', 'front'],
-        ['puppy-badge', 'front'],
-      ] as const
-    ).map(([id, r]) => {
-      const s = SHOTS.find((x) => x.id === id && x.render === r);
-      return s ? jpeg(s.src, 700) : Promise.resolve({ data: '', w: 1, h: 1 });
-    }),
+/**
+ * The catalog's cover: title, sample pictures, the customer's details, what we supply and the contents.
+ * @param writer the writer
+ */
+async function catalogCover(writer: Writer): Promise<void> {
+  const { doc } = writer;
+  writer.font(26, 'bold', UMBER);
+  doc.text('Chitthi', MARGIN, MARGIN + 10);
+  writer.font(15, 'normal', INK);
+  doc.text('Print specifications and quote request', MARGIN, MARGIN + 19);
+  writer.font(9.5, 'normal', MUTED);
+  doc.text(`Prepared ${today()}. Postcards, calendars, photo frame prints, fridge magnets and envelopes.`, MARGIN, MARGIN + 26);
+  writer.y = MARGIN + 34;
+  const covers = await Promise.all([showcaseJpeg('diwali-postcard', 'front'), showcaseJpeg('ladakh-calendar', 'front'), showcaseJpeg('dadi-frame', 'front'), showcaseJpeg('puppy-badge', 'front')]);
+  writer.images(covers, 48);
+  writer.subheading('Customer');
+  writer.blanks(['Name', 'Phone', 'Email', 'Delivery city and PIN', 'Needed by', 'Quote reference']);
+  generalSpecs(writer);
+  writer.subheading('Contents');
+  writer.bullets([...PRODUCTS.map((product) => `${PRINT_SPECS[product.id].title}: ${PRINT_SPECS[product.id].summary}`), `${PRINT_SPECS.envelope.title}: ${PRINT_SPECS.envelope.summary}`]);
+}
+
+/** The catalog's size table columns. */
+const SIZE_COLUMNS: TableColumn[] = [
+  { label: 'Size', w: 42 },
+  { label: 'Trim (mm)', w: 30 },
+  { label: 'With 3 mm bleed', w: 32 },
+  { label: 'Shape', w: 26 },
+  { label: 'Per A4', w: 16, align: 'center' },
+  { label: 'Per A3', w: 16, align: 'center' },
+  { label: 'Per 13×19', w: 16, align: 'center' },
+];
+
+/**
+ * A size's row in the catalog: trim, with bleed, shape and how many fit per sheet.
+ * @param product the product
+ * @param size the size
+ * @returns the cells
+ */
+function sizeRow(product: ProductId, size: SizeDef): string[] {
+  const design = designAt(product, size);
+  const { w: trimWidth, h: trimHeight } = cardMM(design);
+  return [
+    sizeName(size),
+    `${round1(trimWidth)} × ${round1(trimHeight)}`,
+    `${round1(trimWidth + 6)} × ${round1(trimHeight + 6)}`,
+    shapeText(size, { round: 'Round', corners: (radius) => `${radius} mm corners`, rectangle: 'Rectangle' }),
+    perSheet(design, 'a4'),
+    perSheet(design, 'a3'),
+    perSheet(design, '1319'),
+  ];
+}
+
+/**
+ * A product's section of the catalog: samples, specs, sizes and its price grid.
+ * @param writer the writer
+ * @param product the product
+ */
+async function productSection(writer: Writer, product: (typeof PRODUCTS)[number]): Promise<void> {
+  const spec = PRINT_SPECS[product.id];
+  const sizes = sizesFor(product.id).filter((size) => size.id !== 'custom');
+  writer.page();
+  writer.heading(spec.title);
+  writer.paragraph(product.blurb);
+  writer.images(await sampleImages(product.id), 52);
+  specFacts(writer, spec);
+  writer.subheading('Sizes');
+  writer.table(
+    SIZE_COLUMNS,
+    sizes.map((size) => sizeRow(product.id, size)),
   );
-  w.images(covers, 48);
-  w.sub('Customer');
-  w.blanks(['Name', 'Phone', 'Email', 'Delivery city and PIN', 'Needed by', 'Quote reference']);
-  generalSpecs(w);
-  w.sub('Contents');
-  w.bullets([...PRODUCTS.map((p) => `${PRINT_SPECS[p.id].title}: ${PRINT_SPECS[p.id].summary}`), `${PRINT_SPECS.envelope.title}: ${PRINT_SPECS.envelope.summary}`]);
+  writer.paragraph('Custom sizes from 40 to 420 mm are also possible: please quote per square inch or per sheet as well.', 8.5);
+  priceGrid(writer, sizes.map(sizeName));
+}
 
-  // One section per product
-  for (const p of PRODUCTS) {
-    const spec = PRINT_SPECS[p.id],
-      sizes = sizesFor(p.id).filter((s) => s.id !== 'custom');
-    w.page();
-    w.heading(spec.title);
-    w.para(p.blurb);
-    w.images(await sampleImages(p.id), 52);
-    specFacts(w, spec);
-    w.sub('Sizes');
-    w.table(
-      [
-        { label: 'Size', w: 42 },
-        { label: 'Trim (mm)', w: 30 },
-        { label: 'With 3 mm bleed', w: 32 },
-        { label: 'Shape', w: 26 },
-        { label: 'Per A4', w: 16, align: 'center' },
-        { label: 'Per A3', w: 16, align: 'center' },
-        { label: 'Per 13×19', w: 16, align: 'center' },
-      ],
-      sizes.map((s) => {
-        const d = designAt(p.id, s),
-          { w: tw, h: th } = cardMM(d);
-        return [
-          sizeName(s),
-          `${r1(tw)} × ${r1(th)}`,
-          `${r1(tw + 6)} × ${r1(th + 6)}`,
-          s.shape === 'circle' ? 'Round' : s.corner || s.instax ? `${s.corner ?? 3} mm corners` : 'Rectangle',
-          perSheet(d, 'a4'),
-          perSheet(d, 'a3'),
-          perSheet(d, '1319'),
-        ];
-      }),
-    );
-    w.para('Custom sizes from 40 to 420 mm are also possible: please quote per square inch or per sheet as well.', 8.5);
-    priceGrid(
-      w,
-      sizes.map(sizeName),
-    );
-  }
+/**
+ * The names of the sizes (of any product) that get a given envelope.
+ * @param envelopeName the envelope
+ * @returns the sizes' names
+ */
+const sizesUsing = (envelopeName: string): string[] =>
+  PRODUCTS.flatMap((product) =>
+    sizesFor(product.id)
+      .filter((size) => size.id !== 'custom' && envelopeSpec(designAt(product.id, size)).name === envelopeName)
+      .map((size) => size.name),
+  );
 
-  // Envelopes
-  const env = PRINT_SPECS.envelope;
-  w.page();
-  w.heading(env.title);
-  w.para('Every design comes with a matching envelope: the smallest standard size the piece fits in, printed with the same occasion artwork, the address, and the Chitthi mark on the back.');
-  w.images(await sampleImages('envelope'), 52);
-  specFacts(w, env);
-  const envRows = STANDARD.slice().sort((a, b) => a[1] * a[2] - b[1] * b[2]);
-  w.sub('Standard envelope sizes');
-  w.table(
+/**
+ * The catalog's envelope section: samples, specs, every standard size and a price grid for those in use.
+ * @param writer the writer
+ */
+async function envelopeSection(writer: Writer): Promise<void> {
+  const spec = PRINT_SPECS.envelope;
+  writer.page();
+  writer.heading(spec.title);
+  writer.paragraph('Every design comes with a matching envelope: the smallest standard size the piece fits in, printed with the same occasion artwork, the address, and the Chitthi mark on the back.');
+  writer.images(await sampleImages('envelope'), 52);
+  specFacts(writer, spec);
+  const envelopes = STANDARD.slice().sort((first, second) => first[1] * first[2] - second[1] * second[2]);
+  writer.subheading('Standard envelope sizes');
+  writer.table(
     [
       { label: 'Envelope', w: 50 },
       { label: 'Size (mm)', w: 34 },
       { label: 'Holds pieces up to (mm)', w: 50 },
       { label: 'Used for', w: 44 },
     ],
-    envRows.map(([n, L, S]) => {
-      const users = PRODUCTS.flatMap((p) =>
-        sizesFor(p.id)
-          .filter((s) => s.id !== 'custom' && envelopeSpec(designAt(p.id, s)).name === n)
-          .map((s) => s.name),
-      );
-      return [n, `${L} × ${S}`, `${L - 5} × ${S - 5}`, users.slice(0, 3).join(', ') + (users.length > 3 ? '…' : '')];
+    envelopes.map(([name, long, short]) => {
+      const users = sizesUsing(name);
+      return [name, `${long} × ${short}`, `${long - 5} × ${short - 5}`, users.slice(0, 3).join(', ') + (users.length > 3 ? '…' : '')];
     }),
   );
   priceGrid(
-    w,
-    envRows.filter(([n]) => PRODUCTS.some((p) => sizesFor(p.id).some((s) => s.id !== 'custom' && envelopeSpec(designAt(p.id, s)).name === n))).map(([n]) => `${n} envelope`),
+    writer,
+    envelopes.filter(([name]) => PRODUCTS.some((product) => sizesFor(product.id).some((size) => size.id !== 'custom' && envelopeSpec(designAt(product.id, size)).name === name))).map(([name]) => `${name} envelope`),
   );
+}
 
-  // Terms
-  w.page();
-  w.heading('Quote details');
-  w.para('Please fill in and return with the price grids.');
-  w.blanks(['Printer / company', 'Contact person', 'Phone', 'Email', 'Turnaround (working days)', 'Proof charge', 'Delivery charge', 'Quote valid until', 'GST number', 'Payment terms']);
-  w.sub('Notes');
-  for (let i = 0; i < 6; i++) w.blanks([''], 1);
-  w.footer();
+/**
+ * The catalog's last page: the printer's details and room for notes.
+ * @param writer the writer
+ */
+function quoteDetails(writer: Writer): void {
+  writer.page();
+  writer.heading('Quote details');
+  writer.paragraph('Please fill in and return with the price grids.');
+  writer.blanks(['Printer / company', 'Contact person', 'Phone', 'Email', 'Turnaround (working days)', 'Proof charge', 'Delivery charge', 'Quote valid until', 'GST number', 'Payment terms']);
+  writer.subheading('Notes');
+  for (let line = 0; line < 6; line++) writer.blanks([''], 1);
+}
+
+/**
+ * The full specification and quote catalog for every category.
+ * @returns the PDF
+ */
+export async function buildQuoteCatalog(): Promise<QuoteFile> {
+  const doc = await newDocument();
+  const writer = new Writer(doc, 'Chitthi – print specifications and quote request');
+  await catalogCover(writer);
+  for (const product of PRODUCTS) await productSection(writer, product);
+  await envelopeSection(writer);
+  quoteDetails(writer);
+  writer.footer();
   return { blob: doc.output('blob'), name: `chitthi-print-specifications-${new Date().toISOString().slice(0, 10)}.pdf` };
 }
 
-/** The finishing lines that apply to this design (no Instax corners on a 4×6 card, no badge press on a square magnet). */
-function relevantFinishing(spec: PrintSpecDef, d: Design): string[] {
-  const s = sizeOf(d);
-  return spec.finishing.filter((f) => {
-    if (/Instax/.test(f)) return !!s.instax;
-    if (/^Round/.test(f)) return s.shape === 'circle';
-    if (/rounded corners/.test(f) && d.product === 'magnet') return s.shape !== 'circle';
-    if (/^Desk/.test(f)) return s.id === 'cal-a5';
-    if (/^Wall/.test(f)) return s.id !== 'cal-a5' && d.layout !== 'cal-strip' && d.cal.months > 1;
-    if (/^Single-month/.test(f)) return d.layout === 'cal-strip' || d.cal.months === 1;
+/**
+ * The finishing lines that apply to a design (no Instax corners on a 4×6 card, no badge press on a square magnet).
+ * @param spec the product's print spec
+ * @param design the design
+ * @returns the lines
+ */
+function relevantFinishing(spec: PrintSpecDef, design: Design): string[] {
+  const size = sizeOf(design);
+  return spec.finishing.filter((line) => {
+    if (line.includes('Instax')) return !!size.instax;
+    if (line.startsWith('Round')) return size.shape === 'circle';
+    if (line.includes('rounded corners') && design.product === 'magnet') return size.shape !== 'circle';
+    if (line.startsWith('Desk')) return size.id === 'cal-a5';
+    if (line.startsWith('Wall')) return size.id !== 'cal-a5' && design.layout !== 'cal-strip' && design.cal.months > 1;
+    if (line.startsWith('Single-month')) return design.layout === 'cal-strip' || design.cal.months === 1;
     return true;
   });
 }
 
-/** A quote request for one design: previews, the full job description and a price grid. */
-export async function buildQuoteRequest(inp: RenderInput): Promise<{ blob: Blob; name: string }> {
-  const { jsPDF } = await import('jspdf');
-  const d = inp.d,
-    p = productOf(d.product),
-    spec = PRINT_SPECS[d.product],
-    size = sizeOf(d),
-    { w: tw, h: th } = cardMM(d),
-    bleed = +d.exp.bleed,
-    pages = pagesOf(d),
-    fronts = calPages(d),
-    title = d.designName.trim() || `${p.name}, ${size.name}`;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p', compress: true });
-  const w = new Writer(doc, `Chitthi – quote request: ${title}`);
-
-  w.font(22, 'bold', UMBER);
-  doc.text('Quote request', M, M + 9);
-  w.font(13, 'normal', INK);
-  doc.text(latin(title), M, M + 17);
-  w.font(9, 'normal', MUTED);
-  doc.text(`${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · files: ${baseName(d)}-print-pack.zip`, M, M + 23);
-  w.y = M + 30;
-
-  // Previews: the first front, the back, and a second month for calendars.
-  const px = 900 / Math.max(tw, th),
-    shots: HTMLCanvasElement[] = [];
-  const draw = (side: 'front' | 'back', page = 0) => {
-    const cv = document.createElement('canvas');
-    renderCard(cv, side, px, 0, inp, { page });
-    shots.push(cv);
+/**
+ * The request's previews: the first front, a second month for calendars, and the back.
+ * @param input the design and its photos
+ * @returns the JPEGs
+ */
+function requestPreviews(input: RenderInput): Promise<PdfImage[]> {
+  const design = input.d;
+  const { w, h } = cardMM(design);
+  const pxPerMm = 900 / Math.max(w, h);
+  const shots: HTMLCanvasElement[] = [];
+  const draw = (side: 'front' | 'back', page = 0): void => {
+    const canvas = document.createElement('canvas');
+    renderCard(canvas, side, pxPerMm, 0, input, { page });
+    shots.push(canvas);
   };
   draw('front', 0);
-  if (fronts > 1) draw('front', 1);
-  if (d.exp.back && d.product !== 'magnet') draw('back');
-  w.images(await Promise.all(shots.map((c) => jpeg(c, 800))), 62);
+  if (calPages(design) > 1) draw('front', 1);
+  if (design.exp.back && design.product !== 'magnet') draw('back');
+  return Promise.all(shots.map((canvas) => jpegOf(canvas, 800)));
+}
 
-  const env = d.env.on ? envelopeSpec(d) : null;
-  const pageText =
-    d.product === 'calendar'
-      ? d.layout === 'cal-strip'
-        ? 'One page (the whole year)'
-        : `${fronts} month page${fronts > 1 ? 's' : ''}${d.exp.back ? ' + year-at-a-glance back page' : ''} (${MONTHS[calMonth(d, 0).month]} ${calMonth(d, 0).year} onward)`
-      : `${pages.length} side${pages.length > 1 ? 's' : ''} (${pages.map((x) => x.label.toLowerCase()).join(', ')})`;
-  w.sub('Job');
-  w.facts([
-    ['Product', p.name],
-    ['Size', `${sizeName(size)}: trim ${r1(tw)} × ${r1(th)} mm (${r1(tw / 25.4)} × ${r1(th / 25.4)} in), ${d.orient === 'landscape' ? 'horizontal' : 'vertical'}`],
-    ['File size', bleed ? `${r1(tw + 2 * bleed)} × ${r1(th + 2 * bleed)} mm including ${bleed} mm bleed on every edge` : 'Trim size, no bleed'],
-    ['Shape', size.shape === 'circle' ? 'Round (cut on the circle)' : size.corner || size.instax ? `Rectangle with ${size.corner ?? 3} mm rounded corners` : 'Rectangle'],
-    ['Pages / sides', pageText],
-    ['Layout', layoutName(d.layout)],
-    ['Resolution', `${d.exp.dpi} dpi, sRGB (please convert to CMYK)`],
+/**
+ * The request's "Pages / sides" line.
+ * @param design the design
+ * @returns e.g. "12 month pages + year-at-a-glance back page (January 2027 onward)", "2 sides (front, back)"
+ */
+function pagesText(design: Design): string {
+  const fronts = calPages(design);
+  const pages = pagesOf(design);
+  if (design.product !== 'calendar') return `${pages.length} side${pages.length > 1 ? 's' : ''} (${pages.map((page) => page.label.toLowerCase()).join(', ')})`;
+  if (design.layout === 'cal-strip') return 'One page (the whole year)';
+  const first = calMonth(design, 0);
+  const back = design.exp.back ? ' + year-at-a-glance back page' : '';
+  return `${fronts} month page${fronts > 1 ? 's' : ''}${back} (${MONTHS[first.month] ?? ''} ${first.year} onward)`;
+}
+
+/**
+ * The request's envelope line.
+ * @param design the design
+ * @param envelope its envelope
+ * @returns the envelope, its paper and whether a template is supplied
+ */
+function envelopeText(design: Design, envelope: EnvelopeSpec): string {
+  const sheet = templateSheet(design);
+  const template = sheet ? `Fold-your-own template on ${sheet.name} also supplied.` : '';
+  return `${envelope.name}, ${envelope.w} × ${envelope.h} mm. ${PRINT_SPECS.envelope.weight}. ${template}`;
+}
+
+/**
+ * The request's job description.
+ * @param design the design
+ * @param envelope its envelope, or null when it has none
+ * @returns label and value rows
+ */
+function jobFacts(design: Design, envelope: EnvelopeSpec | null): [string, string][] {
+  const spec = PRINT_SPECS[design.product];
+  const size = sizeOf(design);
+  const { w: trimWidth, h: trimHeight } = cardMM(design);
+  const bleed = +design.exp.bleed;
+  return [
+    ['Product', productOf(design.product).name],
+    ['Size', `${sizeName(size)}: trim ${round1(trimWidth)} × ${round1(trimHeight)} mm (${round1(trimWidth / 25.4)} × ${round1(trimHeight / 25.4)} in), ${design.orient === 'landscape' ? 'horizontal' : 'vertical'}`],
+    ['File size', bleed ? `${round1(trimWidth + 2 * bleed)} × ${round1(trimHeight + 2 * bleed)} mm including ${bleed} mm bleed on every edge` : 'Trim size, no bleed'],
+    ['Shape', shapeText(size, { round: 'Round (cut on the circle)', corners: (radius) => `Rectangle with ${radius} mm rounded corners`, rectangle: 'Rectangle' })],
+    ['Pages / sides', pagesText(design)],
+    ['Layout', layoutName(design.layout)],
+    ['Resolution', `${design.exp.dpi} dpi, sRGB (please convert to CMYK)`],
     ['Material', spec.stock],
     ['Weight', spec.weight],
     ['Finish', spec.finish],
     ['Colour', spec.colour],
-    ['Finishing', relevantFinishing(spec, d).join('. ') + '.'],
-    ...(env
-      ? ([
-          ['Envelope', `${env.name}, ${env.w} × ${env.h} mm. ${PRINT_SPECS.envelope.weight}. ${templateSheet(d) ? `Fold-your-own template on ${templateSheet(d)!.name} also supplied.` : ''}`],
-        ] as [string, string][])
-      : []),
-  ]);
-  priceGrid(w, [`${p.name}, ${size.name}`, ...(env ? [`Envelope, ${env.name}`] : [])]);
-  w.sub('Customer');
-  w.blanks(['Name', 'Phone', 'Email', 'Delivery city and PIN', 'Quantity wanted', 'Needed by']);
-  w.sub('Printer');
-  w.blanks(['Printer / company', 'Turnaround (working days)', 'Proof charge', 'Delivery charge', 'Quote valid until', 'GST number']);
-  w.footer();
-  return { blob: doc.output('blob'), name: `${baseName(d)}-QUOTE-REQUEST.pdf` };
+    ['Finishing', `${relevantFinishing(spec, design).join('. ')}.`],
+    ...(envelope ? ([['Envelope', envelopeText(design, envelope)]] as [string, string][]) : []),
+  ];
 }
 
-/* ---------- several designs at once: an order sheet and a quote pack ---------- */
+/**
+ * A quote request for one design: previews, the full job description and a price grid.
+ * @param input the design and its photos
+ * @returns the PDF
+ */
+export async function buildQuoteRequest(input: RenderInput): Promise<QuoteFile> {
+  const doc = await newDocument();
+  const design = input.d;
+  const product = productOf(design.product);
+  const size = sizeOf(design);
+  const title = design.designName.trim() || `${product.name}, ${size.name}`;
+  const writer = new Writer(doc, `Chitthi – quote request: ${title}`);
+  writer.font(22, 'bold', UMBER);
+  doc.text('Quote request', MARGIN, MARGIN + 9);
+  writer.font(13, 'normal', INK);
+  doc.text(latin(title), MARGIN, MARGIN + 17);
+  writer.font(9, 'normal', MUTED);
+  doc.text(`${today()} · files: ${baseName(design)}-print-pack.zip`, MARGIN, MARGIN + 23);
+  writer.y = MARGIN + 30;
+  writer.images(await requestPreviews(input), 62);
+  const envelope = design.env.on ? envelopeSpec(design) : null;
+  writer.subheading('Job');
+  writer.facts(jobFacts(design, envelope));
+  priceGrid(writer, [`${product.name}, ${size.name}`, ...(envelope ? [`Envelope, ${envelope.name}`] : [])]);
+  writer.subheading('Customer');
+  writer.blanks(['Name', 'Phone', 'Email', 'Delivery city and PIN', 'Quantity wanted', 'Needed by']);
+  writer.subheading('Printer');
+  writer.blanks(['Printer / company', 'Turnaround (working days)', 'Proof charge', 'Delivery charge', 'Quote valid until', 'GST number']);
+  writer.footer();
+  return { blob: doc.output('blob'), name: `${baseName(design)}-QUOTE-REQUEST.pdf` };
+}
 
-const csvCell = (v: string | number) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-const mm1 = (n: number) => Math.round(n * 10) / 10;
+/* ---------- several designs at once: an order sheet ---------- */
+
+/**
+ * A CSV cell, quoted when it needs to be.
+ * @param value the value
+ * @returns the cell
+ */
+const csvCell = (value: string | number): string => (/[",\n]/.test(String(value)) ? `"${String(value).replace(/"/g, '""')}"` : String(value));
+
+/** Lets Excel read the × and dash characters correctly. */
+const BYTE_ORDER_MARK = '\uFEFF';
+
+/**
+ * A length in pixels at 300 dpi.
+ * @param mm the length
+ * @returns px
+ */
+const px300 = (mm: number): number => Math.round((mm / 25.4) * 300);
+
+/**
+ * The order sheet's header row.
+ * @param withFolder whether there is a Folder column
+ * @returns the header
+ */
+const orderHeader = (withFolder: boolean): string[] => [
+  'No',
+  'Design',
+  ...(withFolder ? ['Folder'] : []),
+  'Item',
+  'Size',
+  'Orientation',
+  'Trim size',
+  'File size with bleed',
+  'Pixels at 300 dpi',
+  'Pages / sides',
+  'Layout',
+  'Material',
+  'Weight',
+  'Finish',
+  'Colour',
+  'Finishing',
+  'Matching envelope',
+  'Qty wanted',
+  ...QUOTE_QTY.map((quantity) => `Price per piece @ ${quantity}`),
+  'Printer notes',
+];
+
+/**
+ * A design's pages for the order sheet.
+ * @param design the design
+ * @returns e.g. "12 month pages + year-at-a-glance back", "Front + Back"
+ */
+function orderPages(design: Design): string {
+  if (design.product !== 'calendar') return pagesOf(design).map((page) => page.label).join(' + ');
+  const fronts = calPages(design);
+  return `${fronts} month page${fronts > 1 ? 's' : ''}${design.exp.back ? ' + year-at-a-glance back' : ''}`;
+}
+
+/**
+ * A design's row in the order sheet.
+ * @param item the design
+ * @param number its row number, from 1
+ * @param withFolder whether there is a Folder column
+ * @returns the cells
+ */
+function designRow({ label, d: design, folder }: OrderItem, number: number, withFolder: boolean): (string | number)[] {
+  const { w, h } = cardMM(design);
+  const bleed = +design.exp.bleed;
+  const spec = PRINT_SPECS[design.product];
+  const envelope = envelopeSpec(design);
+  return [
+    number,
+    label,
+    ...(withFolder ? [folder ?? ''] : []),
+    productOf(design.product).name,
+    sizeName(sizeOf(design)),
+    design.orient === 'landscape' ? 'Horizontal' : 'Vertical',
+    `${round1(w)} × ${round1(h)} mm`,
+    bleed ? `${round1(w + 2 * bleed)} × ${round1(h + 2 * bleed)} mm (${bleed} mm bleed)` : 'Trim size, no bleed',
+    `${px300(w + 2 * bleed)} × ${px300(h + 2 * bleed)} px`,
+    orderPages(design),
+    layoutName(design.layout),
+    spec.stock,
+    spec.weight,
+    spec.finish,
+    spec.colour,
+    relevantFinishing(spec, design).join('; '),
+    design.env.on ? `${envelope.name} (${envelope.w} × ${envelope.h} mm)` : '—',
+    '',
+    ...QUOTE_QTY.map(() => ''),
+    '',
+  ];
+}
+
+/**
+ * An envelope size's row in the order sheet.
+ * @param name the envelope
+ * @param design a design that uses it
+ * @param usedBy the designs that use it
+ * @param number its row number, from 1
+ * @param withFolder whether there is a Folder column
+ * @returns the cells
+ */
+function envelopeRow(name: string, design: Design, usedBy: string[], number: number, withFolder: boolean): string[] {
+  const spec = PRINT_SPECS.envelope;
+  const envelope = envelopeSpec(design);
+  const sheet = templateSheet(design);
+  return [
+    `E${number}`,
+    `Envelope for ${usedBy.join(', ')}`,
+    ...(withFolder ? [''] : []),
+    'Envelope',
+    name,
+    'Horizontal',
+    `${envelope.w} × ${envelope.h} mm`,
+    'Envelope size (no bleed)',
+    `${px300(envelope.w)} × ${px300(envelope.h)} px`,
+    'Front (address side) + back (flap side)',
+    sheet ? `Fold-your-own template on ${sheet.name} also supplied` : 'Ready-made envelope',
+    spec.stock,
+    spec.weight,
+    spec.finish,
+    spec.colour,
+    spec.finishing.join('; '),
+    '',
+    '',
+    ...QUOTE_QTY.map(() => ''),
+    '',
+  ];
+}
 
 /**
  * An order sheet for print shops (CSV, opens in Excel or Google Sheets): one row per design with its size, pages,
  * paper and finishing, one row per envelope size, and empty price-per-piece columns for every quote quantity.
+ * @param items the designs
+ * @returns the CSV text, with a byte-order mark
  */
-export function orderSheetCSV(items: { label: string; d: Design; folder?: string }[]): string {
-  const head = [
-    'No',
-    'Design',
-    ...(items.some((i) => i.folder) ? ['Folder'] : []),
-    'Item',
-    'Size',
-    'Orientation',
-    'Trim size',
-    'File size with bleed',
-    'Pixels at 300 dpi',
-    'Pages / sides',
-    'Layout',
-    'Material',
-    'Weight',
-    'Finish',
-    'Colour',
-    'Finishing',
-    'Matching envelope',
-    'Qty wanted',
-    ...QUOTE_QTY.map((q) => `Price per piece @ ${q}`),
-    'Printer notes',
-  ];
-  const withFolder = items.some((i) => i.folder);
-  const rows: (string | number)[][] = [head];
-  const px = (mm: number) => Math.round((mm / 25.4) * 300);
-  const envs = new Map<string, { d: Design; for: string[] }>();
-  items.forEach(({ label, d, folder }, i) => {
-    const { w, h } = cardMM(d),
-      b = +d.exp.bleed,
-      spec = PRINT_SPECS[d.product],
-      size = sizeOf(d),
-      pages = pagesOf(d),
-      env = envelopeSpec(d);
-    if (d.env.on) {
-      const e = envs.get(env.name) ?? { d, for: [] };
-      e.for.push(label);
-      envs.set(env.name, e);
+export function orderSheetCSV(items: OrderItem[]): string {
+  const withFolder = items.some((item) => item.folder);
+  const rows: (string | number)[][] = [orderHeader(withFolder)];
+  const envelopes = new Map<string, { design: Design; usedBy: string[] }>();
+  items.forEach((item, index) => {
+    const design = item.d;
+    if (design.env.on) {
+      const name = envelopeSpec(design).name;
+      const entry = envelopes.get(name) ?? { design, usedBy: [] };
+      entry.usedBy.push(item.label);
+      envelopes.set(name, entry);
     }
-    rows.push([
-      i + 1,
-      label,
-      ...(withFolder ? [folder ?? ''] : []),
-      productOf(d.product).name,
-      sizeName(size),
-      d.orient === 'landscape' ? 'Horizontal' : 'Vertical',
-      `${mm1(w)} × ${mm1(h)} mm`,
-      b ? `${mm1(w + 2 * b)} × ${mm1(h + 2 * b)} mm (${b} mm bleed)` : 'Trim size, no bleed',
-      `${px(w + 2 * b)} × ${px(h + 2 * b)} px`,
-      d.product === 'calendar'
-        ? `${calPages(d)} month page${calPages(d) > 1 ? 's' : ''}${d.exp.back ? ' + year-at-a-glance back' : ''}`
-        : pages.map((p) => p.label).join(' + '),
-      layoutName(d.layout),
-      spec.stock,
-      spec.weight,
-      spec.finish,
-      spec.colour,
-      relevantFinishing(spec, d).join('; '),
-      d.env.on ? `${env.name} (${env.w} × ${env.h} mm)` : '—',
-      '',
-      ...QUOTE_QTY.map(() => ''),
-      '',
-    ]);
+    rows.push(designRow(item, index + 1, withFolder));
   });
-  const e = PRINT_SPECS.envelope;
-  [...envs].forEach(([name, { d, for: used }], i) => {
-    const s = envelopeSpec(d),
-      sh = templateSheet(d);
-    rows.push([
-      `E${i + 1}`,
-      `Envelope for ${used.join(', ')}`,
-      ...(withFolder ? [''] : []),
-      'Envelope',
-      name,
-      'Horizontal',
-      `${s.w} × ${s.h} mm`,
-      'Envelope size (no bleed)',
-      `${px(s.w)} × ${px(s.h)} px`,
-      'Front (address side) + back (flap side)',
-      sh ? `Fold-your-own template on ${sh.name} also supplied` : 'Ready-made envelope',
-      e.stock,
-      e.weight,
-      e.finish,
-      e.colour,
-      e.finishing.join('; '),
-      '',
-      '',
-      ...QUOTE_QTY.map(() => ''),
-      '',
-    ]);
-  });
-  // A byte-order mark so Excel reads the × and dash characters correctly.
-  return '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  [...envelopes].forEach(([name, { design, usedBy }], index) => rows.push(envelopeRow(name, design, usedBy, index + 1, withFolder)));
+  return `${BYTE_ORDER_MARK}${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
 }
