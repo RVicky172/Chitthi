@@ -1495,7 +1495,7 @@
         "T062": {
           "text": "Clean `tests/` (maintainer, 2026-10-16): the 1,894 standards warnings left after T091 (names, JSDoc, sonar, type rules) to 0 across `tests/unit`, `tests/integration`, `tests/support` and `tests/e2e`; `tests/**` joins `FINISHED`. Tests stay exempt from the size rules (Q4). Behaviour-neutral: the same tests, the same counts.",
           "section": "Clean-up: tests/selftest/ and electron/",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1507,10 +1507,17 @@
             "eslint.config.js"
           ],
           "test": "`npm run check` green with the same test count; `npm run test:e2e` as the baseline; the standards report at 0 for `tests/`",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "4230113",
+            "e8b10e9",
+            "53e47e9",
+            "1545c69"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** tests/ from 1,894 standards warnings to 0 and in FINISHED; the standards report shows 0 findings for the whole repo. Names (1,390): renamed scope-safely through the TypeScript language service (a codemod: names from types, calls, receivers and context; every rename checked against the names in its scope), then about 270 doubtful picks and a second audit of letter guesses (32) chosen by hand; no new shadowing (no-shadow 9 before, 9 after). Non-null assertions (166 in all): tests/support/defined.ts (throws with what was missing); browser-side page.evaluate code checks its 2D context. JSDoc: 89 functions given @param / @returns, 8 testkit exports documented. The rest by hand: seeded randoms (tests/support/seededRandom.ts) instead of Math.random() in lut and masks tests, explicit sort order (codeUnitOrder.ts), fakes without async-without-await / empty bodies / void expressions, the fake decoder's reader split out (no functions nested past 4), clock waits instead of fixed timeouts in editors.e2e.ts, one shared brightnessAt in instagram.e2e.ts, nested ternaries as statements. Off for tests/ in eslint.config.js, with the reason there: sonarjs/no-floating-point-equality (exact on purpose) and, for tests/e2e, sonarjs/no-skipped-tests (per-project skips); 3 reasoned eslint-disable-next-line (two plain-http checks, the catch-block regex on the app's own source). Gates: npm run check 1,706 tests (= before); lint:full 0 problems; build entry 313 KB; test:e2e 84 passed / 16 skipped (= baseline); npm test 6,203 checks, 0 failed (248 s)."
+          ],
           "startedOn": "2026-10-16",
-          "doneOn": null
+          "doneOn": "2026-10-16"
         }
       }
     }

@@ -256,5 +256,11 @@ index += 1;
   last')`).
 - **One behaviour per `it`**, with its own fixture; no test depends on another's order or state.
 - Share fakes through `tests/support/`, don't copy them between files.
+- **The same rules as app code** (`tests/**` is in `FINISHED`, D-048): names, JSDoc, no `!`. A value that must be there
+  is read through `defined(value, 'what')` (`tests/support/defined.ts`), which fails with what was missing. Code that
+  runs in the page (`page.evaluate`) checks instead (`if (!ctx) throw …`): the helper isn't there.
+- **Repeatable:** sample with `seededRandom(seed)` (`tests/support/seededRandom.ts`), never `Math.random()`, so a
+  failure fails the same way each run; wait for what the test checks (the clock moving), never a fixed time.
+  Exact float comparisons (`toBe(0.1)`) are allowed in tests when the value passes through unchanged.
 - A test for a bug fails without the fix (check by breaking the code once).
 - Which suite runs when: `specs/testing-strategy.md` and the constitution's Definition of Done.

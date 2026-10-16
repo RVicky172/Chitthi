@@ -376,3 +376,14 @@ What worked for A/B: copy `main`'s `src/` into the repo (a gitignored-style temp
 self-test page and alternate rounds (11, medians); back-to-back runs swing ±15 %. Delete the copy before
 `npm run check` (it fails typecheck). Remove a worktree's `node_modules` junction (`cmd /c rmdir`) before
 `git worktree remove --force`, so the removal can't follow it.
+
+## 2026-10-16 — Codemods: `ts.forEachChild` stops at a truthy return (407 T062)
+
+A recursive name collector written as `ts.forEachChild(node, (child) => collect(child, out))` returned the Set, which
+is truthy, so `forEachChild` stopped after the first child: the "is this name free in the scope?" check saw almost
+nothing, and a rename made a parameter shadow an inner `const` (18 unit tests caught it). Give the callback a block
+body that returns nothing. Rename through `LanguageService.findRenameLocations` with
+`providePrefixAndSuffixTextForRename` (keeps shorthand `{ x }` working) and check new names against every identifier in
+the scope (properties too: conservative but safe), and against `no-shadow` counts before and after. Other traps: with
+`core.autocrlf=true` a `git checkout -- path` writes CRLF working copies, so exact-text edit scripts must normalise
+`\r\n`; typescript-eslint (TS 6) can call an `as` cast unnecessary that `tsc` (TS 7) needs: use `satisfies`.

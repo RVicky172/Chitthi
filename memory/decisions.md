@@ -587,3 +587,13 @@ numbers; `specs/coding-standards.md` §8 says when (`=== undefined` on object ar
 as the one exception to AC-10's "no timing check gets slower".
 **Consequences:** `no-non-null-assertion` stays an error everywhere else. The look path affects only the fallback
 without WebGPU.
+
+## D-048 — Tests follow the standards; two Sonar rules off for tests/ (2026-10-16)
+
+**Context:** 407 T091 left 1,894 standards warnings in `tests/` (outside AC-5). The maintainer asked for them fixed
+(T062).
+**Decision:** `tests/**` joins `FINISHED`: names, JSDoc, no `!` (`tests/support/defined.ts` throws with what was
+missing), seeded randoms (`tests/support/seededRandom.ts`), explicit sort orders. Off for `tests/` in
+`eslint.config.js`, with the reason there: `sonarjs/no-floating-point-equality` (tests compare exact pass-through
+values on purpose) and, for `tests/e2e/`, `sonarjs/no-skipped-tests` (Playwright skips per project, desktop or phone).
+**Consequences:** new test code must pass the same rules as app code; a test that samples at random uses a seed.
