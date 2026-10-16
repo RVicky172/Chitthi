@@ -321,12 +321,23 @@ const ov = (id: string): Track => ({
   muted: false,
   locked: false,
 });
-/** Tracks: the main video track, the given overlay tracks (bottom first), the music. */
+/**
+ * Tracks: the main video track, the given overlay tracks (bottom first), the music.
+ * @param ids the overlay tracks' ids
+ * @returns the tracks
+ */
 const withOverlays = (...ids: string[]): Track[] => {
   const [main, music] = defaultTracks();
   return [main, ...ids.map(ov), music];
 };
-/** A video clip playing `len` seconds (its whole source) at `start` on `track`. */
+/**
+ * A video clip playing `len` seconds (its whole source) at `start` on `track`.
+ * @param id the clip's id
+ * @param start where it starts on the timeline
+ * @param len its length in seconds
+ * @param track its track
+ * @returns the clip
+ */
 const vid = (id: string, start: number, len: number, track = MAIN_VIDEO): VClip => ({
   ...clip(id, start, 0, track),
   kind: 'video',
@@ -340,7 +351,10 @@ const on = (track: string) =>
     .clips.filter((vClip) => vClip.track === track)
     .map((vClip) => [vClip.id, vClip.start]);
 const trackIds = () => getVideo().tracks.map((track) => track.id);
-/** Undoes everything: the number of steps (each action here is one). */
+/**
+ * Undoes everything: the number of steps (each action here is one).
+ * @returns how many undo steps there were
+ */
 const undos = () => {
   let count = 0;
   while (getVideo().canUndo) {
@@ -738,8 +752,10 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     ({ ...newSticker('⭐'), id, start, end, ...(keys ? { keys } : {}) }) as Layer;
   const getClip = (id: string) => defined(getVideo().clips.find((vClip) => vClip.id === id));
   const getLayer = (id: string) => defined(getVideo().layers.find((layer) => layer.id === id));
-  /** a: photo 0–4 on the main track with x keys (0.25 → 0.75); x: photo 1–3 on O1 without keys; v: video 4–8, volume 1. */
-  const load = () =>
+  /**
+   * a: photo 0–4 on the main track with x keys (0.25 → 0.75); x: photo 1–3 on O1 without keys; v: video 4–8, volume 1.
+   */
+  const load = () => {
     loadVideoProject({
       clips: [
         { ...clip('a', 0, 4), keys: { x: [keyframe(0, 0.25), keyframe(4, 0.75)] } },
@@ -749,6 +765,7 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
       tracks: withOverlays('O1'),
       layers: [sticker('L', 1, 5, { opacity: [keyframe(0, 1), keyframe(2, 0)] }), sticker('M', 0, 3)],
     });
+  };
   beforeEach(load);
 
   it('split gives each part its keys, with one at the cut holding the value there', () => {

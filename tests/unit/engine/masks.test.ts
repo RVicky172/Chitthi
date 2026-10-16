@@ -42,7 +42,11 @@ const stroke = (pts: number[], options: Partial<BrushStroke> = {}): BrushStroke 
 });
 const count = 100;
 const at = (values: Float32Array, x: number, y: number) => values[y * count + x];
-/** Every stroke painted from nothing: what any cached raster must equal. */
+/**
+ * Every stroke painted from nothing: what any cached raster must equal.
+ * @param strokes the strokes, in order
+ * @returns the mask raster
+ */
 function fresh(strokes: BrushStroke[]): Float32Array {
   const values = new Float32Array(count * count);
   for (const brushStroke of strokes) paintStroke(values, count, count, brushStroke);
@@ -462,8 +466,14 @@ describe('gradient handles', () => {
   });
 });
 
-/** The plain formulas, every pixel: what the fast loops must equal. */
+/**
+ * Smoothstep: the feather curve of the gradient masks.
+ * @param time progress, 0–1
+ * @returns the eased progress
+ */
 const smooth = (time: number) => (time <= 0 ? 0 : time >= 1 ? 1 : time * time * (3 - 2 * time));
+
+// The plain formulas, every pixel: what the fast loops must equal.
 describe('gradient rasters', () => {
   it('equal the plain formulas at every pixel, at any position, angle and size', () => {
     const gridWidth = 97,

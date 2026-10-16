@@ -19,7 +19,14 @@ import {
 } from '@/engine/transitions';
 
 import { defined } from '../../support/defined';
-/** A video clip on a track: `len` seconds from `start`. */
+/**
+ * A video clip on a track: `len` seconds from `start`.
+ * @param id its id
+ * @param start where it starts
+ * @param len how long it plays
+ * @param extra fields to change
+ * @returns the clip
+ */
 const clip = (id: string, start: number, len: number, extra: Partial<TimedClip> = {}): TimedClip => ({
   id,
   track: MAIN_VIDEO,
@@ -30,9 +37,19 @@ const clip = (id: string, start: number, len: number, extra: Partial<TimedClip> 
   out: len,
   ...extra,
 });
-/** A transition of `dur` seconds into clip `to`. */
+/**
+ * A transition of `dur` seconds into clip `to`.
+ * @param to the clip it goes into
+ * @param dur its length
+ * @param kind its kind
+ * @returns the transition
+ */
 const into = (to: string, dur: number, kind: Transition['kind'] = 'dissolve'): Transition => ({ kind, dur, to });
-/** The eased progress 205's Ease in and out gives at linear progress `share`. */
+/**
+ * The eased progress 205's Ease in and out gives at linear progress `share`.
+ * @param share linear progress, 0–1
+ * @returns the eased progress
+ */
 const easeInOut = (share: number) =>
   valueAt(
     [
@@ -177,7 +194,13 @@ describe('tidyTransitions (AC-4): the one rule', () => {
 describe('transitionOps (AC-1, D3)', () => {
   const width = 1080,
     height = 1920;
-  /** The ops of the outgoing and incoming clip at progress p. */
+  /**
+   * The ops of the outgoing and incoming clip at progress `share`.
+   * @param kind the transition
+   * @param share progress, 0–1
+   * @param extra other transition fields
+   * @returns the two clips' ops
+   */
   const ops = (kind: Transition['kind'], share: number, extra: Partial<Transition> = {}) => ({
     from: transitionOps({ kind, progress: share, role: 'from', ...extra }, width, height),
     to: transitionOps({ kind, progress: share, role: 'to', ...extra }, width, height),
@@ -193,13 +216,21 @@ describe('transitionOps (AC-1, D3)', () => {
       ['slide', { dir }] as [Transition['kind'], Partial<Transition>],
     ]),
   ];
-  /** Whether an op draws its clip at all (visible, inside the frame). */
+  /**
+   * Whether an op draws its clip at all (visible, inside the frame).
+   * @param op the op
+   * @returns true when it shows
+   */
   const shows = (op: DrawOp) =>
     op.alpha > 0 &&
     (!op.clip || (op.clip.w > 0 && op.clip.h > 0)) &&
     Math.abs(op.dx) < width &&
     Math.abs(op.dy) < height;
-  /** Exactly the clip as drawn alone: full alpha, in place, unscaled, unclipped (or clipped to the whole frame). */
+  /**
+   * Exactly the clip as drawn alone: full alpha, in place, unscaled, unclipped (or clipped to the whole frame).
+   * @param op the op
+   * @returns true when it draws the clip as alone
+   */
   const alone = (op: DrawOp) =>
     op.alpha === 1 &&
     op.dx === 0 &&
@@ -349,7 +380,11 @@ describe('renderStack with a transition pair (plan §3)', () => {
       vi.unstubAllGlobals();
     }
   }
-  /** The pair canvas’s log (the second scratch canvas made: slot 2 after the layer’s slot 1). */
+  /**
+   * The pair canvas’s log (the second scratch canvas made: slot 2 after the layer’s slot 1).
+   * @param logs every recording canvas's log, by name
+   * @returns the log
+   */
   const pairLog = (logs: Map<string, string[]>) =>
     defined(
       [...logs.entries()].find(([name, log]) => name !== 'main' && log.some((line) => line.startsWith('drawImage('))),

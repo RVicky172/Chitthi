@@ -70,7 +70,12 @@ test.describe('photo layers', () => {
   });
 });
 
-/** A WAV file with a tone, for the music tests. */
+/**
+ * A WAV file with a tone, for the music tests.
+ * @param seconds its length
+ * @param rate the sample rate
+ * @returns the WAV file's bytes
+ */
 function toneWav(seconds = 3, rate = 48000): Buffer {
   const count = seconds * rate,
     buf = Buffer.alloc(44 + count * 2);
@@ -91,7 +96,11 @@ function toneWav(seconds = 3, rate = 48000): Buffer {
   return buf;
 }
 
-/** Top-level MP4 boxes in order (a `free` box may follow `moov` when space was reserved for the index). */
+/**
+ * Top-level MP4 boxes in order (a `free` box may follow `moov` when space was reserved for the index).
+ * @param buf the MP4 file
+ * @returns the boxes' four-letter types
+ */
 function boxes(buf: Buffer): string[] {
   const out: string[] = [];
   for (let offset = 0; offset + 8 <= buf.length;) {
@@ -285,7 +294,10 @@ test.describe('video editor', () => {
     // No pool, so nothing to fall back from: no clip says it can't be exported.
     await expect(page.locator('.tl-clip[title*="can’t be exported"]')).toHaveCount(0);
 
-    /** The preview's colour in the middle, averaged over 4 × 4 pixels (0 = black). */
+    /**
+     * The preview's colour in the middle, averaged over 4 × 4 pixels (0 = black).
+     * @returns the mean red, green and blue
+     */
     const middle = () =>
       page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => {
         const ctx = canvas.getContext('2d');
@@ -397,7 +409,11 @@ test.describe('video track headers', () => {
   const head = (page: Page, track: 'Video' | 'Music') => page.getByRole('group', { name: `${track} track` });
   const rowHeight = async (page: Page, row: string) =>
     defined(await page.locator(`.tl-row.${row}`).boundingBox()).height;
-  /** Is the preview black at a few points? */
+  /**
+   * Is the preview black at a few points?
+   * @param page the page with the video editor
+   * @returns true when every sampled point is black
+   */
   const black = (page: Page) =>
     page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => {
       const ctx = canvas.getContext('2d');
@@ -617,7 +633,11 @@ test.describe('video edit tools', () => {
   const live = (page: Page) => page.locator('.tl-live');
   const toastText = (page: Page) => page.locator('#toast');
   const focusTimeline = (page: Page) => page.locator('.tl-scroll').focus();
-  /** Each clip's [start, end] in seconds, from where its block is placed (60 px a second, blocks drawn 2 px narrower). */
+  /**
+   * Each clip's [start, end] in seconds, from where its block is placed (60 px a second, blocks drawn 2 px narrower).
+   * @param page the page with the video editor
+   * @returns [start, end] per clip, in order
+   */
   const spans = (page: Page) =>
     clips(page).evaluateAll((els) =>
       els.map((element) => {
@@ -637,10 +657,21 @@ test.describe('video edit tools', () => {
         return ok ? 'ok' : JSON.stringify(got.map((point) => point.map((value) => +value.toFixed(3))));
       })
       .toBe('ok');
-  /** Where a video clip's source starts playing, from its title ("… · source 1.0–6.0 s"). */
+  /**
+   * Where a video clip's source starts playing, from its title ("… · source 1.0–6.0 s").
+   * @param page the page with the video editor
+   * @param index which clip
+   * @returns the source time in seconds
+   */
   const sourceIn = async (page: Page, index: number) =>
     +((await clips(page).nth(index).getAttribute('title'))?.match(/source (\d+\.\d)–/)?.[1] ?? NaN);
-  /** Drags from the middle of an element by `dx` px, holding a modifier if asked. */
+  /**
+   * Drags from the middle of an element by `dx` px, holding a modifier if asked.
+   * @param page the page
+   * @param el the element to drag
+   * @param dx how far, in px
+   * @param hold a modifier key to hold while dragging
+   */
   const dragBy = async (page: Page, el: Locator, dx: number, hold?: 'Shift' | 'Alt') => {
     await el.hover();
     const elementBox = defined(await el.boundingBox());
@@ -665,7 +696,11 @@ test.describe('video edit tools', () => {
     buffer: readFileSync(filePath),
   });
   let reel: Buffer | null = null;
-  /** A 6 s MP4 made by the app itself (two photos as a Reel): the video clip that Roll and Slip need. */
+  /**
+   * A 6 s MP4 made by the app itself (two photos as a Reel): the video clip that Roll and Slip need.
+   * @param page a page of the app (made once, then reused)
+   * @returns the file for setInputFiles: its name, MIME type and bytes
+   */
   async function videoFile(page: Page) {
     if (!reel) {
       await page.goto('./#/instagram/video');

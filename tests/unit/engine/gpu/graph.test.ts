@@ -6,7 +6,10 @@ import { runNodes, SPARES, TexturePool } from '@/engine/gpu/graph';
 import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from '@/engine/gpu/types';
 
 import { defined } from '../../../support/defined';
-/** A device that only records what it was asked to do. */
+/**
+ * A device that only records what it was asked to do.
+ * @returns the device and what it recorded
+ */
 function fakeDevice() {
   let made = 0;
   const released: GpuTexture[] = [];

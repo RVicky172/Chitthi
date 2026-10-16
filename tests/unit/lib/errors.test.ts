@@ -13,7 +13,11 @@ const sources = import.meta.glob<string>(['/src/**/*.{ts,tsx}', '!/src/dev/**'],
 
 const SHOWS = /\b(toast|setError|setMsg|setStatus)\(/;
 
-/** Each catch block's body, with the line it starts on. */
+/**
+ * Each catch block's body, with the line it starts on.
+ * @param src the source text
+ * @returns the catch blocks
+ */
 function catchBlocks(src: string): { line: number; body: string }[] {
   const out: { line: number; body: string }[] = [];
   for (const match of src.matchAll(/\bcatch\s*(\([^)]*\))?\s*\{/g)) {

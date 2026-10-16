@@ -3,7 +3,12 @@ import { decodeSrgb, embeddedJpeg, encodeSrgb, isRawName, rawToRgba8 } from '@/e
 import { buildTiff, syntheticDng, tiff16 } from '@/engine/tiff';
 
 import { defined } from '../../support/defined';
-/** A minimal complete JPEG: SOI, a frame header, a scan with data (stuffed FF 00 and a restart marker), EOI. */
+/**
+ * A minimal complete JPEG: SOI, a frame header, a scan with data (stuffed FF 00 and a restart marker), EOI.
+ * @param fill the scan's data byte
+ * @param len how many data bytes
+ * @returns the file's bytes
+ */
 function jpeg(fill: number, len: number): Uint8Array {
   const head = [0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 1, 0, 1, 1, 1, 0x11, 0, 0xff, 0xda, 0, 8, 1, 1, 0, 0, 0x3f, 0];
   const data = Array.from({ length: len }, (_, index) =>

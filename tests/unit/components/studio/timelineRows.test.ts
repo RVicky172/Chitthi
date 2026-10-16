@@ -20,7 +20,13 @@ import {
   type RowBounds,
 } from '@/components/studio/timelineRows';
 
-/** A track with every switch off. */
+/**
+ * A track with every switch off.
+ * @param id its id
+ * @param kind video or audio
+ * @param name its name
+ * @returns the track
+ */
 const track = (id: string, kind: Track['kind'], name: string): Track => ({
   id,
   kind,
@@ -36,7 +42,15 @@ const MUSIC = track('A1', 'audio', 'Music');
 /** The tracks in drawing order: the main track, then the overlays from the bottom one up, then the music. */
 const TRACKS = [MAIN, OVERLAY_1, OVERLAY_2, MUSIC];
 
-/** A clip with the fields the timeline's announcements read. */
+/**
+ * A clip with the fields the timeline's announcements read.
+ * @param id its id
+ * @param trackId its track
+ * @param start where it starts
+ * @param length how long it plays
+ * @param sourceIn where in the source it starts
+ * @returns the clip
+ */
 const clip = (id: string, trackId: string, start: number, length: number, sourceIn = 0) => ({
   id,
   track: trackId,

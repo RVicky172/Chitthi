@@ -22,7 +22,10 @@ const clip = (id: string, file: Blob, inT: number, outT: number, start = 0): Poo
   track: MAIN_VIDEO,
 });
 
-/** Lets every pending open and decode finish. */
+/**
+ * Lets every pending open and decode finish.
+ * @returns a promise that settles when the fake timers have run
+ */
 const settle = () => vi.advanceTimersByTimeAsync(1000);
 const at = (index: number) => index / FPS;
 const LIMITS: PoolLimits = { decoders: 4, ahead: 4, bytes: 64 * FRAME_BYTES };

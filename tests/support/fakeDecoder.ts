@@ -30,7 +30,11 @@ export interface FakeFrame extends PoolFrame {
   closed: boolean;
 }
 
-/** A fake `FrameSourceFactory` that counts what is open, as `frameSource.ts`'s registry will for the real one. */
+/**
+ * A fake `FrameSourceFactory` that counts what is open, as `frameSource.ts`'s registry will for the real one.
+ * @param opts how long opening a file and decoding a frame take, in ms
+ * @returns the factory, a maker of fake files and counters of what is open
+ */
 export function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
   const openMs = opts.openMs ?? 5,
     frameMs = opts.frameMs ?? 2;

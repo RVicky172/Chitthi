@@ -13,6 +13,9 @@ import type { Motion } from '@/engine/video';
 
 /* ---------- 1. The 2.x reference (frozen) ---------- */
 
+/**
+ * A clip as 2.x saved it: photos with a duration, videos with a source range.
+ */
 export interface LegacyClip {
   id: string;
   kind: 'photo' | 'video';
@@ -24,6 +27,9 @@ export interface LegacyClip {
   fade: boolean;
   volume: number;
 }
+/**
+ * 2.x's one song: where it starts in the file, its volume and the file's length.
+ */
 export interface LegacyMusic {
   offset: number;
   volume: number;
@@ -37,9 +43,17 @@ export interface LegacyProject {
   fadeOut: boolean;
 }
 
+/**
+ * How long a 2.x clip plays (photos their duration, videos their source range; at least 0.1 s).
+ * @param clip the clip
+ * @returns its length in seconds
+ */
 export const legacyClipLength = (clip: { kind: 'photo' | 'video'; dur: number; in: number; out: number }): number =>
   Math.max(0.1, clip.kind === 'photo' ? clip.dur : clip.out - clip.in);
 
+/**
+ * A 2.x clip placed on the timeline: its index and its [start, end) in seconds.
+ */
 export interface LegacyPlaced<T> {
   clip: T;
   index: number;
@@ -47,6 +61,11 @@ export interface LegacyPlaced<T> {
   end: number;
 }
 
+/**
+ * 2.x's timeline: the clips back to back, in order.
+ * @param clips the clips
+ * @returns each clip with its start and end
+ */
 export function legacyTimeline<T extends LegacyClip>(clips: T[]): LegacyPlaced<T>[] {
   let time = 0;
   return clips.map((clip, index) => {
@@ -55,19 +74,42 @@ export function legacyTimeline<T extends LegacyClip>(clips: T[]): LegacyPlaced<T
     return { clip, index, start, end: time };
   });
 }
+/**
+ * A 2.x project's length: the clips' lengths added up.
+ * @param clips the clips
+ * @returns the length in seconds
+ */
 export const legacyTotal = (clips: LegacyClip[]): number =>
   clips.reduce((sum, clip) => sum + legacyClipLength(clip), 0);
 
+/**
+ * The clip 2.x shows at a time (the last one past the end, none before the start).
+ * @param tl the timeline
+ * @param time the time in seconds
+ * @returns the placed clip, or null when there is none
+ */
 export function legacyClipAt<T extends LegacyClip>(tl: LegacyPlaced<T>[], time: number): LegacyPlaced<T> | null {
   if (!tl.length) return null;
   return tl.find((placed) => time >= placed.start && time < placed.end) ?? (time < 0 ? tl[0] : tl.at(-1)) ?? null;
 }
 
+/**
+ * The frames 2.x's export draws for [start, end): the first and one past the last.
+ * @param start the start in seconds
+ * @param end the end in seconds
+ * @param fps frames per second
+ * @returns [first, one past the last]
+ */
 export function legacyFrameRange(start: number, end: number, fps: number): [number, number] {
   return [Math.max(0, Math.ceil(start * fps - 1e-6)), Math.max(0, Math.ceil(end * fps - 1e-6))];
 }
 
-/** The export's frames: for each clip it draws, frame numbers [f0, last) and the clip's start (local = i / fps − start). */
+/**
+ * The export's frames: for each clip it draws, frame numbers [f0, last) and the clip's start (local = i / fps − start).
+ * @param project the 2.x project
+ * @param fps frames per second
+ * @returns one entry per clip with frames
+ */
 export function legacyFramePlan(
   project: LegacyProject,
   fps: number,
@@ -84,7 +126,11 @@ export function legacyFramePlan(
   return out;
 }
 
-/** The sound sources the export mixes (before checking which files have decodable sound). */
+/**
+ * The sound sources the export mixes (before checking which files have decodable sound).
+ * @param project the 2.x project
+ * @returns the sources, in mixing order
+ */
 export function legacyAudioPlan(
   project: LegacyProject,
 ): { ref: string; start: number; end: number; from: number; volume: number; fadeIn: number; fadeOut: number }[] {
@@ -174,7 +220,10 @@ const text = (start?: number, end?: number): Layer =>
     end,
   }) as Layer;
 
-/** Every 2.x shape, by name. Lengths are chosen to stress float sums (0.37 s, 1/3 s) and the 0.1 s minimum. */
+/**
+ * Every 2.x shape, by name. Lengths are chosen to stress float sums (0.37 s, 1/3 s) and the 0.1 s minimum.
+ * @returns the fixtures
+ */
 export function legacyFixtures(): Record<string, LegacyProject> {
   nextId = 0;
   const base = { music: null, layers: [], fadeOut: true };

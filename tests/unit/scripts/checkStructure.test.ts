@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { structureProblems } from '../../../scripts/check-structure.mjs';
 
-/** A source file as the check reads it. */
+/**
+ * A source file as the check reads it.
+ * @param path its path
+ * @param text its text
+ * @returns the file
+ */
 const file = (path: string, text = '') => ({ path, text });
 
 describe('structureProblems: tests stay out of src/ (407 AC-1)', () => {

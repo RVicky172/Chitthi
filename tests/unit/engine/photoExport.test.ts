@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { canEncode, encodePhoto, isPhotoType, PHOTO_TYPE_IDS, PHOTO_TYPES, type Encoder } from '@/engine/photoExport';
 
-/** An encoder like a browser's: writes the types it knows, and PNG for any other (as toBlob does). */
+/**
+ * An encoder like a browser's: writes the types it knows, and PNG for any other (as toBlob does).
+ * @param knows the MIME types it can encode
+ * @returns the encoder
+ */
 const browser =
   (knows: string[]): Encoder =>
   async (mime) =>

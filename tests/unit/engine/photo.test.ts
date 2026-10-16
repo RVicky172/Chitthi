@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { lookPixel, lookPixels } from '@/engine/photo';
 
-/** Runs one RGB pixel through a look and returns the result. */
+/**
+ * Runs one RGB pixel through a look and returns the result.
+ * @param rgb the pixel
+ * @param id the look
+ * @returns the pixel after the look
+ */
 const look = (rgb: [number, number, number], id: Parameters<typeof lookPixels>[1]) => {
   const pixels = new Uint8ClampedArray([...rgb, 255]);
   lookPixels(pixels, id);
@@ -32,7 +37,11 @@ describe('hand-tinted look', () => {
   });
 });
 
-/** How a Uint8ClampedArray stores a number: clamped, and rounded to the nearest even integer on exact halves. */
+/**
+ * How a Uint8ClampedArray stores a number: clamped, and rounded to the nearest even integer on exact halves.
+ * @param value the number written
+ * @returns the byte read back
+ */
 const toByte = (value: number) => {
   const clamped = Math.min(255, Math.max(0, value)),
     frame = Math.floor(clamped),

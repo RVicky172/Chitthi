@@ -90,7 +90,10 @@ describe('deleting a model (401)', () => {
     vi.stubGlobal('fetch', async () => new Response(new ArrayBuffer(8)));
     return import('@/ai/segment/index');
   }
-  /** A stand-in photo: the stubbed canvas never looks at it. */
+  /**
+   * A stand-in photo: the stubbed canvas never looks at it.
+   * @returns an empty object typed as an image
+   */
   const photo = () => ({}) as CanvasImageSource;
   afterEach(() => vi.unstubAllGlobals());
 

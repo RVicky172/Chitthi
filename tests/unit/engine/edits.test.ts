@@ -39,7 +39,11 @@ const lockedCtx: EditCtx = {
   locked: (text) => (text === MAIN_VIDEO ? 'The Video track is locked. Unlock it to change its clips.' : null),
 };
 
-/** A 2.x fixture on the main track, packed; videos get a source 1.5 s longer than the part used. */
+/**
+ * A 2.x fixture on the main track, packed; videos get a source 1.5 s longer than the part used.
+ * @param clips the 2.x clips
+ * @returns the clips on the main track
+ */
 const onTrack = (clips: LegacyClip[]): C[] =>
   pack(
     clips.map((legacyClip) => ({
@@ -50,7 +54,11 @@ const onTrack = (clips: LegacyClip[]): C[] =>
     })),
   );
 
-/** Hand-made clips: [start, length] photos on the main track (ids a, b, c, …). */
+/**
+ * Hand-made clips: [start, length] photos on the main track (ids a, b, c, …).
+ * @param spans each photo's [start, length]
+ * @returns the clips
+ */
 const photos = (...spans: [number, number][]): C[] =>
   spans.map(([start, dur], index) => ({
     ...legacyFixtures().photoOnly.clips[0],
@@ -83,7 +91,14 @@ const ref = {
   remove: (cs: C[], id: string) => pack(cs.filter((legacyClip) => legacyClip.id !== id)),
   patch: (cs: C[], id: string, patch: Partial<C>) =>
     pack(cs.map((legacyClip) => (legacyClip.id === id ? { ...legacyClip, ...patch } : legacyClip))),
-  /** The timeline's edge drag (Timeline.tsx at a3adea2), without snapping. */
+  /**
+   * The timeline's edge drag (Timeline.tsx at a3adea2), without snapping.
+   * @param cs the clips
+   * @param id the clip dragged
+   * @param side which edge
+   * @param dt how far, in seconds
+   * @returns the clips after the drag
+   */
   trim(cs: C[], id: string, side: 'start' | 'end', dt: number) {
     const c0 = defined(cs.find((legacyClip) => legacyClip.id === id));
     if (c0.kind === 'video')
@@ -463,11 +478,30 @@ describe('snapping (moved out of the timeline)', () => {
 const O1 = 'O1',
   O2 = 'O2',
   O3 = 'O3';
-/** A photo clip [start, start + dur] on a track. */
+/**
+ * A photo clip [start, start + dur] on a track.
+ * @param id its id
+ * @param start where it starts
+ * @param dur how long it shows
+ * @param track its track
+ * @returns the clip
+ */
 const pic = (id: string, start: number, dur: number, track = O1): C => ({ ...photos([start, dur])[0], id, track });
-/** A video clip on a track, its source 10 s long. */
+/**
+ * A video clip on a track, its source 10 s long.
+ * @param id its id
+ * @param start where it starts
+ * @param len how long it plays
+ * @param track its track
+ * @returns the clip
+ */
 const clip = (id: string, start: number, len: number, track: string): C => ({ ...vid(id, start, 0, len, 10), track });
-/** One track's clips in the order they are listed: [id, start, length]. */
+/**
+ * One track's clips in the order they are listed: [id, start, length].
+ * @param cs the clips
+ * @param track the track
+ * @returns [id, start, length] per clip
+ */
 const onTrack_ = (cs: C[], track: string) => spans(cs.filter((legacyClip) => legacyClip.track === track));
 
 describe('203 moveToTrack: between picture tracks (AC-3)', () => {
@@ -749,7 +783,11 @@ function mulberry32(seed: number) {
   };
 }
 
-/** The clips as a saved project (a medium entry per clip). */
+/**
+ * The clips as a saved project (a medium entry per clip).
+ * @param cs the clips
+ * @returns the document
+ */
 const asDoc = (cs: C[]): ProjectDoc => ({
   version: 1,
   kind: 'vlog',
@@ -844,7 +882,11 @@ describe('AC-12: every operation on 500 clips in under 2 ms (median of 100)', ()
 
 describe('205: keyframes follow their clip; start-edge edits keep them at their timeline place (AC-3)', () => {
   const key = (time: number, value: number): Keyframe => ({ t: time, v: value, ease: 'ease-in-out' });
-  /** Keys on every clip: x at 0.5 s and 1 s from its start. */
+  /**
+   * Keys on every clip: x at 0.5 s and 1 s from its start.
+   * @param cs the clips
+   * @returns the clips with keys
+   */
   const keyed = (cs: C[]): C[] =>
     cs.map((legacyClip) => ({ ...legacyClip, keys: { x: [key(0.5, 0.3), key(1, 0.6)] } }));
   const keyTimes = (cs: C[], id: string) =>

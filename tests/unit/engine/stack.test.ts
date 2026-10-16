@@ -28,7 +28,12 @@ const overlay = (id: string, patch: Partial<Track> = {}): Track => ({
   locked: false,
   ...patch,
 });
-/** Tracks in drawing order: the main video track, the music, then the overlays given. */
+/**
+ * Tracks in drawing order: the main video track, the music, then the overlays given.
+ * @param clips the clips
+ * @param overlays the overlay tracks
+ * @returns the project
+ */
 const project = (clips: TimedClip[], overlays: Track[] = []): Project => ({
   tracks: [...defaultTracks(), ...overlays],
   clips,
@@ -38,7 +43,11 @@ const project = (clips: TimedClip[], overlays: Track[] = []): Project => ({
 });
 const ids = (fixture: Project, time: number) => frameStack(fixture, time).map((draw) => draw.clip.id);
 
-/** A 2.x project on tracks (as timeline.test.ts builds it). */
+/**
+ * A 2.x project on tracks (as timeline.test.ts builds it).
+ * @param legacyProject the 2.x project
+ * @returns the project on tracks
+ */
 function onTracks(legacyProject: LegacyProject): Project<LegacyClip & TimedClip> {
   const clips = pack(legacyProject.clips.map((legacyClip) => ({ ...legacyClip, track: MAIN_VIDEO, start: 0 })));
   return { tracks: defaultTracks(), clips, audio: [], layers: legacyProject.layers, fadeOut: legacyProject.fadeOut };
@@ -332,7 +341,15 @@ describe('snapBox: a moved box snaps to the frame’s centre lines and edges', (
 
 /* ---------- 206: transitions in the stack (AC-2, AC-3, AC-11, AC-13) ---------- */
 
-/** A clip with a transition of `dur` seconds into clip `to`. */
+/**
+ * A clip with a transition of `dur` seconds into clip `to`.
+ * @param base the clip
+ * @param to the clip it goes into
+ * @param dur the transition's length
+ * @param kind its kind
+ * @param extra other transition fields
+ * @returns the clip with the transition
+ */
 const withTransition = (
   base: TimedClip,
   to: string,
@@ -343,7 +360,11 @@ const withTransition = (
   ...base,
   transition: { kind, dur, to, ...extra },
 });
-/** 205's Ease in and out at linear progress p (transitions are eased with it, Q12). */
+/**
+ * 205's Ease in and out at linear progress `share` (transitions are eased with it, Q12).
+ * @param share linear progress, 0–1
+ * @returns the eased progress
+ */
 const eased = (share: number) =>
   valueAt(
     [
@@ -433,6 +454,9 @@ describe('AC-11: the stack at every export frame with transitions equals an inde
    * The reference: on each visible picture track, a clip shows over its own span and over the halves of its
    * transitions beyond it (its handles); where two show, it is a transition, the progress linear over [cut − d/2,
    * cut + d/2) and then eased. Written without frameStack's code.
+   * @param fixture the project
+   * @param time the time
+   * @returns the clips shown, with their progress
    */
   function reference(fixture: Project, time: number) {
     const out: { id: string; local: number; track: string; progress?: number; role?: 'from' | 'to' }[] = [];

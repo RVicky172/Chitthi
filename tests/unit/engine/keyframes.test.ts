@@ -34,7 +34,11 @@ import { type SoundSource } from '@/engine/soundPlan';
 import { itemTransform, type StackDraw } from '@/engine/video';
 
 import { defined } from '../../support/defined';
-/** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */
+/**
+ * A video clip on the main track, 10 s long, starting at 2 s on the timeline.
+ * @param extra fields to change
+ * @returns the clip
+ */
 const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & { volume: number } => ({
   id: 'c1',
   track: 'v1',
@@ -47,7 +51,13 @@ const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & 
   ...extra,
 });
 
-/** Two keys: `from` at 0 s and `to` at 1 s, the change between them eased by `ease`. */
+/**
+ * Two keys: `from` at 0 s and `to` at 1 s, the change between them eased by `ease`.
+ * @param from the value at 0 s
+ * @param to the value at 1 s
+ * @param ease the ease of the first key
+ * @returns the two keys
+ */
 const pair = (from: number, to: number, ease: Ease): Keyframe[] => [
   { t: 0, v: from, ease },
   { t: 1, v: to, ease: 'linear' },
@@ -407,7 +417,12 @@ describe('pure edits', () => {
 
 /* ---------- 205 T016: AC-8 (every frame of the export's grid) and AC-12 (timing) ---------- */
 
-/** The CSS curves solved by plain bisection (60 halvings): a reference independent of the module's solver. */
+/**
+ * The CSS curves solved by plain bisection (60 halvings): a reference independent of the module's solver.
+ * @param ease the curve
+ * @param progress linear progress, 0–1
+ * @returns the eased progress
+ */
 function referenceEase(ease: Ease, progress: number): number {
   if (ease === 'linear') return progress;
   if (ease === 'hold') return 0;
@@ -428,7 +443,15 @@ function referenceEase(ease: Ease, progress: number): number {
   return bezier(y1, y2, (low + high) / 2);
 }
 
-/** A change from `from` to `to` over [start, end] eased by `ease`, held before and after. */
+/**
+ * A change from `from` to `to` over [start, end] eased by `ease`, held before and after.
+ * @param from the value before
+ * @param to the value after
+ * @param start when the change starts
+ * @param end when it ends
+ * @param ease its ease
+ * @returns the value at a time
+ */
 const segment = (from: number, to: number, start: number, end: number, ease: Ease) => (time: number) =>
   time <= start ? from : time >= end ? to : from + (to - from) * referenceEase(ease, (time - start) / (end - start));
 
@@ -527,7 +550,11 @@ describe('AC-8: the fixture’s values at every frame of the export’s grid', (
 });
 
 describe('AC-12: working out a frame’s animated values', () => {
-  /** 500 clips on four tracks, 0.5 s apart, 10 keys each (5,000 keys). */
+  /**
+   * 500 clips on four tracks, 0.5 s apart, 10 keys each (5,000 keys).
+   * @param withKeys give each clip its keys
+   * @returns the clips
+   */
   const project = (withKeys: boolean) =>
     Array.from({ length: 500 }, (_, index) =>
       clip({
@@ -584,7 +611,12 @@ describe('AC-12: working out a frame’s animated values', () => {
 /* ---------- 205 T030: what renderStack and drawLayers draw ---------- */
 
 describe('itemTransform and layersAt: one evaluation for the preview and the export (AC-8, AC-11)', () => {
-  /** A stack item as the preview and the export build it: the whole clip spread in, with `overlay`. */
+  /**
+   * A stack item as the preview and the export build it: the whole clip spread in, with `overlay`.
+   * @param timedClip the clip
+   * @param local the time inside it
+   * @returns the stack item
+   */
   const draw = (timedClip: TimedClip & { volume: number }, local: number): StackDraw => ({
     clip: { ...timedClip, edit: {} as StackDraw['clip']['edit'], motion: 'none', fade: false, overlay: true },
     src: null,
@@ -636,7 +668,12 @@ describe('gainCurve: the volume the export sets for a source in one window (AC-1
     fadeOut: 0.03,
     ...extra,
   });
-  /** The exact volume at timeline time t: the keys (or the stored volume) times the end ramps, worked out here. */
+  /**
+   * The exact volume at timeline time t: the keys (or the stored volume) times the end ramps, worked out here.
+   * @param soundSource the sound
+   * @param time the timeline time
+   * @returns the volume
+   */
   const exact = (soundSource: SoundSource, time: number) => {
     let value = soundSource.gain ? valueAt(soundSource.gain, time - soundSource.start) : soundSource.volume;
     if (time < soundSource.start + soundSource.fadeIn)
@@ -645,13 +682,26 @@ describe('gainCurve: the volume the export sets for a source in one window (AC-1
       value *= Math.max(0, (soundSource.end - time) / soundSource.fadeOut);
     return value;
   };
-  /** The curve as setValueCurveAtTime plays it: its points spread evenly over [from, from + length], linear between. */
+  /**
+   * The curve as setValueCurveAtTime plays it: its points spread evenly over [from, from + length], linear between.
+   * @param curve the curve's points
+   * @param from when it starts
+   * @param length how long it lasts
+   * @param time the time asked
+   * @returns the volume played
+   */
   const played = (curve: Float32Array, from: number, length: number, time: number) => {
     const at = ((time - from) / length) * (curve.length - 1);
     const index = Math.min(curve.length - 2, Math.floor(at));
     return curve[index] + (curve[index + 1] - curve[index]) * (at - index);
   };
-  /** Played vs exact every 0.5 ms: within 0.5 dB where the sound is above −40 dB, within 0.001 below. */
+  /**
+   * Played vs exact every 0.5 ms: within 0.5 dB where the sound is above −40 dB, within 0.001 below.
+   * @param soundSource the sound
+   * @param from the window's start
+   * @param length the window's length
+   * @returns the worst difference above −40 dB, in dB
+   */
   const within = (soundSource: SoundSource, from: number, length: number) => {
     const curve = gainCurve(soundSource, from, length);
     expect(length / (curve.length - 1)).toBeLessThanOrEqual(0.005 + 1e-12);
@@ -761,7 +811,11 @@ describe('keyState and adjacentKey (the inspector, AC-6)', () => {
 /* ---------- 206 T040: sound across a transition (AC-6) ---------- */
 
 describe('edgeGain: the clips’ sound across a transition (206 AC-6, Q6)', () => {
-  /** 205's Ease in and out at linear progress p: transitions ease their sound as their picture. */
+  /**
+   * 205's Ease in and out at linear progress `share`: transitions ease their sound as their picture.
+   * @param share linear progress, 0–1
+   * @returns the eased progress
+   */
   const eased = (share: number) =>
     valueAt(
       [

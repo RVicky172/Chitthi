@@ -48,7 +48,11 @@ import { newSticker, type Layer } from '@/engine/layers';
 import { limitsFor } from '@/engine/videoFormats';
 
 import { defined } from '../../support/defined';
-/** A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document). */
+/**
+ * A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document).
+ * @param project the 2.x project
+ * @returns the project on tracks
+ */
 function onTracks(project: LegacyProject): Project<LegacyClip & TimedClip> {
   const clips = pack(project.clips.map((clip) => ({ ...clip, track: MAIN_VIDEO, start: 0 })));
   const audio: AudioClip[] = project.music
@@ -67,7 +71,11 @@ function onTracks(project: LegacyProject): Project<LegacyClip & TimedClip> {
   return { tracks: defaultTracks(), clips, audio, layers: project.layers, fadeOut: project.fadeOut };
 }
 
-/** 1,000 seeded times from just before 0 to past the end, plus every clip boundary ± 1 µs. */
+/**
+ * 1,000 seeded times from just before 0 to past the end, plus every clip boundary ± 1 µs.
+ * @param project the 2.x project
+ * @returns the times
+ */
 function times(project: LegacyProject): number[] {
   const total = legacyTotal(project.clips);
   let seed = 7;
@@ -299,7 +307,11 @@ describe('gaps on the main video track (202)', () => {
 
 /* ---------- T014: the document, the 2.x migration and the gate ---------- */
 
-/** A 2.x project as a document: clips in order with their media, the song, layers (no version). */
+/**
+ * A 2.x project as a document: clips in order with their media, the song, layers (no version).
+ * @param project the 2.x project
+ * @returns the document
+ */
 function legacyDoc(project: LegacyProject) {
   const media = [
     ...project.clips.map((clip) => ({
@@ -992,12 +1004,19 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
   const UNREAD = /position and size couldn’t be read; it fills the frame/;
   const ADJUSTED = /position and size were out of range or incomplete and were adjusted/;
   const leftOut = (name: string) => `A project holds up to 4 picture and 4 sound tracks here; “${name}” was left out.`;
-  /** o1a has no tf and the reason says its transform couldn't be read. */
+  /**
+   * o1a has no tf and the reason says its transform couldn't be read.
+   * @param project the gated document
+   */
   const unread = (project: Gated) => {
     expect('tf' in defined(clipOf(project, 'o1a'))).toBe(false);
     expect(why(project)).toMatch(UNREAD);
   };
-  /** o1a's tf has these fields (the rest of the top-right preset) and the reason says it was adjusted. */
+  /**
+   * o1a's tf has these fields (the rest of the top-right preset) and the reason says it was adjusted.
+   * @param fields the fields expected
+   * @returns the check for a gated document
+   */
   const adjusted = (fields: Partial<typeof IDENTITY>) => (project: Gated) => {
     expect(defined(clipOf(project, 'o1a')).tf).toEqual({ ...TR, ...fields });
     expect(project.dropped).toEqual([expect.stringMatching(ADJUSTED)]);
@@ -1621,7 +1640,10 @@ describe('keyframes in the document (205 AC-4)', () => {
   const keyframe = (time: number, value: number, ease: Ease = 'ease-in-out'): Keyframe => ({ t: time, v: value, ease });
   const layer = (id: string, keys?: unknown): Layer =>
     ({ ...newSticker('⭐'), id, start: 1, end: 4, ...(keys !== undefined ? { keys } : {}) }) as Layer;
-  /** The mixed 2.x project with its first video clip and a sticker layer animated. */
+  /**
+   * The mixed 2.x project with its first video clip and a sticker layer animated.
+   * @returns the document
+   */
   const fixture = () => {
     const projectDoc = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
     const clips = projectDoc.clips.map((clip) =>
@@ -1656,22 +1678,39 @@ describe('keyframes in the document (205 AC-4)', () => {
   const PER_VALUE = /A value can have at most 100 keyframes; the rest were left out/;
   const PER_PROJECT = /A project can have at most 5,000 keyframes; the rest were left out/;
 
-  /** The animated clip's keys replaced by `keys`. */
+  /**
+   * The animated clip's keys replaced by `keys`.
+   * @param keys the new keys
+   * @returns the change for a document
+   */
   const clipKeys = (keys: unknown) => (doc: Doc) => ({
     ...doc,
     clips: doc.clips.map((clip) => (clip.id === animatedId(doc) ? { ...clip, keys } : clip)),
   });
-  /** The animated clip's x keys replaced by `list`. */
+  /**
+   * The animated clip's x keys replaced by `replacement`.
+   * @param replacement the new x keys
+   * @returns the change for a document
+   */
   const xKeys = (replacement: unknown) => (doc: Doc) =>
     clipKeys({ ...defined(doc.clips.find((clip) => clip.keys)).keys, x: replacement })(doc);
   const layerWith = (keys: unknown) => (doc: Doc) => ({ ...doc, layers: [layer('L1', keys)] });
 
-  /** The clip has no keys and the reason says they couldn't be read. */
+  /**
+   * The clip has no keys and the reason says they couldn't be read.
+   * @param project the gated document
+   * @param projectDoc the document before the gate
+   */
   const noKeys = (project: Gated, projectDoc: Doc) => {
     expect('keys' in defined(project.doc.clips.find((clip) => clip.id === animatedId(projectDoc)))).toBe(false);
     expect(why(project)).toMatch(UNREAD);
   };
-  /** The clip's x keys are `list`, its other keys as written, and the only reasons match `reasons`. */
+  /**
+   * The clip's x keys are `keyframes`, its other keys as written, and the only reasons match `reasons`.
+   * @param keyframes the x keys expected
+   * @param reasons the reasons expected
+   * @returns the check for a gated document
+   */
   const xIs =
     (keyframes: Keyframe[] | undefined, ...reasons: RegExp[]) =>
     (project: Gated, doc: Doc) => {
@@ -1920,6 +1959,7 @@ describe('transitions in the document (206 AC-5)', () => {
   /**
    * The mixed 2.x project (photo 3 s, video 4.5 s, photo 1.5 s, video 0.33 s, back to back) with a 1 s dissolve on the
    * first cut and a 0.6 s wipe to the right on the second.
+   * @returns the document
    */
   const fixture = () => {
     const projectDoc = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
@@ -1944,12 +1984,21 @@ describe('transitions in the document (206 AC-5)', () => {
   const LENGTH = /Some transition lengths were out of range and were adjusted/;
   const CUT = /Some transitions weren’t on a cut between two touching clips and were left out/;
 
-  /** The first clip's transition replaced by `transition`. */
+  /**
+   * The first clip's transition replaced by `transition`.
+   * @param transition the new transition
+   * @returns the change for a document
+   */
   const withTransition = (transition: unknown) => (doc: Doc) => ({
     ...doc,
     clips: doc.clips.map((clip, index) => (index === 0 ? { ...clip, transition } : clip)),
   });
-  /** The first clip's transition is `expected` (undefined: none), the second's as written, and the reasons `reasons`. */
+  /**
+   * The first clip's transition is `expected` (undefined: none), the second's as written, and the reasons `reasons`.
+   * @param expected the first clip's transition
+   * @param reasons the reasons expected
+   * @returns the check for a gated document
+   */
   const firstIs =
     (expected: Record<string, unknown> | undefined, ...reasons: RegExp[]) =>
     (project: Gated, projectDoc: Doc) => {
@@ -1959,7 +2008,11 @@ describe('transitions in the document (206 AC-5)', () => {
       expect(transitionOf(project, v7)).toEqual({ kind: 'wipe', dur: 0.6, to: p8, dir: 'right' });
       expect(project.dropped).toEqual(reasons.map((re) => expect.stringMatching(re)));
     };
-  /** A transition into the second clip with these fields. */
+  /**
+   * A transition into the second clip with these fields.
+   * @param fields the transition's fields
+   * @returns the change for a document
+   */
   const into = (fields: Record<string, unknown>) => (doc: Doc) => withTransition({ to: ids(doc)[1], ...fields })(doc);
 
   const bad: [string, (d: Doc) => unknown, (r: Gated, d: Doc) => void][] = [

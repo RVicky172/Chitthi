@@ -48,7 +48,12 @@ const stats = (samples: number[]) => {
   };
 };
 
-/** Records handled pointer moves and display frames while `act` runs, then returns them summarised. */
+/**
+ * Records handled pointer moves and display frames while `act` runs, then returns them summarised.
+ * @param page the page
+ * @param act the interaction; it says how many moves it made, and gets a function that says when to stop
+ * @returns the summarised frame and move times
+ */
 async function measure(page: Page, act: (stop: () => boolean) => Promise<number>): Promise<Stats> {
   await page.evaluate(() => {
     const appWindow = window as unknown as { __gate: { f: number[]; m: number[]; on: boolean; off: () => void } };
@@ -84,7 +89,14 @@ async function measure(page: Page, act: (stop: () => boolean) => Promise<number>
   };
 }
 
-/** Moves the pointer with the button down along `path` (shares of the canvas, looping) every 16 ms until `stop`. */
+/**
+ * Moves the pointer with the button down along `path` (shares of the canvas, looping) every 16 ms until `stop`.
+ * @param page the page
+ * @param from the canvas's box on the page
+ * @param path where the pointer is at each step, as shares of the canvas
+ * @param stop says when to stop
+ * @returns the number of moves made
+ */
 async function dragFor(
   page: Page,
   box: { x: number; y: number; width: number; height: number },
@@ -153,7 +165,10 @@ test('Phase 1 gate: masked edits at 30 fps in Chrome', async ({ page, browser })
   await page.locator('#mk-clarity').fill('30');
   await page.getByRole('button', { name: 'New brush mask' }).click();
   await page.locator('#mk-exposure').fill('1');
-  /** Selects a mask (its button toggles, so only when it isn't selected already). */
+  /**
+   * Selects a mask (its button toggles, so only when it isn't selected already).
+   * @param name the mask's name
+   */
   const select = async (name: string) => {
     const locator = page.getByRole('list', { name: 'Masks of this photo' }).getByRole('button', { name, exact: true });
     if ((await locator.getAttribute('aria-pressed')) !== 'true') await locator.click();

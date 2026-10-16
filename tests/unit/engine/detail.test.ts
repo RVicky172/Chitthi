@@ -4,7 +4,12 @@ import { blurImage, detailNeutral, detailPixels, gaussKernel, grainAt, hash2, MA
 
 const adjustments = (patch: Partial<Adjustments>): Adjustments => ({ ...DEFAULT_ADJUST, ...patch });
 const count = 32;
-/** An N×N image from a function of (x, y) giving a grey level, fully opaque unless alpha says otherwise. */
+/**
+ * An N×N image from a function of (x, y) giving a grey level, fully opaque unless alpha says otherwise.
+ * @param valueAt the grey level at (x, y)
+ * @param alpha the alpha at (x, y)
+ * @returns the RGBA pixels
+ */
 const img = (valueAt: (x: number, y: number) => number, alpha: (x: number, y: number) => number = () => 255) => {
   const pixels = new Uint8ClampedArray(count * count * 4);
   for (let y = 0; y < count; y++)

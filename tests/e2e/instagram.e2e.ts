@@ -336,7 +336,12 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
   const shot = () => canvas.evaluate((canvasElement: HTMLCanvasElement) => canvasElement.toDataURL());
-  /** Mean brightness of a 9×9 patch at a share of the canvas. */
+  /**
+   * Mean brightness of a 9×9 patch at a share of the canvas.
+   * @param x across, 0–1
+   * @param y down, 0–1
+   * @returns the mean of red, green and blue, 0–255
+   */
   const lum = (x: number, y: number) =>
     canvas.evaluate(
       (canvasElement: HTMLCanvasElement, [x, y]) => {
@@ -611,7 +616,10 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
         canvasElement.height,
       ).data;
     });
-  /** Share of pixels whose green channel moved by more than 20 since keepBefore(). */
+  /**
+   * Share of pixels whose green channel moved by more than 20 since keepBefore().
+   * @returns the share, 0–1 (1 when the size changed)
+   */
   const changedShare = () =>
     canvas.evaluate((canvasElement: HTMLCanvasElement) => {
       const before = (window as unknown as { __before: Uint8ClampedArray }).__before;

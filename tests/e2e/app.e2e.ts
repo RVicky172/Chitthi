@@ -1,7 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-/** Fails the test on any uncaught page error or console error. */
+/**
+ * Fails the test on any uncaught page error or console error.
+ * @param page the page to watch
+ * @returns the errors seen so far (filled as they happen)
+ */
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

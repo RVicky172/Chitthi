@@ -21,7 +21,13 @@ import {
 } from '@/engine/lut';
 
 import { defined } from '../../support/defined';
-/** A .cube file for a table made by colourOf(red, green, blue) at size points per side. */
+/**
+ * A .cube file for a table made by colourOf(red, green, blue) at size points per side.
+ * @param size points per side
+ * @param colourOf the output colour for an input colour (0–1 each)
+ * @param head lines to put before the size
+ * @returns the file's text
+ */
 function cube(size: number, colourOf: (red: number, green: number, blue: number) => number[], head = ''): string {
   const lines = [head, `LUT_3D_SIZE ${size}`];
   for (let blue = 0; blue < size; blue++)
