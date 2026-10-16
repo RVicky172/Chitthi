@@ -11,6 +11,15 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-16 — 407 (T091)
+**Done:** T091 (`1ae913d`, `68c2fd5`): `src/types.ts` JSDoc, `src/dev/` (showcase, print samples) clean; all of
+`src/` and `electron/` in `FINISHED` (every standards rule an error). Full DoD green: check 1,706 tests, lint:full 0
+errors, standards report 0 for src/ and electron/ (1,894 warnings left, all in `tests/`), build entry 313 KB,
+licences OK, e2e 84 passed / 16 skipped, self-test 6,203 / 0 failed, test:mcp passed.
+**Next:** T020 review by the maintainer (`specs/coding-standards.md`, AC-4), then T092 (ACs, Implemented, merge into
+`main`). Open question: should `tests/` also reach 0 in the standards report?
+**Blockers:** T020 review.
+
 ## 2026-10-16 — 407
 **Done:** T060 (`67c585c`): `tests/selftest/` names and JSDoc, at 0 in the standards report; tests also exempt from
 `sonarjs/cognitive-complexity` (Q4's size rules). `npm run check` green (1,700 unit tests); `npm test` 6,203 checks,
