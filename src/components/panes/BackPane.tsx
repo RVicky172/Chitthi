@@ -76,7 +76,7 @@ export function BackPane() {
         <FontPicker
           label="Address font (name, address and PIN)"
           value={back.addrFont || back.font}
-          sample={back.to || back.address.split('\n')[0] || 'Nani Ma, 12 Gandhi Road'}
+          sample={back.to || (back.address.split('\n')[0] ?? '') || 'Nani Ma, 12 Gandhi Road'}
           weight="bw"
           onChange={(font) => setBack({ addrFont: font === back.font ? '' : font })}
         />

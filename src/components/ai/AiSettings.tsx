@@ -303,7 +303,7 @@ function Choice({ kind, s, keys }: Readonly<{ kind: AiKind; s: AiSettings; keys:
       </div>
       {def && (
         <p className={`hint ${ready ? '' : 'bad'}`}>
-          {readiness(def, !!keys[def.id]?.has, cur.model || suggested[0] || 'choose one')}{' '}
+          {readiness(def, !!keys[def.id]?.has, cur.model || (suggested[0] ?? '') || 'choose one')}{' '}
           {ready && (
             <button type="button" className="linkbtn" disabled={busy} onClick={() => void loadModels(def.id)}>
               {busy ? 'Loading…' : 'Load my models'}

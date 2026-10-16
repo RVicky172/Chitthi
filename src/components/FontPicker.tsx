@@ -23,7 +23,7 @@ export function FontPicker({ label, value, sample, weight, onChange, only }: Rea
   const font = fontDef(value);
   const mine = useUserFonts();
   const [busy, setBusy] = useState(false);
-  const text = (sample.split('\n')[0] || label).slice(0, 34);
+  const text = ((sample.split('\n')[0] ?? '') || label).slice(0, 34);
 
   // The closed button shows the current family in its own face; the open list previews every family.
   useEffect(() => {

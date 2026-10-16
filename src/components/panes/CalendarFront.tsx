@@ -541,7 +541,7 @@ function WordsSection({ design, page }: Readonly<FrontProps>) {
           <FontPicker
             label="Caption font"
             value={cal.capFont || design.headFont}
-            sample={cal.captions[calMonth(design, page).month] || design.heading || 'Makar Sankranti'}
+            sample={(cal.captions[calMonth(design, page).month] ?? '') || design.heading || 'Makar Sankranti'}
             weight="hw"
             onChange={(capFont) => setCal({ capFont: capFont === design.headFont ? '' : capFont })}
           />

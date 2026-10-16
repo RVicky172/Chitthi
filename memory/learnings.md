@@ -356,3 +356,10 @@ download prompt missing). The `react-hooks` lint does not flag it. Fix: return t
 (`useSyncExternalStore(subscribe, () => map.get(key))`); keep snapshots stable (same object until it changes).
 Also measured: oxc-transform-react 0.152 grows compiled components ~40 % (media studio chunk 201 → 281 kB; whole-app
 entry 313 → 337 KB).
+
+## 2026-10-16 — A tsconfig change doesn't invalidate the ESLint cache (407 T070)
+
+Turning on `noUncheckedIndexedAccess` made `list[0]` reads `string | undefined`, so `prefer-nullish-coalescing`
+flagged five `a[0] || fallback` lines in `FINISHED` folders, but `npm run check` (cached lint) stayed green; they
+showed only after `node_modules` was reinstalled. After any tsconfig or type change, run `npm run lint:full`. Where
+`||` deliberately treats '' as missing, write `(list[0] ?? '') || fallback` (as `engine/layers.ts` `firstLine`).

@@ -239,7 +239,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
                     setCaps(caps.map((x, other) => (other === index ? { ...x, caption: event.target.value } : x)))
                   }
                 />
-                <small className="hint">was: {design.cal.captions[caption.month] || '—'}</small>
+                <small className="hint">was: {(design.cal.captions[caption.month] ?? '') || '—'}</small>
               </li>
             ))}
           </ol>
