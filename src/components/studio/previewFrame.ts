@@ -311,7 +311,6 @@ export const liveStages = new Set<ReturnType<typeof stageSource>>();
  */
 const cantDecode = new WeakMap<Blob, string>();
 const noteListeners = new Set<() => void>();
-let notesVersion = 0;
 
 /**
  * Records that the pool can't decode a file, with the reason (which names the file).
@@ -322,7 +321,6 @@ export function noteFallback(file: Blob, reason: string): void {
   if (cantDecode.get(file) === reason) return;
   cantDecode.set(file, reason);
   logError('handled', new Error(reason));
-  notesVersion++;
   for (const listener of noteListeners) listener();
 }
 
@@ -354,6 +352,6 @@ const subscribeNotes = (listener: () => void) => {
  * @returns the note, or null
  */
 export function useFallbackNote(file: Blob): string | null {
-  useSyncExternalStore(subscribeNotes, () => notesVersion);
-  return fallbackNote(file);
+  // The note itself is the snapshot (a string), so React, and the compiler's memoisation, see it change.
+  return useSyncExternalStore(subscribeNotes, () => fallbackNote(file));
 }

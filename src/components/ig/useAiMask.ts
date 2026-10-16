@@ -15,11 +15,9 @@ export type AiStatus =
 
 const statuses = new Map<string, AiStatus>();
 const listeners = new Set<() => void>();
-let version = 0;
 const putStatus = (key: string, nextStatus: AiStatus | null) => {
   if (nextStatus) statuses.set(key, nextStatus);
   else statuses.delete(key);
-  version++;
   listeners.forEach((listener) => {
     listener();
   });
@@ -67,8 +65,8 @@ export async function findWithAi(item: IgItem, target: AiTarget, allowDownload =
  * @returns the status; undefined when idle (found, or not asked)
  */
 export function useAiStatus(itemId: string, target: AiTarget): AiStatus | undefined {
-  useSyncExternalStore(subscribe, () => version);
-  return statuses.get(`${itemId}:${target}`);
+  // The status is the snapshot (each change stores a new object), so React, and the compiler's memoisation, see it change.
+  return useSyncExternalStore(subscribe, () => statuses.get(`${itemId}:${target}`));
 }
 
 /**
