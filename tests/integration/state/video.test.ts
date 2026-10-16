@@ -46,8 +46,8 @@ import {
 } from '@/state/videoStore';
 import { addTrack, clipPlace, deleteTrack, moveTrack, renameTrack, setTrack } from '@/state/videoTracks';
 import { removeTransition, setTransition, transitionEveryCut } from '@/state/videoTransitions';
-
 import { defined } from '../../support/defined';
+
 /*
  * The video store's Magnetic switch, tool and Snap (202 T020). Clips are made by hand (no media decoding in Node):
  * photos of the given lengths at the given starts on the main track (or another).
@@ -364,7 +364,13 @@ const undos = () => {
   return count;
 };
 // Chrome's limit (3 videos at once in the browser) needs WebCodecs' VideoDecoder; Node has none (1 at a time).
-const withDecoder = () => vi.stubGlobal('VideoDecoder', class {});
+const withDecoder = () =>
+  vi.stubGlobal(
+    'VideoDecoder',
+    class VideoDecoderStub {
+      readonly stub = true;
+    },
+  );
 
 describe('203: tracks (AC-1, AC-2)', () => {
   beforeEach(() => loadVideoProject({ clips: [clip('a', 0, 2)], tracks: withOverlays() }));
@@ -440,8 +446,12 @@ describe('203: adding photos and videos to a track (AC-3)', () => {
     return { name, blob: new Blob(['x'], { type }), type };
   };
   beforeEach(() => {
-    vi.spyOn(mediaIO, 'photo').mockImplementation(async (name) => ({ ...clip(`${name}#`, 0, lengths[name]), name }));
-    vi.spyOn(mediaIO, 'video').mockImplementation(async (name) => ({ ...vid(`${name}#`, 0, lengths[name]), name }));
+    vi.spyOn(mediaIO, 'photo').mockImplementation((name) =>
+      Promise.resolve({ ...clip(`${name}#`, 0, lengths[name]), name }),
+    );
+    vi.spyOn(mediaIO, 'video').mockImplementation((name) =>
+      Promise.resolve({ ...vid(`${name}#`, 0, lengths[name]), name }),
+    );
     vi.spyOn(mediaIO, 'strip').mockResolvedValue(undefined);
     withDecoder();
     loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3), clip('x', 2, 1, 'O1')], tracks: withOverlays('O1') });
@@ -748,8 +758,13 @@ describe('203: the inspector shows why a clip change was refused (T054)', () => 
 
 describe('205: keyframes in the store (AC-3, AC-5)', () => {
   const keyframe = (time: number, value: number, ease: Ease = 'linear'): Keyframe => ({ t: time, v: value, ease });
-  const sticker = (id: string, start: number, end: number, keys?: Layer['keys']): Layer =>
-    ({ ...newSticker('⭐'), id, start, end, ...(keys ? { keys } : {}) }) as Layer;
+  const sticker = (id: string, start: number, end: number, keys?: Layer['keys']): Layer => ({
+    ...newSticker('⭐'),
+    id,
+    start,
+    end,
+    ...(keys ? { keys } : {}),
+  });
   const getClip = (id: string) => defined(getVideo().clips.find((vClip) => vClip.id === id));
   const getLayer = (id: string) => defined(getVideo().layers.find((layer) => layer.id === id));
   /**
@@ -920,7 +935,7 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     expect(stored.w).toBe(0.4);
     expect(stored.size).toBeCloseTo((title as TextLayer).size, 12);
     // Drawn at 1 s: 0.9 wide, its font scaled with it.
-    expect((layerAt(stored, 1) as TextLayer).size).toBeCloseTo(((title as TextLayer).size * 0.9) / 0.4, 12);
+    expect(layerAt(stored, 1).size).toBeCloseTo(((title as TextLayer).size * 0.9) / 0.4, 12);
   });
 
   it('setClipVolume keys an animated volume and stores an unanimated one', () => {

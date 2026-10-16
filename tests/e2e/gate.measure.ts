@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { cpus, totalmem, release } from 'node:os';
 import path from 'node:path';
-
 import { defined } from '../support/defined';
+
 /*
  * The Phase 1 gate (specs/vision/editor-implementation.md): masked edits keep a 30 fps preview at 1080p in Chrome.
  * A 15 MP photo in a 1080 × 1350 post with a look, a brush mask with exposure and a linear gradient mask with clarity;
@@ -144,10 +144,12 @@ test('Phase 1 gate: masked edits at 30 fps in Chrome', async ({ page, browser })
         first && !first.isFallbackAdapter
           ? [first.info?.vendor, first.info?.architecture, first.info?.description].filter(Boolean).join(' ') || 'yes'
           : null,
-      webgl2: gl ? String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : null,
+      webgl2: gl && String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER)),
     };
   });
-  const backend = gpu.webgpu ? `WebGPU (${gpu.webgpu})` : gpu.webgl2 ? `WebGL2 (${gpu.webgl2})` : 'none';
+  let backend = 'none';
+  if (gpu.webgpu) backend = `WebGPU (${gpu.webgpu})`;
+  else if (gpu.webgl2) backend = `WebGL2 (${gpu.webgl2})`;
   expect(backend, 'a hardware GPU backend').not.toMatch(/none|SwiftShader|llvmpipe|Basic Render/i);
 
   if (throttle > 1) {
@@ -234,7 +236,8 @@ test('Phase 1 gate: masked edits at 30 fps in Chrome', async ({ page, browser })
     backend,
     throttle,
   };
-  console.log(`\n${machine.chrome} · ${backend}${throttle > 1 ? ` · CPU throttled ${throttle}×` : ''}`);
+  const throttled = throttle > 1 ? ` · CPU throttled ${throttle}×` : '';
+  console.log(`\n${machine.chrome} · ${backend}${throttled}`);
   console.log(`${machine.cpu} (${machine.threads} threads), ${machine.ramGB} GB RAM, ${machine.os}\n`);
   console.log('                     time between preview updates (ms)    display frames');
   console.log('run   kind    updates  median     p95     max            frames  longest');

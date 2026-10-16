@@ -20,6 +20,7 @@ const SHOWS = /\b(toast|setError|setMsg|setStatus)\(/;
  */
 function catchBlocks(src: string): { line: number; body: string }[] {
   const out: { line: number; body: string }[] = [];
+  // eslint-disable-next-line sonarjs/super-linear-regex -- runs only on the app's own source files, never on input
   for (const match of src.matchAll(/\bcatch\s*(\([^)]*\))?\s*\{/g)) {
     let cursor = match.index + match[0].length;
     let depth = 1;
@@ -45,7 +46,7 @@ describe('shown errors are logged', () => {
     const missing = Object.entries(sources).flatMap(([file, src]) =>
       catchBlocks(src)
         .filter((catchBlock) => SHOWS.test(catchBlock.body) && !catchBlock.body.includes('logError('))
-        .map((frame) => `${file.replace(/^\//, '')}:${frame.line}`),
+        .map((block) => `${file.replace(/^\//, '')}:${block.line}`),
     );
     expect(missing).toEqual([]);
   });

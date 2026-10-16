@@ -6,8 +6,8 @@ import { edgeGain } from '@/engine/keyframes';
 import { limitsFor } from '@/engine/videoFormats';
 import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from '@/components/studio/previewSound';
 import { FakeAudio } from '../../../support/fakeAudio';
-
 import { defined } from '../../../support/defined';
+
 type C = TimedClip & { name: string; volume: number };
 const videoClip = (name: string, track: string, start: number, len: number): C => ({
   name,
@@ -225,7 +225,7 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
       }
       // Current and held stay within the limit; at most one next clip per picture track on top.
       expect(most).toBeLessThanOrEqual(limit + fixture.tracks.filter((tr) => tr.kind !== 'audio').length);
-      expect(made.filter((audio) => audio.src !== '').length).toBe(sound.size);
+      expect(made.filter((audio) => audio.src !== '')).toHaveLength(sound.size);
       sound.dispose();
       expect(made.every((audio) => audio.src === '')).toBe(true);
       made.length = 0;

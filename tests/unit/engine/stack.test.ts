@@ -6,8 +6,8 @@ import { MAIN_VIDEO, MUSIC, defaultTracks, type Track } from '@/engine/tracks';
 import { framePlan, frameRange, pack, projectLength, videoAt, type Project, type TimedClip } from '@/engine/timeline';
 import { legacyFixtures, type LegacyClip, type LegacyProject } from '../../support/timeline.testkit';
 import type { Transition } from '@/engine/transitions';
-
 import { defined } from '../../support/defined';
+
 /* ---------- helpers ---------- */
 
 const clip = (id: string, track: string, start: number, len: number, kind: 'photo' | 'video' = 'photo'): TimedClip => ({
@@ -473,9 +473,9 @@ describe('AC-11: the stack at every export frame with transitions equals an inde
       }
       if (shown.length === 2) {
         const outgoing = defined(on.find((timedClip) => timedClip.id === shown[0].id));
-        const delta = defined(outgoing.transition).dur;
+        const duration = defined(outgoing.transition).dur;
         const cut = defined(on.find((timedClip) => timedClip.id === shown[1].id)).start;
-        const progress = eased((time - (cut - delta / 2)) / delta);
+        const progress = eased((time - (cut - duration / 2)) / duration);
         shown[0] = { ...shown[0], progress, role: 'from' };
         shown[1] = { ...shown[1], progress, role: 'to' };
       }

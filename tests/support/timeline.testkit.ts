@@ -197,28 +197,27 @@ const video = (from: number, to: number, patch: Partial<LegacyClip> = {}): Legac
   volume: 1,
   ...patch,
 });
-const text = (start?: number, end?: number): Layer =>
-  ({
-    id: `l${nextId++}`,
-    kind: 'text',
-    x: 0.5,
-    y: 0.5,
-    w: 0.6,
-    rot: 0,
-    opacity: 1,
-    text: 'Hello',
-    font: 'Poppins',
-    size: 0.08,
-    color: '#ffffff',
-    align: 'center',
-    bold: true,
-    italic: false,
-    outline: '',
-    bg: '',
-    shadow: false,
-    start,
-    end,
-  }) as Layer;
+const text = (start?: number, end?: number): Layer => ({
+  id: `l${nextId++}`,
+  kind: 'text',
+  x: 0.5,
+  y: 0.5,
+  w: 0.6,
+  rot: 0,
+  opacity: 1,
+  text: 'Hello',
+  font: 'Poppins',
+  size: 0.08,
+  color: '#ffffff',
+  align: 'center',
+  bold: true,
+  italic: false,
+  outline: '',
+  bg: '',
+  shadow: false,
+  start,
+  end,
+});
 
 /**
  * Every 2.x shape, by name. Lengths are chosen to stress float sums (0.37 s, 1/3 s) and the 0.1 s minimum.

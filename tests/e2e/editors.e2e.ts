@@ -2,8 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
 import { defined } from '../support/defined';
+
 // Layers on photos, and the video editor: timeline editing and MP4 export for Reels and YouTube.
 const SAMPLES = ['holi-bowls.jpg', 'diwali.jpg', 'tea.jpg'].map((file) => path.join('public', 'samples', file));
 const tool = (page: Page, name: string) =>
@@ -69,6 +69,9 @@ test.describe('photo layers', () => {
     await expect(layers(page).first()).toContainText('Drawing (1 stroke)');
   });
 });
+
+/** The timeline clock once at least a second has played (it reads m:ss.s). */
+const PLAYED_A_SECOND = /^0:(0[1-9]|[1-5]\d)\./;
 
 /**
  * A WAV file with a tone, for the music tests.
@@ -137,7 +140,7 @@ test.describe('video editor', () => {
     await expect(page.locator('.tl-bar-music')).toContainText('tone.wav');
     // Play a second.
     await page.getByRole('button', { name: 'Play', exact: true }).click();
-    await page.waitForTimeout(1000);
+    await expect(page.locator('.tl-time b')).toHaveText(PLAYED_A_SECOND);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.locator('.tl-time b')).not.toHaveText('0:00.0');
 
@@ -305,7 +308,7 @@ test.describe('video editor', () => {
         const pixels = ctx.getImageData(Math.floor(canvas.width / 2) - 2, Math.floor(canvas.height / 2) - 2, 4, 4).data;
         const average = [0, 0, 0];
         for (let index = 0; index < pixels.length; index += 4)
-          for (let step = 0; step < 3; step++) average[step] += pixels[index + step] / 16;
+          for (let channel = 0; channel < 3; channel++) average[channel] += pixels[index + channel] / 16;
         return average.map(Math.round);
       });
     // Scrub: the video's first photo at 1 s, its second at 4.5 s (60 px a second): each drawn, and different.
@@ -318,14 +321,14 @@ test.describe('video editor', () => {
         const later = await middle();
         return (
           later.reduce((sum, value) => sum + value) > 30 &&
-          later.some((value, step) => Math.abs(value - first[step]) > 20)
+          later.some((value, channel) => Math.abs(value - first[channel]) > 20)
         );
       })
       .toBe(true);
     // Play a second from the start.
     await page.locator('.tl-ruler').click({ position: { x: 1, y: 10 } });
     await page.getByRole('button', { name: 'Play', exact: true }).click();
-    await page.waitForTimeout(1000);
+    await expect(page.locator('.tl-time b')).toHaveText(PLAYED_A_SECOND);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.locator('.tl-time b')).not.toHaveText('0:00.0');
     // Paused, the <video> seeks to the export's frame and the stage draws it once seeked.
@@ -418,8 +421,8 @@ test.describe('video track headers', () => {
     page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('The preview has no 2D context.');
-      return [0.25, 0.5, 0.75].every((step) => {
-        const pixels = ctx.getImageData(Math.floor(canvas.width * step), Math.floor(canvas.height * step), 1, 1).data;
+      return [0.25, 0.5, 0.75].every((share) => {
+        const pixels = ctx.getImageData(Math.floor(canvas.width * share), Math.floor(canvas.height * share), 1, 1).data;
         return pixels[0] + pixels[1] + pixels[2] < 12;
       });
     });
@@ -586,7 +589,7 @@ test.describe('video track headers', () => {
 
     // It still plays.
     await page.getByRole('button', { name: 'Play', exact: true }).click();
-    await page.waitForTimeout(500);
+    await expect(page.locator('.tl-time b')).not.toHaveText('0:01.5');
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.locator('.tl-time b')).not.toHaveText('0:01.5');
 
@@ -684,10 +687,10 @@ test.describe('video edit tools', () => {
     await page.mouse.up();
     if (hold) await page.keyboard.up(hold);
   };
-  const edge = (page: Page, side: 'start' | 'end', count: number) =>
+  const edge = (page: Page, side: 'start' | 'end', position: number) =>
     clips(page)
-      .nth(count - 1)
-      .getByRole('button', { name: `Trim the ${side} of clip ${count}` });
+      .nth(position - 1)
+      .getByRole('button', { name: `Trim the ${side} of clip ${position}` });
   const total = (page: Page, text: string) => expect(page.locator('.tl-time')).toContainText(`/ ${text}`);
 
   const photo = (filePath: string) => ({
@@ -851,11 +854,11 @@ test.describe('video edit tools', () => {
     await expect
       .poll(() => clips(page).evaluateAll((els) => els.map((element) => element.classList.contains('tl-video'))))
       .toEqual([false, true, false]);
-    const delta = (await spans(page))[1][1] - 3; // the video's length (about 6 s)
+    const videoLength = (await spans(page))[1][1] - 3; // the video's length (about 6 s)
     await spansAre(page, [
       [0, 3],
-      [3, 3 + delta],
-      [3 + delta, 6 + delta],
+      [3, 3 + videoLength],
+      [3 + videoLength, 6 + videoLength],
     ]);
     await expect(live(page)).toHaveAttribute('aria-live', 'polite');
     const radio = (name: string) => picker(page).getByRole('radio', { name });
@@ -864,8 +867,8 @@ test.describe('video edit tools', () => {
     await dragBy(page, edge(page, 'start', 2), 60);
     await spansAre(page, [
       [0, 3],
-      [3, 2 + delta],
-      [2 + delta, 5 + delta],
+      [3, 2 + videoLength],
+      [2 + videoLength, 5 + videoLength],
     ]);
     expect(await sourceIn(page, 1)).toBe(1);
 
@@ -876,8 +879,8 @@ test.describe('video edit tools', () => {
     await dragBy(page, edge(page, 'end', 1), 30);
     await spansAre(page, [
       [0, 3.5],
-      [3.5, 2 + delta],
-      [2 + delta, 5 + delta],
+      [3.5, 2 + videoLength],
+      [2 + videoLength, 5 + videoLength],
     ]);
     expect(await sourceIn(page, 1)).toBe(1.5);
     // … and a second back by keys: clip 1 selected, Shift + Alt + ←.
@@ -886,8 +889,8 @@ test.describe('video edit tools', () => {
     await page.keyboard.press('Shift+Alt+ArrowLeft');
     await spansAre(page, [
       [0, 2.5],
-      [2.5, 2 + delta],
-      [2 + delta, 5 + delta],
+      [2.5, 2 + videoLength],
+      [2 + videoLength, 5 + videoLength],
     ]);
     expect(await sourceIn(page, 1)).toBe(0.5);
     await expect(live(page)).toHaveText(/Clip 1, 0\.0 s to 2\.5 s/);
@@ -898,8 +901,8 @@ test.describe('video edit tools', () => {
     await dragBy(page, clips(page).nth(1), -30);
     await spansAre(page, [
       [0, 2.5],
-      [2.5, 2 + delta],
-      [2 + delta, 5 + delta],
+      [2.5, 2 + videoLength],
+      [2 + videoLength, 5 + videoLength],
     ]);
     expect(await sourceIn(page, 1)).toBe(0);
     await focusTimeline(page);
@@ -907,8 +910,8 @@ test.describe('video edit tools', () => {
     expect(await sourceIn(page, 1)).toBe(0.1);
     await spansAre(page, [
       [0, 2.5],
-      [2.5, 2 + delta],
-      [2 + delta, 5 + delta],
+      [2.5, 2 + videoLength],
+      [2 + videoLength, 5 + videoLength],
     ]);
     // A photo has no source time: refused with the reason.
     await clips(page).first().click();
@@ -922,15 +925,15 @@ test.describe('video edit tools', () => {
     await dragBy(page, clips(page).nth(1), 30);
     await spansAre(page, [
       [0, 3],
-      [3, 2.5 + delta],
-      [2.5 + delta, 5 + delta],
+      [3, 2.5 + videoLength],
+      [2.5 + videoLength, 5 + videoLength],
     ]);
     await focusTimeline(page);
     await page.keyboard.press('Shift+Alt+ArrowLeft');
     await spansAre(page, [
       [0, 2],
-      [2, 1.5 + delta],
-      [1.5 + delta, 5 + delta],
+      [2, 1.5 + videoLength],
+      [1.5 + videoLength, 5 + videoLength],
     ]);
     expect(await sourceIn(page, 1)).toBe(0.1);
 
@@ -942,8 +945,8 @@ test.describe('video edit tools', () => {
     await page.keyboard.press('q');
     await spansAre(page, [
       [0, 2],
-      [2, 0.5 + delta],
-      [0.5 + delta, 4 + delta],
+      [2, 0.5 + videoLength],
+      [0.5 + videoLength, 4 + videoLength],
     ]);
     await page.locator('.tl-ruler').click({ position: { x: 240, y: 10 } });
     await focusTimeline(page);
@@ -959,8 +962,8 @@ test.describe('video edit tools', () => {
     await page.keyboard.press('Control+z');
     await spansAre(page, [
       [0, 2],
-      [2, 0.5 + delta],
-      [0.5 + delta, 4 + delta],
+      [2, 0.5 + videoLength],
+      [0.5 + videoLength, 4 + videoLength],
     ]);
   });
 

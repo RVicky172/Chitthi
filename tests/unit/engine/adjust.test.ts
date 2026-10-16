@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { LOOKS } from '@/data/layouts';
 import { IG_FILTERS } from '@/data/instagram';
 import { ADJUST_RANGES, colourNeutral, DEFAULT_ADJUST, LOOK_IDS, mergeAdjust } from '@/engine/adjust';
+import { codeUnitOrder } from '../../support/codeUnitOrder';
 
 describe('Adjustments', () => {
   it('know every look the studios offer', () => {
-    expect([...LOOK_IDS].sort()).toEqual(LOOKS.map(([id]) => id).sort());
-    expect([...LOOK_IDS].sort()).toEqual(IG_FILTERS.map(([id]) => id).sort());
+    expect([...LOOK_IDS].sort(codeUnitOrder)).toEqual(LOOKS.map(([id]) => id).sort(codeUnitOrder));
+    expect([...LOOK_IDS].sort(codeUnitOrder)).toEqual(IG_FILTERS.map(([id]) => id).sort(codeUnitOrder));
   });
   it('default to neutral colour, and every default is within its range', () => {
     expect(colourNeutral(DEFAULT_ADJUST)).toBe(true);

@@ -15,17 +15,13 @@ const run = (rgb: [number, number, number], message: Partial<ColourMixer>) => {
   hslPixel(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, mixerParams({ ...FLAT_MIXER, ...message }), out);
   return out.map((value) => value * 255);
 };
-const set = (index: number, value: number) => Array.from({ length: 8 }, (_, step) => (step === index ? value : 0));
+const set = (index: number, value: number) => Array.from({ length: 8 }, (_, band) => (band === index ? value : 0));
 const hueOf = ([red, green, blue]: number[]) => {
   const hi = Math.max(red, green, blue),
     delta = hi - Math.min(red, green, blue);
-  const height =
-    hi === red
-      ? (green - blue) / delta + (green < blue ? 6 : 0)
-      : hi === green
-        ? (blue - red) / delta + 2
-        : (red - green) / delta + 4;
-  return height * 60;
+  if (hi === red) return ((green - blue) / delta + (green < blue ? 6 : 0)) * 60;
+  if (hi === green) return ((blue - red) / delta + 2) * 60;
+  return ((red - green) / delta + 4) * 60;
 };
 const satOf = ([red, green, blue]: number[]) => (Math.max(red, green, blue) - Math.min(red, green, blue)) / 255;
 
@@ -68,8 +64,8 @@ describe('colour mixer', () => {
     let prev: number | null = null;
     for (let height = 90; height <= 150; height += 1) {
       // A fully saturated colour of hue h.
-      const channel = (count: number) => {
-        const time = (count + height / 60) % 6;
+      const channel = (offset: number) => {
+        const time = (offset + height / 60) % 6;
         return 1 - Math.max(0, Math.min(time, 4 - time, 1));
       };
       const out = [0, 0, 0];

@@ -12,6 +12,7 @@ import {
   spline,
   type CurvePoint,
 } from '@/engine/curve';
+import { codeUnitOrder } from '../../support/codeUnitOrder';
 
 const xs = Array.from({ length: 256 }, (_, index) => index / 255);
 
@@ -112,15 +113,15 @@ describe('mergePoints and mergeCurve', () => {
       [1, 0.9],
     ]);
     expect(curveNeutral({ ...curve, rgb: IDENTITY })).toBe(true);
-    expect(Object.keys(curve).sort()).toEqual(['b', 'g', 'r', 'rgb']);
+    expect(Object.keys(curve).sort(codeUnitOrder)).toEqual(['b', 'g', 'r', 'rgb']);
   });
 });
 
 describe('curveTable', () => {
   it('is the identity for flat curves', () => {
     const values = curveTable(FLAT_CURVE);
-    for (let step = 0; step < 3; step++)
-      for (const value of [0, 0.1, 0.5, 0.77, 1]) expect(readTable(values, step, value)).toBeCloseTo(value, 6);
+    for (let channel = 0; channel < 3; channel++)
+      for (const value of [0, 0.1, 0.5, 0.77, 1]) expect(readTable(values, channel, value)).toBeCloseTo(value, 6);
   });
   it('applies the master curve, then each channel its own', () => {
     // Master halves everything; red then doubles it back (a straight segment up to 0.5); green and blue stay halved.

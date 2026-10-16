@@ -17,8 +17,8 @@ import {
   type DrawOp,
   type Transition,
 } from '@/engine/transitions';
-
 import { defined } from '../../support/defined';
+
 /**
  * A video clip on a track: `len` seconds from `start`.
  * @param id its id

@@ -30,6 +30,38 @@ export interface FakeFrame extends PoolFrame {
   closed: boolean;
 }
 
+/** Where a reader of a fake file is: its next frame, whether it stopped, and whether its file was closed. */
+interface ReaderState {
+  index: number;
+  done: boolean;
+  /** Frames in the file. */
+  count: number;
+  isClosed: () => boolean;
+}
+
+/**
+ * The end of a reader's frames.
+ * @returns a new end result
+ */
+const end = (): IteratorResult<PoolFrame> => ({ done: true, value: undefined });
+
+/**
+ * Runs `work` after a delay, as a timer would, and settles with what it returns or throws.
+ * @param ms the delay
+ * @param work what to run
+ * @returns a promise of its result
+ */
+const afterDelay = <T>(ms: number, work: () => T): Promise<T> =>
+  new Promise<T>((resolve, reject) =>
+    setTimeout(() => {
+      try {
+        resolve(work());
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    }, ms),
+  );
+
 /**
  * A fake `FrameSourceFactory` that counts what is open, as `frameSource.ts`'s registry will for the real one.
  * @param opts how long opening a file and decoding a frame take, in ms
@@ -48,79 +80,96 @@ export function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
     return blob;
   };
 
+  /**
+   * A frame of a fake file, counted as live until it is closed (closing it twice is counted too).
+   * @param fakeFile the file
+   * @param time its source time
+   * @returns the frame
+   */
+  const makeFrame = (fakeFile: FakeFile, time: number): FakeFrame => {
+    const frame: FakeFrame = {
+      file: fakeFile.name,
+      image: {} as CanvasImageSource,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+      time,
+      duration: 1 / FAKE_FPS,
+      closed: false,
+      close() {
+        if (frame.closed) counts.doubleClose++;
+        frame.closed = true;
+        live.delete(frame);
+      },
+    };
+    live.add(frame);
+    return frame;
+  };
+
+  /**
+   * One decode: the reader's next frame, the end, or the failure the file is set up with at that time.
+   * @param fakeFile the file
+   * @param state the reader
+   * @returns the next frame or the end; throws as the file fails
+   */
+  const step = (fakeFile: FakeFile, state: ReaderState): IteratorResult<PoolFrame> => {
+    if (state.done || state.isClosed() || state.index >= state.count) {
+      state.done = true;
+      return end();
+    }
+    const time = state.index / FAKE_FPS;
+    if (fakeFile.reclaimAt !== undefined && time >= fakeFile.reclaimAt - 1e-9 && (fakeFile.reclaims ?? 1) > 0) {
+      fakeFile.reclaims = (fakeFile.reclaims ?? 1) - 1;
+      throw new DOMException('Codec reclaimed due to inactivity.', 'QuotaExceededError');
+    }
+    if (fakeFile.failAt !== undefined && time >= fakeFile.failAt - 1e-9)
+      throw new Error(`Can't decode ${fakeFile.name} at ${time.toFixed(2)} s`);
+    state.index++;
+    return { done: false, value: makeFrame(fakeFile, time) };
+  };
+
+  /**
+   * A reader of a fake file from a source time: one frame every `frameMs`.
+   * @param fakeFile the file
+   * @param startTime where it starts reading, in source seconds
+   * @param isClosed whether the file was closed
+   * @returns the reader
+   */
+  const reader = (fakeFile: FakeFile, startTime: number, isClosed: () => boolean): AsyncIterator<PoolFrame> => {
+    counts.readers++;
+    const count = Math.round(fakeFile.dur * FAKE_FPS);
+    const state: ReaderState = {
+      index: Math.min(count - 1, Math.max(0, Math.floor(startTime * FAKE_FPS + 1e-6))),
+      done: false,
+      count,
+      isClosed,
+    };
+    return {
+      next: () => afterDelay(frameMs, () => step(fakeFile, state)),
+      return: () => {
+        state.done = true;
+        return Promise.resolve(end());
+      },
+    };
+  };
+
   const open: FrameSourceFactory = (blob) => {
     const fakeFile = files.get(blob);
     if (!fakeFile) return Promise.reject(new Error('unknown file'));
     counts.sources++;
-    return new Promise<FrameSource>((resolve, reject) =>
-      setTimeout(() => {
-        if (fakeFile.failOpen) {
-          counts.sources--;
-          reject(new Error(fakeFile.failOpen));
-          return;
-        }
-        const count = Math.round(fakeFile.dur * FAKE_FPS);
-        let closed = false;
-        resolve({
-          from(startTime: number): AsyncIterator<PoolFrame> {
-            counts.readers++;
-            let index = Math.min(count - 1, Math.max(0, Math.floor(startTime * FAKE_FPS + 1e-6))),
-              done = false;
-            return {
-              next: () =>
-                new Promise((ok, fail) =>
-                  setTimeout(() => {
-                    if (done || closed || index >= count) {
-                      done = true;
-                      ok({ done: true, value: undefined });
-                      return;
-                    }
-                    const time = index / FAKE_FPS;
-                    if (
-                      fakeFile.reclaimAt !== undefined &&
-                      time >= fakeFile.reclaimAt - 1e-9 &&
-                      (fakeFile.reclaims ?? 1) > 0
-                    ) {
-                      fakeFile.reclaims = (fakeFile.reclaims ?? 1) - 1;
-                      fail(new DOMException('Codec reclaimed due to inactivity.', 'QuotaExceededError'));
-                      return;
-                    }
-                    if (fakeFile.failAt !== undefined && time >= fakeFile.failAt - 1e-9) {
-                      fail(new Error(`Can't decode ${fakeFile.name} at ${time.toFixed(2)} s`));
-                      return;
-                    }
-                    index++;
-                    const fr: FakeFrame = {
-                      file: fakeFile.name,
-                      image: {} as CanvasImageSource,
-                      width: FRAME_WIDTH,
-                      height: FRAME_HEIGHT,
-                      time,
-                      duration: 1 / FAKE_FPS,
-                      closed: false,
-                      close() {
-                        if (fr.closed) counts.doubleClose++;
-                        fr.closed = true;
-                        live.delete(fr);
-                      },
-                    };
-                    live.add(fr);
-                    ok({ done: false, value: fr });
-                  }, frameMs),
-                ),
-              return: () => {
-                done = true;
-                return Promise.resolve({ done: true, value: undefined });
-              },
-            };
-          },
-          close() {
-            if (!closed) counts.sources--;
-            closed = true;
-          },
-        });
-      }, openMs),
-    );
+    return afterDelay(openMs, (): FrameSource => {
+      if (fakeFile.failOpen) {
+        counts.sources--;
+        throw new Error(fakeFile.failOpen);
+      }
+      let closed = false;
+      return {
+        from: (startTime: number) => reader(fakeFile, startTime, () => closed),
+        close() {
+          if (!closed) counts.sources--;
+          closed = true;
+        },
+      };
+    });
   };
 
   return {
@@ -128,6 +177,6 @@ export function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
     file,
     counts,
     frames: () => live.size,
-    bytes: () => [...live].reduce((sum, fr) => sum + fr.width * fr.height * 4, 0),
+    bytes: () => [...live].reduce((sum, frame) => sum + frame.width * frame.height * 4, 0),
   };
 }

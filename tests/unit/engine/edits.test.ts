@@ -29,14 +29,14 @@ import { mergeProject } from '@/engine/projectGate';
 import { clipLength, pack } from '@/engine/timeline';
 import { toDocument, type ProjectDoc } from '@/engine/projectDoc';
 import { legacyFixtures, type LegacyClip } from '../../support/timeline.testkit';
-
 import { defined } from '../../support/defined';
+
 type C = LegacyClip & EditClip;
 
 const ctx: EditCtx = { maxLength: 3 * 3600, locked: () => null, maxVideos: 5, desktop: true };
 const lockedCtx: EditCtx = {
   ...ctx,
-  locked: (text) => (text === MAIN_VIDEO ? 'The Video track is locked. Unlock it to change its clips.' : null),
+  locked: (track) => (track === MAIN_VIDEO ? 'The Video track is locked. Unlock it to change its clips.' : null),
 };
 
 /**
@@ -579,7 +579,7 @@ describe('203 moveToTrack: between picture tracks (AC-3)', () => {
     ]);
   });
   it('a locked source or target track is refused', () => {
-    const lockedO1 = { ...ctx, locked: (text: string) => (text === O1 ? 'Overlay 1 is locked.' : null) };
+    const lockedO1 = { ...ctx, locked: (track: string) => (track === O1 ? 'Overlay 1 is locked.' : null) };
     expect(err(moveToTrack(base, 'x', MAIN_VIDEO, 0, { ...lockedCtx, magnetic: true }))).toMatch(/locked/);
     expect(err(moveToTrack(base, 'a', O1, 6, { ...lockedCtx, magnetic: false }))).toMatch(/locked/);
     expect(err(moveToTrack(base, 'a', O1, 6, { ...lockedO1, magnetic: false }))).toBe('Overlay 1 is locked.');
@@ -608,12 +608,13 @@ describe('203 moveToTrack: between picture tracks (AC-3)', () => {
       const magnetic = rnd() < 0.5;
       const x = { ...ctx, magnetic };
       const kind = rnd() < 0.5 ? 'moveToTrack' : kinds[Math.floor(rnd() * kinds.length)];
-      const result =
-        kind === 'moveToTrack'
-          ? moveToTrack(cs, id, tracks[Math.floor(rnd() * 3)], rnd() * (length(cs) + 2) - 1, x)
-          : kind === 'closeGap'
-            ? closeGap(cs, rnd() * length(cs), x, tracks[Math.floor(rnd() * 3)])
-            : OPS[kind](cs, id, rnd, x);
+      const run = () => {
+        if (kind === 'moveToTrack')
+          return moveToTrack(cs, id, tracks[Math.floor(rnd() * 3)], rnd() * (length(cs) + 2) - 1, x);
+        if (kind === 'closeGap') return closeGap(cs, rnd() * length(cs), x, tracks[Math.floor(rnd() * 3)]);
+        return OPS[kind](cs, id, rnd, x);
+      };
+      const result = run();
       if ('error' in result) continue;
       expect(checkTrack(result.clips, x.maxLength, before), `step ${index} ${kind}`).toBeNull();
       if (result.clips !== before) applied++;
@@ -751,7 +752,7 @@ describe('203: the videos-at-once limit (AC-9, D3)', () => {
     // Five videos at 0–2 (main and Overlays 1–4) and a sixth on Overlay 5 at 4–6.
     const five = [
       clip('v', 0, 6, MAIN_VIDEO),
-      ...[1, 2, 3, 4].map((step) => clip(`o${step}`, 0, 2, `O${step}`)),
+      ...[1, 2, 3, 4].map((nth) => clip(`o${nth}`, 0, 2, `O${nth}`)),
       clip('z', 4, 2, 'O5'),
     ];
     expect(err(moveTo(five, 'z', 0, ctx))).toBe(tooManyVideos(5, true));
@@ -842,7 +843,8 @@ describe('AC-11: 1,000 seeded random edits per operation keep every rule', () =>
       // A length limit near the current length, so lengthening is sometimes refused.
       const x = { ...ctx, maxLength: length(cs) + rnd() * 3 };
       // A quarter of the steps is a lift or a move first, so there are gaps to edit around.
-      const op = rnd() < 0.25 ? (rnd() < 0.5 ? OPS.lift : OPS.moveTo) : OPS[name];
+      let op = OPS[name];
+      if (rnd() < 0.25) op = rnd() < 0.5 ? OPS.lift : OPS.moveTo;
       const result = op(cs, cs[Math.floor(rnd() * cs.length)].id, rnd, x);
       if ('error' in result) continue;
       expect(checkTrack(result.clips, x.maxLength, before), `${name} step ${index}`).toBeNull();

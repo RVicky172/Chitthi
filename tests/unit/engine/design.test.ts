@@ -37,7 +37,7 @@ describe('mergeDesign', () => {
     const design = mergeDesign({ cal: { captions: ['Jan', 7, null] } });
     expect(design.cal.captions).toHaveLength(12);
     expect(design.cal.captions[0]).toBe('Jan');
-    expect(design.cal.captions.slice(1).every((char) => char === '')).toBe(true);
+    expect(design.cal.captions.slice(1).every((caption) => caption === '')).toBe(true);
   });
 
   it('keeps only valid own dates, at most 60', () => {
@@ -49,7 +49,7 @@ describe('mergeDesign', () => {
       { m: 1.5, d: 2, label: 'x' },
       { m: 1, d: 2 },
       null,
-      ...Array(100).fill(good),
+      ...Array.from({ length: 100 }, () => good),
     ];
     const design = mergeDesign({ cal: { ownDates } });
     expect(design.cal.ownDates).toHaveLength(60);

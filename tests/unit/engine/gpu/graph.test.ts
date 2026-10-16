@@ -4,8 +4,8 @@ import { ADJUST_PROGRAM, adjustUniforms, colourNodes, LOOK_PROGRAM } from '@/eng
 import { detailNodes } from '@/engine/gpu/detail';
 import { runNodes, SPARES, TexturePool } from '@/engine/gpu/graph';
 import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from '@/engine/gpu/types';
-
 import { defined } from '../../../support/defined';
+
 /**
  * A device that only records what it was asked to do.
  * @returns the device and what it recorded
@@ -22,15 +22,19 @@ function fakeDevice() {
     uploadData: (_d, width, height) => ({ width, height, id: `data${made++}` }) as GpuTexture,
     uploadMask: (_d, width, height) => ({ width, height, id: `mask${made++}` }) as GpuTexture,
     target: (width, height) => ({ width, height, id: `t${made++}` }) as GpuTexture,
-    pass: (program, inputs, _u, out) => void passes.push({ program, input: inputs[0], inputs: [...inputs], out }),
+    pass: (program, inputs, _u, out) => {
+      passes.push({ program, input: inputs[0], inputs: [...inputs], out });
+    },
     present: () => {
       throw new Error('not in tests');
     },
-    read: async () => new Uint8ClampedArray(),
+    read: () => Promise.resolve(new Uint8ClampedArray()),
     floatTargets: true,
-    readFloat: async () => new Float32Array(),
-    release: (texture) => void released.push(texture),
-    destroy: () => {},
+    readFloat: () => Promise.resolve(new Float32Array()),
+    release: (texture) => {
+      released.push(texture);
+    },
+    destroy: () => undefined,
   };
   return { dev, passes, released, made: () => made };
 }

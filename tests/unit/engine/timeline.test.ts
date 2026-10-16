@@ -46,8 +46,10 @@ import { countKeys, type Ease, type Keyframe } from '@/engine/keyframes';
 import { mergeLayers } from '@/engine/layerGate';
 import { newSticker, type Layer } from '@/engine/layers';
 import { limitsFor } from '@/engine/videoFormats';
-
 import { defined } from '../../support/defined';
+import { codeUnitOrder } from '../../support/codeUnitOrder';
+import { seededRandom } from '../../support/seededRandom';
+
 /**
  * A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document).
  * @param project the 2.x project
@@ -78,8 +80,7 @@ function onTracks(project: LegacyProject): Project<LegacyClip & TimedClip> {
  */
 function times(project: LegacyProject): number[] {
   const total = legacyTotal(project.clips);
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const rnd = seededRandom(7);
   const out = [-1, 0, total, total + 3];
   for (const placed of legacyTimeline(project.clips))
     out.push(placed.start, placed.end, placed.start - 1e-6, placed.start + 1e-6, placed.end - 1e-6);
@@ -411,8 +412,8 @@ describe('the project document (toDocument, mergeProject)', () => {
       clips: doc.clips.map((clip) => ({ ...clip, url: 'blob:x', thumb: 'data:', strip: ['a'], still: {}, file: {} })),
       extra: 1,
     };
-    const out = toDocument(withJunk as typeof doc);
-    expect(Object.keys(out).sort()).toEqual([
+    const out = toDocument(withJunk);
+    expect(Object.keys(out).sort(codeUnitOrder)).toEqual([
       'audio',
       'clips',
       'fadeOut',
@@ -426,7 +427,7 @@ describe('the project document (toDocument, mergeProject)', () => {
       'tracks',
       'version',
     ]);
-    expect(Object.keys(out.clips[0]).sort()).toEqual([
+    expect(Object.keys(out.clips[0]).sort(codeUnitOrder)).toEqual([
       'dur',
       'edit',
       'fade',
@@ -634,7 +635,7 @@ describe('the project document (toDocument, mergeProject)', () => {
         true,
       ).dropped.join(' '),
     ).toMatch(/track/i);
-    expect(mergeProject(null, true).dropped.length).toBe(1);
+    expect(mergeProject(null, true).dropped).toHaveLength(1);
   });
 });
 
@@ -647,7 +648,7 @@ describe('Magnetic in the document (202)', () => {
     const projectDoc = good();
     expect(projectDoc.magnetic).toBe(true);
     expect(toDocument(projectDoc).magnetic).toBe(true);
-    const { magnetic: _, ...noField } = toDocument(projectDoc);
+    const noField = Object.fromEntries(Object.entries(toDocument(projectDoc)).filter(([key]) => key !== 'magnetic'));
     expect(
       starts({ ...noField, clips: projectDoc.clips.map((clip, index) => ({ ...clip, start: index * 10 })) }),
     ).toEqual([0, 3, 7.5, 9]);
@@ -696,7 +697,7 @@ describe('Magnetic in the document (202)', () => {
     const all = mergeProject({ ...loose, clips: loose.clips.map((clip) => ({ ...clip, start: 0 })) }, true);
     expect(all.doc.clips.map((clip) => clip.start)).toEqual([0, 3, 7.5, 9]);
     expect(all.doc.clips.map((clip) => clip.id)).toEqual(loose.clips.map((clip) => clip.id));
-    expect(all.dropped.length).toBe(3);
+    expect(all.dropped).toHaveLength(3);
   });
 });
 
@@ -705,7 +706,7 @@ describe('Magnetic in the document (202)', () => {
 describe('the clip transform (203 AC-4)', () => {
   it('identity is the whole frame, and a clip without a transform is at identity', () => {
     expect(IDENTITY).toEqual({ x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 });
-    expect(isIdentity(undefined)).toBe(true);
+    expect(isIdentity()).toBe(true);
     expect(isIdentity({ ...IDENTITY })).toBe(true);
     for (const key of Object.keys(IDENTITY) as (keyof typeof IDENTITY)[])
       expect(isIdentity({ ...IDENTITY, [key]: IDENTITY[key] + 0.01 }), key).toBe(false);
@@ -742,7 +743,7 @@ describe('the clip transform (203 AC-4)', () => {
     { ratio: '9:16', W: 1080, H: 1920 },
     { ratio: '16:9', W: 1920, H: 1080 },
   ])('the four corners at $ratio: 35 percent wide, 4 percent of the width from the two nearest edges', ({ W, H }) => {
-    const mean = 0.04 * W;
+    const margin = 0.04 * W;
     const box = (entry: Parameters<typeof presetTransform>[0]) => {
       const transform = presetTransform(entry, W, H);
       expect(transform).toMatchObject({ w: 0.35, rot: 0, opacity: 1, radius: 0 });
@@ -765,7 +766,7 @@ describe('the clip transform (203 AC-4)', () => {
       [bl, ['left', 'bottom']],
       [br, ['right', 'bottom']],
     ] as const)
-      for (const side of near) expect(corner[side], side).toBeCloseTo(mean, 6);
+      for (const side of near) expect(corner[side], side).toBeCloseTo(margin, 6);
     // Inside the frame, on the far sides too.
     for (const corner of [tl, tr, bl, br]) for (const value of Object.values(corner)) expect(value).toBeGreaterThan(0);
     // The numbers, worked out by hand.
@@ -785,8 +786,8 @@ describe('overlay tracks (203 AC-1, AC-2)', () => {
     return added.tracks;
   };
   const ok = <T>(result: T | { error: string }): T => {
-    if (result && typeof result === 'object' && 'error' in result) throw new Error((result as { error: string }).error);
-    return result as T;
+    if (result && typeof result === 'object' && 'error' in result) throw new Error(result.error);
+    return result;
   };
   const err = (result: unknown) =>
     result && typeof result === 'object' && 'error' in result ? (result as { error: string }).error : null;
@@ -848,15 +849,15 @@ describe('overlay tracks (203 AC-1, AC-2)', () => {
 
   it('moves an overlay track up or down among the overlay tracks; the main track stays the bottom', () => {
     const tracks = add(add(add(defaultTracks(), true), true), true);
-    const [, first, second, char] = ids(tracks);
-    expect(ids(ok(moveTrack(tracks, first, 1)).tracks)).toEqual([MAIN_VIDEO, second, first, char, MUSIC]);
-    expect(ids(ok(moveTrack(tracks, char, -1)).tracks)).toEqual([MAIN_VIDEO, first, char, second, MUSIC]);
-    expect(err(moveTrack(tracks, char, 1))).toMatch(/top/);
+    const [, first, second, third] = ids(tracks);
+    expect(ids(ok(moveTrack(tracks, first, 1)).tracks)).toEqual([MAIN_VIDEO, second, first, third, MUSIC]);
+    expect(ids(ok(moveTrack(tracks, third, -1)).tracks)).toEqual([MAIN_VIDEO, first, third, second, MUSIC]);
+    expect(err(moveTrack(tracks, third, 1))).toMatch(/top/);
     expect(err(moveTrack(tracks, first, -1))).toMatch(/main video track/);
     expect(err(moveTrack(tracks, MAIN_VIDEO, 1))).toMatch(/main video track/);
     expect(err(moveTrack(tracks, MUSIC, -1))).toBeTruthy();
     expect(err(moveTrack(tracks, 'X9', 1))).toBeTruthy();
-    expect(ids(tracks)).toEqual([MAIN_VIDEO, first, second, char, MUSIC]); // the input is left alone
+    expect(ids(tracks)).toEqual([MAIN_VIDEO, first, second, third, MUSIC]); // the input is left alone
   });
 
   it('deletes an overlay track with its clips; the main and music tracks can’t be deleted', () => {
@@ -1255,7 +1256,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       (project) => {
         expect(project.doc.clips).toHaveLength(60);
         expect(project.dropped[0]).toBe('A project holds up to 60 clips here; 30 were left out.');
-        for (const text of [MAIN_VIDEO, 'O1', 'O2']) expect(onTrack(project.doc, text)).toHaveLength(20);
+        for (const track of [MAIN_VIDEO, 'O1', 'O2']) expect(onTrack(project.doc, track)).toHaveLength(20);
       },
     ],
     [
@@ -1380,7 +1381,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       (project) => {
         // A web reel is 90 s at most: the clips moved to 90 s and later go.
         expect(onTrack(project.doc, 'O1').map((clip) => clip.start)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80]);
-        expect(project.dropped.filter((message) => /didn’t fit within/.test(message))).toEqual([
+        expect(project.dropped.filter((message) => message.includes('didn’t fit within'))).toEqual([
           '10 clips didn’t fit within the 90-second limit and were left out.',
         ]);
       },
@@ -1676,7 +1677,7 @@ describe('keyframes in the document (205 AC-4)', () => {
   const EASE = /Some keyframes had an unknown interpolation and now ease in and out/;
   const SAME = /Some keyframes were at the same time; the last of each was kept/;
   const PER_VALUE = /A value can have at most 100 keyframes; the rest were left out/;
-  const PER_PROJECT = /A project can have at most 5,000 keyframes; the rest were left out/;
+  const PER_PROJECT = 'A project can have at most 5,000 keyframes; the rest were left out';
 
   /**
    * The animated clip's keys replaced by `keys`.
@@ -1717,7 +1718,7 @@ describe('keyframes in the document (205 AC-4)', () => {
       const keys = defined(keysOf(project, doc));
       expect(keys.x).toEqual(keyframes);
       expect(keys.opacity).toEqual([keyframe(0, 1), keyframe(2, 0, 'hold')]);
-      expect(project.dropped).toEqual(reasons.map((re) => expect.stringMatching(re)));
+      expect(project.dropped).toEqual(reasons.map((re): unknown => expect.stringMatching(re)));
     };
 
   const bad: [string, (d: Doc) => unknown, (r: Gated, d: Doc) => void][] = [
@@ -1807,7 +1808,9 @@ describe('keyframes in the document (205 AC-4)', () => {
     [
       'a __proto__ value name',
       (doc) =>
-        JSON.parse(JSON.stringify(clipKeys({ MARK: [], x: [keyframe(0, 0.2)] })(doc)).replace('"MARK"', '"__proto__"')),
+        JSON.parse(
+          JSON.stringify(clipKeys({ MARK: [], x: [keyframe(0, 0.2)] })(doc)).replace('"MARK"', '"__proto__"'),
+        ) as unknown,
       (project, doc) => {
         const keys = defined(keysOf(project, doc));
         expect(Object.keys(keys)).toEqual(['x']);
@@ -1844,7 +1847,7 @@ describe('keyframes in the document (205 AC-4)', () => {
           project.doc.layers.reduce((sum, kept) => sum + countKeys(kept.keys), 0);
         expect(total).toBe(5000);
         expect(project.doc.layers).toHaveLength(30);
-        expect(project.dropped.filter((text) => PER_PROJECT.test(text))).toHaveLength(1);
+        expect(project.dropped.filter((text) => text.includes(PER_PROJECT))).toHaveLength(1);
       },
     ],
     [
@@ -1964,13 +1967,13 @@ describe('transitions in the document (206 AC-5)', () => {
   const fixture = () => {
     const projectDoc = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
     const [p6, v7, p8] = projectDoc.clips;
-    const clips = projectDoc.clips.map((clip) =>
-      clip.id === p6.id
-        ? { ...clip, transition: { kind: 'dissolve', dur: 1, to: v7.id } as Transition }
-        : clip.id === v7.id
-          ? { ...clip, transition: { kind: 'wipe', dur: 0.6, to: p8.id, dir: 'right' } as Transition }
-          : clip,
-    );
+    const clips = projectDoc.clips.map((clip) => {
+      if (clip.id === p6.id)
+        return { ...clip, transition: { kind: 'dissolve', dur: 1, to: v7.id } satisfies Transition };
+      if (clip.id === v7.id)
+        return { ...clip, transition: { kind: 'wipe', dur: 0.6, to: p8.id, dir: 'right' } satisfies Transition };
+      return clip;
+    });
     return toDocument({ ...projectDoc, clips });
   };
   type Doc = ReturnType<typeof fixture>;
@@ -2006,7 +2009,7 @@ describe('transitions in the document (206 AC-5)', () => {
       if (expected === undefined) expect('transition' in project.doc.clips[0]).toBe(false);
       else expect(transitionOf(project, p6)).toEqual({ to: v7, ...expected });
       expect(transitionOf(project, v7)).toEqual({ kind: 'wipe', dur: 0.6, to: p8, dir: 'right' });
-      expect(project.dropped).toEqual(reasons.map((re) => expect.stringMatching(re)));
+      expect(project.dropped).toEqual(reasons.map((re): unknown => expect.stringMatching(re)));
     };
   /**
    * A transition into the second clip with these fields.
@@ -2098,7 +2101,7 @@ describe('transitions in the document (206 AC-5)', () => {
             '"kind":"dissolve"',
             '"__proto__":{"polluted":1},"kind":"dissolve"',
           ),
-        ),
+        ) as unknown,
       firstIs({ kind: 'dissolve', dur: 1 }),
     ],
     [

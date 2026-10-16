@@ -30,8 +30,9 @@ import {
 } from '@/engine/maskRaster';
 import { mergeMasks } from '@/engine/maskGate';
 import { paintStroke } from '@/engine/maskBrush';
-
 import { defined } from '../../support/defined';
+import { seededRandom } from '../../support/seededRandom';
+
 const stroke = (pts: number[], options: Partial<BrushStroke> = {}): BrushStroke => ({
   pts,
   size: 0.2,
@@ -40,16 +41,16 @@ const stroke = (pts: number[], options: Partial<BrushStroke> = {}): BrushStroke 
   erase: false,
   ...options,
 });
-const count = 100;
-const at = (values: Float32Array, x: number, y: number) => values[y * count + x];
+const side = 100;
+const at = (values: Float32Array, x: number, y: number) => values[y * side + x];
 /**
  * Every stroke painted from nothing: what any cached raster must equal.
  * @param strokes the strokes, in order
  * @returns the mask raster
  */
 function fresh(strokes: BrushStroke[]): Float32Array {
-  const values = new Float32Array(count * count);
-  for (const brushStroke of strokes) paintStroke(values, count, count, brushStroke);
+  const values = new Float32Array(side * side);
+  for (const brushStroke of strokes) paintStroke(values, side, side, brushStroke);
   return values;
 }
 
@@ -78,7 +79,7 @@ describe('brush strokes', () => {
       0.375,
       6,
     );
-    expect(Math.max(...fresh(Array(30).fill(brushStroke)))).toBeLessThanOrEqual(1);
+    expect(Math.max(...fresh(Array.from({ length: 30 }, () => brushStroke)))).toBeLessThanOrEqual(1);
   });
   it('one pass is one pass: a stroke crossing itself does not build up', () => {
     const values = fresh([stroke([0.2, 0.5, 0.8, 0.5, 0.5, 0.2, 0.5, 0.8], { flow: 40 })]);
@@ -103,11 +104,11 @@ describe('cached rasters', () => {
       steps.push([brushStroke, eraser, stroke(pts, { flow: 50, feather: 70 })]);
     }
     steps.push([brushStroke, eraser], [brushStroke], [brushStroke, eraser], []);
-    for (const strokes of steps) expect(rasterPart({ ...part, strokes }, count, count)).toEqual(fresh(strokes));
+    for (const strokes of steps) expect(rasterPart({ ...part, strokes }, side, side)).toEqual(fresh(strokes));
   });
   it('are kept per part and size: asking again does no work', () => {
     const part = { ...newBrushPart(), strokes: [stroke([0.5, 0.5])] };
-    expect(rasterPart(part, count, count)).toBe(rasterPart(part, count, count));
+    expect(rasterPart(part, side, side)).toBe(rasterPart(part, side, side));
     expect(rasterPart(part, 50, 50)).toHaveLength(2500);
   });
 });
@@ -138,8 +139,8 @@ describe('a mask', () => {
             [left, 'add'],
             [top, 'add'],
           ]),
-          count,
-          count,
+          side,
+          side,
         ),
       ),
     ).toEqual([1, 1, 1, 0]);
@@ -150,8 +151,8 @@ describe('a mask', () => {
             [left, 'add'],
             [top, 'subtract'],
           ]),
-          count,
-          count,
+          side,
+          side,
         ),
       ),
     ).toEqual([0, 0, 1, 0]);
@@ -162,16 +163,16 @@ describe('a mask', () => {
             [left, 'add'],
             [top, 'intersect'],
           ]),
-          count,
-          count,
+          side,
+          side,
         ),
       ),
     ).toEqual([1, 0, 0, 0]);
     // The first part is always added, whatever it says.
-    expect(corners(rasterMask(mask([[left, 'subtract']]), count, count))).toEqual([1, 0, 1, 0]);
+    expect(corners(rasterMask(mask([[left, 'subtract']]), side, side))).toEqual([1, 0, 1, 0]);
   });
   it('inverts a part or the whole mask', () => {
-    expect(corners(rasterMask(mask([[left, 'add', true]]), count, count))).toEqual([0, 1, 0, 1]);
+    expect(corners(rasterMask(mask([[left, 'add', true]]), side, side))).toEqual([0, 1, 0, 1]);
     expect(
       corners(
         rasterMask(
@@ -182,8 +183,8 @@ describe('a mask', () => {
             ],
             true,
           ),
-          count,
-          count,
+          side,
+          side,
         ),
       ),
     ).toEqual([0, 0, 0, 1]);
@@ -303,8 +304,8 @@ describe('masks on the GPU', () => {
         return size;
       },
       target: (width: number, height: number) => ({ width, height }),
-      pass: () => {},
-      release: () => {},
+      pass: () => undefined,
+      release: () => undefined,
     } as unknown as GpuDevice;
     const pool = new TexturePool(dev),
       input = { width: 8, height: 8 } as GpuTexture,
@@ -320,7 +321,7 @@ describe('gradients', () => {
   const rad = (options: Partial<RadialPart> = {}) => ({ ...(newPart('radial') as RadialPart), ...options });
   it('linear: full before the fade, nothing after it, smooth and falling in between', () => {
     // Downwards, the fade from y = 30 to y = 70 (of 100).
-    const values = rasterShape(lin({ x: 0.5, y: 0.5, angle: 90, width: 0.4 }), count, count);
+    const values = rasterShape(lin({ x: 0.5, y: 0.5, angle: 90, width: 0.4 }), side, side);
     expect(at(values, 50, 10)).toBe(1);
     expect(at(values, 50, 90)).toBe(0);
     expect(at(values, 10, 50)).toBeCloseTo(0.5, 1);
@@ -329,17 +330,17 @@ describe('gradients', () => {
     expect(at(values, 3, 40)).toBeCloseTo(at(values, 97, 40), 9);
   });
   it('linear: turns with its angle', () => {
-    const values = rasterShape(lin({ x: 0.5, y: 0.5, angle: 0, width: 0.2 }), count, count);
+    const values = rasterShape(lin({ x: 0.5, y: 0.5, angle: 0, width: 0.2 }), side, side);
     expect([at(values, 10, 50), at(values, 90, 50)]).toEqual([1, 0]);
   });
   it('radial: full inside, nothing outside, fading over the feather; an ellipse turned by its angle', () => {
-    const values = rasterShape(rad({ x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, feather: 50 }), count, count);
+    const values = rasterShape(rad({ x: 0.5, y: 0.5, rx: 0.3, ry: 0.3, feather: 50 }), side, side);
     expect(at(values, 50, 50)).toBe(1);
     expect(at(values, 62, 50)).toBe(1);
     expect(at(values, 72, 50)).toBeGreaterThan(0);
     expect(at(values, 72, 50)).toBeLessThan(1);
     expect(at(values, 85, 50)).toBe(0);
-    const raster = rasterShape(rad({ rx: 0.4, ry: 0.1, feather: 0, angle: 90 }), count, count);
+    const raster = rasterShape(rad({ rx: 0.4, ry: 0.1, feather: 0, angle: 90 }), side, side);
     // Turned a quarter: tall, not wide.
     expect([at(raster, 50, 20), at(raster, 20, 50)]).toEqual([1, 0]);
   });
@@ -348,19 +349,19 @@ describe('gradients', () => {
 describe('ranges', () => {
   /** A 100 × 100 photo: left half dark red, right half a grey ramp from black (top) to white (bottom). */
   const photo: PhotoSample = (() => {
-    const pixels = new Uint8ClampedArray(count * count * 4);
-    for (let y = 0; y < count; y++)
-      for (let x = 0; x < count; x++) {
-        const index = (y * count + x) * 4,
-          amount = Math.round((y / (count - 1)) * 255);
-        pixels.set(x < 50 ? [150, 30, 25, 255] : [amount, amount, amount, 255], index);
+    const pixels = new Uint8ClampedArray(side * side * 4);
+    for (let y = 0; y < side; y++)
+      for (let x = 0; x < side; x++) {
+        const index = (y * side + x) * 4,
+          grey = Math.round((y / (side - 1)) * 255);
+        pixels.set(x < 50 ? [150, 30, 25, 255] : [grey, grey, grey, 255], index);
       }
     return { data: pixels, token: 1 };
   })();
   const luma = (options: object) => ({ ...newPart('luma'), ...options }) as Parameters<typeof rasterShape>[0];
   const colour = (options: object) => ({ ...newPart('colour'), ...options }) as Parameters<typeof rasterShape>[0];
   it('brightness: the tones in the range, softly edged', () => {
-    const values = rasterShape(luma({ lo: 40, hi: 60, smooth: 10 }), count, count, photo);
+    const values = rasterShape(luma({ lo: 40, hi: 60, smooth: 10 }), side, side, photo);
     expect(at(values, 80, 50)).toBe(1);
     expect(at(values, 80, 5)).toBe(0);
     expect(at(values, 80, 95)).toBe(0);
@@ -368,19 +369,19 @@ describe('ranges', () => {
     expect(at(values, 80, 37)).toBeLessThan(1);
   });
   it('colour: the picked colour and those near it, not greys', () => {
-    const values = rasterShape(colour({ r: 160, g: 35, b: 30, range: 30 }), count, count, photo);
+    const values = rasterShape(colour({ r: 160, g: 35, b: 30, range: 30 }), side, side, photo);
     expect(at(values, 10, 10)).toBe(1);
     expect(at(values, 80, 30)).toBe(0);
     expect(at(values, 80, 70)).toBe(0);
     // A narrow range misses even a slightly different red.
-    const narrow = rasterShape(colour({ r: 200, g: 60, b: 40, range: 1 }), count, count, photo);
+    const narrow = rasterShape(colour({ r: 200, g: 60, b: 40, range: 1 }), side, side, photo);
     expect(at(narrow, 10, 10)).toBe(0);
   });
   it('cover everything without the photo, and are cached per photo', () => {
     const part = newPart('luma');
     expect(rasterShape(luma({}), 4, 4).every((value) => value === 1)).toBe(true);
-    expect(rasterPart(part, count, count, photo)).toBe(rasterPart(part, count, count, photo));
-    expect(rasterPart(part, count, count, { ...photo, token: 2 })).not.toBe(rasterPart(part, count, count, photo));
+    expect(rasterPart(part, side, side, photo)).toBe(rasterPart(part, side, side, photo));
+    expect(rasterPart(part, side, side, { ...photo, token: 2 })).not.toBe(rasterPart(part, side, side, photo));
   });
   it('OKLab puts white at L 1 and black at 0, greys without colour', () => {
     expect(oklab(255, 255, 255)[0]).toBeCloseTo(1, 3);
@@ -471,21 +472,26 @@ describe('gradient handles', () => {
  * @param time progress, 0–1
  * @returns the eased progress
  */
-const smooth = (time: number) => (time <= 0 ? 0 : time >= 1 ? 1 : time * time * (3 - 2 * time));
+const smooth = (time: number) => {
+  if (time <= 0) return 0;
+  if (time >= 1) return 1;
+  return time * time * (3 - 2 * time);
+};
 
 // The plain formulas, every pixel: what the fast loops must equal.
 describe('gradient rasters', () => {
   it('equal the plain formulas at every pixel, at any position, angle and size', () => {
     const gridWidth = 97,
       height = 61;
+    const random = seededRandom(13);
     let worst = 0;
     for (let step = 0; step < 80; step++) {
       const part = {
         ...(newPart('linear') as LinearPart),
-        x: Math.random() * 2 - 0.5,
-        y: Math.random() * 2 - 0.5,
-        angle: Math.random() * 360 - 180,
-        width: 0.01 + Math.random(),
+        x: random() * 2 - 0.5,
+        y: random() * 2 - 0.5,
+        angle: random() * 360 - 180,
+        width: 0.01 + random(),
       };
       if (step % 7 === 0) part.angle = [0, 90, -90, 180][step % 4];
       const values = rasterShape(part, gridWidth, height);
@@ -507,12 +513,12 @@ describe('gradient rasters', () => {
           );
       const shape = {
         ...(newPart('radial') as RadialPart),
-        x: Math.random(),
-        y: Math.random(),
-        rx: 0.02 + Math.random() * 0.6,
-        ry: 0.02 + Math.random() * 0.6,
-        angle: Math.random() * 360 - 180,
-        feather: Math.random() * 100,
+        x: random(),
+        y: random(),
+        rx: 0.02 + random() * 0.6,
+        ry: 0.02 + random() * 0.6,
+        angle: random() * 360 - 180,
+        feather: random() * 100,
       };
       const raster = rasterShape(shape, gridWidth, height);
       const ra = (shape.angle * Math.PI) / 180,
@@ -528,10 +534,10 @@ describe('gradient rasters', () => {
             dy = y + 0.5 - shape.y * height,
             lx = (dx * rc + dy * rs) / Rx,
             ly = (dy * rc - dx * rs) / Ry,
-            delta = Math.hypot(lx, ly);
+            distance = Math.hypot(lx, ly);
           worst = Math.max(
             worst,
-            Math.abs(raster[y * gridWidth + x] - (delta <= inner ? 1 : 1 - smooth((delta - inner) / band))),
+            Math.abs(raster[y * gridWidth + x] - (distance <= inner ? 1 : 1 - smooth((distance - inner) / band))),
           );
         }
     }

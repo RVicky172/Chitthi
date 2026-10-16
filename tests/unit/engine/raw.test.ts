@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { decodeSrgb, embeddedJpeg, encodeSrgb, isRawName, rawToRgba8 } from '@/engine/raw';
 import { buildTiff, syntheticDng, tiff16 } from '@/engine/tiff';
-
 import { defined } from '../../support/defined';
+
 /**
  * A minimal complete JPEG: SOI, a frame header, a scan with data (stuffed FF 00 and a restart marker), EOI.
  * @param fill the scan's data byte
@@ -11,9 +11,9 @@ import { defined } from '../../support/defined';
  */
 function jpeg(fill: number, len: number): Uint8Array {
   const head = [0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 1, 0, 1, 1, 1, 0x11, 0, 0xff, 0xda, 0, 8, 1, 1, 0, 0, 0x3f, 0];
-  const data = Array.from({ length: len }, (_, index) =>
-    index === 10 ? 0xff : index === 11 ? 0x00 : index === 20 ? 0xff : index === 21 ? 0xd3 : fill,
-  );
+  // Bytes 10–11 are a stuffed FF 00, bytes 20–21 a restart marker (FF D3); the rest is `fill`.
+  const special: Record<number, number> = { 10: 0xff, 11: 0x00, 20: 0xff, 21: 0xd3 };
+  const data = Array.from({ length: len }, (_, index) => special[index] ?? fill);
   return new Uint8Array([...head, ...data, 0xff, 0xd9]);
 }
 
@@ -28,7 +28,7 @@ describe('camera RAW files', () => {
       big = jpeg(2, 4000);
     const file = new Uint8Array([...new Uint8Array(100), ...small, ...new Uint8Array(50), ...big, 9, 9, 9]);
     const got = defined(embeddedJpeg(file));
-    expect(got.length).toBe(big.length);
+    expect(got).toHaveLength(big.length);
     expect(got[got.length - 1]).toBe(0xd9);
     expect(got[100]).toBe(2);
     // A JPEG cut short, or only a thumbnail-sized one, isn't taken.
@@ -41,7 +41,7 @@ describe('camera RAW files', () => {
     const values = new Uint16Array(4 * 2 * 3);
     for (let y = 0; y < 2; y++)
       for (let x = 0; x < 4; x++)
-        values.fill(x < 2 ? ((x + y) % 2 ? 65535 : 0) : 32768, (y * 4 + x) * 3, (y * 4 + x) * 3 + 3);
+        values.fill(x < 2 ? 65535 * ((x + y) % 2) : 32768, (y * 4 + x) * 3, (y * 4 + x) * 3 + 3);
     const rgba = rawToRgba8({ width: 4, height: 2, data: values }, 2);
     expect([rgba.width, rgba.height]).toEqual([2, 1]);
     // Half the light averages to linear 0.5 (sRGB 188), like the grey: not the 128 that averaging sRGB values gives.
@@ -101,6 +101,6 @@ describe('TIFF writer', () => {
     const dng = syntheticDng(jpeg(3, 3000));
     expect([...dng.subarray(0, 4)]).toEqual([0x49, 0x49, 42, 0]);
     expect(dng.length).toBeGreaterThan(192 * 128 * 2);
-    expect(defined(embeddedJpeg(dng)).length).toBe(jpeg(3, 3000).length);
+    expect(defined(embeddedJpeg(dng))).toHaveLength(jpeg(3, 3000).length);
   });
 });

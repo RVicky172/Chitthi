@@ -32,8 +32,8 @@ import { newSticker, newText } from '@/engine/layers';
 import { frameRange, IDENTITY, type ClipTransform, type TimedClip } from '@/engine/timeline';
 import { type SoundSource } from '@/engine/soundPlan';
 import { itemTransform, type StackDraw } from '@/engine/video';
-
 import { defined } from '../../support/defined';
+
 /**
  * A video clip on the main track, 10 s long, starting at 2 s on the timeline.
  * @param extra fields to change
@@ -302,11 +302,11 @@ describe('pure edits', () => {
   it('setKey refuses a 101st key on a value and a 5,001st in the project, with a message', () => {
     const full: Keyframes<ClipKeyProp> = { x: Array.from({ length: 100 }, (_, index) => keyframe(index, 0.5)) };
     const refused = setKey(full, 'x', 200, 0.5, clipEdit);
-    expect(refused).toEqual({ error: expect.stringContaining('100') });
+    expect(refused).toEqual({ error: expect.stringContaining('100') as unknown });
     // Replacing a key on a full value is fine.
     expect(setKey(full, 'x', 3, 0.1, clipEdit)).not.toHaveProperty('error');
     const project = setKey({}, 'y', 0, 0.5, { ...clipEdit, projectKeys: 5000 });
-    expect(project).toEqual({ error: expect.stringContaining('5,000') });
+    expect(project).toEqual({ error: expect.stringContaining('5,000') as unknown });
     expect(setKey({}, 'y', 0, 0.5, { ...clipEdit, projectKeys: 4999 })).toEqual({ y: [keyframe(0, 0.5)] });
     expect(KEY_LIMITS).toEqual({ perValue: 100, perProject: 5000 });
   });
@@ -452,8 +452,11 @@ function referenceEase(ease: Ease, progress: number): number {
  * @param ease its ease
  * @returns the value at a time
  */
-const segment = (from: number, to: number, start: number, end: number, ease: Ease) => (time: number) =>
-  time <= start ? from : time >= end ? to : from + (to - from) * referenceEase(ease, (time - start) / (end - start));
+const segment = (from: number, to: number, start: number, end: number, ease: Ease) => (time: number) => {
+  if (time <= start) return from;
+  if (time >= end) return to;
+  return from + (to - from) * referenceEase(ease, (time - start) / (end - start));
+};
 
 describe('AC-8: the fixture’s values at every frame of the export’s grid', () => {
   // A clip on the timeline from 1 s to 4 s that moves from the top-left corner to the bottom-right one with Ease in
@@ -515,13 +518,13 @@ describe('AC-8: the fixture’s values at every frame of the export’s grid', (
     it(`at ${fps} fps every frame the clip and the title show equals the expected list`, () => {
       const [first, last] = frameRange(0, 5, fps);
       let frames = 0;
-      for (let count = first; count < last; count++) {
-        const time = count / fps;
+      for (let frame = first; frame < last; frame++) {
+        const time = frame / fps;
         if (time >= movingClip.start && time < movingClip.start + 3) {
           const local = time - movingClip.start;
           const box = transformAt(movingClip, local);
           for (const prop of ['x', 'y', 'rot', 'opacity'] as const)
-            expect(box[prop], `clip ${prop} at frame ${count}`).toBeCloseTo(expectedClip[prop](local), 9);
+            expect(box[prop], `clip ${prop} at frame ${frame}`).toBeCloseTo(expectedClip[prop](local), 9);
           expect([box.w, box.radius]).toEqual([0.35, 0]);
           // The same evaluation every time it is asked (the preview's and the export's are one).
           expect(transformAt(movingClip, local)).toEqual(box);
@@ -529,8 +532,8 @@ describe('AC-8: the fixture’s values at every frame of the export’s grid', (
         }
         if (time >= title.start && time < title.end) {
           const shown = layerAt(title, time);
-          expect(shown.x, `title x at frame ${count}`).toBeCloseTo(expectedTitle.x(time - title.start), 9);
-          expect(shown.opacity, `title opacity at frame ${count}`).toBeCloseTo(
+          expect(shown.x, `title x at frame ${frame}`).toBeCloseTo(expectedTitle.x(time - title.start), 9);
+          expect(shown.opacity, `title opacity at frame ${frame}`).toBeCloseTo(
             expectedTitle.opacity(time - title.start),
             9,
           );
@@ -567,13 +570,13 @@ describe('AC-12: working out a frame’s animated values', () => {
         ...(withKeys
           ? {
               keys: {
-                x: [0, 0.5, 1, 1.5].map((time, count) => ({
+                x: [0, 0.5, 1, 1.5].map((time, nth) => ({
                   t: time,
-                  v: 0.2 + count * 0.2,
+                  v: 0.2 + nth * 0.2,
                   ease: 'ease-in-out' as const,
                 })),
-                opacity: [0, 1, 2].map((time, count) => ({ t: time, v: 1 - count * 0.4, ease: 'linear' as const })),
-                volume: [0, 1, 2].map((time, count) => ({ t: time, v: 1 - count * 0.3, ease: 'ease-out' as const })),
+                opacity: [0, 1, 2].map((time, nth) => ({ t: time, v: 1 - nth * 0.4, ease: 'linear' as const })),
+                volume: [0, 1, 2].map((time, nth) => ({ t: time, v: 1 - nth * 0.3, ease: 'ease-out' as const })),
               },
             }
           : {}),

@@ -29,14 +29,14 @@ describe('white balance', () => {
     expect(px(10, 200, 90, {}).map(Math.round)).toEqual([10, 200, 90]);
   });
   it('keeps a grey just as bright, whatever the temperature and tint', () => {
-    for (const [time, mean] of [
+    for (const [temperature, tint] of [
       [100, 0],
       [-100, 0],
       [0, 100],
       [0, -100],
       [60, -40],
     ]) {
-      const gains = wbGains(time, mean);
+      const gains = wbGains(temperature, tint);
       expect(LUMA[0] * gains[0] + LUMA[1] * gains[1] + LUMA[2] * gains[2]).toBeCloseTo(1, 9);
     }
   });

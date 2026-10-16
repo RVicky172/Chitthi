@@ -9,6 +9,7 @@ describe('keyAllowed', () => {
   });
 
   it('refuses http, other hosts and look-alike hosts', () => {
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the check is that a key is never sent over plain http
     expect(keyAllowed('openai', 'http://api.openai.com/v1/models', '')).toBe(false);
     expect(keyAllowed('openai', 'https://api.anthropic.com/v1/messages', '')).toBe(false);
     expect(keyAllowed('openai', 'https://api.openai.com.evil.example/v1', '')).toBe(false);
@@ -28,6 +29,7 @@ describe('keyAllowed', () => {
 describe('isResultHost', () => {
   it('matches subdomains of the result hosts over https only', () => {
     expect(isResultHost('fal', 'https://v3.fal.media/files/x.png')).toBe(true);
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the check is that a plain-http result is refused
     expect(isResultHost('fal', 'http://v3.fal.media/files/x.png')).toBe(false);
     expect(isResultHost('fal', 'https://fal.media.evil.example/x.png')).toBe(false);
     expect(isResultHost('openai', 'https://v3.fal.media/files/x.png')).toBe(false);

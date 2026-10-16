@@ -9,8 +9,9 @@ import {
   movedTransform,
 } from '@/engine/clipBox';
 import { IDENTITY, presetTransform, type ClipTransform } from '@/engine/timeline';
-
 import { defined } from '../../support/defined';
+import { codeUnitOrder } from '../../support/codeUnitOrder';
+
 /** A 1080 × 1920 Reel frame. */
 const WIDTH = 1080,
   HEIGHT = 1920;
@@ -52,7 +53,7 @@ describe('movedTransform', () => {
     const { transform, guides } = movedTransform(start, 0.2 * WIDTH - 5, 0.2 * HEIGHT + 6, WIDTH, HEIGHT, 8);
     expect(transform.x).toBeCloseTo(0.5, 9);
     expect(transform.y).toBeCloseTo(0.5, 9);
-    expect(guides.map((guide) => guide.axis).sort()).toEqual(['x', 'y']);
+    expect(guides.map((guide) => guide.axis).sort(codeUnitOrder)).toEqual(['x', 'y']);
   });
   it('does not snap with snapping off (null tolerance)', () => {
     const start = { ...IDENTITY, x: 0.3, y: 0.3, w: 0.3 };

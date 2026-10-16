@@ -8,8 +8,8 @@ import { canEncode, encodePhoto, isPhotoType, PHOTO_TYPE_IDS, PHOTO_TYPES, type 
  */
 const browser =
   (knows: string[]): Encoder =>
-  async (mime) =>
-    new Blob(['x'], { type: knows.includes(mime) ? mime : 'image/png' });
+  (mime) =>
+    Promise.resolve(new Blob(['x'], { type: knows.includes(mime) ? mime : 'image/png' }));
 const cv = {} as HTMLCanvasElement;
 
 describe('photo export types', () => {
@@ -28,12 +28,15 @@ describe('photo export types', () => {
   });
   it('refuse a file the browser quietly wrote as something else', async () => {
     await expect(encodePhoto(cv, 'avif', 90, browser(['image/png']))).rejects.toThrow(/can’t write AVIF/);
-    await expect(encodePhoto(cv, 'webp', 90, async () => null)).rejects.toThrow(/couldn’t be encoded/);
+    await expect(encodePhoto(cv, 'webp', 90, () => Promise.resolve(null))).rejects.toThrow(/couldn’t be encoded/);
     expect((await encodePhoto(cv, 'webp', 90, browser(['image/webp']))).type).toBe('image/webp');
   });
   it('pass quality as 0–1 for lossy types and leave PNG at full', async () => {
     const seen: number[] = [];
-    const spy: Encoder = async (mime, quarter) => (seen.push(quarter), new Blob(['x'], { type: mime }));
+    const spy: Encoder = (mime, quality) => {
+      seen.push(quality);
+      return Promise.resolve(new Blob(['x'], { type: mime }));
+    };
     await encodePhoto(cv, 'jpeg', 85, spy);
     await encodePhoto(cv, 'png', 85, spy);
     await encodePhoto(cv, 'webp', 400, spy);

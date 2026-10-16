@@ -41,6 +41,8 @@ const FINISHED = [
   'src/types.ts',
   'src/vite-env.d.ts',
   'src/dev/**',
+  // 407 T062: the tests (names, JSDoc, no non-null assertions; tests/support/defined.ts, seededRandom.ts).
+  'tests/**',
 ];
 
 /** The code the standards rules apply to. */
@@ -172,6 +174,10 @@ function standards(files, severity) {
     },
     ...typedStandards(files, severity),
     { files: SIZE_EXEMPT, rules: { 'max-lines-per-function': 'off', 'max-lines': 'off', 'sonarjs/cognitive-complexity': 'off' } },
+    // Tests compare exact numbers on purpose (a value passed through unchanged, a snap target), and the e2e tests skip
+    // per Playwright project (desktop or phone) on purpose.
+    { files: ['tests/**'], rules: { 'sonarjs/no-floating-point-equality': 'off' } },
+    { files: ['tests/e2e/**'], rules: { 'sonarjs/no-skipped-tests': 'off' } },
     ...LAYERS.map((layer) => ({
       // Only the layer's files among `files` (a FINISHED file in another layer must not get this layer's rule).
       files: layer.files.flatMap((layerGlob) => files.map((glob) => [glob, layerGlob])),

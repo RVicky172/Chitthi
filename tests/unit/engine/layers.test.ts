@@ -22,6 +22,7 @@ import { DEFAULT_EDIT } from '@/engine/instagram';
 import { MAIN_VIDEO, defaultTracks } from '@/engine/tracks';
 import { clipLength, framePlan, frameRange, pack, projectLength, videoAt } from '@/engine/timeline';
 import { V_FADE, fadeAmount, motionEdit } from '@/engine/video';
+import { defined } from '../../support/defined';
 
 describe('layers', () => {
   it('scale about their centre, with their text sizes, within limits', () => {
@@ -67,11 +68,11 @@ describe('layers', () => {
   it('fit a drawing around its strokes and keep earlier strokes in place', () => {
     const width = 1000,
       height = 2000;
-    const layer = addStroke(null, [100, 200, 300, 200], 'pen', '#fff', width, height, 10) as DrawLayer;
+    const layer = defined(addStroke(null, [100, 200, 300, 200], 'pen', '#fff', width, height, 10));
     expect(layer.w).toBeCloseTo(0.21); // 200 px + the line width, in frame widths
     expect(layer.x).toBeCloseTo(0.2);
     expect(layer.y).toBeCloseTo(0.1);
-    const drawLayer = addStroke(layer, [500, 800, 500, 900], 'pen', '#000', width, height, 10) as DrawLayer;
+    const drawLayer = defined(addStroke(layer, [500, 800, 500, 900], 'pen', '#000', width, height, 10));
     expect(drawLayer.id).toBe(layer.id);
     expect(drawLayer.strokes).toHaveLength(2);
     // The first stroke's first point is still at (100, 200) px.
@@ -273,7 +274,12 @@ describe('mergeLayers: the gate for layers from project files', () => {
       { ...newText(TEXT_STYLES[0]), text: 'x'.repeat(5000) },
       {
         ...draw,
-        strokes: [...Array(500)].map(() => ({ brush: 'crayon', color: '#000000', width: 0.01, pts: [0, 0, 0.1, 0.1] })),
+        strokes: Array.from({ length: 500 }, () => ({
+          brush: 'crayon',
+          color: '#000000',
+          width: 0.01,
+          pts: [0, 0, 0.1, 0.1],
+        })),
       },
       {
         ...draw,
@@ -314,6 +320,6 @@ describe('mergeLayers: the gate for layers from project files', () => {
   });
 
   it('holds at most 100 layers', () => {
-    expect(mergeLayers([...Array(150)].map(() => newSticker('✨')))).toHaveLength(100);
+    expect(mergeLayers(Array.from({ length: 150 }, () => newSticker('✨')))).toHaveLength(100);
   });
 });

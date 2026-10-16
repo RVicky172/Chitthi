@@ -44,9 +44,11 @@ describe('hand-tinted look', () => {
  */
 const toByte = (value: number) => {
   const clamped = Math.min(255, Math.max(0, value)),
-    frame = Math.floor(clamped),
-    delta = clamped - frame;
-  return delta > 0.5 ? frame + 1 : delta < 0.5 ? frame : frame % 2 ? frame + 1 : frame;
+    whole = Math.floor(clamped),
+    fraction = clamped - whole;
+  if (fraction > 0.5) return whole + 1;
+  if (fraction < 0.5) return whole;
+  return whole + (whole % 2);
 };
 
 describe('lookPixel', () => {

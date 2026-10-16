@@ -1,9 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
 import { defined } from '../support/defined';
+
 // The photo studio: batch, editing, export and posting.
 const SAMPLES = ['wheat-fields.jpg', 'diwali.jpg', 'holi-bowls.jpg', 'lotus.jpg', 'tea.jpg'].map((file) =>
   path.join('public', 'samples', file),
@@ -12,6 +12,32 @@ const upload = (page: Page, files: string[]) => page.locator('.mst-drop input[ty
 const strip = (page: Page) => page.getByRole('list', { name: 'Photos in this post, in order' });
 const tool = (page: Page, name: string) =>
   page.getByRole('navigation', { name: 'Tools' }).getByRole('button', { name, exact: true });
+
+/**
+ * Mean brightness of a 9×9 patch at a share of the canvas.
+ * @param canvas the preview canvas
+ * @param x across, 0–1
+ * @param y down, 0–1
+ * @returns the mean of red, green and blue, 0–255
+ */
+const brightnessAt = (canvas: Locator, x: number, y: number) =>
+  canvas.evaluate(
+    (canvasElement: HTMLCanvasElement, [x, y]) => {
+      const ctx = canvasElement.getContext('2d');
+      if (!ctx) throw new Error('The preview has no 2D context.');
+      const pixels = ctx.getImageData(
+        Math.round(canvasElement.width * x) - 4,
+        Math.round(canvasElement.height * y) - 4,
+        9,
+        9,
+      ).data;
+      let sum = 0;
+      for (let index = 0; index < pixels.length; index += 4)
+        sum += pixels[index] + pixels[index + 1] + pixels[index + 2];
+      return sum / (pixels.length / 4) / 3;
+    },
+    [x, y],
+  );
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./#/instagram');
@@ -336,30 +362,7 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
   const shot = () => canvas.evaluate((canvasElement: HTMLCanvasElement) => canvasElement.toDataURL());
-  /**
-   * Mean brightness of a 9×9 patch at a share of the canvas.
-   * @param x across, 0–1
-   * @param y down, 0–1
-   * @returns the mean of red, green and blue, 0–255
-   */
-  const lum = (x: number, y: number) =>
-    canvas.evaluate(
-      (canvasElement: HTMLCanvasElement, [x, y]) => {
-        const ctx = canvasElement.getContext('2d');
-        if (!ctx) throw new Error('The preview has no 2D context.');
-        const pixels = ctx.getImageData(
-          Math.round(canvasElement.width * x) - 4,
-          Math.round(canvasElement.height * y) - 4,
-          9,
-          9,
-        ).data;
-        let amount = 0;
-        for (let index = 0; index < pixels.length; index += 4)
-          amount += pixels[index] + pixels[index + 1] + pixels[index + 2];
-        return amount / (pixels.length / 4) / 3;
-      },
-      [x, y],
-    );
+  const lum = (x: number, y: number) => brightnessAt(canvas, x, y);
   const before = { mid: await lum(0.5, 0.5), corner: await lum(0.15, 0.15) };
   const original = await shot();
 
@@ -419,24 +422,7 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
-  const lum = (x: number, y: number) =>
-    canvas.evaluate(
-      (canvasElement: HTMLCanvasElement, [x, y]) => {
-        const ctx = canvasElement.getContext('2d');
-        if (!ctx) throw new Error('The preview has no 2D context.');
-        const pixels = ctx.getImageData(
-          Math.round(canvasElement.width * x) - 4,
-          Math.round(canvasElement.height * y) - 4,
-          9,
-          9,
-        ).data;
-        let amount = 0;
-        for (let index = 0; index < pixels.length; index += 4)
-          amount += pixels[index] + pixels[index + 1] + pixels[index + 2];
-        return amount / (pixels.length / 4) / 3;
-      },
-      [x, y],
-    );
+  const lum = (x: number, y: number) => brightnessAt(canvas, x, y);
   const before = { top: await lum(0.5, 0.1), bottom: await lum(0.5, 0.9) };
   const drag = async (from: [number, number], to: [number, number]) => {
     await canvas.scrollIntoViewIfNeeded();

@@ -12,7 +12,9 @@ export class FakeAudio {
   src = '';
   dataset: Record<string, string> = {};
   /** Events are never fired: a test plays, pauses and seeks the element itself. */
-  addEventListener() {}
+  addEventListener() {
+    // never fires: the tests play, pause and seek the element themselves
+  }
   play() {
     this.paused = false;
     return Promise.resolve();
@@ -23,5 +25,7 @@ export class FakeAudio {
   removeAttribute() {
     this.src = '';
   }
-  load() {}
+  load() {
+    // nothing to load: there is no media
+  }
 }

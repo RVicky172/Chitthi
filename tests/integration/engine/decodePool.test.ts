@@ -44,7 +44,7 @@ describe('frameTime (D3: the export grid)', () => {
     expect(frameTime(0, 30)).toBe(0);
     expect(frameTime(0.0999, 30)).toBeCloseTo(2 / 30, 12);
     expect(frameTime(0.1, 30)).toBeCloseTo(3 / 30, 12);
-    expect(frameTime(1.01, 60)).toBeCloseTo(60 / 60, 12);
+    expect(frameTime(1.01, 60)).toBeCloseTo(1, 12);
   });
 
   it("is exact for every frame of the export's plan (frame i at i / fps)", () => {
@@ -412,14 +412,14 @@ describe('DecodePool: bounded whatever is asked (AC-12)', () => {
     };
     const pending: Promise<PoolFrame | null>[] = [];
     for (let step = 0; step < 400; step++) {
-      const ratio = rnd();
-      if (ratio < 0.35) {
+      const roll = rnd();
+      if (roll < 0.35) {
         const frame = pool.peek(pick(), 0) as FakeFrame | null;
         if (frame) expect(frame.closed).toBe(false);
         const poolClip = pick();
         const fakeFrame = pool.peek(poolClip, time(poolClip)) as FakeFrame | null;
         if (fakeFrame) expect(fakeFrame.closed).toBe(false);
-      } else if (ratio < 0.55) {
+      } else if (roll < 0.55) {
         const poolClip = pick();
         pending.push(
           pool.frame(poolClip, time(poolClip)).then((frame) => {
@@ -427,9 +427,9 @@ describe('DecodePool: bounded whatever is asked (AC-12)', () => {
             return frame;
           }),
         );
-      } else if (ratio < 0.7) pool.prepare(pick());
-      else if (ratio < 0.8) pool.want(clips.filter(() => rnd() < 0.3).map((poolClip) => poolClip.id));
-      else if (ratio < 0.85) pool.forget(pick().id);
+      } else if (roll < 0.7) pool.prepare(pick());
+      else if (roll < 0.8) pool.want(clips.filter(() => rnd() < 0.3).map((poolClip) => poolClip.id));
+      else if (roll < 0.85) pool.forget(pick().id);
       else await vi.advanceTimersByTimeAsync(Math.floor(rnd() * 20));
       check();
     }
@@ -556,7 +556,7 @@ describe('DecodePool: a source that fails (AC-14)', () => {
     const fake = fakeDecoder();
     const pool = new DecodePool(fake.open, LIMITS);
     const bad = clip('x', fake.file({ name: 'bad.mp4', dur: 4, failOpen: 'unsupported codec' }), 0, 4);
-    pool.frame(bad, 0).catch(() => {});
+    pool.frame(bad, 0).catch(() => undefined);
     await settle();
     expect(pool.fallback('x')).toBe('unsupported codec');
     pool.forget('x');
@@ -614,8 +614,8 @@ describe('206 spike: a transition reads past a clip’s ends', () => {
     const clipA = clip('a', fake.file({ name: 'a.mp4', dur: 10 }), 0, 4, 0),
       clipB = clip('b', fake.file({ name: 'b.mp4', dur: 10 }), 3, 8, 4);
     // The transition runs from 3.5 s to 4.5 s on the timeline: a plays 3.5–4.5 of its source, b 2.5–3.5 of its.
-    pool.frame(clipA, 3.5);
-    pool.frame(clipB, 2.5);
+    void pool.frame(clipA, 3.5);
+    void pool.frame(clipB, 2.5);
     await settle();
     let behind = 0;
     for (let index = 0; index < 30; index++) {

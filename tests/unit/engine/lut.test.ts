@@ -19,8 +19,9 @@ import {
   removeLut,
   type Lut,
 } from '@/engine/lut';
-
 import { defined } from '../../support/defined';
+import { seededRandom } from '../../support/seededRandom';
+
 /**
  * A .cube file for a table made by colourOf(red, green, blue) at size points per side.
  * @param size points per side
@@ -96,11 +97,12 @@ describe('parseCube', () => {
 
 describe('lutPixel', () => {
   it('changes nothing with an identity table, between the points as well as on them', () => {
+    const random = seededRandom(11);
     for (const size of [2, 17, 33]) {
       const lut = identityLut(size);
       for (let index = 0; index < 200; index++) {
-        const rgb = [Math.random(), Math.random(), Math.random()];
-        at(lut, rgb[0], rgb[1], rgb[2]).forEach((value, step) => expect(value).toBeCloseTo(rgb[step], 6));
+        const rgb = [random(), random(), random()];
+        at(lut, rgb[0], rgb[1], rgb[2]).forEach((value, channel) => expect(value).toBeCloseTo(rgb[channel], 6));
       }
     }
   });
@@ -111,10 +113,11 @@ describe('lutPixel', () => {
       0.3 * blue + 0.3 * green + 0.2,
     ];
     const lut = parseCube(cube(5, mapping));
+    const random = seededRandom(12);
     for (let index = 0; index < 200; index++) {
-      const rgb = [Math.random(), Math.random(), Math.random()];
-      at(lut, rgb[0], rgb[1], rgb[2]).forEach((value, step) =>
-        expect(value).toBeCloseTo(mapping(rgb[0], rgb[1], rgb[2])[step], 5),
+      const rgb = [random(), random(), random()];
+      at(lut, rgb[0], rgb[1], rgb[2]).forEach((value, channel) =>
+        expect(value).toBeCloseTo(mapping(rgb[0], rgb[1], rgb[2])[channel], 5),
       );
     }
   });
@@ -146,8 +149,8 @@ describe('lutTexture', () => {
     const t3 = lutTexture(identityLut(3));
     expect([t3.width, t3.height, t3.cols]).toEqual([6, 6, 2]);
     // r = 2, g = 1, b = 2: the third slice is tile (0, 1); red across, green down.
-    const step = ((3 + 1) * t3.width + 2) * 4;
-    expect([...t3.rgba.slice(step, step + 4)]).toEqual([1, 0.5, 1, 1]);
+    const pixelOffset = ((3 + 1) * t3.width + 2) * 4;
+    expect([...t3.rgba.slice(pixelOffset, pixelOffset + 4)]).toEqual([1, 0.5, 1, 1]);
   });
   it('is packed once per table', () => {
     const lut = identityLut(5);
@@ -233,8 +236,12 @@ describe('a LUT in the colour settings', () => {
         return size;
       },
       target: (width: number, height: number) => ({ width, height }),
-      pass: (_p: unknown, inputs: readonly GpuTexture[]) => void seen.push([...inputs]),
-      release: (texture: GpuTexture) => void released.push(texture),
+      pass: (_p: unknown, inputs: readonly GpuTexture[]) => {
+        seen.push([...inputs]);
+      },
+      release: (texture: GpuTexture) => {
+        released.push(texture);
+      },
     } as unknown as GpuDevice;
     const pool = new TexturePool(dev),
       input = dev.upload({} as TexImageSource, 8, 8),

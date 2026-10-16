@@ -50,27 +50,30 @@ describe('deleting a model (401)', () => {
     terminated = 0;
     hold = null;
     const dir = {
-      getFileHandle: async (name: string, options?: { create?: boolean }) => {
-        if (!files.has(name) && !options?.create) throw new DOMException('missing', 'NotFoundError');
-        return { getFile: async () => ({ size: files.get(name) ?? 0, arrayBuffer: async () => new ArrayBuffer(8) }) };
+      getFileHandle: (name: string, options?: { create?: boolean }) => {
+        if (!files.has(name) && !options?.create) return Promise.reject(new DOMException('missing', 'NotFoundError'));
+        const file = () => ({ size: files.get(name) ?? 0, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) });
+        return Promise.resolve({ getFile: () => Promise.resolve(file()) });
       },
-      removeEntry: async (name: string) => {
-        if (!files.delete(name)) throw new DOMException('missing', 'NotFoundError');
-      },
+      removeEntry: (name: string) =>
+        files.delete(name) ? Promise.resolve() : Promise.reject(new DOMException('missing', 'NotFoundError')),
     };
     vi.stubGlobal('navigator', {
       storage: {
-        getDirectory: async () => {
-          if (!opfs) throw new Error('no OPFS');
-          return { getDirectoryHandle: async () => dir };
-        },
+        getDirectory: () =>
+          opfs
+            ? Promise.resolve({ getDirectoryHandle: () => Promise.resolve(dir) })
+            : Promise.reject(new Error('no OPFS')),
       },
     });
     vi.stubGlobal('document', {
       createElement: () => ({
         width: 0,
         height: 0,
-        getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(320 * 320 * 4) }) }),
+        getContext: () => ({
+          drawImage: () => undefined,
+          getImageData: () => ({ data: new Uint8ClampedArray(320 * 320 * 4) }),
+        }),
       }),
     });
     vi.stubGlobal(
@@ -87,7 +90,7 @@ describe('deleting a model (401)', () => {
         }
       },
     );
-    vi.stubGlobal('fetch', async () => new Response(new ArrayBuffer(8)));
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response(new ArrayBuffer(8))));
     return import('@/ai/segment/index');
   }
   /**
