@@ -1451,7 +1451,7 @@
         "T091": {
           "text": "The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers.",
           "section": "Docs and close",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1462,7 +1462,9 @@
           "files": [],
           "test": "every command green; numbers recorded",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-16",
+          "doneOn": null
         },
         "T092": {
           "text": "Tick the ACs; Status `Implemented`; roadmap 407 ✔️; `memory/progress.md`, `memory/MEMORY.md`; merge into `main` (the standing rule) and push when the maintainer says so; 207 then branches from `main`.",

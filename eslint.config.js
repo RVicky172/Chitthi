@@ -36,6 +36,11 @@ const FINISHED = [
   'src/main.tsx',
   // 407 T061: the Electron main process (CommonJS: names, JSDoc, sizes; no type rules).
   'electron/**',
+  // 407 T091: the shared types and the development pages (showcase, print samples): all of src/ is finished.
+  'src/index.ts',
+  'src/types.ts',
+  'src/vite-env.d.ts',
+  'src/dev/**',
 ];
 
 /** The code the standards rules apply to. */

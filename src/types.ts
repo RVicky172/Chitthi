@@ -1,18 +1,32 @@
+/** How a piece is held: wider than tall, or taller than wide. */
 export type Orient = 'landscape' | 'portrait';
+/** A side of a printed piece. */
 export type Side = 'front' | 'back';
+/** A frame print's paper and mat colour ('occasion' takes the theme's colours). */
 export type FrameStyle = 'white' | 'cream' | 'black' | 'occasion';
+/** The print products the studio makes. */
 export type ProductId = 'postcard' | 'calendar' | 'frame' | 'magnet';
+/** How wide the mat around a frame print's photos is. */
 export type MatWidth = 'none' | 'thin' | 'classic' | 'wide';
+/** Vertical alignment of the words on a design. */
 export type VAlign = 'top' | 'middle' | 'bottom';
+/** Horizontal alignment of the words on a design. */
 export type HAlign = 'left' | 'center' | 'right';
+/** What the print export makes: a PDF at the trim size, imposed sheets, or PNG pages. */
 export type ExportFormat = 'pdf' | 'sheet' | 'png';
+/** A sheet the print export can impose pieces on (13 × 19 in = `1319`). */
 export type SheetId = 'a4' | 'a3' | '1319' | 'letter';
+/** A one-tap colour look for a photo on a design. */
 export type LookId = 'none' | 'vivid' | 'warm' | 'cool' | 'bw' | 'tinted' | 'vintage';
 /** A photo file type (engine/photoExport.ts PHOTO_TYPES). */
 export type PhotoType = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff';
+/** The groups occasion themes are listed under. */
 export type ThemeGroup = 'Festivals' | 'Birthdays' | 'Seasons';
+/** The print studio's side panels. */
 export type PaneId = 'photos' | 'layout' | 'occasion' | 'words' | 'back' | 'print';
+/** Font categories in the font picker (data/fonts.ts FONT_CATS); `own` = a font the user added. */
 export type FontCat = 'ind' | 'reg' | 'disp' | 'scr' | 'ss' | 'own';
+/** Every layout, for every product (data/layouts.ts; geometry in engine/layout.ts). */
 export type LayoutId =
   | 'full'
   | 'magazine'
@@ -65,6 +79,7 @@ export type LayoutId =
   | 'mag-grid'
   | 'mag-badge'
   | 'mag-quote';
+/** Decorative patterns a theme draws behind or over the design (engine/patterns.ts). */
 export type PatternName =
   | 'confetti'
   | 'balloons'
@@ -89,6 +104,7 @@ export type PatternName =
   | 'sparks'
   | 'bunting';
 
+/** An occasion theme: colours, patterns, fonts and suggested words (data/themes.ts). */
 export interface Theme {
   id: string;
   g: ThemeGroup | '';
@@ -106,6 +122,7 @@ export interface Theme {
   heads: string[];
   quotes: string[];
 }
+/** A print size in mm (`L` the long side, `S` the short side) and the products it is offered for. */
 export interface SizeDef {
   id: string;
   grp: 'Postcards' | 'Instax style' | 'Large and custom' | 'Calendars' | 'Frame prints' | 'Fridge magnets';
@@ -123,6 +140,7 @@ export interface SizeDef {
   /** Round pieces (button magnets): the design is trimmed to a circle. */
   shape?: 'circle';
 }
+/** A font: name `n`, category `c`, weights `w`, heading weight `hw` and body weight `bw`. */
 export interface FontDef {
   n: string;
   c: FontCat;
@@ -131,6 +149,7 @@ export interface FontDef {
   hw: number;
   bw: number;
 }
+/** A crop of a photo, as shares (0–1) of its width and height. */
 export interface Crop {
   x: number;
   y: number;
@@ -159,6 +178,7 @@ export interface Photo extends PhotoMeta {
   sh: number;
 }
 
+/** The back of a postcard (message, sender, address) and the label of a frame print. */
 export interface BackDesign {
   message: string;
   /** Handwriting font for the message. */
@@ -193,6 +213,7 @@ export interface EnvelopeSettings {
   /** Return address (the sender's name comes from the back's "From"). */
   sender: string;
 }
+/** Print export settings: format, sheet, bleed (mm) and dpi (strings, as the selects hold them), crop marks, the back. */
 export interface ExportSettings {
   format: ExportFormat;
   sheet: SheetId;
@@ -204,6 +225,7 @@ export interface ExportSettings {
   /** Put every page as a PNG in the print pack too (off: the PDF only, much smaller for calendars). */
   pngs: boolean;
 }
+/** Colours of a design that uses no occasion theme. */
 export interface PlainColours {
   bg: string;
   ink: string;
@@ -211,6 +233,7 @@ export interface PlainColours {
   gradient: boolean;
 }
 
+/** Calendar settings: months, week start, captions, fonts and marked days. */
 export interface CalendarSettings {
   year: number;
   /** First month, 0 = January. */
@@ -257,8 +280,10 @@ export interface CalendarSettings {
   /** The user's own dates (birthdays, anniversaries), repeated every year. */
   ownDates: { m: number; d: number; label: string }[];
 }
+/** Where the words go on calendar month pages: nowhere, in a caption, or on the photo. */
 export type CalTextPlace = 'off' | 'caption' | 'photo';
 
+/** The whole print design: one object in state/store.ts; every control writes to it (validated by mergeDesign). */
 export interface Design {
   product: ProductId;
   sizeId: string;
@@ -303,16 +328,20 @@ export interface Design {
   postYear: number;
 }
 
+/** A rectangle: left, top, width and height (px or mm, as the caller says). */
 export interface Rect {
   x: number;
   y: number;
   w: number;
   h: number;
 }
+/** The card in px with its bleed `e` around it. */
 export interface Box extends Rect {
   e: number;
 }
+/** The shape a photo slot clips its photo to. */
 export type SlotShape = 'rect' | 'arch' | 'circle' | 'round' | 'poly';
+/** A photo slot of a layout: where its photo goes (`d`, the drawn box) and its shape `s`. */
 export interface Slot extends Rect {
   s: SlotShape;
   bleed?: boolean;
@@ -326,6 +355,7 @@ export interface Slot extends Rect {
   /** Drawn as an instant print: a paper border with a deeper bottom, a shadow and a strip of tape. */
   print?: boolean;
 }
+/** A layout worked out for one card (engine/layout.ts computeLayout): photo slots, text zone and decorations. */
 export interface Layout {
   slots: Slot[];
   text: Rect | null;
@@ -368,10 +398,12 @@ export interface Layout {
   /** Badge magnet: greeting on the top arc and signature on the bottom arc of this circle. */
   arc?: { x: number; y: number; r: number; band: number };
 }
+/** What the renderer draws: the design and its photos. */
 export interface RenderInput {
   d: Design;
   photos: Photo[];
 }
+/** How to render: another layout, a calendar page, the hint, thumbnail mode, guides. */
 export interface RenderOpts {
   layout?: LayoutId;
   /** Calendar month page (0-based from the start month). */
@@ -402,6 +434,7 @@ export interface StoredPhoto {
   traits?: import('./engine/analyze').PhotoTraits;
 }
 
+/** A design saved in the gallery, with its photos' settings and face thumbnails. */
 export interface SavedDesign {
   id: string;
   name: string;
@@ -415,6 +448,7 @@ export interface SavedDesign {
   front: string;
   back: string;
 }
+/** Images and sizes the 3D viewer shows for a design. */
 export interface ViewerFaces {
   front: string;
   back: string;
