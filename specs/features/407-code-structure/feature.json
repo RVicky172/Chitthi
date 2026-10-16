@@ -1424,7 +1424,7 @@
         "T090": {
           "text": "Docs (AC-11): CLAUDE.md (commands, single tests, layers), `specs/testing-strategy.md` (the layout; unit / integration / e2e / selftest), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts), memory.",
           "section": "Docs and close",
-          "status": "in-progress",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1439,10 +1439,14 @@
             "specs/build.md"
           ],
           "test": "relative links resolve",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "6d9f065"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** Docs describe the new structure (AC-11). testing-strategy.md: 'Where tests live' (unit / integration / support / e2e / selftest, the @/ alias, unit vs integration, the structure check), the suite table and how-to-add paths; build.md: check, test:unit, npm test paths; lld.md module map: tests/ tree, guards.ts, keyframeGate.ts, timeSnap.ts, the layer panels, scripts, decoder-pool check paths; architecture.md: agent tools by job, the import direction, standards and tests conventions; CLAUDE.md: tests/ layer and the check; docs/MEDIA-STUDIO.md, docs/PERFORMANCE.md, vision/editor-implementation.md: old src/dev and src/**/*.test.ts paths. Every relative link in the changed files resolves; npm run check green (1,706 unit tests). ds-bundle/ (generated copy) left as is."
+          ],
           "startedOn": "2026-10-16",
-          "doneOn": null
+          "doneOn": "2026-10-16"
         },
         "T091": {
           "text": "The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers.",

@@ -25,7 +25,10 @@ T072 (not committed yet): performance review in `performance.md`. New harness `t
 (`CHITTHI_TEST_ONLY=perf npm test`). Three regressions from 407 fixed: `gainCurve` +14 % (`valueAt` / `clampValue`
 reads), `detailPixels` clarity +17 % and sharpen +34 % (`?? 0` on the blur's reads → `!`, D-047, standards §8). The
 Canvas 2D look path stays +13–22 % when no look runs first: accepted exception (spec Changelog, D-047). Check green.
-**Next:** T090 (docs, AC-11), then T091 / T092 (the full Definition of Done).
+T090 (`6d9f065`): docs describe the new structure (testing-strategy "Where tests live", lld module map with `tests/`,
+architecture conventions, build, CLAUDE.md, old test paths in `docs/`); links resolve, check green.
+**Next:** T091 (the full Definition of Done, every rule an error), then T092 (close, merge). T020 still waits for the
+maintainer's review of `specs/coding-standards.md`.
 **Blockers:** none
 
 ## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)
