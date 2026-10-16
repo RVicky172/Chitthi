@@ -3,9 +3,11 @@ import { expect, test } from '@playwright/test';
 
 // The website's documentation (#/docs): pages, sections, links in from the site, phone layout, accessibility.
 
-test('the documentation opens from the site, moves between pages and sections, and has no serious accessibility problems', async ({ page }, info) => {
+test('the documentation opens from the site, moves between pages and sections, and has no serious accessibility problems', async ({
+  page,
+}, info) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await page.goto('./#/docs');
   await expect(page.getByRole('heading', { level: 1, name: 'Getting started' })).toBeVisible();
   const phone = info.project.name === 'phone';
@@ -30,14 +32,23 @@ test('the documentation opens from the site, moves between pages and sections, a
   await expect(page.getByRole('heading', { level: 2, name: 'Tests' })).toBeInViewport();
 
   // Next and previous, and an unknown page falls back to the first.
-  await page.getByRole('navigation', { name: 'More documentation' }).getByRole('link', { name: /Previous/ }).click();
+  await page
+    .getByRole('navigation', { name: 'More documentation' })
+    .getByRole('link', { name: /Previous/ })
+    .click();
   await expect(page.getByRole('heading', { level: 1, name: 'Self-hosting' })).toBeVisible();
   await page.goto('./#/docs/nope');
   await expect(page.getByRole('heading', { level: 1, name: 'Getting started' })).toBeVisible();
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(
+    violations
+      .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+      .map((violation) => `${violation.id} ${violation.nodes[0]?.target.join(' ')}`),
+  ).toEqual([]);
   expect(errors).toEqual([]);
 });
 

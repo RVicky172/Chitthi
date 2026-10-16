@@ -11,7 +11,7 @@ describe('the 2.x reference matches today’s timeline code', () => {
   const fixtures = Object.entries(legacyFixtures());
 
   it('has every shape', () => {
-    expect(fixtures.map(([k]) => k)).toEqual([
+    expect(fixtures.map(([key]) => key)).toEqual([
       'empty',
       'photoOnly',
       'videoOnly',
@@ -28,17 +28,17 @@ describe('the 2.x reference matches today’s timeline code', () => {
     expect(legacyFixtures().clips500.clips).toHaveLength(500);
   });
 
-  it.each(fixtures)('%s: clip lengths', (_, p) => {
-    for (const c of p.clips) expect(legacyClipLength(c)).toBe(clipLength(c));
+  it.each(fixtures)('%s: clip lengths', (_, project) => {
+    for (const clip of project.clips) expect(legacyClipLength(clip)).toBe(clipLength(clip));
   });
 
   it('frame ranges at 30 and 60 fps', () => {
-    for (const [a, b] of [
+    for (const [first, second] of [
       [0, 3],
       [3, 7.5],
       [1 / 3, 2 / 3],
       [0.37, 1.11],
     ])
-      for (const fps of [30, 60]) expect(legacyFrameRange(a, b, fps)).toEqual(frameRange(a, b, fps));
+      for (const fps of [30, 60]) expect(legacyFrameRange(first, second, fps)).toEqual(frameRange(first, second, fps));
   });
 });

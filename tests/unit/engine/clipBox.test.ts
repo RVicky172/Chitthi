@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { clipBoxPixels, describeTransform, nudgedTransform, partAt, resizedTransform, rotatedTransform, movedTransform } from '@/engine/clipBox';
+import {
+  clipBoxPixels,
+  describeTransform,
+  nudgedTransform,
+  partAt,
+  resizedTransform,
+  rotatedTransform,
+  movedTransform,
+} from '@/engine/clipBox';
 import { IDENTITY, presetTransform, type ClipTransform } from '@/engine/timeline';
 
 /** A 1080 × 1920 Reel frame. */
@@ -9,7 +17,7 @@ const WIDTH = 1080,
 const corner: ClipTransform = { ...presetTransform('top-right', WIDTH, HEIGHT), opacity: 1 };
 
 describe('clipBoxPixels', () => {
-  it('is the frame scaled by the transform\'s width, around its centre', () => {
+  it("is the frame scaled by the transform's width, around its centre", () => {
     const box = clipBoxPixels({ ...IDENTITY, x: 0.25, y: 0.75, w: 0.5, rot: 90 }, WIDTH, HEIGHT);
     expect(box).toEqual({ cx: 270, cy: 1440, w: 540, h: 960, rot: Math.PI / 2 });
   });
@@ -38,7 +46,7 @@ describe('movedTransform', () => {
     expect(transform.y).toBeCloseTo(corner.y - 0.1, 9);
     expect(transform.w).toBe(corner.w);
   });
-  it('snaps the centre to the frame\'s centre lines within the tolerance, and says which lines', () => {
+  it("snaps the centre to the frame's centre lines within the tolerance, and says which lines", () => {
     const start = { ...IDENTITY, x: 0.3, y: 0.3, w: 0.3 };
     const { transform, guides } = movedTransform(start, 0.2 * WIDTH - 5, 0.2 * HEIGHT + 6, WIDTH, HEIGHT, 8);
     expect(transform.x).toBeCloseTo(0.5, 9);
@@ -94,7 +102,9 @@ describe('nudgedTransform', () => {
 
 describe('describeTransform', () => {
   it('says the clip and its new position and size for screen readers', () => {
-    expect(describeTransform('Overlay 1, clip 1', { ...IDENTITY, x: 0.72, y: 0.2, w: 0.35 })).toBe('Overlay 1, clip 1: x 72 %, y 20 %, size 35 %');
+    expect(describeTransform('Overlay 1, clip 1', { ...IDENTITY, x: 0.72, y: 0.2, w: 0.35 })).toBe(
+      'Overlay 1, clip 1: x 72 %, y 20 %, size 35 %',
+    );
   });
   it('adds rotation, opacity and corners when they are not the default', () => {
     expect(describeTransform('Clip 1', { ...IDENTITY, rot: 15, opacity: 0.5, radius: 0.1 })).toBe(

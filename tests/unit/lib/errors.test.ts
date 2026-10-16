@@ -16,15 +16,18 @@ const SHOWS = /\b(toast|setError|setMsg|setStatus)\(/;
 /** Each catch block's body, with the line it starts on. */
 function catchBlocks(src: string): { line: number; body: string }[] {
   const out: { line: number; body: string }[] = [];
-  for (const m of src.matchAll(/\bcatch\s*(\([^)]*\))?\s*\{/g)) {
-    let i = m.index + m[0].length;
+  for (const match of src.matchAll(/\bcatch\s*(\([^)]*\))?\s*\{/g)) {
+    let cursor = match.index + match[0].length;
     let depth = 1;
-    while (depth && i < src.length) {
-      if (src[i] === '{') depth++;
-      else if (src[i] === '}') depth--;
-      i++;
+    while (depth && cursor < src.length) {
+      if (src[cursor] === '{') depth++;
+      else if (src[cursor] === '}') depth--;
+      cursor++;
     }
-    out.push({ line: src.slice(0, m.index).split('\n').length, body: src.slice(m.index + m[0].length, i - 1) });
+    out.push({
+      line: src.slice(0, match.index).split('\n').length,
+      body: src.slice(match.index + match[0].length, cursor - 1),
+    });
   }
   return out;
 }
@@ -37,8 +40,8 @@ describe('shown errors are logged', () => {
   it('every catch block that shows a message also calls logError', () => {
     const missing = Object.entries(sources).flatMap(([file, src]) =>
       catchBlocks(src)
-        .filter((b) => SHOWS.test(b.body) && !b.body.includes('logError('))
-        .map((b) => `${file.replace(/^\//, '')}:${b.line}`),
+        .filter((catchBlock) => SHOWS.test(catchBlock.body) && !catchBlock.body.includes('logError('))
+        .map((frame) => `${file.replace(/^\//, '')}:${frame.line}`),
     );
     expect(missing).toEqual([]);
   });

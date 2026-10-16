@@ -232,6 +232,10 @@
       {
         "date": "2026-10-16",
         "text": "AC-10 (T072): one measured exception to “no timing check gets slower”, accepted by the maintainer: the Canvas 2D colour path (the fallback without WebGPU) with a look runs 13–22 % slower than before 407 when a photo is first processed without a look and a look is picked after (V8 inlines the split loop differently by warm-up order); looks first, or one look per session, it is as fast or faster. Recorded in `performance.md`."
+      },
+      {
+        "date": "2026-10-16",
+        "text": "T020 approved. Scope widened by the maintainer: `tests/` also goes to 0 in the standards report and into `FINISHED` (T062), after T091 left 1,894 warnings there."
       }
     ],
     "sections": [
@@ -512,6 +516,7 @@
         "T056",
         "T060",
         "T061",
+        "T062",
         "T070",
         "T071",
         "T072",
@@ -719,8 +724,8 @@
         "T020": {
           "text": "Write `specs/coding-standards.md` (plan §3): names, JSDoc, SOLID as in Q7, sizes (Q4), cognitive complexity, React, types, layers and imports, errors, performance, comments, tests; each rule with a good / bad example from this code. Link it from `specs/constitution.md` (Definition of Done) and CLAUDE.md.",
           "section": "Standards and rules",
-          "status": "blocked",
-          "blockedReason": "Written and committed (549f00f): specs/coding-standards.md, constitution 2.1.0 (DoD item 11, D-038), CLAUDE.md Key Docs row; links resolve, npm run check green. Waiting for the maintainer's review (the task's proof is review); then done.",
+          "status": "done",
+          "blockedReason": null,
           "parallel": false,
           "manual": false,
           "covers": [
@@ -732,10 +737,14 @@
             "CLAUDE.md"
           ],
           "test": "review; relative links resolve",
-          "commits": [],
-          "notes": [],
+          "commits": [
+            "549f00f"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `specs/coding-standards.md` reviewed and approved by the maintainer (written in `549f00f`: constitution 2.1.0 DoD item 11, D-038, CLAUDE.md Key Docs row; links resolve)."
+          ],
           "startedOn": "2026-10-14",
-          "doneOn": null
+          "doneOn": "2026-10-16"
         },
         "T021": {
           "text": "Add `eslint-plugin-jsdoc` and `eslint-plugin-sonarjs` as development dependencies (versions pinned; sonarjs’ exception row in `specs/licensing.md`, D-037) and the rules of plan §4 as **warnings**: `id-length` (exceptions `_`, `x`, `y`; properties not checked), JSDoc on exports, `max-lines-per-function` (80 `.ts`, 250 `.tsx`), `max-lines` 800 (warning), sonarjs recommended with `cognitive-complexity` 15, the layers’ `no-restricted-imports`; size rules off for `src/data/` and `tests/`; the `FINISHED` folder list that turns them into errors. Measure `npm run lint`’s time.",
@@ -1482,6 +1491,26 @@
           "test": null,
           "commits": [],
           "notes": []
+        },
+        "T062": {
+          "text": "Clean `tests/` (maintainer, 2026-10-16): the 1,894 standards warnings left after T091 (names, JSDoc, sonar, type rules) to 0 across `tests/unit`, `tests/integration`, `tests/support` and `tests/e2e`; `tests/**` joins `FINISHED`. Tests stay exempt from the size rules (Q4). Behaviour-neutral: the same tests, the same counts.",
+          "section": "Clean-up: tests/selftest/ and electron/",
+          "status": "in-progress",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "tests/**",
+            "eslint.config.js"
+          ],
+          "test": "`npm run check` green with the same test count; `npm run test:e2e` as the baseline; the standards report at 0 for `tests/`",
+          "commits": [],
+          "notes": [],
+          "startedOn": "2026-10-16",
+          "doneOn": null
         }
       }
     }

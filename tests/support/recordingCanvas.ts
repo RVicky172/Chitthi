@@ -12,9 +12,13 @@ export function recordingCanvas(name: string, logs: Map<string, string[]>) {
   const log: string[] = [];
   logs.set(name, log);
   const canvas = { name, width: 0, height: 0, getContext: () => context };
-  const show = (value: unknown) => (value && typeof value === 'object' ? ((value as { name?: string }).name ?? 'object') : String(value));
+  const show = (value: unknown) =>
+    value && typeof value === 'object' ? ((value as { name?: string }).name ?? 'object') : String(value);
   const context: CanvasRenderingContext2D = new Proxy({ canvas } as Record<string | symbol, unknown>, {
-    get: (target, prop) => (prop in target ? target[prop] : (...args: unknown[]) => void log.push(`${String(prop)}(${args.map(show).join(',')})`)),
+    get: (target, prop) =>
+      prop in target
+        ? target[prop]
+        : (...args: unknown[]) => void log.push(`${String(prop)}(${args.map(show).join(',')})`),
     set: (target, prop, value) => {
       log.push(`${String(prop)}=${show(value)}`);
       target[prop] = value;

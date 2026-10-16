@@ -6,7 +6,12 @@ const file = (path: string, text = '') => ({ path, text });
 
 describe('structureProblems: tests stay out of src/ (407 AC-1)', () => {
   it('finds nothing in a clean tree', () => {
-    expect(structureProblems([file('src/engine/keyframes.ts', "import { valueAt } from './valueAt';"), file('src/main.tsx')])).toEqual([]);
+    expect(
+      structureProblems([
+        file('src/engine/keyframes.ts', "import { valueAt } from './valueAt';"),
+        file('src/main.tsx'),
+      ]),
+    ).toEqual([]);
   });
 
   it('reports a test file or a test helper under src/', () => {

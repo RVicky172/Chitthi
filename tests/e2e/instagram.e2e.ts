@@ -4,14 +4,20 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // The photo studio: batch, editing, export and posting.
-const SAMPLES = ['wheat-fields.jpg', 'diwali.jpg', 'holi-bowls.jpg', 'lotus.jpg', 'tea.jpg'].map((n) => path.join('public', 'samples', n));
+const SAMPLES = ['wheat-fields.jpg', 'diwali.jpg', 'holi-bowls.jpg', 'lotus.jpg', 'tea.jpg'].map((file) =>
+  path.join('public', 'samples', file),
+);
 const upload = (page: Page, files: string[]) => page.locator('.mst-drop input[type=file]').setInputFiles(files);
 const strip = (page: Page) => page.getByRole('list', { name: 'Photos in this post, in order' });
-const tool = (page: Page, name: string) => page.getByRole('navigation', { name: 'Tools' }).getByRole('button', { name, exact: true });
+const tool = (page: Page, name: string) =>
+  page.getByRole('navigation', { name: 'Tools' }).getByRole('button', { name, exact: true });
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./#/instagram');
-  await expect(page.getByRole('button', { name: /Instagram photos|Photos/ }).first()).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /Instagram photos|Photos/ }).first()).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 });
 
 test('the batch respects its limit, and the limit is editable up to 20', async ({ page }) => {
@@ -22,7 +28,9 @@ test('the batch respects its limit, and the limit is editable up to 20', async (
   await page.getByRole('group', { name: 'Batch size' }).getByRole('button', { name: '4', exact: true }).click();
   await upload(page, SAMPLES.slice(2, 4));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(4);
-  await expect(page.getByRole('group', { name: 'Batch size' }).getByRole('button', { name: '2', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('group', { name: 'Batch size' }).getByRole('button', { name: '2', exact: true }),
+  ).toBeDisabled();
   const own = page.getByLabel(/Custom batch size/);
   await own.fill('50');
   await own.press('Enter');
@@ -37,7 +45,9 @@ test('photos can be edited, reordered and exported as a ZIP of 1080 px JPEGs', a
   await page.getByRole('button', { name: 'Rotate right' }).click();
   await page.getByRole('button', { name: 'Apply this look to all photos' }).click();
   // Reorder from the keyboard: Alt + arrow.
-  await strip(page).getByRole('button', { name: /Photo 1:/ }).focus();
+  await strip(page)
+    .getByRole('button', { name: /Photo 1:/ })
+    .focus();
   await page.keyboard.press('Alt+ArrowRight');
   await expect(strip(page).getByRole('button', { name: /Photo 1:/ })).toHaveAccessibleName(/diwali/);
   // Square format, then export.
@@ -48,7 +58,7 @@ test('photos can be edited, reordered and exported as a ZIP of 1080 px JPEGs', a
   await page.getByRole('button', { name: 'Download all (ZIP)' }).click();
   const zip = await download;
   const bytes = readFileSync(await zip.path());
-  const names = [...bytes.toString('latin1').matchAll(/chitthi-instagram-1x1-\d\d\.jpg/g)].map((m) => m[0]);
+  const names = [...bytes.toString('latin1').matchAll(/chitthi-instagram-1x1-\d\d\.jpg/g)].map((match) => match[0]);
   expect(new Set(names)).toEqual(new Set(['chitthi-instagram-1x1-01.jpg', 'chitthi-instagram-1x1-02.jpg']));
   const sof = bytes.indexOf(Buffer.from([0xff, 0xc0]));
   expect([bytes.readUInt16BE(sof + 5), bytes.readUInt16BE(sof + 7)]).toEqual([1080, 1080]);
@@ -68,14 +78,23 @@ test('the photo studio has no serious accessibility problems', async ({ page }) 
   await upload(page, SAMPLES.slice(0, 2));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(2);
   await tool(page, 'Text').click();
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  const serious = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-  expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) e.g. ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  const serious = violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical');
+  expect(
+    serious.map(
+      (violation) =>
+        `${violation.id}: ${violation.help} (${violation.nodes.length}) e.g. ${violation.nodes[0]?.target.join(' ')}`,
+    ),
+  ).toEqual([]);
 });
 
-test('light and white balance: sliders, and the eyedropper sets temperature and tint from a click', async ({ page }) => {
+test('light and white balance: sliders, and the eyedropper sets temperature and tint from a click', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(2, 3));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   for (const id of ['ex', 'hi', 'sh', 'wh', 'bl', 'te', 'ti']) await expect(page.locator(`#ig-${id}`)).toBeVisible();
@@ -90,7 +109,7 @@ test('light and white balance: sliders, and the eyedropper sets temperature and 
   await page.locator('.mst-canvas').click({ position: { x: cv.width * 0.5, y: cv.height * 0.55 } });
   await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
   const wb = await page.locator('label[for="ig-te"] output, label[for="ig-ti"] output').allTextContents();
-  expect(wb.some((v) => v !== '0')).toBe(true);
+  expect(wb.some((value) => value !== '0')).toBe(true);
   // One undo step takes the eyedropper back.
   await page.getByRole('button', { name: 'Undo (Ctrl+Z)' }).click();
   await expect(page.locator('label[for="ig-te"] output')).toHaveText('0');
@@ -105,10 +124,10 @@ test('light and white balance: sliders, and the eyedropper sets temperature and 
 
 test('tone curve works from the keyboard, and the colour mixer changes the photo', async ({ page }) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(1, 2));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
-  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const shot = () => page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   const before = await shot();
 
   const curve = page.getByRole('group', { name: /^Tone curve, RGB/ });
@@ -116,7 +135,7 @@ test('tone curve works from the keyboard, and the colour mixer changes the photo
   // Lift the black point with the keyboard.
   const first = curve.getByRole('button', { name: /^Point 1 of 2/ });
   await first.focus();
-  for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowUp');
+  for (let index = 0; index < 3; index++) await page.keyboard.press('Shift+ArrowUp');
   await expect(first).toHaveAccessibleName(/output 30/);
   // Add a point, nudge it, then delete it.
   await page.getByRole('button', { name: 'Add point' }).click();
@@ -150,12 +169,14 @@ test('tone curve works from the keyboard, and the colour mixer changes the photo
   expect(errors).toEqual([]);
 });
 
-test('detail and effects: sharpening with its radius, noise reduction, clarity, dehaze and grain, exported', async ({ page }) => {
+test('detail and effects: sharpening with its radius, noise reduction, clarity, dehaze and grain, exported', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
-  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const shot = () => page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   // Radius and masking appear once sharpening is on; a double-click puts the radius back to 1 px.
   await expect(page.locator('#ig-sr')).toHaveCount(0);
   await page.locator('#ig-sp').fill('60');
@@ -163,9 +184,14 @@ test('detail and effects: sharpening with its radius, noise reduction, clarity, 
   await expect(page.locator('label[for="ig-sr"] output')).toHaveText('2.50');
   await page.locator('#ig-sr').dblclick();
   await expect(page.locator('label[for="ig-sr"] output')).toHaveText('1.00');
-  for (const [id, v] of [['ig-nr', '50'], ['ig-cl', '60'], ['ig-dh', '40'], ['ig-gr', '50']] as const) {
+  for (const [id, value] of [
+    ['ig-nr', '50'],
+    ['ig-cl', '60'],
+    ['ig-dh', '40'],
+    ['ig-gr', '50'],
+  ] as const) {
     const before = await shot();
-    await page.locator(`#${id}`).fill(v);
+    await page.locator(`#${id}`).fill(value);
     await expect.poll(shot, { message: `${id} changes the photo` }).not.toBe(before);
   }
   await page.getByRole('button', { name: 'Export', exact: true }).click();
@@ -175,12 +201,14 @@ test('detail and effects: sharpening with its radius, noise reduction, clarity, 
   expect(errors).toEqual([]);
 });
 
-test('presets and LUTs: a .cube file is imported, applied by amount, kept on the device and removed', async ({ page }) => {
+test('presets and LUTs: a .cube file is imported, applied by amount, kept on the device and removed', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(2, 3));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
-  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const shot = () => page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   const original = await shot();
   // The built-in looks are presets now.
   const presets = page.getByRole('radiogroup', { name: 'Presets' });
@@ -190,12 +218,21 @@ test('presets and LUTs: a .cube file is imported, applied by amount, kept on the
 
   const cubeInput = page.locator('.ig-lut input[type=file]');
   // Not a 3D LUT: refused, with the reason.
-  await cubeInput.setInputFiles({ name: 'curve.cube', mimeType: 'text/plain', buffer: Buffer.from('LUT_1D_SIZE 2\n0 0 0\n1 1 1\n') });
+  await cubeInput.setInputFiles({
+    name: 'curve.cube',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('LUT_1D_SIZE 2\n0 0 0\n1 1 1\n'),
+  });
   await expect(page.getByText(/That LUT can’t be used\. This is a 1D LUT/)).toBeVisible();
   // A 2³ table that swaps red and blue.
   const rows: string[] = [];
-  for (let b = 0; b < 2; b++) for (let g = 0; g < 2; g++) for (let r = 0; r < 2; r++) rows.push(`${b} ${g} ${r}`);
-  await cubeInput.setInputFiles({ name: 'swap.cube', mimeType: 'text/plain', buffer: Buffer.from(`TITLE "Swap red and blue"\nLUT_3D_SIZE 2\n${rows.join('\n')}\n`) });
+  for (let blue = 0; blue < 2; blue++)
+    for (let green = 0; green < 2; green++) for (let red = 0; red < 2; red++) rows.push(`${blue} ${green} ${red}`);
+  await cubeInput.setInputFiles({
+    name: 'swap.cube',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(`TITLE "Swap red and blue"\nLUT_3D_SIZE 2\n${rows.join('\n')}\n`),
+  });
   const select = page.getByLabel('LUT', { exact: true });
   await expect(select.locator('option:checked')).toHaveText('Swap red and blue');
   await expect.poll(shot).not.toBe(original);
@@ -218,10 +255,12 @@ test('presets and LUTs: a .cube file is imported, applied by amount, kept on the
   expect(errors).toEqual([]);
 });
 
-test('saved presets: save, rename, export, kept after a reload, applied to all photos, deleted and imported', async ({ page }) => {
+test('saved presets: save, rename, export, kept after a reload, applied to all photos, deleted and imported', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  page.on('dialog', (d) => void d.accept());
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
+  page.on('dialog', (dialog) => void dialog.accept());
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const exposure = page.locator('label[for="ig-ex"] output');
@@ -260,7 +299,9 @@ test('saved presets: save, rename, export, kept after a reload, applied to all p
   await page.getByText(/^Your presets \(1\)$/).click();
   await page.getByRole('button', { name: 'Apply Bright noon to all photos' }).click();
   await expect(exposure).toHaveText('1.00');
-  await strip(page).getByRole('button', { name: /Photo 1:/ }).click();
+  await strip(page)
+    .getByRole('button', { name: /Photo 1:/ })
+    .click();
   await expect(exposure).toHaveText('1.00');
   await expect(page.locator('label[for="ig-ct"] output')).toHaveText('25');
 
@@ -274,26 +315,37 @@ test('saved presets: save, rename, export, kept after a reload, applied to all p
   await expect(presets.getByRole('radio', { name: 'Bright noon' })).toBeVisible();
   await importer.setInputFiles(file);
   await expect(page.getByText('0 presets added, 1 already here.')).toBeVisible();
-  await importer.setInputFiles({ name: 'other.json', mimeType: 'application/json', buffer: Buffer.from('{"designs": []}') });
-  await expect(page.getByText(/Those presets can’t be imported\. This isn’t a Chitthi Studio preset file/)).toBeVisible();
+  await importer.setInputFiles({
+    name: 'other.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"designs": []}'),
+  });
+  await expect(
+    page.getByText(/Those presets can’t be imported\. This isn’t a Chitthi Studio preset file/),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('masks: a brush mask brightens only where it is painted, can be erased, switched off and undone', async ({ page }) => {
+test('masks: a brush mask brightens only where it is painted, can be erased, switched off and undone', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
-  const shot = () => canvas.evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const shot = () => canvas.evaluate((canvasElement: HTMLCanvasElement) => canvasElement.toDataURL());
   /** Mean brightness of a 9×9 patch at a share of the canvas. */
   const lum = (x: number, y: number) =>
     canvas.evaluate(
-      (c: HTMLCanvasElement, [x, y]) => {
-        const d = c.getContext('2d')!.getImageData(Math.round(c.width * x) - 4, Math.round(c.height * y) - 4, 9, 9).data;
-        let s = 0;
-        for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
-        return s / (d.length / 4) / 3;
+      (canvasElement: HTMLCanvasElement, [x, y]) => {
+        const pixels = canvasElement
+          .getContext('2d')!
+          .getImageData(Math.round(canvasElement.width * x) - 4, Math.round(canvasElement.height * y) - 4, 9, 9).data;
+        let amount = 0;
+        for (let index = 0; index < pixels.length; index += 4)
+          amount += pixels[index] + pixels[index + 1] + pixels[index + 2];
+        return amount / (pixels.length / 4) / 3;
       },
       [x, y],
     );
@@ -309,7 +361,8 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
     const box = (await canvas.boundingBox())!;
     await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
     await page.mouse.down();
-    for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width * (0.3 + i * 0.05), box.y + box.height * 0.5);
+    for (let index = 1; index <= 8; index++)
+      await page.mouse.move(box.x + box.width * (0.3 + index * 0.05), box.y + box.height * 0.5);
     await page.mouse.up();
   };
   await paint();
@@ -336,34 +389,49 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
   await page.getByLabel('Apply Mask 1').uncheck();
   await expect.poll(shot).toBe(original);
 
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(
+    violations
+      .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+      .map((violation) => `${violation.id} ${violation.nodes[0]?.target.join(' ')}`),
+  ).toEqual([]);
   expect(errors).toEqual([]);
 });
 
-test('gradient and range masks: drawn, moved by handles and keys, narrowed by brightness, picked by colour', async ({ page }) => {
+test('gradient and range masks: drawn, moved by handles and keys, narrowed by brightness, picked by colour', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
   const lum = (x: number, y: number) =>
     canvas.evaluate(
-      (c: HTMLCanvasElement, [x, y]) => {
-        const d = c.getContext('2d')!.getImageData(Math.round(c.width * x) - 4, Math.round(c.height * y) - 4, 9, 9).data;
-        let s = 0;
-        for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
-        return s / (d.length / 4) / 3;
+      (canvasElement: HTMLCanvasElement, [x, y]) => {
+        const pixels = canvasElement
+          .getContext('2d')!
+          .getImageData(Math.round(canvasElement.width * x) - 4, Math.round(canvasElement.height * y) - 4, 9, 9).data;
+        let amount = 0;
+        for (let index = 0; index < pixels.length; index += 4)
+          amount += pixels[index] + pixels[index + 1] + pixels[index + 2];
+        return amount / (pixels.length / 4) / 3;
       },
       [x, y],
     );
   const before = { top: await lum(0.5, 0.1), bottom: await lum(0.5, 0.9) };
   const drag = async (from: [number, number], to: [number, number]) => {
     await canvas.scrollIntoViewIfNeeded();
-    const b = (await canvas.boundingBox())!;
-    await page.mouse.move(b.x + b.width * from[0], b.y + b.height * from[1]);
+    const canvasBox = (await canvas.boundingBox())!;
+    await page.mouse.move(canvasBox.x + canvasBox.width * from[0], canvasBox.y + canvasBox.height * from[1]);
     await page.mouse.down();
-    for (let i = 1; i <= 6; i++) await page.mouse.move(b.x + b.width * (from[0] + ((to[0] - from[0]) * i) / 6), b.y + b.height * (from[1] + ((to[1] - from[1]) * i) / 6));
+    for (let index = 1; index <= 6; index++)
+      await page.mouse.move(
+        canvasBox.x + canvasBox.width * (from[0] + ((to[0] - from[0]) * index) / 6),
+        canvasBox.y + canvasBox.height * (from[1] + ((to[1] - from[1]) * index) / 6),
+      );
     await page.mouse.up();
   };
 
@@ -388,7 +456,9 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
 
   // Narrowed to the darkest tones with a brightness range (intersecting by default): the bright sky drops out.
   await page.getByRole('button', { name: 'Add a brightness range part' }).click();
-  await expect(page.getByRole('combobox', { name: 'How Brightness range 1 joins the parts before it' })).toHaveValue('intersect');
+  await expect(page.getByRole('combobox', { name: 'How Brightness range 1 joins the parts before it' })).toHaveValue(
+    'intersect',
+  );
   await page.locator('#mk-hi').fill('5');
   await expect.poll(() => lum(0.5, 0.1)).toBeGreaterThan(before.top - 5);
 
@@ -403,27 +473,35 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
   await page.getByRole('button', { name: 'New colour range mask' }).click();
   await expect(page.getByText('Picked colour #808080')).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
-  const b = (await canvas.boundingBox())!;
-  await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.15);
+  const pickBox = (await canvas.boundingBox())!;
+  await page.mouse.click(pickBox.x + pickBox.width * 0.5, pickBox.y + pickBox.height * 0.15);
   await expect(page.locator('.ig-swatch')).toContainText(/Picked colour #[0-9a-f]{6}/);
   await expect(page.locator('.ig-swatch')).not.toContainText('#808080');
 
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(
+    violations
+      .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+      .map((violation) => `${violation.id} ${violation.nodes[0]?.target.join(' ')}`),
+  ).toEqual([]);
   expect(errors).toEqual([]);
 });
 
 test('layers: an image layer, a blend mode and a fade mask, exported', async ({ page }) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
-  const shot = () => page.locator('.mst-canvas').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const shot = () => page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
 
   await tool(page, 'Elements').click();
   await page.locator('.mst-file input[accept^="image/png"]').setInputFiles(SAMPLES[3]);
   await tool(page, 'Layers').click();
-  await expect(page.getByRole('list', { name: 'Layers, front first' }).getByRole('button', { name: 'Image: lotus', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Layers, front first' }).getByRole('button', { name: 'Image: lotus', exact: true }),
+  ).toBeVisible();
   const plain = await shot();
 
   // Multiply: the picture darkens what is under it instead of covering it.
@@ -450,9 +528,11 @@ test('layers: an image layer, a blend mode and a fade mask, exported', async ({ 
   expect(errors).toEqual([]);
 });
 
-test('export formats: WebP where the browser writes it, AVIF only where it does, PNG and JPEG always', async ({ page }) => {
+test('export formats: WebP where the browser writes it, AVIF only where it does, PNG and JPEG always', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   await upload(page, SAMPLES.slice(0, 1));
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   await page.getByRole('button', { name: 'Export', exact: true }).click();
@@ -461,12 +541,12 @@ test('export formats: WebP where the browser writes it, AVIF only where it does,
   await expect(types.getByRole('button', { name: 'PNG' })).toBeVisible();
   const writes = (mime: string) =>
     page.evaluate(
-      (m) =>
+      (message) =>
         new Promise<boolean>((res) => {
-          const c = document.createElement('canvas');
-          c.width = c.height = 2;
-          c.getContext('2d')!.fillRect(0, 0, 2, 2);
-          c.toBlob((b) => res(b?.type === m), m);
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = 2;
+          canvas.getContext('2d')!.fillRect(0, 0, 2, 2);
+          canvas.toBlob((blob) => res(blob?.type === message), message);
         }),
       mime,
     );
@@ -495,36 +575,43 @@ test('export formats: WebP where the browser writes it, AVIF only where it does,
   expect(errors).toEqual([]);
 });
 
-test('AI masks: the subject is found on the device, refined with the brush; the sky model asks before downloading', async ({ page }, info) => {
+test('AI masks: the subject is found on the device, refined with the brush; the sky model asks before downloading', async ({
+  page,
+}, info) => {
   // One real-model run is enough: the desktop project only (the phone project has the same code).
   test.skip(info.project.name !== 'desktop', 'real model on the desktop project only');
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   const downloads: string[] = [];
-  page.on('request', (r) => /huggingface\.co|hf\.co/.test(r.url()) && downloads.push(r.url()));
+  page.on('request', (request) => /huggingface\.co|hf\.co/.test(request.url()) && downloads.push(request.url()));
   await upload(page, [path.join('public', 'samples', 'marigold.jpg')]);
   await expect(strip(page).locator('.mst-thumb')).toHaveCount(1);
   const canvas = page.locator('.mst-canvas');
   // The comparison runs in the page and returns one number: sending every pixel back (about 1.5 million values) took
   // over 8 s on CI's software-rendered runner, longer than the poll's whole timeout.
   const keepBefore = () =>
-    canvas.evaluate((c: HTMLCanvasElement) => {
-      (window as unknown as { __before: Uint8ClampedArray }).__before = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    canvas.evaluate((canvasElement: HTMLCanvasElement) => {
+      (window as unknown as { __before: Uint8ClampedArray }).__before = canvasElement
+        .getContext('2d')!
+        .getImageData(0, 0, canvasElement.width, canvasElement.height).data;
     });
   /** Share of pixels whose green channel moved by more than 20 since keepBefore(). */
   const changedShare = () =>
-    canvas.evaluate((c: HTMLCanvasElement) => {
+    canvas.evaluate((canvasElement: HTMLCanvasElement) => {
       const before = (window as unknown as { __before: Uint8ClampedArray }).__before;
-      const after = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      const after = canvasElement.getContext('2d')!.getImageData(0, 0, canvasElement.width, canvasElement.height).data;
       if (after.length !== before.length) return 1;
       let changed = 0;
-      for (let i = 0; i < after.length; i += 4) if (Math.abs(after[i + 1] - before[i + 1]) > 20) changed++;
+      for (let index = 0; index < after.length; index += 4)
+        if (Math.abs(after[index + 1] - before[index + 1]) > 20) changed++;
       return changed / (after.length / 4);
     });
 
   await tool(page, 'Masks').click();
   await page.getByRole('button', { name: 'New subject mask, found by AI' }).click();
-  await expect(page.getByRole('list', { name: 'Masks of this photo' }).getByRole('button', { name: 'Subject 1', pressed: true })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Masks of this photo' }).getByRole('button', { name: 'Subject 1', pressed: true }),
+  ).toBeVisible();
   await expect(page.getByText(/Found on this device by an AI model/)).toBeVisible({ timeout: 30_000 });
   await page.getByText('Show the mask in red').click();
   await keepBefore();
@@ -549,8 +636,14 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
   await expect(page.getByText(/one-time download of the sky model \(176 MB/)).toBeVisible();
   expect(downloads).toEqual([]);
 
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(
+    violations
+      .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+      .map((violation) => `${violation.id} ${violation.nodes[0]?.target.join(' ')}`),
+  ).toEqual([]);
   expect(errors).toEqual([]);
 });
 
@@ -558,14 +651,14 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
 test('AI models on this device: a downloaded model is shown, deleted, and asked for again', async ({ page }, info) => {
   if (info.project.name === 'phone') await page.setViewportSize({ width: 360, height: 780 });
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   const SKY_BYTES = 175997079;
   // A file of the model's size in the private file system: what a finished download leaves (sparse, nothing written).
   await page.evaluate(async (bytes) => {
     const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('models', { create: true });
-    const w = await (await dir.getFileHandle('skyseg.onnx', { create: true })).createWritable();
-    await w.truncate(bytes);
-    await w.close();
+    const stream = await (await dir.getFileHandle('skyseg.onnx', { create: true })).createWritable();
+    await stream.truncate(bytes);
+    await stream.close();
     localStorage.setItem('chitthi-e2e-kept', 'yes');
   }, SKY_BYTES);
   const skyOnDisk = () =>
@@ -588,9 +681,17 @@ test('AI models on this device: a downloaded model is shown, deleted, and asked 
   await expect(list.getByRole('listitem').filter({ hasText: 'U²-Net-p (subject)' })).toContainText('Part of the app');
   await expect(list.getByRole('listitem').filter({ hasText: 'skyseg (sky)' })).toContainText('On this device');
   await expect(page.getByRole('button', { name: 'Delete the subject model' })).toHaveCount(0);
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(
+    violations
+      .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+      .map((violation) => `${violation.id} ${violation.nodes[0]?.target.join(' ')}`),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
+    true,
+  );
 
   await page.getByRole('button', { name: 'Delete the sky model' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'The sky model was deleted: 176 MB freed.' })).toBeVisible();
@@ -612,9 +713,11 @@ test('AI models on this device: a downloaded model is shown, deleted, and asked 
   expect(errors).toEqual([]);
 });
 
-test('RAW files on the web open their built-in preview; TIFF exports 16 bits where the graphics card allows', async ({ page }) => {
+test('RAW files on the web open their built-in preview; TIFF exports 16 bits where the graphics card allows', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   // A synthetic DNG (no camera, no licence question) carrying a sample photo as its preview, as cameras store theirs.
   const { syntheticDng } = await import('../../src/engine/tiff');
   const dng = Buffer.from(syntheticDng(new Uint8Array(readFileSync(path.join('public', 'samples', 'marigold.jpg')))));
@@ -625,11 +728,21 @@ test('RAW files on the web open their built-in preview; TIFF exports 16 bits whe
   const canvas = page.locator('.mst-canvas');
   await expect
     .poll(() =>
-      canvas.evaluate((c: HTMLCanvasElement) => {
-        const d = c.getContext('2d')!.getImageData(Math.round(c.width / 2) - 20, Math.round(c.height / 2) - 20, 40, 40).data;
+      canvas.evaluate((canvasElement: HTMLCanvasElement) => {
+        const pixels = canvasElement
+          .getContext('2d')!
+          .getImageData(
+            Math.round(canvasElement.width / 2) - 20,
+            Math.round(canvasElement.height / 2) - 20,
+            40,
+            40,
+          ).data;
         let sat = 0;
-        for (let i = 0; i < d.length; i += 4) sat += Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
-        return sat / (d.length / 4);
+        for (let index = 0; index < pixels.length; index += 4)
+          sat +=
+            Math.max(pixels[index], pixels[index + 1], pixels[index + 2]) -
+            Math.min(pixels[index], pixels[index + 1], pixels[index + 2]);
+        return sat / (pixels.length / 4);
       }),
     )
     .toBeGreaterThan(20);

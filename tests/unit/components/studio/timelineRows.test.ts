@@ -3,10 +3,32 @@ import type { Ease, Keyframe } from '@/engine/keyframes';
 import type { TimedClip } from '@/engine/timeline';
 import type { Track } from '@/engine/tracks';
 import type { Transition } from '@/engine/transitions';
-import { clipLabel, describeClipChange, describeKeyChange, describeTransitionChange, draggedLength, easeName, easeShape, keyPropName, keyTimes, panelCut, pictureTracksTopFirst, rowUnderPointer, transitionBlock, type RowBounds } from '@/components/studio/timelineRows';
+import {
+  clipLabel,
+  describeClipChange,
+  describeKeyChange,
+  describeTransitionChange,
+  draggedLength,
+  easeName,
+  easeShape,
+  keyPropName,
+  keyTimes,
+  panelCut,
+  pictureTracksTopFirst,
+  rowUnderPointer,
+  transitionBlock,
+  type RowBounds,
+} from '@/components/studio/timelineRows';
 
 /** A track with every switch off. */
-const track = (id: string, kind: Track['kind'], name: string): Track => ({ id, kind, name, hidden: false, muted: false, locked: false });
+const track = (id: string, kind: Track['kind'], name: string): Track => ({
+  id,
+  kind,
+  name,
+  hidden: false,
+  muted: false,
+  locked: false,
+});
 const MAIN = track('V1', 'video', 'Video');
 const OVERLAY_1 = track('V2', 'overlay', 'Overlay 1');
 const OVERLAY_2 = track('V3', 'overlay', 'Overlay 2');
@@ -27,10 +49,10 @@ const clip = (id: string, trackId: string, start: number, length: number, source
 
 describe('pictureTracksTopFirst', () => {
   it('lists the top overlay first and the main track last, without the music', () => {
-    expect(pictureTracksTopFirst(TRACKS).map((t) => t.id)).toEqual(['V3', 'V2', 'V1']);
+    expect(pictureTracksTopFirst(TRACKS).map((row) => row.id)).toEqual(['V3', 'V2', 'V1']);
   });
   it('is just the main track in a project without overlays', () => {
-    expect(pictureTracksTopFirst([MAIN, MUSIC]).map((t) => t.id)).toEqual(['V1']);
+    expect(pictureTracksTopFirst([MAIN, MUSIC]).map((row) => row.id)).toEqual(['V1']);
   });
 });
 
@@ -83,12 +105,16 @@ describe('describeClipChange', () => {
   it('names the overlay track of a changed overlay clip', () => {
     const was = [clip('a', 'V1', 0, 4), clip('o', 'V2', 1, 2)];
     const now = [clip('a', 'V1', 0, 4), clip('o', 'V2', 1.5, 2)];
-    expect(describeClipChange(was, now, TRACKS, 'o')).toBe('Overlay 1, clip 1, 1.5 s to 3.5 s, playing its source from 0.0 s');
+    expect(describeClipChange(was, now, TRACKS, 'o')).toBe(
+      'Overlay 1, clip 1, 1.5 s to 3.5 s, playing its source from 0.0 s',
+    );
   });
   it('says which track a clip moved to', () => {
     const was = [clip('a', 'V1', 0, 4), clip('b', 'V1', 4, 2)];
     const now = [clip('a', 'V1', 0, 4), clip('b', 'V3', 1, 2)];
-    expect(describeClipChange(was, now, TRACKS, 'b')).toBe('Overlay 2, clip 1, 1.0 s to 3.0 s, playing its source from 0.0 s');
+    expect(describeClipChange(was, now, TRACKS, 'b')).toBe(
+      'Overlay 2, clip 1, 1.0 s to 3.0 s, playing its source from 0.0 s',
+    );
   });
   it('counts removed clips per track', () => {
     const was = [clip('a', 'V1', 0, 4), clip('o', 'V2', 1, 2), clip('p', 'V2', 3, 1)];
@@ -96,7 +122,7 @@ describe('describeClipChange', () => {
     expect(describeClipChange(was, now, TRACKS, null)).toBe('2 clips removed from Overlay 1, 0 left');
     expect(describeClipChange([clip('a', 'V1', 0, 4)], [], TRACKS, null)).toBe('Clip removed, 0 left');
   });
-  it('says a clip\'s new box when only its transform changed (a stage drag, an arrow key, the inspector)', () => {
+  it("says a clip's new box when only its transform changed (a stage drag, an arrow key, the inspector)", () => {
     const was = [{ ...clip('o', 'V2', 1, 2), tf: { x: 0.5, y: 0.5, w: 1, rot: 0, opacity: 1, radius: 0 } }];
     const now = [{ ...clip('o', 'V2', 1, 2), tf: { x: 0.72, y: 0.2, w: 0.35, rot: 0, opacity: 1, radius: 0 } }];
     expect(describeClipChange(was, now, TRACKS, 'o')).toBe('Overlay 1, clip 1: x 72 %, y 20 %, size 35 %');
@@ -109,12 +135,12 @@ describe('describeClipChange', () => {
 
 /* ---------- 205 T062: the keyframe lane ---------- */
 
-const key = (t: number, v: number, ease: Ease = 'ease-in-out'): Keyframe => ({ t, v, ease });
+const key = (time: number, value: number, ease: Ease = 'ease-in-out'): Keyframe => ({ t: time, v: value, ease });
 
 describe('keyTimes: the diamonds of the collapsed lane (AC-7)', () => {
   it('is the union of every animated value’s key times, sorted, with the values at each and their ease', () => {
-    const item = { keys: { x: [key(0, 0), key(2, 1, 'hold')], opacity: [key(1, 1, 'linear'), key(2, 0, 'hold')] } };
-    expect(keyTimes(item)).toEqual([
+    const withKeys = { keys: { x: [key(0, 0), key(2, 1, 'hold')], opacity: [key(1, 1, 'linear'), key(2, 0, 'hold')] } };
+    expect(keyTimes(withKeys)).toEqual([
       { t: 0, props: ['x'], ease: 'ease-in-out' },
       { t: 1, props: ['opacity'], ease: 'linear' },
       { t: 2, props: ['x', 'opacity'], ease: 'hold' },
@@ -122,9 +148,9 @@ describe('keyTimes: the diamonds of the collapsed lane (AC-7)', () => {
   });
 
   it('keys within half a frame are one diamond; different eases there show as mixed', () => {
-    const item = { keys: { x: [key(1, 0, 'linear')], y: [key(1 + 0.4 / 30, 0, 'hold')] } };
-    expect(keyTimes(item)).toEqual([{ t: 1, props: ['x', 'y'], ease: 'mixed' }]);
-    expect(keyTimes(item, 1000)).toHaveLength(2);
+    const withKeys = { keys: { x: [key(1, 0, 'linear')], y: [key(1 + 0.4 / 30, 0, 'hold')] } };
+    expect(keyTimes(withKeys)).toEqual([{ t: 1, props: ['x', 'y'], ease: 'mixed' }]);
+    expect(keyTimes(withKeys, 1000)).toHaveLength(2);
   });
 
   it('no keys: no diamonds', () => {
@@ -191,13 +217,21 @@ describe('describeKeyChange: the live region after a keyframe change (AC-7, AC-1
 /* ---------- 206 T060: which cut the Transitions panel acts on (AC-8) ---------- */
 
 describe('panelCut: the cut the Transitions panel acts on (AC-8)', () => {
-  const at = (id: string, start: number, len: number, trackId = 'V1') => ({ id, track: trackId, start, kind: 'photo' as const, dur: len, in: 0, out: 0 });
+  const at = (id: string, start: number, len: number, trackId = 'V1') => ({
+    id,
+    track: trackId,
+    start,
+    kind: 'photo' as const,
+    dur: len,
+    in: 0,
+    out: 0,
+  });
   // V1: a 0–2, b 2–4 (touching), c 6–7 after a gap. V2: o 1–3 alone.
   const clips = [at('a', 0, 2), at('b', 2, 2), at('c', 6, 1), at('o', 1, 2, 'V2')];
   const tracks = [MAIN, OVERLAY_1];
   const state = (selected: string | null, transitionSel: string | null = null, locked = false) => ({
     clips,
-    tracks: locked ? tracks.map((t) => ({ ...t, locked: true })) : tracks,
+    tracks: locked ? tracks.map((original) => ({ ...original, locked: true })) : tracks,
     selected,
     transitionSel,
   });
@@ -211,9 +245,15 @@ describe('panelCut: the cut the Transitions panel acts on (AC-8)', () => {
   });
   it('says why when there is no cut to use', () => {
     expect(panelCut(state(null))).toEqual({ why: 'Select a clip, or a cut between two clips on the timeline.' });
-    expect(panelCut(state('c'))).toEqual({ why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.' });
-    expect(panelCut(state('o'))).toEqual({ why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.' });
-    expect(panelCut(state('a', null, true))).toEqual({ why: 'The Video track is locked. Unlock it to change its clips.' });
+    expect(panelCut(state('c'))).toEqual({
+      why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.',
+    });
+    expect(panelCut(state('o'))).toEqual({
+      why: 'This clip doesn’t touch another clip on its track: a transition goes between two clips that touch.',
+    });
+    expect(panelCut(state('a', null, true))).toEqual({
+      why: 'The Video track is locked. Unlock it to change its clips.',
+    });
   });
 });
 
@@ -234,21 +274,52 @@ describe('transition blocks, their drags and their announcements (AC-9)', () => 
     expect(draggedLength(1, -500, 'end', 50, 30, 3)).toBe(0.1);
   });
 
-  const v = (id: string, start: number, transition?: Transition): TimedClip => ({ id, track: 'V1', start, kind: 'photo', dur: 2, in: 0, out: 0, ...(transition ? { transition } : {}) });
+  const videoClip = (id: string, start: number, transition?: Transition): TimedClip => ({
+    id,
+    track: 'V1',
+    start,
+    kind: 'photo',
+    dur: 2,
+    in: 0,
+    out: 0,
+    ...(transition ? { transition } : {}),
+  });
   const tracks = [MAIN, OVERLAY_1];
   const dissolve: Transition = { kind: 'dissolve', dur: 0.5, to: 'b' };
 
   it('describeTransitionChange: added, changed, removed (by hand or by an edit); silent otherwise', () => {
-    const plain = [v('a', 0), v('b', 2), v('c', 4)];
-    const withOne = [v('a', 0, dissolve), v('b', 2), v('c', 4)];
-    expect(describeTransitionChange(plain, withOne, tracks)).toBe('Cross-dissolve added between clip 1 and clip 2, 0.50 s');
-    expect(describeTransitionChange(withOne, [v('a', 0, { ...dissolve, kind: 'wipe', dir: 'up' }), v('b', 2), v('c', 4)], tracks)).toBe('Wipe up between clip 1 and clip 2, 0.50 s');
-    expect(describeTransitionChange(withOne, [v('a', 0, { ...dissolve, dur: 0.8 }), v('b', 2), v('c', 4)], tracks)).toBe('Cross-dissolve between clip 1 and clip 2, 0.80 s');
-    expect(describeTransitionChange(withOne, [v('a', 0, { ...dissolve, kind: 'dip', colour: 'white' }), v('b', 2), v('c', 4)], tracks)).toBe('Dip to white between clip 1 and clip 2, 0.50 s');
+    const plain = [videoClip('a', 0), videoClip('b', 2), videoClip('c', 4)];
+    const withOne = [videoClip('a', 0, dissolve), videoClip('b', 2), videoClip('c', 4)];
+    expect(describeTransitionChange(plain, withOne, tracks)).toBe(
+      'Cross-dissolve added between clip 1 and clip 2, 0.50 s',
+    );
+    expect(
+      describeTransitionChange(
+        withOne,
+        [videoClip('a', 0, { ...dissolve, kind: 'wipe', dir: 'up' }), videoClip('b', 2), videoClip('c', 4)],
+        tracks,
+      ),
+    ).toBe('Wipe up between clip 1 and clip 2, 0.50 s');
+    expect(
+      describeTransitionChange(
+        withOne,
+        [videoClip('a', 0, { ...dissolve, dur: 0.8 }), videoClip('b', 2), videoClip('c', 4)],
+        tracks,
+      ),
+    ).toBe('Cross-dissolve between clip 1 and clip 2, 0.80 s');
+    expect(
+      describeTransitionChange(
+        withOne,
+        [videoClip('a', 0, { ...dissolve, kind: 'dip', colour: 'white' }), videoClip('b', 2), videoClip('c', 4)],
+        tracks,
+      ),
+    ).toBe('Dip to white between clip 1 and clip 2, 0.50 s');
     expect(describeTransitionChange(withOne, plain, tracks)).toBe('Transition removed between clip 1 and clip 2');
     // b deleted: a's transition went with the cut (the clip change says the rest).
-    expect(describeTransitionChange(withOne, [v('a', 0), v('c', 2)], tracks)).toBe('Transition removed after clip 1');
+    expect(describeTransitionChange(withOne, [videoClip('a', 0), videoClip('c', 2)], tracks)).toBe(
+      'Transition removed after clip 1',
+    );
     expect(describeTransitionChange(withOne, withOne, tracks)).toBe('');
-    expect(describeTransitionChange(plain, [v('b', 0), v('c', 2)], tracks)).toBe('');
+    expect(describeTransitionChange(plain, [videoClip('b', 0), videoClip('c', 2)], tracks)).toBe('');
   });
 });

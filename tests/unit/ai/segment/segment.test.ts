@@ -4,7 +4,9 @@ import { SEG_MODELS, modelRow } from '@/ai/segment/models';
 
 describe('segmentation maps', () => {
   it('are stretched to 0–1, as the models’ reference code does', () => {
-    expect([...normalise(new Float32Array([0.01, 0.045, 0.08]))].map((v) => +v.toFixed(3))).toEqual([0, 0.5, 1]);
+    expect([...normalise(new Float32Array([0.01, 0.045, 0.08]))].map((value) => +value.toFixed(3))).toEqual([
+      0, 0.5, 1,
+    ]);
   });
   it('stay empty when the model found nothing (a flat map)', () => {
     expect([...normalise(new Float32Array([0.2, 0.205, 0.2]))]).toEqual([0, 0, 0]);
@@ -13,10 +15,10 @@ describe('segmentation maps', () => {
 
 describe('segmentation models', () => {
   it('pin their files by size and SHA-256; only the small one ships', () => {
-    for (const m of Object.values(SEG_MODELS)) {
-      expect(m.sha256).toMatch(/^[0-9a-f]{64}$/);
-      expect(m.bytes).toBeGreaterThan(1e6);
-      expect(['MIT', 'Apache-2.0']).toContain(m.licence);
+    for (const model of Object.values(SEG_MODELS)) {
+      expect(model.sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(model.bytes).toBeGreaterThan(1e6);
+      expect(['MIT', 'Apache-2.0']).toContain(model.licence);
     }
     expect(SEG_MODELS.subject.bundled).toBe(true);
     expect(SEG_MODELS.sky.bundled).toBe(false);
@@ -48,8 +50,8 @@ describe('deleting a model (401)', () => {
     terminated = 0;
     hold = null;
     const dir = {
-      getFileHandle: async (name: string, o?: { create?: boolean }) => {
-        if (!files.has(name) && !o?.create) throw new DOMException('missing', 'NotFoundError');
+      getFileHandle: async (name: string, options?: { create?: boolean }) => {
+        if (!files.has(name) && !options?.create) throw new DOMException('missing', 'NotFoundError');
         return { getFile: async () => ({ size: files.get(name) ?? 0, arrayBuffer: async () => new ArrayBuffer(8) }) };
       },
       removeEntry: async (name: string) => {
@@ -75,8 +77,10 @@ describe('deleting a model (401)', () => {
       'Worker',
       class {
         onmessage: ((e: { data: unknown }) => void) | null = null;
-        postMessage(m: { id: number }) {
-          void Promise.resolve(hold).then(() => this.onmessage?.({ data: { id: m.id, map: new Float32Array(4) } }));
+        postMessage(message: { id: number }) {
+          void Promise.resolve(hold).then(() =>
+            this.onmessage?.({ data: { id: message.id, map: new Float32Array(4) } }),
+          );
         }
         terminate() {
           terminated++;
@@ -120,9 +124,9 @@ describe('deleting a model (401)', () => {
     const seg = await load();
     files.set('skyseg.onnx', SEG_MODELS.sky.bytes);
     let done!: () => void;
-    hold = new Promise<void>((r) => (done = r));
+    hold = new Promise<void>((resolve) => (done = resolve));
     const running = seg.segmentPhoto(photo(), 'subject');
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(await seg.deleteModel('sky')).toMatch(/running/);
     expect(files.has('skyseg.onnx')).toBe(true);
     done();

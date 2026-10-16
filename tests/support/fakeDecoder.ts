@@ -38,52 +38,56 @@ export function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
   const live = new Set<FakeFrame>();
   const counts = { sources: 0, readers: 0, doubleClose: 0 };
 
-  const file = (f: FakeFile): Blob => {
-    const b = new Blob([f.name]);
-    files.set(b, f);
-    return b;
+  const file = (fakeFile: FakeFile): Blob => {
+    const blob = new Blob([fakeFile.name]);
+    files.set(blob, fakeFile);
+    return blob;
   };
 
   const open: FrameSourceFactory = (blob) => {
-    const f = files.get(blob);
-    if (!f) return Promise.reject(new Error('unknown file'));
+    const fakeFile = files.get(blob);
+    if (!fakeFile) return Promise.reject(new Error('unknown file'));
     counts.sources++;
     return new Promise<FrameSource>((resolve, reject) =>
       setTimeout(() => {
-        if (f.failOpen) {
+        if (fakeFile.failOpen) {
           counts.sources--;
-          reject(new Error(f.failOpen));
+          reject(new Error(fakeFile.failOpen));
           return;
         }
-        const n = Math.round(f.dur * FAKE_FPS);
+        const count = Math.round(fakeFile.dur * FAKE_FPS);
         let closed = false;
         resolve({
-          from(t: number): AsyncIterator<PoolFrame> {
+          from(startTime: number): AsyncIterator<PoolFrame> {
             counts.readers++;
-            let i = Math.min(n - 1, Math.max(0, Math.floor(t * FAKE_FPS + 1e-6))),
+            let index = Math.min(count - 1, Math.max(0, Math.floor(startTime * FAKE_FPS + 1e-6))),
               done = false;
             return {
               next: () =>
                 new Promise((ok, fail) =>
                   setTimeout(() => {
-                    if (done || closed || i >= n) {
+                    if (done || closed || index >= count) {
                       done = true;
                       ok({ done: true, value: undefined });
                       return;
                     }
-                    const time = i / FAKE_FPS;
-                    if (f.reclaimAt !== undefined && time >= f.reclaimAt - 1e-9 && (f.reclaims ?? 1) > 0) {
-                      f.reclaims = (f.reclaims ?? 1) - 1;
+                    const time = index / FAKE_FPS;
+                    if (
+                      fakeFile.reclaimAt !== undefined &&
+                      time >= fakeFile.reclaimAt - 1e-9 &&
+                      (fakeFile.reclaims ?? 1) > 0
+                    ) {
+                      fakeFile.reclaims = (fakeFile.reclaims ?? 1) - 1;
                       fail(new DOMException('Codec reclaimed due to inactivity.', 'QuotaExceededError'));
                       return;
                     }
-                    if (f.failAt !== undefined && time >= f.failAt - 1e-9) {
-                      fail(new Error(`Can't decode ${f.name} at ${time.toFixed(2)} s`));
+                    if (fakeFile.failAt !== undefined && time >= fakeFile.failAt - 1e-9) {
+                      fail(new Error(`Can't decode ${fakeFile.name} at ${time.toFixed(2)} s`));
                       return;
                     }
-                    i++;
+                    index++;
                     const fr: FakeFrame = {
-                      file: f.name,
+                      file: fakeFile.name,
                       image: {} as CanvasImageSource,
                       width: FRAME_WIDTH,
                       height: FRAME_HEIGHT,
@@ -120,6 +124,6 @@ export function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
     file,
     counts,
     frames: () => live.size,
-    bytes: () => [...live].reduce((a, fr) => a + fr.width * fr.height * 4, 0),
+    bytes: () => [...live].reduce((sum, fr) => sum + fr.width * fr.height * 4, 0),
   };
 }

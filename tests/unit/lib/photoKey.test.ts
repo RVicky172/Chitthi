@@ -8,10 +8,10 @@ describe('photoKey', () => {
   });
 
   it('gives the same key for the same data and different keys for different data', () => {
-    const a = 'data:image/jpeg;base64,' + 'A'.repeat(5000) + 'B';
-    const b = 'data:image/jpeg;base64,' + 'A'.repeat(5000) + 'C';
-    expect(photoKey(a)).toBe(photoKey(a.slice()));
-    expect(photoKey(a)).not.toBe(photoKey(b));
-    expect(photoKey(a).length).toBeLessThan(30);
+    const first = 'data:image/jpeg;base64,' + 'A'.repeat(5000) + 'B';
+    const second = 'data:image/jpeg;base64,' + 'A'.repeat(5000) + 'C';
+    expect(photoKey(first)).toBe(photoKey(first.slice()));
+    expect(photoKey(first)).not.toBe(photoKey(second));
+    expect(photoKey(first).length).toBeLessThan(30);
   });
 });

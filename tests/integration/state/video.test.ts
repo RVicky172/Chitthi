@@ -6,11 +6,44 @@ import { layerAt, type Ease, type Keyframe } from '@/engine/keyframes';
 import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '@/engine/layers';
 import { MAIN_VIDEO, defaultTracks, tooManyTracks, type Track } from '@/engine/tracks';
 import { applyPreset, setClipTransform, setClipTransformAt, setClipVolume } from '@/state/videoBox';
-import { deleteGap, duplicateClip, duplicateClipWhy, moveClip, moveClipTo, moveClipToTime, moveClipToTrack, nudgeClip, removeClip, rippleDeleteClip, rippleTrimToPlayhead, rollClip, slideClip, slipClip, splitAtPlayhead, splitAtPlayheadWhy, trimClip, updateClip, updateClipWhy } from '@/state/videoClips';
+import {
+  deleteGap,
+  duplicateClip,
+  duplicateClipWhy,
+  moveClip,
+  moveClipTo,
+  moveClipToTime,
+  moveClipToTrack,
+  nudgeClip,
+  removeClip,
+  rippleDeleteClip,
+  rippleTrimToPlayhead,
+  rollClip,
+  slideClip,
+  slipClip,
+  splitAtPlayhead,
+  splitAtPlayheadWhy,
+  trimClip,
+  updateClip,
+  updateClipWhy,
+} from '@/state/videoClips';
 import { deleteKeys, moveKeys, removeAnimation, setKeyEase, toggleKey } from '@/state/videoKeys';
 import { setLayerTimes, setVLayers, updateLayerAt } from '@/state/videoLayers';
 import { addMedia, mediaIO, NEW_TRACK, slipMusic } from '@/state/videoMedia';
-import { endVStep, getVideo, loadVideoProject, selectClip, setMagnetic, setPlayhead, setSnapping, setTool, undoV, type VClip, videoLength, type VMusic } from '@/state/videoStore';
+import {
+  endVStep,
+  getVideo,
+  loadVideoProject,
+  selectClip,
+  setMagnetic,
+  setPlayhead,
+  setSnapping,
+  setTool,
+  undoV,
+  type VClip,
+  videoLength,
+  type VMusic,
+} from '@/state/videoStore';
 import { addTrack, clipPlace, deleteTrack, moveTrack, renameTrack, setTrack } from '@/state/videoTracks';
 import { removeTransition, setTransition, transitionEveryCut } from '@/state/videoTransitions';
 
@@ -40,7 +73,7 @@ const clip = (id: string, start: number, dur: number, track = MAIN_VIDEO): VClip
   strip: [],
   still: null,
 });
-const starts = () => getVideo().clips.map((c) => [c.id, c.start]);
+const starts = () => getVideo().clips.map((vClip) => [vClip.id, vClip.start]);
 
 describe('Magnetic on (the default): every edit as before', () => {
   beforeEach(() => loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3), clip('c', 5, 1)] }));
@@ -136,8 +169,8 @@ describe('the tool and Snap are view settings (D4)', () => {
 /* ---------- 202 T021: the actions with Magnetic off, and the new tools ---------- */
 
 const len = (id: string) => {
-  const c = getVideo().clips.find((x) => x.id === id)!;
-  return c.kind === 'photo' ? c.dur : c.out - c.in;
+  const vClip = getVideo().clips.find((x) => x.id === id)!;
+  return vClip.kind === 'photo' ? vClip.dur : vClip.out - vClip.in;
 };
 
 describe('Magnetic off: nothing moves unless asked', () => {
@@ -171,7 +204,7 @@ describe('Magnetic off: nothing moves unless asked', () => {
     expect(getVideo().clips.at(-1)!.start).toBe(8);
     loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 5, 1)], magnetic: false });
     expect(duplicateClip('a')).toBe(true);
-    expect(getVideo().clips.map((c) => c.start)).toEqual([0, 2, 5]);
+    expect(getVideo().clips.map((vClip) => vClip.start)).toEqual([0, 2, 5]);
     expect(getVideo().selected).toBe(getVideo().clips[1].id);
   });
   it('a clip moves to a time, or the nearest free spot', () => {
@@ -192,7 +225,7 @@ describe('Magnetic off: nothing moves unless asked', () => {
   it('split keeps the times of a clip after a gap', () => {
     setPlayhead(4);
     expect(splitAtPlayhead()).toBe(true);
-    expect(getVideo().clips.map((c) => [c.start, c.dur])).toEqual([
+    expect(getVideo().clips.map((vClip) => [vClip.start, vClip.dur])).toEqual([
       [0, 2],
       [3, 1],
       [4, 2],
@@ -227,7 +260,7 @@ describe('Magnetic on: trims always ripple', () => {
     expect(len('a')).toBeCloseTo(3, 9);
     setTool('select');
     expect(nudgeClip('a', 1)).toBeNull();
-    expect(getVideo().clips.map((c) => c.id)).toEqual(['b', 'a', 'c']);
+    expect(getVideo().clips.map((vClip) => vClip.id)).toEqual(['b', 'a', 'c']);
   });
   it('Q / W ripple-trim the selected clip’s start / end to the playhead', () => {
     selectClip('b');
@@ -256,7 +289,16 @@ describe('Magnetic on: trims always ripple', () => {
 });
 
 describe('the music under the Slip keys (Q8)', () => {
-  const music: VMusic = { track: 'A1', file: new Blob(), name: 'song', url: '', dur: 30, volume: 1, offset: 1, peaks: [] };
+  const music: VMusic = {
+    track: 'A1',
+    file: new Blob(),
+    name: 'song',
+    url: '',
+    dur: 30,
+    volume: 1,
+    offset: 1,
+    peaks: [],
+  };
   it('moves its offset within the song', () => {
     loadVideoProject({ clips: [clip('a', 0, 5)], music });
     expect(slipMusic(2)).toBeNull();
@@ -270,27 +312,41 @@ describe('the music under the Slip keys (Q8)', () => {
 
 /* ---------- 203 T040: tracks, overlay clips, transforms and the videos-at-once limit ---------- */
 
-const ov = (id: string): Track => ({ id, kind: 'overlay', name: `Overlay ${id.slice(1)}`, hidden: false, muted: false, locked: false });
+const ov = (id: string): Track => ({
+  id,
+  kind: 'overlay',
+  name: `Overlay ${id.slice(1)}`,
+  hidden: false,
+  muted: false,
+  locked: false,
+});
 /** Tracks: the main video track, the given overlay tracks (bottom first), the music. */
 const withOverlays = (...ids: string[]): Track[] => {
   const [main, music] = defaultTracks();
   return [main, ...ids.map(ov), music];
 };
 /** A video clip playing `len` seconds (its whole source) at `start` on `track`. */
-const vid = (id: string, start: number, len: number, track = MAIN_VIDEO): VClip => ({ ...clip(id, start, 0, track), kind: 'video', srcDur: len, in: 0, out: len, volume: 1 });
+const vid = (id: string, start: number, len: number, track = MAIN_VIDEO): VClip => ({
+  ...clip(id, start, 0, track),
+  kind: 'video',
+  srcDur: len,
+  in: 0,
+  out: len,
+  volume: 1,
+});
 const on = (track: string) =>
   getVideo()
-    .clips.filter((c) => c.track === track)
-    .map((c) => [c.id, c.start]);
-const trackIds = () => getVideo().tracks.map((t) => t.id);
+    .clips.filter((vClip) => vClip.track === track)
+    .map((vClip) => [vClip.id, vClip.start]);
+const trackIds = () => getVideo().tracks.map((track) => track.id);
 /** Undoes everything: the number of steps (each action here is one). */
 const undos = () => {
-  let n = 0;
+  let count = 0;
   while (getVideo().canUndo) {
     undoV();
-    n++;
+    count++;
   }
-  return n;
+  return count;
 };
 // Chrome's limit (3 videos at once in the browser) needs WebCodecs' VideoDecoder; Node has none (1 at a time).
 const withDecoder = () => vi.stubGlobal('VideoDecoder', class {});
@@ -312,7 +368,10 @@ describe('203: tracks (AC-1, AC-2)', () => {
     expect(trackIds()).toEqual([MAIN_VIDEO, 'A1']);
   });
   it('rename (trimmed, 1–40 characters) and move among the overlays, one undo step each; refusals give the reason', () => {
-    loadVideoProject({ clips: [clip('a', 0, 2), clip('x', 0, 1, 'O1'), clip('y', 1, 1, 'O2')], tracks: withOverlays('O1', 'O2') });
+    loadVideoProject({
+      clips: [clip('a', 0, 2), clip('x', 0, 1, 'O1'), clip('y', 1, 1, 'O2')],
+      tracks: withOverlays('O1', 'O2'),
+    });
     expect(renameTrack('O1', '  Face cam ')).toBeNull();
     expect(getVideo().tracks[1].name).toBe('Face cam');
     expect(renameTrack('O1', '   ')).toMatch(/name/);
@@ -321,12 +380,12 @@ describe('203: tracks (AC-1, AC-2)', () => {
     expect(moveTrack('O1', 1)).toBeNull();
     expect(trackIds()).toEqual([MAIN_VIDEO, 'O2', 'O1', 'A1']);
     // The clips stay grouped in the tracks' order, the main track first.
-    expect(getVideo().clips.map((c) => c.id)).toEqual(['a', 'y', 'x']);
+    expect(getVideo().clips.map((vClip) => vClip.id)).toEqual(['a', 'y', 'x']);
     expect(moveTrack('O1', 1)).toMatch(/top track/);
     expect(moveTrack(MAIN_VIDEO, 1)).toMatch(/bottom picture track/);
     expect(undos()).toBe(2);
     expect(getVideo().tracks[1].name).toBe('Overlay 1');
-    expect(getVideo().clips.map((c) => c.id)).toEqual(['a', 'x', 'y']);
+    expect(getVideo().clips.map((vClip) => vClip.id)).toEqual(['a', 'x', 'y']);
   });
   it('delete takes the track’s clips in one undo step; the main track, the music and a locked track are refused', () => {
     loadVideoProject({ clips: [clip('a', 0, 2), clip('x', 0, 1, 'O1')], tracks: withOverlays('O1') });
@@ -338,17 +397,17 @@ describe('203: tracks (AC-1, AC-2)', () => {
     setTrack('O1', { locked: false });
     expect(deleteTrack('O1')).toBeNull();
     expect(trackIds()).toEqual([MAIN_VIDEO, 'A1']);
-    expect(getVideo().clips.map((c) => c.id)).toEqual(['a']);
+    expect(getVideo().clips.map((vClip) => vClip.id)).toEqual(['a']);
     expect(getVideo().selected).toBe('a');
     undoV();
     expect(trackIds()).toEqual([MAIN_VIDEO, 'O1', 'A1']);
-    expect(getVideo().clips.map((c) => c.id)).toEqual(['a', 'x']);
+    expect(getVideo().clips.map((vClip) => vClip.id)).toEqual(['a', 'x']);
   });
   it('Mute is for overlay tracks (their clips’ sound), not the main track (Hide only)', () => {
     loadVideoProject({ clips: [clip('a', 0, 2)], tracks: withOverlays('O1') });
     setTrack('O1', { muted: true });
     setTrack(MAIN_VIDEO, { muted: true });
-    expect(getVideo().tracks.map((t) => t.muted)).toEqual([false, true, false]);
+    expect(getVideo().tracks.map((track) => track.muted)).toEqual([false, true, false]);
     expect(undos()).toBe(1);
   });
   it('clipPlace numbers clips per track (the inspector’s "Clip N")', () => {
@@ -385,7 +444,7 @@ describe('203: adding photos and videos to a track (AC-3)', () => {
       ['p.jpg#', 5],
       ['q.mp4#', 8],
     ]);
-    expect(getVideo().clips.map((c) => c.id)).toEqual(['a', 'b', 'p.jpg#', 'q.mp4#', 'x']);
+    expect(getVideo().clips.map((vClip) => vClip.id)).toEqual(['a', 'b', 'p.jpg#', 'q.mp4#', 'x']);
     expect(undos()).toBe(1);
   });
   it('on an overlay track: from the playhead, each after the clips there when it doesn’t fit; never packed', async () => {
@@ -439,9 +498,14 @@ describe('203: adding photos and videos to a track (AC-3)', () => {
     expect(await addMedia([file('p.jpg', 1)], { track: 'O9' })).toEqual([expect.stringMatching(/picture track/)]);
   });
   it('a video that would show more than 3 at once is left out with the reason; photos still go in', async () => {
-    loadVideoProject({ clips: [vid('m', 0, 10), vid('x', 0, 5, 'O1'), vid('y', 0, 5, 'O2')], tracks: withOverlays('O1', 'O2', 'O3') });
+    loadVideoProject({
+      clips: [vid('m', 0, 10), vid('x', 0, 5, 'O1'), vid('y', 0, 5, 'O2')],
+      tracks: withOverlays('O1', 'O2', 'O3'),
+    });
     const msgs = await addMedia([file('q.mp4', 2), file('p.jpg', 2)], { track: 'O3', at: 1 });
-    expect(msgs).toEqual([expect.stringMatching(/^q\.mp4 wasn’t added\. At most 3 videos can show at the same time in the browser/)]);
+    expect(msgs).toEqual([
+      expect.stringMatching(/^q\.mp4 wasn’t added\. At most 3 videos can show at the same time in the browser/),
+    ]);
     expect(on('O3')).toEqual([['p.jpg#', 1]]);
     // Once the other overlay videos have ended, a video fits.
     expect(await addMedia([file('r.mp4', 2)], { track: 'O3', at: 6 })).toEqual([]);
@@ -451,16 +515,23 @@ describe('203: adding photos and videos to a track (AC-3)', () => {
     ]);
   });
   it('the length limit applies to where the clips end', async () => {
-    expect(await addMedia([file('q.mp4', 200)], { track: 'O1', at: 80 })).toEqual([expect.stringMatching(/trimmed to 10 seconds/)]);
-    expect(getVideo().clips.find((c) => c.id === 'q.mp4#')!.out).toBe(10);
-    expect(await addMedia([file('p.jpg', 2)], { track: 'O1', at: 89.8 })).toEqual([expect.stringMatching(/end after 90 seconds/)]);
+    expect(await addMedia([file('q.mp4', 200)], { track: 'O1', at: 80 })).toEqual([
+      expect.stringMatching(/trimmed to 10 seconds/),
+    ]);
+    expect(getVideo().clips.find((vClip) => vClip.id === 'q.mp4#')!.out).toBe(10);
+    expect(await addMedia([file('p.jpg', 2)], { track: 'O1', at: 89.8 })).toEqual([
+      expect.stringMatching(/end after 90 seconds/),
+    ]);
   });
 });
 
 describe('203: overlay clips under the edits (AC-3, Q8)', () => {
   beforeEach(() => {
     withDecoder();
-    loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3), clip('x', 1, 1, 'O1'), clip('y', 4, 1, 'O1')], tracks: withOverlays('O1') });
+    loadVideoProject({
+      clips: [clip('a', 0, 2), clip('b', 2, 3), clip('x', 1, 1, 'O1'), clip('y', 4, 1, 'O1')],
+      tracks: withOverlays('O1'),
+    });
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -486,7 +557,7 @@ describe('203: overlay clips under the edits (AC-3, Q8)', () => {
       ['a', 1],
       ['b', 3],
     ]);
-    expect(getVideo().clips.map((c) => c.track)).toEqual([MAIN_VIDEO, MAIN_VIDEO, MAIN_VIDEO, 'O1']);
+    expect(getVideo().clips.map((vClip) => vClip.track)).toEqual([MAIN_VIDEO, MAIN_VIDEO, MAIN_VIDEO, 'O1']);
     expect(getVideo().selected).toBe('y');
   });
   it('refuses a target that isn’t a picture track, and locked tracks', () => {
@@ -499,7 +570,11 @@ describe('203: overlay clips under the edits (AC-3, Q8)', () => {
     setPlayhead(1.5);
     selectClip('x');
     expect(splitAtPlayheadWhy()).toBeNull();
-    expect(getVideo().clips.filter((c) => c.track === 'O1').map((c) => [c.start, c.dur])).toEqual([
+    expect(
+      getVideo()
+        .clips.filter((vClip) => vClip.track === 'O1')
+        .map((vClip) => [vClip.start, vClip.dur]),
+    ).toEqual([
       [1, 0.5],
       [1.5, 0.5],
       [4, 1],
@@ -517,9 +592,9 @@ describe('203: overlay clips under the edits (AC-3, Q8)', () => {
   });
   it('duplicate on an overlay track goes into the next gap that fits, with Magnetic on too', () => {
     expect(duplicateClipWhy('x')).toBeNull();
-    expect(on('O1').map((p) => p[1])).toEqual([1, 2, 4]);
+    expect(on('O1').map((span) => span[1])).toEqual([1, 2, 4]);
     expect(duplicateClipWhy('y')).toBeNull();
-    expect(on('O1').map((p) => p[1])).toEqual([1, 2, 4, 5]);
+    expect(on('O1').map((span) => span[1])).toEqual([1, 2, 4, 5]);
     expect(on(MAIN_VIDEO)).toEqual([
       ['a', 0],
       ['b', 2],
@@ -539,7 +614,11 @@ describe('203: the videos-at-once limit on what the store makes (AC-9)', () => {
   beforeEach(withDecoder);
   afterEach(() => vi.unstubAllGlobals());
   const many = /At most 3 videos can show at the same time in the browser.*desktop app allows 5/;
-  const four = () => loadVideoProject({ clips: [vid('m', 0, 10), vid('x', 0, 2, 'O1'), vid('y', 2, 2, 'O2'), vid('z', 2, 2, 'O3')], tracks: withOverlays('O1', 'O2', 'O3') });
+  const four = () =>
+    loadVideoProject({
+      clips: [vid('m', 0, 10), vid('x', 0, 2, 'O1'), vid('y', 2, 2, 'O2'), vid('z', 2, 2, 'O3')],
+      tracks: withOverlays('O1', 'O2', 'O3'),
+    });
 
   it('duplicate and moves are refused when they would show a 4th video; allowed elsewhere, one step', () => {
     four();
@@ -551,7 +630,11 @@ describe('203: the videos-at-once limit on what the store makes (AC-9)', () => {
     expect(undos()).toBe(1);
   });
   it('switching Magnetic on is refused when closing the gaps would show a 4th video', () => {
-    loadVideoProject({ clips: [vid('a', 0, 2), vid('b', 5, 2), vid('x', 2, 2, 'O1'), vid('y', 2, 2, 'O2'), vid('z', 2, 2, 'O3')], tracks: withOverlays('O1', 'O2', 'O3'), magnetic: false });
+    loadVideoProject({
+      clips: [vid('a', 0, 2), vid('b', 5, 2), vid('x', 2, 2, 'O1'), vid('y', 2, 2, 'O2'), vid('z', 2, 2, 'O3')],
+      tracks: withOverlays('O1', 'O2', 'O3'),
+      magnetic: false,
+    });
     expect(setMagnetic(true)).toMatch(many);
     expect(getVideo().magnetic).toBe(false);
     expect(on(MAIN_VIDEO)).toEqual([
@@ -560,13 +643,19 @@ describe('203: the videos-at-once limit on what the store makes (AC-9)', () => {
     ]);
   });
   it('the inspector’s own changes too (a main video lengthened under three overlay videos)', () => {
-    loadVideoProject({ clips: [{ ...vid('a', 0, 2), srcDur: 10 }, vid('x', 2, 2, 'O1'), vid('y', 2, 2, 'O2'), vid('z', 2, 2, 'O3')], tracks: withOverlays('O1', 'O2', 'O3') });
+    loadVideoProject({
+      clips: [{ ...vid('a', 0, 2), srcDur: 10 }, vid('x', 2, 2, 'O1'), vid('y', 2, 2, 'O2'), vid('z', 2, 2, 'O3')],
+      tracks: withOverlays('O1', 'O2', 'O3'),
+    });
     expect(updateClip('a', { out: 3 })).toBe(false);
     expect(getVideo().clips[0].out).toBe(2);
     expect(updateClip('a', { out: 1.5 })).toBe(true);
   });
   it('an older project already over the limit can still be edited down', () => {
-    loadVideoProject({ clips: [vid('m', 0, 10), vid('w', 0, 2, 'O1'), vid('x', 0, 2, 'O2'), vid('y', 0, 2, 'O3')], tracks: withOverlays('O1', 'O2', 'O3') });
+    loadVideoProject({
+      clips: [vid('m', 0, 10), vid('w', 0, 2, 'O1'), vid('x', 0, 2, 'O2'), vid('y', 0, 2, 'O3')],
+      tracks: withOverlays('O1', 'O2', 'O3'),
+    });
     expect(removeClip('y')).toBe(true);
     expect(moveClipToTrack('x', 'O2', 3)).toBeNull();
   });
@@ -580,14 +669,15 @@ describe('203: the videos-at-once limit on what the store makes (AC-9)', () => {
 
 describe('203: a clip’s place in the frame (AC-4, AC-5)', () => {
   beforeEach(() => loadVideoProject({ clips: [clip('a', 0, 2), clip('x', 0, 2, 'O1')], tracks: withOverlays('O1') }));
-  const tf = (id = 'x') => getVideo().clips.find((c) => c.id === id)!.tf;
+  const tf = (id = 'x') => getVideo().clips.find((vClip) => vClip.id === id)!.tf;
 
   it('new and main clips have no transform (the whole frame)', () => {
     expect(tf('a')).toBeUndefined();
     expect(tf()).toBeUndefined();
   });
   it('a drag is one undo step however many changes it makes; values are clamped', () => {
-    for (let i = 1; i <= 20; i++) expect(setClipTransform('x', { x: 0.5 + i / 100, y: 0.5 - i / 100 }, 'drag:x')).toBeNull();
+    for (let index = 1; index <= 20; index++)
+      expect(setClipTransform('x', { x: 0.5 + index / 100, y: 0.5 - index / 100 }, 'drag:x')).toBeNull();
     expect(tf()).toMatchObject({ x: 0.7, y: 0.3, w: 1 });
     expect(setClipTransform('x', { w: 9, opacity: -1, rot: 400 })).toBeNull();
     expect(tf()).toMatchObject({ w: 4, opacity: 0, rot: 180 });
@@ -642,17 +732,21 @@ describe('203: the inspector shows why a clip change was refused (T054)', () => 
 /* ---------- 205 T050: keyframes in the store (AC-3, AC-5) ---------- */
 
 describe('205: keyframes in the store (AC-3, AC-5)', () => {
-  const k = (t: number, v: number, ease: Ease = 'linear'): Keyframe => ({ t, v, ease });
+  const keyframe = (time: number, value: number, ease: Ease = 'linear'): Keyframe => ({ t: time, v: value, ease });
   const sticker = (id: string, start: number, end: number, keys?: Layer['keys']): Layer =>
     ({ ...newSticker('⭐'), id, start, end, ...(keys ? { keys } : {}) }) as Layer;
-  const getClip = (id: string) => getVideo().clips.find((c) => c.id === id)!;
-  const getLayer = (id: string) => getVideo().layers.find((l) => l.id === id)!;
+  const getClip = (id: string) => getVideo().clips.find((vClip) => vClip.id === id)!;
+  const getLayer = (id: string) => getVideo().layers.find((layer) => layer.id === id)!;
   /** a: photo 0–4 on the main track with x keys (0.25 → 0.75); x: photo 1–3 on O1 without keys; v: video 4–8, volume 1. */
   const load = () =>
     loadVideoProject({
-      clips: [{ ...clip('a', 0, 4), keys: { x: [k(0, 0.25), k(4, 0.75)] } }, clip('x', 1, 2, 'O1'), vid('v', 4, 4)],
+      clips: [
+        { ...clip('a', 0, 4), keys: { x: [keyframe(0, 0.25), keyframe(4, 0.75)] } },
+        clip('x', 1, 2, 'O1'),
+        vid('v', 4, 4),
+      ],
       tracks: withOverlays('O1'),
-      layers: [sticker('L', 1, 5, { opacity: [k(0, 1), k(2, 0)] }), sticker('M', 0, 3)],
+      layers: [sticker('L', 1, 5, { opacity: [keyframe(0, 1), keyframe(2, 0)] }), sticker('M', 0, 3)],
     });
   beforeEach(load);
 
@@ -660,24 +754,26 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     selectClip('a');
     setPlayhead(1);
     expect(splitAtPlayheadWhy()).toBeNull();
-    const [left, right] = getVideo().clips.filter((c) => c.track === MAIN_VIDEO);
-    expect(left.keys).toEqual({ x: [k(0, 0.25), k(1, 0.375)] });
-    expect(right.keys).toEqual({ x: [k(0, 0.375), k(3, 0.75)] });
+    const [left, right] = getVideo().clips.filter((vClip) => vClip.track === MAIN_VIDEO);
+    expect(left.keys).toEqual({ x: [keyframe(0, 0.25), keyframe(1, 0.375)] });
+    expect(right.keys).toEqual({ x: [keyframe(0, 0.375), keyframe(3, 0.75)] });
     expect(undos()).toBe(1);
   });
 
   it('duplicate copies the keys', () => {
     expect(duplicateClipWhy('a')).toBeNull();
-    const copy = getVideo().clips.find((c) => c.id !== 'a' && c.track === MAIN_VIDEO && c.kind === 'photo')!;
+    const copy = getVideo().clips.find(
+      (vClip) => vClip.id !== 'a' && vClip.track === MAIN_VIDEO && vClip.kind === 'photo',
+    )!;
     expect(copy.keys).toEqual(getClip('a').keys);
   });
 
   it('setLayerTimes shifts the keys when the start edge moves, and not when the layer moves whole', () => {
     expect(setLayerTimes('L', { start: 1.5 }, 'drag:L')).toBeNull();
-    expect(getLayer('L').keys).toEqual({ opacity: [k(-0.5, 1), k(1.5, 0)] });
+    expect(getLayer('L').keys).toEqual({ opacity: [keyframe(-0.5, 1), keyframe(1.5, 0)] });
     expect(setLayerTimes('L', { start: 2, end: 6 }, '')).toBeNull();
     expect([getLayer('L').start, getLayer('L').end]).toEqual([2, 6]);
-    expect(getLayer('L').keys).toEqual({ opacity: [k(-0.5, 1), k(1.5, 0)] });
+    expect(getLayer('L').keys).toEqual({ opacity: [keyframe(-0.5, 1), keyframe(1.5, 0)] });
     // A layer without keys just moves.
     expect(setLayerTimes('M', { start: 1 }, '')).toBeNull();
     expect('keys' in getLayer('M')).toBe(false);
@@ -687,16 +783,16 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
   it('toggleKey: starts animating at the playhead, adds at the animated value, and removes', () => {
     setPlayhead(2);
     expect(toggleKey({ clip: 'x' }, 'w')).toBeNull();
-    expect(getClip('x').keys).toEqual({ w: [k(1, 1, 'ease-in-out')] });
+    expect(getClip('x').keys).toEqual({ w: [keyframe(1, 1, 'ease-in-out')] });
     expect(toggleKey({ clip: 'a' }, 'x')).toBeNull();
-    expect(getClip('a').keys!.x).toEqual([k(0, 0.25), k(2, 0.5, 'ease-in-out'), k(4, 0.75)]);
+    expect(getClip('a').keys!.x).toEqual([keyframe(0, 0.25), keyframe(2, 0.5, 'ease-in-out'), keyframe(4, 0.75)]);
     // At a key: removed.
     expect(toggleKey({ clip: 'a' }, 'x')).toBeNull();
-    expect(getClip('a').keys!.x).toEqual([k(0, 0.25), k(4, 0.75)]);
+    expect(getClip('a').keys!.x).toEqual([keyframe(0, 0.25), keyframe(4, 0.75)]);
     // Removing a value's last key keeps its value there as the stored one: nothing jumps.
     setPlayhead(1.5);
     expect(toggleKey({ layer: 'M' }, 'rot')).toBeNull();
-    expect(getLayer('M').keys).toEqual({ rot: [k(1.5, 0, 'ease-in-out')] });
+    expect(getLayer('M').keys).toEqual({ rot: [keyframe(1.5, 0, 'ease-in-out')] });
     expect(toggleKey({ layer: 'M' }, 'rot')).toBeNull();
     expect(getLayer('M').keys).toBeUndefined();
     expect(getLayer('M').rot).toBe(0);
@@ -706,7 +802,7 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
   it('toggleKey and removeAnimation take several values at once (a layer’s position: X and Y), one step each', () => {
     setPlayhead(2);
     expect(toggleKey({ layer: 'M' }, ['x', 'y'])).toBeNull();
-    expect(getLayer('M').keys).toEqual({ x: [k(2, 0.5, 'ease-in-out')], y: [k(2, 0.5, 'ease-in-out')] });
+    expect(getLayer('M').keys).toEqual({ x: [keyframe(2, 0.5, 'ease-in-out')], y: [keyframe(2, 0.5, 'ease-in-out')] });
     setPlayhead(1);
     updateLayerAt('M', { x: 0.2, y: 0.3 }, '');
     expect(toggleKey({ layer: 'M' }, ['x', 'y'])).toBeNull();
@@ -729,24 +825,25 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
   });
 
   it('moveKeys: a drag is one undo step; moving onto a key replaces it', () => {
-    for (let i = 1; i <= 10; i++) expect(moveKeys({ clip: 'a' }, 'x', 4 - (i - 1) * 0.1, 4 - i * 0.1, 'drag:key')).toBeNull();
+    for (let index = 1; index <= 10; index++)
+      expect(moveKeys({ clip: 'a' }, 'x', 4 - (index - 1) * 0.1, 4 - index * 0.1, 'drag:key')).toBeNull();
     expect(getClip('a').keys!.x!.map((key) => +key.t.toFixed(9))).toEqual([0, 3]);
     endVStep();
     expect(moveKeys({ clip: 'a' }, 'all', 3, 0, '')).toBeNull();
-    expect(getClip('a').keys!.x).toEqual([k(0, 0.75)]);
+    expect(getClip('a').keys!.x).toEqual([keyframe(0, 0.75)]);
     expect(undos()).toBe(2);
   });
 
   it('setKeyEase and deleteKeys, for one value or all at a time', () => {
     toggleKey({ layer: 'L' }, 'x');
-    expect(getLayer('L').keys!.x).toEqual([k(-1, 0.5, 'ease-in-out')]);
+    expect(getLayer('L').keys!.x).toEqual([keyframe(-1, 0.5, 'ease-in-out')]);
     setPlayhead(1);
     expect(setKeyEase({ layer: 'L' }, 'all', 0, 'hold')).toBeNull();
     expect(getLayer('L').keys!.opacity![0].ease).toBe('hold');
     expect(deleteKeys({ layer: 'L' }, 'opacity', 2)).toBeNull();
-    expect(getLayer('L').keys!.opacity).toEqual([k(0, 1, 'hold')]);
+    expect(getLayer('L').keys!.opacity).toEqual([keyframe(0, 1, 'hold')]);
     expect(deleteKeys({ layer: 'L' }, 'all', -1)).toBeNull();
-    expect(getLayer('L').keys).toEqual({ opacity: [k(0, 1, 'hold')] });
+    expect(getLayer('L').keys).toEqual({ opacity: [keyframe(0, 1, 'hold')] });
     expect(undos()).toBe(4);
   });
 
@@ -754,7 +851,7 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     setPlayhead(2);
     expect(setClipTransformAt('a', { x: 0.6, y: 0.3 }, 'drag:a')).toBeNull();
     expect(setClipTransformAt('a', { x: 0.65, y: 0.35 }, 'drag:a')).toBeNull();
-    expect(getClip('a').keys!.x).toEqual([k(0, 0.25), k(2, 0.65, 'ease-in-out'), k(4, 0.75)]);
+    expect(getClip('a').keys!.x).toEqual([keyframe(0, 0.25), keyframe(2, 0.65, 'ease-in-out'), keyframe(4, 0.75)]);
     expect(getClip('a').tf).toEqual({ ...IDENTITY, y: 0.35 });
     // Not animated: as setClipTransform.
     expect(setClipTransformAt('x', { w: 0.4 }, '')).toBeNull();
@@ -766,24 +863,30 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
   it('updateLayerAt routes a patch or a function on the layer as shown at the playhead', () => {
     setPlayhead(2);
     updateLayerAt('L', { opacity: 0.25, x: 0.1 }, 'drag:L');
-    expect(getLayer('L').keys!.opacity).toEqual([k(0, 1), k(1, 0.25, 'ease-in-out'), k(2, 0)]);
+    expect(getLayer('L').keys!.opacity).toEqual([keyframe(0, 1), keyframe(1, 0.25, 'ease-in-out'), keyframe(2, 0)]);
     expect(getLayer('L').x).toBe(0.1);
     expect(getLayer('L').opacity).toBe(1);
     setPlayhead(3);
     // The function sees the layer as drawn (opacity 0 at 3 s) and its changes are routed the same way.
     updateLayerAt('L', (shown) => ({ ...shown, opacity: shown.opacity + 0.5, y: 0.9 }), '');
-    expect(getLayer('L').keys!.opacity!.at(-1)).toEqual(k(2, 0.5));
+    expect(getLayer('L').keys!.opacity!.at(-1)).toEqual(keyframe(2, 0.5));
     expect(getLayer('L').y).toBe(0.9);
     expect(undos()).toBe(2);
   });
 
   it('updateLayerAt with an animated size: the Size slider keys w and leaves the stored font size alone', () => {
-    const title = { ...newText(TEXT_STYLES[0], 'Hi'), id: 'T', w: 0.4, start: 0, keys: { w: [k(0, 0.4), k(2, 0.8)] } } as Layer;
+    const title = {
+      ...newText(TEXT_STYLES[0], 'Hi'),
+      id: 'T',
+      w: 0.4,
+      start: 0,
+      keys: { w: [keyframe(0, 0.4), keyframe(2, 0.8)] },
+    } as Layer;
     setVLayers([title], '');
     setPlayhead(1);
     updateLayerAt('T', (shown) => scaleLayer(shown, 0.9 / shown.w), '');
     const stored = getLayer('T') as TextLayer;
-    expect(stored.keys!.w).toEqual([k(0, 0.4), k(1, 0.9, 'ease-in-out'), k(2, 0.8)]);
+    expect(stored.keys!.w).toEqual([keyframe(0, 0.4), keyframe(1, 0.9, 'ease-in-out'), keyframe(2, 0.8)]);
     expect(stored.w).toBe(0.4);
     expect(stored.size).toBeCloseTo((title as TextLayer).size, 12);
     // Drawn at 1 s: 0.9 wide, its font scaled with it.
@@ -797,7 +900,7 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     expect(toggleKey({ clip: 'v' }, 'volume')).toBeNull();
     setPlayhead(7);
     expect(setClipVolume('v', 0, 'slider:v')).toBeNull();
-    expect(getClip('v').keys!.volume).toEqual([k(1, 0.5, 'ease-in-out'), k(3, 0, 'ease-in-out')]);
+    expect(getClip('v').keys!.volume).toEqual([keyframe(1, 0.5, 'ease-in-out'), keyframe(3, 0, 'ease-in-out')]);
     expect(getClip('v').volume).toBe(0.5);
     expect(undos()).toBe(3);
   });
@@ -810,7 +913,11 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
     expect(setClipTransformAt('x', { x: 0.1 }, '')).toMatch(/locked/);
     expect(moveKeys({ clip: 'x' }, 'all', 0, 1, '')).toMatch(/locked/);
     expect(getVideo().clips).toBe(before);
-    loadVideoProject({ clips: [{ ...clip('a', 0, 4), keys: { x: Array.from({ length: 100 }, (_, i) => k(i / 100, 0.5)) } }] });
+    loadVideoProject({
+      clips: [
+        { ...clip('a', 0, 4), keys: { x: Array.from({ length: 100 }, (_, index) => keyframe(index / 100, 0.5)) } },
+      ],
+    });
     setPlayhead(3);
     expect(toggleKey({ clip: 'a' }, 'x')).toMatch(/at most 100/);
     expect(setClipTransformAt('a', { x: 0.3 }, '')).toMatch(/at most 100/);
@@ -822,8 +929,8 @@ describe('205: keyframes in the store (AC-3, AC-5)', () => {
 /* ---------- 206: transitions in the store (AC-3, AC-4, AC-7) ---------- */
 
 describe('206: transitions in the store', () => {
-  const transitionOf = (id: string) => getVideo().clips.find((c) => c.id === id)?.transition;
-  const ids = () => getVideo().clips.map((c) => c.id);
+  const transitionOf = (id: string) => getVideo().clips.find((vClip) => vClip.id === id)?.transition;
+  const ids = () => getVideo().clips.map((vClip) => vClip.id);
 
   describe('adding, changing and removing (AC-7)', () => {
     beforeEach(() => loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3), clip('c', 5, 1)] }));
@@ -880,7 +987,12 @@ describe('206: transitions in the store', () => {
       loadVideoProject({ clips: [clip('a', 0, 2), clip('b', 2, 3)] });
       setTransition('a', {});
       setTrack(MAIN_VIDEO, { locked: true });
-      for (const refusal of [setTransition('a', { dur: 1 }), removeTransition('a'), transitionEveryCut(MAIN_VIDEO, 'zoom')]) expect(refusal).toMatch(/locked/);
+      for (const refusal of [
+        setTransition('a', { dur: 1 }),
+        removeTransition('a'),
+        transitionEveryCut(MAIN_VIDEO, 'zoom'),
+      ])
+        expect(refusal).toMatch(/locked/);
       expect(transitionOf('a')!.dur).toBe(0.5);
       expect(undos()).toBe(2);
     });
@@ -889,7 +1001,10 @@ describe('206: transitions in the store', () => {
       withDecoder();
       try {
         // a 0–4, b 4–8 on the main track; x and y on two overlays over the cut: 3 videos at once, the browser’s limit.
-        loadVideoProject({ clips: [vid('a', 0, 4), vid('b', 4, 4), vid('x', 3, 2, 'O1'), vid('y', 3, 2, 'O2')], tracks: withOverlays('O1', 'O2') });
+        loadVideoProject({
+          clips: [vid('a', 0, 4), vid('b', 4, 4), vid('x', 3, 2, 'O1'), vid('y', 3, 2, 'O2')],
+          tracks: withOverlays('O1', 'O2'),
+        });
         expect(setTransition('a', {})).toMatch(/videos/);
         expect(transitionOf('a')).toBeUndefined();
         expect(undos()).toBe(0);
@@ -934,7 +1049,7 @@ describe('206: transitions in the store', () => {
       setPlayhead(3.5);
       selectClip('b');
       expect(splitAtPlayheadWhy()).toBeNull();
-      const right = getVideo().clips.find((c) => c.start === 3.5)!;
+      const right = getVideo().clips.find((vClip) => vClip.start === 3.5)!;
       expect(transitionOf('a')).toEqual({ kind: 'dissolve', dur: 1, to: 'b' });
       expect(transitionOf('b')).toBeUndefined();
       expect(right.transition).toEqual({ kind: 'wipe', dur: 0.5, to: 'c', dir: 'left' });
@@ -953,17 +1068,21 @@ describe('206: transitions in the store', () => {
     let seed = 2061;
     const random = () => {
       seed = (seed + 0x6d2b79f5) | 0;
-      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      let time = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      time = (time + Math.imul(time ^ (time >>> 7), 61 | time)) ^ time;
+      return ((time ^ (time >>> 14)) >>> 0) / 4294967296;
     };
-    const pick = <T,>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
-    const fresh = () => loadVideoProject({ clips: ['a', 'b', 'c', 'd', 'e'].map((id, i) => clip(id, i * 2, 1 + random() * 3)), magnetic: random() < 0.7 });
+    const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
+    const fresh = () =>
+      loadVideoProject({
+        clips: ['a', 'b', 'c', 'd', 'e'].map((id, index) => clip(id, index * 2, 1 + random() * 3)),
+        magnetic: random() < 0.7,
+      });
     fresh();
     const kinds = ['dissolve', 'dip', 'wipe', 'slide', 'zoom'] as const;
     for (let step = 0; step < 1000; step++) {
-      const s = getVideo();
-      if (s.clips.length < 2) fresh();
+      const state = getVideo();
+      if (state.clips.length < 2) fresh();
       const id = pick(getVideo().clips).id;
       const edit = pick([
         () => setTransition(id, { kind: pick(kinds), dur: 0.1 + random() * 3.5 }),
@@ -985,19 +1104,19 @@ describe('206: transitions in the store', () => {
       endVStep();
       const clips = getVideo().clips,
         fps = getVideo().fps;
-      for (const c of clips) {
-        const tr = c.transition;
+      for (const vClip of clips) {
+        const tr = vClip.transition;
         if (!tr) continue;
         const next = clips.find((other) => other.id === tr.to);
-        const where = `step ${step}: ${c.id} → ${tr.to}`;
+        const where = `step ${step}: ${vClip.id} → ${tr.to}`;
         expect(next, where).toBeDefined();
-        expect(next!.track, where).toBe(c.track);
-        expect(Math.abs(c.start + clipLength(c) - next!.start), where).toBeLessThanOrEqual(1e-6);
+        expect(next!.track, where).toBe(vClip.track);
+        expect(Math.abs(vClip.start + clipLength(vClip) - next!.start), where).toBeLessThanOrEqual(1e-6);
         expect(tr.dur, where).toBeGreaterThanOrEqual(0.1 - 1e-9);
         expect(tr.dur, where).toBeLessThanOrEqual(3);
         expect(Math.abs(tr.dur * fps - Math.round(tr.dur * fps)), where).toBeLessThan(1e-6);
-        const before = clips.find((other) => other.transition?.to === c.id)?.transition?.dur ?? 0;
-        expect(before / 2 + tr.dur / 2, where).toBeLessThanOrEqual(clipLength(c) + 1e-9);
+        const before = clips.find((other) => other.transition?.to === vClip.id)?.transition?.dur ?? 0;
+        expect(before / 2 + tr.dur / 2, where).toBeLessThanOrEqual(clipLength(vClip) + 1e-9);
         expect(tr.dur / 2, where).toBeLessThanOrEqual(clipLength(next!) + 1e-9);
       }
     }

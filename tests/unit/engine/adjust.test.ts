@@ -10,10 +10,10 @@ describe('Adjustments', () => {
   });
   it('default to neutral colour, and every default is within its range', () => {
     expect(colourNeutral(DEFAULT_ADJUST)).toBe(true);
-    for (const [k, [lo, hi]] of Object.entries(ADJUST_RANGES)) {
-      const v = DEFAULT_ADJUST[k as keyof typeof ADJUST_RANGES];
-      expect(v).toBeGreaterThanOrEqual(lo);
-      expect(v).toBeLessThanOrEqual(hi);
+    for (const [key, [lo, hi]] of Object.entries(ADJUST_RANGES)) {
+      const value = DEFAULT_ADJUST[key as keyof typeof ADJUST_RANGES];
+      expect(value).toBeGreaterThanOrEqual(lo);
+      expect(value).toBeLessThanOrEqual(hi);
     }
   });
   it('treat the vignette as drawn on top, not a colour change', () => {
@@ -25,7 +25,7 @@ describe('Adjustments', () => {
 
 describe('mergeAdjust', () => {
   it('returns the defaults for anything that is not an object', () => {
-    for (const v of [undefined, null, 3, 'x', []]) expect(mergeAdjust(v)).toEqual(DEFAULT_ADJUST);
+    for (const value of [undefined, null, 3, 'x', []]) expect(mergeAdjust(value)).toEqual(DEFAULT_ADJUST);
   });
   it('clamps to the ranges and drops non-numbers', () => {
     expect(mergeAdjust({ brightness: -300, contrast: 300, saturation: '50', warmth: Infinity, vignette: 101 })).toEqual(
@@ -38,8 +38,8 @@ describe('mergeAdjust', () => {
     expect(mergeAdjust({ look: 'sepia' }).look).toBe('none');
   });
   it('never returns the shared default object', () => {
-    const a = mergeAdjust({});
-    a.brightness = 5;
+    const adjustments = mergeAdjust({});
+    adjustments.brightness = 5;
     expect(DEFAULT_ADJUST.brightness).toBe(0);
   });
 });

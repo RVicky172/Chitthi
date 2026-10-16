@@ -18,7 +18,17 @@ const FRAME_HEIGHT = 200;
 function photoItem(overrides: Partial<StackDraw['clip']>, local: number): StackDraw {
   const logs = new Map<string, string[]>();
   return {
-    clip: { kind: 'photo', dur: 4, in: 0, out: 0, edit: DEFAULT_EDIT, motion: 'none', fade: false, overlay: false, ...overrides },
+    clip: {
+      kind: 'photo',
+      dur: 4,
+      in: 0,
+      out: 0,
+      edit: DEFAULT_EDIT,
+      motion: 'none',
+      fade: false,
+      overlay: false,
+      ...overrides,
+    },
     src: recordingCanvas('picture', logs).canvas as unknown as CanvasImageSource,
     sw: 10,
     sh: 20,
@@ -51,7 +61,10 @@ afterEach(() => {
 describe('renderStack for one clip', () => {
   it('draws a clip at the identity in place, over black, with no scratch canvas', () => {
     const logs = draw([photoItem({ tf: { ...IDENTITY } }, 1)]);
-    expect(mainLog(logs).slice(0, 2)).toEqual(['fillStyle=#000000', `fillRect(0,0,${String(FRAME_WIDTH)},${String(FRAME_HEIGHT)})`]);
+    expect(mainLog(logs).slice(0, 2)).toEqual([
+      'fillStyle=#000000',
+      `fillRect(0,0,${String(FRAME_WIDTH)},${String(FRAME_HEIGHT)})`,
+    ]);
     expect([...logs.keys()]).toEqual(['main']);
     expect(mainLog(logs)).not.toContain('clip()');
   });
@@ -64,7 +77,9 @@ describe('renderStack for one clip', () => {
 
   it('draws a box at its own opacity in place, clipped to its box', () => {
     const logs = draw([photoItem({ overlay: true, tf: { ...IDENTITY, w: 0.5, opacity: 1 } }, 1)]);
-    expect(mainLog(logs)).toEqual(expect.arrayContaining(['globalAlpha=1', 'translate(50,100)', 'clip()', 'scale(0.5,0.5)']));
+    expect(mainLog(logs)).toEqual(
+      expect.arrayContaining(['globalAlpha=1', 'translate(50,100)', 'clip()', 'scale(0.5,0.5)']),
+    );
   });
 
   it('darkens the whole frame for the main clip’s fade-in and the video’s fade-out, after the layers', () => {

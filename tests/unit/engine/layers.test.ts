@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { TEXT_STYLES } from '@/data/layers';
-import { activeAt, addStroke, BLEND_MODES, layerName, newImageLayer, newShape, newSticker, newText, scaleLayer, type DrawLayer, type ShapeLayer, type TextLayer } from '@/engine/layers';
+import {
+  activeAt,
+  addStroke,
+  BLEND_MODES,
+  layerName,
+  newImageLayer,
+  newShape,
+  newSticker,
+  newText,
+  scaleLayer,
+  type DrawLayer,
+  type ShapeLayer,
+  type TextLayer,
+} from '@/engine/layers';
 import { hitLayer, rotationFor, toLocal } from '@/engine/layerPick';
 import { layerMasked } from '@/engine/layerDraw';
 import { mergeLayers } from '@/engine/layerGate';
@@ -12,15 +25,15 @@ import { V_FADE, fadeAmount, motionEdit } from '@/engine/video';
 
 describe('layers', () => {
   it('scale about their centre, with their text sizes, within limits', () => {
-    const t = newText(TEXT_STYLES[0]);
-    const big = scaleLayer(t, 2);
-    expect(big.w).toBeCloseTo(t.w * 2);
-    expect(big.size).toBeCloseTo(t.size * 2);
-    expect([big.x, big.y]).toEqual([t.x, t.y]);
-    const s = newShape('bubble');
-    const small = scaleLayer(s, 0.5);
-    expect(small.h).toBeCloseTo(s.h / 2);
-    expect(small.textSize).toBeCloseTo(s.textSize / 2);
+    const layer = newText(TEXT_STYLES[0]);
+    const big = scaleLayer(layer, 2);
+    expect(big.w).toBeCloseTo(layer.w * 2);
+    expect(big.size).toBeCloseTo(layer.size * 2);
+    expect([big.x, big.y]).toEqual([layer.x, layer.y]);
+    const shapeLayer = newShape('bubble');
+    const small = scaleLayer(shapeLayer, 0.5);
+    expect(small.h).toBeCloseTo(shapeLayer.h / 2);
+    expect(small.textSize).toBeCloseTo(shapeLayer.textSize / 2);
     // Never smaller than 3% or wider than 3 frames.
     expect(scaleLayer(newSticker('🎉'), 0.0001).w).toBeCloseTo(0.03);
     expect(scaleLayer(newSticker('🎉'), 1000).w).toBeCloseTo(3);
@@ -33,65 +46,70 @@ describe('layers', () => {
   });
 
   it('rotate to the pointer, snapping to right angles', () => {
-    const b = { cx: 0, cy: 0, w: 10, h: 10, rot: 0 };
-    expect(rotationFor(b, 0, -50)).toBe(0); // straight up = no turn
-    expect(rotationFor(b, 50, 2)).toBe(90); // within 4° of 90 snaps
-    expect(rotationFor(b, 50, 30)).toBeCloseTo(121, 0);
+    const second = { cx: 0, cy: 0, w: 10, h: 10, rot: 0 };
+    expect(rotationFor(second, 0, -50)).toBe(0); // straight up = no turn
+    expect(rotationFor(second, 50, 2)).toBe(90); // within 4° of 90 snaps
+    expect(rotationFor(second, 50, 30)).toBeCloseTo(121, 0);
   });
 
   it('show on video only between their start and end, and never when hidden', () => {
-    const l = { ...newSticker('⭐'), start: 2, end: 5 };
-    expect(activeAt(l)).toBe(true);
-    expect([activeAt(l, 1.9), activeAt(l, 2), activeAt(l, 4.9), activeAt(l, 5)]).toEqual([false, true, true, false]);
-    expect(activeAt({ ...l, hidden: true }, 3)).toBe(false);
+    const sticker = { ...newSticker('⭐'), start: 2, end: 5 };
+    expect(activeAt(sticker)).toBe(true);
+    expect([activeAt(sticker, 1.9), activeAt(sticker, 2), activeAt(sticker, 4.9), activeAt(sticker, 5)]).toEqual([
+      false,
+      true,
+      true,
+      false,
+    ]);
+    expect(activeAt({ ...sticker, hidden: true }, 3)).toBe(false);
   });
 
   it('fit a drawing around its strokes and keep earlier strokes in place', () => {
-    const W = 1000,
-      H = 2000;
-    const a = addStroke(null, [100, 200, 300, 200], 'pen', '#fff', W, H, 10) as DrawLayer;
-    expect(a.w).toBeCloseTo(0.21); // 200 px + the line width, in frame widths
-    expect(a.x).toBeCloseTo(0.2);
-    expect(a.y).toBeCloseTo(0.1);
-    const b = addStroke(a, [500, 800, 500, 900], 'pen', '#000', W, H, 10) as DrawLayer;
-    expect(b.id).toBe(a.id);
-    expect(b.strokes).toHaveLength(2);
+    const width = 1000,
+      height = 2000;
+    const layer = addStroke(null, [100, 200, 300, 200], 'pen', '#fff', width, height, 10) as DrawLayer;
+    expect(layer.w).toBeCloseTo(0.21); // 200 px + the line width, in frame widths
+    expect(layer.x).toBeCloseTo(0.2);
+    expect(layer.y).toBeCloseTo(0.1);
+    const drawLayer = addStroke(layer, [500, 800, 500, 900], 'pen', '#000', width, height, 10) as DrawLayer;
+    expect(drawLayer.id).toBe(layer.id);
+    expect(drawLayer.strokes).toHaveLength(2);
     // The first stroke's first point is still at (100, 200) px.
-    const s = b.strokes[0];
-    expect(b.x * W + s.pts[0] * b.w * W).toBeCloseTo(100);
-    expect(b.y * H + s.pts[1] * b.h * W).toBeCloseTo(200);
+    const stroke = drawLayer.strokes[0];
+    expect(drawLayer.x * width + stroke.pts[0] * drawLayer.w * width).toBeCloseTo(100);
+    expect(drawLayer.y * height + stroke.pts[1] * drawLayer.h * width).toBeCloseTo(200);
     // A turned drawing takes no more strokes.
-    expect(addStroke({ ...b, rot: 30 }, [0, 0, 1, 1], 'pen', '#000', W, H)).toBeNull();
+    expect(addStroke({ ...drawLayer, rot: 30 }, [0, 0, 1, 1], 'pen', '#000', width, height)).toBeNull();
   });
 });
 
 describe('image layers, blend modes and layer masks', () => {
   const ctx = {} as CanvasRenderingContext2D;
   it('an image layer keeps the proportions of its picture, also when scaled', () => {
-    const l = newImageLayer('img1', 800, 400, 'logo');
-    expect(l.h / l.w).toBeCloseTo(0.5, 9);
-    const big = scaleLayer(l, 1.5);
+    const layer = newImageLayer('img1', 800, 400, 'logo');
+    expect(layer.h / layer.w).toBeCloseTo(0.5, 9);
+    const big = scaleLayer(layer, 1.5);
     expect(big.h / big.w).toBeCloseTo(0.5, 9);
-    expect(big.w).toBeCloseTo(l.w * 1.5, 9);
-    expect(layerName(l)).toBe('Image: logo');
+    expect(big.w).toBeCloseTo(layer.w * 1.5, 9);
+    expect(layerName(layer)).toBe('Image: logo');
   });
   it('is hit inside its box, turned with it, and not outside', () => {
     // 0.34 of a 1000 px frame wide, half as tall: 340 × 170 around the centre; turned a quarter it stands up.
-    const l = { ...newImageLayer('img1', 800, 400, 'logo'), rot: 90 };
-    expect(hitLayer(ctx, [l], 500, 500 - 160, 1000, 1000, 0)).toBe(l);
-    expect(hitLayer(ctx, [l], 500 - 160, 500, 1000, 1000, 0)).toBeNull();
-    expect(hitLayer(ctx, [{ ...l, rot: 0 }], 500 - 160, 500, 1000, 1000, 0)).not.toBeNull();
+    const image = { ...newImageLayer('img1', 800, 400, 'logo'), rot: 90 };
+    expect(hitLayer(ctx, [image], 500, 500 - 160, 1000, 1000, 0)).toBe(image);
+    expect(hitLayer(ctx, [image], 500 - 160, 500, 1000, 1000, 0)).toBeNull();
+    expect(hitLayer(ctx, [{ ...image, rot: 0 }], 500 - 160, 500, 1000, 1000, 0)).not.toBeNull();
   });
   it('offer the blend modes Canvas 2D has, normal first', () => {
     expect(BLEND_MODES[0][0]).toBe('normal');
-    expect(new Set(BLEND_MODES.map(([m]) => m)).size).toBe(16);
+    expect(new Set(BLEND_MODES.map(([message]) => message)).size).toBe(16);
   });
   it('count as masked only with parts or an invert', () => {
-    const t = newText(TEXT_STYLES[0]);
-    expect(layerMasked(t)).toBe(false);
-    expect(layerMasked({ ...t, mask: { invert: false, parts: [] } })).toBe(false);
-    expect(layerMasked({ ...t, mask: { invert: true, parts: [] } })).toBe(true);
-    expect(layerMasked({ ...t, mask: { invert: false, parts: [newPart('linear')] } })).toBe(true);
+    const layer = newText(TEXT_STYLES[0]);
+    expect(layerMasked(layer)).toBe(false);
+    expect(layerMasked({ ...layer, mask: { invert: false, parts: [] } })).toBe(false);
+    expect(layerMasked({ ...layer, mask: { invert: true, parts: [] } })).toBe(true);
+    expect(layerMasked({ ...layer, mask: { invert: false, parts: [newPart('linear')] } })).toBe(true);
   });
 });
 
@@ -101,28 +119,28 @@ describe('video timeline', () => {
     { id: 'b', track: MAIN_VIDEO, start: 0, kind: 'video' as const, dur: 0, in: 2, out: 6.5 },
     { id: 'c', track: MAIN_VIDEO, start: 0, kind: 'photo' as const, dur: 1.5, in: 0, out: 0 },
   ]);
-  const p = { tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false };
+  const fixture = { tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false };
   it('places clips end to end', () => {
-    expect(clips.map((c) => [c.start, c.start + clipLength(c)])).toEqual([
+    expect(clips.map((clip) => [clip.start, clip.start + clipLength(clip)])).toEqual([
       [0, 3],
       [3, 7.5],
       [7.5, 9],
     ]);
-    expect(projectLength(p)).toBe(9);
+    expect(projectLength(fixture)).toBe(9);
     expect(clipLength(clips[1])).toBe(4.5);
   });
   it('finds the clip at a time, clamping past the ends', () => {
-    expect(videoAt(p, 0)?.clip.id).toBe('a');
-    expect(videoAt(p, 3)?.clip.id).toBe('b');
-    expect(videoAt(p, 8.99)?.clip.id).toBe('c');
-    expect(videoAt(p, 50)?.clip.id).toBe('c');
-    expect(videoAt(p, -1)?.clip.id).toBe('a');
-    expect(videoAt({ ...p, clips: [] }, 1)).toBeNull();
+    expect(videoAt(fixture, 0)?.clip.id).toBe('a');
+    expect(videoAt(fixture, 3)?.clip.id).toBe('b');
+    expect(videoAt(fixture, 8.99)?.clip.id).toBe('c');
+    expect(videoAt(fixture, 50)?.clip.id).toBe('c');
+    expect(videoAt(fixture, -1)?.clip.id).toBe('a');
+    expect(videoAt({ ...fixture, clips: [] }, 1)).toBeNull();
   });
   it('gives every frame to exactly one clip', () => {
-    const ranges = framePlan(p, 30).map((f) => [f.f0, f.f1]);
+    const ranges = framePlan(fixture, 30).map((span) => [span.f0, span.f1]);
     expect(ranges[0][0]).toBe(0);
-    for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBe(ranges[i - 1][1]);
+    for (let index = 1; index < ranges.length; index++) expect(ranges[index][0]).toBe(ranges[index - 1][1]);
     expect(ranges.at(-1)?.[1]).toBe(270); // 9 s × 30 fps
     expect(frameRange(3, 7.5, 30)).toEqual([90, 225]);
   });
@@ -144,10 +162,10 @@ describe('video timeline', () => {
 describe('video formats and limits', () => {
   it('offers vertical formats for Reels and 16:9 for YouTube, with 1440p and 4K for the desktop app only', async () => {
     const { formatsFor } = await import('@/engine/videoFormats');
-    expect(formatsFor('reel').map((f) => f.ratio)).toEqual(['9:16', '4:5', '1:1']);
+    expect(formatsFor('reel').map((format) => format.ratio)).toEqual(['9:16', '4:5', '1:1']);
     const yt = formatsFor('vlog');
-    expect(yt.every((f) => Math.abs(f.w / f.h - 16 / 9) < 0.01)).toBe(true);
-    expect(yt.filter((f) => f.desktopOnly).map((f) => f.h)).toEqual([1440, 2160]);
+    expect(yt.every((format) => Math.abs(format.w / format.h - 16 / 9) < 0.01)).toBe(true);
+    expect(yt.filter((format) => format.desktopOnly).map((format) => format.h)).toEqual([1440, 2160]);
   });
   it('uses YouTube’s recommended bitrates, more at 60 fps and for high quality', async () => {
     const { bitrateFor, vFormat } = await import('@/engine/videoFormats');
@@ -199,7 +217,7 @@ describe('mergeLayers: the gate for layers from project files', () => {
     draw,
     newImageLayer('img1', 400, 200, 'logo.png'),
   ];
-  const roundTrip = (v: unknown) => mergeLayers(JSON.parse(JSON.stringify(v)), new Set(['img1']));
+  const roundTrip = (value: unknown) => mergeLayers(JSON.parse(JSON.stringify(value)), new Set(['img1']));
 
   it('keeps every kind of valid layer exactly', () => {
     const layers = every();
@@ -207,22 +225,38 @@ describe('mergeLayers: the gate for layers from project files', () => {
   });
 
   it('reads anything without throwing, and only arrays of objects', () => {
-    for (const v of [null, undefined, 1, 'x', {}, [null, 3, 'a', [], { kind: 'nope' }]]) expect(mergeLayers(v)).toEqual([]);
+    for (const value of [null, undefined, 1, 'x', {}, [null, 3, 'a', [], { kind: 'nope' }]])
+      expect(mergeLayers(value)).toEqual([]);
   });
 
   it('clamps numbers and replaces bad values with defaults', () => {
-    const [t] = roundTrip([{ ...newText(TEXT_STYLES[0]), x: 99, y: -99, w: 0, rot: 9999, opacity: 7, size: 'big', color: 'red', align: 'up', bold: 'yes', start: -3, end: Infinity }]) as TextLayer[];
-    expect(t.x).toBeLessThanOrEqual(1.5);
-    expect(t.y).toBeGreaterThanOrEqual(-0.5);
-    expect(t.w).toBeGreaterThan(0);
-    expect(Math.abs(t.rot)).toBeLessThanOrEqual(360);
-    expect(t.opacity).toBe(1);
-    expect(t.size).toBe(0.08);
-    expect(t.color).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(t.align).toBe('center');
-    expect(t.bold).toBe(false);
-    expect(t.start).toBeUndefined();
-    expect(t.end).toBeUndefined();
+    const [layer] = roundTrip([
+      {
+        ...newText(TEXT_STYLES[0]),
+        x: 99,
+        y: -99,
+        w: 0,
+        rot: 9999,
+        opacity: 7,
+        size: 'big',
+        color: 'red',
+        align: 'up',
+        bold: 'yes',
+        start: -3,
+        end: Infinity,
+      },
+    ]) as TextLayer[];
+    expect(layer.x).toBeLessThanOrEqual(1.5);
+    expect(layer.y).toBeGreaterThanOrEqual(-0.5);
+    expect(layer.w).toBeGreaterThan(0);
+    expect(Math.abs(layer.rot)).toBeLessThanOrEqual(360);
+    expect(layer.opacity).toBe(1);
+    expect(layer.size).toBe(0.08);
+    expect(layer.color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(layer.align).toBe('center');
+    expect(layer.bold).toBe(false);
+    expect(layer.start).toBeUndefined();
+    expect(layer.end).toBeUndefined();
   });
 
   it('keeps times only when they make sense', () => {
@@ -237,12 +271,22 @@ describe('mergeLayers: the gate for layers from project files', () => {
       { kind: 'video', id: 'a' },
       { ...newShape('star'), shape: 'hexagon', fill: 'blue', stroke: '#zzzzzz', strokeW: -1 },
       { ...newText(TEXT_STYLES[0]), text: 'x'.repeat(5000) },
-      { ...draw, strokes: [...Array(500)].map(() => ({ brush: 'crayon', color: '#000000', width: 0.01, pts: [0, 0, 0.1, 0.1] })) },
-      { ...draw, id: 'ld2', strokes: [{ brush: 'pen', color: '#000000', width: 0.01, pts: [0, 0, NaN, 1] }, { brush: 'pen', color: '#000', width: 0.01, pts: [0, 0, 1] }] },
+      {
+        ...draw,
+        strokes: [...Array(500)].map(() => ({ brush: 'crayon', color: '#000000', width: 0.01, pts: [0, 0, 0.1, 0.1] })),
+      },
+      {
+        ...draw,
+        id: 'ld2',
+        strokes: [
+          { brush: 'pen', color: '#000000', width: 0.01, pts: [0, 0, NaN, 1] },
+          { brush: 'pen', color: '#000', width: 0.01, pts: [0, 0, 1] },
+        ],
+      },
     ]);
-    expect(out.map((l) => l.kind)).toEqual(['shape', 'text', 'draw', 'draw']);
-    const s = out[0] as ShapeLayer;
-    expect([s.shape, s.fill, s.stroke, s.strokeW]).toEqual(['rect', '', '', 0]);
+    expect(out.map((decoded) => decoded.kind)).toEqual(['shape', 'text', 'draw', 'draw']);
+    const layer = out[0] as ShapeLayer;
+    expect([layer.shape, layer.fill, layer.stroke, layer.strokeW]).toEqual(['rect', '', '', 0]);
     expect((out[1] as TextLayer).text).toHaveLength(2000);
     expect((out[2] as DrawLayer).strokes).toHaveLength(400);
     expect((out[2] as DrawLayer).strokes[0].brush).toBe('pen');
@@ -257,12 +301,16 @@ describe('mergeLayers: the gate for layers from project files', () => {
   });
 
   it('masks keep only gradient parts, and ids stay unique', () => {
-    const shape = { ...newShape('rect'), id: 'same', mask: { invert: false, parts: [newPart('brush'), { ...newPart('radial'), rx: 9 }, newPart('colour')] } };
+    const shape = {
+      ...newShape('rect'),
+      id: 'same',
+      mask: { invert: false, parts: [newPart('brush'), { ...newPart('radial'), rx: 9 }, newPart('colour')] },
+    };
     const out = roundTrip([shape, { ...newSticker('🎉'), id: 'same' }, { ...newSticker('🎉'), id: '<script>' }]);
-    expect((out[0] as ShapeLayer).mask?.parts.map((p) => p.kind)).toEqual(['radial']);
-    expect(new Set(out.map((l) => l.id)).size).toBe(3);
+    expect((out[0] as ShapeLayer).mask?.parts.map((part) => part.kind)).toEqual(['radial']);
+    expect(new Set(out.map((layer) => layer.id)).size).toBe(3);
     expect(out[0].id).toBe('same');
-    expect(out.every((l) => /^[A-Za-z0-9_-]{1,40}$/.test(l.id))).toBe(true);
+    expect(out.every((layer) => /^[A-Za-z0-9_-]{1,40}$/.test(layer.id))).toBe(true);
   });
 
   it('holds at most 100 layers', () => {

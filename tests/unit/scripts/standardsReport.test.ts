@@ -16,9 +16,17 @@ const ROOT = '/repo';
 const LINT_OUTPUT = [
   {
     filePath: '/repo/src/engine/keyframes.ts',
-    messages: [{ ruleId: 'id-length' }, { ruleId: 'id-length' }, { ruleId: 'jsdoc/require-jsdoc' }, { ruleId: 'prefer-const' }],
+    messages: [
+      { ruleId: 'id-length' },
+      { ruleId: 'id-length' },
+      { ruleId: 'jsdoc/require-jsdoc' },
+      { ruleId: 'prefer-const' },
+    ],
   },
-  { filePath: '/repo/src/engine/gpu/blur.ts', messages: [{ ruleId: 'sonarjs/cognitive-complexity' }, { ruleId: null }] },
+  {
+    filePath: '/repo/src/engine/gpu/blur.ts',
+    messages: [{ ruleId: 'sonarjs/cognitive-complexity' }, { ruleId: null }],
+  },
   { filePath: '/repo/src/components/studio/Timeline.tsx', messages: [{ ruleId: 'react-hooks/exhaustive-deps' }] },
   { filePath: '/repo/src/state/video.ts', messages: [] },
 ];

@@ -91,7 +91,15 @@ export async function perfTiming(): Promise<string[]> {
       overlay: false,
       file: stillOf(index)?.blob ?? new Blob(),
       ...(index % 2 === 0 && index < 39
-        ? { transition: { kind: kinds[(index / 2) % kinds.length] ?? 'dissolve', dur: 0.5, to: `m${String(index + 1)}`, dir: 'left' as const, colour: 'black' as const } }
+        ? {
+            transition: {
+              kind: kinds[(index / 2) % kinds.length] ?? 'dissolve',
+              dur: 0.5,
+              to: `m${String(index + 1)}`,
+              dir: 'left' as const,
+              colour: 'black' as const,
+            },
+          }
         : {}),
     })),
   );
@@ -109,7 +117,12 @@ export async function perfTiming(): Promise<string[]> {
     overlay: true,
     file: stillOf(index + 3)?.blob ?? new Blob(),
     tf: { x: 0.75, y: 0.25, w: 0.35, rot: 5, opacity: 0.8, radius: 0.05 },
-    keys: { x: [{ t: 0, v: 0.7, ease: 'ease-in-out' as const }, { t: 6, v: 0.8, ease: 'linear' as const }] },
+    keys: {
+      x: [
+        { t: 0, v: 0.7, ease: 'ease-in-out' as const },
+        { t: 6, v: 0.8, ease: 'linear' as const },
+      ],
+    },
   }));
   const flags = { hidden: false, muted: false, locked: false };
   const project = {
@@ -125,7 +138,11 @@ export async function perfTiming(): Promise<string[]> {
   };
   const total = 40 * 3;
   const times = Array.from({ length: 997 }, (_, index) => (index * total) / 997);
-  out.push(await bench('frameStack, 50 clips on 2 tracks (per call)', 2000, (index) => frameStack(project, times[index % times.length] ?? 0)));
+  out.push(
+    await bench('frameStack, 50 clips on 2 tracks (per call)', 2000, (index) =>
+      frameStack(project, times[index % times.length] ?? 0),
+    ),
+  );
 
   // Drawing: 30 frames spread over the video (transitions, overlays, motion), with a title, a shape and a sticker.
   const style = TEXT_STYLES[0];
@@ -155,8 +172,25 @@ export async function perfTiming(): Promise<string[]> {
   );
 
   /* ---------- Sound: the volume curve, and an export with sound ---------- */
-  const gain = Array.from({ length: 8 }, (_, index) => ({ t: index * 1.5, v: index % 2 ? 0.4 : 1, ease: 'ease-in-out' as const }));
-  const source = { ref: 'c', start: 2, end: 14, from: 0, volume: 1, gain, fadeIn: 0.5, fadeOut: 0.5, lead: 0.25, trail: 0.25, edgeIn: 'power' as const, edgeOut: 'dip' as const };
+  const gain = Array.from({ length: 8 }, (_, index) => ({
+    t: index * 1.5,
+    v: index % 2 ? 0.4 : 1,
+    ease: 'ease-in-out' as const,
+  }));
+  const source = {
+    ref: 'c',
+    start: 2,
+    end: 14,
+    from: 0,
+    volume: 1,
+    gain,
+    fadeIn: 0.5,
+    fadeOut: 0.5,
+    lead: 0.25,
+    trail: 0.25,
+    edgeIn: 'power' as const,
+    edgeOut: 'dip' as const,
+  };
   out.push(await bench('gainCurve, a 10 s window with 8 keys (per call)', 200, () => gainCurve(source, 0, 10)));
 
   const sync = await makeSyncClip(8);
@@ -175,7 +209,12 @@ export async function perfTiming(): Promise<string[]> {
         fade: false,
         file: sync,
         volume: 1,
-        keys: { volume: [{ t: 0, v: 0.2, ease: 'linear' as const }, { t: 2, v: 1, ease: 'linear' as const }] },
+        keys: {
+          volume: [
+            { t: 0, v: 0.2, ease: 'linear' as const },
+            { t: 2, v: 1, ease: 'linear' as const },
+          ],
+        },
         ...(index < 5 ? { transition: { kind: 'dissolve' as const, dur: 0.5, to: `s${String(index + 1)}` } } : {}),
       })),
     );
@@ -196,7 +235,9 @@ export async function perfTiming(): Promise<string[]> {
       });
       runs.push(performance.now() - started);
     }
-    out.push(`perf: export with sound, 6 × 4 s clips, 5 dissolves, volume keys, 640×360: fastest ${(Math.min(...runs) / 1000).toFixed(2)} s (runs ${runs.map((ms) => (ms / 1000).toFixed(2)).join(', ')})`);
+    out.push(
+      `perf: export with sound, 6 × 4 s clips, 5 dissolves, volume keys, 640×360: fastest ${(Math.min(...runs) / 1000).toFixed(2)} s (runs ${runs.map((ms) => (ms / 1000).toFixed(2)).join(', ')})`,
+    );
   }
 
   /* ---------- The photo pipeline at 1080×1350 ---------- */
@@ -208,15 +249,49 @@ export async function perfTiming(): Promise<string[]> {
   photoContext.drawImage(photo.src, 0, 0, 1080, 1350);
   const source2d = photoContext.getImageData(0, 0, 1080, 1350).data;
   const pixels = new Uint8ClampedArray(source2d.length);
-  const light = { ...DEFAULT_ADJUST, exposure: 0.3, highlights: -30, shadows: 25, temperature: 12, tint: -4, contrast: 10, saturation: 8 };
+  const light = {
+    ...DEFAULT_ADJUST,
+    exposure: 0.3,
+    highlights: -30,
+    shadows: 25,
+    temperature: 12,
+    tint: -4,
+    contrast: 10,
+    saturation: 8,
+  };
   const looked = { ...light, look: 'warm' as typeof light.look };
   const detail = { ...DEFAULT_ADJUST, clarity: 30, sharpen: 40, dehaze: 15, noise: 20 };
-  out.push(await bench('adjustPixels 1080×1350, light + white balance + basic (per call)', 5, () => { pixels.set(source2d); adjustPixels(pixels, light); }));
-  out.push(await bench('adjustPixels 1080×1350, the same with a look (per call)', 5, () => { pixels.set(source2d); adjustPixels(pixels, looked); }));
-  out.push(await bench('detailPixels 1080×1350, clarity + sharpen + dehaze + noise (per call)', 3, () => { pixels.set(source2d); detailPixels(pixels, 1080, 1350, detail, 1); }));
-  for (const [step, value] of [['noise', 20], ['dehaze', 15], ['clarity', 30], ['sharpen', 40]] as const) {
+  out.push(
+    await bench('adjustPixels 1080×1350, light + white balance + basic (per call)', 5, () => {
+      pixels.set(source2d);
+      adjustPixels(pixels, light);
+    }),
+  );
+  out.push(
+    await bench('adjustPixels 1080×1350, the same with a look (per call)', 5, () => {
+      pixels.set(source2d);
+      adjustPixels(pixels, looked);
+    }),
+  );
+  out.push(
+    await bench('detailPixels 1080×1350, clarity + sharpen + dehaze + noise (per call)', 3, () => {
+      pixels.set(source2d);
+      detailPixels(pixels, 1080, 1350, detail, 1);
+    }),
+  );
+  for (const [step, value] of [
+    ['noise', 20],
+    ['dehaze', 15],
+    ['clarity', 30],
+    ['sharpen', 40],
+  ] as const) {
     const alone = { ...DEFAULT_ADJUST, [step]: value };
-    out.push(await bench(`detailPixels 1080×1350, ${step} alone (per call)`, 3, () => { pixels.set(source2d); detailPixels(pixels, 1080, 1350, alone, 1); }));
+    out.push(
+      await bench(`detailPixels 1080×1350, ${step} alone (per call)`, 3, () => {
+        pixels.set(source2d);
+        detailPixels(pixels, 1080, 1350, alone, 1);
+      }),
+    );
   }
 
   /* ---------- The print renderer: a page at 300 dpi, and a PDF ---------- */
@@ -226,11 +301,13 @@ export async function perfTiming(): Promise<string[]> {
   for (const product of ['postcard', 'calendar', 'magnet'] as const) {
     const design = { ...productDesign(product), insta: 'someone' };
     const input = { d: design, photos: prints };
-    out.push(await bench(`renderCard ${product} front + back at 300 dpi (per page)`, 4, (index) => {
-      renderCard(page, index % 2 ? 'back' : 'front', pxPerMm, 3, input, { page: index % 12 });
-      // Canvas drawing is queued on the GPU: reading a pixel waits for it, so the time is the page's.
-      context(page).getImageData(0, 0, 1, 1);
-    }));
+    out.push(
+      await bench(`renderCard ${product} front + back at 300 dpi (per page)`, 4, (index) => {
+        renderCard(page, index % 2 ? 'back' : 'front', pxPerMm, 3, input, { page: index % 12 });
+        // Canvas drawing is queued on the GPU: reading a pixel waits for it, so the time is the page's.
+        context(page).getImageData(0, 0, 1, 1);
+      }),
+    );
   }
   const postcard = productDesign('postcard');
   out.push(await bench('buildPDF postcard (per file)', 1, () => buildPDF({ d: postcard, photos: prints }, 'pdf')));

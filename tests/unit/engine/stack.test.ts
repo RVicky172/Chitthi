@@ -35,19 +35,19 @@ const project = (clips: TimedClip[], overlays: Track[] = []): Project => ({
   layers: [],
   fadeOut: true,
 });
-const ids = (p: Project, t: number) => frameStack(p, t).map((s) => s.clip.id);
+const ids = (fixture: Project, time: number) => frameStack(fixture, time).map((draw) => draw.clip.id);
 
 /** A 2.x project on tracks (as timeline.test.ts builds it). */
-function onTracks(p: LegacyProject): Project<LegacyClip & TimedClip> {
-  const clips = pack(p.clips.map((c) => ({ ...c, track: MAIN_VIDEO, start: 0 })));
-  return { tracks: defaultTracks(), clips, audio: [], layers: p.layers, fadeOut: p.fadeOut };
+function onTracks(legacyProject: LegacyProject): Project<LegacyClip & TimedClip> {
+  const clips = pack(legacyProject.clips.map((legacyClip) => ({ ...legacyClip, track: MAIN_VIDEO, start: 0 })));
+  return { tracks: defaultTracks(), clips, audio: [], layers: legacyProject.layers, fadeOut: legacyProject.fadeOut };
 }
 
 /* ---------- frameStack ---------- */
 
 describe('frameStack: the picture clips drawn at a time, bottom first', () => {
   // Main 0–6; overlay V2 1–2 and 4–5 (a gap between); overlay V3 1.5–4.5.
-  const p = project(
+  const fixture = project(
     [
       clip('m', MAIN_VIDEO, 0, 6),
       clip('a', 'V2', 1, 1, 'video'),
@@ -58,24 +58,30 @@ describe('frameStack: the picture clips drawn at a time, bottom first', () => {
   );
 
   it('lists every visible picture track’s clip in drawing order, with the seconds into it and its track', () => {
-    expect(frameStack(p, 1.75)).toEqual([
-      { clip: p.clips[0], local: 1.75, track: MAIN_VIDEO },
-      { clip: p.clips[1], local: 0.75, track: 'V2' },
-      { clip: p.clips[3], local: 0.25, track: 'V3' },
+    expect(frameStack(fixture, 1.75)).toEqual([
+      { clip: fixture.clips[0], local: 1.75, track: MAIN_VIDEO },
+      { clip: fixture.clips[1], local: 0.75, track: 'V2' },
+      { clip: fixture.clips[3], local: 0.25, track: 'V3' },
     ]);
     // Drawing order is the tracks array's, not the clips array's.
-    const swapped = { ...p, tracks: [p.tracks[0], p.tracks[1], p.tracks[3], p.tracks[2]] };
+    const swapped = {
+      ...fixture,
+      tracks: [fixture.tracks[0], fixture.tracks[1], fixture.tracks[3], fixture.tracks[2]],
+    };
     expect(ids(swapped, 1.75)).toEqual(['m', 'c', 'a']);
   });
 
   it('a gap on an overlay track leaves the tracks below it', () => {
-    expect(ids(p, 3)).toEqual(['m', 'c']);
-    expect(ids(p, 0.5)).toEqual(['m']);
-    expect(ids(p, 4.75)).toEqual(['m', 'b']);
+    expect(ids(fixture, 3)).toEqual(['m', 'c']);
+    expect(ids(fixture, 0.5)).toEqual(['m']);
+    expect(ids(fixture, 4.75)).toEqual(['m', 'b']);
   });
 
   it('leaves hidden tracks out (the main track too)', () => {
-    const hide = (id: string) => ({ ...p, tracks: p.tracks.map((t) => (t.id === id ? { ...t, hidden: true } : t)) });
+    const hide = (id: string) => ({
+      ...fixture,
+      tracks: fixture.tracks.map((track) => (track.id === id ? { ...track, hidden: true } : track)),
+    });
     expect(ids(hide('V2'), 1.75)).toEqual(['m', 'c']);
     expect(ids(hide(MAIN_VIDEO), 1.75)).toEqual(['a', 'c']);
     expect(ids(hide(MAIN_VIDEO), -1)).toEqual([]);
@@ -83,36 +89,40 @@ describe('frameStack: the picture clips drawn at a time, bottom first', () => {
   });
 
   it('ignores clips on audio or unknown tracks', () => {
-    const q = project([...p.clips, clip('x', MUSIC, 0, 6), clip('y', 'V9', 0, 6)], [overlay('V2'), overlay('V3')]);
-    expect(ids(q, 1.75)).toEqual(['m', 'a', 'c']);
+    const scene = project(
+      [...fixture.clips, clip('x', MUSIC, 0, 6), clip('y', 'V9', 0, 6)],
+      [overlay('V2'), overlay('V3')],
+    );
+    expect(ids(scene, 1.75)).toEqual(['m', 'a', 'c']);
   });
 
   it('an overlay clip starting at 2.0 s first shows in frame 60 at 30 fps and is gone in the frame after its last', () => {
-    const q = project([clip('m', MAIN_VIDEO, 0, 6), clip('o', 'V2', 2, 1.5, 'video')], [overlay('V2')]);
+    const scene = project([clip('m', MAIN_VIDEO, 0, 6), clip('o', 'V2', 2, 1.5, 'video')], [overlay('V2')]);
     const [f0, f1] = frameRange(2, 3.5, 30);
     expect([f0, f1]).toEqual([60, 105]);
-    expect(ids(q, 59 / 30)).toEqual(['m']);
-    expect(ids(q, 60 / 30)).toEqual(['m', 'o']);
-    expect(frameStack(q, 60 / 30)[1].local).toBe(0);
-    expect(ids(q, 104 / 30)).toEqual(['m', 'o']);
-    expect(ids(q, 105 / 30)).toEqual(['m']);
-    for (let i = 0; i < 180; i++) expect(ids(q, i / 30).includes('o'), `frame ${i}`).toBe(i >= f0 && i < f1);
+    expect(ids(scene, 59 / 30)).toEqual(['m']);
+    expect(ids(scene, 60 / 30)).toEqual(['m', 'o']);
+    expect(frameStack(scene, 60 / 30)[1].local).toBe(0);
+    expect(ids(scene, 104 / 30)).toEqual(['m', 'o']);
+    expect(ids(scene, 105 / 30)).toEqual(['m']);
+    for (let index = 0; index < 180; index++)
+      expect(ids(scene, index / 30).includes('o'), `frame ${index}`).toBe(index >= f0 && index < f1);
   });
 
   it('the main track clamps only before 0 and at or past the video’s end; black after it ends before an overlay does (Q9)', () => {
     // Main 0–4 (two clips), overlay 3–7: the video is 7 s long.
-    const q = project(
+    const scene = project(
       [clip('m1', MAIN_VIDEO, 0, 2), clip('m2', MAIN_VIDEO, 2, 2), clip('o', 'V2', 3, 4, 'video')],
       [overlay('V2')],
     );
-    expect(projectLength(q)).toBe(7);
-    expect(frameStack(q, -1)).toEqual([{ clip: q.clips[0], local: -1, track: MAIN_VIDEO }]);
-    expect(ids(q, 3.5)).toEqual(['m2', 'o']);
-    expect(ids(q, 4)).toEqual(['o']);
-    expect(ids(q, 6.99)).toEqual(['o']);
+    expect(projectLength(scene)).toBe(7);
+    expect(frameStack(scene, -1)).toEqual([{ clip: scene.clips[0], local: -1, track: MAIN_VIDEO }]);
+    expect(ids(scene, 3.5)).toEqual(['m2', 'o']);
+    expect(ids(scene, 4)).toEqual(['o']);
+    expect(ids(scene, 6.99)).toEqual(['o']);
     // At or past the video's end: the main track's last clip, nothing from the overlay (no clamp there).
-    expect(frameStack(q, 7)).toEqual([{ clip: q.clips[1], local: 5, track: MAIN_VIDEO }]);
-    expect(ids(q, 9)).toEqual(['m2']);
+    expect(frameStack(scene, 7)).toEqual([{ clip: scene.clips[1], local: 5, track: MAIN_VIDEO }]);
+    expect(ids(scene, 9)).toEqual(['m2']);
     // A main track starting later shows nothing before 0 (as videoAt).
     const late = project([clip('m', MAIN_VIDEO, 1, 2)]);
     expect(ids(late, -1)).toEqual([]);
@@ -126,35 +136,36 @@ describe('frameStack: the picture clips drawn at a time, bottom first', () => {
   });
 
   it('a gap on the main track shows nothing there', () => {
-    const q = project([clip('a', MAIN_VIDEO, 0, 2), clip('b', MAIN_VIDEO, 3.5, 2)]);
-    expect(ids(q, 2)).toEqual([]);
-    expect(ids(q, 3.49)).toEqual([]);
-    expect(ids(q, 3.5)).toEqual(['b']);
+    const scene = project([clip('a', MAIN_VIDEO, 0, 2), clip('b', MAIN_VIDEO, 3.5, 2)]);
+    expect(ids(scene, 2)).toEqual([]);
+    expect(ids(scene, 3.49)).toEqual([]);
+    expect(ids(scene, 3.5)).toEqual(['b']);
   });
 });
 
 /* ---------- AC-10: without overlays, the stack is videoAt ---------- */
 
 describe('for 201 / 202 projects the stack is exactly [videoAt] at every frame time (AC-10)', () => {
-  const same = (p: Project, t: number) => {
-    const want = videoAt(p, t);
-    const got = frameStack(p, t);
+  const same = (fixture: Project, time: number) => {
+    const want = videoAt(fixture, time);
+    const got = frameStack(fixture, time);
     expect(
       got.map(({ clip, local }) => ({ clip, local })),
-      `t = ${t}`,
+      `t = ${time}`,
     ).toEqual(want ? [want] : []);
-    for (const s of got) expect(s.track).toBe(MAIN_VIDEO);
+    for (const draw of got) expect(draw.track).toBe(MAIN_VIDEO);
   };
-  const frameTimes = (p: Project, fps: number) => {
-    const frames = Math.max(1, Math.round(projectLength(p) * fps));
-    const out = [-1, -1 / fps, projectLength(p), projectLength(p) + 3];
-    for (let i = 0; i <= frames; i++) out.push(i / fps);
+  const frameTimes = (fixture: Project, fps: number) => {
+    const frames = Math.max(1, Math.round(projectLength(fixture) * fps));
+    const out = [-1, -1 / fps, projectLength(fixture), projectLength(fixture) + 3];
+    for (let index = 0; index <= frames; index++) out.push(index / fps);
     return out;
   };
 
   it.each(Object.entries(legacyFixtures()))('%s at 30 and 60 fps', (name, lp) => {
-    const p = onTracks(lp);
-    for (const fps of name === 'clips500' ? [30] : [30, 60]) for (const t of frameTimes(p, fps)) same(p, t);
+    const fixture = onTracks(lp);
+    for (const fps of name === 'clips500' ? [30] : [30, 60])
+      for (const time of frameTimes(fixture, fps)) same(fixture, time);
   });
 
   it.each([
@@ -162,44 +173,44 @@ describe('for 201 / 202 projects the stack is exactly [videoAt] at every frame t
     ['late start', [clip('a', MAIN_VIDEO, 1, 2), clip('b', MAIN_VIDEO, 3, 1)]],
     ['fractions', [clip('a', MAIN_VIDEO, 1 / 3, 0.37), clip('b', MAIN_VIDEO, 1.1, 0.1, 'video')]],
   ] as const)('202 %s at 30 and 60 fps', (_, clips) => {
-    const p = project([...clips]);
-    for (const fps of [30, 60]) for (const t of frameTimes(p, fps)) same(p, t);
-    const hidden = { ...p, tracks: p.tracks.map((t) => ({ ...t, hidden: true })) };
-    for (const t of frameTimes(hidden, 30)) same(hidden, t);
+    const fixture = project([...clips]);
+    for (const fps of [30, 60]) for (const time of frameTimes(fixture, fps)) same(fixture, time);
+    const hidden = { ...fixture, tracks: fixture.tracks.map((track) => ({ ...track, hidden: true })) };
+    for (const time of frameTimes(hidden, 30)) same(hidden, time);
   });
 });
 
 describe('for 201 / 202 projects the stack is the export’s frame plan at every frame (AC-10)', () => {
-  const agrees = (p: Project, fps: number) => {
-    for (const span of framePlan(p, fps))
-      for (let i = span.f0; i < span.f1; i++) {
-        const got = frameStack(p, i / fps);
-        if (span.clip) expect(got[0]?.clip, `${fps} fps, frame ${i}`).toBe(span.clip);
-        else expect(got, `${fps} fps, frame ${i}`).toEqual([]);
+  const agrees = (fixture: Project, fps: number) => {
+    for (const span of framePlan(fixture, fps))
+      for (let index = span.f0; index < span.f1; index++) {
+        const got = frameStack(fixture, index / fps);
+        if (span.clip) expect(got[0]?.clip, `${fps} fps, frame ${index}`).toBe(span.clip);
+        else expect(got, `${fps} fps, frame ${index}`).toEqual([]);
       }
   };
 
   it.each(Object.entries(legacyFixtures()))('%s at 30 and 60 fps', (_, lp) => {
-    const p = onTracks(lp);
-    for (const fps of [30, 60]) agrees(p, fps);
+    const fixture = onTracks(lp);
+    for (const fps of [30, 60]) agrees(fixture, fps);
   });
 
   it('202 projects with gaps at 30 and 60 fps', () => {
-    const p = project([
+    const fixture = project([
       clip('a', MAIN_VIDEO, 1 / 3, 0.37),
       clip('b', MAIN_VIDEO, 1.1, 2),
       clip('c', MAIN_VIDEO, 3.5, 2),
     ]);
-    for (const fps of [30, 60]) agrees(p, fps);
+    for (const fps of [30, 60]) agrees(fixture, fps);
   });
 
   it('a clip ending a rounding hair after the next one starts: the frame on the edge is the later clip’s', () => {
     // a covers [0.2, 0.30000000000000004) (0.2 + 0.1 in floating point), b starts at 0.3 on an overlay track.
-    const a = { ...clip('a', MAIN_VIDEO, 0.2, 0.1, 'video'), in: 0, out: 0.1 };
-    const q = project([a, clip('b', 'V2', 0.3, 1, 'video')], [overlay('V2')]);
-    expect(a.start + (a.out - a.in)).toBeGreaterThan(9 / 30);
-    expect(ids(q, 9 / 30)).toEqual(['b']);
-    expect(mostVideosAt(q.clips, q.tracks)).toBe(1);
+    const first = { ...clip('a', MAIN_VIDEO, 0.2, 0.1, 'video'), in: 0, out: 0.1 };
+    const fixture = project([first, clip('b', 'V2', 0.3, 1, 'video')], [overlay('V2')]);
+    expect(first.start + (first.out - first.in)).toBeGreaterThan(9 / 30);
+    expect(ids(fixture, 9 / 30)).toEqual(['b']);
+    expect(mostVideosAt(fixture.clips, fixture.tracks)).toBe(1);
   });
 });
 
@@ -242,9 +253,9 @@ describe('mostVideosAt: the most video clips on screen at one moment', () => {
 
   it('finds the moment of most overlap among many clips', () => {
     // Five overlay tracks, staggered: at 4–5 all five plus the main video.
-    const many = [...defaultTracks(), ...[2, 3, 4, 5, 6].map((i) => overlay(`V${i}`))];
+    const many = [...defaultTracks(), ...[2, 3, 4, 5, 6].map((index) => overlay(`V${index}`))];
     const clips = [clip('m', MAIN_VIDEO, 0, 20, 'video')];
-    for (let i = 0; i < 5; i++) clips.push(clip(`o${i}`, `V${i + 2}`, i, 5, 'video'));
+    for (let index = 0; index < 5; index++) clips.push(clip(`o${index}`, `V${index + 2}`, index, 5, 'video'));
     expect(mostVideosAt(clips, many)).toBe(6);
   });
 });
@@ -252,12 +263,18 @@ describe('mostVideosAt: the most video clips on screen at one moment', () => {
 /* ---------- snapBox ---------- */
 
 describe('snapBox: a moved box snaps to the frame’s centre lines and edges', () => {
-  const W = 1080,
-    H = 1920;
-  const box = (cx: number, cy: number, w = 200, h = 100, rot = 0): Box => ({ cx, cy, w, h, rot });
+  const width = 1080,
+    height = 1920;
+  const box = (cx: number, cy: number, boxWidth = 200, boxHeight = 100, rot = 0): Box => ({
+    cx,
+    cy,
+    w: boxWidth,
+    h: boxHeight,
+    rot,
+  });
 
   it('snaps the centre to the centre lines within the tolerance', () => {
-    expect(snapBox(box(545, 955), W, H, 8)).toEqual({
+    expect(snapBox(box(545, 955), width, height, 8)).toEqual({
       x: 0.5,
       y: 0.5,
       guides: [
@@ -265,110 +282,147 @@ describe('snapBox: a moved box snaps to the frame’s centre lines and edges', (
         { axis: 'y', at: 960 },
       ],
     });
-    expect(snapBox(box(532, 968), W, H, 8)).toMatchObject({ x: 0.5, y: 0.5 });
+    expect(snapBox(box(532, 968), width, height, 8)).toMatchObject({ x: 0.5, y: 0.5 });
   });
 
   it('snaps the edges to the frame’s edges', () => {
     // Left edge at 6 → 0; bottom edge at 1915 → 1920.
-    const s = snapBox(box(106, 1865), W, H, 8);
-    expect(s.x).toBeCloseTo(100 / W, 12);
-    expect(s.y).toBeCloseTo(1870 / H, 12);
-    expect(s.guides).toEqual([
+    const snappedBox = snapBox(box(106, 1865), width, height, 8);
+    expect(snappedBox.x).toBeCloseTo(100 / width, 12);
+    expect(snappedBox.y).toBeCloseTo(1870 / height, 12);
+    expect(snappedBox.guides).toEqual([
       { axis: 'x', at: 0 },
       { axis: 'y', at: 1920 },
     ]);
     // Right edge 1075 → 1080; top edge -4 → 0.
-    const r = snapBox(box(975, 46), W, H, 8);
-    expect(r.x).toBeCloseTo(980 / W, 12);
-    expect(r.y).toBeCloseTo(50 / H, 12);
+    const rect = snapBox(box(975, 46), width, height, 8);
+    expect(rect.x).toBeCloseTo(980 / width, 12);
+    expect(rect.y).toBeCloseTo(50 / height, 12);
     // A box's edge may snap to the centre line too.
-    expect(snapBox(box(645, 300), W, H, 8).x).toBeCloseTo(640 / W, 12);
+    expect(snapBox(box(645, 300), width, height, 8).x).toBeCloseTo(640 / width, 12);
   });
 
   it('uses the rotated box’s bounding box for the edges', () => {
     // A 200 × 100 box turned 90°: 100 wide, 200 tall. Left edge at cx − 50.
-    const s = snapBox(box(55, 400, 200, 100, Math.PI / 2), W, H, 8);
-    expect(s.x).toBeCloseTo(50 / W, 9);
-    expect(s.guides).toEqual([{ axis: 'x', at: 0 }]);
+    const snappedBox = snapBox(box(55, 400, 200, 100, Math.PI / 2), width, height, 8);
+    expect(snappedBox.x).toBeCloseTo(50 / width, 9);
+    expect(snappedBox.guides).toEqual([{ axis: 'x', at: 0 }]);
     // Unrotated, the same centre puts the left edge at −45: too far.
-    expect(snapBox(box(55, 400), W, H, 8).guides).toEqual([]);
+    expect(snapBox(box(55, 400), width, height, 8).guides).toEqual([]);
   });
 
   it('the nearest candidate wins on each axis', () => {
     // Narrow box: centre 3 px from 540, right edge (545) 5 px from 540 → the centre wins.
-    const s = snapBox(box(537, 400, 16, 16), W, H, 8);
-    expect(s.x).toBe(0.5);
+    const snappedBox = snapBox(box(537, 400, 16, 16), width, height, 8);
+    expect(snappedBox.x).toBe(0.5);
     // Left edge 2 px past 540 (542), centre 10 px off → the edge wins.
-    const e = snapBox(box(552, 400, 20, 20), W, H, 8);
-    expect(e.x).toBeCloseTo(550 / W, 12);
-    expect(e.guides).toEqual([{ axis: 'x', at: 540 }]);
+    const rect = snapBox(box(552, 400, 20, 20), width, height, 8);
+    expect(rect.x).toBeCloseTo(550 / width, 12);
+    expect(rect.guides).toEqual([{ axis: 'x', at: 540 }]);
   });
 
   it('leaves the box where it is outside the tolerance (and snaps at exactly the tolerance)', () => {
-    expect(snapBox(box(400, 700), W, H, 8)).toEqual({ x: 400 / W, y: 700 / H, guides: [] });
-    expect(snapBox(box(549, 700), W, H, 8)).toEqual({ x: 549 / W, y: 700 / H, guides: [] });
-    expect(snapBox(box(548, 700), W, H, 8).x).toBe(0.5);
-    expect(snapBox(box(545, 955), W, H, 0)).toEqual({ x: 545 / W, y: 955 / H, guides: [] });
+    expect(snapBox(box(400, 700), width, height, 8)).toEqual({ x: 400 / width, y: 700 / height, guides: [] });
+    expect(snapBox(box(549, 700), width, height, 8)).toEqual({ x: 549 / width, y: 700 / height, guides: [] });
+    expect(snapBox(box(548, 700), width, height, 8).x).toBe(0.5);
+    expect(snapBox(box(545, 955), width, height, 0)).toEqual({ x: 545 / width, y: 955 / height, guides: [] });
   });
 });
 
 /* ---------- 206: transitions in the stack (AC-2, AC-3, AC-11, AC-13) ---------- */
 
 /** A clip with a transition of `dur` seconds into clip `to`. */
-const withTransition = (base: TimedClip, to: string, dur: number, kind: Transition['kind'] = 'dissolve', extra: Partial<Transition> = {}): TimedClip => ({
+const withTransition = (
+  base: TimedClip,
+  to: string,
+  dur: number,
+  kind: Transition['kind'] = 'dissolve',
+  extra: Partial<Transition> = {},
+): TimedClip => ({
   ...base,
   transition: { kind, dur, to, ...extra },
 });
 /** 205's Ease in and out at linear progress p (transitions are eased with it, Q12). */
-const eased = (p: number) => valueAt([{ t: 0, v: 0, ease: 'ease-in-out' }, { t: 1, v: 1, ease: 'ease-in-out' }], p);
+const eased = (share: number) =>
+  valueAt(
+    [
+      { t: 0, v: 0, ease: 'ease-in-out' },
+      { t: 1, v: 1, ease: 'ease-in-out' },
+    ],
+    share,
+  );
 
 describe('frameStack during a transition (206 AC-2)', () => {
   // A photo 0–2, a 1 s dissolve into a video 2–4 (source from 1 s).
-  const p = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1), clip('b', MAIN_VIDEO, 2, 2, 'video')]);
+  const fixture = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1), clip('b', MAIN_VIDEO, 2, 2, 'video')]);
 
   it('shows both clips in the track’s place from d/2 before the cut to d/2 after, the outgoing one first', () => {
-    expect(ids(p, 1.49)).toEqual(['a']);
-    expect(ids(p, 1.5)).toEqual(['a', 'b']);
-    expect(ids(p, 2.49)).toEqual(['a', 'b']);
-    expect(ids(p, 2.5)).toEqual(['b']);
+    expect(ids(fixture, 1.49)).toEqual(['a']);
+    expect(ids(fixture, 1.5)).toEqual(['a', 'b']);
+    expect(ids(fixture, 2.49)).toEqual(['a', 'b']);
+    expect(ids(fixture, 2.5)).toEqual(['b']);
   });
 
   it('gives each its local time past its ends (the handles) and the eased progress', () => {
-    const [from, to] = frameStack(p, 2.25);
-    expect(from).toEqual({ clip: p.clips[0], local: 2.25, track: MAIN_VIDEO, mix: { kind: 'dissolve', progress: eased(0.75), role: 'from' } });
-    expect(to).toEqual({ clip: p.clips[1], local: 0.25, track: MAIN_VIDEO, mix: { kind: 'dissolve', progress: eased(0.75), role: 'to' } });
-    const [early, incoming] = frameStack(p, 1.5);
+    const [from, to] = frameStack(fixture, 2.25);
+    expect(from).toEqual({
+      clip: fixture.clips[0],
+      local: 2.25,
+      track: MAIN_VIDEO,
+      mix: { kind: 'dissolve', progress: eased(0.75), role: 'from' },
+    });
+    expect(to).toEqual({
+      clip: fixture.clips[1],
+      local: 0.25,
+      track: MAIN_VIDEO,
+      mix: { kind: 'dissolve', progress: eased(0.75), role: 'to' },
+    });
+    const [early, incoming] = frameStack(fixture, 1.5);
     expect(early.mix!.progress).toBe(0);
     expect(incoming.local).toBeCloseTo(-0.5, 12);
   });
 
   it('carries the direction of a wipe or slide and the colour of a dip', () => {
-    const wipe = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1, 'wipe', { dir: 'up' }), clip('b', MAIN_VIDEO, 2, 2)]);
-    expect(frameStack(wipe, 2).map((item) => item.mix)).toEqual([
+    const wipe = project([
+      withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1, 'wipe', { dir: 'up' }),
+      clip('b', MAIN_VIDEO, 2, 2),
+    ]);
+    expect(frameStack(wipe, 2).map((draw) => draw.mix)).toEqual([
       { kind: 'wipe', dir: 'up', progress: eased(0.5), role: 'from' },
       { kind: 'wipe', dir: 'up', progress: eased(0.5), role: 'to' },
     ]);
-    const dip = project([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1, 'dip', { colour: 'white' }), clip('b', MAIN_VIDEO, 2, 2)]);
+    const dip = project([
+      withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1, 'dip', { colour: 'white' }),
+      clip('b', MAIN_VIDEO, 2, 2),
+    ]);
     expect(frameStack(dip, 2)[0].mix).toEqual({ kind: 'dip', colour: 'white', progress: eased(0.5), role: 'from' });
   });
 
   it('on an overlay track the pair sits in the overlay’s place, above the main track', () => {
-    const q = project(
-      [clip('m', MAIN_VIDEO, 0, 10), withTransition(clip('c', 'V2', 1, 3), 'd', 1), clip('d', 'V2', 4, 2), clip('e', 'V3', 0, 10)],
+    const scene = project(
+      [
+        clip('m', MAIN_VIDEO, 0, 10),
+        withTransition(clip('c', 'V2', 1, 3), 'd', 1),
+        clip('d', 'V2', 4, 2),
+        clip('e', 'V3', 0, 10),
+      ],
       [overlay('V2'), overlay('V3')],
     );
-    expect(ids(q, 3.75)).toEqual(['m', 'c', 'd', 'e']);
-    expect(ids(q, 4.6)).toEqual(['m', 'd', 'e']);
+    expect(ids(scene, 3.75)).toEqual(['m', 'c', 'd', 'e']);
+    expect(ids(scene, 4.6)).toEqual(['m', 'd', 'e']);
   });
 
   it('leaves the project’s length and every clip’s start as they are', () => {
     const plain = project([clip('a', MAIN_VIDEO, 0, 2), clip('b', MAIN_VIDEO, 2, 2, 'video')]);
-    expect(projectLength(p)).toBe(projectLength(plain));
-    expect(p.clips.map((c) => c.start)).toEqual(plain.clips.map((c) => c.start));
+    expect(projectLength(fixture)).toBe(projectLength(plain));
+    expect(fixture.clips.map((timedClip) => timedClip.start)).toEqual(plain.clips.map((timedClip) => timedClip.start));
   });
 
   it('a transition on a hidden track draws nothing (as its clips)', () => {
-    const hidden = project([clip('m', MAIN_VIDEO, 0, 10), withTransition(clip('c', 'V2', 1, 3), 'd', 1), clip('d', 'V2', 4, 2)], [overlay('V2', { hidden: true })]);
+    const hidden = project(
+      [clip('m', MAIN_VIDEO, 0, 10), withTransition(clip('c', 'V2', 1, 3), 'd', 1), clip('d', 'V2', 4, 2)],
+      [overlay('V2', { hidden: true })],
+    );
     expect(ids(hidden, 4)).toEqual(['m']);
   });
 });
@@ -379,23 +433,24 @@ describe('AC-11: the stack at every export frame with transitions equals an inde
    * transitions beyond it (its handles); where two show, it is a transition, the progress linear over [cut − d/2,
    * cut + d/2) and then eased. Written without frameStack's code.
    */
-  function reference(p: Project, t: number) {
+  function reference(fixture: Project, time: number) {
     const out: { id: string; local: number; track: string; progress?: number; role?: 'from' | 'to' }[] = [];
-    for (const track of p.tracks) {
+    for (const track of fixture.tracks) {
       if ((track.kind !== 'video' && track.kind !== 'overlay') || track.hidden) continue;
-      const on = p.clips.filter((c) => c.track === track.id);
+      const on = fixture.clips.filter((timedClip) => timedClip.track === track.id);
       const shown: typeof out = [];
-      for (const c of on) {
-        const len = c.kind === 'photo' ? c.dur : c.out - c.in;
-        const before = (on.find((other) => other.transition?.to === c.id)?.transition?.dur ?? 0) / 2;
-        const after = (c.transition?.dur ?? 0) / 2;
-        if (t >= c.start - before - 1e-9 && t < c.start + len + after - 1e-9) shown.push({ id: c.id, local: t - c.start, track: track.id });
+      for (const timedClip of on) {
+        const len = timedClip.kind === 'photo' ? timedClip.dur : timedClip.out - timedClip.in;
+        const before = (on.find((other) => other.transition?.to === timedClip.id)?.transition?.dur ?? 0) / 2;
+        const after = (timedClip.transition?.dur ?? 0) / 2;
+        if (time >= timedClip.start - before - 1e-9 && time < timedClip.start + len + after - 1e-9)
+          shown.push({ id: timedClip.id, local: time - timedClip.start, track: track.id });
       }
       if (shown.length === 2) {
-        const outgoing = on.find((c) => c.id === shown[0].id)!;
-        const d = outgoing.transition!.dur;
-        const cut = on.find((c) => c.id === shown[1].id)!.start;
-        const progress = eased((t - (cut - d / 2)) / d);
+        const outgoing = on.find((timedClip) => timedClip.id === shown[0].id)!;
+        const delta = outgoing.transition!.dur;
+        const cut = on.find((timedClip) => timedClip.id === shown[1].id)!.start;
+        const progress = eased((time - (cut - delta / 2)) / delta);
         shown[0] = { ...shown[0], progress, role: 'from' };
         shown[1] = { ...shown[1], progress, role: 'to' };
       }
@@ -414,7 +469,7 @@ describe('AC-11: the stack at every export frame with transitions equals an inde
   for (const [kind, extra] of kinds)
     for (const fps of [30, 60]) {
       it(`${kind} at ${fps} fps, a video into a photo on the main track and a photo into a video on an overlay`, () => {
-        const p = project(
+        const fixture = project(
           [
             withTransition(clip('v', MAIN_VIDEO, 0, 3, 'video'), 'p', 1, kind, extra),
             clip('p', MAIN_VIDEO, 3, 2),
@@ -423,16 +478,16 @@ describe('AC-11: the stack at every export frame with transitions equals an inde
           ],
           [overlay('V2')],
         );
-        const [, frames] = frameRange(0, projectLength(p), fps);
-        for (let i = 0; i < frames; i++) {
-          const t = i / fps;
-          const got = frameStack(p, t).map((item) => ({
-            id: item.clip.id,
-            local: item.local,
-            track: item.track,
-            ...(item.mix ? { progress: item.mix.progress, role: item.mix.role } : {}),
+        const [, frames] = frameRange(0, projectLength(fixture), fps);
+        for (let index = 0; index < frames; index++) {
+          const time = index / fps;
+          const got = frameStack(fixture, time).map((draw) => ({
+            id: draw.clip.id,
+            local: draw.local,
+            track: draw.track,
+            ...(draw.mix ? { progress: draw.mix.progress, role: draw.mix.role } : {}),
           }));
-          expect(got, `frame ${i}`).toEqual(reference(p, t));
+          expect(got, `frame ${index}`).toEqual(reference(fixture, time));
         }
       });
     }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { advance, dragTo, newMotion, openPose, pointerDown, pointerUp, touchDistance } from '@/components/viewer3dMotion';
+import {
+  advance,
+  dragTo,
+  newMotion,
+  openPose,
+  pointerDown,
+  pointerUp,
+  touchDistance,
+} from '@/components/viewer3dMotion';
 
 describe('viewer motion', () => {
   it('opens each view in its pose', () => {

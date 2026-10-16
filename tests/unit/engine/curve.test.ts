@@ -13,12 +13,12 @@ import {
   type CurvePoint,
 } from '@/engine/curve';
 
-const xs = Array.from({ length: 256 }, (_, i) => i / 255);
+const xs = Array.from({ length: 256 }, (_, index) => index / 255);
 
 describe('spline', () => {
   it('is the straight line for the identity curve', () => {
-    const f = spline(IDENTITY);
-    for (const x of xs) expect(f(x)).toBeCloseTo(x, 12);
+    const curve = spline(IDENTITY);
+    for (const x of xs) expect(curve(x)).toBeCloseTo(x, 12);
   });
   it('passes through every point', () => {
     const pts: CurvePoint[] = [
@@ -28,18 +28,19 @@ describe('spline', () => {
       [0.8, 0.9],
       [1, 1],
     ];
-    const f = spline(pts);
-    for (const [x, y] of pts) expect(f(x)).toBeCloseTo(y, 9);
+    const curve = spline(pts);
+    for (const [x, y] of pts) expect(curve(x)).toBeCloseTo(y, 9);
   });
   it('never dips on a rising curve, even with a steep S', () => {
-    const f = spline([
+    const curve = spline([
       [0, 0],
       [0.2, 0.02],
       [0.3, 0.6],
       [0.7, 0.98],
       [1, 1],
     ]);
-    for (let i = 1; i < xs.length; i++) expect(f(xs[i])).toBeGreaterThanOrEqual(f(xs[i - 1]) - 1e-12);
+    for (let index = 1; index < xs.length; index++)
+      expect(curve(xs[index])).toBeGreaterThanOrEqual(curve(xs[index - 1]) - 1e-12);
   });
   it('never overshoots its points, and stays between 0 and 1', () => {
     const pts: CurvePoint[] = [
@@ -48,27 +49,27 @@ describe('spline', () => {
       [0.6, 0],
       [1, 1],
     ];
-    const f = spline(pts);
+    const curve = spline(pts);
     for (const x of xs) {
-      expect(f(x)).toBeGreaterThanOrEqual(0);
-      expect(f(x)).toBeLessThanOrEqual(1);
+      expect(curve(x)).toBeGreaterThanOrEqual(0);
+      expect(curve(x)).toBeLessThanOrEqual(1);
     }
     // Between the points at 0.4 (1) and 0.6 (0) it only falls.
-    for (let x = 0.4; x < 0.6; x += 0.01) expect(f(x + 0.01)).toBeLessThanOrEqual(f(x) + 1e-12);
+    for (let x = 0.4; x < 0.6; x += 0.01) expect(curve(x + 0.01)).toBeLessThanOrEqual(curve(x) + 1e-12);
   });
   it('is flat beyond the first and last points', () => {
-    const f = spline([
+    const curve = spline([
       [0.2, 0.3],
       [0.8, 0.7],
     ]);
-    expect(f(0)).toBe(0.3);
-    expect(f(1)).toBe(0.7);
+    expect(curve(0)).toBe(0.3);
+    expect(curve(1)).toBe(0.7);
   });
 });
 
 describe('mergePoints and mergeCurve', () => {
   it('turn anything that is not a point list into the straight line', () => {
-    for (const v of [
+    for (const value of [
       undefined,
       null,
       'x',
@@ -80,7 +81,7 @@ describe('mergePoints and mergeCurve', () => {
         [1, 1],
       ],
     ])
-      expect(mergePoints(v)).toEqual(IDENTITY);
+      expect(mergePoints(value)).toEqual(IDENTITY);
   });
   it('clamp, sort, merge points closer than 0.01, and keep at most 14', () => {
     expect(
@@ -95,34 +96,35 @@ describe('mergePoints and mergeCurve', () => {
       [0.505, 0.7],
       [1, 0],
     ]);
-    const many = Array.from({ length: 30 }, (_, i) => [i / 29, i / 29]);
+    const many = Array.from({ length: 30 }, (_, index) => [index / 29, index / 29]);
     expect(mergePoints(many)).toHaveLength(MAX_POINTS);
   });
   it('fill in missing channels and drop unknown ones', () => {
-    const c = mergeCurve({
+    const curve = mergeCurve({
       rgb: [
         [0, 0.1],
         [1, 0.9],
       ],
       hue: [[0, 1]],
     });
-    expect(c.rgb).toEqual([
+    expect(curve.rgb).toEqual([
       [0, 0.1],
       [1, 0.9],
     ]);
-    expect(curveNeutral({ ...c, rgb: IDENTITY })).toBe(true);
-    expect(Object.keys(c).sort()).toEqual(['b', 'g', 'r', 'rgb']);
+    expect(curveNeutral({ ...curve, rgb: IDENTITY })).toBe(true);
+    expect(Object.keys(curve).sort()).toEqual(['b', 'g', 'r', 'rgb']);
   });
 });
 
 describe('curveTable', () => {
   it('is the identity for flat curves', () => {
-    const t = curveTable(FLAT_CURVE);
-    for (let k = 0; k < 3; k++) for (const v of [0, 0.1, 0.5, 0.77, 1]) expect(readTable(t, k, v)).toBeCloseTo(v, 6);
+    const values = curveTable(FLAT_CURVE);
+    for (let step = 0; step < 3; step++)
+      for (const value of [0, 0.1, 0.5, 0.77, 1]) expect(readTable(values, step, value)).toBeCloseTo(value, 6);
   });
   it('applies the master curve, then each channel its own', () => {
     // Master halves everything; red then doubles it back (a straight segment up to 0.5); green and blue stay halved.
-    const t = curveTable({
+    const values = curveTable({
       ...FLAT_CURVE,
       rgb: [
         [0, 0],
@@ -133,14 +135,14 @@ describe('curveTable', () => {
         [0.5, 1],
       ],
     });
-    expect(t).toHaveLength(CURVE_SAMPLES * 3);
-    expect(readTable(t, 0, 0.4)).toBeCloseTo(0.4, 2);
-    expect(readTable(t, 1, 0.4)).toBeCloseTo(0.2, 6);
-    expect(readTable(t, 2, 0.4)).toBeCloseTo(0.2, 6);
+    expect(values).toHaveLength(CURVE_SAMPLES * 3);
+    expect(readTable(values, 0, 0.4)).toBeCloseTo(0.4, 2);
+    expect(readTable(values, 1, 0.4)).toBeCloseTo(0.2, 6);
+    expect(readTable(values, 2, 0.4)).toBeCloseTo(0.2, 6);
   });
   it('clamps inputs outside 0–1', () => {
-    const t = curveTable(FLAT_CURVE);
-    expect(readTable(t, 0, -0.5)).toBe(0);
-    expect(readTable(t, 0, 2)).toBeCloseTo(1, 6);
+    const values = curveTable(FLAT_CURVE);
+    expect(readTable(values, 0, -0.5)).toBe(0);
+    expect(readTable(values, 0, 2)).toBeCloseTo(1, 6);
   });
 });

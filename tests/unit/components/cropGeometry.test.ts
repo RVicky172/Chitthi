@@ -5,7 +5,14 @@ import { cornerAt, draggedCrop, fittedCrop, nudgedCrop, pressAction, type CropVi
  * A 400 × 300 photo with a 200 × 100 box at (100, 100).
  * @returns the crop state
  */
-const view = (): CropView => ({ DW: 400, DH: 300, cr: { x: 100, y: 100, w: 200, h: 100 }, disp: null, act: null, first: false });
+const view = (): CropView => ({
+  DW: 400,
+  DH: 300,
+  cr: { x: 100, y: 100, w: 200, h: 100 },
+  disp: null,
+  act: null,
+  first: false,
+});
 
 describe('fittedCrop', () => {
   it('takes the whole photo for a free shape', () => {
@@ -38,7 +45,12 @@ describe('draggedCrop', () => {
     expect(moved).toEqual({ x: 200, y: 200, w: 200, h: 100 });
   });
   it('resizes towards the pointer, kept to the shape and to at least 20 px', () => {
-    expect(draggedCrop(view(), { t: 'resize', ax: 100, ay: 100 }, 300, 160, 2)).toEqual({ x: 100, y: 100, w: 120, h: 60 });
+    expect(draggedCrop(view(), { t: 'resize', ax: 100, ay: 100 }, 300, 160, 2)).toEqual({
+      x: 100,
+      y: 100,
+      w: 120,
+      h: 60,
+    });
     expect(draggedCrop(view(), { t: 'resize', ax: 100, ay: 100 }, 90, 95, 0)).toEqual({ x: 80, y: 80, w: 20, h: 20 });
   });
 });

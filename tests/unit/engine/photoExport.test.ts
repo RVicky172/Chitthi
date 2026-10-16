@@ -12,7 +12,7 @@ describe('photo export types', () => {
   it('cover JPEG, PNG, WebP, AVIF and 16-bit TIFF, each with its own type and extension', () => {
     expect(PHOTO_TYPE_IDS).toEqual(['jpeg', 'png', 'webp', 'avif', 'tiff']);
     expect(PHOTO_TYPES.tiff.lossy).toBe(false);
-    expect(new Set(PHOTO_TYPE_IDS.map((t) => PHOTO_TYPES[t].ext)).size).toBe(5);
+    expect(new Set(PHOTO_TYPE_IDS.map((type) => PHOTO_TYPES[type].ext)).size).toBe(5);
     expect(PHOTO_TYPES.png.lossy).toBe(false);
     expect([isPhotoType('webp'), isPhotoType('gif'), isPhotoType(3)]).toEqual([true, false, false]);
   });
@@ -29,7 +29,7 @@ describe('photo export types', () => {
   });
   it('pass quality as 0–1 for lossy types and leave PNG at full', async () => {
     const seen: number[] = [];
-    const spy: Encoder = async (mime, q) => (seen.push(q), new Blob(['x'], { type: mime }));
+    const spy: Encoder = async (mime, quarter) => (seen.push(quarter), new Blob(['x'], { type: mime }));
     await encodePhoto(cv, 'jpeg', 85, spy);
     await encodePhoto(cv, 'png', 85, spy);
     await encodePhoto(cv, 'webp', 400, spy);

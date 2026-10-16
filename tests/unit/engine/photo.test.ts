@@ -3,11 +3,12 @@ import { lookPixel, lookPixels } from '@/engine/photo';
 
 /** Runs one RGB pixel through a look and returns the result. */
 const look = (rgb: [number, number, number], id: Parameters<typeof lookPixels>[1]) => {
-  const a = new Uint8ClampedArray([...rgb, 255]);
-  lookPixels(a, id);
-  return [a[0], a[1], a[2]];
+  const pixels = new Uint8ClampedArray([...rgb, 255]);
+  lookPixels(pixels, id);
+  return [pixels[0], pixels[1], pixels[2]];
 };
-const sat = ([r, g, b]: number[]) => (Math.max(r, g, b) - Math.min(r, g, b)) / Math.max(r, g, b);
+const sat = ([red, green, blue]: number[]) =>
+  (Math.max(red, green, blue) - Math.min(red, green, blue)) / Math.max(red, green, blue);
 
 describe('hand-tinted look', () => {
   it('turns muted colours (skin, sky, walls) into a warm black-and-white', () => {
@@ -32,25 +33,25 @@ describe('hand-tinted look', () => {
 });
 
 /** How a Uint8ClampedArray stores a number: clamped, and rounded to the nearest even integer on exact halves. */
-const toByte = (v: number) => {
-  const c = Math.min(255, Math.max(0, v)),
-    f = Math.floor(c),
-    d = c - f;
-  return d > 0.5 ? f + 1 : d < 0.5 ? f : f % 2 ? f + 1 : f;
+const toByte = (value: number) => {
+  const clamped = Math.min(255, Math.max(0, value)),
+    frame = Math.floor(clamped),
+    delta = clamped - frame;
+  return delta > 0.5 ? frame + 1 : delta < 0.5 ? frame : frame % 2 ? frame + 1 : frame;
 };
 
 describe('lookPixel', () => {
   it('gives exactly what lookPixels gives, for every look, across the colour range', () => {
     const looks = ['none', 'vivid', 'warm', 'cool', 'bw', 'tinted', 'vintage'] as const;
-    const o = [0, 0, 0];
+    const out = [0, 0, 0];
     for (const id of looks)
-      for (let r = 0; r <= 255; r += 15)
-        for (let g = 0; g <= 255; g += 15)
-          for (let b = 0; b <= 255; b += 15) {
-            const a = new Uint8ClampedArray([r, g, b, 255]);
-            lookPixels(a, id);
-            lookPixel(r, g, b, id, o);
-            expect([...a.slice(0, 3)]).toEqual(o.map((v) => toByte(v)));
+      for (let red = 0; red <= 255; red += 15)
+        for (let green = 0; green <= 255; green += 15)
+          for (let blue = 0; blue <= 255; blue += 15) {
+            const pixels = new Uint8ClampedArray([red, green, blue, 255]);
+            lookPixels(pixels, id);
+            lookPixel(red, green, blue, id, out);
+            expect([...pixels.slice(0, 3)]).toEqual(out.map((value) => toByte(value)));
           }
   });
 });

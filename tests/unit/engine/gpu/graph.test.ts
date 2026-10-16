@@ -25,7 +25,7 @@ function fakeDevice() {
     read: async () => new Uint8ClampedArray(),
     floatTargets: true,
     readFloat: async () => new Float32Array(),
-    release: (t) => void released.push(t),
+    release: (texture) => void released.push(texture),
     destroy: () => {},
   };
   return { dev, passes, released, made: () => made };
@@ -37,24 +37,24 @@ describe('colourNodes', () => {
     expect(colourNodes({ ...DEFAULT_ADJUST, vignette: 60 })).toEqual([]);
   });
   it('runs the look first, then the sliders', () => {
-    const n = colourNodes({ ...DEFAULT_ADJUST, look: 'tinted', warmth: 20 });
-    expect(n.map((x) => x.program.id)).toEqual(['look', 'adjust']);
-    expect(n[0].uniforms[0]).toBe(5);
+    const nodes = colourNodes({ ...DEFAULT_ADJUST, look: 'tinted', warmth: 20 });
+    expect(nodes.map((x) => x.program.id)).toEqual(['look', 'adjust']);
+    expect(nodes[0].uniforms[0]).toBe(5);
   });
   it('skips the sliders node when only a look is chosen, and the look node when only sliders move', () => {
     expect(colourNodes({ ...DEFAULT_ADJUST, look: 'bw' }).map((x) => x.program)).toEqual([LOOK_PROGRAM]);
     expect(colourNodes({ ...DEFAULT_ADJUST, contrast: -10 }).map((x) => x.program)).toEqual([ADJUST_PROGRAM]);
   });
   it('scales the sliders exactly as adjustPixels does', () => {
-    const u = adjustUniforms({ ...DEFAULT_ADJUST, brightness: 50, contrast: 25, saturation: -100, warmth: 100 });
-    [32, 1.2, 0, 24].forEach((v, i) => expect(u[i]).toBeCloseTo(v, 6));
+    const values = adjustUniforms({ ...DEFAULT_ADJUST, brightness: 50, contrast: 25, saturation: -100, warmth: 100 });
+    [32, 1.2, 0, 24].forEach((value, index) => expect(values[index]).toBeCloseTo(value, 6));
     expect([...adjustUniforms({ ...DEFAULT_ADJUST, brightness: 900 })][0]).toBe(64);
   });
   it('declares programs the device layer accepts', () => {
-    for (const p of [LOOK_PROGRAM, ADJUST_PROGRAM]) {
-      expect(p.glsl).toMatch(/vec4 effect\(vec2 uv\)/);
-      expect(p.wgsl).toMatch(/fn effect\(uv: vec2f\) -> vec4f/);
-      expect(p.inputs).toBe(1);
+    for (const program of [LOOK_PROGRAM, ADJUST_PROGRAM]) {
+      expect(program.glsl).toMatch(/vec4 effect\(vec2 uv\)/);
+      expect(program.wgsl).toMatch(/fn effect\(uv: vec2f\) -> vec4f/);
+      expect(program.inputs).toBe(1);
     }
   });
 });
@@ -65,7 +65,7 @@ describe('runNodes', () => {
     const pool = new TexturePool(dev);
     const input = dev.upload({} as TexImageSource, 10, 5);
     const out = runNodes(dev, pool, input, colourNodes({ ...DEFAULT_ADJUST, look: 'warm', brightness: 10 }));
-    expect(passes.map((p) => p.program.id)).toEqual(['look', 'adjust']);
+    expect(passes.map((passe) => passe.program.id)).toEqual(['look', 'adjust']);
     expect(passes[0].input).toBe(input);
     expect(passes[1].input).toBe(passes[0].out);
     expect(out).toBe(passes[1].out);
@@ -75,7 +75,7 @@ describe('runNodes', () => {
     const { dev, passes } = fakeDevice();
     const input = dev.upload({} as TexImageSource, 4, 4);
     const out = runNodes(dev, new TexturePool(dev), input, []);
-    expect(passes.map((p) => p.program)).toEqual([COPY_PROGRAM]);
+    expect(passes.map((passe) => passe.program)).toEqual([COPY_PROGRAM]);
     expect(out).not.toBe(input);
   });
   it('reuses pooled textures frame after frame instead of allocating new ones', () => {
@@ -91,7 +91,7 @@ describe('runNodes', () => {
     const { dev, released } = fakeDevice();
     const pool = new TexturePool(dev);
     const ts = Array.from({ length: SPARES + 1 }, () => pool.take(4, 4));
-    ts.forEach((t) => pool.give(t));
+    ts.forEach((texture) => pool.give(texture));
     expect(released).toEqual([ts[SPARES]]);
     pool.clear();
     expect(released).toHaveLength(SPARES + 1);
@@ -102,7 +102,7 @@ describe('detail nodes and branching graphs', () => {
   it('wire each effect to its blur: sharpening reads the picture and its blurred copy', () => {
     const colour = colourNodes({ ...DEFAULT_ADJUST, look: 'warm' });
     const nodes = detailNodes({ ...DEFAULT_ADJUST, sharpen: 50 }, 100, 80, colour.length);
-    expect(nodes.map((n) => n.program.id)).toEqual(['blur', 'blur', 'sharpen']);
+    expect(nodes.map((node) => node.program.id)).toEqual(['blur', 'blur', 'sharpen']);
     // The first blur reads the colour step (node 0); the sharpen reads node 0 and the second blur (node 2).
     expect(nodes[0].inputs).toEqual([0]);
     expect(nodes[2].inputs).toEqual([0, 2]);
@@ -116,7 +116,7 @@ describe('detail nodes and branching graphs', () => {
       80,
       0,
     );
-    expect(nodes.map((n) => n.program.id)).toEqual([
+    expect(nodes.map((node) => node.program.id)).toEqual([
       'denoise',
       'dark',
       'blur',
@@ -131,9 +131,9 @@ describe('detail nodes and branching graphs', () => {
       'grain',
     ]);
     expect(nodes[0].inputs).toEqual(['source']);
-    expect(nodes.filter((n) => n.uniforms[4] === 1 && n.program.id !== 'blur').map((n) => n.program.id)).toEqual([
-      'grain',
-    ]);
+    expect(
+      nodes.filter((node) => node.uniforms[4] === 1 && node.program.id !== 'blur').map((node) => node.program.id),
+    ).toEqual(['grain']);
   });
   it('give every intermediate texture back to the pool: no leaks frame after frame', () => {
     const { dev, made } = fakeDevice();
@@ -158,15 +158,15 @@ describe('detail nodes and branching graphs', () => {
 });
 
 describe('deep (16-bit) nodes', () => {
-  const a = { ...DEFAULT_ADJUST, look: 'warm' as const, exposure: 0.5, sharpen: 40 };
+  const first = { ...DEFAULT_ADJUST, look: 'warm' as const, exposure: 0.5, sharpen: 40 };
   it('leave every colour step unrounded', () => {
-    const shallow = colourNodes(a),
-      deep = colourNodes(a, true);
+    const shallow = colourNodes(first),
+      deep = colourNodes(first, true);
     expect(shallow.at(-1)!.uniforms[8]).toBe(0);
     expect(deep.at(-1)!.uniforms[8]).toBe(1);
   });
   it('leave the last detail step unrounded', () => {
-    expect(detailNodes(a, 1080, 1350, 0).at(-1)!.uniforms[4]).toBe(1);
-    expect(detailNodes(a, 1080, 1350, 0, true).at(-1)!.uniforms[4]).toBe(0);
+    expect(detailNodes(first, 1080, 1350, 0).at(-1)!.uniforms[4]).toBe(1);
+    expect(detailNodes(first, 1080, 1350, 0, true).at(-1)!.uniforms[4]).toBe(0);
   });
 });

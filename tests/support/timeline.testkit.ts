@@ -37,8 +37,8 @@ export interface LegacyProject {
   fadeOut: boolean;
 }
 
-export const legacyClipLength = (c: { kind: 'photo' | 'video'; dur: number; in: number; out: number }): number =>
-  Math.max(0.1, c.kind === 'photo' ? c.dur : c.out - c.in);
+export const legacyClipLength = (clip: { kind: 'photo' | 'video'; dur: number; in: number; out: number }): number =>
+  Math.max(0.1, clip.kind === 'photo' ? clip.dur : clip.out - clip.in);
 
 export interface LegacyPlaced<T> {
   clip: T;
@@ -48,18 +48,19 @@ export interface LegacyPlaced<T> {
 }
 
 export function legacyTimeline<T extends LegacyClip>(clips: T[]): LegacyPlaced<T>[] {
-  let t = 0;
+  let time = 0;
   return clips.map((clip, index) => {
-    const start = t;
-    t += legacyClipLength(clip);
-    return { clip, index, start, end: t };
+    const start = time;
+    time += legacyClipLength(clip);
+    return { clip, index, start, end: time };
   });
 }
-export const legacyTotal = (clips: LegacyClip[]): number => clips.reduce((a, c) => a + legacyClipLength(c), 0);
+export const legacyTotal = (clips: LegacyClip[]): number =>
+  clips.reduce((sum, clip) => sum + legacyClipLength(clip), 0);
 
-export function legacyClipAt<T extends LegacyClip>(tl: LegacyPlaced<T>[], t: number): LegacyPlaced<T> | null {
+export function legacyClipAt<T extends LegacyClip>(tl: LegacyPlaced<T>[], time: number): LegacyPlaced<T> | null {
   if (!tl.length) return null;
-  return tl.find((p) => t >= p.start && t < p.end) ?? (t < 0 ? tl[0] : tl.at(-1)) ?? null;
+  return tl.find((placed) => time >= placed.start && time < placed.end) ?? (time < 0 ? tl[0] : tl.at(-1)) ?? null;
 }
 
 export function legacyFrameRange(start: number, end: number, fps: number): [number, number] {
@@ -68,13 +69,13 @@ export function legacyFrameRange(start: number, end: number, fps: number): [numb
 
 /** The export's frames: for each clip it draws, frame numbers [f0, last) and the clip's start (local = i / fps − start). */
 export function legacyFramePlan(
-  p: LegacyProject,
+  project: LegacyProject,
   fps: number,
 ): { id: string; f0: number; f1: number; start: number }[] {
-  const total = legacyTotal(p.clips);
+  const total = legacyTotal(project.clips);
   const frames = Math.max(1, Math.round(total * fps));
   const out: { id: string; f0: number; f1: number; start: number }[] = [];
-  for (const pl of legacyTimeline(p.clips)) {
+  for (const pl of legacyTimeline(project.clips)) {
     const [f0, f1] = legacyFrameRange(pl.start, pl.end, fps);
     const last = Math.min(f1, frames);
     if (f0 >= last) continue;
@@ -85,9 +86,9 @@ export function legacyFramePlan(
 
 /** The sound sources the export mixes (before checking which files have decodable sound). */
 export function legacyAudioPlan(
-  p: LegacyProject,
+  project: LegacyProject,
 ): { ref: string; start: number; end: number; from: number; volume: number; fadeIn: number; fadeOut: number }[] {
-  const total = legacyTotal(p.clips);
+  const total = legacyTotal(project.clips);
   const out: {
     ref: string;
     start: number;
@@ -97,18 +98,26 @@ export function legacyAudioPlan(
     fadeIn: number;
     fadeOut: number;
   }[] = [];
-  for (const pl of legacyTimeline(p.clips)) {
-    const c = pl.clip;
-    if (c.kind !== 'video' || c.volume <= 0) continue;
-    out.push({ ref: c.id, start: pl.start, end: pl.end, from: c.in, volume: c.volume, fadeIn: 0.03, fadeOut: 0.03 });
+  for (const pl of legacyTimeline(project.clips)) {
+    const legacyClip = pl.clip;
+    if (legacyClip.kind !== 'video' || legacyClip.volume <= 0) continue;
+    out.push({
+      ref: legacyClip.id,
+      start: pl.start,
+      end: pl.end,
+      from: legacyClip.in,
+      volume: legacyClip.volume,
+      fadeIn: 0.03,
+      fadeOut: 0.03,
+    });
   }
-  if (p.music && p.music.volume > 0)
+  if (project.music && project.music.volume > 0)
     out.push({
       ref: 'music',
       start: 0,
       end: total,
-      from: Math.max(0, p.music.offset),
-      volume: p.music.volume,
+      from: Math.max(0, project.music.offset),
+      volume: project.music.volume,
       fadeIn: 0,
       fadeOut: Math.min(1.5, total / 3),
     });
@@ -117,9 +126,9 @@ export function legacyAudioPlan(
 
 /* ---------- 2. Fixtures ---------- */
 
-let n = 0;
+let nextId = 0;
 const photo = (dur: number, patch: Partial<LegacyClip> = {}): LegacyClip => ({
-  id: `p${n++}`,
+  id: `p${nextId++}`,
   kind: 'photo',
   dur,
   in: 0,
@@ -131,7 +140,7 @@ const photo = (dur: number, patch: Partial<LegacyClip> = {}): LegacyClip => ({
   ...patch,
 });
 const video = (from: number, to: number, patch: Partial<LegacyClip> = {}): LegacyClip => ({
-  id: `v${n++}`,
+  id: `v${nextId++}`,
   kind: 'video',
   dur: 0,
   in: from,
@@ -144,7 +153,7 @@ const video = (from: number, to: number, patch: Partial<LegacyClip> = {}): Legac
 });
 const text = (start?: number, end?: number): Layer =>
   ({
-    id: `l${n++}`,
+    id: `l${nextId++}`,
     kind: 'text',
     x: 0.5,
     y: 0.5,
@@ -167,11 +176,13 @@ const text = (start?: number, end?: number): Layer =>
 
 /** Every 2.x shape, by name. Lengths are chosen to stress float sums (0.37 s, 1/3 s) and the 0.1 s minimum. */
 export function legacyFixtures(): Record<string, LegacyProject> {
-  n = 0;
+  nextId = 0;
   const base = { music: null, layers: [], fadeOut: true };
   const many = (count: number) =>
-    Array.from({ length: count }, (_, i) =>
-      i % 5 === 4 ? video(0.25 * (i % 3), 0.25 * (i % 3) + 0.37 + (i % 4) * 0.11) : photo(0.37 + (i % 7) / 3),
+    Array.from({ length: count }, (_, index) =>
+      index % 5 === 4
+        ? video(0.25 * (index % 3), 0.25 * (index % 3) + 0.37 + (index % 4) * 0.11)
+        : photo(0.37 + (index % 7) / 3),
     );
   return {
     empty: { ...base, clips: [] },

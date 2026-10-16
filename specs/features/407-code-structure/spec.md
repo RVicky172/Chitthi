@@ -94,3 +94,4 @@ The code works, but it is harder to read and change than it should be. Unit test
 - 2026-10-13 — Q1–Q13 accepted as proposed (Q12: `eslint-plugin-sonarjs` under a development-only LGPL exception; Q13 as proposed, D-037); Approved.
 - 2026-10-13 — Plan written and approved with the spec (§1–§8, D1–D3, D-037).
 - 2026-10-16 — AC-10 (T072): one measured exception to “no timing check gets slower”, accepted by the maintainer: the Canvas 2D colour path (the fallback without WebGPU) with a look runs 13–22 % slower than before 407 when a photo is first processed without a look and a look is picked after (V8 inlines the split loop differently by warm-up order); looks first, or one look per session, it is as fast or faster. Recorded in `performance.md`.
+- 2026-10-16 — T020 approved. Scope widened by the maintainer: `tests/` also goes to 0 in the standards report and into `FINISHED` (T062), after T091 left 1,894 warnings there.

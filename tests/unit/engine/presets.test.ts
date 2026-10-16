@@ -45,8 +45,18 @@ describe('preset names', () => {
 
 describe('mergePreset', () => {
   it('keeps a valid preset, validating its settings with mergeAdjust', () => {
-    const p = mergePreset({ id: 'p1', name: ' Golden ', adjust: { exposure: 9, look: 'warm', bogus: 1 }, created: 5 });
-    expect(p).toEqual({ id: 'p1', name: 'Golden', adjust: mergeAdjust({ exposure: 4, look: 'warm' }), created: 5 });
+    const savedPreset = mergePreset({
+      id: 'p1',
+      name: ' Golden ',
+      adjust: { exposure: 9, look: 'warm', bogus: 1 },
+      created: 5,
+    });
+    expect(savedPreset).toEqual({
+      id: 'p1',
+      name: 'Golden',
+      adjust: mergeAdjust({ exposure: 4, look: 'warm' }),
+      created: 5,
+    });
   });
   it('drops what cannot be a preset: no object, a bad id, no name', () => {
     for (const raw of [null, 3, 'x', {}, { id: '../x', name: 'a' }, { id: 'p1', name: '  ' }, { id: 'p1' }])
@@ -60,20 +70,21 @@ describe('mergePreset', () => {
 describe('LUTs in preset files', () => {
   it('round-trip exactly, with the same id', () => {
     const rows: string[] = [];
-    for (let i = 0; i < 27; i++) rows.push(`${(i % 3) / 2} ${Math.sin(i) * 0.5 + 0.5} ${1 / (i + 1)}`);
-    const l = parseCube(`TITLE "Odd"\nDOMAIN_MAX 1 2 1\nLUT_3D_SIZE 3\n${rows.join('\n')}`);
-    const back = lutFromJson(JSON.parse(JSON.stringify(lutToJson(l))));
-    expect(back).toEqual(l);
+    for (let index = 0; index < 27; index++)
+      rows.push(`${(index % 3) / 2} ${Math.sin(index) * 0.5 + 0.5} ${1 / (index + 1)}`);
+    const lut = parseCube(`TITLE "Odd"\nDOMAIN_MAX 1 2 1\nLUT_3D_SIZE 3\n${rows.join('\n')}`);
+    const back = lutFromJson(JSON.parse(JSON.stringify(lutToJson(lut))));
+    expect(back).toEqual(lut);
   });
   it.each([
-    ['a wrong size', (j: Record<string, unknown>) => ({ ...j, size: 66 })],
-    ['a short table', (j: Record<string, unknown>) => ({ ...j, size: 3 })],
-    ['a broken range', (j: Record<string, unknown>) => ({ ...j, max: [0, 0, 0] })],
-    ['damaged data', (j: Record<string, unknown>) => ({ ...j, data: '%%%' })],
+    ['a wrong size', (doc: Record<string, unknown>) => ({ ...doc, size: 66 })],
+    ['a short table', (doc: Record<string, unknown>) => ({ ...doc, size: 3 })],
+    ['a broken range', (doc: Record<string, unknown>) => ({ ...doc, max: [0, 0, 0] })],
+    ['damaged data', (doc: Record<string, unknown>) => ({ ...doc, data: '%%%' })],
     [
       'a NaN in the table',
-      (j: Record<string, unknown>) => ({
-        ...j,
+      (doc: Record<string, unknown>) => ({
+        ...doc,
         data: btoa(String.fromCharCode(...new Uint8Array(new Float32Array(24).fill(NaN).buffer))),
       }),
     ],
@@ -85,16 +96,16 @@ describe('LUTs in preset files', () => {
 describe('preset files', () => {
   it('carry the presets and their LUTs, and read back the same', () => {
     const lut = identityLut(5);
-    const a = preset('Teal', { ...DEFAULT_ADJUST, lut: lut.id, lutAmount: 70, contrast: 20 }),
-      b = preset('Plain');
-    const read = readPresetFile(presetFile([a, b], [lut]));
+    const savedPreset = preset('Teal', { ...DEFAULT_ADJUST, lut: lut.id, lutAmount: 70, contrast: 20 }),
+      plain = preset('Plain');
+    const read = readPresetFile(presetFile([savedPreset, plain], [lut]));
     expect(read.presets).toEqual([
-      { name: 'Teal', adjust: a.adjust },
-      { name: 'Plain', adjust: b.adjust },
+      { name: 'Teal', adjust: savedPreset.adjust },
+      { name: 'Plain', adjust: plain.adjust },
     ]);
-    expect(read.luts.map((l) => l.id)).toEqual([lut.id]);
+    expect(read.luts.map((saved) => saved.id)).toEqual([lut.id]);
     // No storage ids in the file: they belong to the device.
-    expect(presetFile([a], [])).not.toContain(a.id);
+    expect(presetFile([savedPreset], [])).not.toContain(savedPreset.id);
   });
   it('validate every preset in them and skip the nameless', () => {
     const text = JSON.stringify({
@@ -111,8 +122,8 @@ describe('preset files', () => {
       presets: [{ name: 'A' }],
       luts: [{ size: 2, data: 'x' }],
     });
-    const r = readPresetFile(text);
-    expect([r.presets.length, r.luts.length]).toEqual([1, 0]);
+    const contents = readPresetFile(text);
+    expect([contents.presets.length, contents.luts.length]).toEqual([1, 0]);
   });
   it.each([
     ['not JSON', '{'],
