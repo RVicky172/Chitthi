@@ -72,6 +72,8 @@ src/
     layerDraw.ts             drawLayers (blend, mask), layerBox, wrapText, shapePath
     layerPick.ts             hitLayer, handles, the selection outline, rotationFor
     layerGate.ts             mergeLayers: the gate for layers from project files
+    keyframeGate.ts          The gate for keyframes from project files (205): checked, clamped, within 5,000 keys
+    guards.ts                Type guards for outside data (isRecord …): gates narrow `unknown` instead of casting
     videoFormats.ts          Video formats, bitrates, frame rates, per-platform limits (limitsFor)
     video.ts                 Frame drawing: renderStack, renderFrame, motions, fades, NO_PICTURE
     timeline.ts              Video project as tracks (201): clip timing (clipLength, frameRange), the clip transform
@@ -81,7 +83,8 @@ src/
     projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
     projectGate.ts           mergeProject: the gate for project files and 2.x projects
     edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
-                             slide, nudge, snapping, checkTrack
+                             slide, nudge, checkTrack
+    timeSnap.ts              Snapping on the timeline (202): the times a dragged clip, layer or edge snaps to
     decodePool.ts            Decoder pool (204): lanes of decoded frames for the preview and the export, lanePlan,
                              frameTime, poolLimits (section 4.10)
     frameSource.ts           The pool's frames from Mediabunny: inputs shared per file, readers, openFrames() registry
@@ -162,9 +165,6 @@ src/
     desktop.ts               Typed window.chitthiDesktop bridge (absent in browsers)
     menu.ts                  Desktop menu commands → actions
   dev/                     Development only, never in production builds
-    selftest.ts              The checks behind npm test (opened at ?selftest in Electron)
-    poolChecks.ts,           Decoder pool checks (204): in npm test, plus playbackChecks' timings on demand
-      playbackChecks.ts        (CHITTHI_TEST_ONLY=pooltiming / poolcount)
     showcase.ts              Renders the landing examples for npm run build:showcase
     printSamples.ts          Renders the print samples for npm run build:print-samples
   components/              React UI (section 8); studio/ = the photo & video studio workspace (Shell, PhotoWorkspace,
@@ -174,7 +174,8 @@ src/
                            Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
                            Timeline, PictureRow, CutMarks, TimelineBars, TrackHead, Transport, timelineDrag,
                            timelineActions, timelineRows), ig/ = editing
-                           panels shared by photos and video (layers, masks, curves, colour mixer, looks), panes/ = the
+                           panels shared by photos and video (LayerPanel with LayerProperties and LayerControls, MaskPanel, curves, colour
+                           mixer, looks), panes/ = the
                            print studio's step panes, ai/ = AI settings, words and artwork dialogs
   styles.css               Ordered @imports of styles/ (section 8, Styles)
   styles/                  The stylesheet split by feature: 01-base.css … 40-site-nav.css, in cascade order
@@ -189,8 +190,17 @@ electron/
   dev.mjs                  Runs Vite + Electron together for development
   resources/               Not in git, fetched before packaging: fonts/ (npm run fetch:fonts) and
                            libraw/<platform>-<arch>/ (npm run fetch:libraw)
-scripts/                   Build, test and fetch scripts (specs/build.md): check-bundle, check-licenses, test, mcp-smoke,
-                           fetch-* (samples, fonts, LibRaw), build-* (showcase, print samples, favicons), spec-tables
+scripts/                   Build, test and fetch scripts (specs/build.md): check-bundle, check-licenses, check-structure,
+                           standards-report, test, mcp-smoke, fetch-* (samples, fonts, LibRaw), build-* (showcase,
+                           print samples, favicons), spec-tables
+tests/                     Every test, none in src/ (specs/testing-strategy.md "Where tests live"):
+  unit/, integration/      Vitest, mirroring src/ (tests/unit/engine/layers.test.ts ↔ src/engine/layers.ts)
+  support/                 Fakes and *.testkit.ts reference code shared by tests
+  e2e/                     Playwright (*.e2e.ts) and the Phase 1 gate measurement
+  selftest/                selftest.ts, the checks behind npm test (opened at ?selftest in Electron; main.tsx loads
+                           it in development builds only), and its modules: videoChecks, poolChecks and
+                           playbackChecks (decoder pool, 204; timings on demand with CHITTHI_TEST_ONLY=pooltiming /
+                           poolcount), exportTiming, perfTiming, helpers
 ```
 
 Dependency rule: `components → state → engine → data`. `engine` never imports from `state` or `components`, so it
@@ -495,7 +505,7 @@ precision); the music is an `AudioClip` on `A1` with `in` = its offset and `toEn
 the lock check): `rippleDelete`, `lift`, `closeGap`, `closeGaps`, `trim(id, side, delta, { ripple })`, `moveTo` (a
 time, else the nearest free spot that fits, else refused: no overwrite), `reorder`, `roll` (the cut between two
 touching clips), `slip` (videos only), `slide` (needs a clip after it; with `magnetic` it opens no gap), `nudge`
-(Alt + arrows per tool) and `snapTargets` / `snapTime`. Limits: 0.3 s (`MIN_LEN`; a 2.x clip already shorter can't be
+(Alt + arrows per tool); snapping is `snapTargets` / `snapTime` in `engine/timeSnap.ts`. Limits: 0.3 s (`MIN_LEN`; a 2.x clip already shorter can't be
 shortened), the source, 60 s for photos (`PHOTO_MAX`), the project's length. Video edges are clamped to the source
 and starts at 0 where they move (floating-point sums miss them by 1e-16). `checkTrack` is the invariant (sorted, no
 overlap, inside sources, within the limit, nothing newly under 0.3 s); 1,000 seeded edits per operation keep it and
@@ -708,9 +718,9 @@ reason, which usually names the file.
 [PERFORMANCE.md](../docs/PERFORMANCE.md#videos-on-screen-at-once)); `203` enforces it in the edits. The preview's and
 the export's pools use `poolLimits(videosAtOnce, …)` (the limit + 2 decoders).
 
-**Checks.** `decodePool.test.ts` (unit: holds, latest wins, bounds, fallback, reopening); `src/dev/poolChecks.ts` in
+**Checks.** `tests/integration/engine/decodePool.test.ts` ( holds, latest wins, bounds, fallback, reopening); `tests/selftest/poolChecks.ts` in
 the default `npm test` (AC-1–AC-4, AC-9, AC-11, AC-14), with `playbackChecks`' quick checks (AC-12's release, AC-13);
-`src/dev/playbackChecks.ts` timings on demand: `CHITTHI_TEST_ONLY=pooltiming npm test` (AC-5, AC-7, AC-8 and AC-12's
+`tests/selftest/playbackChecks.ts` timings on demand: `CHITTHI_TEST_ONLY=pooltiming npm test` (AC-5, AC-7, AC-8 and AC-12's
 bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: simultaneous videos through the pool);
 `CHITTHI_TEST_ONLY=pool npm test` runs only the pool section of the default run.
 

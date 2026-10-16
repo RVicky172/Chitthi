@@ -60,7 +60,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
 ```bash
 npm run dev            # Vite dev server, http://localhost:5173
 npm run desktop:dev    # Vite + Electron with hot reload
-npm run check          # fast gate: typecheck + lint + specs:check + unit tests — run before ticking any task
+npm run check          # fast gate: typecheck + lint + specs:check + structure (no tests in src/) + unit tests — run before ticking any task
 npm run lint           # ESLint, cached (0 errors; the standards rules are warnings until a folder is in FINISHED)
 npm run lint:full      # ESLint without the cache (CI, the close of a feature): type-aware findings can go stale in the cache
 npm run standards      # per folder and standard: the lint findings and noUncheckedIndexedAccess errors (feature 407)
@@ -106,6 +106,9 @@ Packaging: `npm run desktop:pack` (unpacked app in `release/`), `desktop:dist` (
   ~800 ms coalesce into one step (drags, sliders).
 - `src/components/` — UI. `App.tsx` routes by URL hash to screens (`home`, `studio`, `sizes`, `paper`, `instagram`, `docs`);
   screens and dialogs are `lazy()`-loaded.
+- `tests/` — every test, none in `src/`: `unit/` and `integration/` (Vitest, mirroring `src/`, importing the app as
+  `@/…`), `support/` (fakes, `*.testkit.ts`), `e2e/` (Playwright), `selftest/` (the in-app self-test). Imports go one
+  way, `components → state → engine → data`; ESLint enforces it. Standards: `specs/coding-standards.md`.
 
 ### Print studio
 

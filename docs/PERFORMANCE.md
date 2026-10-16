@@ -99,7 +99,7 @@ pictures, at most the limit below + 2 open (the videos on screen, the next to st
 frames read ahead, a byte budget, and every frame released when it is replaced
 (the rules are under [Memory rules](#memory-rules); the design is in [lld.md](../specs/lld.md)). How many videos can
 show at once comes from a measurement, `CHITTHI_TEST_ONLY=poolcount npm test` (`poolTiming` in
-`src/dev/playbackChecks.ts`, never part of the default run): 300 back-to-back 1/30 s steps (stricter than playing in
+`tests/selftest/playbackChecks.ts`, never part of the default run): 300 back-to-back 1/30 s steps (stricter than playing in
 real time; 5 warm-up steps left out), each lasting until every clip's frame has arrived and been drawn into a 1280 × 720
 canvas.
 

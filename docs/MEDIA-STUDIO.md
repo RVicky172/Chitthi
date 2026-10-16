@@ -268,11 +268,11 @@ agent can set nothing a panel couldn't; in a live session each change is selecte
 around 100 MB. Full-size pixels exist only while one photo is being exported. The batch lasts for the session; the
 format, batch size and file settings are remembered.
 
-**Tests.** Unit: `src/engine/instagram.test.ts` (formats, limits, placement, colour maths) and
-`src/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
-`mergeLayers`), `tests/unit/engine/timeline.test.ts` (the track model against the frozen 2.x code in `timeline.testkit.ts`:
+**Tests.** Unit: `tests/unit/engine/instagram.test.ts` (formats, limits, placement, colour maths) and
+`tests/unit/engine/layers.test.ts` (layer scaling, rotation, timing, drawing strokes, the video timeline, motion and fades;
+`mergeLayers`), `tests/unit/engine/timeline.test.ts` (the track model against the frozen 2.x code in `tests/support/timeline.testkit.ts`:
 clip placement, frames and sound sources for every 2.x shape; hide, mute and lock; the project document, its round
-trips and 36 malformed documents), `src/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
+trips and 36 malformed documents), `tests/unit/engine/edits.test.ts` (every edit at its limits, Magnetic on equal to 2.x's
 edits, 1,000 seeded random edits per operation through `checkTrack` and `mergeProject`, each operation under 2 ms on
 500 clips) and `tests/integration/state/video.test.ts` (the store's edits, undo steps and Magnetic).
 Browser: `tests/e2e/instagram.e2e.ts` (batch limit, edit, reorder, ZIP of 1080 px JPEGs, posting flow, caption, accessibility)

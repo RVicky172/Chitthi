@@ -82,7 +82,7 @@ flowchart TB
   UI --> DA
   PL --> EXT[(Browser APIs / Electron bridge / Pexels)]
   UI --> AI[AI<br/>ai/service, prompts, providers]
-  AG[Agent tools<br/>agent/tools, bridge] --> ST
+  AG[Agent tools<br/>agent/tools + *Tools by job, bridge] --> ST
   AG --> AI
   AI --> PL
 ```
@@ -95,7 +95,7 @@ flowchart TB
 | **UI** (`src/components/`) | Landing page, print studio (header, step rail, step panes in `panes/`, live stage), photo & video studio (`studio/`, `ig/`), AI dialogs (`ai/`), gallery, 3D viewer, crop tool, sizes guide, paper sizes in 3D, in-app docs, settings |
 | **Platform and services** (`src/lib/`, `src/platform/`) | Storage abstraction (IndexedDB or desktop files), font loading, Pexels client, desktop bridge and menus |
 | **AI** (`src/ai/`) | Facade over provider adapters: words and captions sized to the layout, slot-shaped pictures, prompt templates, keys, daily limits. On-device segmentation for AI masks (`segment/`: ONNX Runtime Web in a worker). Loaded only when used |
-| **Agent tools** (`src/agent/`) | One registry of 56 tools (34 for print, 22 for the photo studio), plus MCP prompts and resources, that call the stores and engine; the page side of the MCP server |
+| **Agent tools** (`src/agent/`) | One registry of 56 tools (34 for print, 22 for the photo studio), plus MCP prompts and resources, that call the stores and engine; the page side of the MCP server. `tools.ts` assembles the registry from one module per job (`designTools`, `catalogTools`, `cardPhotoTools`, `outputTools`, `galleryTools`, `aiTools`, `photoTools`, `maskTools`, `presetTools`) |
 | **Desktop shell** (`electron/`) | Window, `app://` protocol with CSP, file-based library, save/open dialogs, menus, file association, auto-update; the RAW developer (`raw.cjs` runs LibRaw's `dcraw_emu`, a separate program); bundled fonts and LibRaw fetched into `resources/` |
 | **Development tooling** (`tools/`) | Not shipped. `specs-index/`: the spec workflow's data (`feature.json` per feature, `roadmap.json`, schemas), the generators of the spec Markdown, the CLI, the check and a Claude Code hook. `roadmap-dashboard/`: a local dashboard over that data (`npm run roadmap`): a Node server and a React + TypeScript app built with the repo's Vite |
 
@@ -216,7 +216,12 @@ Every change follows these; [CLAUDE.md](../CLAUDE.md) → *Things that bite* has
 - **Layers.** Specifications are data in `src/data/` (add sizes, layouts, products and themes there, not in rendering
   code). `src/engine/` never imports React. State lives in small `useSyncExternalStore` stores in `src/state/`, each
   with its own undo/redo (same-key changes within ~800 ms coalesce). UI is in `src/components/`; screens and dialogs
-  are `lazy()`-loaded.
+  are `lazy()`-loaded. Imports go one way, `components → state → engine → data` (`data` imports only types), and ESLint
+  enforces it ([coding-standards.md](coding-standards.md)).
+- **Code standards.** Names, JSDoc, function sizes, complexity, React and type rules are in
+  [coding-standards.md](coding-standards.md); ESLint checks them, and `npm run standards` reports them per folder.
+- **Tests.** Every test is under `tests/` (`unit/`, `integration/`, `support/`, `e2e/`, `selftest/`), none in `src/`,
+  and no app code imports them ([testing-strategy.md](testing-strategy.md)); `npm run check` and the build enforce it.
 - **One code path for preview and export.** Print: `render.ts`; photo: the GPU graph with Canvas 2D fallback; video:
   `renderFrame()`. Never fork an export-only renderer.
 - **One validator per external format.** Loaded designs go through `mergeDesign()`; photo edits, presets and masks have

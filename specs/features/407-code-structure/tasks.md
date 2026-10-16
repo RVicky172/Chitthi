@@ -111,6 +111,7 @@ The rules land as warnings; each folder’s become errors when its clean-up is d
 ## Docs and close
 
 - [ ] **T090** — Docs (AC-11): CLAUDE.md (commands, single tests, layers), `specs/testing-strategy.md` (the layout; unit / integration / e2e / selftest), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts), memory. · files: `CLAUDE.md`, `specs/testing-strategy.md`, `specs/architecture.md`, `specs/lld.md`, `specs/build.md` · test: relative links resolve
+  - **In progress** since 2026-10-16
 - [ ] **T091** — The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers. · test: every command green; numbers recorded
 - [ ] **T092** — Tick the ACs; Status `Implemented`; roadmap 407 ✔️; `memory/progress.md`, `memory/MEMORY.md`; merge into `main` (the standing rule) and push when the maintainer says so; 207 then branches from `main`.
 

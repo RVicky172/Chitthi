@@ -1424,7 +1424,7 @@
         "T090": {
           "text": "Docs (AC-11): CLAUDE.md (commands, single tests, layers), `specs/testing-strategy.md` (the layout; unit / integration / e2e / selftest), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts), memory.",
           "section": "Docs and close",
-          "status": "todo",
+          "status": "in-progress",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1440,7 +1440,9 @@
           ],
           "test": "relative links resolve",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-16",
+          "doneOn": null
         },
         "T091": {
           "text": "The full Definition of Done against the baselines (AC-9): `npm run check`, `npm run build` (entry ≤ 327 KB), `npm run test:e2e`, `npm test`, `npm run test:mcp`, `npm run check:licenses`; `npm run lint` with every rule an error for `src/` and `electron/` (AC-5); the standards report at 0. Record the numbers.",
