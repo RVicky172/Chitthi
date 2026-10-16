@@ -346,3 +346,13 @@ FormData is the same; only the desktop path built forms this way). Pass the file
 `tests/unit/electron/*.test.ts` load the `.cjs` modules by a plain `import` (as the scripts tests load `.mjs`); the
 unit tsconfig has no Node types, so the tests use `Uint8Array`, and TypeScript reads the modules' JSDoc types:
 keep those accurate (`{Uint8Array}` for a parser that only indexes bytes).
+
+## 2026-10-16 — `useSyncExternalStore` with a version counter breaks under the React Compiler (407 T071)
+
+`useAiStatus` and `useFallbackNote` called `useSyncExternalStore(subscribe, () => version)`, threw the result away
+and then read a module-level Map during render. Without the compiler that works (the version change re-renders); with
+it, `statuses.get(key)` is memoised on its arguments and the new value never shows (e2e: AI mask status and the sky
+download prompt missing). The `react-hooks` lint does not flag it. Fix: return the value itself as the snapshot
+(`useSyncExternalStore(subscribe, () => map.get(key))`); keep snapshots stable (same object until it changes).
+Also measured: oxc-transform-react 0.152 grows compiled components ~40 % (media studio chunk 201 → 281 kB; whole-app
+entry 313 → 337 KB).
