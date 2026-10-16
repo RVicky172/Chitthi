@@ -11,6 +11,13 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-16 — 407
+**Done:** T060 (`67c585c`): `tests/selftest/` names and JSDoc, at 0 in the standards report; tests also exempt from
+`sonarjs/cognitive-complexity` (Q4's size rules). `npm run check` green (1,700 unit tests); `npm test` 6,203 checks,
+0 failed, as the baseline.
+**Next:** T061 (`electron/`: 98 findings; `electron/**` into `FINISHED`; `npm run test:mcp` and `npm test`).
+**Blockers:** none
+
 ## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)
 
 **Done:** the 19 React compiler findings fixed (resets on a change moved from effects to render; a promise chain for

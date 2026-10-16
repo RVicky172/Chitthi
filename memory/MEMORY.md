@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-15)
+## Current State (2026-10-16)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -50,7 +50,7 @@
 - **407 progress (2026-10-14):** T001–T040 done except T020 (standards doc, waits for review): tests moved, lint
   rules in, `src/engine/**` fully clean and in `FINISHED` (`afbb134`). Print-file builders load on export (D-042);
   entry 311 KB. `state/video.ts` split into nine `state/video*.ts` modules (T040, `cbd4273`). T041 (`b2686a3`): the rest of `state/` clean, `src/state/**` in `FINISHED`. T042 (`72078fe`, 2026-10-15): `data/`, `lib/`, `platform/` in `FINISHED`; data imports only types again (D-044), `lib/idb.ts` shared IndexedDB helper. T043 (`33e1e24`): `agent/` (tools split by job, MCP surface byte-identical, test:mcp passes) and `ai/` in `FINISHED` (D-045). T050 (`eec62bd`): `Timeline.tsx` split into eight modules, each at 0. T051 (`0197ce1`): `VideoWorkspace.tsx` split into six, each at 0. T052 (`332e543`): `PhotoWorkspace.tsx` split into eight, each at 0. T053: the rest of `components/studio/` clean, the folder in `FINISHED`. T054 (`3127584`): `components/ig/` clean and in `FINISHED` (LayerPanel split in three, MaskPanel in four). T055 (`5dd2ca6`): the rest of `components/`, `App`, `main` at 0 except 19 React findings (T056); Paper3D, Viewer3D, PhotoLibrary, CropDialog split by job; standards total 3,485. T056 (`5a581a9`): React compiler findings 0, effects reviewed, `components/**`, `App`, `main` in `FINISHED`; e2e and self-test as the baselines. Behaviour of each clean-up is checked against frozen copies by scratch harnesses (learnings).
-- **Next (roadmap):** `/spec-implement 407` from T060 (self-test names and JSDoc) on `feat/407-code-structure`; then 207
+- **Next (roadmap):** `/spec-implement 407` from T061 (`electron/`; T060 done 2026-10-16, `67c585c`) on `feat/407-code-structure`; then 207
   (speed) from `main`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
