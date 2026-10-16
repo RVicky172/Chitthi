@@ -16,149 +16,230 @@ import { softProof } from '@/engine/proof';
 import { renderCard } from '@/engine/render';
 import { samplePhoto } from '@/engine/sample';
 import { creditOf, creditsText, pexelsIdOf, pexelsName, shortName } from '@/lib/credits';
-import type { Design, ProductId } from '@/types';
+import type { Design } from '@/types';
 import { poolChecks } from './poolChecks';
 import { overlayExportChecks, overlayFixtureChecks, stackChecks, videoChecks } from './videoChecks';
+import { canvasBlob, context2d, cycleOf, entryAt, meanRgb, messageOf, required, type ListLike } from './helpers';
 
+/** The self-test's outcome: checks passed, failures by what they check, and notes for the report. */
 interface Result {
   passed: number;
   failed: string[];
   notes: string[];
 }
 
+/** Records one check: passed when `ok` is truthy, described by `what`. */
+type Check = (ok: unknown, what: string) => void;
+
 async function run(): Promise<Result> {
-  const r: Result = { passed: 0, failed: [], notes: [] };
-  const check = (ok: unknown, what: string) => (ok ? r.passed++ : r.failed.push(what));
+  const result: Result = { passed: 0, failed: [], notes: [] };
+  const check = (ok: unknown, what: string) => (ok ? result.passed++ : result.failed.push(what));
   // `CHITTHI_TEST_ONLY=pool npm test` (scripts/test.cjs adds ?only=pool): just the decoder pool's checks.
   const only = new URLSearchParams(location.search).get('only');
   if (only === 'pool') {
-    await poolSection(check, r);
-    return r;
+    await poolSection(check, result);
+    return result;
   }
   // `CHITTHI_TEST_ONLY=timing npm test`: export timings for A/B runs (exportTiming.ts).
   // `CHITTHI_TEST_ONLY=pooltiming npm test`: the editor's real-time playback measurements on the pool (204 T032).
   if (only === 'pooltiming') {
     try {
-      r.notes.push(...(await (await import('./playbackChecks')).playbackTiming(check)));
-    } catch (e) {
-      check(false, `pool timing threw: ${e instanceof Error ? e.message : e}`);
+      result.notes.push(...(await (await import('./playbackChecks')).playbackTiming(check)));
+    } catch (error) {
+      check(false, `pool timing threw: ${messageOf(error)}`);
     }
-    return r;
+    return result;
   }
   // `CHITTHI_TEST_ONLY=poolcount npm test`: how many simultaneous videos the pool keeps up with (204 T050, AC-15),
   // measured through the pool alone; minutes of decoding, so never in the default run.
   if (only === 'poolcount') {
     try {
-      r.notes.push(...(await (await import('./playbackChecks')).poolTiming(check)));
-    } catch (e) {
-      check(false, `pool count timing threw: ${e instanceof Error ? e.message : e}`);
+      result.notes.push(...(await (await import('./playbackChecks')).poolTiming(check)));
+    } catch (error) {
+      check(false, `pool count timing threw: ${messageOf(error)}`);
     }
-    return r;
+    return result;
   }
   if (only === 'timing') {
-    r.notes.push(...(await (await import('./exportTiming')).exportTiming()));
-    return r;
+    result.notes.push(...(await (await import('./exportTiming')).exportTiming()));
+    return result;
   }
-  const photos = [0, 1, 2, 3].map((i) => samplePhoto(i, 300, 200));
-  const products = PRODUCTS.map((p) => p.id);
+  const photos = [0, 1, 2, 3].map((index) => samplePhoto(index, 300, 200));
+  const products = PRODUCTS.map((productDef) => productDef.id);
 
   /* Every product × size × orientation × layout renders front, back and envelope, and stays inside the card. */
   let renders = 0;
   for (const product of products) {
-    for (const s of sizesFor(product)) {
+    for (const size of sizesFor(product)) {
       for (const orient of ['landscape', 'portrait'] as const) {
         for (const [layout] of layoutsFor(product)) {
-          if (s.instax && layout !== 'instax') continue;
+          if (size.instax && layout !== 'instax') continue;
           const base = productDesign(product);
           const variants: Partial<Design>[] =
             product === 'calendar'
               ? [
                   {},
-                  { cal: { ...base.cal, text: 'caption', captions: ['A long festival caption for this month', ...Array(11).fill('')], marks: 'all', ownDates: [{ m: 1, d: 5, label: 'A birthday' }] } },
-                  { cal: { ...base.cal, text: 'photo', grid: 'boxes', numSync: true, titleScale: 1.6, numScale: 1.6 }, showQuote: true },
+                  {
+                    cal: {
+                      ...base.cal,
+                      text: 'caption',
+                      captions: ['A long festival caption for this month', ...Array.from({ length: 11 }, () => '')],
+                      marks: 'all',
+                      ownDates: [{ m: 1, d: 5, label: 'A birthday' }],
+                    },
+                  },
+                  {
+                    cal: { ...base.cal, text: 'photo', grid: 'boxes', numSync: true, titleScale: 1.6, numScale: 1.6 },
+                    showQuote: true,
+                  },
                 ]
-              : [{}, { back: { ...base.back, credit: true, message: 'Hello', to: 'Someone', address: 'Street\nCity', pin: '110001' } }];
-          for (const v of variants) {
-            const d: Design = { ...base, sizeId: s.id, orient, layout, insta: 'someone', ...v };
-            const where = `${product} ${s.id} ${orient} ${layout}`;
+              : [
+                  {},
+                  {
+                    back: {
+                      ...base.back,
+                      credit: true,
+                      message: 'Hello',
+                      to: 'Someone',
+                      address: 'Street\nCity',
+                      pin: '110001',
+                    },
+                  },
+                ];
+          for (const variant of variants) {
+            const design: Design = { ...base, sizeId: size.id, orient, layout, insta: 'someone', ...variant };
+            const where = `${product} ${size.id} ${orient} ${layout}`;
             try {
-              const { w, h } = cardMM(d),
-                L = computeLayout(layout, { x: 0, y: 0, w, h, e: 0 }, d),
+              const { w, h } = cardMM(design),
+                zones = computeLayout(layout, { x: 0, y: 0, w, h, e: 0 }, design),
                 tol = 0.6,
-                inside = (q: { x: number; y: number; w: number; h: number }) => q.x >= -tol && q.y >= -tol && q.x + q.w <= w + tol && q.y + q.h <= h + tol;
-              check(!L.text || inside(L.text), `${where}: text zone outside the card`);
-              check(!L.calGrid || inside(L.calGrid), `${where}: date grid outside the card`);
-              check(L.slots.every((sl) => sl.bleed || sl.rot || inside(sl)), `${where}: photo slot outside the card`);
+                inside = (zone: { x: number; y: number; w: number; h: number }) =>
+                  zone.x >= -tol && zone.y >= -tol && zone.x + zone.w <= w + tol && zone.y + zone.h <= h + tol;
+              check(!zones.text || inside(zones.text), `${where}: text zone outside the card`);
+              check(!zones.calGrid || inside(zones.calGrid), `${where}: date grid outside the card`);
+              check(
+                zones.slots.every((slot) => !!slot.bleed || !!slot.rot || inside(slot)),
+                `${where}: photo slot outside the card`,
+              );
               const cv = document.createElement('canvas');
-              renderCard(cv, 'front', 0.8, 1, { d, photos: photos.map((p) => ({ ...p, name: pexelsName('Test', 'Someone', 1) })) }, { page: 2 });
-              renderCard(cv, 'back', 0.8, 1, { d, photos });
-              renderEnvelope(cv, 'front', 0.5, { d, photos });
-              renderEnvelope(cv, 'back', 0.5, { d, photos });
-              renderEnvelopeTemplate(cv, 0.3, { d, photos });
+              renderCard(
+                cv,
+                'front',
+                0.8,
+                1,
+                { d: design, photos: photos.map((photo) => ({ ...photo, name: pexelsName('Test', 'Someone', 1) })) },
+                { page: 2 },
+              );
+              renderCard(cv, 'back', 0.8, 1, { d: design, photos });
+              renderEnvelope(cv, 'front', 0.5, { d: design, photos });
+              renderEnvelope(cv, 'back', 0.5, { d: design, photos });
+              renderEnvelopeTemplate(cv, 0.3, { d: design, photos });
               renders++;
-            } catch (e) {
-              r.failed.push(`${where}: ${e instanceof Error ? e.message : e}`);
+            } catch (error) {
+              result.failed.push(`${where}: ${messageOf(error)}`);
             }
           }
         }
       }
     }
   }
-  r.notes.push(`${renders} designs rendered (front, back, envelope, template)`);
+  result.notes.push(`${renders} designs rendered (front, back, envelope, template)`);
 
   /* A full print pack for each product, and a sheet PDF on the smallest sheet it fits. */
-  for (const product of products as ProductId[]) {
+  for (const product of products) {
     const base = productDesign(product);
-    const d: Design = { ...base, exp: { ...base.exp, dpi: '72' }, env: { ...base.env, on: true } };
+    const design: Design = { ...base, exp: { ...base.exp, dpi: '72' }, env: { ...base.env, on: true } };
     try {
-      const pack = await buildPack({ d, photos });
+      const pack = await buildPack({ d: design, photos });
       check(pack.blob.size > 5000, `${product}: print pack is too small (${pack.blob.size} bytes)`);
-      const noPng = await buildPack({ d: { ...d, exp: { ...d.exp, pngs: false } }, photos });
+      const noPng = await buildPack({ d: { ...design, exp: { ...design.exp, pngs: false } }, photos });
       check(noPng.blob.size < pack.blob.size, `${product}: a pack without PNGs should be smaller`);
       const sheet = (['a4', 'a3', '1319'] as const).find((id) => {
-        const n = nup({ ...d, exp: { ...d.exp, sheet: id } });
-        return n.cols * n.rows > 0;
+        const sheetFit = nup({ ...design, exp: { ...design.exp, sheet: id } });
+        return sheetFit.cols * sheetFit.rows > 0;
       });
       check(sheet, `${product}: fits no sheet`);
-      if (sheet) check((await buildPDF({ d: { ...d, exp: { ...d.exp, sheet } }, photos }, 'sheet')).blob.size > 1000, `${product}: sheet PDF empty`);
-    } catch (e) {
-      r.failed.push(`${product}: print pack failed: ${e instanceof Error ? e.message : e}`);
+      if (sheet)
+        check(
+          (await buildPDF({ d: { ...design, exp: { ...design.exp, sheet } }, photos }, 'sheet')).blob.size > 1000,
+          `${product}: sheet PDF empty`,
+        );
+    } catch (error) {
+      result.failed.push(`${product}: print pack failed: ${messageOf(error)}`);
     }
   }
 
   /* Saved designs of any age load safely. */
-  for (const saved of [null, {}, { product: 'nope', sizeId: 'x', layout: 'zzz' }, { cal: { year: 1999 } }, { headFont: 'Missing', back: { font: 'Gone', labelFont: 'Gone' } }]) {
+  for (const saved of [
+    null,
+    {},
+    { product: 'nope', sizeId: 'x', layout: 'zzz' },
+    { cal: { year: 1999 } },
+    { headFont: 'Missing', back: { font: 'Gone', labelFont: 'Gone' } },
+  ]) {
     try {
-      const m = mergeDesign(saved);
-      check(m.product && m.sizeId && m.layout && m.headFont !== 'Missing' && m.back.labelFont === '', `mergeDesign(${JSON.stringify(saved)}) gave a broken design`);
-    } catch (e) {
-      r.failed.push(`mergeDesign(${JSON.stringify(saved)}) threw: ${e}`);
+      const merged = mergeDesign(saved);
+      // Read as plain values: the check is that a broken file still gives every field (the types promise it).
+      const fields: unknown[] = [merged.product, merged.sizeId, merged.layout];
+      check(
+        fields.every(Boolean) && merged.headFont !== 'Missing' && merged.back.labelFont === '',
+        `mergeDesign(${JSON.stringify(saved)}) gave a broken design`,
+      );
+    } catch (error) {
+      result.failed.push(`mergeDesign(${JSON.stringify(saved)}) threw: ${String(error)}`);
     }
   }
-  check(mergeDesign({ cal: { year: 2027 } }).cal.marks === 'off', 'calendars saved before marked days should keep them off');
+  check(
+    mergeDesign({ cal: { year: 2027 } }).cal.marks === 'off',
+    'calendars saved before marked days should keep them off',
+  );
   check(mergeDesign(null).cal.marks === 'all', 'new calendars should mark festivals');
 
   /* Festival data: real dates, and the ones people look for. */
   for (const year of [2026, 2027]) {
     check(hasFestivals(year), `${year}: festival dates missing`);
-    for (let m = 0; m < 12; m++)
-      for (const [day, list] of marksFor(year, m, 'all'))
-        check(new Date(year, m, day).getMonth() === m, `${year}-${m + 1}-${day} (${list[0].name}) is not a real date`);
+    for (let month = 0; month < 12; month++)
+      for (const [day, list] of marksFor(year, month, 'all'))
+        check(
+          new Date(year, month, day).getMonth() === month,
+          `${year}-${month + 1}-${day} (${list.at(0)?.name ?? '?'}) is not a real date`,
+        );
   }
-  check(marksFor(2026, 10, 'all').get(8)?.some((x) => x.name === 'Diwali'), 'Diwali 2026 should be on 8 November');
-  check(marksFor(2027, 9, 'all').get(29)?.some((x) => x.name === 'Diwali'), 'Diwali 2027 should be on 29 October');
-  check(marksFor(2031, 0, 'national').get(26)?.[0].name === 'Republic Day', 'fixed national days should show in any year');
-  check(marksFor(2026, 0, 'off', [{ m: 1, d: 9, label: 'Birthday' }]).get(9)?.[0].kind === 'own', 'own dates should show with marks off');
+  check(
+    marksFor(2026, 10, 'all')
+      .get(8)
+      ?.some((x) => x.name === 'Diwali'),
+    'Diwali 2026 should be on 8 November',
+  );
+  check(
+    marksFor(2027, 9, 'all')
+      .get(29)
+      ?.some((x) => x.name === 'Diwali'),
+    'Diwali 2027 should be on 29 October',
+  );
+  check(
+    marksFor(2031, 0, 'national').get(26)?.at(0)?.name === 'Republic Day',
+    'fixed national days should show in any year',
+  );
+  check(
+    marksFor(2026, 0, 'off', [{ m: 1, d: 9, label: 'Birthday' }])
+      .get(9)
+      ?.at(0)?.kind === 'own',
+    'own dates should show with marks off',
+  );
 
   /* Pexels credits survive the name round trip, link to the photo, and are listed in exports. */
-  const n = pexelsName('Diyas at night', 'Sayantan (Das)', 10182772);
-  const c = creditOf(n);
-  check(c?.photographer === 'Sayantan Das' && c.url === 'https://www.pexels.com/photo/10182772/', `credit round trip failed: ${n}`);
-  check(shortName(n) === 'Diyas at night', 'shortName should drop the credit');
+  const creditName = pexelsName('Diyas at night', 'Sayantan (Das)', 10182772);
+  const credit = creditOf(creditName);
+  check(
+    credit?.photographer === 'Sayantan Das' && credit.url === 'https://www.pexels.com/photo/10182772/',
+    `credit round trip failed: ${creditName}`,
+  );
+  check(shortName(creditName) === 'Diyas at night', 'shortName should drop the credit');
   check(creditOf('Old photo (Pexels / Someone)')?.url === null, 'older credits without an id should still parse');
   check(pexelsIdOf('https://www.pexels.com/photo/burning-candles-10182772/') === 10182772, 'id from a Pexels URL');
   check(creditsText(['my upload.jpg']) === null, 'no credits file without Pexels photos');
-  check(creditsText([n, n])?.split('Photo by').length === 2, 'credits should list each photo once');
+  check(creditsText([creditName, creditName])?.split('Photo by').length === 2, 'credits should list each photo once');
 
   /* Postmark year follows the calendar, or the design's own choice. */
   const cal = productDesign('calendar');
@@ -169,17 +250,22 @@ async function run(): Promise<Result> {
   const pc = document.createElement('canvas');
   pc.width = 3;
   pc.height = 1;
-  const x = pc.getContext('2d')!;
-  const px = (i: number, col: string) => ((x.fillStyle = col), x.fillRect(i, 0, 1, 1));
-  px(0, '#ffffff');
-  px(1, '#0033ff');
-  px(2, '#e0b090');
+  const x = context2d(pc);
+  const paint = (column: number, colour: string) => {
+    x.fillStyle = colour;
+    x.fillRect(column, 0, 1, 1);
+  };
+  paint(0, '#ffffff');
+  paint(1, '#0033ff');
+  paint(2, '#e0b090');
   softProof(pc);
-  const [w0, , , , b0, b1, b2, , s0, s1, s2] = x.getImageData(0, 0, 3, 1).data;
-  const sat = (r: number, g: number, b: number) => Math.max(r, g, b) - Math.min(r, g, b);
-  check(w0 < 250, 'print colours: white should become paper white');
-  check(sat(b0, b1, b2) < 0.8 * 255, 'print colours: vivid blue should be duller');
-  check(sat(s0, s1, s2) > 0.85 * (0xe0 - 0x90), 'print colours: soft tones should stay close');
+  const proofed = x.getImageData(0, 0, 3, 1).data;
+  const pixel = (column: number) => meanRgb(proofed.slice(column * 4, column * 4 + 4));
+  const sat = ([red, green, blue]: readonly [number, number, number]) =>
+    Math.max(red, green, blue) - Math.min(red, green, blue);
+  check(pixel(0)[0] < 250, 'print colours: white should become paper white');
+  check(sat(pixel(1)) < 0.8 * 255, 'print colours: vivid blue should be duller');
+  check(sat(pixel(2)) > 0.85 * (0xe0 - 0x90), 'print colours: soft tones should stay close');
 
   /* Order sheet for several designs. */
   const { orderSheetCSV } = await import('@/engine/quote');
@@ -191,70 +277,77 @@ async function run(): Promise<Result> {
   check(csv.includes('Price per piece @ 100'), 'order sheet: price columns');
 
   await aiChecks(check);
-  await agentChecks(check, r);
-  await photoAgentChecks(check, r);
-  await aiMaskChecks(check, r);
+  await agentChecks(check, result);
+  await photoAgentChecks(check, result);
+  await aiMaskChecks(check, result);
   await perfChecks(check);
-  await gpuChecks(check, r);
-  r.notes.push(...(await videoChecks(check)));
-  await poolSection(check, r);
-  return r;
+  await gpuChecks(check, result);
+  result.notes.push(...(await videoChecks(check)));
+  await poolSection(check, result);
+  return result;
 }
 
-async function poolSection(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+async function poolSection(check: Check, result: Result): Promise<void> {
   try {
-    r.notes.push(...(await poolChecks(check)));
-  } catch (e) {
-    check(false, `pool checks threw: ${e instanceof Error ? e.message : e}`);
+    result.notes.push(...(await poolChecks(check)));
+  } catch (error) {
+    check(false, `pool checks threw: ${messageOf(error)}`);
   }
   try {
-    r.notes.push(...(await (await import('./playbackChecks')).playbackChecks(check)));
-  } catch (e) {
-    check(false, `playback checks threw: ${e instanceof Error ? e.message : e}`);
+    result.notes.push(...(await (await import('./playbackChecks')).playbackChecks(check)));
+  } catch (error) {
+    check(false, `playback checks threw: ${messageOf(error)}`);
   }
   // 203's overlay fixtures (T002): each one builds; the golden frames and the export that use them come later.
   try {
-    r.notes.push(...(await overlayFixtureChecks(check)));
-  } catch (e) {
-    check(false, `overlay fixture checks threw: ${e instanceof Error ? e.message : e}`);
+    result.notes.push(...(await overlayFixtureChecks(check)));
+  } catch (error) {
+    check(false, `overlay fixture checks threw: ${messageOf(error)}`);
   }
   // 203's drawing (T016): golden frames of the stack, covering, hiding, fades, and identity = the 202 drawing.
   try {
-    r.notes.push(...(await stackChecks(check)));
-  } catch (e) {
-    check(false, `stack drawing checks threw: ${e instanceof Error ? e.message : e}`);
+    result.notes.push(...(await stackChecks(check)));
+  } catch (error) {
+    check(false, `stack drawing checks threw: ${messageOf(error)}`);
   }
   // 203's export (T032): the preview's stack at every frame, golden frames, framePlan for 201 / 202, the long export.
   try {
-    r.notes.push(...(await overlayExportChecks(check)));
-  } catch (e) {
-    check(false, `overlay export checks threw: ${e instanceof Error ? e.message : e}`);
+    result.notes.push(...(await overlayExportChecks(check)));
+  } catch (error) {
+    check(false, `overlay export checks threw: ${messageOf(error)}`);
   }
 }
 
 /* ---------- GPU device layer (P0.2): every backend this machine offers ---------- */
 
-async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+async function gpuChecks(check: Check, result: Result): Promise<void> {
   const { openWebGPU } = await import('@/engine/gpu/webgpu');
   const { openWebGL2 } = await import('@/engine/gpu/webgl2');
   const { COPY_PROGRAM } = await import('@/engine/gpu/types');
   // A 4×3 pattern: every pixel different, the top-left one red, and one half-transparent pixel.
-  const W = 4,
-    H = 3,
-    src = new Uint8ClampedArray(W * H * 4);
-  for (let i = 0; i < W * H; i++) src.set([(i * 37) % 256, (i * 91 + 40) % 256, (i * 53 + 200) % 256, i === 5 ? 128 : 255], i * 4);
+  const WIDTH = 4,
+    HEIGHT = 3,
+    src = new Uint8ClampedArray(WIDTH * HEIGHT * 4);
+  for (let index = 0; index < WIDTH * HEIGHT; index++)
+    src.set(
+      [(index * 37) % 256, (index * 91 + 40) % 256, (index * 53 + 200) % 256, index === 5 ? 128 : 255],
+      index * 4,
+    );
   src.set([255, 0, 0, 255], 0);
   const cv = document.createElement('canvas');
-  cv.width = W;
-  cv.height = H;
-  cv.getContext('2d')!.putImageData(new ImageData(src, W, H), 0, 0);
-  const pattern = await createImageBitmap(new ImageData(src, W, H), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
-  const near = (a: ArrayLike<number>, b: ArrayLike<number>, tol: number, opaqueOnly = false) => {
-    for (let i = 0; i < a.length; i++) {
-      if (opaqueOnly && (b[i - (i % 4) + 3] ?? 255) < 255) continue;
-      if (Math.abs(a[i] - b[i]) > tol) return false;
+  cv.width = WIDTH;
+  cv.height = HEIGHT;
+  context2d(cv).putImageData(new ImageData(src, WIDTH, HEIGHT), 0, 0);
+  const pattern = await createImageBitmap(new ImageData(src, WIDTH, HEIGHT), {
+    premultiplyAlpha: 'none',
+    colorSpaceConversion: 'none',
+  });
+  const near = (got: ListLike<number>, want: ListLike<number>, tol: number, opaqueOnly = false) => {
+    for (let index = 0; index < got.length; index++) {
+      if (opaqueOnly && (want.at(index - (index % 4) + 3) ?? 255) < 255) continue;
+      if (Math.abs((got.at(index) ?? NaN) - (want.at(index) ?? NaN)) > tol) return false;
     }
-    return a.length === b.length;
+    return got.length === want.length;
   };
   const SCALE = {
     id: 'selftest-scale',
@@ -268,29 +361,35 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
   const worst = new Map<string, string>();
   for (const [name, open] of [
     ['webgpu', openWebGPU],
-    ['webgl2', async () => openWebGL2()],
+    ['webgl2', () => Promise.resolve(openWebGL2())],
   ] as const) {
     const dev = await open().catch(() => null);
     if (!dev) continue;
     ran.push(name);
     try {
       check(dev.backend === name && dev.maxSize >= 4096, `gpu ${name}: opens with textures of at least 4096 px`);
-      const t = dev.upload(pattern, W, H);
-      check(near(await dev.read(t), src, 0), `gpu ${name}: upload and read back unchanged, top row first`);
-      const out = dev.target(W, H);
-      dev.pass(COPY_PROGRAM, [t], new Float32Array(4), out);
+      const texture = dev.upload(pattern, WIDTH, HEIGHT);
+      check(near(await dev.read(texture), src, 0), `gpu ${name}: upload and read back unchanged, top row first`);
+      const out = dev.target(WIDTH, HEIGHT);
+      dev.pass(COPY_PROGRAM, [texture], new Float32Array(4), out);
       check(near(await dev.read(out), src, 1), `gpu ${name}: a copy pass through a float target keeps every pixel`);
-      dev.pass(SCALE, [t], new Float32Array([0.5, 0, 0, 0]), out);
+      dev.pass(SCALE, [texture], new Float32Array([0.5, 0, 0, 0]), out);
       const half = await dev.read(out);
-      check(Math.abs(half[0] - 128) <= 1 && half[1] === 0 && half[3] === 255, `gpu ${name}: uniforms reach the program`);
+      check(
+        Math.abs((half.at(0) ?? NaN) - 128) <= 1 && half.at(1) === 0 && half.at(3) === 255,
+        `gpu ${name}: uniforms reach the program`,
+      );
       const shown = document.createElement('canvas');
-      shown.width = W;
-      shown.height = H;
-      const sx = shown.getContext('2d', { willReadFrequently: true })!;
-      dev.pass(COPY_PROGRAM, [t], new Float32Array(4), out);
+      shown.width = WIDTH;
+      shown.height = HEIGHT;
+      const sx = context2d(shown, { willReadFrequently: true });
+      dev.pass(COPY_PROGRAM, [texture], new Float32Array(4), out);
       sx.drawImage(dev.present(out), 0, 0);
-      check(near(sx.getImageData(0, 0, W, H).data, src, 1, true), `gpu ${name}: present draws the right way up onto a 2D canvas`);
-      check(near(await dev.read(dev.upload(cv, W, H)), src, 1, true), `gpu ${name}: uploads a 2D canvas`);
+      check(
+        near(sx.getImageData(0, 0, WIDTH, HEIGHT).data, src, 1, true),
+        `gpu ${name}: present draws the right way up onto a 2D canvas`,
+      );
+      check(near(await dev.read(dev.upload(cv, WIDTH, HEIGHT)), src, 1, true), `gpu ${name}: uploads a 2D canvas`);
       let threw = false;
       try {
         dev.target(dev.maxSize + 1, 1);
@@ -299,18 +398,25 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
       }
       check(threw, `gpu ${name}: refuses textures larger than the device allows`);
       // P1.9: half-float data in, float out, for the 16-bit TIFF export.
-      const fl = Float32Array.from({ length: W * H * 4 }, (_, i) => (i % 4 === 3 ? 1 : ((i * 7919) % 1000) / 1000));
-      const fin = dev.uploadData(fl, W, H);
+      const fl = Float32Array.from({ length: WIDTH * HEIGHT * 4 }, (_, index) =>
+        index % 4 === 3 ? 1 : ((index * 7919) % 1000) / 1000,
+      );
+      const fin = dev.uploadData(fl, WIDTH, HEIGHT);
       dev.pass(COPY_PROGRAM, [fin], new Float32Array(4), out);
       const back = await dev.readFloat(out);
-      check(dev.floatTargets && back.length === fl.length && back.every((v, i) => Math.abs(v - fl[i]) <= 0.0005), `gpu ${name}: floats read back to half-float precision`);
+      check(
+        dev.floatTargets &&
+          back.length === fl.length &&
+          back.every((value, index) => Math.abs(value - (fl.at(index) ?? NaN)) <= 0.0005),
+        `gpu ${name}: floats read back to half-float precision`,
+      );
       dev.release(fin);
-      dev.release(t);
+      dev.release(texture);
       dev.release(out);
       worst.set(name, await colourParity(dev, check, name));
       check(!dev.lost, `gpu ${name}: still open after the checks`);
-    } catch (e) {
-      r.failed.push(`gpu ${name} threw: ${e instanceof Error ? e.message : e}`);
+    } catch (error) {
+      result.failed.push(`gpu ${name} threw: ${messageOf(error)}`);
     } finally {
       dev.destroy();
     }
@@ -322,30 +428,59 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
     const { encodableTypes } = await import('@/engine/photoExport');
     const types = await encodableTypes();
     check(types.includes('jpeg') && types.includes('png'), 'export: JPEG and PNG can always be written');
-    r.notes.push(`Photo export types this engine writes: ${types.join(', ')}`);
+    result.notes.push(`Photo export types this engine writes: ${types.join(', ')}`);
   }
   for (const name of ran) {
     const mk = await maskParity(name);
-    check(mk.max <= 2, `gpu ${name}: masked colour edits match Canvas 2D within 2 levels (worst ${mk.max} in ${mk.where})`);
-    check(mk.detailMax <= 3, `gpu ${name}: masked detail effects match Canvas 2D within 3 levels (worst ${mk.detailMax})`);
-    r.notes.push(`${name} masks: worst ${mk.max} (with detail ${mk.detailMax}), mean ${mk.mean.toFixed(3)} over ${mk.frames} frames; ${mk.timing}`);
-    const g = await goldenParity(name);
-    check(g.max <= 2 && g.mean <= 0.5, `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${g.max} in ${g.where}, mean ${g.mean.toFixed(3)})`);
-    check(g.detailMax <= 3, `gpu ${name}: detail effects match Canvas 2D within 3 levels (worst ${g.detailMax} in ${g.detailWhere})`);
-    worst.set(name, `${worst.get(name)}; photos: worst ${g.max} (detail effects ${g.detailMax}), mean ${g.mean.toFixed(3)} over ${g.frames} frames`);
-    r.notes.push(await gpuTiming(name));
+    check(
+      mk.max <= 2,
+      `gpu ${name}: masked colour edits match Canvas 2D within 2 levels (worst ${mk.max} in ${mk.where})`,
+    );
+    check(
+      mk.detailMax <= 3,
+      `gpu ${name}: masked detail effects match Canvas 2D within 3 levels (worst ${mk.detailMax})`,
+    );
+    result.notes.push(
+      `${name} masks: worst ${mk.max} (with detail ${mk.detailMax}), mean ${mk.mean.toFixed(3)} over ${mk.frames} frames; ${mk.timing}`,
+    );
+    const golden = await goldenParity(name);
+    check(
+      golden.max <= 2 && golden.mean <= 0.5,
+      `gpu ${name}: real photos through renderIg match Canvas 2D (worst ${golden.max} in ${golden.where}, mean ${golden.mean.toFixed(3)})`,
+    );
+    check(
+      golden.detailMax <= 3,
+      `gpu ${name}: detail effects match Canvas 2D within 3 levels (worst ${golden.detailMax} in ${golden.detailWhere})`,
+    );
+    worst.set(
+      name,
+      `${worst.get(name)}; photos: worst ${golden.max} (detail effects ${golden.detailMax}), mean ${golden.mean.toFixed(3)} over ${golden.frames} frames`,
+    );
+    result.notes.push(await gpuTiming(name));
     const dp = await deepParity(name);
-    check(dp.max <= 4 && dp.mean <= 0.6, `gpu ${name}: the 16-bit render matches the 8-bit picture (worst ${dp.max.toFixed(1)} in ${dp.where}, mean ${dp.mean.toFixed(3)})`);
-    check(dp.levels[0] >= 3 * dp.levels[1], `gpu ${name}: 16 bits keep the tones 8 bits lose (${dp.levels[0]} against ${dp.levels[1]} in a pushed shadow ramp)`);
-    r.notes.push(`${name} 16-bit render: worst ${dp.max.toFixed(1)}, mean ${dp.mean.toFixed(3)} levels over ${dp.frames} frames; a shadow ramp pushed 3 stops keeps ${dp.levels[0]} tones (8 bits: ${dp.levels[1]})`);
+    check(
+      dp.max <= 4 && dp.mean <= 0.6,
+      `gpu ${name}: the 16-bit render matches the 8-bit picture (worst ${dp.max.toFixed(1)} in ${dp.where}, mean ${dp.mean.toFixed(3)})`,
+    );
+    check(
+      dp.levels[0] >= 3 * dp.levels[1],
+      `gpu ${name}: 16 bits keep the tones 8 bits lose (${dp.levels[0]} against ${dp.levels[1]} in a pushed shadow ramp)`,
+    );
+    result.notes.push(
+      `${name} 16-bit render: worst ${dp.max.toFixed(1)}, mean ${dp.mean.toFixed(3)} levels over ${dp.frames} frames; a shadow ramp pushed 3 stops keeps ${dp.levels[0]} tones (8 bits: ${dp.levels[1]})`,
+    );
   }
   const { openGpu, gpu, closeGpu } = await import('@/engine/gpu/device');
-  const d = await openGpu();
-  check(ran.length === 0 ? d === null : d?.backend === ran[0], 'gpu: openGpu() picks WebGPU first, then WebGL2');
-  check(gpu() === d && (await openGpu()) === d, 'gpu: the device is opened once and reused');
+  const device = await openGpu();
+  check(
+    ran.length === 0 ? device === null : device?.backend === ran.at(0),
+    'gpu: openGpu() picks WebGPU first, then WebGL2',
+  );
+  check(gpu() === device && (await openGpu()) === device, 'gpu: the device is opened once and reused');
   closeGpu();
   check(gpu() === null, 'gpu: closeGpu() lets it go');
-  r.notes.push(`GPU backends checked: ${ran.map((n) => `${n} (largest colour difference ${worst.get(n)})`).join(', ') || 'none available'}`);
+  const backends = ran.map((backend) => `${backend} (largest colour difference ${worst.get(backend) ?? '?'})`);
+  result.notes.push(`GPU backends checked: ${backends.join(', ') || 'none available'}`);
 }
 
 /**
@@ -353,42 +488,77 @@ async function gpuChecks(check: (ok: unknown, what: string) => void, r: Result):
  * and drawLayers(), what the preview shows) within a few levels on real photos with colour, detail, masks, framing,
  * a vignette and a layer, and it must keep the precision a RAW file brings: a dark ramp pushed three stops keeps many
  * more distinct tones than the same ramp in 8 bits.
+ * @param backend the GPU backend to compare
+ * @returns the largest and mean difference, where the largest was, frames compared, and the ramp's tones in 16 and 8 bits
  */
-async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; mean: number; frames: number; levels: [number, number]; where: string }> {
+async function deepParity(
+  backend: 'webgpu' | 'webgl2',
+): Promise<{ max: number; mean: number; frames: number; levels: [number, number]; where: string }> {
   const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const { renderDeepPost } = await import('@/engine/deep');
   const { DEFAULT_EDIT, photoPlace, renderIg } = await import('@/engine/instagram');
   const { DEFAULT_ADJUST } = await import('@/engine/adjust');
-  const L = await import('@/engine/layers');
+  const layersModule = await import('@/engine/layers');
   const { drawLayers } = await import('@/engine/layerDraw');
   const { frameToPhoto } = await import('@/engine/maskPlace');
   const { newPart } = await import('@/engine/masks');
   await openGpu(backend);
   // Photos softened a little and about frame size: how two methods shrink fine detail differs (that's resampling, not
   // what this compares), so both paths start from pictures they sample alike.
-  const load = async (f: string) => {
+  const load = async (file: string) => {
     const im = new Image();
-    im.src = `/samples/${f}`;
+    im.src = `/samples/${file}`;
     await im.decode();
-    const c = document.createElement('canvas'),
-      k = 700 / Math.max(im.naturalWidth, im.naturalHeight);
-    c.width = Math.round(im.naturalWidth * k);
-    c.height = Math.round(im.naturalHeight * k);
-    const g = c.getContext('2d', { willReadFrequently: true })!;
-    g.filter = 'blur(2px)';
-    g.drawImage(im, 0, 0, c.width, c.height);
-    const d = g.getImageData(0, 0, c.width, c.height);
-    for (let i = 3; i < d.data.length; i += 4) d.data[i] = 255;
-    g.putImageData(d, 0, 0);
-    return c;
+    const softened = document.createElement('canvas'),
+      scale = 700 / Math.max(im.naturalWidth, im.naturalHeight);
+    softened.width = Math.round(im.naturalWidth * scale);
+    softened.height = Math.round(im.naturalHeight * scale);
+    const context = context2d(softened, { willReadFrequently: true });
+    context.filter = 'blur(2px)';
+    context.drawImage(im, 0, 0, softened.width, softened.height);
+    const image = context.getImageData(0, 0, softened.width, softened.height);
+    for (let index = 3; index < image.data.length; index += 4) image.data[index] = 255;
+    context.putImageData(image, 0, 0);
+    return softened;
   };
   const photos = await Promise.all(['marigold.jpg', 'himalaya.jpg'].map(load));
-  const W = 540,
-    H = 675;
+  const WIDTH = 540,
+    HEIGHT = 675;
   const radial = { ...newPart('radial'), x: 0.5, y: 0.5, rx: 0.25, ry: 0.25 };
-  const label = { ...L.newShape('rect'), x: 0.5, y: 0.85, w: 0.6, h: 0.12, fill: '#ffffff', stroke: '', text: '', opacity: 0.8, blend: 'multiply' as const };
+  const label = {
+    ...layersModule.newShape('rect'),
+    x: 0.5,
+    y: 0.85,
+    w: 0.6,
+    h: 0.12,
+    fill: '#ffffff',
+    stroke: '',
+    text: '',
+    opacity: 0.8,
+    blend: 'multiply' as const,
+  };
   const cases: { e: import('@/engine/instagram').IgEdit; layers: import('@/engine/layers').Layer[] }[] = [
-    { e: { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, look: 'warm', exposure: 0.3, shadows: 30, curve: { ...DEFAULT_ADJUST.curve, rgb: [[0, 0], [0.3, 0.25], [0.7, 0.78], [1, 1]] } } }, layers: [] },
+    {
+      e: {
+        ...DEFAULT_EDIT,
+        adjust: {
+          ...DEFAULT_ADJUST,
+          look: 'warm',
+          exposure: 0.3,
+          shadows: 30,
+          curve: {
+            ...DEFAULT_ADJUST.curve,
+            rgb: [
+              [0, 0],
+              [0.3, 0.25],
+              [0.7, 0.78],
+              [1, 1],
+            ],
+          },
+        },
+      },
+      layers: [],
+    },
     {
       e: {
         ...DEFAULT_EDIT,
@@ -396,17 +566,38 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
         bg: '#204060',
         rot: 90,
         flip: true,
-        adjust: { ...DEFAULT_ADJUST, vignette: 40, mixer: { ...DEFAULT_ADJUST.mixer, sat: [30, 30, 0, -40, 0, 20, 0, 0] } },
-        masks: [{ id: 'm1', name: 'Spot', on: true, invert: false, parts: [radial], adjust: { ...DEFAULT_ADJUST, exposure: -1 } }],
+        adjust: {
+          ...DEFAULT_ADJUST,
+          vignette: 40,
+          mixer: { ...DEFAULT_ADJUST.mixer, sat: [30, 30, 0, -40, 0, 20, 0, 0] },
+        },
+        masks: [
+          {
+            id: 'm1',
+            name: 'Spot',
+            on: true,
+            invert: false,
+            parts: [radial],
+            adjust: { ...DEFAULT_ADJUST, exposure: -1 },
+          },
+        ],
       },
       layers: [label],
     },
-    { e: { ...DEFAULT_EDIT, zoom: 1.6, px: 0.4, adjust: { ...DEFAULT_ADJUST, clarity: 30, sharpen: 40, temperature: 25 } }, layers: [] },
+    {
+      e: {
+        ...DEFAULT_EDIT,
+        zoom: 1.6,
+        px: 0.4,
+        adjust: { ...DEFAULT_ADJUST, clarity: 30, sharpen: 40, temperature: 25 },
+      },
+      layers: [],
+    },
   ];
-  const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
-  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const canvas = document.createElement('canvas');
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const x = context2d(canvas, { willReadFrequently: true });
   let max = 0,
     sum = 0,
     count = 0,
@@ -414,26 +605,43 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
     where = '';
   for (const [pi, img] of photos.entries()) {
     const sample = img;
-    for (const [ci, k] of cases.entries()) {
+    for (const [ci, testCase] of cases.entries()) {
       x.fillStyle = '#ffffff';
-      x.fillRect(0, 0, W, H);
-      renderIg(x, img, img.width, img.height, k.e, W, H);
-      drawLayers(x, k.layers, W, H);
-      const flat = x.getImageData(0, 0, W, H).data;
-      const deep = await renderDeepPost({ img, w: img.width, h: img.height, sample, e: k.e, layers: k.layers, W, H });
+      x.fillRect(0, 0, WIDTH, HEIGHT);
+      renderIg(x, img, img.width, img.height, testCase.e, WIDTH, HEIGHT);
+      drawLayers(x, testCase.layers, WIDTH, HEIGHT);
+      const flat = x.getImageData(0, 0, WIDTH, HEIGHT).data;
+      const deep = await renderDeepPost({
+        img,
+        w: img.width,
+        h: img.height,
+        sample,
+        e: testCase.e,
+        layers: testCase.layers,
+        W: WIDTH,
+        H: HEIGHT,
+      });
       frames++;
       // Away from the photo's edges (where antialiasing differs by method), every pixel within a few levels.
-      const place = photoPlace(img.width, img.height, k.e, W, H);
-      for (let y = 0; y < H; y++)
-        for (let xx = 0; xx < W; xx++) {
-          const [u, v] = frameToPhoto(place, xx + 0.5, y + 0.5);
-          if (Math.abs(u * place.w) < 2.5 || Math.abs((1 - u) * place.w) < 2.5 || Math.abs(v * place.h) < 2.5 || Math.abs((1 - v) * place.h) < 2.5) continue;
+      const place = photoPlace(img.width, img.height, testCase.e, WIDTH, HEIGHT);
+      for (let y = 0; y < HEIGHT; y++)
+        for (let xx = 0; xx < WIDTH; xx++) {
+          const [photoU, photoV] = frameToPhoto(place, xx + 0.5, y + 0.5);
+          if (
+            Math.abs(photoU * place.w) < 2.5 ||
+            Math.abs((1 - photoU) * place.w) < 2.5 ||
+            Math.abs(photoV * place.h) < 2.5 ||
+            Math.abs((1 - photoV) * place.h) < 2.5
+          )
+            continue;
           for (let ch = 0; ch < 3; ch++) {
-            const d = Math.abs(deep[(y * W + xx) * 3 + ch] / 257 - flat[(y * W + xx) * 4 + ch]);
-            sum += d;
+            const diff = Math.abs(
+              (deep.at((y * WIDTH + xx) * 3 + ch) ?? NaN) / 257 - (flat.at((y * WIDTH + xx) * 4 + ch) ?? NaN),
+            );
+            sum += diff;
             count++;
-            if (d > max) {
-              max = d;
+            if (diff > max) {
+              max = diff;
               where = `photo ${pi} case ${ci} at ${xx},${y}`;
             }
           }
@@ -441,93 +649,133 @@ async function deepParity(backend: 'webgpu' | 'webgl2'): Promise<{ max: number; 
     }
   }
   // Precision: a dark ramp (the bottom 4 % of the range, as a RAW holds shadows) pushed three stops.
-  const N = 1080,
-    ramp = new Float32Array(N * 4 * 3);
-  for (let y = 0; y < 4; y++) for (let i = 0; i < N; i++) ramp.fill((i / (N - 1)) * 0.04, (y * N + i) * 3, (y * N + i) * 3 + 3);
+  const RAMP = 1080,
+    ramp = new Float32Array(RAMP * 4 * 3);
+  for (let y = 0; y < 4; y++)
+    for (let index = 0; index < RAMP; index++)
+      ramp.fill((index / (RAMP - 1)) * 0.04, (y * RAMP + index) * 3, (y * RAMP + index) * 3 + 3);
   const rc = document.createElement('canvas');
-  rc.width = N;
+  rc.width = RAMP;
   rc.height = 4;
-  const rx = rc.getContext('2d', { willReadFrequently: true })!;
-  const id = rx.createImageData(N, 4);
+  const rx = context2d(rc, { willReadFrequently: true });
+  const id = rx.createImageData(RAMP, 4);
   const { encodeSrgb } = await import('@/engine/raw');
-  for (let i = 0; i < N * 4; i++) {
-    id.data.fill(Math.round(encodeSrgb(ramp[i * 3]) * 255), i * 4, i * 4 + 3);
-    id.data[i * 4 + 3] = 255;
+  for (let index = 0; index < RAMP * 4; index++) {
+    id.data.fill(Math.round(encodeSrgb(ramp.at(index * 3) ?? 0) * 255), index * 4, index * 4 + 3);
+    id.data[index * 4 + 3] = 255;
   }
   rx.putImageData(id, 0, 0);
   const push = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, exposure: 3 } };
-  const deepRamp = await renderDeepPost({ img: rc, w: N, h: 4, deep: { w: N, h: 4, rgb: ramp }, sample: rc, e: push, layers: [], W: N, H: 4 });
-  const flatRamp = await renderDeepPost({ img: rc, w: N, h: 4, sample: rc, e: push, layers: [], W: N, H: 4 });
-  const tones = (a: Uint16Array) => new Set(Array.from({ length: N }, (_, i) => a[(N + i) * 3 + 1])).size;
+  const deepRamp = await renderDeepPost({
+    img: rc,
+    w: RAMP,
+    h: 4,
+    deep: { w: RAMP, h: 4, rgb: ramp },
+    sample: rc,
+    e: push,
+    layers: [],
+    W: RAMP,
+    H: 4,
+  });
+  const flatRamp = await renderDeepPost({ img: rc, w: RAMP, h: 4, sample: rc, e: push, layers: [], W: RAMP, H: 4 });
+  const tones = (rendered: Uint16Array) =>
+    new Set(Array.from({ length: RAMP }, (_, index) => rendered[(RAMP + index) * 3 + 1])).size;
   closeGpu();
   return { max, mean: sum / count, frames, levels: [tones(deepRamp), tones(flatRamp)], where };
 }
 
 /**
- * P1.6: a known mask, drawn where it should be. A hard brush stroke across the middle of the photo, laid on a frame with
- * the photo placed, turned a quarter and mirrored: full inside the stroke, empty away from it and outside the photo.
- */
-/**
  * P1.10: layers' blend modes, masks and images, by known pixels (layers draw with Canvas 2D on every path). A grey box
  * over an orange frame, multiplied and screened, must give the formulas' colours; a white box faded by a linear mask
  * over black must go from white at the top to black at the bottom, turned with the layer; an image layer must show
  * its picture where it is placed.
+ * @param check records a check
  */
-async function layerLooks(check: (ok: unknown, what: string) => void): Promise<void> {
-  const L = await import('@/engine/layers');
+async function layerLooks(check: Check): Promise<void> {
+  const layersModule = await import('@/engine/layers');
   const { drawLayers } = await import('@/engine/layerDraw');
   const { newPart } = await import('@/engine/masks');
-  const N = 200;
+  const SIZE = 200;
   const frame = (bg: string, layers: import('@/engine/layers').Layer[]) => {
-    const c = document.createElement('canvas');
-    c.width = c.height = N;
-    const x = c.getContext('2d', { willReadFrequently: true })!;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SIZE;
+    const x = context2d(canvas, { willReadFrequently: true });
     x.fillStyle = bg;
-    x.fillRect(0, 0, N, N);
-    drawLayers(x, layers, N, N);
-    return (px: number, py: number) => [...x.getImageData(px, py, 1, 1).data.slice(0, 3)];
+    x.fillRect(0, 0, SIZE, SIZE);
+    drawLayers(x, layers, SIZE, SIZE);
+    return (px: number, py: number) => meanRgb(x.getImageData(px, py, 1, 1).data);
   };
-  const box = { ...L.newShape('rect'), x: 0.5, y: 0.5, w: 2, h: 2, fill: '#808080', stroke: '', text: '' };
-  const near = (a: number[], b: number[], tol = 2) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
+  const box = { ...layersModule.newShape('rect'), x: 0.5, y: 0.5, w: 2, h: 2, fill: '#808080', stroke: '', text: '' };
+  const near = (got: readonly number[], want: readonly number[], tol = 2) =>
+    got.every((value, index) => Math.abs(value - (want.at(index) ?? NaN)) <= tol);
   const mul = frame('rgb(200,100,50)', [{ ...box, blend: 'multiply' }])(100, 100);
-  check(near(mul, [100, 50, 25]), `layers: multiply gives the product (${mul})`);
+  check(near(mul, [100, 50, 25]), `layers: multiply gives the product (${mul.join(',')})`);
   const scr = frame('rgb(200,100,50)', [{ ...box, blend: 'screen' }])(100, 100);
-  check(near(scr, [228, 178, 153]), `layers: screen gives 1 − (1 − a)(1 − b) (${scr})`);
+  check(near(scr, [228, 178, 153]), `layers: screen gives 1 − (1 − a)(1 − b) (${scr.join(',')})`);
   // A white box faded downwards over black: full at the top, nothing at the bottom, half way in the middle.
-  const fade = { invert: false, parts: [{ ...newPart('linear'), x: 0.5, y: 0.5, angle: 90, width: 1 }] } as import('@/engine/layers').LayerMask;
+  const fade = {
+    invert: false,
+    parts: [{ ...newPart('linear'), x: 0.5, y: 0.5, angle: 90, width: 1 }],
+  } as import('@/engine/layers').LayerMask;
   const white = { ...box, w: 1, h: 1, fill: '#ffffff', mask: fade };
-  const f = frame('#000000', [white]);
-  check(f(100, 2)[0] > 250 && f(100, 197)[0] < 5 && Math.abs(f(100, 100)[0] - 128) < 12, `layers: a fade mask goes from full to none (${f(100, 2)[0]}, ${f(100, 100)[0]}, ${f(100, 197)[0]})`);
+  const faded = frame('#000000', [white]);
+  check(
+    faded(100, 2)[0] > 250 && faded(100, 197)[0] < 5 && Math.abs(faded(100, 100)[0] - 128) < 12,
+    `layers: a fade mask goes from full to none (${faded(100, 2)[0]}, ${faded(100, 100)[0]}, ${faded(100, 197)[0]})`,
+  );
   // Turned a quarter, the fade runs right to left across the frame.
-  const t = frame('#000000', [{ ...white, rot: 90 }]);
-  check(t(197, 100)[0] > 250 && t(2, 100)[0] < 5, 'layers: a layer mask turns with its layer');
-  check(frame('#000000', [{ ...white, mask: { ...fade, invert: true } }])(100, 2)[0] < 5, 'layers: an inverted mask shows the other way');
+  const turned = frame('#000000', [{ ...white, rot: 90 }]);
+  check(turned(197, 100)[0] > 250 && turned(2, 100)[0] < 5, 'layers: a layer mask turns with its layer');
+  check(
+    frame('#000000', [{ ...white, mask: { ...fade, invert: true } }])(100, 2)[0] < 5,
+    'layers: an inverted mask shows the other way',
+  );
   // An image layer: a red picture in the middle, a quarter of the frame wide.
   const pic = document.createElement('canvas');
   pic.width = pic.height = 16;
-  const px = pic.getContext('2d')!;
+  const px = context2d(pic);
   px.fillStyle = '#ff0000';
   px.fillRect(0, 0, 16, 16);
-  const img = { ...L.newImageLayer(L.addLayerImage(pic), 16, 16, 'red'), w: 0.25, h: 0.25 };
+  const img = { ...layersModule.newImageLayer(layersModule.addLayerImage(pic), 16, 16, 'red'), w: 0.25, h: 0.25 };
   const im = frame('#000000', [img]);
-  check(near(im(100, 100), [255, 0, 0]) && near(im(20, 20), [0, 0, 0]), 'layers: an image layer shows its picture where it is placed');
+  check(
+    near(im(100, 100), [255, 0, 0]) && near(im(20, 20), [0, 0, 0]),
+    'layers: an image layer shows its picture where it is placed',
+  );
 }
 
-async function knownMask(check: (ok: unknown, what: string) => void): Promise<void> {
+/**
+ * P1.6: a known mask, drawn where it should be. A hard brush stroke across the middle of the photo, laid on a frame with
+ * the photo placed, turned a quarter and mirrored: full inside the stroke, empty away from it and outside the photo.
+ * @param check records a check
+ */
+async function knownMask(check: Check): Promise<void> {
   const { newMask, newBrushPart } = await import('@/engine/masks');
   const { frameMask } = await import('@/engine/maskPlace');
   const { DEFAULT_EDIT, photoPlace } = await import('@/engine/instagram');
-  const mask = { ...newMask('Known'), parts: [{ ...newBrushPart(), strokes: [{ pts: [0, 0.5, 1, 0.5], size: 0.1, feather: 0, flow: 100, erase: false }] }] };
-  const alpha = (f: import('@/engine/maskPlace').FrameMask, x: number, y: number) => f.data[y * f.width + x];
+  const mask = {
+    ...newMask('Known'),
+    parts: [
+      { ...newBrushPart(), strokes: [{ pts: [0, 0.5, 1, 0.5], size: 0.1, feather: 0, flow: 100, erase: false }] },
+    ],
+  };
+  const alpha = (placed: import('@/engine/maskPlace').FrameMask, x: number, y: number) =>
+    placed.data.at(y * placed.width + x);
   // A 400 × 200 photo whole in a 400 × 400 frame: it fills rows 100–300, the stroke runs along row 200, 40 px tall.
-  const flat = frameMask(mask, 400, 200, photoPlace(400, 200, { ...DEFAULT_EDIT, fit: 'fit' }, 400, 400), 400, 400)!;
+  const flat = frameMask(mask, 400, 200, photoPlace(400, 200, { ...DEFAULT_EDIT, fit: 'fit' }, 400, 400), 400, 400);
   check(alpha(flat, 200, 200) === 255 && alpha(flat, 50, 210) === 255, 'masks: a brush stroke is full along its line');
-  check(alpha(flat, 200, 150) === 0 && alpha(flat, 200, 50) === 0, 'masks: nothing away from the stroke, nor outside the photo');
+  check(
+    alpha(flat, 200, 150) === 0 && alpha(flat, 200, 50) === 0,
+    'masks: nothing away from the stroke, nor outside the photo',
+  );
   // Turned a quarter: the stroke now runs down column 200 of the frame; mirrored as well, it still does.
   for (const flip of [false, true]) {
-    const e = { ...DEFAULT_EDIT, fit: 'fit' as const, rot: 90 as const, flip };
-    const t = frameMask({ ...mask }, 400, 200, photoPlace(400, 200, e, 400, 400), 400, 400);
-    check(alpha(t, 200, 60) === 255 && alpha(t, 150, 200) === 0, `masks: the stroke turns with the photo${flip ? ', mirrored' : ''}`);
+    const edit = { ...DEFAULT_EDIT, fit: 'fit' as const, rot: 90 as const, flip };
+    const turned = frameMask({ ...mask }, 400, 200, photoPlace(400, 200, edit, 400, 400), 400, 400);
+    check(
+      alpha(turned, 200, 60) === 255 && alpha(turned, 150, 200) === 0,
+      `masks: the stroke turns with the photo${flip ? ', mirrored' : ''}`,
+    );
   }
 }
 
@@ -535,6 +783,8 @@ async function knownMask(check: (ok: unknown, what: string) => void): Promise<vo
  * P1.6: masks on real photos, Canvas 2D against a GPU backend: brush masks with colour and with detail settings, an
  * inverted one, parts combined, two masks on top of a look. Plus the time a 1080 × 1350 frame with two masks takes,
  * the phase gate's 30 frames a second being 33 ms.
+ * @param backend the GPU backend to compare
+ * @returns the largest differences (colour, detail), the mean, where, frames compared and the timing note
  */
 async function maskParity(
   backend: 'webgpu' | 'webgl2',
@@ -548,18 +798,37 @@ async function maskParity(
   type Stroke = import('@/engine/masks').BrushStroke;
   const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const photos = await Promise.all(
-    ['diwali.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
+    ['diwali.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (file) => {
       const img = new Image();
-      img.src = `/samples/${f}`;
+      img.src = `/samples/${file}`;
       await img.decode();
-      return { f, img };
+      return { f: file, img };
     }),
   );
-  const st = (pts: number[], o: Partial<Stroke> = {}): Stroke => ({ pts, size: 0.25, feather: 60, flow: 100, erase: false, ...o });
-  const brush = (strokes: Stroke[], o: Partial<import('@/engine/masks').BrushPart> = {}) => ({ ...newBrushPart(), strokes, ...o });
-  const mk = (adjust: object, parts: Part[], o: Partial<Mask> = {}): Mask => ({ ...newMask('T'), parts, adjust: { ...DEFAULT_ADJUST, ...adjust }, ...o });
+  const st = (pts: number[], options: Partial<Stroke> = {}): Stroke => ({
+    pts,
+    size: 0.25,
+    feather: 60,
+    flow: 100,
+    erase: false,
+    ...options,
+  });
+  const brush = (strokes: Stroke[], options: Partial<import('@/engine/masks').BrushPart> = {}) => ({
+    ...newBrushPart(),
+    strokes,
+    ...options,
+  });
+  const mk = (adjust: object, parts: Part[], options: Partial<Mask> = {}): Mask => ({
+    ...newMask('T'),
+    parts,
+    adjust: { ...DEFAULT_ADJUST, ...adjust },
+    ...options,
+  });
   const sky = brush([st([0, 0.2, 0.5, 0.25, 1, 0.15], { size: 0.4 })]),
-    centre = brush([st([0.5, 0.5], { size: 0.5, feather: 100, flow: 70 }), st([0.5, 0.5, 0.6, 0.6], { erase: true, flow: 50, size: 0.1 })]);
+    centre = brush([
+      st([0.5, 0.5], { size: 0.5, feather: 100, flow: 70 }),
+      st([0.5, 0.5, 0.6, 0.6], { erase: true, flow: 50, size: 0.1 }),
+    ]);
   const cases: { look?: 'warm' | 'bw'; masks: Mask[]; rot?: 0 | 90; flip?: boolean }[] = [
     { masks: [mk({ exposure: 1, temperature: -40 }, [sky])] },
     { masks: [mk({ shadows: 60, saturation: 40, contrast: 20 }, [centre], { invert: true })], rot: 90, flip: true },
@@ -569,19 +838,33 @@ async function maskParity(
     // Gradients and ranges (P1.7): a sky gradient, a radial spotlight turned with the photo, the darker tones under a
     // gradient, the photo's oranges.
     { masks: [mk({ exposure: -0.8, highlights: -40 }, [{ ...newPart('linear'), angle: 80, width: 0.5 } as Part])] },
-    { masks: [mk({ exposure: 0.6, saturation: 20 }, [{ ...newPart('radial'), x: 0.4, rx: 0.35, ry: 0.2, angle: 30 } as Part], { invert: true })], rot: 90, flip: true },
-    { masks: [mk({ shadows: 50 }, [newPart('linear') as Part, { ...newPart('luma', false), lo: 0, hi: 40 } as Part])] },
-    { masks: [mk({ saturation: 40, temperature: 20 }, [{ ...newPart('colour'), r: 220, g: 120, b: 40, range: 40 } as Part])] },
+    {
+      masks: [
+        mk(
+          { exposure: 0.6, saturation: 20 },
+          [{ ...newPart('radial'), x: 0.4, rx: 0.35, ry: 0.2, angle: 30 } as Part],
+          { invert: true },
+        ),
+      ],
+      rot: 90,
+      flip: true,
+    },
+    { masks: [mk({ shadows: 50 }, [newPart('linear'), { ...newPart('luma', false), lo: 0, hi: 40 } as Part])] },
+    {
+      masks: [
+        mk({ saturation: 40, temperature: 20 }, [{ ...newPart('colour'), r: 220, g: 120, b: 40, range: 40 } as Part]),
+      ],
+    },
   ];
-  const W = 540,
-    H = 675;
-  const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
-    const c = document.createElement('canvas');
-    c.width = W;
-    c.height = H;
-    const x = c.getContext('2d', { willReadFrequently: true })!;
-    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, W, H);
-    return x.getImageData(0, 0, W, H).data;
+  const WIDTH = 540,
+    HEIGHT = 675;
+  const frame = (img: HTMLImageElement, edit: typeof DEFAULT_EDIT) => {
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = WIDTH;
+    frameCanvas.height = HEIGHT;
+    const x = context2d(frameCanvas, { willReadFrequently: true });
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, edit, WIDTH, HEIGHT);
+    return x.getImageData(0, 0, WIDTH, HEIGHT).data;
   };
   let max = 0,
     detailMax = 0,
@@ -590,37 +873,49 @@ async function maskParity(
     frames = 0,
     where = '';
   for (const { f, img } of photos)
-    for (const [i, c] of cases.entries()) {
-      const e = { ...DEFAULT_EDIT, rot: c.rot ?? 0, flip: !!c.flip, adjust: { ...DEFAULT_ADJUST, look: c.look ?? ('none' as const) }, masks: c.masks };
-      const detail = c.masks.some((m) => !detailNeutral(m.adjust));
+    for (const [caseIndex, testCase] of cases.entries()) {
+      const edit = {
+        ...DEFAULT_EDIT,
+        rot: testCase.rot ?? 0,
+        flip: !!testCase.flip,
+        adjust: { ...DEFAULT_ADJUST, look: testCase.look ?? ('none' as const) },
+        masks: testCase.masks,
+      };
+      const detail = testCase.masks.some((mask) => !detailNeutral(mask.adjust));
       closeGpu();
-      const cpu = frame(img, e);
+      const cpu = frame(img, edit);
       await openGpu(backend);
-      const got = frame(img, e);
+      const got = frame(img, edit);
       frames++;
-      for (let k = 0; k < got.length; k++) {
-        const d = Math.abs(got[k] - cpu[k]);
-        sum += d;
+      for (let index = 0; index < got.length; index++) {
+        const diff = Math.abs((got.at(index) ?? NaN) - (cpu.at(index) ?? NaN));
+        sum += diff;
         count++;
-        if (detail) detailMax = Math.max(detailMax, d);
-        else if (d > max) {
-          max = d;
-          where = `${f} case ${i}`;
+        if (detail) detailMax = Math.max(detailMax, diff);
+        else if (diff > max) {
+          max = diff;
+          where = `${f} case ${caseIndex}`;
         }
       }
     }
   // Timing: two masks (colour; clarity with sharpening) on a 1080 × 1350 frame, after the first (cached) draw.
-  const img = photos[1].img,
-    e = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_ADJUST, look: 'warm' as const }, masks: [mk({ exposure: 0.8, shadows: 40 }, [sky]), mk({ clarity: 40, sharpen: 40 }, [centre], { invert: true })] };
-  const c = document.createElement('canvas');
-  c.width = 1080;
-  c.height = 1350;
-  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const colourMask = mk({ exposure: 0.8, shadows: 40 }, [sky]),
+    detailMask = mk({ clarity: 40, sharpen: 40 }, [centre], { invert: true });
+  const img = entryAt(photos, 1, 'sample photo').img,
+    timedEdit = {
+      ...DEFAULT_EDIT,
+      adjust: { ...DEFAULT_ADJUST, look: 'warm' as const },
+      masks: [colourMask, detailMask],
+    };
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const x = context2d(canvas, { willReadFrequently: true });
   const time = (reps: number) => {
-    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, timedEdit, 1080, 1350);
     x.getImageData(0, 0, 1, 1);
     const t0 = performance.now();
-    for (let k = 0; k < reps; k++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    for (let rep = 0; rep < reps; rep++) renderIg(x, img, img.naturalWidth, img.naturalHeight, timedEdit, 1080, 1350);
     x.getImageData(0, 0, 1, 1);
     return (performance.now() - t0) / reps;
   };
@@ -630,18 +925,34 @@ async function maskParity(
   // rest is cached. 30 moves across the photo with a large brush.
   let pts = [0.1, 0.9];
   const t0 = performance.now();
-  for (let k = 1; k <= 30; k++) {
-    pts = [...pts, 0.1 + k * 0.025, 0.9 - k * 0.01];
+  for (let move = 1; move <= 30; move++) {
+    pts = [...pts, 0.1 + move * 0.025, 0.9 - move * 0.01];
     const part = { ...sky, strokes: [...sky.strokes, st(pts)] };
-    renderIg(x, img, img.naturalWidth, img.naturalHeight, { ...e, masks: [{ ...e.masks[0], parts: [part] }, e.masks[1]] }, 1080, 1350);
+    renderIg(
+      x,
+      img,
+      img.naturalWidth,
+      img.naturalHeight,
+      { ...timedEdit, masks: [{ ...colourMask, parts: [part] }, detailMask] },
+      1080,
+      1350,
+    );
   }
   x.getImageData(0, 0, 1, 1);
   const paintMs = (performance.now() - t0) / 30;
   // Dragging a gradient: a new radial part each frame, rasterised whole.
   const t1 = performance.now();
-  for (let k = 1; k <= 20; k++) {
-    const part = { ...newPart('radial'), x: 0.3 + k * 0.02, rx: 0.35, ry: 0.25, angle: 20 } as Part;
-    renderIg(x, img, img.naturalWidth, img.naturalHeight, { ...e, masks: [{ ...e.masks[0], parts: [part] }, e.masks[1]] }, 1080, 1350);
+  for (let step = 1; step <= 20; step++) {
+    const part = { ...newPart('radial'), x: 0.3 + step * 0.02, rx: 0.35, ry: 0.25, angle: 20 } as Part;
+    renderIg(
+      x,
+      img,
+      img.naturalWidth,
+      img.naturalHeight,
+      { ...timedEdit, masks: [{ ...colourMask, parts: [part] }, detailMask] },
+      1080,
+      1350,
+    );
   }
   x.getImageData(0, 0, 1, 1);
   const dragMs = (performance.now() - t1) / 20;
@@ -660,17 +971,24 @@ async function maskParity(
 /**
  * P1.4: a creative LUT for the parity checks, made the way users bring them, as .cube text: a teal-and-orange split
  * with an S-curve, strongly non-linear so the interpolation is exercised. Loaded for the renderers; returns its id.
+ * @param size the table's size per channel
+ * @returns the loaded LUT's id
  */
 async function testLut(size: number): Promise<string> {
   const { addLut, parseCube } = await import('@/engine/lut');
   const lines = [`TITLE "Self-test ${size}"`, `LUT_3D_SIZE ${size}`];
-  for (let b = 0; b < size; b++)
-    for (let g = 0; g < size; g++)
-      for (let r = 0; r < size; r++) {
-        const c = [r, g, b].map((v) => v / (size - 1)),
-          l = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2],
-          s = (v: number) => v * v * (3 - 2 * v);
-        lines.push([s(c[0]) * 0.9 + l * 0.15, c[1] * 0.85 + 0.05, c[2] * 0.7 + (1 - l) * 0.25].map((v) => v.toFixed(6)).join(' '));
+  for (let blue = 0; blue < size; blue++)
+    for (let green = 0; green < size; green++)
+      for (let red = 0; red < size; red++) {
+        const top = size - 1,
+          rgb: [number, number, number] = [red / top, green / top, blue / top],
+          luma = 0.3 * rgb[0] + 0.59 * rgb[1] + 0.11 * rgb[2],
+          smooth = (value: number) => value * value * (3 - 2 * value);
+        lines.push(
+          [smooth(rgb[0]) * 0.9 + luma * 0.15, rgb[1] * 0.85 + 0.05, rgb[2] * 0.7 + (1 - luma) * 0.25]
+            .map((value) => value.toFixed(6))
+            .join(' '),
+        );
       }
   const lut = parseCube(lines.join('\n'));
   addLut(lut);
@@ -681,6 +999,8 @@ async function testLut(size: number): Promise<string> {
  * P0.6: golden images. Real sample photos drawn by the whole renderIg() (placement, background, rotation, colour,
  * vignette) at Instagram size, once on the Canvas 2D path and once on the GPU backend, must match: at most 2 levels
  * apart in any channel and 0.5 on average. This is the gate for turning the GPU path on by default.
+ * @param backend the GPU backend to compare
+ * @returns the largest and mean difference and where, frames compared, and the same for detail effects
  */
 async function goldenParity(
   backend: 'webgpu' | 'webgl2',
@@ -693,15 +1013,15 @@ async function goldenParity(
   const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const lut = await testLut(33);
   const photos = await Promise.all(
-    ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (f) => {
+    ['diwali.jpg', 'holi-bowls.jpg', 'marigold.jpg', 'himalaya.jpg'].map(async (file) => {
       const img = new Image();
-      img.src = `/samples/${f}`;
+      img.src = `/samples/${file}`;
       await img.decode();
-      return { f, img };
+      return { f: file, img };
     }),
   );
-  const W = 540,
-    H = 675;
+  const WIDTH = 540,
+    HEIGHT = 675;
   const edits: Partial<import('@/engine/adjust').Adjustments>[] = [
     {},
     { brightness: 35, contrast: 20 },
@@ -709,8 +1029,26 @@ async function goldenParity(
     { contrast: 100, brightness: -40 },
     { exposure: 0.7, highlights: -60, shadows: 50, temperature: -40, tint: 20 },
     {
-      curve: { ...FLAT_CURVE, rgb: [[0, 0], [0.3, 0.22], [0.7, 0.8], [1, 1]], r: [[0, 0], [0.5, 0.55], [1, 1]] },
-      mixer: { ...FLAT_MIXER, hue: [0, 30, 0, -40, 0, 20, 0, 0], sat: [20, 40, -30, 0, 0, -50, 0, 0], lum: [0, 20, 0, -30, 0, 0, 0, 0] },
+      curve: {
+        ...FLAT_CURVE,
+        rgb: [
+          [0, 0],
+          [0.3, 0.22],
+          [0.7, 0.8],
+          [1, 1],
+        ],
+        r: [
+          [0, 0],
+          [0.5, 0.55],
+          [1, 1],
+        ],
+      },
+      mixer: {
+        ...FLAT_MIXER,
+        hue: [0, 30, 0, -40, 0, 20, 0, 0],
+        sat: [20, 40, -30, 0, 0, -50, 0, 0],
+        lum: [0, 20, 0, -30, 0, 0, 0, 0],
+      },
       shadows: 30,
     },
     // Detail and effects (P1.3).
@@ -721,13 +1059,13 @@ async function goldenParity(
     { lut },
     { lut, lutAmount: 60, exposure: 0.3, saturation: 15 },
   ];
-  const frame = (img: HTMLImageElement, e: typeof DEFAULT_EDIT) => {
-    const c = document.createElement('canvas');
-    c.width = W;
-    c.height = H;
-    const x = c.getContext('2d', { willReadFrequently: true })!;
-    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, W, H);
-    return x.getImageData(0, 0, W, H).data;
+  const frame = (img: HTMLImageElement, edit: typeof DEFAULT_EDIT) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    const x = context2d(canvas, { willReadFrequently: true });
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, edit, WIDTH, HEIGHT);
+    return x.getImageData(0, 0, WIDTH, HEIGHT).data;
   };
   let detailMax = 0,
     detailWhere = '',
@@ -738,28 +1076,38 @@ async function goldenParity(
     where = '';
   for (const { f, img } of photos)
     for (const look of LOOK_IDS)
-      for (const [i, adj] of edits.entries()) {
+      for (const [index, adj] of edits.entries()) {
         // Vary the framing too: whole photo on a blurred background, turned, mirrored.
-        const e = { ...DEFAULT_EDIT, fit: i % 2 ? ('fit' as const) : ('fill' as const), bg: 'blur', rot: (i === 3 ? 90 : 0) as 0 | 90, flip: i === 2, adjust: { ...DEFAULT_EDIT.adjust, look, ...adj } };
+        const edit = {
+          ...DEFAULT_EDIT,
+          fit: index % 2 ? ('fit' as const) : ('fill' as const),
+          bg: 'blur',
+          rot: index === 3 ? (90 as const) : (0 as const),
+          flip: index === 2,
+          adjust: { ...DEFAULT_EDIT.adjust, look, ...adj },
+        };
         closeGpu();
-        const cpu = frame(img, e);
+        const cpu = frame(img, edit);
         await openGpu(backend);
-        const got = frame(img, e);
+        const got = frame(img, edit);
         frames++;
-        for (let k = 0; k < got.length; k++) {
-          const d = Math.abs(got[k] - cpu[k]);
-          sum += d;
+        for (let index = 0; index < got.length; index++) {
+          const diff = Math.abs((got.at(index) ?? NaN) - (cpu.at(index) ?? NaN));
+          sum += diff;
           count++;
           // Detail effects (P1.3) chain neighbourhood passes through 16-bit float textures on the GPU (32-bit would
           // double memory at 4K): they are held to 3 levels, colour-only edits to 2.
-          if (detailNeutral(e.adjust) ? false : d > detailMax) {
-            detailMax = d;
+          if (detailNeutral(edit.adjust) ? false : diff > detailMax) {
+            detailMax = diff;
             detailWhere = `${f} ${look} ${JSON.stringify(adj)}`;
           }
-          if (detailNeutral(e.adjust) && d > max) {
-            max = d;
-            const px = k >> 2;
-            where = `${f} ${look} ${JSON.stringify(adj)} fit=${e.fit} rot=${e.rot} at ${px % W},${Math.floor(px / W)} cpu ${[...cpu.slice(k - (k % 4), k - (k % 4) + 4)]} gpu ${[...got.slice(k - (k % 4), k - (k % 4) + 4)]}`;
+          if (detailNeutral(edit.adjust) && diff > max) {
+            max = diff;
+            const px = index >> 2;
+            const first = index - (index % 4);
+            const cpuPixel = [...cpu.slice(first, first + 4)].join(','),
+              gpuPixel = [...got.slice(first, first + 4)].join(',');
+            where = `${f} ${look} ${JSON.stringify(adj)} fit=${edit.fit} rot=${edit.rot} at ${px % WIDTH},${Math.floor(px / WIDTH)} cpu ${cpuPixel} gpu ${gpuPixel}`;
           }
         }
       }
@@ -767,23 +1115,30 @@ async function goldenParity(
   return { max, mean: sum / count, where, frames, detailMax, detailWhere };
 }
 
-/** Time per Instagram-size frame with a look and sliders, Canvas 2D against a GPU backend. A note, not a check. */
+/**
+ * Time per Instagram-size frame with a look and sliders, Canvas 2D against a GPU backend. A note, not a check.
+ * @param backend the GPU backend to time
+ * @returns the note
+ */
 async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
   const { DEFAULT_EDIT, renderIg } = await import('@/engine/instagram');
   const { closeGpu, openGpu } = await import('@/engine/gpu/device');
   const img = new Image();
   img.src = '/samples/marigold.jpg';
   await img.decode();
-  const c = document.createElement('canvas');
-  c.width = 1080;
-  c.height = 1350;
-  const x = c.getContext('2d', { willReadFrequently: true })!;
-  const e = { ...DEFAULT_EDIT, adjust: { ...DEFAULT_EDIT.adjust, look: 'tinted' as const, brightness: 20, contrast: 15, warmth: 10 } };
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const x = context2d(canvas, { willReadFrequently: true });
+  const edit = {
+    ...DEFAULT_EDIT,
+    adjust: { ...DEFAULT_EDIT.adjust, look: 'tinted' as const, brightness: 20, contrast: 15, warmth: 10 },
+  };
   const time = (reps = 15) => {
-    renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    renderIg(x, img, img.naturalWidth, img.naturalHeight, edit, 1080, 1350);
     x.getImageData(0, 0, 1, 1);
     const t0 = performance.now();
-    for (let i = 0; i < reps; i++) renderIg(x, img, img.naturalWidth, img.naturalHeight, e, 1080, 1350);
+    for (let rep = 0; rep < reps; rep++) renderIg(x, img, img.naturalWidth, img.naturalHeight, edit, 1080, 1350);
     x.getImageData(0, 0, 1, 1); // wait for the drawing to finish
     return (performance.now() - t0) / reps;
   };
@@ -792,7 +1147,7 @@ async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
   await openGpu(backend);
   const gpu = time();
   // The same frame with detail effects (P1.3): clarity, sharpening and noise reduction.
-  Object.assign(e.adjust, { clarity: 40, sharpen: 50, noise: 30 });
+  Object.assign(edit.adjust, { clarity: 40, sharpen: 50, noise: 30 });
   const gpuDetail = time();
   closeGpu();
   const cpuDetail = time(3);
@@ -802,8 +1157,12 @@ async function gpuTiming(backend: 'webgpu' | 'webgl2'): Promise<string> {
 /**
  * P0.4: the GPU colour programs give the same pixels as the Canvas 2D path (adjustPixels), for every look and a spread
  * of slider settings, within 2 levels per channel. Returns the largest difference seen.
+ * @param dev the GPU device
+ * @param check records a check
+ * @param name the backend's name, for the checks
+ * @returns the largest difference and the mean, for the report
  */
-async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: (ok: unknown, what: string) => void, name: string): Promise<string> {
+async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: Check, name: string): Promise<string> {
   const { adjustPixels } = await import('@/engine/instagram');
   const { DEFAULT_ADJUST, LOOK_IDS } = await import('@/engine/adjust');
   const { FLAT_CURVE } = await import('@/engine/curve');
@@ -811,27 +1170,39 @@ async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: 
   const { colourNodes } = await import('@/engine/gpu/colour');
   const { runNodes, TexturePool } = await import('@/engine/gpu/graph');
   // 64×64: hue across, brightness down, with a band of greys and a few half-transparent pixels.
-  const N = 64,
-    src = new Uint8ClampedArray(N * N * 4);
-  for (let y = 0; y < N; y++)
-    for (let x = 0; x < N; x++) {
-      const i = (y * N + x) * 4,
-        h = (x / N) * 6,
-        v = 255 * (1 - y / N),
-        f = h - Math.floor(h),
-        rgb = [
-          [1, f, 0],
-          [1 - f, 1, 0],
-          [0, 1, f],
-          [0, 1 - f, 1],
-          [f, 0, 1],
-          [1, 0, 1 - f],
-        ][Math.floor(h) % 6];
+  const SIZE = 64,
+    src = new Uint8ClampedArray(SIZE * SIZE * 4);
+  for (let y = 0; y < SIZE; y++)
+    for (let x = 0; x < SIZE; x++) {
+      const offset = (y * SIZE + x) * 4,
+        hue = (x / SIZE) * 6,
+        value = 255 * (1 - y / SIZE),
+        fraction = hue - Math.floor(hue),
+        sextants: [number, number, number][] = [
+          [1, fraction, 0],
+          [1 - fraction, 1, 0],
+          [0, 1, fraction],
+          [0, 1 - fraction, 1],
+          [fraction, 0, 1],
+          [1, 0, 1 - fraction],
+        ],
+        rgb = cycleOf(sextants, Math.floor(hue), 'hue sextant');
       const grey = x < 4;
-      src.set([grey ? v : rgb[0] * v, grey ? v : rgb[1] * v, grey ? v : rgb[2] * v, x === 10 && y % 8 === 0 ? 128 : 255], i);
+      src.set(
+        [
+          grey ? value : rgb[0] * value,
+          grey ? value : rgb[1] * value,
+          grey ? value : rgb[2] * value,
+          x === 10 && y % 8 === 0 ? 128 : 255,
+        ],
+        offset,
+      );
     }
-  const bmp = await createImageBitmap(new ImageData(src, N, N), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
-  const input = dev.upload(bmp, N, N),
+  const bmp = await createImageBitmap(new ImageData(src, SIZE, SIZE), {
+    premultiplyAlpha: 'none',
+    colorSpaceConversion: 'none',
+  });
+  const input = dev.upload(bmp, SIZE, SIZE),
     pool = new TexturePool(dev);
   const { identityLut, addLut } = await import('@/engine/lut');
   const identity = identityLut(17);
@@ -850,10 +1221,49 @@ async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: 
     { temperature: 80, tint: -50, whites: 60, blacks: -60 },
     { exposure: 0.5, shadows: 100, contrast: 30 },
     // Tone curve and colour mixer (P1.2).
-    { curve: { ...FLAT_CURVE, rgb: [[0, 0], [0.25, 0.15], [0.75, 0.85], [1, 1]] } },
-    { curve: { ...FLAT_CURVE, b: [[0, 0.1], [0.5, 0.4], [1, 0.95]] }, exposure: -0.5 },
-    { mixer: { ...FLAT_MIXER, hue: [40, -60, 0, 80, 0, -100, 0, 50], sat: [-100, 60, 0, 0, 100, -40, 0, 0], lum: [0, 0, 80, -80, 0, 50, -50, 0] } },
-    { curve: { ...FLAT_CURVE, rgb: [[0, 0.05], [0.5, 0.6], [1, 0.9]] }, mixer: { ...FLAT_MIXER, sat: [80, 80, 80, -80, -80, -80, 0, 0] }, temperature: 30, contrast: 20 },
+    {
+      curve: {
+        ...FLAT_CURVE,
+        rgb: [
+          [0, 0],
+          [0.25, 0.15],
+          [0.75, 0.85],
+          [1, 1],
+        ],
+      },
+    },
+    {
+      curve: {
+        ...FLAT_CURVE,
+        b: [
+          [0, 0.1],
+          [0.5, 0.4],
+          [1, 0.95],
+        ],
+      },
+      exposure: -0.5,
+    },
+    {
+      mixer: {
+        ...FLAT_MIXER,
+        hue: [40, -60, 0, 80, 0, -100, 0, 50],
+        sat: [-100, 60, 0, 0, 100, -40, 0, 0],
+        lum: [0, 0, 80, -80, 0, 50, -50, 0],
+      },
+    },
+    {
+      curve: {
+        ...FLAT_CURVE,
+        rgb: [
+          [0, 0.05],
+          [0.5, 0.6],
+          [1, 0.9],
+        ],
+      },
+      mixer: { ...FLAT_MIXER, sat: [80, 80, 80, -80, -80, -80, 0, 0] },
+      temperature: 30,
+      contrast: 20,
+    },
     // LUTs (P1.4): small and largest tables, part strength, after other steps.
     { lut: lut17 },
     { lut: lut65 },
@@ -866,21 +1276,21 @@ async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: 
     count = 0;
   for (const look of LOOK_IDS)
     for (const sl of sliders) {
-      const a = { ...DEFAULT_ADJUST, look, ...sl };
-      const nodes = colourNodes(a);
+      const adjust = { ...DEFAULT_ADJUST, look, ...sl };
+      const nodes = colourNodes(adjust);
       if (!nodes.length) continue;
       const cpu = src.slice();
-      adjustPixels(cpu, a);
+      adjustPixels(cpu, adjust);
       const out = runNodes(dev, pool, input, nodes);
       const got = await dev.read(out);
       pool.give(out);
-      for (let i = 0; i < got.length; i++) {
-        if (src[i - (i % 4) + 3] === 0) continue;
-        const d = Math.abs(got[i] - cpu[i]);
-        sum += d;
+      for (let index = 0; index < got.length; index++) {
+        if (src.at(index - (index % 4) + 3) === 0) continue;
+        const diff = Math.abs((got.at(index) ?? NaN) - (cpu.at(index) ?? NaN));
+        sum += diff;
         count++;
-        if (d > max) {
-          max = d;
+        if (diff > max) {
+          max = diff;
           bad = `${look} ${JSON.stringify(sl)}`;
         }
       }
@@ -890,49 +1300,64 @@ async function colourParity(dev: import('@/engine/gpu/types').GpuDevice, check: 
   const kept = await dev.read(same);
   pool.give(same);
   let moved = 0;
-  for (let i = 0; i < kept.length; i++) if (src[i - (i % 4) + 3] && Math.abs(kept[i] - src[i]) > moved) moved = Math.abs(kept[i] - src[i]);
+  for (let index = 0; index < kept.length; index++) {
+    const change = Math.abs((kept.at(index) ?? NaN) - (src.at(index) ?? NaN));
+    if (src.at(index - (index % 4) + 3) && change > moved) moved = change;
+  }
   check(moved <= 1, `gpu ${name}: an identity LUT changes nothing (largest change ${moved})`);
   dev.release(input);
   pool.clear();
   check(max <= 2, `gpu ${name}: colour matches the Canvas 2D path within 2 levels (worst ${max}, ${bad})`);
-  check(sum / count <= 0.5, `gpu ${name}: colour differs from the Canvas 2D path by at most 0.5 levels on average (${(sum / count).toFixed(3)})`);
+  check(
+    sum / count <= 0.5,
+    `gpu ${name}: colour differs from the Canvas 2D path by at most 0.5 levels on average (${(sum / count).toFixed(3)})`,
+  );
   return `${max}, mean ${(sum / count).toFixed(3)}`;
 }
 
 /* ---------- performance monitor sampler and the undo history's memory guard ---------- */
 
-async function perfChecks(check: (ok: unknown, what: string) => void): Promise<void> {
+async function perfChecks(check: Check): Promise<void> {
   const { watchPerf, perfReport } = await import('@/lib/perf');
   const got = await new Promise<import('@/lib/perf').PerfSample | undefined>((done) => {
-    const stop = watchPerf((s) => {
-      if (!s.length) return;
+    const stop = watchPerf((samples) => {
+      if (!samples.length) return;
       stop();
-      done(s[s.length - 1]);
+      done(samples.at(-1));
     });
-    setTimeout(() => (stop(), done(undefined)), 4000);
+    setTimeout(() => {
+      stop();
+      done(undefined);
+    }, 4000);
   });
-  check(got && got.dom > 0 && got.fps >= 0 && got.busy >= 0 && got.busy <= 100, 'perf: a sample arrives with frame, load and page figures');
+  check(
+    got && got.dom > 0 && got.fps >= 0 && got.busy >= 0 && got.busy <= 100,
+    'perf: a sample arrives with frame, load and page figures',
+  );
   const rep = JSON.parse(perfReport()) as { app: string; summary: { seconds: number } };
   check(rep.app === 'Chitthi' && typeof rep.summary.seconds === 'number', 'perf: the report is JSON with a summary');
 
   const { commit, historyStats, setPhotos } = await import('@/state/store');
   const { updatePhoto } = await import('@/engine/photo');
-  const a = samplePhoto(0, 800, 600),
-    cropped = updatePhoto(a, { crop: { x: 0, y: 0, w: 0.5, h: 0.5 } }),
-    recropped = updatePhoto(a, { crop: { x: 0.5, y: 0.5, w: 0.5, h: 0.5 } });
+  const photo = samplePhoto(0, 800, 600),
+    cropped = updatePhoto(photo, { crop: { x: 0, y: 0, w: 0.5, h: 0.5 } }),
+    recropped = updatePhoto(photo, { crop: { x: 0.5, y: 0.5, w: 0.5, h: 0.5 } });
   setPhotos([cropped]);
   commit();
   setPhotos([recropped]);
   commit();
-  const h = historyStats();
-  check(h.steps >= 2 && h.bytes === cropped.sw * cropped.sh * 4, 'undo history: counts the canvases only it still holds');
+  const stats = historyStats();
+  check(
+    stats.steps >= 2 && stats.bytes === cropped.sw * cropped.sh * 4,
+    'undo history: counts the canvases only it still holds',
+  );
   setPhotos([]);
   commit();
 }
 
 /* ---------- AI: a fake provider drives the real service, prompts, credits and limits (no network) ---------- */
 
-async function aiChecks(check: (ok: unknown, what: string) => void): Promise<void> {
+async function aiChecks(check: Check): Promise<void> {
   const { registerTestProvider } = await import('@/ai/registry');
   const svc = await import('@/ai/service');
   const settings = await import('@/ai/settings');
@@ -944,13 +1369,26 @@ async function aiChecks(check: (ok: unknown, what: string) => void): Promise<voi
   const saved = localStorage.getItem('chitthi-ai');
   const prompts: string[] = [];
   // The fake stands in for "ollama" (no key needed), so readiness and loading take the normal path.
-  registerTestProvider(providerDef('ollama')!, {
+  /**
+   * The fake's answer for a kind of JSON.
+   * @param schemaName the schema asked for
+   * @returns what a provider would send back
+   */
+  const answerFor = (schemaName: string) => {
+    if (schemaName === 'calendar_captions')
+      return { captions: Array.from({ length: 12 }, (_, index) => `Caption ${index + 1}`) };
+    if (schemaName === 'card_messages') return { messages: ['Dear Nani,\nWish you were here!'] };
+    return {
+      options: [
+        { greeting: 'Shubh Deepavali', quote: 'May the lamps light every road ahead.', signature: 'With love' },
+      ],
+    };
+  };
+  registerTestProvider(required(providerDef('ollama'), 'ollama provider'), {
     text: {
-      generateJSON: async (_ctx, req) => {
+      generateJSON: (_ctx, req) => {
         prompts.push(req.prompt);
-        if (req.schemaName === 'calendar_captions') return { captions: Array.from({ length: 12 }, (_, i) => `Caption ${i + 1}`) };
-        if (req.schemaName === 'card_messages') return { messages: ['Dear Nani,\nWish you were here!'] };
-        return { options: [{ greeting: 'Shubh Deepavali', quote: 'May the lamps light every road ahead.', signature: 'With love' }] };
+        return Promise.resolve(answerFor(req.schemaName));
       },
     },
     image: {
@@ -959,27 +1397,41 @@ async function aiChecks(check: (ok: unknown, what: string) => void): Promise<voi
         const cv = document.createElement('canvas');
         cv.width = req.aspect === '3:2' ? 60 : 40;
         cv.height = 40;
-        return [await new Promise<Blob>((ok) => cv.toBlob((b) => ok(b!), 'image/png'))];
+        return [await canvasBlob(cv)];
       },
     },
   });
   try {
-    settings.setAiSettings({ text: { provider: 'ollama', model: 'fake' }, image: { provider: 'ollama', model: 'fake' }, limits: { text: 50, image: 50 }, usage: { day: '', text: 0, image: 0 } });
+    settings.setAiSettings({
+      text: { provider: 'ollama', model: 'fake' },
+      image: { provider: 'ollama', model: 'fake' },
+      limits: { text: 50, image: 50 },
+      usage: { day: '', text: 0, image: 0 },
+    });
     const card = productDesign('postcard');
     check(svc.aiReady('text').ready, 'AI: a keyless provider is ready');
     const words = await svc.writeWords(card, { language: 'hinglish', tone: 'warm' });
     check(words[0]?.greeting === 'Shubh Deepavali', 'AI: words come back from the provider');
-    check(/Hinglish/.test(prompts.at(-1) ?? '') && /at most \d+ characters/.test(prompts.at(-1) ?? ''), 'AI: the prompt carries language and a length budget');
+    check(
+      (prompts.at(-1) ?? '').includes('Hinglish') && /at most \d+ characters/.test(prompts.at(-1) ?? ''),
+      'AI: the prompt carries language and a length budget',
+    );
     const cal = { ...productDesign('calendar'), cal: { ...productDesign('calendar').cal, year: 2027 } };
     const caps = await svc.writeCaptions(cal, [], { language: 'en', tone: 'warm' });
-    check(caps.length === 12 && caps[10].month === 10, 'AI: 12 captions, one per month');
-    check(/Diwali/.test(prompts.at(-1) ?? ''), 'AI: caption prompt lists the month festivals');
-    check((await svc.writeMessages(card, { language: 'en', tone: 'warm' }))[0].startsWith('Dear'), 'AI: back messages');
+    check(caps.length === 12 && caps.at(10)?.month === 10, 'AI: 12 captions, one per month');
+    check((prompts.at(-1) ?? '').includes('Diwali'), 'AI: caption prompt lists the month festivals');
+    check(
+      (await svc.writeMessages(card, { language: 'en', tone: 'warm' })).at(0)?.startsWith('Dear'),
+      'AI: back messages',
+    );
     const art = await svc.generateArt(card, 0, { subject: 'diyas at dusk', style: 'watercolour', people: false, n: 1 });
-    check(art.blobs.length === 1 && /No people/.test(art.prompt) && /No text/.test(art.prompt), 'AI: picture prompt keeps people and lettering out');
+    check(
+      art.blobs.length === 1 && art.prompt.includes('No people') && art.prompt.includes('No text'),
+      'AI: picture prompt keeps people and lettering out',
+    );
     const name = svc.aiPhotoName('diyas at dusk', art.provider, art.model);
     check(aiCreditOf(name)?.made.includes('fake'), 'AI: pictures carry their provenance');
-    check(/AI-generated picture/.test(credits([name]) ?? ''), 'AI: credits file discloses AI pictures');
+    check((credits([name]) ?? '').includes('AI-generated picture'), 'AI: credits file discloses AI pictures');
     settings.setAiSettings({ limits: { text: 0, image: 50 } });
     let blocked = false;
     try {
@@ -995,42 +1447,78 @@ async function aiChecks(check: (ok: unknown, what: string) => void): Promise<voi
 
   check(keyAllowed('anthropic', 'https://api.anthropic.com/v1/messages', ''), 'keys: Anthropic key goes to Anthropic');
   check(!keyAllowed('anthropic', 'https://evil.example.com/v1/messages', ''), 'keys: never to another host');
+  // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the check is that a key is never sent over plain http
   check(!keyAllowed('openai', 'http://api.openai.com/v1/models', ''), 'keys: never over plain http');
-  check(keyAllowed('custom', 'https://llm.example.com/v1/chat/completions', 'https://llm.example.com/v1'), 'keys: custom key goes to its own base URL');
-  check(!keyAllowed('custom', 'https://other.example.com/v1/chat', 'https://llm.example.com/v1'), 'keys: custom key never elsewhere');
-  check(isResultHost('bfl', 'https://delivery-eu1.bfl.ai/x.png') && !isResultHost('bfl', 'https://bfl.ai.evil.com/x'), 'keys: result hosts matched exactly');
-  check(nearestAspect(1.5) === '3:2' && nearestAspect(0.7) === '2:3' && nearestAspect(1) === '1:1', 'AI: slot shapes map to aspects');
+  check(
+    keyAllowed('custom', 'https://llm.example.com/v1/chat/completions', 'https://llm.example.com/v1'),
+    'keys: custom key goes to its own base URL',
+  );
+  check(
+    !keyAllowed('custom', 'https://other.example.com/v1/chat', 'https://llm.example.com/v1'),
+    'keys: custom key never elsewhere',
+  );
+  check(
+    isResultHost('bfl', 'https://delivery-eu1.bfl.ai/x.png') && !isResultHost('bfl', 'https://bfl.ai.evil.com/x'),
+    'keys: result hosts matched exactly',
+  );
+  check(
+    nearestAspect(1.5) === '3:2' && nearestAspect(0.7) === '2:3' && nearestAspect(1) === '1:1',
+    'AI: slot shapes map to aspects',
+  );
 }
 
 /* ---------- agent tools: schemas are valid and read-only tools run ---------- */
 
-async function agentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+async function agentChecks(check: Check, result: Result): Promise<void> {
   const { TOOLS } = await import('@/agent/tools');
   const { PROMPTS, RESOURCES } = await import('@/agent/prompts');
   const names = new Set<string>();
-  for (const t of TOOLS) {
-    check(/^[a-z][a-z0-9_]{2,40}$/.test(t.name) && !names.has(t.name), `tool ${t.name}: unique snake_case name`);
-    names.add(t.name);
-    const sc = t.inputSchema as { type?: string; properties?: Record<string, unknown>; required?: string[] };
-    check(sc.type === 'object' && sc.properties && (sc.required ?? []).every((k) => k in sc.properties!), `tool ${t.name}: valid input schema`);
-    check(t.description.length > 20, `tool ${t.name}: has a description`);
+  for (const tool of TOOLS) {
+    check(
+      /^[a-z][a-z0-9_]{2,40}$/.test(tool.name) && !names.has(tool.name),
+      `tool ${tool.name}: unique snake_case name`,
+    );
+    names.add(tool.name);
+    const sc = tool.inputSchema as { type?: string; properties?: Record<string, unknown>; required?: string[] };
+    const properties = sc.properties;
+    check(
+      sc.type === 'object' && properties !== undefined && (sc.required ?? []).every((key) => key in properties),
+      `tool ${tool.name}: valid input schema`,
+    );
+    check(tool.description.length > 20, `tool ${tool.name}: has a description`);
   }
-  for (const t of TOOLS.filter((x) => x.readOnly && !['search_pexels', 'list_saved', 'render_photo_preview'].includes(x.name))) {
+  /**
+   * The arguments a read-only tool is tried with.
+   * @param name the tool's name
+   * @returns the few tools that need one get it, the rest none
+   */
+  const argsFor = (name: string): Record<string, unknown> => {
+    if (name === 'list_sizes') return { product: 'postcard' };
+    if (name === 'list_festivals') return { year: 2027 };
+    return {};
+  };
+  for (const tool of TOOLS.filter(
+    (x) => x.readOnly && !['search_pexels', 'list_saved', 'render_photo_preview'].includes(x.name),
+  )) {
     try {
-      const out = await t.run(t.name === 'list_sizes' ? { product: 'postcard' } : t.name === 'list_festivals' ? { year: 2027 } : {}, {});
-      check(out.text, `tool ${t.name}: runs`);
-    } catch (e) {
-      r.failed.push(`tool ${t.name} threw: ${e instanceof Error ? e.message : e}`);
+      const out = await tool.run(argsFor(tool.name), {});
+      check(out.text, `tool ${tool.name}: runs`);
+    } catch (error) {
+      result.failed.push(`tool ${tool.name} threw: ${messageOf(error)}`);
     }
   }
-  for (const p of PROMPTS) check(p.build({ occasion: 'Diwali', year: '2027', subject: 'kites' }).length > 80, `prompt ${p.name}: builds`);
+  for (const agentPrompt of PROMPTS)
+    check(
+      agentPrompt.build({ occasion: 'Diwali', year: '2027', subject: 'kites' }).length > 80,
+      `prompt ${agentPrompt.name}: builds`,
+    );
   for (const res of RESOURCES) check((await res.read()).length > 20, `resource ${res.uri}: reads`);
-  r.notes.push(`${TOOLS.length} agent tools, ${PROMPTS.length} prompts, ${RESOURCES.length} resources checked`);
+  result.notes.push(`${TOOLS.length} agent tools, ${PROMPTS.length} prompts, ${RESOURCES.length} resources checked`);
 }
 
 /* ---------- AI masks (P1.8): a stand-in segmentation drawn as a mask, then the real subject model in its worker ---------- */
 
-async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
+async function aiMaskChecks(check: Check, result: Result): Promise<void> {
   const { setSegment } = await import('@/engine/segments');
   const { DEFAULT_EDIT, renderIg } = await import('@/engine/instagram');
   const { DEFAULT_ADJUST } = await import('@/engine/adjust');
@@ -1038,7 +1526,7 @@ async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Resul
   // A grey picture with a red disc in the middle: what any subject model should find.
   const src = document.createElement('canvas');
   src.width = src.height = 320;
-  const sx = src.getContext('2d')!;
+  const sx = context2d(src);
   sx.fillStyle = 'rgb(150,150,150)';
   sx.fillRect(0, 0, 320, 320);
   sx.fillStyle = 'rgb(210,40,40)';
@@ -1049,16 +1537,19 @@ async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Resul
   // Stand-in segmenter: the top half is the "sky". An AI mask darkening the sky darkens only the top.
   const fake = document.createElement('canvas');
   fake.width = fake.height = 100;
-  fake.getContext('2d')!.drawImage(src, 0, 0, 100, 100);
+  context2d(fake).drawImage(src, 0, 0, 100, 100);
   setSegment(fake, 'sky', { w: 2, h: 2, data: new Float32Array([1, 1, 0, 0]) });
   const part = { ...newPart('ai'), target: 'sky' as const };
   const mask = { ...newMask('Sky', 'ai'), parts: [part], adjust: { ...DEFAULT_ADJUST, exposure: -3 } };
   const out = document.createElement('canvas');
   out.width = out.height = 100;
-  const ox = out.getContext('2d', { willReadFrequently: true })!;
+  const ox = context2d(out, { willReadFrequently: true });
   renderIg(ox, fake, 100, 100, { ...DEFAULT_EDIT, masks: [mask] }, 100, 100);
-  const px = (x: number, y: number) => ox.getImageData(x, y, 1, 1).data[1];
-  check(px(10, 5) < 60 && px(10, 95) > 120, `AI mask: a found sky darkens only the sky (top ${px(10, 5)}, bottom ${px(10, 95)})`);
+  const px = (x: number, y: number) => ox.getImageData(x, y, 1, 1).data.at(1) ?? NaN;
+  check(
+    px(10, 5) < 60 && px(10, 95) > 120,
+    `AI mask: a found sky darkens only the sky (top ${px(10, 5)}, bottom ${px(10, 95)})`,
+  );
   renderIg(ox, fake, 100, 100, { ...DEFAULT_EDIT, masks: [{ ...mask, parts: [{ ...part, invert: true }] }] }, 100, 100);
   check(px(10, 5) > 120 && px(10, 95) < 60, 'AI mask: an inverted part takes everything else');
 
@@ -1069,51 +1560,81 @@ async function aiMaskChecks(check: (ok: unknown, what: string) => void, r: Resul
     await seg.segmentPhoto(src, 'subject');
     const ms = performance.now() - t0;
     const { segmentOf, segmentAt } = await import('@/engine/segments');
-    const m = segmentOf(src, 'subject')!;
-    const centre = segmentAt(m, 0.5, 0.5),
-      corner = segmentAt(m, 0.05, 0.05);
-    check(m && centre > 0.5 && corner < 0.5, `AI mask: U²-Net-p finds the disc (centre ${centre.toFixed(2)}, corner ${corner.toFixed(2)})`);
+    const segment = required(segmentOf(src, 'subject'), 'subject segment');
+    const centre = segmentAt(segment, 0.5, 0.5),
+      corner = segmentAt(segment, 0.05, 0.05);
+    check(
+      centre > 0.5 && corner < 0.5,
+      `AI mask: U²-Net-p finds the disc (centre ${centre.toFixed(2)}, corner ${corner.toFixed(2)})`,
+    );
     let needs = false;
     if (!(await seg.modelOnDevice('sky')))
       needs = await seg.segmentPhoto(src, 'sky').then(
         () => false,
-        (e) => e instanceof seg.NeedsDownload,
+        (error: unknown) => error instanceof seg.NeedsDownload,
       );
     else needs = true;
     check(needs, 'AI mask: the sky model is never downloaded without the user agreeing');
-    r.notes.push(`AI subject mask: ${Math.round(ms)} ms for the first photo (model load and one 320 × 320 run, one thread)`);
-  } catch (e) {
-    r.failed.push(`AI mask: the subject model threw: ${e instanceof Error ? e.message : e}`);
+    result.notes.push(
+      `AI subject mask: ${Math.round(ms)} ms for the first photo (model load and one 320 × 320 run, one thread)`,
+    );
+  } catch (error) {
+    result.failed.push(`AI mask: the subject model threw: ${messageOf(error)}`);
   }
 }
 
 /* ---------- agent tools for the photo studio (P1.12): adjustments, masks, presets and LUTs end to end ---------- */
 
-async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: Result): Promise<void> {
-  const { TOOLS_BY_NAME: T } = await import('@/agent/tools');
+async function photoAgentChecks(check: Check, result: Result): Promise<void> {
+  const { TOOLS_BY_NAME: tools } = await import('@/agent/tools');
   const ig = await import('@/state/instagram');
   const { addPhotos } = await import('@/state/instagramMedia');
   const { DEFAULT_ADJUST } = await import('@/engine/adjust');
   const { forgetLut } = await import('@/lib/userLuts');
-  const call = async (name: string, args: Record<string, unknown> = {}) => T[name].run(args, {});
-  const fails = async (name: string, args: Record<string, unknown>) => call(name, args).then(() => false, () => true);
-  /** Mean RGB of a region of a tool's preview image, by shares of its size. */
-  const mean = async (blob: Blob | undefined, x0: number, y0: number, x1: number, y1: number): Promise<[number, number, number]> => {
-    const bmp = await createImageBitmap(blob!);
-    const c = document.createElement('canvas');
-    c.width = bmp.width;
-    c.height = bmp.height;
-    const x = c.getContext('2d', { willReadFrequently: true })!;
+  const call = async (name: string, args: Record<string, unknown> = {}) =>
+    required(tools[name], `tool ${name}`).run(args, {});
+  const fails = async (name: string, args: Record<string, unknown>) =>
+    call(name, args).then(
+      () => false,
+      () => true,
+    );
+  /**
+   * Mean RGB of a region of a tool's preview image, by shares of its size.
+   * @param blob the preview image
+   * @param x0 the region's left, as a share of the width
+   * @param y0 its top, as a share of the height
+   * @param x1 its right
+   * @param y1 its bottom
+   * @returns the mean red, green and blue
+   */
+  const mean = async (
+    blob: Blob | undefined,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ): Promise<[number, number, number]> => {
+    const bmp = await createImageBitmap(required(blob, 'preview image'));
+    const canvas = document.createElement('canvas');
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    const x = context2d(canvas, { willReadFrequently: true });
     x.drawImage(bmp, 0, 0);
-    const X = Math.round(x0 * c.width),
-      Y = Math.round(y0 * c.height);
-    const d = x.getImageData(X, Y, Math.max(1, Math.round(x1 * c.width) - X), Math.max(1, Math.round(y1 * c.height) - Y)).data;
-    const s = [0, 0, 0];
-    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k];
-    return s.map((v) => v / (d.length / 4)) as [number, number, number];
+    const leftPx = Math.round(x0 * canvas.width),
+      topPx = Math.round(y0 * canvas.height);
+    return meanRgb(
+      x.getImageData(
+        leftPx,
+        topPx,
+        Math.max(1, Math.round(x1 * canvas.width) - leftPx),
+        Math.max(1, Math.round(y1 * canvas.height) - topPx),
+      ).data,
+    );
   };
-  const lum = (c: number[]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-  const preview = async (extra: Record<string, unknown> = {}) => (await call('render_photo_preview', { maxPx: 256, ...extra })).image;
+  const lum = (colour: readonly [number, number, number]) =>
+    0.2126 * colour[0] + 0.7152 * colour[1] + 0.0722 * colour[2];
+  const preview = async (extra: Record<string, unknown> = {}) =>
+    (await call('render_photo_preview', { maxPx: 256, ...extra })).image;
   const top = (img: Blob | undefined) => mean(img, 0.3, 0.05, 0.7, 0.3).then(lum),
     bottom = (img: Blob | undefined) => mean(img, 0.3, 0.7, 0.7, 0.95).then(lum);
 
@@ -1122,10 +1643,10 @@ async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: R
   const src = document.createElement('canvas');
   src.width = 400;
   src.height = 500;
-  const sx = src.getContext('2d')!;
+  const sx = context2d(src);
   sx.fillStyle = 'rgb(150,128,110)';
   sx.fillRect(0, 0, 400, 500);
-  const blob = await new Promise<Blob>((ok) => src.toBlob((b) => ok(b!), 'image/png'));
+  const blob = await canvasBlob(src);
   const { format, fileType } = ig.getIg();
   let lutId = '',
     presetId = '';
@@ -1134,89 +1655,185 @@ async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: R
     await addPhotos([{ name: 'selftest.png', blob }]);
     const batch = (await call('get_photo_batch')).json as { photos: { id: string }[] };
     check(batch.photos.length === 1, 'photo tools: the batch lists the photo');
-    const item = () => ig.getIg().items[0];
+    const item = () => entryAt(ig.getIg().items, 0, 'photo');
+    const firstMask = () => entryAt(item().edit.masks, 0, 'mask');
 
     const before = lum(await mean(await preview(), 0.2, 0.2, 0.8, 0.8));
-    const adj = await call('adjust_photo', { settings: { exposure: 1, contrast: 500, mixer: { sat: { blue: -40 } }, curve: { r: [[0, 0], [1, 0.9]] }, bogus: 1 } });
-    const a = item().edit.adjust;
-    check(a.exposure === 1 && a.contrast === 100, 'photo tools: adjust_photo sets and clamps sliders');
-    check(a.mixer.sat[5] === -40 && a.mixer.sat[0] === 0 && a.curve.r[1][1] === 0.9 && a.curve.rgb.length === 2, 'photo tools: partial mixer and curve');
-    check(/bogus/.test(adj.text), 'photo tools: unknown settings are reported');
-    check(lum(await mean(await preview(), 0.2, 0.2, 0.8, 0.8)) > before + 20, 'photo tools: exposure brightens the preview');
+    const adj = await call('adjust_photo', {
+      settings: {
+        exposure: 1,
+        contrast: 500,
+        mixer: { sat: { blue: -40 } },
+        curve: {
+          r: [
+            [0, 0],
+            [1, 0.9],
+          ],
+        },
+        bogus: 1,
+      },
+    });
+    const adjust = item().edit.adjust;
+    check(adjust.exposure === 1 && adjust.contrast === 100, 'photo tools: adjust_photo sets and clamps sliders');
+    check(
+      adjust.mixer.sat.at(5) === -40 &&
+        adjust.mixer.sat.at(0) === 0 &&
+        Math.abs((adjust.curve.r.at(1)?.at(1) ?? NaN) - 0.9) < 1e-9 &&
+        adjust.curve.rgb.length === 2,
+      'photo tools: partial mixer and curve',
+    );
+    check(adj.text.includes('bogus'), 'photo tools: unknown settings are reported');
+    check(
+      lum(await mean(await preview(), 0.2, 0.2, 0.8, 0.8)) > before + 20,
+      'photo tools: exposure brightens the preview',
+    );
     await call('adjust_photo', { reset: true, settings: {} });
-    check(JSON.stringify(item().edit.adjust) === JSON.stringify(DEFAULT_ADJUST), 'photo tools: reset restores the defaults');
+    check(
+      JSON.stringify(item().edit.adjust) === JSON.stringify(DEFAULT_ADJUST),
+      'photo tools: reset restores the defaults',
+    );
 
     const wb = (await call('white_balance_from_point', { x: 0.5, y: 0.5 })).json as { temperature: number };
     const [wr, , wbl] = await mean(await preview(), 0.4, 0.4, 0.6, 0.6);
-    check(wb.temperature < 0 && Math.abs(wr - wbl) < 8, `photo tools: white balance neutralises the picked colour (r ${wr.toFixed(0)}, b ${wbl.toFixed(0)})`);
+    check(
+      wb.temperature < 0 && Math.abs(wr - wbl) < 8,
+      `photo tools: white balance neutralises the picked colour (r ${wr.toFixed(0)}, b ${wbl.toFixed(0)})`,
+    );
     await call('adjust_photo', { reset: true, settings: {} });
 
     const frame = await call('frame_photo', { zoom: 9, rot: 90 });
-    check((frame.json as { zoom: number }).zoom === 4 && item().edit.rot === 90, 'photo tools: frame_photo clamps and turns');
+    check(
+      (frame.json as { zoom: number }).zoom === 4 && item().edit.rot === 90,
+      'photo tools: frame_photo clamps and turns',
+    );
     await call('frame_photo', { zoom: 1, rot: 0 });
 
     // A sky fade: full at the top, gone by the middle, darkening by two stops.
-    const m = (await call('add_mask', { kind: 'linear', name: 'Sky', part: { x: 0.5, y: 0.5, angle: 90, width: 0.05 }, adjust: { exposure: -2 } })).json as { id: string };
+    const skyMask = (
+      await call('add_mask', {
+        kind: 'linear',
+        name: 'Sky',
+        part: { x: 0.5, y: 0.5, angle: 90, width: 0.05 },
+        adjust: { exposure: -2 },
+      })
+    ).json as { id: string };
     let img = await preview();
     const t1 = await top(img),
       b1 = await bottom(img);
-    check(t1 < b1 - 30, `photo tools: a linear mask darkens only its side (top ${t1.toFixed(0)}, bottom ${b1.toFixed(0)})`);
-    const red = await mean(await preview({ mask: m.id }), 0.3, 0.05, 0.7, 0.3);
+    check(
+      t1 < b1 - 30,
+      `photo tools: a linear mask darkens only its side (top ${t1.toFixed(0)}, bottom ${b1.toFixed(0)})`,
+    );
+    const red = await mean(await preview({ mask: skyMask.id }), 0.3, 0.05, 0.7, 0.3);
     check(red[0] > red[2] + 60, 'photo tools: the preview shows the mask in red');
-    await call('edit_mask', { mask: m.id, invert: true });
+    await call('edit_mask', { mask: skyMask.id, invert: true });
     img = await preview();
     check((await top(img)) > (await bottom(img)) + 30, 'photo tools: edit_mask inverts');
-    const two = (await call('set_mask_part', { mask: m.id, kind: 'colour', settings: { colour: '#96806e', range: 20 } })).json as {
+    const two = (
+      await call('set_mask_part', { mask: skyMask.id, kind: 'colour', settings: { colour: '#96806e', range: 20 } })
+    ).json as {
       parts: { id: string; combine: string; r: number }[];
     };
-    check(two.parts.length === 2 && two.parts[1].combine === 'intersect' && two.parts[1].r === 150, 'photo tools: set_mask_part adds a colour range that intersects');
-    await call('set_mask_part', { mask: m.id, part: two.parts[1].id, combine: 'subtract', settings: { range: 50, bogus: 3 } });
-    const p2 = item().edit.masks[0].parts[1] as unknown as Record<string, unknown>;
-    check(p2.combine === 'subtract' && p2.range === 50 && !('bogus' in p2), 'photo tools: set_mask_part changes a part through the gate');
-    await call('set_mask_part', { mask: m.id, kind: 'brush', settings: { addStrokes: [{ pts: [0.2, 0.2, 0.8, 0.8], size: 0.1 }] } });
-    const brush = item().edit.masks[0].parts[2];
+    const colourPart = two.parts.at(1);
+    check(
+      two.parts.length === 2 && colourPart?.combine === 'intersect' && colourPart.r === 150,
+      'photo tools: set_mask_part adds a colour range that intersects',
+    );
+    await call('set_mask_part', {
+      mask: skyMask.id,
+      part: colourPart?.id,
+      combine: 'subtract',
+      settings: { range: 50, bogus: 3 },
+    });
+    const p2 = new Map(Object.entries(entryAt(firstMask().parts, 1, 'mask part')));
+    check(
+      p2.get('combine') === 'subtract' && p2.get('range') === 50 && !p2.has('bogus'),
+      'photo tools: set_mask_part changes a part through the gate',
+    );
+    await call('set_mask_part', {
+      mask: skyMask.id,
+      kind: 'brush',
+      settings: { addStrokes: [{ pts: [0.2, 0.2, 0.8, 0.8], size: 0.1 }] },
+    });
+    const brush = firstMask().parts.at(2);
     check(brush?.kind === 'brush' && brush.strokes.length === 1, 'photo tools: brush strokes by points');
-    await call('remove_mask', { mask: m.id, part: two.parts[1].id });
-    check(item().edit.masks[0].parts.length === 2, 'photo tools: remove_mask removes a part');
-    await call('remove_mask', { mask: m.id });
+    await call('remove_mask', { mask: skyMask.id, part: colourPart?.id });
+    check(firstMask().parts.length === 2, 'photo tools: remove_mask removes a part');
+    await call('remove_mask', { mask: skyMask.id });
     check(item().edit.masks.length === 0, 'photo tools: remove_mask removes the mask');
     check(await fails('edit_mask', { mask: 'nope' }), 'photo tools: an unknown mask is a tool error');
 
     // AI masks: the subject is found before the tool returns; the sky asks for the user's agreement first.
     const { segmentOf } = await import('@/engine/segments');
-    const ai = (await call('add_mask', { kind: 'ai', name: 'Subject', adjust: { exposure: 1 } })).json as { id: string; parts: { kind: string; target: string }[] };
-    check(ai.parts[0].kind === 'ai' && ai.parts[0].target === 'subject' && !!segmentOf(item().preview, 'subject'), 'photo tools: an AI mask finds the subject');
+    const ai = (await call('add_mask', { kind: 'ai', name: 'Subject', adjust: { exposure: 1 } })).json as {
+      id: string;
+      parts: { kind: string; target: string }[];
+    };
+    check(
+      ai.parts.at(0)?.kind === 'ai' && ai.parts.at(0)?.target === 'subject' && !!segmentOf(item().preview, 'subject'),
+      'photo tools: an AI mask finds the subject',
+    );
     const { modelOnDevice } = await import('@/ai/segment');
     if (!(await modelOnDevice('sky'))) {
       const sky = await call('set_mask_part', { mask: ai.id, kind: 'ai', settings: { target: 'sky' } });
-      check(/download/.test(sky.text) && /allowDownload/.test(sky.text), 'photo tools: the sky model needs the user’s agreement');
-      check(/download/.test((await call('find_with_ai', {})).text), 'photo tools: find_with_ai asks before downloading');
+      check(
+        sky.text.includes('download') && sky.text.includes('allowDownload'),
+        'photo tools: the sky model needs the user’s agreement',
+      );
+      check(
+        (await call('find_with_ai', {})).text.includes('download'),
+        'photo tools: find_with_ai asks before downloading',
+      );
     }
     await call('remove_mask', { mask: ai.id });
 
     // A 2³ LUT that swaps red and blue: the warm photo turns cool.
     const cube = ['TITLE "Selftest swap"', 'LUT_3D_SIZE 2'];
-    for (let b = 0; b < 2; b++) for (let g = 0; g < 2; g++) for (let rr = 0; rr < 2; rr++) cube.push(`${b} ${g} ${rr}`);
+    for (let blue = 0; blue < 2; blue++)
+      for (let green = 0; green < 2; green++) for (let rr = 0; rr < 2; rr++) cube.push(`${blue} ${green} ${rr}`);
     lutId = ((await call('import_lut', { cube: cube.join('\n') })).json as { id: string }).id;
-    check(((await call('list_luts')).json as { id: string }[]).some((l) => l.id === lutId), 'photo tools: an imported LUT is listed');
+    check(
+      ((await call('list_luts')).json as { id: string }[]).some((lut) => lut.id === lutId),
+      'photo tools: an imported LUT is listed',
+    );
     await call('adjust_photo', { photo: 'all', settings: { lut: lutId } });
     const [lr, , lb] = await mean(await preview(), 0.4, 0.4, 0.6, 0.6);
     check(lb > lr + 25, `photo tools: the LUT applies (r ${lr.toFixed(0)}, b ${lb.toFixed(0)})`);
-    check(await fails('adjust_photo', { settings: { lut: 'zz00000000' } }), 'photo tools: an unknown LUT is a tool error');
+    check(
+      await fails('adjust_photo', { settings: { lut: 'zz00000000' } }),
+      'photo tools: an unknown LUT is a tool error',
+    );
     check(await fails('import_lut', { cube: 'LUT_1D_SIZE 2\n0 0 0\n1 1 1' }), 'photo tools: a 1D LUT is refused');
 
     await call('adjust_photo', { settings: { exposure: 0.5 } });
     presetId = ((await call('save_preset', { name: 'Selftest preset' })).json as { id: string }).id;
     const listed = (await call('list_presets')).json as { builtIn: unknown[]; saved: { id: string }[] };
-    check(listed.builtIn.length === 7 && listed.saved.some((p) => p.id === presetId), 'photo tools: presets listed');
+    check(
+      listed.builtIn.length === 7 && listed.saved.some((preset) => preset.id === presetId),
+      'photo tools: presets listed',
+    );
     await call('apply_preset', { preset: 'look:bw' });
-    check(item().edit.adjust.look === 'bw' && item().edit.adjust.exposure === 0.5, 'photo tools: a built-in preset sets only its look');
+    check(
+      item().edit.adjust.look === 'bw' && item().edit.adjust.exposure === 0.5,
+      'photo tools: a built-in preset sets only its look',
+    );
     await call('adjust_photo', { reset: true, settings: {} });
     await call('apply_preset', { preset: presetId, photo: 'all' });
     const ap = item().edit.adjust;
-    check(ap.exposure === 0.5 && ap.lut === lutId && ap.look === 'none', 'photo tools: a saved preset replaces the settings');
-    const file = JSON.parse(await (await call('export_presets', { presets: [presetId] })).files![0].blob.text());
-    check(file.format === 'chitthi-presets' && file.presets.length === 1 && file.luts.length === 1, 'photo tools: export_presets carries the LUT');
+    check(
+      ap.exposure === 0.5 && ap.lut === lutId && ap.look === 'none',
+      'photo tools: a saved preset replaces the settings',
+    );
+    const exported = required((await call('export_presets', { presets: [presetId] })).files, 'preset file');
+    const file = JSON.parse(await entryAt(exported, 0, 'preset file').blob.text()) as {
+      format: string;
+      presets: unknown[];
+      luts: unknown[];
+    };
+    check(
+      file.format === 'chitthi-presets' && file.presets.length === 1 && file.luts.length === 1,
+      'photo tools: export_presets carries the LUT',
+    );
     const imp = await call('import_presets', { json: JSON.stringify(file) });
     check((imp.json as { skipped: number }).skipped === 1, 'photo tools: importing the same preset skips it');
     check(await fails('delete_preset', { preset: presetId }), 'photo tools: deleting a preset needs confirm');
@@ -1225,11 +1842,19 @@ async function photoAgentChecks(check: (ok: unknown, what: string) => void, r: R
 
     await call('set_photo_options', { format: 'square', fileType: 'png' });
     const out = await call('export_photos');
-    const bmp = await createImageBitmap(out.files![0].blob);
-    check(out.files!.length === 1 && out.files![0].blob.type === 'image/png' && bmp.width === 1080 && bmp.height === 1080, 'photo tools: export_photos writes the batch');
-    check(await fails('adjust_photo', { photo: 'nope', settings: {} }), 'photo tools: an unknown photo is a tool error');
-  } catch (e) {
-    r.failed.push(`photo tools threw: ${e instanceof Error ? e.message : e}`);
+    const files = required(out.files, 'exported photos');
+    const first = entryAt(files, 0, 'exported photo');
+    const bmp = await createImageBitmap(first.blob);
+    check(
+      files.length === 1 && first.blob.type === 'image/png' && bmp.width === 1080 && bmp.height === 1080,
+      'photo tools: export_photos writes the batch',
+    );
+    check(
+      await fails('adjust_photo', { photo: 'nope', settings: {} }),
+      'photo tools: an unknown photo is a tool error',
+    );
+  } catch (error) {
+    result.failed.push(`photo tools threw: ${messageOf(error)}`);
   } finally {
     if (presetId) await call('delete_preset', { preset: presetId, confirm: true }).catch(() => undefined);
     if (lutId) await forgetLut(lutId);

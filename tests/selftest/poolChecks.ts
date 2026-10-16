@@ -4,93 +4,127 @@
  */
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
 import { clipColour, codeColour, decodedColours, makeTestClip, testPhoto } from './videoChecks';
+import type { LegacyProject } from '../support/timeline.testkit';
 import type { PoolClip, PoolFrame } from '@/engine/decodePool';
 import type { ExportClip, ExportJob } from '@/engine/videoExport';
+import { context2d, cycleOf, entryAt, firstFew, meanRgb, messageOf, sleep } from './helpers';
 
+/** Records one check: passed when `ok` is truthy, described by `what`. */
 type Check = (ok: unknown, what: string) => void;
 
 const FPS = 30;
-/** The frame showing at source time t in a 30 fps test clip. */
-const frameAt = (t: number) => Math.floor(t * FPS + 1e-6) / FPS;
+/**
+ * The frame showing at a source time in a 30 fps test clip.
+ * @param time the source time, seconds
+ * @returns the frame's start time, seconds
+ */
+const frameAt = (time: number) => Math.floor(time * FPS + 1e-6) / FPS;
 
-/** The mean colour of a 16 × 16 patch in the middle of a frame. */
-function colourOf(f: PoolFrame): [number, number, number] {
-  const c = document.createElement('canvas');
-  c.width = c.height = 16;
-  const x = c.getContext('2d', { willReadFrequently: true })!;
-  x.drawImage(f.image, f.width / 2 - 8, f.height / 2 - 8, 16, 16, 0, 0, 16, 16);
-  const d = x.getImageData(0, 0, 16, 16).data;
-  let r = 0,
-    g = 0,
-    b = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    r += d[i];
-    g += d[i + 1];
-    b += d[i + 2];
-  }
-  return [r / 256, g / 256, b / 256];
+/**
+ * The mean colour of a 16 × 16 patch in the middle of a frame.
+ * @param poolFrame the frame
+ * @returns its mean red, green and blue
+ */
+function colourOf(poolFrame: PoolFrame): [number, number, number] {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 16;
+  const x = context2d(canvas, { willReadFrequently: true });
+  x.drawImage(poolFrame.image, poolFrame.width / 2 - 8, poolFrame.height / 2 - 8, 16, 16, 0, 0, 16, 16);
+  return meanRgb(x.getImageData(0, 0, 16, 16).data);
 }
 
-/** Is f the frame for source time t of a clip `dur` seconds long: the right frame, and its colour within ±8? */
-function exact(f: PoolFrame | null, t: number, dur: number): string | null {
-  if (!f) return `no frame at ${t.toFixed(3)} s`;
-  const want = frameAt(t);
-  if (Math.abs(f.time - want) > 1e-3)
-    return `frame ${f.time.toFixed(3)} s for ${t.toFixed(3)} s (want ${want.toFixed(3)})`;
-  const got = colourOf(f),
+/**
+ * Whether a frame is the one for a source time of a test clip: the right frame, and its colour within ±8.
+ * @param poolFrame the frame the pool gave, or null
+ * @param time the source time asked for, seconds
+ * @param dur the clip's length, seconds
+ * @returns what is wrong, or null when it is exact
+ */
+function exact(poolFrame: PoolFrame | null, time: number, dur: number): string | null {
+  if (!poolFrame) return `no frame at ${time.toFixed(3)} s`;
+  const want = frameAt(time);
+  if (Math.abs(poolFrame.time - want) > 1e-3)
+    return `frame ${poolFrame.time.toFixed(3)} s for ${time.toFixed(3)} s (want ${want.toFixed(3)})`;
+  const got = colourOf(poolFrame),
     exp = clipColour(want, dur);
-  if (!exp.every((v, k) => Math.abs(v - got[k]) <= 8))
-    return `colour ${got.map(Math.round).join('/')} at ${t.toFixed(3)} s (want ${exp.join('/')})`;
+  if (!exp.every((channel, channelIndex) => Math.abs(channel - (got.at(channelIndex) ?? NaN)) <= 8))
+    return `colour ${got.map(Math.round).join('/')} at ${time.toFixed(3)} s (want ${exp.join('/')})`;
   return null;
 }
 
+/**
+ * A small seeded random number generator (Mulberry32), so the random seeks are the same on every run.
+ * @param seed the seed
+ * @returns a function giving the next number in [0, 1)
+ */
 function mulberry32(seed: number) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    let mixed = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-/** p, or a failure naming `what` after `ms`: a pool that never answers fails its check instead of stalling the run. */
-export function within<T>(p: Promise<T>, what: string, ms = 5000): Promise<T> {
+/**
+ * A promise, or a failure naming `what` after `ms`: a pool that never answers fails its check instead of stalling the
+ * run.
+ * @param promise what to wait for
+ * @param what what it is, for the failure
+ * @param ms how long to wait, in milliseconds
+ * @returns the promise's value
+ */
+export function within<T>(promise: Promise<T>, what: string, ms = 5000): Promise<T> {
   let timer = 0;
   return Promise.race([
-    p.finally(() => clearTimeout(timer)),
+    promise.finally(() => clearTimeout(timer)),
     new Promise<never>((_, reject) => {
       timer = window.setTimeout(() => reject(new Error(`no answer in ${ms / 1000} s: ${what}`)), ms);
     }),
   ]);
 }
 
-/** Runs one group of checks; if it throws (or times out) that is one failed check, and the others still run. */
+/**
+ * Runs one group of checks; if it throws (or times out) that is one failed check, and the others still run.
+ * @param check records a check
+ * @param name the group's name, for the failure
+ * @param body the group's checks
+ */
 async function group(check: Check, name: string, body: () => Promise<void>): Promise<void> {
   try {
     await body();
-  } catch (e) {
-    check(false, `pool: ${name} threw: ${e instanceof Error ? e.message : e}`);
+  } catch (error) {
+    check(false, `pool: ${name} threw: ${messageOf(error)}`);
   }
 }
 
-/** Waits until every frame and decoder is closed (readers stop asynchronously), at most `ms`. */
+/**
+ * Waits until every frame and decoder is closed (readers stop asynchronously), at most `ms`.
+ * @param open reads the open frames, decoders and bytes
+ * @param ms how long to wait at most, in milliseconds
+ * @returns the last counts read
+ */
 async function drained(open: () => { decoders: number; frames: number; bytes: number }, ms = 1000) {
   const end = performance.now() + ms;
-  let o = open();
-  while ((o.decoders || o.frames || o.bytes) && performance.now() < end) {
-    await new Promise((r) => setTimeout(r, 20));
-    o = open();
+  let counts = open();
+  while ((counts.decoders || counts.frames || counts.bytes) && performance.now() < end) {
+    await sleep(20);
+    counts = open();
   }
-  return o;
+  return counts;
 }
 
-/** AC-1, AC-2 and AC-3 (204) through a pool on Mediabunny. Returns notes for the report. */
+/**
+ * AC-1, AC-2 and AC-3 (204) through a pool on Mediabunny, then the export, preview and editor groups.
+ * @param check records a check
+ * @returns notes for the report
+ */
 export async function poolChecks(check: Check): Promise<string[]> {
   const { DecodePool, poolLimits } = await import('@/engine/decodePool');
   const { mediabunnySource, openFrames } = await import('@/engine/frameSource');
   const DUR = 10;
-  const [A, B] = await Promise.all([makeTestClip(DUR, 640, 360, 2), makeTestClip(DUR, 640, 360, 2)]);
-  if (!A || !B) return ['pool: this engine cannot encode H.264; pool checks skipped'];
+  const [clipA, clipB] = await Promise.all([makeTestClip(DUR, 640, 360, 2), makeTestClip(DUR, 640, 360, 2)]);
+  if (!clipA || !clipB) return ['pool: this engine cannot encode H.264; pool checks skipped'];
   const notes: string[] = [];
   const clip = (id: string, file: Blob, inT: number, outT: number, start: number, track = 'V1'): PoolClip => ({
     id,
@@ -100,81 +134,85 @@ export async function poolChecks(check: Check): Promise<string[]> {
     start,
     track,
   });
-  const src = (c: PoolClip, t: number) => c.in + (t - c.start);
+  const src = (poolClip: PoolClip, time: number) => poolClip.in + (time - poolClip.start);
   const t0 = performance.now();
 
   // AC-1: three clips overlapping in time, two of them from the same file at different source times.
   await group(check, 'AC-1', async () => {
     const pool = new DecodePool(mediabunnySource, poolLimits(6, true));
-    const cs = [clip('a1', A, 1, 7, 0), clip('a2', A, 3, 9, 1, 'V2'), clip('b', B, 0, 6, 0.5, 'V3')];
-    const end = (c: PoolClip) => c.start + (c.out - c.in);
+    const cs = [clip('a1', clipA, 1, 7, 0), clip('a2', clipA, 3, 9, 1, 'V2'), clip('b', clipB, 0, 6, 0.5, 'V3')];
+    const end = (poolClip: PoolClip) => poolClip.start + (poolClip.out - poolClip.in);
     // Each clip's first and last frame, then evenly through the span where all three show.
-    const firstLast = cs.flatMap((c) => [c.start, end(c) - 1 / FPS]);
-    const times = [...firstLast, ...Array.from({ length: 30 - firstLast.length }, (_, k) => 1 + (k / 23) * 4.9)];
+    const firstLast = cs.flatMap((poolClip) => [poolClip.start, end(poolClip) - 1 / FPS]);
+    const times = [...firstLast, ...Array.from({ length: 30 - firstLast.length }, (_, step) => 1 + (step / 23) * 4.9)];
     const bad: string[] = [];
     let frames = 0;
-    for (const t of times) {
-      const on = cs.filter((c) => t >= c.start - 1e-9 && t < end(c) - 1e-9);
+    for (const time of times) {
+      const on = cs.filter((poolClip) => time >= poolClip.start - 1e-9 && time < end(poolClip) - 1e-9);
       const got = await within(
-        Promise.all(on.map((c) => pool.frame(c, src(c, t)))),
-        `AC-1 frames at ${t.toFixed(3)} s`,
+        Promise.all(on.map((poolClip) => pool.frame(poolClip, src(poolClip, time)))),
+        `AC-1 frames at ${time.toFixed(3)} s`,
       );
-      on.forEach((c, i) => {
-        const e = exact(got[i], src(c, t), DUR);
-        if (e) bad.push(`${c.id} at ${t.toFixed(3)} s: ${e}`);
+      on.forEach((poolClip, index) => {
+        const problem = exact(got.at(index) ?? null, src(poolClip, time), DUR);
+        if (problem) bad.push(`${poolClip.id} at ${time.toFixed(3)} s: ${problem}`);
         frames++;
       });
     }
-    const s = pool.stats();
+    const stats = pool.stats();
     pool.dispose();
     check(
       !bad.length && frames >= 60,
-      `pool: 3 overlapping clips (2 from one file) give their exact frames at 30 times (${frames} frames, ${s.decoders} decoders)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+      `pool: 3 overlapping clips (2 from one file) give their exact frames at 30 times (${frames} frames, ${stats.decoders} decoders)${firstFew(bad)}`,
     );
   });
 
   // AC-2: the last 15 frames of one clip and the first 15 of the next, at the same moments (a 0.5 s transition).
   await group(check, 'AC-2', async () => {
     const pool = new DecodePool(mediabunnySource, poolLimits(6, true));
-    const c1 = clip('c1', A, 0, 3, 0),
-      c2 = clip('c2', B, 2, 5, 3);
+    const c1 = clip('c1', clipA, 0, 3, 0),
+      c2 = clip('c2', clipB, 2, 5, 3);
     const bad: string[] = [];
-    for (let k = 0; k < 15; k++) {
-      const s1 = c1.out - (15 - k) / FPS + 1e-4,
-        s2 = c2.in + k / FPS + 1e-4;
-      const [f1, f2] = await within(Promise.all([pool.frame(c1, s1), pool.frame(c2, s2)]), `AC-2 pair ${k}`);
+    for (let pair = 0; pair < 15; pair++) {
+      const s1 = c1.out - (15 - pair) / FPS + 1e-4,
+        s2 = c2.in + pair / FPS + 1e-4;
+      const [f1, f2] = await within(Promise.all([pool.frame(c1, s1), pool.frame(c2, s2)]), `AC-2 pair ${pair}`);
       const e1 = exact(f1, s1, DUR),
         e2 = exact(f2, s2, DUR);
-      if (e1) bad.push(`out ${k}: ${e1}`);
-      if (e2) bad.push(`in ${k}: ${e2}`);
+      if (e1) bad.push(`out ${pair}: ${e1}`);
+      if (e2) bad.push(`in ${pair}: ${e2}`);
     }
     pool.dispose();
     check(
       !bad.length,
-      `pool: the last 15 frames of a clip and the first 15 of the next decode together, all 30 exact${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+      `pool: the last 15 frames of a clip and the first 15 of the next decode together, all 30 exact${firstFew(bad)}`,
     );
   });
 
   // AC-3: 50 random times within 3 clips, backwards and forwards across key frames.
   await group(check, 'AC-3', async () => {
     const pool = new DecodePool(mediabunnySource, poolLimits(6, true));
-    const cs = [clip('r1', A, 0, 10, 0), clip('r2', A, 2, 8, 0, 'V2'), clip('r3', B, 1, 9, 0, 'V3')];
+    const cs = [clip('r1', clipA, 0, 10, 0), clip('r2', clipA, 2, 8, 0, 'V2'), clip('r3', clipB, 1, 9, 0, 'V3')];
     const rnd = mulberry32(2043);
     const bad: string[] = [];
     let back = 0,
       prev = 0;
-    for (let i = 0; i < 50; i++) {
-      const c = cs[Math.floor(rnd() * cs.length)];
-      const s = c.in + rnd() * (c.out - c.in - 1 / FPS);
-      if (s < prev) back++;
-      prev = s;
-      const e = exact(await within(pool.frame(c, s), `AC-3 ${c.id} at ${s.toFixed(3)} s`), s, DUR);
-      if (e) bad.push(`${c.id}: ${e}`);
+    for (let seek = 0; seek < 50; seek++) {
+      const poolClip = entryAt(cs, Math.floor(rnd() * cs.length), 'clip');
+      const sourceTime = poolClip.in + rnd() * (poolClip.out - poolClip.in - 1 / FPS);
+      if (sourceTime < prev) back++;
+      prev = sourceTime;
+      const problem = exact(
+        await within(pool.frame(poolClip, sourceTime), `AC-3 ${poolClip.id} at ${sourceTime.toFixed(3)} s`),
+        sourceTime,
+        DUR,
+      );
+      if (problem) bad.push(`${poolClip.id}: ${problem}`);
     }
     pool.dispose();
     check(
       !bad.length && back >= 10,
-      `pool: 50 random seeks (${back} backwards) across 3 clips are exact${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+      `pool: 50 random seeks (${back} backwards) across 3 clips are exact${firstFew(bad)}`,
     );
   });
 
@@ -187,7 +225,7 @@ export async function poolChecks(check: Check): Promise<string[]> {
     `pool: AC-1–AC-3 on 2 × 10 s 640×360 clips (2 s key frames) in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   );
   await group(check, 'export AC-9', async () => {
-    notes.push(await exportSameFrames(check, A, B));
+    notes.push(await exportSameFrames(check, clipA, clipB));
   });
   await group(check, 'export AC-11', async () => {
     notes.push(await exportNoLeaks(check));
@@ -223,10 +261,13 @@ export async function poolChecks(check: Check): Promise<string[]> {
  *   matches the colour-code reference (each clip's box, rotation, corners, opacity) as renderStack's golden frames do;
  * - two asks in a row: the newer one is complete (latest wins per lane) and the older one still resolves;
  * - the held picture is per clip (heldStageFrame): an overlay arriving keeps the main clip's picture, the new clips wait.
+ * @param check records a check
+ * @returns a note for the report
  */
 async function stageDrawsStacks(check: Check): Promise<string> {
   const { compareWithReference, makeOverlayProject } = await import('./videoChecks');
-  const { drawPreview, heldStageFrame, pausedAt, pausedFrame, stageSource } = await import('@/components/studio/previewFrame');
+  const { drawPreview, heldStageFrame, pausedAt, pausedFrame, stageSource } =
+    await import('@/components/studio/previewFrame');
   const { projectLength } = await import('@/engine/timeline');
   let framesCompared = 0;
   for (const format of ['9:16', '16:9'] as const) {
@@ -243,7 +284,7 @@ async function stageDrawsStacks(check: Check): Promise<string> {
       }),
     };
     const total = projectLength(project);
-    const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+    const context = context2d(document.createElement('canvas'), { willReadFrequently: true });
     context.canvas.width = width;
     context.canvas.height = height;
     const stage = stageSource();
@@ -255,23 +296,30 @@ async function stageDrawsStacks(check: Check): Promise<string> {
         const withoutPicture = frame.items.filter((stackItem) => !stackItem.pic).map((stackItem) => stackItem.clip.id);
         if (withoutPicture.length) problems.push(`no picture for ${withoutPicture.join(', ')} at frame ${frameNumber}`);
         drawPreview(context, width, height, { layers: [], total, fadeOut: false }, frame);
-        const reference = frame.items.map((stackItem) => ({
-          tf: fixture.clips.find((expected) => expected.id === stackItem.clip.id)!.tf,
-          rgb: fixture.colourAt(stackItem.clip.id, frame.at)!,
-        }));
+        const reference = frame.items.map((stackItem) => {
+          const expected = fixture.clips.find((fixtureClip) => fixtureClip.id === stackItem.clip.id);
+          const rgb = fixture.colourAt(stackItem.clip.id, frame.at);
+          if (!expected || !rgb) throw new Error(`no reference for ${stackItem.clip.id} at frame ${frameNumber}`);
+          return { tf: expected.tf, rgb };
+        });
         const result = compareWithReference(context.getImageData(0, 0, width, height).data, width, height, reference);
         framesCompared++;
         if (result.max > 8 || result.mean > 2 || result.n < width * height * 0.95)
-          problems.push(`frame ${frameNumber}: worst ${result.max.toFixed(0)} at ${result.where}, mean ${result.mean.toFixed(2)}`);
+          problems.push(
+            `frame ${frameNumber}: worst ${result.max.toFixed(0)} at ${result.where}, mean ${result.mean.toFixed(2)}`,
+          );
       }
       check(
         !problems.length,
-        `pool: the paused stage draws the ${format} overlay stack as the golden reference at 8 times${problems.length ? `: ${problems.slice(0, 3).join('; ')}` : ''}`,
+        `pool: the paused stage draws the ${format} overlay stack as the golden reference at 8 times${firstFew(problems)}`,
       );
 
       // Latest wins: frame 37 (m1, B-roll, face-cam) then frame 59 at once; the newer has every picture.
       const [olderFrame, newerFrame] = await within(
-        Promise.all([37, 59].map((frameNumber) => pausedFrame(project, frameNumber / fps, fps, stage.source))),
+        Promise.all([
+          pausedFrame(project, 37 / fps, fps, stage.source),
+          pausedFrame(project, 59 / fps, fps, stage.source),
+        ]),
         '203 two asks in a row',
       );
       const newerPictures = newerFrame.items.filter((stackItem) => stackItem.pic).length;
@@ -283,7 +331,13 @@ async function stageDrawsStacks(check: Check): Promise<string> {
       // Held per clip: frame 12 shows m1 alone; at frame 37 the B-roll and face-cam arrive, m1 keeps its picture.
       const frameBefore = await within(pausedFrame(project, 12 / fps, fps, stage.source), '203 frame 12');
       const { at, items: stack } = pausedAt(project, 37 / fps, fps);
-      const held = heldStageFrame(at, stack, frameBefore, () => null, (clip) => clip.kind === 'video');
+      const held = heldStageFrame(
+        at,
+        stack,
+        frameBefore,
+        () => null,
+        (clip) => clip.kind === 'video',
+      );
       const mainItem = held.items.find((stackItem) => stackItem.clip.id === 'm1');
       check(
         held.items.length === 3 &&
@@ -304,6 +358,8 @@ async function stageDrawsStacks(check: Check): Promise<string> {
  * Drawing a video frame that was closed after it was handed out (a held picture the pool has since released) throws;
  * the canvas must come back unchanged: no transform, clip or alpha left behind, so the stage's next draw lands where it
  * should. Tried full frame and in a rotated see-through box (renderStack's two drawing paths).
+ * @param check records a check
+ * @returns a note for the report
  */
 async function closedFrameKeepsCanvas(check: Check): Promise<string> {
   if (typeof VideoFrame === 'undefined') return 'pool: closed-frame check skipped (no VideoFrame)';
@@ -314,7 +370,7 @@ async function closedFrameKeepsCanvas(check: Check): Promise<string> {
   const source = document.createElement('canvas');
   source.width = width;
   source.height = height;
-  source.getContext('2d')!.fillRect(0, 0, width, height);
+  context2d(source).fillRect(0, 0, width, height);
   const results: string[] = [];
   let allRestored = true;
   for (const [name, transform] of [
@@ -323,7 +379,7 @@ async function closedFrameKeepsCanvas(check: Check): Promise<string> {
   ] as const) {
     const closedFrame = new VideoFrame(source, { timestamp: 0 });
     closedFrame.close();
-    const context = document.createElement('canvas').getContext('2d')!;
+    const context = context2d(document.createElement('canvas'));
     context.canvas.width = width;
     context.canvas.height = height;
     let threw = false;
@@ -334,7 +390,17 @@ async function closedFrameKeepsCanvas(check: Check): Promise<string> {
         height,
         [
           {
-            clip: { kind: 'video', dur: 0, in: 0, out: 1, edit: { ...DEFAULT_EDIT }, motion: 'none', fade: false, overlay: true, tf: transform },
+            clip: {
+              kind: 'video',
+              dur: 0,
+              in: 0,
+              out: 1,
+              edit: { ...DEFAULT_EDIT },
+              motion: 'none',
+              fade: false,
+              overlay: true,
+              tf: transform,
+            },
             src: closedFrame,
             sw: width,
             sh: height,
@@ -351,7 +417,10 @@ async function closedFrameKeepsCanvas(check: Check): Promise<string> {
     }
     const restored = context.getTransform().isIdentity && context.globalAlpha === 1;
     allRestored &&= restored;
-    results.push(`${name}: ${threw ? 'threw' : 'did not throw'}, canvas ${restored ? 'unchanged' : `left at ${context.getTransform().toString()} alpha ${context.globalAlpha}`}`);
+    const canvasState = restored
+      ? 'unchanged'
+      : `left at ${context.getTransform().toString()} alpha ${context.globalAlpha}`;
+    results.push(`${name}: ${threw ? 'threw' : 'did not throw'}, canvas ${canvasState}`);
   }
   check(allRestored, `pool: drawing a closed video frame leaves the canvas unchanged (${results.join('; ')})`);
   return 'pool: a closed frame leaves the canvas as it was';
@@ -364,13 +433,21 @@ async function closedFrameKeepsCanvas(check: Check): Promise<string> {
  * from the sound plan, which leaves a muted track's clips out, so the picture stayed put; and drawing a released frame
  * left the stage canvas moved to the picture's centre, so later frames were drawn in its bottom-right quarter.)
  * A <video> seek can land one frame early, so the frame shown may be one before the one asked for (as in 204 AC-14).
+ * @param check records a check
+ * @returns a note for the report
  */
 async function fallbackOnMutedOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   // The video store and the actions these checks use.
-  const video = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
+  const video = {
+    ...(await import('@/state/videoStore')),
+    ...(await import('@/state/videoTracks')),
+    ...(await import('@/state/videoClips')),
+    ...(await import('@/state/videoBox')),
+    ...(await import('@/state/videoMedia')),
+  };
   const { refuseDecodingForTests, allowDecodingForTests } = await import('@/engine/frameSource');
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(3, 640, 360, 1, false, 2),
@@ -384,32 +461,47 @@ async function fallbackOnMutedOverlay(check: Check): Promise<string> {
   document.body.append(host);
   const root = createRoot(host);
   root.render(
-    React.createElement(React.StrictMode, null, React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined })),
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined }),
+    ),
   );
 
-  /** The overlay's frame number named by the colour at the stage's centre (codeColour without a clip code, ±10), or -1. */
+  /**
+   * The overlay's frame number named by the colour at the stage's centre (codeColour without a clip code, ±10).
+   * @returns the frame number, or -1
+   */
   const frameAtCentre = (): number => {
     const stageCanvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
     const context = stageCanvas?.getContext('2d', { willReadFrequently: true });
     if (!stageCanvas || !context || !stageCanvas.width) return -1;
-    const pixels = context.getImageData(Math.floor(stageCanvas.width / 2) - 4, Math.floor(stageCanvas.height / 2) - 4, 8, 8).data;
-    const mean = [0, 0, 0];
-    for (let offset = 0; offset < pixels.length; offset += 4)
-      for (let channel = 0; channel < 3; channel++) mean[channel] += pixels[offset + channel] / 64;
+    const mean = meanRgb(
+      context.getImageData(Math.floor(stageCanvas.width / 2) - 4, Math.floor(stageCanvas.height / 2) - 4, 8, 8).data,
+    );
     const frames = Array.from({ length: 90 }, (_, frame) => frame);
-    return frames.find((frame) => codeColour(frame).every((want, channel) => Math.abs(want - mean[channel]) <= 10)) ?? -1;
+    return (
+      frames.find((frame) =>
+        codeColour(frame).every((want, channel) => Math.abs(want - (mean.at(channel) ?? NaN)) <= 10),
+      ) ?? -1
+    );
   };
-  /** Polls `isDone` every 16 ms until it holds or `timeoutMs` passes; returns its last answer. */
+  /**
+   * Polls `isDone` every 16 ms until it holds or `timeoutMs` passes.
+   * @param isDone the condition
+   * @param timeoutMs how long to wait at most, in milliseconds
+   * @returns its last answer
+   */
   const waitFor = async (isDone: () => boolean, timeoutMs: number): Promise<boolean> => {
     const deadline = performance.now() + timeoutMs;
-    while (!isDone() && performance.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 16));
+    while (!isDone() && performance.now() < deadline) await sleep(16);
     return isDone();
   };
 
   const tracksBefore = new Set(video.getVideo().tracks.map((track) => track.id));
   let addedIds: string[] = [];
   try {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await sleep(300);
     const clipsBefore = new Set(video.getVideo().clips.map((clip) => clip.id));
     await video.addMedia([{ name: 'main.mp4', blob: mainBlob, type: 'video/mp4' }]);
     const mainClip = video.getVideo().clips.find((clip) => !clipsBefore.has(clip.id));
@@ -461,13 +553,21 @@ async function fallbackOnMutedOverlay(check: Check): Promise<string> {
  * 203 on the real editor (StrictMode, as `npm run dev`): a frame-coded main clip and, on a new overlay track, a clip
  * with its own code placed top-right by the preset. Paused, the stage shows the overlay inside its box and the main
  * clip outside it.
+ * @param check records a check
+ * @returns a note for the report
  */
 async function editorStageShowsOverlay(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   // The video store and the actions these checks use.
-  const video = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
+  const video = {
+    ...(await import('@/state/videoStore')),
+    ...(await import('@/state/videoTracks')),
+    ...(await import('@/state/videoClips')),
+    ...(await import('@/state/videoBox')),
+    ...(await import('@/state/videoMedia')),
+  };
   const [mainBlob, overlayBlob] = await Promise.all([
     makeTestClip(4, 640, 360, 1, false, true),
     makeTestClip(4, 320, 240, 1, false, 3),
@@ -478,7 +578,11 @@ async function editorStageShowsOverlay(check: Check): Promise<string> {
   document.body.append(host);
   const root = createRoot(host);
   root.render(
-    React.createElement(React.StrictMode, null, React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined })),
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(VideoWorkspace, { mode: 'vlog', onMode: () => undefined }),
+    ),
   );
 
   /**
@@ -491,28 +595,45 @@ async function editorStageShowsOverlay(check: Check): Promise<string> {
     const stageCanvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
     const context = stageCanvas?.getContext('2d');
     if (!stageCanvas || !context || !stageCanvas.width) return null;
-    const pixels = context.getImageData(Math.floor(stageCanvas.width * shareX) - 4, Math.floor(stageCanvas.height * shareY) - 4, 8, 8).data;
-    const sums = [0, 0, 0];
-    for (let offset = 0; offset < pixels.length; offset += 4)
-      for (let channel = 0; channel < 3; channel++) sums[channel] += pixels[offset + channel];
-    return sums.map((sum) => sum / 64);
+    return meanRgb(
+      context.getImageData(
+        Math.floor(stageCanvas.width * shareX) - 4,
+        Math.floor(stageCanvas.height * shareY) - 4,
+        8,
+        8,
+      ).data,
+    );
   };
-  /** Whether every channel of `colour` is within 8 levels of `wanted`. */
-  const isNear = (colour: number[] | null, wanted: readonly number[]) =>
-    !!colour && wanted.every((value, channel) => Math.abs(value - colour[channel]) <= 8);
-  /** Polls `isDone` every 50 ms until it holds or `timeoutMs` passes; returns its last answer. */
+  /**
+   * Whether every channel of a colour is within 8 levels of another.
+   * @param colour the colour read, or null
+   * @param wanted the colour wanted
+   * @returns whether they match
+   */
+  const isNear = (colour: readonly number[] | null, wanted: readonly number[]) =>
+    !!colour && wanted.every((value, channel) => Math.abs(value - (colour.at(channel) ?? NaN)) <= 8);
+  /**
+   * Polls `isDone` every 50 ms until it holds or `timeoutMs` passes.
+   * @param isDone the condition
+   * @param timeoutMs how long to wait at most, in milliseconds
+   * @returns its last answer
+   */
   const waitFor = async (isDone: () => boolean, timeoutMs: number): Promise<boolean> => {
     const deadline = performance.now() + timeoutMs;
-    while (!isDone() && performance.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
+    while (!isDone() && performance.now() < deadline) await sleep(50);
     return isDone();
   };
-  /** A colour as "r/g/b" for the report. */
+  /**
+   * A colour for the report.
+   * @param colour the colour, or null
+   * @returns "r/g/b", or undefined
+   */
   const describe = (colour: readonly number[] | null) => colour?.map(Math.round).join('/');
 
   const tracksBefore = new Set(video.getVideo().tracks.map((track) => track.id));
   let addedIds: string[] = [];
   try {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await sleep(300);
     const clipsBefore = new Set(video.getVideo().clips.map((clip) => clip.id));
     await video.addMedia([{ name: 'main.mp4', blob: mainBlob, type: 'video/mp4' }]);
     const mainClip = video.getVideo().clips.find((clip) => !clipsBefore.has(clip.id));
@@ -529,7 +650,8 @@ async function editorStageShowsOverlay(check: Check): Promise<string> {
     if (!overlayClip) throw new Error('the overlay clip was not added');
     const refusal = video.applyPreset(overlayClip.id, 'top-right');
     if (refusal) throw new Error(refusal);
-    const box = video.getVideo().clips.find((clip) => clip.id === overlayClip.id)!.tf!;
+    const box = video.getVideo().clips.find((clip) => clip.id === overlayClip.id)?.tf;
+    if (!box) throw new Error('the overlay clip has no box after the preset');
     const playhead = mainClip.start + 0.5;
     video.setPlayhead(playhead);
     const wantedMain = codeColour(Math.floor((playhead - mainClip.start + mainClip.in) * FPS + 1e-6));
@@ -549,18 +671,15 @@ async function editorStageShowsOverlay(check: Check): Promise<string> {
   return 'pool: the editor stage (StrictMode) shows an overlay clip';
 }
 
-/** The mean colour of the 16 × 16 patch in the middle of a W × H canvas. */
-function mean16(x: CanvasRenderingContext2D, W: number, H: number): [number, number, number] {
-  const d = x.getImageData(Math.round(W / 2) - 8, Math.round(H / 2) - 8, 16, 16).data;
-  let r = 0,
-    g = 0,
-    b = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    r += d[i];
-    g += d[i + 1];
-    b += d[i + 2];
-  }
-  return [r / 256, g / 256, b / 256];
+/**
+ * The mean colour of the 16 × 16 patch in the middle of a canvas.
+ * @param context the canvas's context
+ * @param width the canvas's width
+ * @param height the canvas's height
+ * @returns the mean red, green and blue
+ */
+function mean16(context: CanvasRenderingContext2D, width: number, height: number): [number, number, number] {
+  return meanRgb(context.getImageData(Math.round(width / 2) - 8, Math.round(height / 2) - 8, 16, 16).data);
 }
 
 /**
@@ -568,8 +687,12 @@ function mean16(x: CanvasRenderingContext2D, W: number, H: number): [number, num
  * test clips, photos from test photos) and 202's gap are exported at 16:9; at 10 frames each the decoded middle must
  * match (±8) that frame drawn by `renderFrame` from a source frame decoded on its own (`CanvasSink.getCanvas`, as the
  * export decoded before the pool): an oracle that holds on today's code and after.
+ * @param check records a check
+ * @param clipA a 10 s test clip
+ * @param clipB another one
+ * @returns a note for the report
  */
-async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string> {
+async function exportSameFrames(check: Check, clipA: Blob, clipB: Blob): Promise<string> {
   const { encodeVideo } = await import('@/engine/videoExport');
   const { renderFrame, NO_PICTURE } = await import('@/engine/video');
   const { legacyFixtures } = await import('../support/timeline.testkit');
@@ -577,13 +700,13 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
   const { framePlan, pack, projectLength } = await import('@/engine/timeline');
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const { loadImage } = await import('@/engine/photo');
-  const W = 480,
-    H = 270;
-  const photos = await Promise.all([0, 1, 2].map((i) => testPhoto(i, 640, 427)));
+  const WIDTH = 480,
+    HEIGHT = 270;
+  const photos = await Promise.all([0, 1, 2].map((index) => testPhoto(index, 640, 427)));
   const images = new Map<Blob, HTMLImageElement>();
-  for (const p of photos) {
-    const url = URL.createObjectURL(p.blob);
-    images.set(p.blob, await loadImage(url));
+  for (const photo of photos) {
+    const url = URL.createObjectURL(photo.blob);
+    images.set(photo.blob, await loadImage(url));
     URL.revokeObjectURL(url);
   }
   const lf = legacyFixtures();
@@ -595,24 +718,32 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
     tinyClips: lf.tinyClips,
     clips20: lf.clips20,
   };
-  const base = { tracks: defaultTracks(), audio: [], width: W, height: H, fps: FPS, bitrate: 1.5e6 };
-  const jobs: [string, ExportJob][] = Object.entries(shapes).map(([name, lp]) => {
-    let k = 0;
-    const clips = pack(
-      lp.clips.map((c): ExportClip => ({
-        ...c,
-        track: MAIN_VIDEO,
-        start: 0,
-        file: c.kind === 'video' ? (k++ % 2 ? B : A) : photos[k++ % 3].blob,
-      })),
-    );
-    return [name, { ...base, clips, layers: lp.layers, fadeOut: lp.fadeOut, sink: { kind: 'memory' } }];
-  });
+  const base = { tracks: defaultTracks(), audio: [], width: WIDTH, height: HEIGHT, fps: FPS, bitrate: 1.5e6 };
+  const jobs: [string, ExportJob][] = Object.entries(shapes).flatMap(
+    ([name, lp]: [string, LegacyProject | undefined]) => {
+      if (!lp) return [];
+      let used = 0;
+      const fileFor = (kind: 'photo' | 'video') => {
+        const turn = used++;
+        if (kind === 'photo') return cycleOf(photos, turn, 'test photo').blob;
+        return turn % 2 ? clipB : clipA;
+      };
+      const clips = pack(
+        lp.clips.map((legacyClip): ExportClip => ({
+          ...legacyClip,
+          track: MAIN_VIDEO,
+          start: 0,
+          file: fileFor(legacyClip.kind),
+        })),
+      );
+      return [[name, { ...base, clips, layers: lp.layers, fadeOut: lp.fadeOut, sink: { kind: 'memory' } }]];
+    },
+  );
   // 202's gap: two 1 s photos 1.5 s apart.
-  const gapClips = [0, 1].map((i): ExportClip => ({
-    id: `g${i}`,
+  const gapClips = [0, 1].map((index): ExportClip => ({
+    id: `g${index}`,
     track: MAIN_VIDEO,
-    start: i ? 2.5 : 0,
+    start: index ? 2.5 : 0,
     kind: 'photo',
     dur: 1,
     in: 0,
@@ -620,15 +751,15 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
     edit: { ...DEFAULT_EDIT },
     motion: 'none',
     fade: false,
-    file: photos[i].blob,
+    file: entryAt(photos, index, 'test photo').blob,
     volume: 0,
   }));
   jobs.push(['gap', { ...base, clips: gapClips, layers: [], fadeOut: false, sink: { kind: 'memory' } }]);
 
   const ox = document.createElement('canvas');
-  ox.width = W;
-  ox.height = H;
-  const octx = ox.getContext('2d', { willReadFrequently: true })!;
+  ox.width = WIDTH;
+  ox.height = HEIGHT;
+  const octx = context2d(ox, { willReadFrequently: true });
   const bad: string[] = [];
   let compared = 0;
   for (const [name, job] of jobs) {
@@ -636,74 +767,94 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
     if (!mp4) throw new Error(`${name}: no file`);
     const total = projectLength(job);
     const frames = Math.max(1, Math.round(total * FPS));
-    const idx = Array.from({ length: 10 }, (_, k) => Math.min(frames - 1, Math.floor(((k + 0.5) / 10) * frames)));
+    const idx = Array.from({ length: 10 }, (_, sample) =>
+      Math.min(frames - 1, Math.floor(((sample + 0.5) / 10) * frames)),
+    );
     const got = await decodedColours(
       mp4,
-      idx.map((i) => (i + 0.5) / FPS),
+      idx.map((frameIndex) => (frameIndex + 0.5) / FPS),
     );
     const plan = framePlan(job, FPS);
     const inputs = new Map<Blob, { input: Input; sink: CanvasSink }>();
     try {
-      for (const [n, i] of idx.entries()) {
-        const span = plan.find((p) => i >= p.f0 && i < p.f1);
-        const t = i / FPS;
-        const c = span?.clip ?? null;
-        if (!c)
-          renderFrame(octx, W, H, NO_PICTURE, null, 0, 0, t - (span?.start ?? 0), job.layers, t, total, job.fadeOut);
-        else if (c.kind === 'photo') {
-          const img = images.get(c.file)!;
+      for (const [sample, frameIndex] of idx.entries()) {
+        const span = plan.find((entry) => frameIndex >= entry.f0 && frameIndex < entry.f1);
+        const time = frameIndex / FPS;
+        const spanClip = span?.clip ?? null;
+        if (!spanClip)
           renderFrame(
             octx,
-            W,
-            H,
-            c,
+            WIDTH,
+            HEIGHT,
+            NO_PICTURE,
+            null,
+            0,
+            0,
+            time - (span?.start ?? 0),
+            job.layers,
+            time,
+            total,
+            job.fadeOut,
+          );
+        else if (spanClip.kind === 'photo') {
+          const img = images.get(spanClip.file);
+          if (!img) throw new Error(`${name}: no image for photo ${spanClip.id}`);
+          renderFrame(
+            octx,
+            WIDTH,
+            HEIGHT,
+            spanClip,
             img,
             img.naturalWidth,
             img.naturalHeight,
-            t - c.start,
+            time - spanClip.start,
             job.layers,
-            t,
+            time,
             total,
             job.fadeOut,
           );
         } else {
-          let o = inputs.get(c.file);
-          if (!o) {
-            const input = new Input({ source: new BlobSource(c.file), formats: ALL_FORMATS });
-            const track = (await input.getPrimaryVideoTrack())!;
-            const width = Math.min(track.displayWidth, Math.round(Math.max(W, H) * 1.8));
-            o = { input, sink: new CanvasSink(track, { width }) };
-            inputs.set(c.file, o);
+          let opened = inputs.get(spanClip.file);
+          if (!opened) {
+            const input = new Input({ source: new BlobSource(spanClip.file), formats: ALL_FORMATS });
+            const track = await input.getPrimaryVideoTrack();
+            if (!track) throw new Error(`${name}: no video track in ${spanClip.id}`);
+            const width = Math.min(await track.getDisplayWidth(), Math.round(Math.max(WIDTH, HEIGHT) * 1.8));
+            opened = { input, sink: new CanvasSink(track, { width }) };
+            inputs.set(spanClip.file, opened);
           }
-          const wc = await o.sink.getCanvas(c.in + t - c.start);
+          const wc = await opened.sink.getCanvas(spanClip.in + time - spanClip.start);
           const cv = wc?.canvas ?? null;
           renderFrame(
             octx,
-            W,
-            H,
-            c,
+            WIDTH,
+            HEIGHT,
+            spanClip,
             cv,
             cv?.width ?? 0,
             cv?.height ?? 0,
-            t - c.start,
+            time - spanClip.start,
             job.layers,
-            t,
+            time,
             total,
             job.fadeOut,
           );
         }
-        const want = mean16(octx, W, H);
+        const want = mean16(octx, WIDTH, HEIGHT);
         compared++;
-        if (!got[n] || !want.every((v, ch) => Math.abs(v - got[n][ch]) <= 8))
-          bad.push(`${name} frame ${i}: ${got[n]?.map(Math.round).join('/')} (want ${want.map(Math.round).join('/')})`);
+        const decoded = got.at(sample);
+        if (!decoded || !want.every((channel, ch) => Math.abs(channel - (decoded.at(ch) ?? NaN)) <= 8))
+          bad.push(
+            `${name} frame ${frameIndex}: ${decoded?.map(Math.round).join('/')} (want ${want.map(Math.round).join('/')})`,
+          );
       }
     } finally {
-      for (const o of inputs.values()) o.input.dispose();
+      for (const opened of inputs.values()) opened.input.dispose();
     }
   }
   check(
     !bad.length,
-    `pool: exports of 201's shapes and 202's gap show the expected source frames (${compared} frames)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+    `pool: exports of 201's shapes and 202's gap show the expected source frames (${compared} frames)${firstFew(bad)}`,
   );
   return `pool: AC-9 compared ${compared} exported frames in ${jobs.length} projects`;
 }
@@ -712,6 +863,8 @@ async function exportSameFrames(check: Check, A: Blob, B: Blob): Promise<string>
  * AC-11 (204): a 2-minute 1080p 16:9 export (24 clips of 5 s from 3 source files, a hidden track's span, a 1.5 s gap)
  * decodes its frames through the pool and leaves no frame or decoder open: after it, after 3 in a row, after a cancel
  * at 50 % and after a clip that can't be read at about 1 minute.
+ * @param check records a check
+ * @returns a note for the report
  */
 async function exportNoLeaks(check: Check): Promise<string> {
   const { encodeVideo, ExportError } = await import('@/engine/videoExport');
@@ -720,14 +873,14 @@ async function exportNoLeaks(check: Check): Promise<string> {
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const t0 = performance.now();
   const srcs = await Promise.all([0, 1, 2].map(() => makeTestClip(10, 1920, 1080, 2)));
-  const files = srcs.filter((s): s is Blob => !!s);
+  const files = srcs.filter((source): source is Blob => !!source);
   if (files.length < 3) return 'pool: AC-11 skipped (no 1080p H.264 encoder)';
   const made = performance.now() - t0;
   let start = 0;
-  const clips: ExportClip[] = Array.from({ length: 24 }, (_, i) => {
-    const inT = (i * 1.3) % 5;
-    const c: ExportClip = {
-      id: `l${i}`,
+  const clips: ExportClip[] = Array.from({ length: 24 }, (_, index) => {
+    const inT = (index * 1.3) % 5;
+    const exportClip: ExportClip = {
+      id: `l${index}`,
       track: MAIN_VIDEO,
       start,
       kind: 'video',
@@ -737,14 +890,14 @@ async function exportNoLeaks(check: Check): Promise<string> {
       edit: { ...DEFAULT_EDIT },
       motion: 'none',
       fade: false,
-      file: files[i % 3],
+      file: cycleOf(files, index, 'test clip'),
       volume: 1,
     };
-    start += 5 + (i === 11 ? 1.5 : 0);
-    return c;
+    start += 5 + (index === 11 ? 1.5 : 0);
+    return exportClip;
   });
   const overlay = { id: 'V2', kind: 'overlay' as const, name: 'Overlay', hidden: true, muted: false, locked: false };
-  clips.push({ ...clips[3], id: 'hidden', track: 'V2', start: 30 });
+  clips.push({ ...entryAt(clips, 3, 'clip'), id: 'hidden', track: 'V2', start: 30 });
   const job = (cs: ExportClip[], extra: Partial<ExportJob> = {}): ExportJob => ({
     tracks: [...defaultTracks(), overlay],
     clips: cs,
@@ -759,10 +912,10 @@ async function exportNoLeaks(check: Check): Promise<string> {
     ...extra,
   });
   const zero = async (what: string) => {
-    const o = await drained(openFrames);
+    const counts = await drained(openFrames);
     check(
-      !o.decoders && !o.frames && !o.bytes,
-      `pool: no frame or decoder open after ${what} (${o.decoders} decoders, ${o.frames} frames, ${(o.bytes / 2 ** 20).toFixed(0)} MB)`,
+      !counts.decoders && !counts.frames && !counts.bytes,
+      `pool: no frame or decoder open after ${what} (${counts.decoders} decoders, ${counts.frames} frames, ${(counts.bytes / 2 ** 20).toFixed(0)} MB)`,
     );
   };
   const times: number[] = [];
@@ -782,9 +935,11 @@ async function exportNoLeaks(check: Check): Promise<string> {
   const ac = new AbortController();
   let cancelled = false;
   try {
-    await encodeVideo(job(clips, { signal: ac.signal, onProgress: (f) => (f >= 0.5 ? ac.abort() : undefined) }));
-  } catch (e) {
-    cancelled = e instanceof DOMException && e.name === 'AbortError';
+    await encodeVideo(
+      job(clips, { signal: ac.signal, onProgress: (share) => (share >= 0.5 ? ac.abort() : undefined) }),
+    );
+  } catch (error) {
+    cancelled = error instanceof DOMException && error.name === 'AbortError';
   }
   check(cancelled, 'pool: an export cancelled at 50 % stops with AbortError');
   await zero('an export cancelled at 50 %');
@@ -792,9 +947,11 @@ async function exportNoLeaks(check: Check): Promise<string> {
   const broken = new File([new Uint8Array(4096).fill(7)], 'broken.mp4', { type: 'video/mp4' });
   let refused = '';
   try {
-    await encodeVideo(job(clips.map((c, i) => (i === 12 ? { ...c, file: broken } : c))));
-  } catch (e) {
-    refused = e instanceof ExportError ? e.message : `${e}`;
+    await encodeVideo(
+      job(clips.map((exportClip, index) => (index === 12 ? { ...exportClip, file: broken } : exportClip))),
+    );
+  } catch (error) {
+    refused = error instanceof ExportError ? error.message : String(error);
   }
   check(
     refused.includes('broken.mp4'),
@@ -810,6 +967,8 @@ async function exportNoLeaks(check: Check): Promise<string> {
  * names it) with lengths off the frame grid, at 9:16 and 16:9, paused at 20 playhead times off the grid: the stage's
  * own paused path (previewFrame.ts: pausedFrame with the stage's source, then drawPreview) and the decoded export frame
  * for that time (frame floor(t * fps)) must match within ±8 in the middle.
+ * @param check records a check
+ * @returns a note for the report
  */
 async function pausedPreviewIsExport(check: Check): Promise<string> {
   const { encodeVideo } = await import('@/engine/videoExport');
@@ -818,44 +977,51 @@ async function pausedPreviewIsExport(check: Check): Promise<string> {
   const { DEFAULT_EDIT } = await import('@/engine/instagram');
   const { drawPreview, pausedFrame, stageSource } = await import('@/components/studio/previewFrame');
   const files = (await Promise.all([0, 1].map(() => makeTestClip(4, 640, 360, 2, false, true)))).filter(
-    (f): f is Blob => !!f,
+    (file): file is Blob => !!file,
   );
   if (files.length < 2) return 'pool: AC-4 skipped (no H.264 encoder)';
-  const urls = files.map((f) => URL.createObjectURL(f));
-  const lengths = [1.37, 0.9, 1.53, 1.11, 0.77, 1.29],
-    ins = [0.2, 1.1, 0.5, 1.9, 0.33, 0.7];
+  const urls = files.map((file) => URL.createObjectURL(file));
+  // Each clip's length and in point.
+  const spans = [
+    [1.37, 0.2],
+    [0.9, 1.1],
+    [1.53, 0.5],
+    [1.11, 1.9],
+    [0.77, 0.33],
+    [1.29, 0.7],
+  ] as const;
   const clips = pack(
-    lengths.map((len, i) => ({
-      id: `p${i}`,
+    spans.map(([len, inPoint], index) => ({
+      id: `p${index}`,
       track: MAIN_VIDEO,
       start: 0,
       kind: 'video' as const,
       dur: 0,
-      in: ins[i],
-      out: ins[i] + len,
+      in: inPoint,
+      out: inPoint + len,
       edit: { ...DEFAULT_EDIT },
       motion: 'none' as const,
       fade: false,
-      file: files[i % 2],
-      url: urls[i % 2],
+      file: cycleOf(files, index, 'test clip'),
+      url: cycleOf(urls, index, 'clip URL'),
       volume: 0,
     })),
   );
   const project = { tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false };
   const total = projectLength(project);
-  const times = Array.from({ length: 20 }, (_, k) => ((k + 0.37) * total) / 20);
+  const times = Array.from({ length: 20 }, (_, sample) => ((sample + 0.37) * total) / 20);
   const bad: string[] = [];
   let compared = 0;
   try {
-    for (const [ratio, W, H] of [
+    for (const [ratio, width, height] of [
       ['9:16', 270, 480],
       ['16:9', 480, 270],
     ] as const) {
       const mp4 = await encodeVideo({
         ...project,
         audio: [],
-        width: W,
-        height: H,
+        width,
+        height,
         fps: FPS,
         bitrate: 4e6,
         sink: { kind: 'memory' },
@@ -863,23 +1029,26 @@ async function pausedPreviewIsExport(check: Check): Promise<string> {
       if (!mp4) throw new Error('no export');
       const exported = await decodedColours(
         mp4,
-        times.map((t) => (Math.floor(t * FPS + 1e-6) + 0.5) / FPS),
+        times.map((time) => (Math.floor(time * FPS + 1e-6) + 0.5) / FPS),
       );
       const canvas = document.createElement('canvas');
-      canvas.width = W;
-      canvas.height = H;
-      const x = canvas.getContext('2d', { willReadFrequently: true })!;
+      canvas.width = width;
+      canvas.height = height;
+      const x = context2d(canvas, { willReadFrequently: true });
       const stage = stageSource();
       try {
-        for (const [k, t] of times.entries()) {
-          const frame = await within(pausedFrame(project, t, FPS, stage.source), `AC-4 preview at ${t.toFixed(3)} s`);
-          drawPreview(x, W, H, { layers: [], total, fadeOut: false }, frame);
-          const shown = mean16(x, W, H),
-            want = exported[k];
+        for (const [sample, time] of times.entries()) {
+          const frame = await within(
+            pausedFrame(project, time, FPS, stage.source),
+            `AC-4 preview at ${time.toFixed(3)} s`,
+          );
+          drawPreview(x, width, height, { layers: [], total, fadeOut: false }, frame);
+          const shown = mean16(x, width, height),
+            want = exported.at(sample);
           compared++;
-          if (!want || !shown.every((v, ch) => Math.abs(v - want[ch]) <= 8))
+          if (!want || !shown.every((channel, ch) => Math.abs(channel - (want.at(ch) ?? NaN)) <= 8))
             bad.push(
-              `${ratio} at ${t.toFixed(3)} s: preview ${shown.map(Math.round).join('/')}, export ${want?.map(Math.round).join('/')}`,
+              `${ratio} at ${time.toFixed(3)} s: preview ${shown.map(Math.round).join('/')}, export ${want?.map(Math.round).join('/')}`,
             );
         }
       } finally {
@@ -887,11 +1056,11 @@ async function pausedPreviewIsExport(check: Check): Promise<string> {
       }
     }
   } finally {
-    urls.forEach((u) => URL.revokeObjectURL(u));
+    urls.forEach((url) => URL.revokeObjectURL(url));
   }
   check(
     !bad.length,
-    `pool: the paused preview shows the export's frame at 20 times, 9:16 and 16:9 (${compared - bad.length} of ${compared} match)${bad.length ? `: ${bad.slice(0, 3).join('; ')}` : ''}`,
+    `pool: the paused preview shows the export's frame at 20 times, 9:16 and 16:9 (${compared - bad.length} of ${compared} match)${firstFew(bad)}`,
   );
   return `pool: AC-4 compared ${compared} paused frames with the export`;
 }
@@ -901,13 +1070,21 @@ async function pausedPreviewIsExport(check: Check): Promise<string> {
  * twice): a video clip added with the store's own addMedia shows on the stage, paused at its exact frame and moving
  * while playing. (204 T031: a source kept in useMemo was disposed by StrictMode's second run and the stage stayed black;
  * only development showed it.)
+ * @param check records a check
+ * @returns a note for the report
  */
 async function editorStageShowsVideo(check: Check): Promise<string> {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   // The video store and the actions these checks use.
-  const v = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
+  const video = {
+    ...(await import('@/state/videoStore')),
+    ...(await import('@/state/videoTracks')),
+    ...(await import('@/state/videoClips')),
+    ...(await import('@/state/videoBox')),
+    ...(await import('@/state/videoMedia')),
+  };
   // 6 s, so playback is still running after a few of the hidden window's slow ticks (below).
   const clip = await makeTestClip(6, 640, 360, 1, false, true);
   if (!clip) return 'pool: stage check skipped (no H.264 encoder)';
@@ -923,42 +1100,36 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
     ),
   );
   const centre = () => {
-    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
-    const x = c?.getContext('2d');
-    if (!c || !x || !c.width) return null;
-    const d = x.getImageData(Math.floor(c.width / 2) - 4, Math.floor(c.height / 2) - 4, 8, 8).data;
-    let r = 0,
-      g = 0,
-      b = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      r += d[i];
-      g += d[i + 1];
-      b += d[i + 2];
-    }
-    return [r / 64, g / 64, b / 64];
+    const canvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const x = canvas?.getContext('2d');
+    if (!canvas || !x || !canvas.width) return null;
+    return meanRgb(x.getImageData(Math.floor(canvas.width / 2) - 4, Math.floor(canvas.height / 2) - 4, 8, 8).data);
   };
-  const near = (a: number[] | null, want: number[]) => !!a && want.every((w, k) => Math.abs(w - a[k]) <= 8);
-  const frameOf = (a: number[] | null) =>
-    a ? (Array.from({ length: 180 }, (_, i) => i).find((i) => near(a, codeColour(i))) ?? -1) : -1;
+  const near = (colour: readonly number[] | null, want: readonly number[]) =>
+    !!colour && want.every((wanted, channelIndex) => Math.abs(wanted - (colour.at(channelIndex) ?? NaN)) <= 8);
+  const frameOf = (colour: readonly number[] | null) =>
+    colour
+      ? (Array.from({ length: 180 }, (_, index) => index).find((index) => near(colour, codeColour(index))) ?? -1)
+      : -1;
   const waitFor = async (ok: () => boolean, ms: number) => {
     const end = performance.now() + ms;
-    while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 50));
+    while (!ok() && performance.now() < end) await sleep(50);
     return ok();
   };
   let ids: string[] = [];
   try {
-    await new Promise((r) => setTimeout(r, 300));
-    const before = new Set(v.getVideo().clips.map((c) => c.id));
-    await v.addMedia([{ name: 'coded.mp4', blob: clip, type: 'video/mp4' }]);
-    ids = v
+    await sleep(300);
+    const before = new Set(video.getVideo().clips.map((existing) => existing.id));
+    await video.addMedia([{ name: 'coded.mp4', blob: clip, type: 'video/mp4' }]);
+    ids = video
       .getVideo()
-      .clips.filter((c) => !before.has(c.id))
-      .map((c) => c.id);
-    const added = v.getVideo().clips.find((c) => ids.includes(c.id));
+      .clips.filter((existing) => !before.has(existing.id))
+      .map((existing) => existing.id);
+    const added = video.getVideo().clips.find((existing) => ids.includes(existing.id));
     if (!added) throw new Error('the clip was not added');
-    const t = added.start + 0.5;
-    v.setPlayhead(t);
-    const want = codeColour(Math.floor((t - added.start + added.in) * FPS + 1e-6));
+    const time = added.start + 0.5;
+    video.setPlayhead(time);
+    const want = codeColour(Math.floor((time - added.start + added.in) * FPS + 1e-6));
     const paused = await waitFor(() => near(centre(), want), 5000);
     const seen = centre();
     check(
@@ -971,28 +1142,29 @@ async function editorStageShowsVideo(check: Check): Promise<string> {
     // pool for the playing time at 30 fps, as a shown window's ticks do (AC-5 in CHITTHI_TEST_ONLY=pooltiming plays in
     // one). Until 204 T034 the clip's <video>, playing for its sound, redrew the stage on its seek events, which hid this.
     const { liveStages, poolClip } = await import('@/components/studio/previewFrame');
-    const pool = [...liveStages][0]?.pool;
+    const pool = [...liveStages].at(0)?.pool;
     const startWall = performance.now();
     let feeding = true;
+    const isFeeding = () => feeding;
     void (async () => {
-      while (feeding && pool) {
+      while (isFeeding() && pool) {
         pool.peek(poolClip(added), added.in + 0.5 + (performance.now() - startWall) / 1000);
-        await new Promise((r) => setTimeout(r, 33));
+        await sleep(33);
       }
     })();
-    v.setPlaying(true);
-    const moved = await waitFor(() => v.getVideo().playing && frameOf(centre()) > 15, 5000);
+    video.setPlaying(true);
+    const moved = await waitFor(() => video.getVideo().playing && frameOf(centre()) > 15, 5000);
     feeding = false;
     const playing = frameOf(centre()),
-      at = v.getVideo().t - added.start;
-    v.setPlaying(false);
+      at = video.getVideo().t - added.start;
+    video.setPlaying(false);
     check(
       moved,
       `pool: the editor (StrictMode) shows the video moving while it plays (frame ${playing} at ${at.toFixed(2)} s, from frame 15)`,
     );
   } finally {
-    v.setPlaying(false);
-    for (const id of ids) v.removeClip(id);
+    video.setPlaying(false);
+    for (const id of ids) video.removeClip(id);
     root.unmount();
     host.remove();
   }
@@ -1008,6 +1180,8 @@ const NOTE = /This clip can[’']t be exported here: \S/;
  * file the browser can play but WebCodecs can't decode meets). The refused clip previews from its <video>, the other
  * from the pool; the refused one carries the note (timeline title and accessible name, inspector), the preview logs
  * it, and the export refuses it naming the file.
+ * @param check records a check
+ * @returns a note for the report
  */
 async function fallbackOnTheEditor(check: Check): Promise<string> {
   const React = await import('react');
@@ -1015,7 +1189,13 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   const { liveStages } = await import('@/components/studio/previewFrame');
   // The video store and the actions these checks use.
-  const v = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
+  const video = {
+    ...(await import('@/state/videoStore')),
+    ...(await import('@/state/videoTracks')),
+    ...(await import('@/state/videoClips')),
+    ...(await import('@/state/videoBox')),
+    ...(await import('@/state/videoMedia')),
+  };
   const { refuseDecodingForTests, allowDecodingForTests, openFrames } = await import('@/engine/frameSource');
   const { recentErrors } = await import('@/lib/errors');
   const { encodeVideo, ExportError } = await import('@/engine/videoExport');
@@ -1038,41 +1218,40 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
     ),
   );
   const centre = () => {
-    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
-    const x = c?.getContext('2d', { willReadFrequently: true });
-    if (!c || !x || !c.width) return null;
-    const d = x.getImageData(Math.floor(c.width / 2) - 4, Math.floor(c.height / 2) - 4, 8, 8).data;
-    const sum = [0, 0, 0];
-    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += d[i + k];
-    return sum.map((s) => s / 64);
+    const canvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const x = canvas?.getContext('2d', { willReadFrequently: true });
+    if (!canvas || !x || !canvas.width) return null;
+    return meanRgb(x.getImageData(Math.floor(canvas.width / 2) - 4, Math.floor(canvas.height / 2) - 4, 8, 8).data);
   };
   // The coded frame on the stage (codeColour, ±10), or -1.
   const shown = () => {
-    const a = centre();
-    return a
-      ? (Array.from({ length: 60 }, (_, i) => i).find((i) => codeColour(i).every((w, k) => Math.abs(w - a[k]) <= 10)) ?? -1)
+    const colour = centre();
+    return colour
+      ? (Array.from({ length: 60 }, (_, index) => index).find((index) =>
+          codeColour(index).every((wanted, channelIndex) => Math.abs(wanted - (colour.at(channelIndex) ?? NaN)) <= 10),
+        ) ?? -1)
       : -1;
   };
   const waitFor = async (ok: () => boolean, ms: number) => {
     const end = performance.now() + ms;
-    while (!ok() && performance.now() < end) await new Promise((r) => setTimeout(r, 16));
+    while (!ok() && performance.now() < end) await sleep(16);
     return ok();
   };
   let ids: string[] = [];
   try {
-    await new Promise((r) => setTimeout(r, 300));
-    v.setVideoOptions({ fadeOut: false });
-    const before = new Set(v.getVideo().clips.map((c) => c.id));
-    await v.addMedia([bad, good].map((f) => ({ name: f.name, blob: f, type: f.type })));
-    const added = v.getVideo().clips.filter((c) => !before.has(c.id));
-    ids = added.map((c) => c.id);
-    const cb = added.find((c) => c.file === bad),
-      cg = added.find((c) => c.file === good);
-    if (!cb || !cg) throw new Error(`both clips added (${added.map((c) => c.name).join(', ')})`);
+    await sleep(300);
+    video.setVideoOptions({ fadeOut: false });
+    const before = new Set(video.getVideo().clips.map((clip) => clip.id));
+    await video.addMedia([bad, good].map((file) => ({ name: file.name, blob: file, type: file.type })));
+    const added = video.getVideo().clips.filter((clip) => !before.has(clip.id));
+    ids = added.map((clip) => clip.id);
+    const cb = added.find((clip) => clip.file === bad),
+      cg = added.find((clip) => clip.file === good);
+    if (!cb || !cg) throw new Error(`both clips added (${added.map((clip) => clip.name).join(', ')})`);
 
     // The refused clip from its <video> (frame 30, mid-frame so a <video> seek can't land a frame off), the other
     // from the pool (frame 15, with frames decoded by the pool).
-    v.setPlayhead(cb.start + 30.5 / FPS);
+    video.setPlayhead(cb.start + 30.5 / FPS);
     const badShown = await waitFor(() => shown() === 30, 5000);
     const pool = [...liveStages][0]?.pool;
     const reason = pool?.fallback(cb.id) ?? null;
@@ -1081,7 +1260,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
       `pool: a clip the pool can't decode previews from its <video> (frame ${shown()}, want 30; the pool's reason: ${reason}) (AC-14)`,
     );
     const made = openFrames().made;
-    v.setPlayhead(cg.start + 15.5 / FPS);
+    video.setPlayhead(cg.start + 15.5 / FPS);
     const goodShown = await waitFor(() => shown() === 15, 5000);
     check(
       goodShown && !!pool && pool.fallback(cg.id) === null && openFrames().made > made,
@@ -1089,7 +1268,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
     );
 
     // The note: on the timeline clip (title and accessible name) and in the inspector; the other clip has none.
-    v.selectClip(cb.id);
+    video.selectClip(cb.id);
     await waitFor(() => NOTE.test(host.querySelector('aside.mst-inspector')?.textContent ?? ''), 1000);
     const block = (name: string) =>
       [...host.querySelectorAll<HTMLElement>('.tl-clip')].find((el) => el.title.startsWith(name));
@@ -1112,7 +1291,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
 
     // Logged for reports by the preview (the export below hasn't run yet).
     const logged = recentErrors().filter(
-      (e) => e.when >= since && e.source === 'handled' && e.message.includes(bad.name),
+      (entry) => entry.when >= since && entry.source === 'handled' && entry.message.includes(bad.name),
     );
     check(
       logged.length > 0,
@@ -1123,7 +1302,7 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
     let refusal: unknown = null;
     try {
       await encodeVideo({
-        ...v.projectOf(v.getVideo()),
+        ...video.projectOf(video.getVideo()),
         audio: [],
         width: 640,
         height: 360,
@@ -1131,17 +1310,18 @@ async function fallbackOnTheEditor(check: Check): Promise<string> {
         bitrate: 2e6,
         sink: { kind: 'memory' },
       });
-    } catch (e) {
-      refusal = e;
+    } catch (error) {
+      refusal = error;
     }
+    const refusalNote = refusal instanceof Error ? `${refusal.constructor.name}: ${refusal.message}` : 'it exported';
     check(
       refusal instanceof ExportError && refusal.message.includes(bad.name),
-      `pool: the export refuses the clip, naming the file (${refusal instanceof Error ? `${refusal.constructor.name}: ${refusal.message}` : 'it exported'}) (AC-14)`,
+      `pool: the export refuses the clip, naming the file (${refusalNote}) (AC-14)`,
     );
   } finally {
     allowDecodingForTests(bad);
-    v.setPlaying(false);
-    for (const id of ids) v.removeClip(id);
+    video.setPlaying(false);
+    for (const id of ids) video.removeClip(id);
     root.unmount();
     host.remove();
   }

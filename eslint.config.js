@@ -39,7 +39,7 @@ const FINISHED = [
 /** The code the standards rules apply to. */
 const STANDARDS_FILES = ['src/**/*.{ts,tsx}', 'tests/**/*.ts', 'electron/**/*.{cjs,mjs}'];
 
-/** Files exempt from the size rules: data tables and tests (Q4). */
+/** Files exempt from the size rules (function and file length, cognitive complexity): data tables and tests (Q4). */
 const SIZE_EXEMPT = ['src/data/**', 'tests/**'];
 
 /** The layers' import direction (data → engine → state → components): each folder and what it must not import. */
@@ -164,7 +164,7 @@ function standards(files, severity) {
       rules: { 'max-lines-per-function': [severity, { max: 250, skipBlankLines: true, skipComments: true }] },
     },
     ...typedStandards(files, severity),
-    { files: SIZE_EXEMPT, rules: { 'max-lines-per-function': 'off', 'max-lines': 'off' } },
+    { files: SIZE_EXEMPT, rules: { 'max-lines-per-function': 'off', 'max-lines': 'off', 'sonarjs/cognitive-complexity': 'off' } },
     ...LAYERS.map((layer) => ({
       // Only the layer's files among `files` (a FINISHED file in another layer must not get this layer's rule).
       files: layer.files.flatMap((layerGlob) => files.map((glob) => [glob, layerGlob])),

@@ -7,37 +7,74 @@
  * T050's count of simultaneous videos (AC-15, poolTiming) is measured through the pool alone, without the editor, on
  * demand with `CHITTHI_TEST_ONLY=poolcount npm test`.
  */
+import { cycleOf, entryAt, meanRgb, sleep } from './helpers';
 import { within } from './poolChecks';
 import { codeColour, makeSyncClip, makeTestClip } from './videoChecks';
 
+/** Records one check: passed when `ok` is truthy, described by `what`. */
 type Check = (ok: unknown, what: string) => void;
 const FPS = 30;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
-const median = (xs: number[]) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? NaN;
-const pct = (xs: number[], p: number) =>
-  xs.slice().sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))] ?? NaN;
+/**
+ * Waits for the next animation frame.
+ * @returns the frame's time
+ */
+const frame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
+/**
+ * The median of some numbers.
+ * @param xs the numbers
+ * @returns the middle one once sorted (the upper of two), NaN for none
+ */
+const median = (xs: number[]) =>
+  xs
+    .slice()
+    .sort((left, right) => left - right)
+    .at(Math.floor(xs.length / 2)) ?? NaN;
+/**
+ * A percentile of some numbers.
+ * @param xs the numbers
+ * @param share the percentile as a share (0.95 for p95)
+ * @returns the number at that share once sorted, NaN for none
+ */
+const pct = (xs: number[], share: number) =>
+  xs
+    .slice()
+    .sort((left, right) => left - right)
+    .at(Math.min(xs.length - 1, Math.floor(xs.length * share))) ?? NaN;
 
 /** codeColour repeats every 180 frames (6 s at 30 fps): frame numbers are compared modulo this. */
 const PERIOD = 180;
 
-/** The coded frame a colour shows (its index modulo PERIOD), or -1 (black, a photo, something else). */
-function frameOf(c: number[] | null): number {
-  if (!c) return -1;
-  for (let i = 0; i < PERIOD; i++) {
-    const w = codeColour(i);
-    if (w.every((v, k) => Math.abs(v - c[k]) <= 10)) return i;
+/**
+ * The coded frame a colour shows.
+ * @param colour an average colour from the stage, or null when there was none
+ * @returns its index modulo PERIOD, or -1 (black, a photo, something else)
+ */
+function frameOf(colour: readonly number[] | null): number {
+  if (!colour) return -1;
+  for (let index = 0; index < PERIOD; index++) {
+    const wanted = codeColour(index);
+    if (wanted.every((channel, channelIndex) => Math.abs(channel - (colour.at(channelIndex) ?? NaN)) <= 10))
+      return index;
   }
   return -1;
 }
 
-/** The real editor in StrictMode, full window, with helpers to add clips, read the stage and clean up. */
+/**
+ * The real editor in StrictMode, full window, with helpers to add clips, read the stage and clean up.
+ * @returns the video store's actions and the helpers
+ */
 async function mountEditor() {
   const React = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { VideoWorkspace } = await import('@/components/studio/VideoWorkspace');
   // The video store and the actions these checks use.
-  const v = { ...(await import('@/state/videoStore')), ...(await import('@/state/videoTracks')), ...(await import('@/state/videoClips')), ...(await import('@/state/videoBox')), ...(await import('@/state/videoMedia')) };
+  const video = {
+    ...(await import('@/state/videoStore')),
+    ...(await import('@/state/videoTracks')),
+    ...(await import('@/state/videoClips')),
+    ...(await import('@/state/videoBox')),
+    ...(await import('@/state/videoMedia')),
+  };
   const pf = await import('@/components/studio/previewFrame');
   const { openFrames } = await import('@/engine/frameSource');
   const host = document.createElement('div');
@@ -53,40 +90,31 @@ async function mountEditor() {
   );
   await sleep(300);
   const centre = (): number[] | null => {
-    const c = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
-    const x = c?.getContext('2d', { willReadFrequently: true });
-    if (!c || !x || !c.width) return null;
-    const d = x.getImageData(Math.floor(c.width / 2) - 4, Math.floor(c.height / 2) - 4, 8, 8).data;
-    let r = 0,
-      g = 0,
-      b = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      r += d[i];
-      g += d[i + 1];
-      b += d[i + 2];
-    }
-    return [r / 64, g / 64, b / 64];
+    const canvas = host.querySelector<HTMLCanvasElement>('canvas.mst-canvas');
+    const x = canvas?.getContext('2d', { willReadFrequently: true });
+    if (!canvas || !x || !canvas.width) return null;
+    return meanRgb(x.getImageData(Math.floor(canvas.width / 2) - 4, Math.floor(canvas.height / 2) - 4, 8, 8).data);
   };
   const clear = () => {
-    v.setPlaying(false);
-    for (const c of [...v.getVideo().clips]) v.removeClip(c.id);
+    video.setPlaying(false);
+    for (const clip of [...video.getVideo().clips]) video.removeClip(clip.id);
   };
   clear();
   // No fade to black at the end (the vlog default): it would dim the coded colours of the last half second.
-  v.setVideoOptions({ fadeOut: false });
+  video.setVideoOptions({ fadeOut: false });
   const add = async (blobs: Blob[]) => {
-    const before = new Set(v.getVideo().clips.map((c) => c.id));
-    await v.addMedia(blobs.map((blob, i) => ({ name: `coded-${i}.mp4`, blob, type: 'video/mp4' })));
-    return v.getVideo().clips.filter((c) => !before.has(c.id));
+    const before = new Set(video.getVideo().clips.map((clip) => clip.id));
+    await video.addMedia(blobs.map((blob, index) => ({ name: `coded-${index}.mp4`, blob, type: 'video/mp4' })));
+    return video.getVideo().clips.filter((clip) => !before.has(clip.id));
   };
-  const stage = () => [...pf.liveStages][0];
+  const stage = () => [...pf.liveStages].at(0);
   const waitFor = async (ok: () => boolean, ms: number) => {
     const end = performance.now() + ms;
     while (!ok() && performance.now() < end) await sleep(16);
     return ok();
   };
   return {
-    v,
+    v: video,
     host,
     centre,
     add,
@@ -94,7 +122,10 @@ async function mountEditor() {
     stage,
     openFrames,
     waitFor,
-    /** Leaves the editor: stopped and emptied first, or `whilePlaying` (emptied after). */
+    /**
+     * Leaves the editor: stopped and emptied first, or emptied after while playing.
+     * @param whilePlaying leave it playing (the playback cleanup's case)
+     */
     unmount(whilePlaying = false) {
       if (!whilePlaying) clear();
       root.unmount();
@@ -104,7 +135,11 @@ async function mountEditor() {
   };
 }
 
-/** AC-12 (release) and AC-13, in npm test. */
+/**
+ * AC-12 (release) and AC-13, in npm test.
+ * @param check records a check
+ * @returns notes for the report
+ */
 export async function playbackChecks(check: Check): Promise<string[]> {
   const notes: string[] = [];
   const { liveSounds } = await import('@/components/studio/previewSound');
@@ -113,7 +148,7 @@ export async function playbackChecks(check: Check): Promise<string[]> {
   if (!clip) return ['playback: skipped (no H.264 encoder)'];
   const ed = await mountEditor();
   try {
-    const [c] = await ed.add([clip]);
+    const added = entryAt(await ed.add([clip]), 0, 'added clip');
     // AC-13: paused away from a cut, then after playing and pausing: no decoding for 2 s, one frame held.
     for (const when of ['paused', 'after playing']) {
       if (when === 'after playing') {
@@ -123,29 +158,29 @@ export async function playbackChecks(check: Check): Promise<string[]> {
         // playback ticks do (peek at the playing time) so the pool really plays before the pause.
         const pool = ed.stage()?.pool;
         const { poolClip } = await import('@/components/studio/previewFrame');
-        for (let k = 0; k < 24 && pool; k++) {
-          pool.peek(poolClip(c), c.in + 0.5 + k / FPS);
+        for (let step = 0; step < 24 && pool; step++) {
+          pool.peek(poolClip(added), added.in + 0.5 + step / FPS);
           await sleep(33);
         }
         ed.v.setPlaying(false);
       }
-      ed.v.setPlayhead(c.start + 1.5);
+      ed.v.setPlayhead(added.start + 1.5);
       await ed.waitFor(() => frameOf(ed.centre()) === 45, 3000);
       await sleep(400);
       const made = ed.openFrames().made,
         held = ed.openFrames().frames;
       await sleep(2000);
-      const o = ed.openFrames();
+      const counts = ed.openFrames();
       check(
-        o.made === made && o.frames <= 1,
-        `playback: idle for 2 s ${when}: no frame decoded (${o.made - made}), at most one held (${o.frames}; ${held} at the start) (AC-13)`,
+        counts.made === made && counts.frames <= 1,
+        `playback: idle for 2 s ${when}: no frame decoded (${counts.made - made}), at most one held (${counts.frames}; ${held} at the start) (AC-13)`,
       );
     }
     // AC-12: removing the clip gives its decoder and frames back within 1 s.
-    ed.v.removeClip(c.id);
+    ed.v.removeClip(added.id);
     const freed = await ed.waitFor(() => {
-      const o = ed.openFrames();
-      return !o.frames && !o.decoders;
+      const counts = ed.openFrames();
+      return !counts.frames && !counts.decoders;
     }, 1000);
     check(
       freed,
@@ -175,26 +210,30 @@ export async function playbackChecks(check: Check): Promise<string[]> {
   return notes;
 }
 
-/** AC-5, AC-7, AC-8, AC-12's bounds and D1's sound elements, on demand (CHITTHI_TEST_ONLY=pooltiming). */
+/**
+ * AC-5, AC-7, AC-8, AC-12's bounds and D1's sound elements, on demand (CHITTHI_TEST_ONLY=pooltiming).
+ * @param check records a check
+ * @returns notes for the report
+ */
 export async function playbackTiming(check: Check): Promise<string[]> {
   const notes: string[] = [];
   const t0 = performance.now();
-  const [a, b] = await Promise.all([0, 1].map(() => makeTestClip(2, 1920, 1080, 2, false, true)));
+  const [clipA, clipB] = await Promise.all([0, 1].map(() => makeTestClip(2, 1920, 1080, 2, false, true)));
   const long = await makeTestClip(10, 1920, 1080, 2, false, true);
   const short = await Promise.all([0, 1, 2].map(() => makeTestClip(0.5, 1920, 1080, 2, false, true)));
-  if (!a || !b || !long || short.some((s) => !s)) return ['pool timing: skipped (no H.264 encoder)'];
+  if (!clipA || !clipB || !long || short.some((source) => !source)) return ['pool timing: skipped (no H.264 encoder)'];
   notes.push(`pool timing: fixtures made in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
   const ed = await mountEditor();
   try {
     // AC-5: 20 × 2 s 1080p clips played in real time, 3 runs: each cut draws the new clip's first frame on the cut's frame.
-    const clips = await ed.add(Array.from({ length: 20 }, (_, i) => (i % 2 ? b : a)));
-    const cuts = clips.slice(1).map((c) => c.start);
+    const clips = await ed.add(Array.from({ length: 20 }, (_, index) => (index % 2 ? clipB : clipA)));
+    const cuts = clips.slice(1).map((clip) => clip.start);
     // D1: clip sound elements stay within the clips under the playhead and those starting within 2 s.
     const { liveSounds } = await import('@/components/studio/previewSound');
     const { lanePlan } = await import('@/engine/decodePool');
-    const lanes = (t: number) => {
-      const l = lanePlan(ed.v.projectOf(), t, 2);
-      return l.visible.length + l.next.length;
+    const lanes = (time: number) => {
+      const plan = lanePlan(ed.v.projectOf(), time, 2);
+      return plan.visible.length + plan.next.length;
     };
     let soundMax = 0,
       soundOver = 0;
@@ -209,30 +248,36 @@ export async function playbackTiming(check: Check): Promise<string[]> {
       let prevT = 0;
       while (ed.v.getVideo().playing) {
         await frame();
-        const t = ed.v.getVideo().t;
-        samples.push({ t, f: frameOf(ed.centre()) });
+        const time = ed.v.getVideo().t;
+        samples.push({ t: time, f: frameOf(ed.centre()) });
         // The elements follow the last tick: allowed what this tick's or the one before's playhead needs.
-        const n = [...liveSounds][0]?.size ?? 0;
-        soundMax = Math.max(soundMax, n);
-        if (n > Math.max(lanes(t), lanes(prevT))) soundOver++;
-        prevT = t;
+        const elements = [...liveSounds].at(0)?.size ?? 0;
+        soundMax = Math.max(soundMax, elements);
+        if (elements > Math.max(lanes(time), lanes(prevT))) soundOver++;
+        prevT = time;
       }
       const holds = (ed.stage()?.pool?.stats().holds ?? 0) - holds0;
-      const want = (t: number) => {
-        const c = [...clips].reverse().find((x) => t >= x.start - 1e-6) ?? clips[0];
-        return Math.min(59, Math.floor((t - c.start) * FPS + 1e-6));
+      const want = (time: number) => {
+        const clip = [...clips].reverse().find((x) => time >= x.start - 1e-6) ?? entryAt(clips, 0, 'clip');
+        return Math.min(59, Math.floor((time - clip.start) * FPS + 1e-6));
       };
       const late = cuts.filter((cut) => {
-        const s = samples.find((x) => x.t >= cut);
-        return !s || s.f !== want(s.t);
+        const atCut = samples.find((x) => x.t >= cut);
+        if (!atCut) return true;
+        return atCut.f !== want(atCut.t);
       }).length;
-      const lagging = samples.filter((s) => s.f >= 0 && want(s.t) - s.f > 1 && s.t > 0.05);
+      const lagging = samples.filter((shot) => shot.f >= 0 && want(shot.t) - shot.f > 1 && shot.t > 0.05);
       const lag = lagging.length;
-      const unreadable = samples.filter((s) => s.f < 0 && s.t > 0.05);
-      const detail =
-        lag || unreadable.length
-          ? ` [behind ${lagging.slice(0, 6).map((s) => `${s.t.toFixed(3)}:${s.f}/${want(s.t)}`).join(' ')}; unreadable at ${unreadable.slice(0, 6).map((s) => s.t.toFixed(3)).join(' ')}]`
-          : '';
+      const unreadable = samples.filter((shot) => shot.f < 0 && shot.t > 0.05);
+      const behind = lagging
+        .slice(0, 6)
+        .map((shot) => `${shot.t.toFixed(3)}:${shot.f}/${want(shot.t)}`)
+        .join(' ');
+      const unreadableAt = unreadable
+        .slice(0, 6)
+        .map((shot) => shot.t.toFixed(3))
+        .join(' ');
+      const detail = lag || unreadable.length ? ` [behind ${behind}; unreadable at ${unreadableAt}]` : '';
       const black = unreadable.length;
       allGood &&= late === 0 && black === 0 && lag === 0;
       runs.push(
@@ -252,24 +297,27 @@ export async function playbackTiming(check: Check): Promise<string[]> {
     ed.clear();
 
     // AC-7: 50 random seeks on a 10 s 1080p clip with key frames 2 s apart: the exact frame, median ≤ 100 ms, p95 ≤ 250 ms.
-    const [lc] = await ed.add([long]);
+    const lc = entryAt(await ed.add([long]), 0, 'added clip');
     ed.v.setPlayhead(0.2);
     await ed.waitFor(() => frameOf(ed.centre()) === 6, 3000);
     let seed = 7;
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) >>> 8) / 16777216;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) >>> 0;
+      return (seed >>> 8) / 16777216;
+    };
     const times: number[] = [];
     let missed = 0;
-    for (let i = 0; i < 50; i++) {
-      const t = lc.start + rnd() * 9.9;
-      const wantF = Math.floor((t - lc.start) * FPS + 1e-6);
+    for (let seek = 0; seek < 50; seek++) {
+      const time = lc.start + rnd() * 9.9;
+      const wantF = Math.floor((time - lc.start) * FPS + 1e-6);
       const s0 = performance.now();
-      ed.v.setPlayhead(t);
+      ed.v.setPlayhead(time);
       if (await ed.waitFor(() => frameOf(ed.centre()) === wantF % PERIOD, 2000)) times.push(performance.now() - s0);
       else missed++;
     }
     // Latest wins: five seeks at once; the last one is what stays.
     const burst = [1.1, 8.2, 3.3, 6.4, 2.5].map((x) => lc.start + x);
-    for (const t of burst) ed.v.setPlayhead(t);
+    for (const time of burst) ed.v.setPlayhead(time);
     await sleep(1200);
     const last = frameOf(ed.centre()) === Math.floor(2.5 * FPS + 1e-6) % PERIOD;
     const med = median(times),
@@ -284,7 +332,8 @@ export async function playbackTiming(check: Check): Promise<string[]> {
     ed.clear();
 
     // AC-12: 60 × 0.5 s 1080p clips played twice and scrubbed 100 times: decoders, frames and bytes within the limits.
-    await ed.add(Array.from({ length: 60 }, (_, i) => short[i % 3]!));
+    const shortClips = short.filter((blob) => blob !== null);
+    await ed.add(Array.from({ length: 60 }, (_, index) => cycleOf(shortClips, index, 'short clip')));
     const st = ed.stage();
     const lim = st?.limits;
     let maxDec = 0,
@@ -292,10 +341,10 @@ export async function playbackTiming(check: Check): Promise<string[]> {
       maxBytes = 0,
       maxPoolDec = 0;
     const sample = () => {
-      const o = ed.openFrames();
-      maxDec = Math.max(maxDec, o.decoders);
-      maxFrames = Math.max(maxFrames, o.frames);
-      maxBytes = Math.max(maxBytes, o.bytes);
+      const counts = ed.openFrames();
+      maxDec = Math.max(maxDec, counts.decoders);
+      maxFrames = Math.max(maxFrames, counts.frames);
+      maxBytes = Math.max(maxBytes, counts.bytes);
       maxPoolDec = Math.max(maxPoolDec, st?.pool?.stats().decoders ?? 0);
     };
     for (let pass = 0; pass < 2; pass++) {
@@ -306,8 +355,8 @@ export async function playbackTiming(check: Check): Promise<string[]> {
         sample();
       }
     }
-    const total = ed.v.getVideo().clips.reduce((x, c) => Math.max(x, c.start + (c.out - c.in)), 0);
-    for (let i = 0; i < 100; i++) {
+    const total = ed.v.getVideo().clips.reduce((x, clip) => Math.max(x, clip.start + (clip.out - clip.in)), 0);
+    for (let scrub = 0; scrub < 100; scrub++) {
       ed.v.setPlayhead(rnd() * total);
       await frame();
       sample();
@@ -315,14 +364,14 @@ export async function playbackTiming(check: Check): Promise<string[]> {
       sample();
     }
     const ok =
-      !!lim &&
+      lim !== undefined &&
       maxPoolDec <= lim.decoders &&
       maxDec <= lim.decoders &&
       maxBytes <= lim.bytes &&
       maxFrames <= lim.decoders * (lim.ahead + 1);
     check(
       ok,
-      `pool timing: 60 clips played twice and scrubbed 100 times stay within the limits: decoders ${maxPoolDec} (readers ${maxDec}) ≤ ${lim?.decoders}, frames ${maxFrames}, ${(maxBytes / 2 ** 20).toFixed(0)} MB ≤ ${((lim?.bytes ?? 0) / 2 ** 20).toFixed(0)} MB (AC-12)`,
+      `pool timing: 60 clips played twice and scrubbed 100 times stay within the limits: decoders ${maxPoolDec} (readers ${maxDec}) ≤ ${lim?.decoders ?? '?'}, frames ${maxFrames}, ${(maxBytes / 2 ** 20).toFixed(0)} MB ≤ ${((lim?.bytes ?? 0) / 2 ** 20).toFixed(0)} MB (AC-12)`,
     );
     notes.push(
       `pool timing AC-12: max decoders ${maxPoolDec}, readers ${maxDec}, frames ${maxFrames}, ${(maxBytes / 2 ** 20).toFixed(0)} MB`,
@@ -339,16 +388,16 @@ export async function playbackTiming(check: Check): Promise<string[]> {
         ['two 4 s clips through a cut', shortSync as Blob[]],
       ] as const) {
         const added = await ed.add([...blobs]);
-        const r = await syncOffsets(ed, added, 0.5);
-        const worst = Math.max(...r.offsets.map(Math.abs));
-        const mean = r.offsets.reduce((a, b) => a + b, 0) / (r.offsets.length || 1);
+        const result = await syncOffsets(ed, added, 0.5);
+        const worst = Math.max(...result.offsets.map(Math.abs));
+        const mean = result.offsets.reduce((sum, offset) => sum + offset, 0) / (result.offsets.length || 1);
         check(
-          r.offsets.length === r.expected && r.onsets === r.expected && worst <= 67,
-          `pool timing: ${what}: every flash and its beep within 67 ms (AC-8): ${r.flashes}/${r.expected} flashes drawn, ${r.onsets} beeps heard from the clip's <audio>, sound − picture ${r.offsets.map((d) => d.toFixed(0)).join(' ')} ms (${r.rate} frames/s)`,
+          result.offsets.length === result.expected && result.onsets === result.expected && worst <= 67,
+          `pool timing: ${what}: every flash and its beep within 67 ms (AC-8): ${result.flashes}/${result.expected} flashes drawn, ${result.onsets} beeps heard from the clip's <audio>, sound − picture ${result.offsets.map((offset) => offset.toFixed(0)).join(' ')} ms (${result.rate} frames/s)`,
         );
         // The offsets include the capture path's latency (element → MediaStream → analyser); T060's check by ear judges.
         notes.push(
-          `pool timing AC-8 ${what}: ${r.offsets.length} pairs, sound − picture mean ${mean.toFixed(0)} ms, worst ${worst.toFixed(0)} ms (includes the capture path; AudioContext baseLatency ${r.latency.base} ms, outputLatency ${r.latency.output} ms)`,
+          `pool timing AC-8 ${what}: ${result.offsets.length} pairs, sound − picture mean ${mean.toFixed(0)} ms, worst ${worst.toFixed(0)} ms (includes the capture path; AudioContext baseLatency ${result.latency.base} ms, outputLatency ${result.latency.output} ms)`,
         );
         ed.clear();
       }
@@ -362,14 +411,19 @@ export async function playbackTiming(check: Check): Promise<string[]> {
 const yieldTask = (() => {
   let ch: MessageChannel | null = null;
   return () =>
-    new Promise<void>((r) => {
+    new Promise<void>((resolve) => {
       ch ??= new MessageChannel();
-      ch.port1.onmessage = () => r();
+      ch.port1.onmessage = () => resolve();
       ch.port2.postMessage(0);
     });
 })();
 
-/** Q2's bar for one count of simultaneous 1080p30 videos. */
+/**
+ * Q2's bar for one count of simultaneous 1080p30 videos.
+ * @param med the median step time, ms
+ * @param p95 the 95th percentile step time, ms
+ * @returns whether the count keeps up
+ */
 const meetsBar = (med: number, p95: number) => med <= 33 && p95 <= 50;
 
 /**
@@ -384,6 +438,8 @@ const meetsBar = (med: number, p95: number) => med <= 33 && p95 <= 50;
  * this is a stricter proxy than real-time playback, on purpose (a count that keeps up here keeps up when playing). The
  * first 5 steps are warm-up (lanes reaching their look-ahead) and stay out of the median and p95. The bar (median
  * ≤ 33 ms, p95 ≤ 50 ms) is reported, not failed on: T051 sets the limits from it by Q2's rule.
+ * @param check records a check
+ * @returns notes for the report
  */
 export async function poolTiming(check: Check): Promise<string[]> {
   const notes: string[] = [];
@@ -398,35 +454,38 @@ export async function poolTiming(check: Check): Promise<string[]> {
     WARM = 5,
     DUR = 10,
     STEP_MS = 5000,
-    W = 1280,
-    H = 720;
+    WIDTH = 1280,
+    HEIGHT = 720;
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
   const ctx = canvas.getContext('2d');
   if (!ctx) return ['pool timing AC-15: skipped (no 2D canvas)'];
-  const covers = (f: PoolFrame | null, t: number) => !!f && f.time <= t + 1e-4 && t + 1e-4 < f.time + f.duration;
+  const covers = (poolFrame: PoolFrame | null, time: number) =>
+    !!poolFrame && poolFrame.time <= time + 1e-4 && time + 1e-4 < poolFrame.time + poolFrame.duration;
 
   // Distinct textured sources (decoding costs like real footage), made once and shared by every count.
   const t0 = performance.now();
   const hd: Blob[] = [];
-  for (let i = 0; i < 6; i++) {
-    const b = await makeTestClip(DUR, 1920, 1080, 2, true);
-    if (!b) return ['pool timing AC-15: skipped (no H.264 encoder)'];
-    hd.push(b);
+  for (let index = 0; index < 6; index++) {
+    const blob = await makeTestClip(DUR, 1920, 1080, 2, true);
+    if (!blob) return ['pool timing AC-15: skipped (no H.264 encoder)'];
+    hd.push(blob);
   }
   const uhd: Blob[] = [];
   if (desktopRun)
-    for (let i = 0; i < 3; i++) {
-      const b = await makeTestClip(DUR, 3840, 2160, 2, true);
-      if (!b) break;
-      uhd.push(b);
+    for (let index = 0; index < 3; index++) {
+      const blob = await makeTestClip(DUR, 3840, 2160, 2, true);
+      if (!blob) break;
+      uhd.push(blob);
     }
+  const uhdNote = desktopRun ? `, ${uhd.length} × 4K` : '';
   notes.push(
-    `pool timing AC-15: fixtures (6 × 1080p${desktopRun ? `, ${uhd.length} × 4K` : ''}, ${DUR} s, textured) made in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+    `pool timing AC-15: fixtures (6 × 1080p${uhdNote}, ${DUR} s, textured) made in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   );
 
-  type Run = {
+  /** One count's measurement. */
+  interface Run {
     label: string;
     n: number;
     med: number;
@@ -439,19 +498,19 @@ export async function poolTiming(check: Check): Promise<string[]> {
     ok: boolean;
     err?: string;
     drained: boolean;
-  };
+  }
   const measure = async (label: string, files: Blob[]): Promise<Run> => {
-    const n = files.length;
-    const limits = poolLimits(n, desktopRun);
-    const limit = n * (limits.ahead + 1);
+    const count = files.length;
+    const limits = poolLimits(count, desktopRun);
+    const limit = count * (limits.ahead + 1);
     const pool = new DecodePool(mediabunnySource, limits);
-    const clips: PoolClip[] = files.map((file, i) => ({
-      id: `${label}-${i}`,
+    const clips: PoolClip[] = files.map((file, index) => ({
+      id: `${label}-${index}`,
       file,
       in: 0,
       out: DUR,
       start: 0,
-      track: `v${i}`,
+      track: `v${index}`,
     }));
     const times: number[] = [];
     let frames = 0,
@@ -460,42 +519,42 @@ export async function poolTiming(check: Check): Promise<string[]> {
       drawn = 0,
       err: string | undefined;
     try {
-      pool.want(clips.map((c) => c.id));
+      pool.want(clips.map((clip) => clip.id));
       // Warm up: every clip open on its first frame, then playing from 0 with its look-ahead filled.
-      await within(Promise.all(clips.map((c) => pool.frame(c, 0))), `${label}: first frames`, 10000);
-      for (const c of clips) pool.peek(c, 0);
+      await within(Promise.all(clips.map((clip) => pool.frame(clip, 0))), `${label}: first frames`, 10000);
+      for (const clip of clips) pool.peek(clip, 0);
       await sleep(300);
-      for (let k = 0; k < STEPS; k++) {
-        const t = k / FPS;
+      for (let step = 0; step < STEPS; step++) {
+        const time = step / FPS;
         const s0 = performance.now();
         const waiting = new Set(clips);
         for (;;) {
-          for (const c of [...waiting]) if (covers(pool.peek(c, t), t)) waiting.delete(c);
+          for (const clip of [...waiting]) if (covers(pool.peek(clip, time), time)) waiting.delete(clip);
           if (!waiting.size) break;
-          for (const c of waiting) {
-            const why = pool.fallback(c.id);
-            if (why) throw new Error(`${c.id} can't be decoded: ${why}`);
+          for (const clip of waiting) {
+            const why = pool.fallback(clip.id);
+            if (why) throw new Error(`${clip.id} can't be decoded: ${why}`);
           }
           if (performance.now() - s0 > STEP_MS)
-            throw new Error(`step ${k} (${t.toFixed(3)} s) not ready in ${STEP_MS / 1000} s`);
+            throw new Error(`step ${step} (${time.toFixed(3)} s) not ready in ${STEP_MS / 1000} s`);
           await yieldTask();
         }
         // Draw as the preview does: every clip's frame, scaled into the stage.
-        ctx.clearRect(0, 0, W, H);
-        for (const c of clips) {
-          const f = pool.peek(c, t);
-          if (!f) throw new Error(`${c.id} lost its frame at ${t.toFixed(3)} s`);
-          ctx.drawImage(f.image, 0, 0, W, H);
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        for (const clip of clips) {
+          const poolFrame = pool.peek(clip, time);
+          if (!poolFrame) throw new Error(`${clip.id} lost its frame at ${time.toFixed(3)} s`);
+          ctx.drawImage(poolFrame.image, 0, 0, WIDTH, HEIGHT);
         }
-        if (k >= WARM) times.push(performance.now() - s0);
-        if (k % 30 === 0 && ctx.getImageData(W >> 1, H >> 1, 1, 1).data[3] === 255) drawn++;
-        const s = pool.stats();
-        frames = Math.max(frames, s.frames);
-        bytes = Math.max(bytes, s.bytes);
-        decoders = Math.max(decoders, s.decoders);
+        if (step >= WARM) times.push(performance.now() - s0);
+        if (step % 30 === 0 && ctx.getImageData(WIDTH >> 1, HEIGHT >> 1, 1, 1).data[3] === 255) drawn++;
+        const stats = pool.stats();
+        frames = Math.max(frames, stats.frames);
+        bytes = Math.max(bytes, stats.bytes);
+        decoders = Math.max(decoders, stats.decoders);
       }
-    } catch (e) {
-      err = e instanceof Error ? e.message : String(e);
+    } catch (error) {
+      err = error instanceof Error ? error.message : String(error);
     } finally {
       pool.dispose();
     }
@@ -507,7 +566,7 @@ export async function poolTiming(check: Check): Promise<string[]> {
       p95 = pct(times, 0.95);
     const run: Run = {
       label,
-      n,
+      n: count,
       med,
       p95,
       max: times.length ? Math.max(...times) : NaN,
@@ -526,37 +585,48 @@ export async function poolTiming(check: Check): Promise<string[]> {
       err,
       drained,
     };
+    const errorNote = err ? `; ERROR ${err}` : '';
+    const drainNote = drained ? '' : `; not drained ${JSON.stringify(openFrames())}`;
     notes.push(
-      `pool timing AC-15 ${label}: median ${med.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${run.max.toFixed(1)} ms over ${times.length} steps (+${WARM} warm-up, drawn ${drawn}/${STEPS / 30} read back); frames held max ${frames} (≤ ${limit}), decoders max ${decoders} (≤ ${limits.decoders}), ${(bytes / 2 ** 20).toFixed(0)} MB (≤ ${(limits.bytes / 2 ** 20).toFixed(0)}); bar (≤ 33 / 50 ms) ${meetsBar(med, p95) ? 'met' : 'missed'}${err ? `; ERROR ${err}` : ''}${drained ? '' : `; not drained ${JSON.stringify(openFrames())}`}`,
+      `pool timing AC-15 ${label}: median ${med.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${run.max.toFixed(1)} ms over ${times.length} steps (+${WARM} warm-up, drawn ${drawn}/${STEPS / 30} read back); frames held max ${frames} (≤ ${limit}), decoders max ${decoders} (≤ ${limits.decoders}), ${(bytes / 2 ** 20).toFixed(0)} MB (≤ ${(limits.bytes / 2 ** 20).toFixed(0)}); bar (≤ 33 / 50 ms) ${meetsBar(med, p95) ? 'met' : 'missed'}${errorNote}${drainNote}`,
     );
     return run;
   };
 
   const runs: Run[] = [];
-  for (const n of [1, 2, 3, 4, 6]) runs.push(await measure(`${n} × 1080p30`, hd.slice(0, n)));
+  for (const count of [1, 2, 3, 4, 6]) runs.push(await measure(`${count} × 1080p30`, hd.slice(0, count)));
   if (uhd.length >= 2)
-    for (const n of [2, 3]) if (uhd.length >= n) runs.push(await measure(`${n} × 4K30`, uhd.slice(0, n)));
-  if (desktopRun && uhd.length < 3)
-    notes.push(
-      `pool timing AC-15: 4K30 ${uhd.length ? `only ${uhd.length} source(s)` : 'skipped (no 4K H.264 encoder)'}`,
-    );
+    for (const count of [2, 3])
+      if (uhd.length >= count) runs.push(await measure(`${count} × 4K30`, uhd.slice(0, count)));
+  if (desktopRun && uhd.length < 3) {
+    const uhdState = uhd.length ? `only ${uhd.length} source(s)` : 'skipped (no 4K H.264 encoder)';
+    notes.push(`pool timing AC-15: 4K30 ${uhdState}`);
+  }
 
   // Q2's rule (applied by T051, not here): the largest 1080p count meeting the bar, minus one; web ≤ 3, desktop ≤ 6, ≥ 2.
-  const passing = runs.filter((r) => r.label.endsWith('1080p30') && r.ok && meetsBar(r.med, r.p95)).map((r) => r.n);
+  const passing = runs
+    .filter((run) => run.label.endsWith('1080p30') && run.ok && meetsBar(run.med, run.p95))
+    .map((run) => run.n);
   const raw = (passing.length ? Math.max(...passing) : 0) - 1;
   const clamp = (cap: number) => Math.max(2, Math.min(cap, raw));
+  let runKind = 'web';
+  if (isDesktop) runKind = 'desktop app';
+  else if (desktopRun) runKind = 'Electron self-test, desktop limits';
   notes.push(
-    `pool timing AC-15 Q2 proposal (${isDesktop ? 'desktop app' : desktopRun ? 'Electron self-test, desktop limits' : 'web'}): largest 1080p count meeting the bar ${passing.length ? Math.max(...passing) : 'none'}, minus one = ${raw}; web limit ${clamp(3)}, desktop limit ${clamp(6)}${raw < 2 ? ' (below 2: 203 plan reconsidered, Q2)' : ''}`,
+    `pool timing AC-15 Q2 proposal (${runKind}): largest 1080p count meeting the bar ${passing.length ? Math.max(...passing) : 'none'}, minus one = ${raw}; web limit ${clamp(3)}, desktop limit ${clamp(6)}${raw < 2 ? ' (below 2: 203 plan reconsidered, Q2)' : ''}`,
   );
+  const failures = runs
+    .filter((run) => !run.ok)
+    .map((run) => {
+      const why =
+        run.err ??
+        `${run.frames} frames (≤ ${run.limit}), ${run.decoders} decoders, ${run.drawn} draws read back, drained ${run.drained}`;
+      return `; ${run.label} failed: ${why}`;
+    })
+    .join('');
   check(
-    runs.length >= 5 && runs.every((r) => r.ok),
-    `pool timing: ${STEPS} steps decoded and drawn for ${runs.map((r) => r.label).join(', ')} with frames held within the limits and everything released after (AC-15)${runs
-      .filter((r) => !r.ok)
-      .map(
-        (r) =>
-          `; ${r.label} failed: ${r.err ?? `${r.frames} frames (≤ ${r.limit}), ${r.decoders} decoders, ${r.drawn} draws read back, drained ${r.drained}`}`,
-      )
-      .join('')}`,
+    runs.length >= 5 && runs.every((run) => run.ok),
+    `pool timing: ${STEPS} steps decoded and drawn for ${runs.map((run) => run.label).join(', ')} with frames held within the limits and everything released after (AC-15)${failures}`,
   );
   return notes;
 }
@@ -566,13 +636,17 @@ export async function poolTiming(check: Check): Promise<string[]> {
  * pairs each flash with its beep. A beep's onset: the clip's <audio> element's captureStream() into an analyser (the
  * first loud sample, dated back from the newest sample); a flash's time: the playback tick that first drew it white (a
  * tick sets the playhead to its wall-clock time and draws, so its playhead dates it). Sound − picture, in ms.
+ * @param ed the mounted editor
+ * @param clips the sync clips added
+ * @param from the playhead to start from, in seconds
+ * @returns the flashes and beeps expected and found, their offsets, the audio latency and the frame rate
  */
 async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: { id: string }[], from: number) {
   const { liveSounds } = await import('@/components/studio/previewSound');
   const ctx = new AudioContext();
   await ctx.resume();
-  const N = 8192,
-    buf = new Float32Array(N);
+  const SAMPLES = 8192,
+    buf = new Float32Array(SAMPLES);
   const taps = new Map<HTMLMediaElement, { stream: MediaStream; an?: AnalyserNode }>();
   const onsets: number[] = [],
     flashT: number[] = [];
@@ -590,14 +664,14 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
       await frame();
       frames++;
       const now = performance.now(),
-        t = ed.v.getVideo().t;
+        time = ed.v.getVideo().t;
       // Not ticking yet: the playhead hasn't moved.
-      if (t === from) continue;
-      zero = Math.min(zero, now - t * 1000);
-      const c = ed.centre(),
-        w = !!c && c.every((x) => x > 200);
-      if (w && !white) flashT.push(t);
-      white = w;
+      if (time === from) continue;
+      zero = Math.min(zero, now - time * 1000);
+      const colour = ed.centre(),
+        isWhite = !!colour && colour.every((x) => x > 200);
+      if (isWhite && !white) flashT.push(time);
+      white = isWhite;
       for (const snd of liveSounds)
         for (const { id } of clips) {
           const el = snd.element(id);
@@ -605,26 +679,27 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
           let tap = taps.get(el);
           if (!tap) {
             const media = el as HTMLMediaElement & { captureStream(): MediaStream };
-            taps.set(el, (tap = { stream: media.captureStream() }));
+            tap = { stream: media.captureStream() };
+            taps.set(el, tap);
           }
           // The stream gets its audio track once the element plays.
           if (!tap.an && tap.stream.getAudioTracks().length) {
             tap.an = ctx.createAnalyser();
-            tap.an.fftSize = N;
+            tap.an.fftSize = SAMPLES;
             ctx.createMediaStreamSource(tap.stream).connect(tap.an);
           }
           if (!tap.an) continue;
           tap.an.getFloatTimeDomainData(buf);
-          const i = buf.findIndex((x) => Math.abs(x) > 0.1);
-          const at = now - ((N - i) / ctx.sampleRate) * 1000;
-          if (i >= 0 && !onsets.some((o) => Math.abs(o - at) < 1000)) onsets.push(at);
+          const loud = buf.findIndex((x) => Math.abs(x) > 0.1);
+          const at = now - ((SAMPLES - loud) / ctx.sampleRate) * 1000;
+          if (loud >= 0 && !onsets.some((onset) => Math.abs(onset - at) < 1000)) onsets.push(at);
         }
     }
   } finally {
     ed.v.setPlaying(false);
     for (const tap of taps.values()) for (const tr of tap.stream.getTracks()) tr.stop();
     latency.base = (ctx.baseLatency * 1000).toFixed(1);
-    latency.output = ((ctx.outputLatency ?? 0) * 1000).toFixed(1);
+    latency.output = (ctx.outputLatency * 1000).toFixed(1);
     await ctx.close();
   }
   // Animation frames per second: far under 60 means the window was throttled (hidden, covered, the display asleep), so
@@ -633,11 +708,13 @@ async function syncOffsets(ed: Awaited<ReturnType<typeof mountEditor>>, clips: {
   // A flash every 2 s of each clip's own time, after `from`. A clip runs as long as its sound, a little longer than its
   // pictures (the AAC encoder's padding): no flash at its very end.
   let expected = 0;
-  for (const c of ed.v.getVideo().clips)
-    for (let k = 0; k < c.out - c.in - 0.05; k += 2) if (c.start + k > from) expected++;
+  for (const clip of ed.v.getVideo().clips)
+    for (let second = 0; second < clip.out - clip.in - 0.05; second += 2) if (clip.start + second > from) expected++;
   const offsets = flashT
-    .map((t) => zero + t * 1000)
-    .map((f) => onsets.reduce((best, o) => (Math.abs(o - f) < Math.abs(best) ? o - f : best), Infinity))
+    .map((time) => zero + time * 1000)
+    .map((flash) =>
+      onsets.reduce((best, onset) => (Math.abs(onset - flash) < Math.abs(best) ? onset - flash : best), Infinity),
+    )
     .filter(Number.isFinite);
   return { expected, flashes: flashT.length, onsets: onsets.length, offsets, latency, rate };
 }
