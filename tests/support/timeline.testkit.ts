@@ -59,7 +59,7 @@ export const legacyTotal = (clips: LegacyClip[]): number => clips.reduce((a, c) 
 
 export function legacyClipAt<T extends LegacyClip>(tl: LegacyPlaced<T>[], t: number): LegacyPlaced<T> | null {
   if (!tl.length) return null;
-  return tl.find((p) => t >= p.start && t < p.end) ?? (t < 0 ? tl[0] : tl[tl.length - 1]);
+  return tl.find((p) => t >= p.start && t < p.end) ?? (t < 0 ? tl[0] : tl.at(-1)) ?? null;
 }
 
 export function legacyFrameRange(start: number, end: number, fps: number): [number, number] {

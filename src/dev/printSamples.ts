@@ -63,9 +63,29 @@ async function inputFor(def: PrintSampleDef, env = false): Promise<RenderInput> 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const tick = () => new Promise((r) => setTimeout(r, 20));
 
+/**
+ * The entry at `index`, or an error naming what was asked for (the harness passes indexes by hand).
+ * @param list - the entries
+ * @param index - which one
+ * @param what - what the list holds, for the error
+ * @returns the entry
+ */
+function entryAt<T>(list: readonly T[], index: number, what: string): T {
+  const entry = list[index];
+  if (entry === undefined) throw new RangeError(`No ${what} ${index} (there are ${list.length}).`);
+  return entry;
+}
+
+/**
+ * A sample's number: the part of its id before the first dash (`03-postcard-…` → `03`).
+ * @param def - the sample
+ * @returns its number
+ */
+const sampleNumber = (def: PrintSampleDef): string => def.id.split('-', 1)[0] ?? def.id;
+
 /** One sample's folder: every page as a 300 dpi PNG, the print PDF, (postcards) a sheet PDF, quote request and spec. */
 async function renderSample(i: number): Promise<string[]> {
-  const def = PRINT_SAMPLES[i],
+  const def = entryAt(PRINT_SAMPLES, i, 'print sample'),
     inp = await inputFor(def),
     dir = `${PRODUCT_DIR[def.product]}/${def.id}`,
     made: string[] = [];
@@ -108,7 +128,7 @@ function envelopeJobs(): { def: PrintSampleDef; dir: string }[] {
 }
 
 async function renderEnvelope_(i: number): Promise<string[]> {
-  const { def, dir } = envelopeJobs()[i],
+  const { def, dir } = entryAt(envelopeJobs(), i, 'envelope job'),
     inp = await inputFor(def, true),
     d = inp.d,
     s = envelopeSpec(d),
@@ -213,7 +233,7 @@ function orderSheet(envDirs: string[]): string {
   PRINT_SAMPLES.forEach((def) => {
     const f = sampleFacts(def);
     rows.push([
-      def.id.split('-')[0],
+      sampleNumber(def),
       f.folder,
       f.product,
       def.title,
@@ -302,7 +322,7 @@ function readme(envDirs: string[]): string {
   L.push(pad('No', 5) + pad('Item', 52) + pad('Trim size', 18) + 'Envelope');
   for (const def of PRINT_SAMPLES) {
     const f = sampleFacts(def);
-    L.push(pad(def.id.split('-')[0], 5) + pad(`${f.product} ${f.size}, ${f.orient.toLowerCase()} – ${def.title}`, 52) + pad(f.trim, 18) + f.env);
+    L.push(pad(sampleNumber(def), 5) + pad(`${f.product} ${f.size}, ${f.orient.toLowerCase()} – ${def.title}`, 52) + pad(f.trim, 18) + f.env);
   }
   L.push('', 'FOLDERS', '-'.repeat(78));
   L.push('01-Postcards/<sample>/');

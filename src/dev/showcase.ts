@@ -71,7 +71,7 @@ async function render(): Promise<{ files: { name: string; data: string }[]; mani
         renderEnvelope(cv, face, LONG / Math.max(s.w, s.h), { d, photos });
       }
       const name = `${def.id}${r === 'front' ? '' : `-${r}`}.webp`;
-      files.push({ name, data: cv.toDataURL('image/webp', 0.84).split(',')[1] });
+      files.push({ name, data: cv.toDataURL('image/webp', 0.84).split(',')[1] ?? '' });
       manifest.push({ id: def.id, render: r, title: def.title, product: def.product, src: `showcase/${name}`, w: cv.width, h: cv.height, credits: who });
     }
   }
