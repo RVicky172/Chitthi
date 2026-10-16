@@ -94,7 +94,8 @@ The rules land as warnings; each folder’s become errors when its clean-up is d
 
 ## Clean-up: tests/selftest/ and electron/
 
-- [ ] **T060** — `tests/selftest/`: names and JSDoc (size rules exempt for tests); run `npm test` (Q9). · files: `tests/selftest/**` · test: `npm test`: the baseline’s checks, 0 failed
+- [x] **T060** — `tests/selftest/`: names and JSDoc (size rules exempt for tests); run `npm test` (Q9). · files: `tests/selftest/**` · test: `npm test`: the baseline’s checks, 0 failed
+  - **Result (2026-10-16):** `tests/selftest/` at 0 in the standards report (names and JSDoc; shared fixtures in `helpers.ts`); tests also exempt from `sonarjs/cognitive-complexity` with the other Q4 size rules. `npm run check` green (1,700 unit tests); `npm test` 6,203 checks, 0 failed (249 s), as the baseline; preview frame median 13.0 ms, export fastest 2.61 s, 2-minute exports 12.7–13.3 s.
 - [ ] **T061** — `electron/` (CommonJS): names, JSDoc, function length and cognitive complexity (no type rules); IPC validation unchanged; `electron/**` joins `FINISHED`; run `npm run test:mcp` and `npm test` (Q9). · files: `electron/**`, `eslint.config.js` · test: `npm run lint` 0 errors; MCP and self-test pass
 
 ## Strict index access, React Compiler, performance
