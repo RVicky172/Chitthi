@@ -56,6 +56,12 @@ export const LAYER_RANGES: Readonly<Record<LayerKeyProp, readonly [number, numbe
   opacity: [0, 1],
 };
 
+/** The ranges looked up by any value name (none for a name only the other kind animates), for clampValue. */
+const RANGES_BY_NAME: Readonly<Record<'clip' | 'layer', Readonly<Partial<Record<string, readonly [number, number]>>>>> = {
+  clip: CLIP_RANGES,
+  layer: LAYER_RANGES,
+};
+
 export const CLIP_KEY_PROPS = keysOf(CLIP_RANGES);
 export const LAYER_KEY_PROPS = keysOf(LAYER_RANGES);
 const BOX_PROPS = CLIP_KEY_PROPS.filter((prop): prop is keyof ClipTransform => prop !== 'volume');
@@ -82,9 +88,8 @@ export const isLayerKeyProp = (prop: string): prop is LayerKeyProp => Object.has
  * @returns the value clamped to its range (unchanged for a name without one)
  */
 export function clampValue(prop: ClipKeyProp | LayerKeyProp, value: number, on: 'clip' | 'layer'): number {
-  let range: readonly [number, number] | undefined;
-  if (on === 'clip') range = isClipKeyProp(prop) ? CLIP_RANGES[prop] : undefined;
-  else range = isLayerKeyProp(prop) ? LAYER_RANGES[prop] : undefined;
+  // A plain lookup, not isClipKeyProp / isLayerKeyProp: this runs per sample of every volume curve (407 T072).
+  const range = RANGES_BY_NAME[on][prop];
   if (!range) return value;
   return Math.min(range[1], Math.max(range[0], value));
 }
@@ -166,9 +171,9 @@ function eased(ease: Ease, progress: number): number {
  * @throws when there are no keys
  */
 export function valueAt(keys: readonly Keyframe[], time: number): number {
-  const first = keys.at(0);
-  const last = keys.at(-1);
-  if (!first || !last) throw new Error('A value needs at least one keyframe.');
+  const first = keys[0];
+  const last = keys[keys.length - 1];
+  if (first === undefined || last === undefined) throw new Error('A value needs at least one keyframe.');
   if (time <= first.t) return first.v;
   if (time >= last.t) return last.v;
   // The last key at or before the time: keys[low].t <= time < keys[high].t.
@@ -176,12 +181,16 @@ export function valueAt(keys: readonly Keyframe[], time: number): number {
   let high = keys.length - 1;
   while (high - low > 1) {
     const middle = (low + high) >> 1;
-    if ((keys.at(middle)?.t ?? Infinity) <= time) low = middle;
+    const key = keys[middle];
+    // `=== undefined`, not `?.t ?? Infinity`: this runs per sample of every volume curve, and the optional read made
+    // it ~50 % slower (407 T072).
+    if (key === undefined) break;
+    if (key.t <= time) low = middle;
     else high = middle;
   }
-  const from = keys.at(low);
-  const to = keys.at(high);
-  if (!from || !to) return last.v;
+  const from = keys[low];
+  const to = keys[high];
+  if (from === undefined || to === undefined) return last.v;
   if (time === from.t) return from.v;
   const progress = (time - from.t) / (to.t - from.t);
   return from.v + (to.v - from.v) * eased(from.ease, progress);

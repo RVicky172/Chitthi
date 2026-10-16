@@ -573,3 +573,17 @@ studio chunk 201 → 281 kB.
 is not added; the manual `useMemo` / `useCallback` / `memo` stay; the two hook fixes are kept (correct without it).
 **Consequences:** AC-12 (the Rules of React lint) still applies, so turning it on later is a config change. Look again
 when the native compiler is stable or its output smaller.
+
+## D-047 — `!` allowed on measured hot-loop reads; the look path's order-dependent cost accepted (2026-10-16)
+
+**Context:** 407 T072 (AC-10). `noUncheckedIndexedAccess` (T070) put `?? 0` on every typed-array read; in the blur's
+two passes (`engine/detail.ts`) that made clarity 17 % and sharpen 34 % slower in the Electron renderer (V8 15.2;
+Node's V8 13.6 barely shows it). `=== undefined` checks there were worse (+55 %). Separately, the Canvas 2D colour
+chain with a look is 13–22 % slower than before 407 when a photo is processed without a look first (V8's inlining
+budget, after T035's split); seven restructurings didn't fix that order without losing elsewhere.
+**Decision:** the maintainer allowed `!` on the 9 blur reads, inside an `eslint-disable` block with the reason and
+numbers; `specs/coding-standards.md` §8 says when (`=== undefined` on object arrays, `?? 0` by default on typed arrays,
+`!` only where measured). The look path stays as T035 left it, recorded in `performance.md` and the spec's Changelog
+as the one exception to AC-10's "no timing check gets slower".
+**Consequences:** `no-non-null-assertion` stays an error everywhere else. The look path affects only the fallback
+without WebGPU.

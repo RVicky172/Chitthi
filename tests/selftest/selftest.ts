@@ -60,6 +60,11 @@ async function run(): Promise<Result> {
     }
     return result;
   }
+  // `CHITTHI_TEST_ONLY=perf npm test`: the hot paths' microbenchmarks for A/B runs (perfTiming.ts, 407 T072).
+  if (only === 'perf') {
+    result.notes.push(...(await (await import('./perfTiming')).perfTiming()));
+    return result;
+  }
   if (only === 'timing') {
     result.notes.push(...(await (await import('./exportTiming')).exportTiming()));
     return result;

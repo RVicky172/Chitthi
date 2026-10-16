@@ -114,6 +114,9 @@ const clampIndex = (index: number, last: number): number => {
 const lumaAt = (image: Float32Array, offset: number): number =>
   LUMA_RED * (image[offset] ?? 0) + LUMA_GREEN * (image[offset + 1] ?? 0) + LUMA_BLUE * (image[offset + 2] ?? 0);
 
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- the blur's taps read with `!`: every index is in range
+ * by construction (clampIndex), and `?? 0` on these reads made clarity 17 % and sharpen 34 % slower in the Electron
+ * renderer, `=== undefined` checks over 50 % (407 T072, D-047). */
 /**
  * The blur's horizontal pass: alpha-weighted (premultiplied) sums.
  * @param src the image, straight alpha
@@ -133,10 +136,10 @@ function blurRows(src: Float32Array, width: number, height: number, kernel: Kern
       let alpha = 0;
       for (let tap = -reach; tap <= reach; tap++) {
         const offset = (y * width + clampIndex(x + tap * kernel.step, width - 1)) * 4;
-        const weight = (kernel.weights[tap + reach] ?? 0) * (src[offset + 3] ?? 0);
-        red += weight * (src[offset] ?? 0);
-        green += weight * (src[offset + 1] ?? 0);
-        blue += weight * (src[offset + 2] ?? 0);
+        const weight = kernel.weights[tap + reach]! * src[offset + 3]!;
+        red += weight * src[offset]!;
+        green += weight * src[offset + 1]!;
+        blue += weight * src[offset + 2]!;
         alpha += weight;
       }
       const target = (y * width + x) * 4;
@@ -168,11 +171,11 @@ function blurColumns(sums: Float32Array, width: number, height: number, kernel: 
       let alpha = 0;
       for (let tap = -reach; tap <= reach; tap++) {
         const offset = (clampIndex(y + tap * kernel.step, height - 1) * width + x) * 4;
-        const weight = kernel.weights[tap + reach] ?? 0;
-        red += weight * (sums[offset] ?? 0);
-        green += weight * (sums[offset + 1] ?? 0);
-        blue += weight * (sums[offset + 2] ?? 0);
-        alpha += weight * (sums[offset + 3] ?? 0);
+        const weight = kernel.weights[tap + reach]!;
+        red += weight * sums[offset]!;
+        green += weight * sums[offset + 1]!;
+        blue += weight * sums[offset + 2]!;
+        alpha += weight * sums[offset + 3]!;
       }
       const target = (y * width + x) * 4;
       out[target] = alpha > 0 ? red / alpha : 0;
@@ -183,6 +186,7 @@ function blurColumns(sums: Float32Array, width: number, height: number, kernel: 
   }
   return out;
 }
+/* eslint-enable @typescript-eslint/no-non-null-assertion */
 
 /**
  * A separable alpha-weighted blur of a straight-alpha image. Edges repeat the border pixel.

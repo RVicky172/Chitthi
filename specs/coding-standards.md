@@ -203,6 +203,10 @@ try {
 - **No allocation per frame** on the drawing and decoding paths (`renderFrame`, the frame stack, the decoder pool,
   the sound mix): no new arrays, objects or closures in a per-frame loop; reuse buffers, canvases and scratch objects.
 - `for` loops are fine (and preferred) on hot paths; `map` / `filter` chains are fine elsewhere.
+- **Indexed reads in per-pixel and per-sample loops** (407 T072, D-047): guards cost there. On arrays of objects,
+  check with `=== undefined` (not `?.` / `??` / truthiness). On typed arrays, `?? 0` is the default; only where it
+  measures slower may the reads use `!`, inside an `eslint-disable` block that says why the indices are in range and
+  gives the numbers (the blur passes in `engine/detail.ts`).
 - Large or optional code loads with `import()` (AI providers, the video encoder, screens); the entry chunk budget is
   350 KB (`npm run build`).
 - Close what you open: `VideoFrame.close()`, decoders, object URLs, listeners.

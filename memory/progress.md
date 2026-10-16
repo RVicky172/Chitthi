@@ -21,7 +21,11 @@ form requests (Stability, Ideogram pictures) threw on every text field since 2.5
 `npm test` 6,203 checks, 0 failed.
 T070 (`d2a31cc`): `noUncheckedIndexedAccess` on in `tsconfig.app.json` (last 11 errors in `src/dev` and the timeline test kit); unit-test tsconfig stays off (379 assertion reads). Check green (1,706), entry 313 KB.
 T071: React Compiler tried and kept off (D-046): entry 313 → 337 KB whole-app, studio chunk +40 % scoped; e2e found two external-store hooks that broke under it, fixed (`3e52948`, learnings).
-**Next:** T072 (performance review).
+T072 (not committed yet): performance review in `performance.md`. New harness `tests/selftest/perfTiming.ts`
+(`CHITTHI_TEST_ONLY=perf npm test`). Three regressions from 407 fixed: `gainCurve` +14 % (`valueAt` / `clampValue`
+reads), `detailPixels` clarity +17 % and sharpen +34 % (`?? 0` on the blur's reads → `!`, D-047, standards §8). The
+Canvas 2D look path stays +13–22 % when no look runs first: accepted exception (spec Changelog, D-047). Check green.
+**Next:** T090 (docs, AC-11), then T091 / T092 (the full Definition of Done).
 **Blockers:** none
 
 ## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)

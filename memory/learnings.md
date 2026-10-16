@@ -363,3 +363,16 @@ Turning on `noUncheckedIndexedAccess` made `list[0]` reads `string | undefined`,
 flagged five `a[0] || fallback` lines in `FINISHED` folders, but `npm run check` (cached lint) stayed green; they
 showed only after `node_modules` was reinstalled. After any tsconfig or type change, run `npm run lint:full`. Where
 `||` deliberately treats '' as missing, write `(list[0] ?? '') || fallback` (as `engine/layers.ts` `firstLine`).
+
+## 2026-10-16 — Hot-loop speed: measure in the Electron renderer, interleaved, against a copy of `main` (407 T072)
+
+Node 24 runs V8 13.6, Electron 44 runs 15.2, and they disagree: `?? 0` on typed-array reads cost 17–34 % in the
+renderer and ~0 in Node; on arrays of objects `keys[i]?.t ?? Infinity` cost ~50 % in both, while
+`const key = keys[i]; if (key === undefined) break;` cost nothing. `keys.at(i)` and `Object.hasOwn` per sample cost
+too. Even Electron's node mode (`ELECTRON_RUN_AS_NODE=1 electron bundle.mjs`, bundled with `rolldown`) differs from the
+renderer, but it takes V8 flags: `--trace-turbo-inlining` shows the inlining budget (920 bytecodes per optimised
+function) and what got left out. Results depend on warm-up order (what ran first in the page), so time each order.
+What worked for A/B: copy `main`'s `src/` into the repo (a gitignored-style temp folder), import both versions into one
+self-test page and alternate rounds (11, medians); back-to-back runs swing ±15 %. Delete the copy before
+`npm run check` (it fails typecheck). Remove a worktree's `node_modules` junction (`cmd /c rmdir`) before
+`git worktree remove --force`, so the removal can't follow it.
