@@ -19,7 +19,8 @@ T061: `electron/` clean (98 findings to 0) and in `FINISHED`; `ai.cjs` request s
 header reader split out; first unit tests for the main process (`tests/unit/electron/`, 6). **Bug fix:** desktop AI
 form requests (Stability, Ideogram pictures) threw on every text field since 2.5.0 (learnings). `test:mcp` 23 checks,
 `npm test` 6,203 checks, 0 failed.
-**Next:** T070 (`noUncheckedIndexedAccess` for `src/`).
+T070 (`d2a31cc`): `noUncheckedIndexedAccess` on in `tsconfig.app.json` (last 11 errors in `src/dev` and the timeline test kit); unit-test tsconfig stays off (379 assertion reads). Check green (1,706), entry 313 KB.
+**Next:** T071 (React Compiler).
 **Blockers:** none
 
 ## 2026-10-15 — 407 T056 (React findings, effects, components in FINISHED)
