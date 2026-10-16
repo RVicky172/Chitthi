@@ -42,16 +42,11 @@
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
 - **206 merged** into `main` and pushed (`797bbf2`, 2026-10-13).
-- **407:** `407-code-structure` 🚧 tasks T001–T092 (38; heavy checks inside 407, Q9); spec and plan Approved 2026-10-13 on `spec/407-code-structure` (from `main`;
-  D-037): tests into `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md`, ESLint (names,
-  JSDoc, function length, sonarjs cognitive complexity, React `recommended-latest`, strictTypeChecked, layers), folder
-  by folder; React Compiler last. Baseline: 34 % one-letter names, 333 / 880 exports without JSDoc, 103 functions > 80
-  lines, 27 React findings, 379 `as`, 177 `!`.
-- **407 progress (2026-10-14):** T001–T040 done except T020 (standards doc, waits for review): tests moved, lint
-  rules in, `src/engine/**` fully clean and in `FINISHED` (`afbb134`). Print-file builders load on export (D-042);
-  entry 311 KB. `state/video.ts` split into nine `state/video*.ts` modules (T040, `cbd4273`). T041 (`b2686a3`): the rest of `state/` clean, `src/state/**` in `FINISHED`. T042 (`72078fe`, 2026-10-15): `data/`, `lib/`, `platform/` in `FINISHED`; data imports only types again (D-044), `lib/idb.ts` shared IndexedDB helper. T043 (`33e1e24`): `agent/` (tools split by job, MCP surface byte-identical, test:mcp passes) and `ai/` in `FINISHED` (D-045). T050 (`eec62bd`): `Timeline.tsx` split into eight modules, each at 0. T051 (`0197ce1`): `VideoWorkspace.tsx` split into six, each at 0. T052 (`332e543`): `PhotoWorkspace.tsx` split into eight, each at 0. T053: the rest of `components/studio/` clean, the folder in `FINISHED`. T054 (`3127584`): `components/ig/` clean and in `FINISHED` (LayerPanel split in three, MaskPanel in four). T055 (`5dd2ca6`): the rest of `components/`, `App`, `main` at 0 except 19 React findings (T056); Paper3D, Viewer3D, PhotoLibrary, CropDialog split by job; standards total 3,485. T056 (`5a581a9`): React compiler findings 0, effects reviewed, `components/**`, `App`, `main` in `FINISHED`; e2e and self-test as the baselines. Behaviour of each clean-up is checked against frozen copies by scratch harnesses (learnings).
-- **Next (roadmap):** 407 T092 (T020 approved and T062 done 2026-10-16: tests/ lint-clean, the whole repo at 0 in the standards report, D-048; T091 full DoD green 2026-10-16, `1ae913d`; all of `src/` and `electron/` in `FINISHED`; T090 docs done `6d9f065`; T020 waits for review; 2026-10-16: T060, T061, T070 done, `noUncheckedIndexedAccess` on for `src/`; T071 React Compiler kept off, D-046; T072 performance review done, `performance.md`, D-047) on `feat/407-code-structure`; then 207
-  (speed) from `main`; 290 collects the deferred checks.
+- **407:** `407-code-structure` ✔️ Implemented 2026-10-16, merged into `main` (not pushed): tests in
+  `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md` (AC-4), every standards rule an error for
+  `src/`, `electron/`, `tests/` (`FINISHED`), standards report 0, `noUncheckedIndexedAccess` for `src/`; React
+  Compiler off (D-046); performance review `performance.md` (D-047); entry 313 KB (was 327). D-037–D-048.
+- **Next (roadmap):** 207 (speed) branches from `main`; 290 collects the deferred checks.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

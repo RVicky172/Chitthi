@@ -11,6 +11,12 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-16 — 407 (T092, close)
+**Done:** T092: AC-1–AC-13 ticked (each covered by done tasks; T091's full DoD and T062's tests/ clean-up); 407
+`Implemented`, roadmap ✔️; `npm run check` green (1,706 tests). Merged into `main` (`--no-ff`), not pushed.
+**Next:** push `main` when the maintainer says; 207 (speed) branches from `main`.
+**Blockers:** none.
+
 ## 2026-10-16 — 407 (T020, T062)
 **Done:** T020 approved by the maintainer. T062 (new, maintainer's ask): `tests/` from 1,894 standards warnings to 0
 and in `FINISHED` (`4230113`, `e8b10e9`, `53e47e9`, `1545c69`); the standards report shows 0 for the whole repo.

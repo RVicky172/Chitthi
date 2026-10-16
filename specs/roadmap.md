@@ -5,7 +5,7 @@
 > Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.
 > Status legend: ⬜ Not started · 📝 Spec drafted · ✅ Spec approved · 🚧 In progress · ✔️ Done
 
-**Last updated:** 2026-10-13
+**Last updated:** 2026-10-16
 
 The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work
 items (files, tests, notes and measurements for Phases 0–1) are in
@@ -82,7 +82,7 @@ Print studio, site and anything outside the editor phases take the next free num
 | 404 | Roadmap data (JSON) and a roadmap dashboard on localhost | [spec](features/404-roadmap-dashboard/spec.md) | ✔️ | — |
 | 405 | Roadmap dashboard revamp: a scrollable road, motion and live task progress | [spec](features/405-roadmap-revamp/spec.md) | ✔️ | 404 |
 | 406 | Roadmap improvements: next actions, task briefs and planning clarity | [spec](features/406-roadmap-actionable-workflow/spec.md) | ✔️ | — |
-| 407 | Code structure: a tests folder, coding standards, readable names and JSDoc | [spec](features/407-code-structure/spec.md) | 🚧 | — |
+| 407 | Code structure: a tests folder, coding standards, readable names and JSDoc | [spec](features/407-code-structure/spec.md) | ✔️ | — |
 
 ## Backlog (unscheduled ideas)
 

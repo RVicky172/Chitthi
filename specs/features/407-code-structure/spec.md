@@ -2,7 +2,7 @@
 
 # 407 — Code structure: a tests folder, coding standards, readable names and JSDoc
 
-**Status:** In Progress
+**Status:** Implemented
 **Roadmap phase:** Other features (400+) · **Created:** 2026-10-13
 
 ## Summary
@@ -21,40 +21,40 @@ The code works, but it is harder to read and change than it should be. Unit test
 
 ### Tests in one place
 
-- [ ] **AC-1:** Every test lives under `tests/`: `tests/unit/` (one module, mirroring `src/`’s paths, e.g. `tests/unit/engine/keyframes.test.ts`), `tests/integration/` (several modules together: the stores, the decoder pool with its fake decoder, the preview sound), `tests/e2e/` (the Playwright tests, from `e2e/`) and `tests/support/` (shared fixtures and fakes, e.g. `timeline.testkit.ts`) (Q1). A check (in `npm run check`) fails if a `*.test.ts` or test helper appears under `src/`. _(check)_
-- [ ] **AC-2:** After the move the same tests run and pass: `npm run test:unit` runs the same 1,672 unit and integration tests (more if 407 adds any), `npm run test:e2e` the same e2e tests; `npm run check`, the editor’s test explorer and single-test commands (documented in CLAUDE.md) work with the new paths. _(check)_
-- [ ] **AC-3:** No test code reaches what is shipped: `scripts/check-bundle.mjs` (in `npm run build`) fails if any built file contains a module from `tests/` or test-only code (Vitest, the fakes); the Docker image and the desktop package keep shipping only `dist/` and the listed Electron files. _(check)_
+- [x] **AC-1:** Every test lives under `tests/`: `tests/unit/` (one module, mirroring `src/`’s paths, e.g. `tests/unit/engine/keyframes.test.ts`), `tests/integration/` (several modules together: the stores, the decoder pool with its fake decoder, the preview sound), `tests/e2e/` (the Playwright tests, from `e2e/`) and `tests/support/` (shared fixtures and fakes, e.g. `timeline.testkit.ts`) (Q1). A check (in `npm run check`) fails if a `*.test.ts` or test helper appears under `src/`. _(check)_
+- [x] **AC-2:** After the move the same tests run and pass: `npm run test:unit` runs the same 1,672 unit and integration tests (more if 407 adds any), `npm run test:e2e` the same e2e tests; `npm run check`, the editor’s test explorer and single-test commands (documented in CLAUDE.md) work with the new paths. _(check)_
+- [x] **AC-3:** No test code reaches what is shipped: `scripts/check-bundle.mjs` (in `npm run build`) fails if any built file contains a module from `tests/` or test-only code (Vitest, the fakes); the Docker image and the desktop package keep shipping only `dist/` and the listed Electron files. _(check)_
 
 ### Written standards
 
-- [ ] **AC-4:** `specs/coding-standards.md` says how code is written here, with a short example of each rule: names (descriptive; the one-letter exceptions of Q3), JSDoc (every exported function, class, React component and type: what it does, its parameters, what it returns, what it throws), SOLID as it applies to this codebase (Q7: one job per module, layers that only depend downwards, small interfaces), sizes (Q4), React (hooks, component size, props), performance (no allocation per frame in the drawing and decoding paths; measure before optimizing), errors (`logError`), comments, and tests (where they go, how they are named). The constitution’s Definition of Done and CLAUDE.md point to it. _(review)_
-- [ ] **AC-5:** ESLint enforces the rules it can: name length (Q3’s exceptions only), JSDoc on exports (`eslint-plugin-jsdoc`, BSD-3-Clause, a development dependency only), function length and cognitive complexity (Q4, Q12), the React rules (AC-12), the type rules (AC-13), and the layers’ import direction (`data` → `engine` → `state` → `components`; `engine` never imports `state` or `components`). At the end of 407 `npm run lint` has 0 errors with every rule on as an error for `src/` and `electron/`. _(check)_
+- [x] **AC-4:** `specs/coding-standards.md` says how code is written here, with a short example of each rule: names (descriptive; the one-letter exceptions of Q3), JSDoc (every exported function, class, React component and type: what it does, its parameters, what it returns, what it throws), SOLID as it applies to this codebase (Q7: one job per module, layers that only depend downwards, small interfaces), sizes (Q4), React (hooks, component size, props), performance (no allocation per frame in the drawing and decoding paths; measure before optimizing), errors (`logError`), comments, and tests (where they go, how they are named). The constitution’s Definition of Done and CLAUDE.md point to it. _(review)_
+- [x] **AC-5:** ESLint enforces the rules it can: name length (Q3’s exceptions only), JSDoc on exports (`eslint-plugin-jsdoc`, BSD-3-Clause, a development dependency only), function length and cognitive complexity (Q4, Q12), the React rules (AC-12), the type rules (AC-13), and the layers’ import direction (`data` → `engine` → `state` → `components`; `engine` never imports `state` or `components`). At the end of 407 `npm run lint` has 0 errors with every rule on as an error for `src/` and `electron/`. _(check)_
 
 ### The existing code brought up to the standards
 
-- [ ] **AC-6:** No one-letter names are left in `src/` and `electron/` outside Q3’s exceptions (5,593 in `src/` on 2026-10-13), as the lint rule reports. _(check)_
-- [ ] **AC-7:** Every exported function, class, React component and type in `src/` and `electron/` has a JSDoc (333 exported functions without one on 2026-10-13), as the lint rule reports. _(check)_
-- [ ] **AC-8:** Modules that do more than one job are split by responsibility, each with one job and a short header saying what it is for: at least the 19 files over 600 lines on 2026-10-13 are reviewed and the mixed ones split (e.g. `engine/render.ts`, `state/video.ts`, `components/studio/Timeline.tsx`); every function meets Q4’s length and cognitive-complexity limits (103 functions over 80 lines on 2026-10-13). A file’s length alone is a review signal, not a rule (Q4); data files are exempt. _(check + review)_
+- [x] **AC-6:** No one-letter names are left in `src/` and `electron/` outside Q3’s exceptions (5,593 in `src/` on 2026-10-13), as the lint rule reports. _(check)_
+- [x] **AC-7:** Every exported function, class, React component and type in `src/` and `electron/` has a JSDoc (333 exported functions without one on 2026-10-13), as the lint rule reports. _(check)_
+- [x] **AC-8:** Modules that do more than one job are split by responsibility, each with one job and a short header saying what it is for: at least the 19 files over 600 lines on 2026-10-13 are reviewed and the mixed ones split (e.g. `engine/render.ts`, `state/video.ts`, `components/studio/Timeline.tsx`); every function meets Q4’s length and cognitive-complexity limits (103 functions over 80 lines on 2026-10-13). A file’s length alone is a review signal, not a rule (Q4); data files are exempt. _(check + review)_
 
 ### Nothing changes for users
 
-- [ ] **AC-9:** Behaviour is unchanged: every unit, integration and e2e test, the self-test (~6,100 checks: every product × size × layout, print packs, agent tools) and the MCP test pass before and after; the 201–206 video fixtures export identical inputs and pixel-identical frames; the entry chunk is no larger than before (327 KB). These run at the end of 407 itself, not in 290 (Q9). _(unit + e2e + self-test + MCP (407))_
+- [x] **AC-9:** Behaviour is unchanged: every unit, integration and e2e test, the self-test (~6,100 checks: every product × size × layout, print packs, agent tools) and the MCP test pass before and after; the 201–206 video fixtures export identical inputs and pixel-identical frames; the entry chunk is no larger than before (327 KB). These run at the end of 407 itself, not in 290 (Q9). _(unit + e2e + self-test + MCP (407))_
 
 ### Optimized code
 
-- [ ] **AC-10:** A performance review of the hot paths (video frame drawing `renderStack` / `frameStack`, the decoder pool, the sound mix, the photo pipeline, the print renderer) is recorded in `specs/features/407-code-structure/` with measurements; a change is made only where it measures at least 10 % faster (Q8), with before / after numbers; no timing check gets slower. _(timing + review)_
+- [x] **AC-10:** A performance review of the hot paths (video frame drawing `renderStack` / `frameStack`, the decoder pool, the sound mix, the photo pipeline, the print renderer) is recorded in `specs/features/407-code-structure/` with measurements; a change is made only where it measures at least 10 % faster (Q8), with before / after numbers; no timing check gets slower. _(timing + review)_
 
 ### Docs
 
-- [ ] **AC-11:** CLAUDE.md (commands, single tests, the layers), `specs/testing-strategy.md` (the new layout and what is unit / integration / e2e), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts) and `memory/` describe the new structure; relative links resolve. _(review)_
+- [x] **AC-11:** CLAUDE.md (commands, single tests, the layers), `specs/testing-strategy.md` (the new layout and what is unit / integration / e2e), `specs/architecture.md` and `specs/lld.md` (module paths after the splits), `specs/build.md` (scripts) and `memory/` describe the new structure; relative links resolve. _(review)_
 
 ### React
 
-- [ ] **AC-12:** The code follows the current React rules: every rule of `eslint-plugin-react-hooks` v7’s `recommended-latest` preset (the Rules of React that the React Compiler relies on: purity, immutability, refs, set-state in effects and render, static components, memoization) is an error and passes (27 findings in 16 files on 2026-10-13, today switched off); effects are used only to sync with things outside React (106 `useEffect` today, each one checked). Whether the React Compiler is then turned on is Q11. _(check)_
+- [x] **AC-12:** The code follows the current React rules: every rule of `eslint-plugin-react-hooks` v7’s `recommended-latest` preset (the Rules of React that the React Compiler relies on: purity, immutability, refs, set-state in effects and render, static components, memoization) is an error and passes (27 findings in 16 files on 2026-10-13, today switched off); effects are used only to sync with things outside React (106 `useEffect` today, each one checked). Whether the React Compiler is then turned on is Q11. _(check)_
 
 ### Types
 
-- [ ] **AC-13:** Types do the checking, not casts: typescript-eslint’s type-aware `strictTypeChecked` and `stylisticTypeChecked` presets pass; type assertions (`as`, 379 today, 13 of them `as unknown as`) and non-null assertions (`!`, 177 today) are replaced by narrowing, type guards or better types, and the few left carry a comment saying why; object shapes are named `interface`s (121 functions take inline object types today), with utility types (`Pick`, `Omit`, `Partial`, `Readonly` …) where they express a real relation instead of copies; `readonly` where data isn’t changed. Q13 decides which stricter compiler options come in 407. _(check)_
+- [x] **AC-13:** Types do the checking, not casts: typescript-eslint’s type-aware `strictTypeChecked` and `stylisticTypeChecked` presets pass; type assertions (`as`, 379 today, 13 of them `as unknown as`) and non-null assertions (`!`, 177 today) are replaced by narrowing, type guards or better types, and the few left carry a comment saying why; object shapes are named `interface`s (121 functions take inline object types today), with utility types (`Pick`, `Omit`, `Partial`, `Readonly` …) where they express a real relation instead of copies; `readonly` where data isn’t changed. Q13 decides which stricter compiler options come in 407. _(check)_
 
 ## Non-Functional Requirements
 
