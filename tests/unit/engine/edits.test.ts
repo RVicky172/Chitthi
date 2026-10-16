@@ -30,6 +30,7 @@ import { clipLength, pack } from '@/engine/timeline';
 import { toDocument, type ProjectDoc } from '@/engine/projectDoc';
 import { legacyFixtures, type LegacyClip } from '../../support/timeline.testkit';
 
+import { defined } from '../../support/defined';
 type C = LegacyClip & EditClip;
 
 const ctx: EditCtx = { maxLength: 3 * 3600, locked: () => null, maxVideos: 5, desktop: true };
@@ -84,7 +85,7 @@ const ref = {
     pack(cs.map((legacyClip) => (legacyClip.id === id ? { ...legacyClip, ...patch } : legacyClip))),
   /** The timeline's edge drag (Timeline.tsx at a3adea2), without snapping. */
   trim(cs: C[], id: string, side: 'start' | 'end', dt: number) {
-    const c0 = cs.find((legacyClip) => legacyClip.id === id)!;
+    const c0 = defined(cs.find((legacyClip) => legacyClip.id === id));
     if (c0.kind === 'video')
       return side === 'end'
         ? this.patch(cs, id, { out: Math.max(c0.in + MIN_LEN, Math.min(c0.srcDur, c0.out + dt)) })
@@ -196,7 +197,7 @@ describe('trim', () => {
   });
   it('start, ripple: the start stays, the source moves, later clips follow (2.x’s start trim)', () => {
     const clips = ok(trim(cs, 'v', 'start', 0.5, { ripple: true }, ctx));
-    expect(clips.find((legacyClip) => legacyClip.id === 'v')!.in).toBe(1.5);
+    expect(defined(clips.find((legacyClip) => legacyClip.id === 'v')).in).toBe(1.5);
     expect(at(clips, 'v')).toEqual(['v', 2, 2.5]);
     expect(at(clips, 'c')).toEqual(['c', 4.5, 1]);
   });
@@ -207,15 +208,17 @@ describe('trim', () => {
     const legacyClips = [...photos([0, 2]), vid('v', 3, 1, 4, 6)];
     const back = ok(trim(legacyClips, 'v', 'start', -5, { ripple: false }, ctx));
     expect(at(back, 'v')).toEqual(['v', 2, 4]);
-    expect(back.find((legacyClip) => legacyClip.id === 'v')!.in).toBe(0);
+    expect(defined(back.find((legacyClip) => legacyClip.id === 'v')).in).toBe(0);
   });
   it('limits: 0.3 s, the source, 60 s for a photo, a clip already shorter than 0.3 s', () => {
     expect(at(ok(trim(cs, 'v', 'end', -9, { ripple: true }, ctx)), 'v')).toEqual(['v', 2, MIN_LEN]);
     expect(at(ok(trim(cs, 'v', 'start', 9, { ripple: true }, ctx)), 'v')).toEqual(['v', 2, MIN_LEN]);
-    expect(ok(trim(cs, 'v', 'end', 9, { ripple: true }, ctx)).find((legacyClip) => legacyClip.id === 'v')!.out).toBe(6);
-    expect(ok(trim(cs, 'v', 'start', -9, { ripple: true }, ctx)).find((legacyClip) => legacyClip.id === 'v')!.in).toBe(
-      0,
-    );
+    expect(
+      defined(ok(trim(cs, 'v', 'end', 9, { ripple: true }, ctx)).find((legacyClip) => legacyClip.id === 'v')).out,
+    ).toBe(6);
+    expect(
+      defined(ok(trim(cs, 'v', 'start', -9, { ripple: true }, ctx)).find((legacyClip) => legacyClip.id === 'v')).in,
+    ).toBe(0);
     expect(at(ok(trim(cs, 'a', 'end', 100, { ripple: true }, ctx)), 'a')).toEqual(['a', 0, PHOTO_MAX]);
     const tiny = photos([0, 0.2], [0.2, 1]);
     expect(ok(trim(tiny, 'a', 'end', -0.1, { ripple: true }, ctx))).toBe(tiny);
@@ -300,7 +303,7 @@ describe('AC-1: with Magnetic on (results packed) every edit equals today’s st
 });
 
 const length = (cs: C[]) => Math.max(...cs.map((legacyClip) => legacyClip.start + clipLength(legacyClip)));
-const get = (cs: C[], id: string) => cs.find((legacyClip) => legacyClip.id === id)!;
+const get = (cs: C[], id: string) => defined(cs.find((legacyClip) => legacyClip.id === id));
 
 describe('roll: move the cut between two adjacent clips', () => {
   // a: photo 0–2; v: video 2–5 (source 1–4 of 6); c: photo 5–6.
@@ -844,7 +847,8 @@ describe('205: keyframes follow their clip; start-edge edits keep them at their 
   /** Keys on every clip: x at 0.5 s and 1 s from its start. */
   const keyed = (cs: C[]): C[] =>
     cs.map((legacyClip) => ({ ...legacyClip, keys: { x: [key(0.5, 0.3), key(1, 0.6)] } }));
-  const keyTimes = (cs: C[], id: string) => get(cs, id).keys!.x!.map((keyframe) => +keyframe.t.toFixed(9));
+  const keyTimes = (cs: C[], id: string) =>
+    defined(defined(get(cs, id).keys).x).map((keyframe) => +keyframe.t.toFixed(9));
   // a: photo 0–2; v: video 2–5 (source 1–4 of 6); c: photo 5–6.
   const cs = keyed([...photos([0, 2]), vid('v', 2, 1, 4, 6), { ...photos([5, 1])[0], id: 'c' }]);
 
@@ -926,7 +930,7 @@ describe('205: keyframes follow their clip; start-edge edits keep them at their 
       const result = OPS[name](before, before[Math.floor(rnd() * before.length)].id, rnd, ctx);
       if ('error' in result) continue;
       for (const after of result.clips) {
-        const was = before.find((legacyClip) => legacyClip.id === after.id)!;
+        const was = defined(before.find((legacyClip) => legacyClip.id === after.id));
         const moved = after.start - was.start;
         // A start edge moved: the clip starts elsewhere and its length changed (photo) or its content stayed put
         // (video). Whole-clip moves keep both. (Not "its end stayed": a Roll from a video under 0.1 s, which the
@@ -934,7 +938,7 @@ describe('205: keyframes follow their clip; start-edge edits keep them at their 
         const edge =
           Math.abs(moved) > 1e-9 &&
           (was.kind === 'photo' ? Math.abs(after.dur - was.dur) > 1e-9 : Math.abs(after.in - was.in - moved) < 1e-9);
-        const shift = after.keys!.x![0].t - was.keys!.x![0].t;
+        const shift = defined(defined(after.keys).x)[0].t - defined(defined(was.keys).x)[0].t;
         if (edge) {
           startEdges++;
           expect(shift, `${name} step ${index}: ${after.id}`).toBeCloseTo(-moved, 9);

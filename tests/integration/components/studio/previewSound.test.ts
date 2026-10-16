@@ -7,6 +7,7 @@ import { limitsFor } from '@/engine/videoFormats';
 import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from '@/components/studio/previewSound';
 import { FakeAudio } from '../../../support/fakeAudio';
 
+import { defined } from '../../../support/defined';
 type C = TimedClip & { name: string; volume: number };
 const videoClip = (name: string, track: string, start: number, len: number): C => ({
   name,
@@ -166,7 +167,7 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
       ['ov', 0.5],
       ['w', 0.25],
     ] as const) {
-      const audio = el(sound, id)!;
+      const audio = defined(el(sound, id));
       expect(audio.paused, id).toBe(false);
       expect(audio.currentTime, id).toBeCloseTo(1 + local, 9);
     }
@@ -177,8 +178,8 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
       ['ov', 0.6],
       ['w', 0.35],
     ] as const) {
-      expect(el(sound, id)!.paused, id).toBe(true);
-      expect(el(sound, id)!.currentTime, id).toBeCloseTo(1 + local, 9);
+      expect(defined(el(sound, id)).paused, id).toBe(true);
+      expect(defined(el(sound, id)).currentTime, id).toBeCloseTo(1 + local, 9);
     }
     sound.dispose();
   });
@@ -187,17 +188,17 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
     const sound = previewSound();
     tick(sound, project({ wMuted: true }), 2.5, true);
     expect(sound.size).toBe(3);
-    expect(el(sound, 'a')!.paused).toBe(false);
-    expect(el(sound, 'ov')!.paused).toBe(false);
-    expect(el(sound, 'w')!.paused).toBe(true);
-    expect(el(sound, 'w')!.muted).toBe(true);
+    expect(defined(el(sound, 'a')).paused).toBe(false);
+    expect(defined(el(sound, 'ov')).paused).toBe(false);
+    expect(defined(el(sound, 'w')).paused).toBe(true);
+    expect(defined(el(sound, 'w')).muted).toBe(true);
     // At 5.5 only c (next) is wanted: a, ov and w are released.
-    const old = ['a', 'ov', 'w'].map((id) => el(sound, id)!);
+    const old = ['a', 'ov', 'w'].map((id) => defined(el(sound, id)));
     tick(sound, project({ wMuted: true }), 5.5, true);
     expect(sound.size).toBe(1);
     for (const audio of old) expect(audio.src).toBe('');
-    expect(el(sound, 'c')!.paused).toBe(true);
-    expect(el(sound, 'c')!.currentTime).toBe(vC.in);
+    expect(defined(el(sound, 'c')).paused).toBe(true);
+    expect(defined(el(sound, 'c')).currentTime).toBe(vC.in);
     sound.dispose();
   });
 
@@ -250,19 +251,19 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
       ),
     };
     tick(sound, fadeIn, 0, true);
-    expect([el(sound, 'a')!.volume, el(sound, 'a')!.muted]).toEqual([0, true]);
+    expect([defined(el(sound, 'a')).volume, defined(el(sound, 'a')).muted]).toEqual([0, true]);
     for (const [time, want] of [
       [0.5, 0.25],
       [1, 0.5],
       [3, 1],
     ] as const) {
       tick(sound, fadeIn, time, true);
-      expect(el(sound, 'a')!.volume, `at ${time}`).toBeCloseTo(want, 9);
-      expect(el(sound, 'a')!.muted, `at ${time}`).toBe(false);
+      expect(defined(el(sound, 'a')).volume, `at ${time}`).toBeCloseTo(want, 9);
+      expect(defined(el(sound, 'a')).muted, `at ${time}`).toBe(false);
     }
     // A clip without keys keeps its stored volume.
     tick(sound, fadeIn, 2.5, true);
-    expect(el(sound, 'ov')!.volume).toBe(fadeIn.clips.find((x) => x.id === 'ov')!.volume);
+    expect(defined(el(sound, 'ov')).volume).toBe(defined(fadeIn.clips.find((x) => x.id === 'ov')).volume);
     sound.dispose();
   });
 
@@ -278,12 +279,12 @@ describe('preview sound elements for several clips at once (203 §7, D1’s boun
     const fixture: Project<C> = { tracks: defaultTracks(), clips: [x, y], audio: [], layers: [], fadeOut: false };
     // Playing inside the transition: both elements play.
     tick(sound, fixture, 3.6, true);
-    expect([el(sound, 'x')!.paused, el(sound, 'y')!.paused]).toEqual([false, false]);
+    expect([defined(el(sound, 'x')).paused, defined(el(sound, 'y')).paused]).toEqual([false, false]);
     // Paused (each element seeks exactly): each waits at its source past its own ends (x past 5 s, y before 1 s).
     for (const time of [3.6, 4, 4.4]) {
       tick(sound, fixture, time, false);
-      const outgoing = el(sound, 'x')!,
-        incoming = el(sound, 'y')!;
+      const outgoing = defined(el(sound, 'x')),
+        incoming = defined(el(sound, 'y'));
       expect(outgoing.currentTime, `at ${time}`).toBeCloseTo(1 + time, 9);
       expect(incoming.currentTime, `at ${time}`).toBeCloseTo(1 + time - 4, 9);
       expect(outgoing.volume, `at ${time}`).toBeCloseTo(

@@ -20,6 +20,7 @@ import {
   type Lut,
 } from '@/engine/lut';
 
+import { defined } from '../../support/defined';
 /** A .cube file for a table made by colourOf(red, green, blue) at size points per side. */
 function cube(size: number, colourOf: (red: number, green: number, blue: number) => number[], head = ''): string {
   const lines = [head, `LUT_3D_SIZE ${size}`];
@@ -264,7 +265,7 @@ describe('built-in presets', () => {
     expect(BUILT_IN_PRESETS.every((preset) => Object.keys(preset.adjust).join() === 'look')).toBe(true);
   });
   it('show as applied when the settings hold what they set, whatever the sliders', () => {
-    const vivid = BUILT_IN_PRESETS.find((preset) => preset.adjust.look === 'vivid')!;
+    const vivid = defined(BUILT_IN_PRESETS.find((preset) => preset.adjust.look === 'vivid'));
     expect(presetApplied({ ...DEFAULT_ADJUST, look: 'vivid', contrast: 30 }, vivid)).toBe(true);
     expect(presetApplied(DEFAULT_ADJUST, vivid)).toBe(false);
   });

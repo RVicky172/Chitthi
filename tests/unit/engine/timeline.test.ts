@@ -47,6 +47,7 @@ import { mergeLayers } from '@/engine/layerGate';
 import { newSticker, type Layer } from '@/engine/layers';
 import { limitsFor } from '@/engine/videoFormats';
 
+import { defined } from '../../support/defined';
 /** A 2.x project on tracks, built by hand (fromSequence is tested on its own, with the document). */
 function onTracks(project: LegacyProject): Project<LegacyClip & TimedClip> {
   const clips = pack(project.clips.map((clip) => ({ ...clip, track: MAIN_VIDEO, start: 0 })));
@@ -272,7 +273,7 @@ describe('gaps on the main video track (202)', () => {
       const plan = framePlan(withGaps, fps);
       expect(plan[0].f0).toBe(0);
       for (let index = 1; index < plan.length; index++) expect(plan[index].f0).toBe(plan[index - 1].f1);
-      expect(plan.at(-1)!.f1).toBe(8 * fps);
+      expect(defined(plan.at(-1)).f1).toBe(8 * fps);
       expect(plan.map((span) => span.clip?.id ?? null)).toEqual(['a', null, 'b', null, 'c']);
     }
     const gap = framePlan(withGaps, 30)[1];
@@ -589,7 +590,7 @@ describe('the project document (toDocument, mergeProject)', () => {
     const projectDoc = good();
     let out: ReturnType<typeof mergeProject> | undefined;
     expect(() => (out = mergeProject(make(projectDoc), false))).not.toThrow();
-    const { doc } = out!;
+    const { doc } = defined(out);
     expect(doc.version).toBe(1);
     // Valid by its own rules: tracks, clips, times, limits; and a second pass changes nothing.
     expect(doc.tracks.find((track) => track.id === MAIN_VIDEO)?.kind).toBe('video');
@@ -601,7 +602,8 @@ describe('the project document (toDocument, mergeProject)', () => {
       const docMedia = doc.media.find((x) => x.id === clip.media);
       expect(docMedia?.kind).toBe(clip.kind);
       expect(Number.isFinite(clip.start) && clip.start >= 0).toBe(true);
-      if (clip.kind === 'video') expect(0 <= clip.in && clip.in < clip.out && clip.out <= docMedia!.srcDur).toBe(true);
+      if (clip.kind === 'video')
+        expect(0 <= clip.in && clip.in < clip.out && clip.out <= defined(docMedia).srcDur).toBe(true);
       else expect(Number.isFinite(clip.dur) && clip.dur >= 0).toBe(true);
     }
     expect(new Set(doc.clips.map((clip) => clip.id)).size).toBe(doc.clips.length);
@@ -782,7 +784,7 @@ describe('overlay tracks (203 AC-1, AC-2)', () => {
     const added = addTrack(tracks, false);
     if ('error' in added) throw new Error(added.error);
     expect(added.tracks).toHaveLength(3);
-    const track = added.tracks.find((listed) => listed.id === added.id)!;
+    const track = defined(added.tracks.find((listed) => listed.id === added.id));
     expect(track).toMatchObject({ kind: 'overlay', name: 'Overlay 1', hidden: false, muted: false, locked: false });
     expect(track.id).toMatch(/^[A-Za-z0-9_-]{1,40}$/);
     // Drawing order, bottom first: the main track, the new overlay, then the sound tracks.
@@ -795,14 +797,14 @@ describe('overlay tracks (203 AC-1, AC-2)', () => {
 
   it('names a new track with the lowest free number, and ids stay unique', () => {
     const three = add(add(add(defaultTracks(), true), true), true);
-    const o2 = three.find((track) => track.name === 'Overlay 2')!;
+    const o2 = defined(three.find((track) => track.name === 'Overlay 2'));
     const gone = ok(deleteTrack(three, [], o2.id)).tracks;
     const again = add(gone, true);
     expect(again.map((track) => track.name)).toEqual(['Video', 'Overlay 1', 'Overlay 3', 'Overlay 2', 'Music']);
     expect(new Set(ids(again)).size).toBe(again.length);
     // A renamed track frees its number.
     const renamed = ok(renameTrack(three, three[1].id, 'Face cam')).tracks;
-    expect(add(renamed, true).at(-2)!.name).toBe('Overlay 1');
+    expect(defined(add(renamed, true).at(-2)).name).toBe('Overlay 1');
   });
 
   it('is refused at the picture track limit with the message the button shows: 4 on the web, 8 on desktop', () => {
@@ -913,7 +915,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       ['o2a', true, false],
       ['o2b', false, false],
     ]);
-    expect(doc.clips.find((clip) => clip.id === 'o1b')!.transform).toEqual({
+    expect(defined(doc.clips.find((clip) => clip.id === 'o1b')).transform).toEqual({
       x: 0.3,
       y: 0.7,
       w: 0.5,
@@ -941,9 +943,11 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       ['O2', 'overlay'],
       [MUSIC, 'audio'],
     ]);
-    expect(once.doc.clips.find((clip) => clip.id === 'o1a')!.tf).toEqual(presetTransform('top-right', 1920, 1080));
-    expect('tf' in once.doc.clips.find((clip) => clip.id === 'o2b')!).toBe(false);
-    expect('transform' in once.doc.clips.find((clip) => clip.id === 'o1a')!).toBe(false);
+    expect(defined(once.doc.clips.find((clip) => clip.id === 'o1a')).tf).toEqual(
+      presetTransform('top-right', 1920, 1080),
+    );
+    expect('tf' in defined(once.doc.clips.find((clip) => clip.id === 'o2b'))).toBe(false);
+    expect('transform' in defined(once.doc.clips.find((clip) => clip.id === 'o1a'))).toBe(false);
     expect(toDocument(once.doc)).toEqual(doc);
     expect(JSON.stringify(toDocument(once.doc))).toBe(text);
     expect(mergeProject(JSON.parse(JSON.stringify(toDocument(once.doc))), true).doc).toEqual(once.doc);
@@ -990,12 +994,12 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
   const leftOut = (name: string) => `A project holds up to 4 picture and 4 sound tracks here; “${name}” was left out.`;
   /** o1a has no tf and the reason says its transform couldn't be read. */
   const unread = (project: Gated) => {
-    expect('tf' in clipOf(project, 'o1a')!).toBe(false);
+    expect('tf' in defined(clipOf(project, 'o1a'))).toBe(false);
     expect(why(project)).toMatch(UNREAD);
   };
   /** o1a's tf has these fields (the rest of the top-right preset) and the reason says it was adjusted. */
   const adjusted = (fields: Partial<typeof IDENTITY>) => (project: Gated) => {
-    expect(clipOf(project, 'o1a')!.tf).toEqual({ ...TR, ...fields });
+    expect(defined(clipOf(project, 'o1a')).tf).toEqual({ ...TR, ...fields });
     expect(project.dropped).toEqual([expect.stringMatching(ADJUSTED)]);
   };
   const bad: [string, (d: Doc) => unknown, (r: Gated) => void][] = [
@@ -1008,7 +1012,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       'a transform with only a width',
       tfOf(() => ({ w: 0.3 })),
       (project) => {
-        expect(clipOf(project, 'o1a')!.tf).toEqual({ ...IDENTITY, w: 0.3 });
+        expect(defined(clipOf(project, 'o1a')).tf).toEqual({ ...IDENTITY, w: 0.3 });
         expect(why(project)).toMatch(ADJUSTED);
       },
     ],
@@ -1036,7 +1040,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       'unknown fields in a transform',
       tfOf((transform) => ({ ...transform, skew: 30, href: 'javascript:x' })),
       (project) => {
-        expect(clipOf(project, 'o1a')!.tf).toEqual(TR);
+        expect(defined(clipOf(project, 'o1a')).tf).toEqual(TR);
         expect(project.dropped).toEqual([]);
       },
     ],
@@ -1044,7 +1048,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       'an identity transform written out',
       tfOf(() => ({ ...IDENTITY })),
       (project) => {
-        expect('tf' in clipOf(project, 'o1a')!).toBe(false);
+        expect('tf' in defined(clipOf(project, 'o1a'))).toBe(false);
         expect(project.dropped).toEqual([]);
       },
     ],
@@ -1064,7 +1068,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       (doc) => ({ ...doc, clips: doc.clips.map((clip) => ({ ...clip, tf: 'x' })) }),
       (project) => {
         expect('tf' in project.doc.clips[0]).toBe(false);
-        expect(clipOf(project, 'o1a')!.tf).toEqual(TR);
+        expect(defined(clipOf(project, 'o1a')).tf).toEqual(TR);
         expect(project.dropped).toEqual([]);
       },
     ],
@@ -1108,7 +1112,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
         tracks: doc.tracks.map((track) => (track.id === 'O1' ? { ...track, kind: 'audio' } : track)),
       }),
       (project) => {
-        expect(project.doc.tracks.find((track) => track.id === 'O1')!.kind).toBe('audio');
+        expect(defined(project.doc.tracks.find((track) => track.id === 'O1')).kind).toBe('audio');
         expect(clipOf(project, 'o1a')).toBeUndefined();
         expect(clipOf(project, 'o1b')).toBeUndefined();
         expect(project.dropped).toEqual(Array(2).fill('A clip on a missing or sound track was left out.'));
@@ -1242,7 +1246,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
         tracks: doc.tracks.map((track) => (track.id === 'O1' ? { ...track, id: 'V2', kind: 'video' } : track)),
       }),
       (project) => {
-        expect(project.doc.tracks.find((track) => track.id === 'V2')!.kind).toBe('overlay');
+        expect(defined(project.doc.tracks.find((track) => track.id === 'V2')).kind).toBe('overlay');
         expect(project.dropped[0]).toBe(
           'The “Face cam” track became an overlay track: a project has one main video track.',
         );
@@ -1307,7 +1311,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       }),
       (project) => {
         expect(project.doc.tracks[0].muted).toBe(false);
-        expect(project.doc.tracks.find((track) => track.id === 'O2')!.muted).toBe(true);
+        expect(defined(project.doc.tracks.find((track) => track.id === 'O2')).muted).toBe(true);
       },
     ],
     [
@@ -1370,8 +1374,8 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
     expect(() => mergeProject(make(fixture()), false)).not.toThrow();
     let out: ReturnType<typeof mergeProject> | undefined;
     expect(() => (out = mergeProject(JSON.parse(JSON.stringify(make(fixture()))), false))).not.toThrow();
-    check(out!);
-    const { doc } = out!;
+    check(defined(out));
+    const { doc } = defined(out);
     expect(doc.version).toBe(1);
     const pictures = doc.tracks.filter((track) => track.kind !== 'audio');
     // The main track is the bottom picture track, the only one of kind video; the rest are overlays.
@@ -1408,15 +1412,19 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
 
   it('clamps a transform out of range, and says so', () => {
     const project = gate(tfOf((transform) => ({ ...transform, w: 9, opacity: -1, rot: 400 })));
-    expect(project.doc.clips.find((clip) => clip.id === 'o1a')!.tf).toMatchObject({ w: 4, opacity: 0, rot: 180 });
+    expect(defined(project.doc.clips.find((clip) => clip.id === 'o1a')).tf).toMatchObject({
+      w: 4,
+      opacity: 0,
+      rot: 180,
+    });
     expect(project.dropped.join(' ')).toMatch(/position and size/i);
     const junk = gate(tfOf(() => 'top-right'));
-    expect('tf' in junk.doc.clips.find((clip) => clip.id === 'o1a')!).toBe(false);
+    expect('tf' in defined(junk.doc.clips.find((clip) => clip.id === 'o1a'))).toBe(false);
     expect(junk.dropped.join(' ')).toMatch(/position and size/i);
     // An identity transform is fine as it is: no tf, nothing to say.
     const id = gate(tfOf(() => ({ ...IDENTITY })));
     expect(id.dropped).toEqual([]);
-    expect('tf' in id.doc.clips.find((clip) => clip.id === 'o1a')!).toBe(false);
+    expect('tf' in defined(id.doc.clips.find((clip) => clip.id === 'o1a'))).toBe(false);
   });
 
   it('drops a clip on a missing track with a reason', () => {
@@ -1454,7 +1462,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       ...doc,
       tracks: doc.tracks.map((track) => (track.id === 'O1' ? { ...track, kind: 'video' } : track)),
     }));
-    expect(project.doc.tracks.find((track) => track.id === 'O1')!.kind).toBe('overlay');
+    expect(defined(project.doc.tracks.find((track) => track.id === 'O1')).kind).toBe('overlay');
     expect(onTrack(project.doc, 'O1')).toHaveLength(2);
     expect(project.dropped.join(' ')).toMatch(/Face cam.*overlay/);
   });
@@ -1497,7 +1505,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
       ...projectDoc,
       clips: projectDoc.clips.map((clip) => (clip.id === 'o1a' ? { ...clip, tf: wild } : clip)),
     });
-    expect(out.clips.find((clip) => clip.id === 'o1a')!.transform).toEqual(clampTransform(wild));
+    expect(defined(out.clips.find((clip) => clip.id === 'o1a')).transform).toEqual(clampTransform(wild));
   });
 });
 
@@ -1617,7 +1625,7 @@ describe('keyframes in the document (205 AC-4)', () => {
   const fixture = () => {
     const projectDoc = mergeProject(legacyDoc(legacyFixtures().mixed), true).doc;
     const clips = projectDoc.clips.map((clip) =>
-      clip.kind === 'video' && clip.id === projectDoc.clips.find((x) => x.kind === 'video')!.id
+      clip.kind === 'video' && clip.id === defined(projectDoc.clips.find((x) => x.kind === 'video')).id
         ? {
             ...clip,
             keys: {
@@ -1636,9 +1644,9 @@ describe('keyframes in the document (205 AC-4)', () => {
   };
   type Doc = ReturnType<typeof fixture>;
   type Gated = ReturnType<typeof mergeProject>;
-  const animatedId = (doc: Doc) => doc.clips.find((clip) => clip.keys)!.id;
+  const animatedId = (doc: Doc) => defined(doc.clips.find((clip) => clip.keys)).id;
   const keysOf = (project: Gated, projectDoc: Doc) =>
-    project.doc.clips.find((clip) => clip.id === animatedId(projectDoc))!.keys;
+    defined(project.doc.clips.find((clip) => clip.id === animatedId(projectDoc))).keys;
   const layerKeys = (project: Gated) => project.doc.layers.find((kept) => kept.id === 'L1')?.keys;
   const why = (project: Gated) => project.dropped.join(' ');
   const UNREAD = /Some keyframes couldn’t be read and were left out/;
@@ -1655,19 +1663,19 @@ describe('keyframes in the document (205 AC-4)', () => {
   });
   /** The animated clip's x keys replaced by `list`. */
   const xKeys = (replacement: unknown) => (doc: Doc) =>
-    clipKeys({ ...doc.clips.find((clip) => clip.keys)!.keys, x: replacement })(doc);
+    clipKeys({ ...defined(doc.clips.find((clip) => clip.keys)).keys, x: replacement })(doc);
   const layerWith = (keys: unknown) => (doc: Doc) => ({ ...doc, layers: [layer('L1', keys)] });
 
   /** The clip has no keys and the reason says they couldn't be read. */
   const noKeys = (project: Gated, projectDoc: Doc) => {
-    expect('keys' in project.doc.clips.find((clip) => clip.id === animatedId(projectDoc))!).toBe(false);
+    expect('keys' in defined(project.doc.clips.find((clip) => clip.id === animatedId(projectDoc)))).toBe(false);
     expect(why(project)).toMatch(UNREAD);
   };
   /** The clip's x keys are `list`, its other keys as written, and the only reasons match `reasons`. */
   const xIs =
     (keyframes: Keyframe[] | undefined, ...reasons: RegExp[]) =>
     (project: Gated, doc: Doc) => {
-      const keys = keysOf(project, doc)!;
+      const keys = defined(keysOf(project, doc));
       expect(keys.x).toEqual(keyframes);
       expect(keys.opacity).toEqual([keyframe(0, 1), keyframe(2, 0, 'hold')]);
       expect(project.dropped).toEqual(reasons.map((re) => expect.stringMatching(re)));
@@ -1682,7 +1690,7 @@ describe('keyframes in the document (205 AC-4)', () => {
       'empty keys',
       clipKeys({}),
       (project, projectDoc) => {
-        expect('keys' in project.doc.clips.find((clip) => clip.id === animatedId(projectDoc))!).toBe(false);
+        expect('keys' in defined(project.doc.clips.find((clip) => clip.id === animatedId(projectDoc)))).toBe(false);
         expect(project.dropped).toEqual([]);
       },
     ],
@@ -1762,7 +1770,7 @@ describe('keyframes in the document (205 AC-4)', () => {
       (doc) =>
         JSON.parse(JSON.stringify(clipKeys({ MARK: [], x: [keyframe(0, 0.2)] })(doc)).replace('"MARK"', '"__proto__"')),
       (project, doc) => {
-        const keys = keysOf(project, doc)!;
+        const keys = defined(keysOf(project, doc));
         expect(Object.keys(keys)).toEqual(['x']);
         expect(Object.getPrototypeOf(keys)).toBe(Object.prototype);
         expect(why(project)).toMatch(UNREAD);
@@ -1833,7 +1841,7 @@ describe('keyframes in the document (205 AC-4)', () => {
     const doc = fixture();
     let project: Gated | undefined;
     expect(() => (project = mergeProject(JSON.parse(JSON.stringify(make(doc))), true))).not.toThrow();
-    check(project!, doc);
+    check(defined(project), doc);
   });
 
   it('writes keys only where there are some, and round-trips document → gate → document equal', () => {
@@ -1842,7 +1850,7 @@ describe('keyframes in the document (205 AC-4)', () => {
     const text = JSON.stringify(doc);
     const once = mergeProject(JSON.parse(text), true);
     expect(once.dropped).toEqual([]);
-    expect(keysOf(once, doc)).toEqual(doc.clips.find((clip) => clip.keys)!.keys);
+    expect(keysOf(once, doc)).toEqual(defined(doc.clips.find((clip) => clip.keys)).keys);
     expect(layerKeys(once)).toEqual({ y: [keyframe(0, 1.2), keyframe(0.5, 0.5, 'ease-in')], rot: [keyframe(0, -90)] });
     expect(toDocument(once.doc)).toEqual(doc);
     expect(JSON.stringify(toDocument(once.doc))).toBe(text);
@@ -1928,7 +1936,8 @@ describe('transitions in the document (206 AC-5)', () => {
   type Doc = ReturnType<typeof fixture>;
   type Gated = ReturnType<typeof mergeProject>;
   const ids = (doc: Doc) => doc.clips.map((clip) => clip.id);
-  const transitionOf = (project: Gated, id: string) => project.doc.clips.find((clip) => clip.id === id)!.transition;
+  const transitionOf = (project: Gated, id: string) =>
+    defined(project.doc.clips.find((clip) => clip.id === id)).transition;
   const UNREAD = /Some transitions couldn’t be read and were left out/;
   const KIND = /Some transitions were of an unknown kind and are now cross-dissolves/;
   const OPTION = /Some transition options were unknown and were set to the defaults/;
@@ -2061,7 +2070,7 @@ describe('transitions in the document (206 AC-5)', () => {
     const doc = fixture();
     let project: Gated | undefined;
     expect(() => (project = mergeProject(JSON.parse(JSON.stringify(make(doc))), true))).not.toThrow();
-    check(project!, doc);
+    check(defined(project), doc);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 

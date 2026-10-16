@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { defined } from '../support/defined';
 // The photo studio: batch, editing, export and posting.
 const SAMPLES = ['wheat-fields.jpg', 'diwali.jpg', 'holi-bowls.jpg', 'lotus.jpg', 'tea.jpg'].map((file) =>
   path.join('public', 'samples', file),
@@ -105,7 +106,7 @@ test('light and white balance: sliders, and the eyedropper sets temperature and 
   await page.getByRole('button', { name: 'Pick a neutral grey' }).click();
   await expect(page.locator('.mst-canvas')).toHaveClass(/picking/);
   await expect(page.locator('.mst-canvas')).toBeInViewport();
-  const cv = (await page.locator('.mst-canvas').boundingBox())!;
+  const cv = defined(await page.locator('.mst-canvas').boundingBox());
   await page.locator('.mst-canvas').click({ position: { x: cv.width * 0.5, y: cv.height * 0.55 } });
   await expect(page.locator('.mst-canvas')).not.toHaveClass(/picking/);
   const wb = await page.locator('label[for="ig-te"] output, label[for="ig-ti"] output').allTextContents();
@@ -147,10 +148,10 @@ test('tone curve works from the keyboard, and the colour mixer changes the photo
   await expect.poll(shot).not.toBe(before);
   // A click in the middle of the graph adds a point there (input and output about 128).
   await page.getByRole('button', { name: 'Reset RGB' }).click();
-  const box = (await curve.boundingBox())!;
+  const box = defined(await curve.boundingBox());
   await curve.click({ position: { x: box.width / 2, y: box.height / 2 } });
-  const name = (await curve.getByRole('button', { name: /^Point 2 of 3/ }).getAttribute('aria-label'))!;
-  const [, inp, out] = /input (\d+), output (\d+)/.exec(name)!.map(Number);
+  const name = defined(await curve.getByRole('button', { name: /^Point 2 of 3/ }).getAttribute('aria-label'));
+  const [, inp, out] = defined(/input (\d+), output (\d+)/.exec(name)).map(Number);
   expect(Math.abs(inp - 128)).toBeLessThan(6);
   expect(Math.abs(out - 128)).toBeLessThan(6);
   // Other channels have their own curve.
@@ -339,9 +340,14 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
   const lum = (x: number, y: number) =>
     canvas.evaluate(
       (canvasElement: HTMLCanvasElement, [x, y]) => {
-        const pixels = canvasElement
-          .getContext('2d')!
-          .getImageData(Math.round(canvasElement.width * x) - 4, Math.round(canvasElement.height * y) - 4, 9, 9).data;
+        const ctx = canvasElement.getContext('2d');
+        if (!ctx) throw new Error('The preview has no 2D context.');
+        const pixels = ctx.getImageData(
+          Math.round(canvasElement.width * x) - 4,
+          Math.round(canvasElement.height * y) - 4,
+          9,
+          9,
+        ).data;
         let amount = 0;
         for (let index = 0; index < pixels.length; index += 4)
           amount += pixels[index] + pixels[index + 1] + pixels[index + 2];
@@ -358,7 +364,7 @@ test('masks: a brush mask brightens only where it is painted, can be erased, swi
   // Paint a stroke across the middle (on a phone the photo sits above the panel: bring it into view first).
   const paint = async () => {
     await canvas.scrollIntoViewIfNeeded();
-    const box = (await canvas.boundingBox())!;
+    const box = defined(await canvas.boundingBox());
     await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
     await page.mouse.down();
     for (let index = 1; index <= 8; index++)
@@ -411,9 +417,14 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
   const lum = (x: number, y: number) =>
     canvas.evaluate(
       (canvasElement: HTMLCanvasElement, [x, y]) => {
-        const pixels = canvasElement
-          .getContext('2d')!
-          .getImageData(Math.round(canvasElement.width * x) - 4, Math.round(canvasElement.height * y) - 4, 9, 9).data;
+        const ctx = canvasElement.getContext('2d');
+        if (!ctx) throw new Error('The preview has no 2D context.');
+        const pixels = ctx.getImageData(
+          Math.round(canvasElement.width * x) - 4,
+          Math.round(canvasElement.height * y) - 4,
+          9,
+          9,
+        ).data;
         let amount = 0;
         for (let index = 0; index < pixels.length; index += 4)
           amount += pixels[index] + pixels[index + 1] + pixels[index + 2];
@@ -424,7 +435,7 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
   const before = { top: await lum(0.5, 0.1), bottom: await lum(0.5, 0.9) };
   const drag = async (from: [number, number], to: [number, number]) => {
     await canvas.scrollIntoViewIfNeeded();
-    const canvasBox = (await canvas.boundingBox())!;
+    const canvasBox = defined(await canvas.boundingBox());
     await page.mouse.move(canvasBox.x + canvasBox.width * from[0], canvasBox.y + canvasBox.height * from[1]);
     await page.mouse.down();
     for (let index = 1; index <= 6; index++)
@@ -473,7 +484,7 @@ test('gradient and range masks: drawn, moved by handles and keys, narrowed by br
   await page.getByRole('button', { name: 'New colour range mask' }).click();
   await expect(page.getByText('Picked colour #808080')).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
-  const pickBox = (await canvas.boundingBox())!;
+  const pickBox = defined(await canvas.boundingBox());
   await page.mouse.click(pickBox.x + pickBox.width * 0.5, pickBox.y + pickBox.height * 0.15);
   await expect(page.locator('.ig-swatch')).toContainText(/Picked colour #[0-9a-f]{6}/);
   await expect(page.locator('.ig-swatch')).not.toContainText('#808080');
@@ -541,12 +552,12 @@ test('export formats: WebP where the browser writes it, AVIF only where it does,
   await expect(types.getByRole('button', { name: 'PNG' })).toBeVisible();
   const writes = (mime: string) =>
     page.evaluate(
-      (message) =>
+      (mimeType) =>
         new Promise<boolean>((res) => {
           const canvas = document.createElement('canvas');
           canvas.width = canvas.height = 2;
-          canvas.getContext('2d')!.fillRect(0, 0, 2, 2);
-          canvas.toBlob((blob) => res(blob?.type === message), message);
+          canvas.getContext('2d')?.fillRect(0, 0, 2, 2);
+          canvas.toBlob((blob) => res(blob?.type === mimeType), mimeType);
         }),
       mime,
     );
@@ -591,15 +602,22 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
   // over 8 s on CI's software-rendered runner, longer than the poll's whole timeout.
   const keepBefore = () =>
     canvas.evaluate((canvasElement: HTMLCanvasElement) => {
-      (window as unknown as { __before: Uint8ClampedArray }).__before = canvasElement
-        .getContext('2d')!
-        .getImageData(0, 0, canvasElement.width, canvasElement.height).data;
+      const ctx = canvasElement.getContext('2d');
+      if (!ctx) throw new Error('The preview has no 2D context.');
+      (window as unknown as { __before: Uint8ClampedArray }).__before = ctx.getImageData(
+        0,
+        0,
+        canvasElement.width,
+        canvasElement.height,
+      ).data;
     });
   /** Share of pixels whose green channel moved by more than 20 since keepBefore(). */
   const changedShare = () =>
     canvas.evaluate((canvasElement: HTMLCanvasElement) => {
       const before = (window as unknown as { __before: Uint8ClampedArray }).__before;
-      const after = canvasElement.getContext('2d')!.getImageData(0, 0, canvasElement.width, canvasElement.height).data;
+      const ctx = canvasElement.getContext('2d');
+      if (!ctx) throw new Error('The preview has no 2D context.');
+      const after = ctx.getImageData(0, 0, canvasElement.width, canvasElement.height).data;
       if (after.length !== before.length) return 1;
       let changed = 0;
       for (let index = 0; index < after.length; index += 4)
@@ -623,7 +641,7 @@ test('AI masks: the subject is found on the device, refined with the brush; the 
 
   // Painting over the AI part refines it with a new brush part.
   await canvas.scrollIntoViewIfNeeded();
-  const box = (await canvas.boundingBox())!;
+  const box = defined(await canvas.boundingBox());
   await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.1);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.1);
@@ -729,14 +747,14 @@ test('RAW files on the web open their built-in preview; TIFF exports 16 bits whe
   await expect
     .poll(() =>
       canvas.evaluate((canvasElement: HTMLCanvasElement) => {
-        const pixels = canvasElement
-          .getContext('2d')!
-          .getImageData(
-            Math.round(canvasElement.width / 2) - 20,
-            Math.round(canvasElement.height / 2) - 20,
-            40,
-            40,
-          ).data;
+        const ctx = canvasElement.getContext('2d');
+        if (!ctx) throw new Error('The preview has no 2D context.');
+        const pixels = ctx.getImageData(
+          Math.round(canvasElement.width / 2) - 20,
+          Math.round(canvasElement.height / 2) - 20,
+          40,
+          40,
+        ).data;
         let sat = 0;
         for (let index = 0; index < pixels.length; index += 4)
           sat +=

@@ -5,6 +5,7 @@ import { detailNodes } from '@/engine/gpu/detail';
 import { runNodes, SPARES, TexturePool } from '@/engine/gpu/graph';
 import { COPY_PROGRAM, type GpuDevice, type GpuProgram, type GpuTexture } from '@/engine/gpu/types';
 
+import { defined } from '../../../support/defined';
 /** A device that only records what it was asked to do. */
 function fakeDevice() {
   let made = 0;
@@ -162,11 +163,11 @@ describe('deep (16-bit) nodes', () => {
   it('leave every colour step unrounded', () => {
     const shallow = colourNodes(first),
       deep = colourNodes(first, true);
-    expect(shallow.at(-1)!.uniforms[8]).toBe(0);
-    expect(deep.at(-1)!.uniforms[8]).toBe(1);
+    expect(defined(shallow.at(-1)).uniforms[8]).toBe(0);
+    expect(defined(deep.at(-1)).uniforms[8]).toBe(1);
   });
   it('leave the last detail step unrounded', () => {
-    expect(detailNodes(first, 1080, 1350, 0).at(-1)!.uniforms[4]).toBe(1);
-    expect(detailNodes(first, 1080, 1350, 0, true).at(-1)!.uniforms[4]).toBe(0);
+    expect(defined(detailNodes(first, 1080, 1350, 0).at(-1)).uniforms[4]).toBe(1);
+    expect(defined(detailNodes(first, 1080, 1350, 0, true).at(-1)).uniforms[4]).toBe(0);
   });
 });

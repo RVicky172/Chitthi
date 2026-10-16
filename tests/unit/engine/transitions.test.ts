@@ -18,6 +18,7 @@ import {
   type Transition,
 } from '@/engine/transitions';
 
+import { defined } from '../../support/defined';
 /** A video clip on a track: `len` seconds from `start`. */
 const clip = (id: string, start: number, len: number, extra: Partial<TimedClip> = {}): TimedClip => ({
   id,
@@ -135,16 +136,16 @@ describe('tidyTransitions (AC-4): the one rule', () => {
     ];
     const tidy = tidyTransitions(clips, 30);
     // a → b: b is 1.2 s, so at most 2.4; a's 2 s fits. b → c: b has 1.2 − 1 = 0.2 s left, so 0.4 s.
-    expect(tidy.clips[0].transition!.dur).toBeCloseTo(2, 9);
-    expect(tidy.clips[1].transition!.dur).toBeCloseTo(0.4, 9);
+    expect(defined(tidy.clips[0].transition).dur).toBeCloseTo(2, 9);
+    expect(defined(tidy.clips[1].transition).dur).toBeCloseTo(0.4, 9);
     expect(tidy.dropped).toEqual([]);
   });
 
   it('puts lengths on whole frames (rounding down) at 30 and 60 fps, and caps them at 3 s', () => {
     const clips = (dur: number) => [clip('a', 0, 10, { transition: into('b', dur) }), clip('b', 10, 10)];
-    expect(tidyTransitions(clips(0.51), 30).clips[0].transition!.dur).toBeCloseTo(15 / 30, 12);
-    expect(tidyTransitions(clips(0.51), 60).clips[0].transition!.dur).toBeCloseTo(30 / 60, 12);
-    expect(tidyTransitions(clips(5), 30).clips[0].transition!.dur).toBe(3);
+    expect(defined(tidyTransitions(clips(0.51), 30).clips[0].transition).dur).toBeCloseTo(15 / 30, 12);
+    expect(defined(tidyTransitions(clips(0.51), 60).clips[0].transition).dur).toBeCloseTo(30 / 60, 12);
+    expect(defined(tidyTransitions(clips(5), 30).clips[0].transition).dur).toBe(3);
   });
 
   it('drops one with less than 0.1 s of room', () => {
@@ -155,7 +156,7 @@ describe('tidyTransitions (AC-4): the one rule', () => {
       clip('b', 3.04, 2),
     ];
     const tidy = tidyTransitions(clips, 30);
-    expect(tidy.clips[0].transition!.dur).toBeCloseTo(2, 9);
+    expect(defined(tidy.clips[0].transition).dur).toBeCloseTo(2, 9);
     expect(tidy.clips[1].transition).toBeUndefined();
     expect(tidy.dropped).toEqual(['a']);
   });
@@ -275,7 +276,9 @@ describe('transitionOps (AC-1, D3)', () => {
         'source-over',
       ]);
       // The two parts tile the frame.
-      expect(from.op.clip!.w * from.op.clip!.h + to.op.clip!.w * to.op.clip!.h).toBeCloseTo(width * height, 6);
+      expect(
+        defined(from.op.clip).w * defined(from.op.clip).h + defined(to.op.clip).w * defined(to.op.clip).h,
+      ).toBeCloseTo(width * height, 6);
     }
   });
 
@@ -348,7 +351,9 @@ describe('renderStack with a transition pair (plan §3)', () => {
   }
   /** The pair canvas’s log (the second scratch canvas made: slot 2 after the layer’s slot 1). */
   const pairLog = (logs: Map<string, string[]>) =>
-    [...logs.entries()].find(([name, log]) => name !== 'main' && log.some((line) => line.startsWith('drawImage(')))![1];
+    defined(
+      [...logs.entries()].find(([name, log]) => name !== 'main' && log.some((line) => line.startsWith('drawImage('))),
+    )[1];
 
   it('a dissolve lays both clips onto the pair with `lighter` at 1 − p and p, then the pair onto the frame once', () => {
     const logs = draw(pairItems('dissolve', 0.25));
@@ -361,7 +366,7 @@ describe('renderStack with a transition pair (plan §3)', () => {
       'globalCompositeOperation=lighter',
       expect.stringMatching(/^drawImage\(scratch\d,0,0\)$/),
     ]);
-    expect(logs.get('main')!.filter((line) => line.startsWith('drawImage('))).toHaveLength(1);
+    expect(defined(logs.get('main')).filter((line) => line.startsWith('drawImage('))).toHaveLength(1);
   });
 
   it('a dip draws only the visible clip and the colour over the clips’ own pixels (source-atop)', () => {

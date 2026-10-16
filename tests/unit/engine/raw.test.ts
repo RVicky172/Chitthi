@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { decodeSrgb, embeddedJpeg, encodeSrgb, isRawName, rawToRgba8 } from '@/engine/raw';
 import { buildTiff, syntheticDng, tiff16 } from '@/engine/tiff';
 
+import { defined } from '../../support/defined';
 /** A minimal complete JPEG: SOI, a frame header, a scan with data (stuffed FF 00 and a restart marker), EOI. */
 function jpeg(fill: number, len: number): Uint8Array {
   const head = [0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 1, 0, 1, 1, 1, 0x11, 0, 0xff, 0xda, 0, 8, 1, 1, 0, 0, 0x3f, 0];
@@ -21,7 +22,7 @@ describe('camera RAW files', () => {
     const small = jpeg(1, 1500),
       big = jpeg(2, 4000);
     const file = new Uint8Array([...new Uint8Array(100), ...small, ...new Uint8Array(50), ...big, 9, 9, 9]);
-    const got = embeddedJpeg(file)!;
+    const got = defined(embeddedJpeg(file));
     expect(got.length).toBe(big.length);
     expect(got[got.length - 1]).toBe(0xd9);
     expect(got[100]).toBe(2);
@@ -66,14 +67,14 @@ describe('TIFF writer', () => {
       });
     }
     expect([...tags.keys()]).toEqual([...tags.keys()].sort((left, right) => left - right));
-    expect(view.getUint32(tags.get(256)!.at, true)).toBe(2);
-    expect(view.getUint16(tags.get(262)!.at, true)).toBe(2);
-    const bits = view.getUint32(tags.get(258)!.at, true);
+    expect(view.getUint32(defined(tags.get(256)).at, true)).toBe(2);
+    expect(view.getUint16(defined(tags.get(262)).at, true)).toBe(2);
+    const bits = view.getUint32(defined(tags.get(258)).at, true);
     expect([view.getUint16(bits, true), view.getUint16(bits + 2, true), view.getUint16(bits + 4, true)]).toEqual([
       16, 16, 16,
     ]);
-    const strip = view.getUint32(tags.get(273)!.at, true);
-    expect(view.getUint32(tags.get(279)!.at, true)).toBe(12);
+    const strip = view.getUint32(defined(tags.get(273)).at, true);
+    expect(view.getUint32(defined(tags.get(279)).at, true)).toBe(12);
     expect([0, 1, 2, 3, 4, 5].map((index) => view.getUint16(strip + index * 2, true))).toEqual([...rgb]);
     expect(strip + 12).toBe(bytes.length);
   });
@@ -95,6 +96,6 @@ describe('TIFF writer', () => {
     const dng = syntheticDng(jpeg(3, 3000));
     expect([...dng.subarray(0, 4)]).toEqual([0x49, 0x49, 42, 0]);
     expect(dng.length).toBeGreaterThan(192 * 128 * 2);
-    expect(embeddedJpeg(dng)!.length).toBe(jpeg(3, 3000).length);
+    expect(defined(embeddedJpeg(dng)).length).toBe(jpeg(3, 3000).length);
   });
 });

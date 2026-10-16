@@ -10,6 +10,7 @@ import {
 } from '@/engine/clipBox';
 import { IDENTITY, presetTransform, type ClipTransform } from '@/engine/timeline';
 
+import { defined } from '../../support/defined';
 /** A 1080 × 1920 Reel frame. */
 const WIDTH = 1080,
   HEIGHT = 1920;
@@ -92,8 +93,8 @@ describe('rotatedTransform', () => {
 
 describe('nudgedTransform', () => {
   it('moves 1 % of the frame per arrow key, 10 % with Shift', () => {
-    expect(nudgedTransform(corner, 'ArrowRight', false)!.x).toBeCloseTo(corner.x + 0.01, 9);
-    expect(nudgedTransform(corner, 'ArrowUp', true)!.y).toBeCloseTo(corner.y - 0.1, 9);
+    expect(defined(nudgedTransform(corner, 'ArrowRight', false)).x).toBeCloseTo(corner.x + 0.01, 9);
+    expect(defined(nudgedTransform(corner, 'ArrowUp', true)).y).toBeCloseTo(corner.y - 0.1, 9);
   });
   it('ignores other keys', () => {
     expect(nudgedTransform(corner, 'Enter', false)).toBeNull();

@@ -33,6 +33,7 @@ import { frameRange, IDENTITY, type ClipTransform, type TimedClip } from '@/engi
 import { type SoundSource } from '@/engine/soundPlan';
 import { itemTransform, type StackDraw } from '@/engine/video';
 
+import { defined } from '../../support/defined';
 /** A video clip on the main track, 10 s long, starting at 2 s on the timeline. */
 const clip = (extra: Partial<TimedClip & { volume: number }> = {}): TimedClip & { volume: number } => ({
   id: 'c1',
@@ -359,7 +360,7 @@ describe('pure edits', () => {
       tf: { ...IDENTITY, y: 0.2, x: 0.5 },
       keys: { volume: [keyframe(0, 0.5)] },
     });
-    expect(stopAnimating(timedClip, 'volume', 1)).toEqual({ volume: 0.5, keys: { x: timedClip.keys!.x } });
+    expect(stopAnimating(timedClip, 'volume', 1)).toEqual({ volume: 0.5, keys: { x: defined(timedClip.keys).x } });
     const only = clip({ keys: { opacity: [keyframe(0, 0.25)] } });
     expect(stopAnimating(only, 'opacity', 0)).toEqual({ tf: { ...IDENTITY, opacity: 0.25 }, keys: undefined });
     const layer = { ...newSticker('⭐'), start: 1, keys: { opacity: [keyframe(0, 1, 'linear'), keyframe(1, 0)] } };
@@ -391,13 +392,15 @@ describe('pure edits', () => {
     });
     // The values on either side of the cut are unchanged at every time.
     for (let time = 0; time <= 5; time += 0.125) {
-      const before = valueAt(keys.x!, time);
-      expect(time <= 1 ? valueAt(left!.x!, time) : valueAt(right!.x!, time - 1)).toBeCloseTo(before, 12);
+      const before = valueAt(defined(keys.x), time);
+      expect(
+        time <= 1 ? valueAt(defined(defined(left).x), time) : valueAt(defined(defined(right).x), time - 1),
+      ).toBeCloseTo(before, 12);
     }
     // A cut exactly on a key.
     const [l2, r2] = splitKeys(keys, 2);
-    expect(l2!.x).toEqual([keyframe(0, 0, 'linear'), keyframe(2, 1, 'hold')]);
-    expect(r2!.x).toEqual([keyframe(0, 1, 'hold'), keyframe(2, 0)]);
+    expect(defined(l2).x).toEqual([keyframe(0, 0, 'linear'), keyframe(2, 1, 'hold')]);
+    expect(defined(r2).x).toEqual([keyframe(0, 1, 'hold'), keyframe(2, 0)]);
     expect(splitKeys(undefined, 1)).toEqual([undefined, undefined]);
   });
 });

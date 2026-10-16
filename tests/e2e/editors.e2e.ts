@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { defined } from '../support/defined';
 // Layers on photos, and the video editor: timeline editing and MP4 export for Reels and YouTube.
 const SAMPLES = ['holi-bowls.jpg', 'diwali.jpg', 'tea.jpg'].map((file) => path.join('public', 'samples', file));
 const tool = (page: Page, name: string) =>
@@ -47,14 +48,14 @@ test.describe('photo layers', () => {
     await page.getByRole('button', { name: 'Add sticker 🎉' }).click();
     const cv = page.locator('.mst-canvas');
     await cv.scrollIntoViewIfNeeded();
-    const canvasBox = (await cv.boundingBox())!;
+    const canvasBox = defined(await cv.boundingBox());
     await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(canvasBox.x + canvasBox.width * 0.25, canvasBox.y + canvasBox.height * 0.25, { steps: 5 });
     await page.mouse.up();
     await tool(page, 'Draw').click();
     await cv.scrollIntoViewIfNeeded();
-    const drawBox = (await cv.boundingBox())!;
+    const drawBox = defined(await cv.boundingBox());
     await page.mouse.move(drawBox.x + 30, drawBox.y + drawBox.height * 0.8);
     await page.mouse.down();
     for (let index = 1; index <= 10; index++)
@@ -154,7 +155,7 @@ test.describe('video editor', () => {
     // Trim: drag the first clip's end edge 1 s (60 px at the default zoom) to the right.
     const first = clips.first();
     await first.hover();
-    const eb = (await first.getByRole('button', { name: 'Trim the end of clip 1' }).boundingBox())!;
+    const eb = defined(await first.getByRole('button', { name: 'Trim the end of clip 1' }).boundingBox());
     await page.mouse.move(eb.x + eb.width / 2, eb.y + eb.height / 2);
     await page.mouse.down();
     await page.mouse.move(eb.x + eb.width / 2 + 60, eb.y + eb.height / 2, { steps: 6 });
@@ -164,8 +165,8 @@ test.describe('video editor', () => {
     const names = async () =>
       clips.evaluateAll((els) => els.map((element) => element.getAttribute('title')?.split(' ·')[0]));
     expect(await names()).toEqual(['holi-bowls.jpg', 'diwali.jpg', 'tea.jpg']);
-    const fb = (await first.boundingBox())!;
-    const lb = (await clips.last().boundingBox())!;
+    const fb = defined(await first.boundingBox());
+    const lb = defined(await clips.last().boundingBox());
     await page.mouse.move(fb.x + fb.width / 2, fb.y + fb.height / 2);
     await page.mouse.down();
     await page.mouse.move(lb.x + lb.width - 4, fb.y + fb.height / 2, { steps: 10 });
@@ -287,9 +288,9 @@ test.describe('video editor', () => {
     /** The preview's colour in the middle, averaged over 4 × 4 pixels (0 = black). */
     const middle = () =>
       page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => {
-        const pixels = canvas
-          .getContext('2d')!
-          .getImageData(Math.floor(canvas.width / 2) - 2, Math.floor(canvas.height / 2) - 2, 4, 4).data;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('The preview has no 2D context.');
+        const pixels = ctx.getImageData(Math.floor(canvas.width / 2) - 2, Math.floor(canvas.height / 2) - 2, 4, 4).data;
         const average = [0, 0, 0];
         for (let index = 0; index < pixels.length; index += 4)
           for (let step = 0; step < 3; step++) average[step] += pixels[index + step] / 16;
@@ -394,13 +395,15 @@ test.describe('graphics card effects', () => {
 // 201: one header per track on the video timeline: Hide (video) or Mute (music), Lock, and the track's height.
 test.describe('video track headers', () => {
   const head = (page: Page, track: 'Video' | 'Music') => page.getByRole('group', { name: `${track} track` });
-  const rowHeight = async (page: Page, row: string) => (await page.locator(`.tl-row.${row}`).boundingBox())!.height;
+  const rowHeight = async (page: Page, row: string) =>
+    defined(await page.locator(`.tl-row.${row}`).boundingBox()).height;
   /** Is the preview black at a few points? */
   const black = (page: Page) =>
     page.locator('.mst-canvas').evaluate((canvas: HTMLCanvasElement) => {
-      const x = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('The preview has no 2D context.');
       return [0.25, 0.5, 0.75].every((step) => {
-        const pixels = x.getImageData(Math.floor(canvas.width * step), Math.floor(canvas.height * step), 1, 1).data;
+        const pixels = ctx.getImageData(Math.floor(canvas.width * step), Math.floor(canvas.height * step), 1, 1).data;
         return pixels[0] + pixels[1] + pixels[2] < 12;
       });
     });
@@ -537,8 +540,8 @@ test.describe('video track headers', () => {
     const locked = 'The Video track is locked. Unlock it to change its clips.';
 
     // Drag clip 1 past clip 3: nothing moves.
-    const fb = (await clips.first().boundingBox())!,
-      lb = (await clips.last().boundingBox())!;
+    const fb = defined(await clips.first().boundingBox()),
+      lb = defined(await clips.last().boundingBox());
     await page.mouse.move(fb.x + fb.width / 2, fb.y + fb.height / 2);
     await page.mouse.down();
     await page.mouse.move(lb.x + lb.width - 5, fb.y + fb.height / 2, { steps: 8 });
@@ -547,7 +550,7 @@ test.describe('video track headers', () => {
     await expect(page.locator('#toast')).toHaveText(locked);
     // Trim the end of clip 1: the length stays.
     await clips.first().hover();
-    const eb = (await clips.first().getByRole('button', { name: 'Trim the end of clip 1' }).boundingBox())!;
+    const eb = defined(await clips.first().getByRole('button', { name: 'Trim the end of clip 1' }).boundingBox());
     await page.mouse.move(eb.x + eb.width / 2, eb.y + eb.height / 2);
     await page.mouse.down();
     await page.mouse.move(eb.x + eb.width / 2 + 60, eb.y + eb.height / 2, { steps: 6 });
@@ -640,7 +643,7 @@ test.describe('video edit tools', () => {
   /** Drags from the middle of an element by `dx` px, holding a modifier if asked. */
   const dragBy = async (page: Page, el: Locator, dx: number, hold?: 'Shift' | 'Alt') => {
     await el.hover();
-    const elementBox = (await el.boundingBox())!;
+    const elementBox = defined(await el.boundingBox());
     const x = elementBox.x + elementBox.width / 2,
       y = elementBox.y + elementBox.height / 2;
     await page.mouse.move(x, y);

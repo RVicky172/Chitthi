@@ -7,6 +7,7 @@ import { framePlan, frameRange, pack, projectLength, videoAt, type Project, type
 import { legacyFixtures, type LegacyClip, type LegacyProject } from '../../support/timeline.testkit';
 import type { Transition } from '@/engine/transitions';
 
+import { defined } from '../../support/defined';
 /* ---------- helpers ---------- */
 
 const clip = (id: string, track: string, start: number, len: number, kind: 'photo' | 'video' = 'photo'): TimedClip => ({
@@ -378,7 +379,7 @@ describe('frameStack during a transition (206 AC-2)', () => {
       mix: { kind: 'dissolve', progress: eased(0.75), role: 'to' },
     });
     const [early, incoming] = frameStack(fixture, 1.5);
-    expect(early.mix!.progress).toBe(0);
+    expect(defined(early.mix).progress).toBe(0);
     expect(incoming.local).toBeCloseTo(-0.5, 12);
   });
 
@@ -447,9 +448,9 @@ describe('AC-11: the stack at every export frame with transitions equals an inde
           shown.push({ id: timedClip.id, local: time - timedClip.start, track: track.id });
       }
       if (shown.length === 2) {
-        const outgoing = on.find((timedClip) => timedClip.id === shown[0].id)!;
-        const delta = outgoing.transition!.dur;
-        const cut = on.find((timedClip) => timedClip.id === shown[1].id)!.start;
+        const outgoing = defined(on.find((timedClip) => timedClip.id === shown[0].id));
+        const delta = defined(outgoing.transition).dur;
+        const cut = defined(on.find((timedClip) => timedClip.id === shown[1].id)).start;
         const progress = eased((time - (cut - delta / 2)) / delta);
         shown[0] = { ...shown[0], progress, role: 'from' };
         shown[1] = { ...shown[1], progress, role: 'to' };

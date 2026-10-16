@@ -31,6 +31,7 @@ import {
 import { mergeMasks } from '@/engine/maskGate';
 import { paintStroke } from '@/engine/maskBrush';
 
+import { defined } from '../../support/defined';
 const stroke = (pts: number[], options: Partial<BrushStroke> = {}): BrushStroke => ({
   pts,
   size: 0.2,
@@ -280,7 +281,7 @@ describe('masks on the GPU', () => {
     expect(ids[1]).toBe('light');
     expect(ids.at(-1)).toBe('maskmix');
     expect(out).toBe(nodes.length - 1);
-    const mix = nodes.at(-1)!;
+    const mix = defined(nodes.at(-1));
     expect(mix.inputs?.slice(0, 2)).toEqual([0, nodes.length - 2]);
     expect(mix.inputs?.[2]).toMatchObject({ key: 'mask:t', width: 8, height: 8 });
   });

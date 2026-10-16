@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { cpus, totalmem, release } from 'node:os';
 import path from 'node:path';
 
+import { defined } from '../support/defined';
 /*
  * The Phase 1 gate (specs/vision/editor-implementation.md): masked edits keep a 30 fps preview at 1080p in Chrome.
  * A 15 MP photo in a 1080 × 1350 post with a look, a brush mask with exposure and a linear gradient mask with clarity;
@@ -159,7 +160,7 @@ test('Phase 1 gate: masked edits at 30 fps in Chrome', async ({ page, browser })
     await expect(locator).toHaveAttribute('aria-pressed', 'true');
   };
   await canvas.scrollIntoViewIfNeeded();
-  const box = (await canvas.boundingBox())!;
+  const box = defined(await canvas.boundingBox());
 
   // The photo (2:3) fills the 4:5 frame across its width, so photo v maps to frame y = (v − offset) / scale.
   const scale = 1.25 / 1.5;
