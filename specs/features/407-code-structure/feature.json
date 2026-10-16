@@ -1347,7 +1347,7 @@
         "T070": {
           "text": "Turn on `noUncheckedIndexedAccess` for `src/` (Q13; the report’s count at 0 after §5) and fix anything left.",
           "section": "Strict index access, React Compiler, performance",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -1360,8 +1360,14 @@
             "src/**"
           ],
           "test": "`npm run check`",
-          "commits": [],
-          "notes": []
+          "commits": [
+            "d2a31cc"
+          ],
+          "notes": [
+            "**Result (2026-10-16):** `noUncheckedIndexedAccess` on in `tsconfig.app.json` (`src/`, `tests/selftest`, `tests/support`). The last 11 errors fixed: `src/dev/printSamples.ts` (9: samples and envelope jobs by index go through `entryAt`, which throws a RangeError naming the index; `sampleNumber` for the id prefix), `src/dev/showcase.ts` (1), `tests/support/timeline.testkit.ts` (1, `?? null`). A planted `list[0].toFixed()` fails the typecheck. `tsconfig.tests.json` (unit and integration tests) stays off: 379 errors, nearly all `list[0].field` in assertions, where `!` would only add noise against AC-13; the support kit both share compiles clean under the flag. `npm run check` green (1,706 tests), `npm run build` green, entry 313 KB."
+          ],
+          "startedOn": "2026-10-16",
+          "doneOn": "2026-10-16"
         },
         "T071": {
           "text": "React Compiler (Q11, D3): `oxc-transform-react` (MIT, development dependency) and `react({ compiler: true })`; `logDiagnostics` once, skipped components fixed or noted; remove the manual `useMemo` / `useCallback` / `memo` it makes unnecessary (22); compare e2e, self-test and timings with the baselines; kept only without regression, else turned off with the reason.",
