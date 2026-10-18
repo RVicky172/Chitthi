@@ -387,3 +387,56 @@ body that returns nothing. Rename through `LanguageService.findRenameLocations` 
 the scope (properties too: conservative but safe), and against `no-shadow` counts before and after. Other traps: with
 `core.autocrlf=true` a `git checkout -- path` writes CRLF working copies, so exact-text edit scripts must normalise
 `\r\n`; typescript-eslint (TS 6) can call an `as` cast unnecessary that `tsc` (TS 7) needs: use `satisfies`.
+
+## 2026-10-18 — Plain Simpson misses a ramp's 1 µs on steep curves (207 T013)
+
+A ramp's play time integrates 1 / v; where the speed curve dips to 0.1× next to a 10× point (the monotone spline
+flattens at the trough), 1 / v is a spike about 0.003 of the source part wide, under two steps of a 512-step table.
+One Simpson panel per step was off by hundreds of µs on a 4 s part. `speed.ts` integrates each step with adaptive
+Simpson, split at the ramp's points (the spline is only C¹ there); the test's reference (51,200 plain steps) is fine
+because its steps are 150× narrower than the spike.
+
+## 2026-10-18 — A reader's cost starts at the key frame before it (207 T020)
+
+Mediabunny's `VideoSampleSink.samples(start)` decodes from the key frame before `start` and drops the frames before
+it, and pre-decodes a few frames past what was read unless an `end` is given. So a reader's cost is not the frames it
+hands out: a fake decoder that starts exactly at `start` (the 204 fake) can't measure reverse or speed-up costs. The
+fake's `gop` option models it (`counts.decoded`). Reverse chunks must start on a key frame (`keyBefore`), else each
+key-frame group is decoded about twice.
+
+## 2026-10-18 — A reversed clip's `sourceAt(clip, 0)` is the frame after it (207 T022)
+
+`sourceAt` reversed is `out − local × speed`, so at local 0 it is exactly `out`: the frame *starting* at `out`, one
+past the clip's last frame (frames cover `time ≤ t < time + duration`). The pool primes a reversed lane at
+`out − 1 ms` (`BEFORE_OUT`), and the pool tests ask for the middle of frame `out − 1`. T030 (drawers through
+`sourceAt`) must not ask a reversed clip for `out` itself, or the first frame shown belongs outside the clip (and at
+the file's end, `covers`' tail rule hides it).
+
+## 2026-10-18 — Cutting a spline ramp changes it between its points (207 T043)
+
+Re-fitting a monotone (Fritsch–Carlson) spline through a subset of its points plus new end points does not give the
+same curve between them: the slopes at each point come from its neighbours, and the ends use one-sided formulas. For
+ramps that dip hard (Bullet 4× → 0.2×) a split changed the parts' play time by up to 32 %; adding sampled points still
+left 130 ms. Keep the curve and move the window instead (`rampSpan`, D-050). To measure such things quickly, a
+throwaway test under `tests/unit/` that fails with the numbers in its message works (vitest hides `console.log` of
+passing tests in this setup).
+
+## 2026-10-18 — `copyToChannel` wants `Float32Array<ArrayBuffer>` (207 T053)
+
+With TypeScript's generic typed arrays, a `Float32Array` returned from a function that may hand back its input is
+`Float32Array<ArrayBufferLike>`, which `AudioBuffer.copyToChannel` refuses (it could be a SharedArrayBuffer view).
+`buffer.getChannelData(index).set(samples)` takes any typed array and does the same copy.
+
+## 2026-10-18 — A freeze frame is a video clip, so `kind === 'video'` branches catch it (207 T071)
+
+D1 made a freeze frame a video clip with `freeze` and `dur`, so every `clip.kind === 'video'` branch takes it unless it
+asks for `freeze === undefined`. Split did: it cut in / out at the frozen time and could leave `in === out` (found by
+T070's seeded property test, not by the freeze tests). Freezes go with photos wherever length comes from `dur`: trims
+(`isStill` in edits.ts), split (videoClips.ts), sound (`soundMuted`). Check new `kind === 'video'` code for it.
+
+## 2026-10-18 — A test-first test keeps its "unresolved import" lint errors after the code exists (207 T082)
+
+`npm run lint` caches with `--cache-strategy content`, keyed on each file's own content. A test written before its
+module (T080) is linted with the import unresolved (`no-unsafe-call` on every use); once the module exists the test
+file is unchanged, so the cached errors stay and `npm run check` stays red. Run `npx eslint <test>` (no cache) or
+delete `node_modules/.cache/eslint/`; `npm run lint:full` is never stale.

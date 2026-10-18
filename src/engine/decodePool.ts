@@ -1,6 +1,19 @@
-import { transitionItems } from './stack';
-import { MAIN_VIDEO } from './tracks';
-import { clipLength, type Project, type TimedClip } from './timeline';
+import {
+  EPS,
+  bytesOf,
+  covering,
+  covers,
+  hand,
+  keepInChunk,
+  newLane,
+  prune,
+  restart,
+  startChunk,
+  stopReader,
+  type Lane,
+  type Reader,
+} from './poolLane';
+import { REVERSE_NUDGE } from './speed';
 
 /*
  * The decoder pool (P2.4, specs/features/204-decoder-pool): the frames of every video visible at a time, for the
@@ -9,6 +22,10 @@ import { clipLength, type Project, type TimedClip } from './timeline';
  * out, held until a newer one replaces it. Decoders, frames and bytes are bounded by `PoolLimits` whatever the
  * project's size. The pool knows nothing of Mediabunny: frames come from a `FrameSourceFactory` (frameSource.ts in the
  * app, a fake in the tests). Only the pool closes the frames it hands out.
+ *
+ * Speed (207 §3): a reader jumps to the next key frame rather than decode through to a frame past it (D3); a reversed
+ * lane decodes backwards in chunks (the key frame before the newest frame wanted up to it, at most `ahead` × 4 frames)
+ * and hands them out newest first; a still lane (a freeze frame) decodes its one frame and holds it.
  */
 
 /** A decoded frame, as the pool holds and hands it out. */
@@ -24,15 +41,23 @@ export interface PoolFrame {
 
 /** Frames of one file, read in order. */
 export interface FrameSource {
-  /** Frames in order, starting with the one showing at a source time (the first frame if it is before it). Each
-   * reader decodes on its own; `return()` stops it. */
-  from(time: number): AsyncIterator<PoolFrame>;
+  /** Frames in order, starting with the one showing at a source time (the first frame if it is before it), up to the
+   * frame showing at `end` when given (a reversed lane's chunk). Each reader decodes on its own; `return()` stops it. */
+  from(time: number, end?: number): AsyncIterator<PoolFrame>;
+  /** The start of the key frame a reader starting at a time decodes from (207: reverse chunks). Missing: unknown. */
+  keyBefore?(time: number): Promise<number>;
+  /** The start of the next key frame after a time, or null after the last (207: key-frame skips). Missing: unknown. */
+  keyAfter?(time: number): Promise<number | null>;
   close(): void;
 }
 
 /** How frames are decoded: full size for the preview, resized canvases for an export lane (D5). */
 export interface SourceOptions {
   maxWidth?: number;
+  /** A reversed lane's source (207): it holds a chunk of frames at once, so its canvases come from no shared ring. */
+  reverse?: boolean;
+  /** The width a reversed lane decodes at when `maxWidth` isn't set: the preview's stage size (D4), so a chunk fits. */
+  reverseWidth?: number;
 }
 
 /** Opens a frame source on a file (frameSource.ts's `mediabunnySource` in the app). */
@@ -64,12 +89,16 @@ export interface PoolClip {
   out: number;
   start: number;
   track: string;
+  /** Plays from `out` back to `in` (207): the lane decodes backwards in chunks and hands frames out newest first. */
+  reverse?: boolean;
+  /** A freeze frame (207): one source time throughout, decoded once and held. */
+  still?: boolean;
 }
 
-/** Tolerance on times, as `frameTime`. */
-const EPS = 1e-6;
-/** A reader keeps going for a move forward under this many seconds, else restarts at the new time. */
+/** Without key frames known, a reader keeps going for a move forward under this many seconds, else restarts there. */
 const REREAD = 2;
+/** A frame's length before any frame of the file was seen (30 fps). */
+const FRAME_GUESS = 1 / 30;
 
 /**
  * A time on the project's frame grid, as the export encodes it (D3).
@@ -89,136 +118,8 @@ export function poolLimits(videosAtOnce: number, desktop: boolean): PoolLimits {
   return { decoders: videosAtOnce + 2, ahead: 4, bytes: (desktop ? 1024 : 256) * 2 ** 20 };
 }
 
-/** The clips a time needs, as `lanePlan` returns them. */
-export interface LanePlan<C> {
-  /** The video clips showing, bottom track first. */
-  visible: C[];
-  /** Each track's next video clip to start soon. */
-  next: C[];
-}
-
-const endOf = (clip: TimedClip) => clip.start + clipLength(clip);
-
-/**
- * The clip a picture track shows at a time: the one covering it; on the main track only, before 0 its first clip
- * (when that starts at 0) and at or past the video's end its last clip, as `videoAt` does.
- * @param onTrack the track's clips, in start order
- * @param track the track's id
- * @param time timeline seconds
- * @returns the clip, or undefined for a gap
- */
-function clipAt<C extends TimedClip>(onTrack: readonly C[], track: string, time: number): C | undefined {
-  const hit = onTrack.find((clip) => time >= clip.start && time < endOf(clip));
-  if (hit || track !== MAIN_VIDEO) return hit;
-  const first = onTrack.at(0);
-  const last = onTrack.at(-1);
-  if (!first || !last) return undefined;
-  if (time < 0 && first.start <= 0) return first;
-  return time >= endOf(last) ? last : undefined;
-}
-
-/**
- * A track's next video clip whose picture starts (its incoming transition first) less than `ahead` seconds after a
- * time.
- * @param onTrack the track's clips, in start order
- * @param shown the clips showing now
- * @param time timeline seconds
- * @param ahead seconds to look ahead
- * @returns the clip, or undefined
- */
-function nextToStart<C extends TimedClip>(
-  onTrack: readonly C[],
-  shown: readonly C[],
-  time: number,
-  ahead: number,
-): C | undefined {
-  // A clip's picture starts half its incoming transition before the clip does.
-  const pictureStart = (clip: C) =>
-    clip.start - (onTrack.find((other) => other.transition?.to === clip.id)?.transition?.dur ?? 0) / 2;
-  return onTrack.find(
-    (clip) => !shown.includes(clip) && clip.kind === 'video' && clip.start > time && pictureStart(clip) - time < ahead,
-  );
-}
-
-/**
- * The clips a time needs (Q10): the video clip visible on every visible picture track (bottom track first; the main
- * track clamps at its ends as `videoAt` does) and, during a transition, the other clip of it too (206); and each such
- * track's next video clip to start soon. Photos need no lane.
- * @param project the project
- * @param time timeline seconds
- * @param ahead seconds to look ahead for the next clips
- * @returns the visible clips and the next ones
- */
-export function lanePlan<C extends TimedClip>(project: Project<C>, time: number, ahead: number): LanePlan<C> {
-  const visible: C[] = [];
-  const next: C[] = [];
-  for (const track of project.tracks) {
-    if ((track.kind !== 'video' && track.kind !== 'overlay') || track.hidden) continue;
-    const onTrack = project.clips.filter((clip) => clip.track === track.id);
-    if (!onTrack.length) continue;
-    const hit = clipAt(onTrack, track.id, time);
-    const shown = hit ? (transitionItems(onTrack, track.id, hit, time)?.map((item) => item.clip) ?? [hit]) : [];
-    for (const clip of shown) if (clip.kind === 'video') visible.push(clip);
-    const upcoming = nextToStart(onTrack, shown, time, ahead);
-    if (upcoming) next.push(upcoming);
-  }
-  return { visible, next };
-}
-
-/** One Mediabunny iterator reading a lane's frames in order. */
-interface Reader {
-  iterator: AsyncIterator<PoolFrame>;
-  /** Start of the last frame read. */
-  lastTime: number | null;
-  /** Where the next frame starts: the end of the last one read (the start time before any). */
-  pos: number;
-  read: number;
-  ended: boolean;
-}
-
-/** An exact frame asked for (`frame()`). */
-interface ExactAsk {
-  time: number;
-  resolve: (frame: PoolFrame | null) => void;
-  reject: (error: Error) => void;
-}
-
-/** One clip's decoding: its source, its reader and the frames it holds. */
-interface Lane {
-  id: string;
-  file: Blob;
-  clip: PoolClip;
-  src: FrameSource | null;
-  opening: boolean;
-  /** Waiting for a decoder to free up. */
-  waiting: boolean;
-  running: boolean;
-  closed: boolean;
-  failed: string | null;
-  /** Times the decoder was taken back (not the file's fault) and the lane reopened. */
-  reopened: number;
-  reader: Reader | null;
-  /** Decoded, not handed out yet, in time order. */
-  buf: PoolFrame[];
-  /** The frame handed out last: held until a newer one replaces it. */
-  last: PoolFrame | null;
-  /** An exact frame asked for; a newer ask replaces it. */
-  exact: ExactAsk | null;
-  /** Playing: `peek` asks for `target` and frames are decoded ahead. */
-  playing: boolean;
-  target: number;
-  /** `prepare`: the first frame wanted. */
-  prime: boolean;
-  /** The source's first and last frame times, once seen. */
-  head: number | null;
-  tail: number | null;
-  used: number;
-}
-
 /** What a step does next: nothing, done for now, decode ahead of the frame shown, or decode towards the goal. */
 type NextMove = 'stop' | 'done' | 'ahead' | 'decode';
-
-const bytesOf = (frame: PoolFrame) => frame.width * frame.height * 4;
 
 /** Reopens of a lane whose decoder was taken back, before it goes to fallback. */
 const REOPENS = 2;
@@ -274,9 +175,9 @@ export class DecodePool {
     lane.playing = false;
     lane.exact?.resolve(null);
     lane.exact = null;
-    const ready = this.covering(lane, time);
+    const ready = covering(lane, time);
     if (ready) {
-      this.hand(lane, ready);
+      hand(lane, ready);
       return Promise.resolve(ready);
     }
     return new Promise((resolve, reject) => {
@@ -298,13 +199,13 @@ export class DecodePool {
     lane.playing = true;
     lane.prime = false;
     lane.target = time;
-    const frame = this.covering(lane, time);
-    if (frame) this.hand(lane, frame);
+    const frame = covering(lane, time);
+    if (frame) hand(lane, frame);
     else {
       this.holds++;
-      // Before its first shown frame, any decoded frame of the clip beats nothing.
-      const first = lane.buf.at(0);
-      if (!lane.last && first) this.hand(lane, first);
+      // Before its first shown frame, any decoded frame of the clip beats nothing (a reversed lane's newest).
+      const first = lane.clip.reverse ? lane.buf.at(-1) : lane.buf.at(0);
+      if (!lane.last && first) hand(lane, first);
     }
     this.kick(lane);
     return frame ?? lane.last;
@@ -369,33 +270,13 @@ export class DecodePool {
 
   private lane(clip: PoolClip): Lane {
     let lane = this.lanes.get(clip.id);
-    if (lane && lane.file !== clip.file) {
+    // A lane turned around decodes another way (and at another size, D4): it opens again.
+    if (lane && (lane.file !== clip.file || Boolean(lane.clip.reverse) !== Boolean(clip.reverse))) {
       this.close(lane);
       lane = undefined;
     }
     if (!lane) {
-      lane = {
-        id: clip.id,
-        file: clip.file,
-        clip,
-        src: null,
-        opening: false,
-        waiting: false,
-        running: false,
-        closed: false,
-        failed: null,
-        reopened: 0,
-        reader: null,
-        buf: [],
-        last: null,
-        exact: null,
-        playing: false,
-        target: 0,
-        prime: false,
-        head: null,
-        tail: null,
-        used: 0,
-      };
+      lane = newLane(clip);
       this.lanes.set(clip.id, lane);
     }
     lane.clip = clip;
@@ -442,7 +323,7 @@ export class DecodePool {
     lane.buf = [];
     lane.last?.close();
     lane.last = null;
-    this.stopReader(lane);
+    stopReader(lane);
     if (lane.src) {
       lane.src.close();
       lane.src = null;
@@ -554,7 +435,7 @@ export class DecodePool {
     lane.opening = true;
     let opened: FrameSource;
     try {
-      opened = await this.open(lane.file, this.source);
+      opened = await this.open(lane.file, this.optionsFor(lane.clip));
     } catch (error) {
       lane.opening = false;
       if (lane.closed) {
@@ -575,41 +456,22 @@ export class DecodePool {
     return true;
   }
 
+  /**
+   * How a lane's source decodes: a reversed lane's at the stage's size when the pool has no size of its own (D4).
+   * @param clip the lane's clip
+   * @returns the source's options
+   */
+  private optionsFor(clip: PoolClip): SourceOptions {
+    if (!clip.reverse) return this.source;
+    const maxWidth = this.source.maxWidth ?? this.source.reverseWidth;
+    return { ...this.source, reverse: true, ...(maxWidth ? { maxWidth } : {}) };
+  }
+
   private goal(lane: Lane): number | null {
     if (lane.exact) return lane.exact.time;
     if (lane.playing) return lane.target;
-    if (lane.prime) return lane.clip.in;
+    if (lane.prime) return lane.clip.reverse ? lane.clip.out - REVERSE_NUDGE : lane.clip.in;
     return null;
-  }
-
-  private covers(lane: Lane, frame: PoolFrame, time: number): boolean {
-    if (frame.time <= time + EPS)
-      return time + EPS < frame.time + frame.duration || (lane.tail !== null && frame.time >= lane.tail - EPS);
-    return lane.head !== null && frame.time <= lane.head + EPS;
-  }
-
-  private covering(lane: Lane, time: number): PoolFrame | null {
-    if (lane.last && this.covers(lane, lane.last, time)) return lane.last;
-    return lane.buf.find((frame) => this.covers(lane, frame, time)) ?? null;
-  }
-
-  /**
-   * Hands a frame out: it replaces the last one, and frames before it are no longer needed.
-   * @param lane the lane
-   * @param frame the frame
-   */
-  private hand(lane: Lane, frame: PoolFrame): void {
-    if (lane.last !== frame) {
-      lane.last?.close();
-      lane.last = frame;
-    }
-    const keep: PoolFrame[] = [];
-    for (const buffered of lane.buf) {
-      if (buffered === frame) continue;
-      if (buffered.time < frame.time) buffered.close();
-      else keep.push(buffered);
-    }
-    lane.buf = keep;
   }
 
   /**
@@ -620,15 +482,18 @@ export class DecodePool {
   private async step(lane: Lane): Promise<boolean> {
     const goalTime = this.goal(lane);
     if (goalTime === null) return false;
-    const covered = this.covering(lane, goalTime);
+    const covered = covering(lane, goalTime);
     const move = this.nextMove(lane, covered);
     if (move === 'stop') return false;
     if (move === 'done') return true;
     const source = lane.src;
     if (!source) return false;
     const ahead = move === 'ahead';
-    const reader = this.readerFor(lane, source, goalTime, ahead ? covered : null);
-    if (!reader) return false;
+    const shown = ahead ? covered : null;
+    const reader = await (lane.clip.reverse
+      ? this.chunkReader(lane, source, goalTime, shown)
+      : this.readerFor(lane, source, goalTime, shown));
+    if (!reader || !this.isLive(lane)) return false;
     return this.readNext(lane, reader, goalTime, ahead);
   }
 
@@ -644,13 +509,19 @@ export class DecodePool {
       if (!covered) return 'decode';
       const ask = lane.exact;
       lane.exact = null;
-      this.hand(lane, covered);
+      hand(lane, covered);
+      // A freeze frame's one frame is all it needs: its reader stops.
+      if (lane.clip.still) stopReader(lane);
       ask.resolve(covered);
       return 'done';
     }
     if (lane.playing) {
       if (!covered) return 'decode';
-      return lane.buf.length >= this.limits.ahead ? 'stop' : 'ahead';
+      if (lane.clip.still) {
+        stopReader(lane);
+        return 'stop';
+      }
+      return this.decodedAhead(lane, covered) ? 'stop' : 'ahead';
     }
     if (!covered) return 'decode';
     lane.prime = false;
@@ -658,22 +529,106 @@ export class DecodePool {
   }
 
   /**
+   * Whether a playing lane has decoded enough ahead of the frame shown: `ahead` frames; a reversed lane a chunk's
+   * worth of older frames (a chunk stopped part-way goes on as they are shown: its missing frames are the newest).
+   * @param lane the lane
+   * @param shown the frame covering the goal
+   * @returns true when it is to stop for now
+   */
+  private decodedAhead(lane: Lane, shown: PoolFrame): boolean {
+    if (!lane.clip.reverse) return lane.buf.length >= this.limits.ahead;
+    return lane.buf.filter((frame) => frame.time < shown.time).length >= this.chunkFrames();
+  }
+
+  /**
+   * Most frames a reversed lane's chunk holds (plan, Techniques).
+   * @returns `ahead` × 4
+   */
+  private chunkFrames(): number {
+    return this.limits.ahead * 4;
+  }
+
+  /**
    * The reader to decode with: decoding ahead goes on after the frame shown, from where the reader is if it's there;
-   * else from the goal. A reader too far off restarts.
+   * else from the goal. A reader too far off restarts: past its next key frame (D3), or `REREAD` seconds on when its
+   * source doesn't tell key frames.
    * @param lane the lane
    * @param source its frame source
    * @param goalTime the source time wanted
    * @param shown the frame shown, when decoding ahead of it
    * @returns the reader, or null when decoding ahead and the source has ended
    */
-  private readerFor(lane: Lane, source: FrameSource, goalTime: number, shown: PoolFrame | null): Reader | null {
+  private async readerFor(
+    lane: Lane,
+    source: FrameSource,
+    goalTime: number,
+    shown: PoolFrame | null,
+  ): Promise<Reader | null> {
     const current = lane.reader;
     if (shown) {
       const after = shown.time + shown.duration;
       if (current?.ended) return null;
-      if (!current || current.pos + EPS < after || current.pos >= after + REREAD) this.restart(lane, source, after);
-    } else if (!current || current.ended || goalTime < current.pos - EPS || goalTime >= current.pos + REREAD)
-      this.restart(lane, source, goalTime);
+      if (!current || current.pos + EPS < after || current.pos >= after + REREAD) restart(lane, source, after);
+    } else if (
+      !current ||
+      current.ended ||
+      goalTime < current.pos - EPS ||
+      (await this.pastNextKey(source, current, goalTime))
+    )
+      restart(lane, source, goalTime);
+    return lane.reader;
+  }
+
+  /**
+   * Whether a time is past the reader's next key frame, so that restarting there decodes less than reading on (D3).
+   * @param source the frame source
+   * @param reader the reader
+   * @param time the source time wanted
+   * @returns true when the reader is to restart at the time
+   */
+  private async pastNextKey(source: FrameSource, reader: Reader, time: number): Promise<boolean> {
+    if (!source.keyAfter) return time >= reader.pos + REREAD;
+    if (reader.nextKey === undefined || (reader.nextKey !== null && reader.pos >= reader.nextKey - EPS))
+      reader.nextKey = await source.keyAfter(reader.pos);
+    return reader.nextKey !== null && time >= reader.nextKey - EPS;
+  }
+
+  /**
+   * A reversed lane's reader (207 §3c): the chunk being read when it reaches what is wanted, else a new chunk up to
+   * the goal or, decoding ahead, up to the frame before the oldest one held. A chunk starts at the key frame before
+   * its newest frame, at most a chunk's frames earlier and not before the clip's in point.
+   * @param lane the lane
+   * @param source its frame source
+   * @param goalTime the source time wanted
+   * @param shown the frame shown, when decoding ahead of it
+   * @returns the reader, or null when decoding ahead and the clip's first frame is held
+   */
+  private async chunkReader(
+    lane: Lane,
+    source: FrameSource,
+    goalTime: number,
+    shown: PoolFrame | null,
+  ): Promise<Reader | null> {
+    const current = lane.reader;
+    const chunk = current && !current.ended ? current.chunk : undefined;
+    if (
+      chunk &&
+      current &&
+      (shown ? chunk.upTo < shown.time : current.pos <= goalTime + EPS && goalTime <= chunk.upTo + EPS)
+    )
+      return current;
+    let upTo = goalTime;
+    if (shown) {
+      const oldest = lane.buf.at(0) ?? shown;
+      if (oldest.time <= Math.max(lane.clip.in, lane.head ?? 0) + EPS) return null;
+      upTo = oldest.time - oldest.duration / 2;
+    }
+    const duration = (lane.last ?? lane.buf.at(0))?.duration ?? FRAME_GUESS;
+    let from = upTo - (this.chunkFrames() - 0.5) * duration;
+    if (upTo >= lane.clip.in) from = Math.max(from, lane.clip.in);
+    if (source.keyBefore) from = Math.max(from, await source.keyBefore(upTo));
+    if (!this.isLive(lane)) return null;
+    startChunk(lane, source, from, upTo);
     return lane.reader;
   }
 
@@ -687,6 +642,7 @@ export class DecodePool {
    */
   private async readNext(lane: Lane, reader: Reader, goalTime: number, ahead: boolean): Promise<boolean> {
     const size = this.sizeOf(lane);
+    if (reader.chunk) this.slide(lane, reader.chunk.below, size);
     if (this.held() + this.reserved + size > this.limits.bytes) {
       if (ahead) return false;
       this.makeRoom(lane, size);
@@ -721,52 +677,64 @@ export class DecodePool {
    * @returns false when decoding ahead must stop
    */
   private keep(lane: Lane, reader: Reader, frame: PoolFrame, goalTime: number, ahead: boolean): boolean {
-    if (!reader.read && frame.time > reader.pos + EPS) lane.head = Math.min(lane.head ?? frame.time, frame.time);
+    const { chunk } = reader;
+    // A first frame after where the reader started (after a chunk's newest, reversed) is the file's first.
+    const first = frame.time > reader.pos + EPS || (chunk !== undefined && frame.time > chunk.upTo + EPS);
+    if (!reader.read && first) lane.head = Math.min(lane.head ?? frame.time, frame.time);
     reader.read++;
     reader.lastTime = frame.time;
     reader.pos = frame.time + frame.duration;
     this.biggest = Math.max(this.biggest, bytesOf(frame));
-    lane.buf.push(frame);
-    this.prune(lane, goalTime);
+    if (chunk) {
+      if (!keepInChunk(lane, chunk, frame)) return true;
+    } else {
+      lane.buf.push(frame);
+      prune(lane, goalTime);
+    }
     if (this.held() <= this.limits.bytes) return true;
     this.makeRoom(lane, 0);
     if (ahead && this.held() > this.limits.bytes) {
-      lane.buf.pop()?.close();
-      this.stopReader(lane);
+      lane.buf = lane.buf.filter((buffered) => buffered !== frame);
+      frame.close();
+      stopReader(lane);
       return false;
     }
     return true;
   }
 
   /**
-   * Of the unshown frames at or before a time only the newest is kept (it may be the source's last).
+   * Room in a reversed lane for its chunk's next frame: the chunk's oldest frames go first (they show last), so it
+   * holds at most a chunk's frames and stays within the byte budget.
    * @param lane the lane
-   * @param time the source time wanted
+   * @param below the chunk's frames are the ones before this time
+   * @param size the bytes of the next frame
    */
-  private prune(lane: Lane, time: number): void {
-    let newest = -1;
-    for (const [index, frame] of lane.buf.entries()) if (frame.time <= time + EPS) newest = index;
-    if (newest <= 0) return;
-    for (const frame of lane.buf.slice(0, newest)) frame.close();
-    lane.buf = lane.buf.slice(newest);
-  }
-
-  private restart(lane: Lane, source: FrameSource, time: number): void {
-    this.stopReader(lane);
-    for (const frame of lane.buf) frame.close();
-    lane.buf = [];
-    lane.reader = { iterator: source.from(time), lastTime: null, pos: time, read: 0, ended: false };
-  }
-
-  private stopReader(lane: Lane): void {
-    const reader = lane.reader;
-    lane.reader = null;
-    if (reader?.iterator.return) void reader.iterator.return().catch(() => undefined);
+  private slide(lane: Lane, below: number, size: number): void {
+    const own = () => lane.buf.filter((frame) => frame.time < below - EPS).length;
+    const over = () => this.held() + this.reserved + size > this.limits.bytes;
+    while (own() > 0 && (own() >= this.chunkFrames() || over())) lane.buf.shift()?.close();
   }
 
   private sizeOf(lane: Lane): number {
     const frame = lane.last ?? lane.buf.at(0);
     return frame ? bytesOf(frame) : this.biggest;
+  }
+
+  /**
+   * Closes a lane's frames decoded ahead while the pool is over its budget: newest first (oldest first, reversed: they
+   * show last); the one covering its goal stays.
+   * @param lane the lane giving way
+   * @param over whether the pool is still over its budget
+   */
+  private dropAhead(lane: Lane, over: () => boolean): void {
+    const goalTime = this.goal(lane);
+    const reverse = Boolean(lane.clip.reverse);
+    const shown = reverse ? lane.buf.at(-1) : lane.buf.at(0);
+    const keep = goalTime !== null && shown && covers(lane, shown, goalTime) ? 1 : 0;
+    while (over() && lane.buf.length > keep) {
+      (reverse ? lane.buf.shift() : lane.buf.pop())?.close();
+      stopReader(lane);
+    }
   }
 
   /**
@@ -778,20 +746,14 @@ export class DecodePool {
     const over = () => this.held() + this.reserved + size > this.limits.bytes;
     const others = this.byPriority(lane);
     for (const other of others) {
-      const goalTime = this.goal(other);
-      const first = other.buf.at(0);
-      const keep = goalTime !== null && first && this.covers(other, first, goalTime) ? 1 : 0;
-      while (over() && other.buf.length > keep) {
-        other.buf.pop()?.close();
-        this.stopReader(other);
-      }
+      this.dropAhead(other, over);
       if (!over()) return;
     }
     for (const other of others) {
       if (!over()) return;
       for (const frame of other.buf) frame.close();
       other.buf = [];
-      this.stopReader(other);
+      stopReader(other);
       other.last?.close();
       other.last = null;
     }

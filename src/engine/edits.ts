@@ -1,4 +1,6 @@
 import { shiftKeys } from './keyframes';
+import { FREEZE_LIMITS, playLength } from './speed';
+import { edgeRoom, moveEdge, withLength } from './speedEdges';
 import { mostVideosAt } from './stack';
 import { MAIN_VIDEO, type Track } from './tracks';
 import { clipLength, pack, type TimedClip } from './timeline';
@@ -85,14 +87,28 @@ const endOf = (clip: TimedClip) => clip.start + clipLength(clip);
  * @param clips the picture clips
  * @returns seconds
  */
-const lengthOf = (clips: readonly TimedClip[]) => clips.reduce((latest, clip) => Math.max(latest, endOf(clip)), 0);
+export const lengthOf = (clips: readonly TimedClip[]) => clips.reduce((latest, clip) => Math.max(latest, endOf(clip)), 0);
 
 /**
- * The part of a clip used: a photo's seconds, a video's out − in (clipLength floors it at 0.1 s for display).
+ * A clip's timeline seconds before clipLength's 0.1 s floor: a photo's seconds, a video's out − in at its speed (207).
  * @param clip the clip
  * @returns seconds
  */
-const usedLength = (clip: TimedClip) => (clip.kind === 'photo' ? clip.dur : clip.out - clip.in);
+const usedLength = (clip: TimedClip) => playLength(clip);
+
+/**
+ * Whether a clip is a still on the timeline: a photo, or a freeze frame (207), whose end is dragged like a photo's.
+ * @param clip the clip
+ * @returns true for a still
+ */
+const isStill = (clip: TimedClip) => clip.kind === 'photo' || clip.freeze !== undefined;
+
+/**
+ * The shortest an edit makes a clip: 0.3 s, a freeze frame 0.1 s (AC-4).
+ * @param clip the clip
+ * @returns seconds
+ */
+const shortestOf = (clip: TimedClip) => (clip.freeze === undefined ? MIN_LEN : FREEZE_LIMITS.min);
 
 /**
  * The most videos on screen at once; every clip the edits see is on a picture track.
@@ -155,7 +171,7 @@ function find<C extends EditClip>(clips: C[], id: string, ctx: EditCtx): Found<C
  * @param skip the id of a clip not to move
  * @returns the clips (the same array for no move)
  */
-const shiftFrom = <C extends TimedClip>(clips: C[], track: string, from: number, by: number, skip?: string): C[] =>
+export const shiftFrom = <C extends TimedClip>(clips: C[], track: string, from: number, by: number, skip?: string): C[] =>
   by === 0
     ? clips
     : clips.map((other) =>
@@ -199,7 +215,7 @@ function clipProblem(
   if (previous && clip.start < endOf(previous) - 1e-6) return `${clip.id} overlaps ${previous.id}`;
   const earlier = before?.find((other) => other.id === clip.id);
   const used = usedLength(clip);
-  if (earlier && used < usedLength(earlier) - EPS && used < MIN_LEN - 1e-6)
+  if (earlier && used < usedLength(earlier) - EPS && used < shortestOf(clip) - 1e-6)
     return `${clip.id} was made shorter than 0.3 s`;
   return null;
 }
@@ -288,7 +304,7 @@ export interface TrimOptions {
 }
 
 /**
- * How long a clip may get in a trim, seconds of it used: to the source's end (end edge) or start (start edge) for a
+ * How long a clip may get in a trim, timeline seconds: to the source's end or start at its speed (`edgeRoom`) for a
  * video, 60 s for a photo; without ripple, also up to its neighbour.
  * @param clips the picture clips
  * @param clip the clip being trimmed
@@ -299,8 +315,8 @@ export interface TrimOptions {
 function trimCeiling(clips: readonly EditClip[], clip: EditClip, side: 'start' | 'end', ripple: boolean): number {
   const used = usedLength(clip);
   let ceiling: number;
-  if (clip.kind === 'photo') ceiling = Math.max(used, PHOTO_MAX);
-  else ceiling = side === 'end' ? clip.srcDur - clip.in : clip.out;
+  if (isStill(clip)) ceiling = Math.max(used, PHOTO_MAX);
+  else ceiling = edgeRoom(clip, side);
   if (ripple) return ceiling;
   const same = clips.filter((other) => other.track === clip.track && other.id !== clip.id);
   if (side === 'end') {
@@ -321,10 +337,7 @@ function trimCeiling(clips: readonly EditClip[], clip: EditClip, side: 'start' |
  * @returns the trimmed clip (its start not yet moved)
  */
 function trimmedClip<C extends EditClip>(clip: C, side: 'start' | 'end', used: number): C {
-  if (clip.kind === 'photo') return { ...clip, dur: used };
-  return side === 'end'
-    ? { ...clip, out: Math.min(clip.srcDur, clip.in + used) }
-    : { ...clip, in: Math.max(0, clip.out - used) };
+  return isStill(clip) ? { ...clip, dur: used } : withLength(clip, side, used);
 }
 
 /**
@@ -352,7 +365,7 @@ export function trim<C extends EditClip>(
   if ('error' in found) return found;
   const { clip } = found;
   const usedBefore = usedLength(clip);
-  const floor = Math.min(MIN_LEN, usedBefore);
+  const floor = Math.min(shortestOf(clip), usedBefore);
   const ceiling = trimCeiling(clips, clip, side, options.ripple);
   const wanted = side === 'end' ? usedBefore + delta : usedBefore - delta;
   const usedAfter = Math.max(floor, Math.min(Math.max(ceiling, usedBefore), wanted));
@@ -511,8 +524,8 @@ type EdgeRange = [number, number];
 function endRange(clip: EditClip): EdgeRange {
   const used = usedLength(clip);
   return [
-    Math.min(MIN_LEN, used) - used,
-    Math.max(used, clip.kind === 'photo' ? PHOTO_MAX : clip.srcDur - clip.in) - used,
+    Math.min(shortestOf(clip), used) - used,
+    Math.max(used, isStill(clip) ? PHOTO_MAX : edgeRoom(clip, 'end')) - used,
   ];
 }
 
@@ -523,16 +536,16 @@ function endRange(clip: EditClip): EdgeRange {
  */
 function startRange(clip: EditClip): EdgeRange {
   const used = usedLength(clip);
-  return [used - Math.max(used, clip.kind === 'photo' ? PHOTO_MAX : clip.out), used - Math.min(MIN_LEN, used)];
+  return [used - Math.max(used, isStill(clip) ? PHOTO_MAX : edgeRoom(clip, 'start')), used - Math.min(shortestOf(clip), used)];
 }
 
-// A video's edge is kept inside its source: the ranges' sums can miss its ends by a rounding error.
+// A video's edge moves at its speed and is kept inside its source (`moveEdge`): the ranges' sums can miss its ends.
 const moveEnd = <C extends EditClip>(clip: C, by: number): C =>
-  clip.kind === 'photo' ? { ...clip, dur: clip.dur + by } : { ...clip, out: Math.min(clip.srcDur, clip.out + by) };
+  isStill(clip) ? { ...clip, dur: clip.dur + by } : moveEdge(clip, 'end', by);
 const moveStart = <C extends EditClip>(clip: C, by: number): C =>
-  clip.kind === 'photo'
+  isStill(clip)
     ? { ...clip, start: Math.max(0, clip.start + by), dur: clip.dur - by }
-    : { ...clip, start: Math.max(0, clip.start + by), in: Math.max(0, clip.in + by) };
+    : { ...moveEdge(clip, 'start', by), start: Math.max(0, clip.start + by) };
 
 /**
  * A clip whose start edge moved, with its keyframes shifted back by the move, so they stay at their place on the

@@ -16,6 +16,7 @@ import {
   type TimedClip,
 } from './timeline';
 import { MAIN_VIDEO, MUSIC, defaultTracks } from './tracks';
+import { speedFields } from './speed';
 import { transitionFields } from './transitions';
 import type { Motion } from './video';
 import type { VFormatId, VFps, VKind, VQuality } from './videoFormats';
@@ -117,7 +118,8 @@ export function fromSequence<C extends SequenceClip, M extends SequenceMusic>(
 
 /**
  * A picture clip as written to a document: only its own fields, in the document's order; its `tf` as `transform`, only
- * when it isn't the identity; its keyframes (205) only when it has some; its transition's fields only.
+ * when it isn't the identity; its keyframes (205) only when it has some; its transition's fields only; its speed
+ * fields (207) only when it has some.
  * @param clip the clip
  * @returns the clip's JSON form
  */
@@ -157,6 +159,7 @@ function clipDocument(clip: DocClip): DocClip {
     ...(isIdentity(box) ? {} : { transform: box }),
     ...(kept ? { keys: kept } : {}),
     ...(clip.transition ? { transition: transitionFields(clip.transition) } : {}),
+    ...speedFields(clip),
   };
 }
 

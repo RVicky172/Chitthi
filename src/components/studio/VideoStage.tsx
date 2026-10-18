@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
-import { lanePlan } from '../../engine/decodePool';
+import { lanePlan } from '../../engine/lanePlan';
 import { layerAt, layersAt } from '../../engine/keyframes';
 import { layerBox } from '../../engine/layerDraw';
 import { drawSelection } from '../../engine/layerPick';
+import { frameSourceAt } from '../../engine/speed';
 import { frameStack } from '../../engine/stack';
 import { formatTime } from '../../engine/timeline';
 import { MUSIC } from '../../engine/tracks';
@@ -100,7 +101,7 @@ function pictureNow(sources: StageSources, stackItem: { clip: VClip; local: numb
   if (clip.kind === 'photo') return photoPicture(clip);
   const stage = sources.stage();
   if (stage.pool && usesPool(stage, clip)) {
-    const poolFrame = stage.pool.peek(poolClip(clip), clip.in + stackItem.local);
+    const poolFrame = stage.pool.peek(poolClip(clip), frameSourceAt(clip, stackItem.local));
     return poolFrame ? { image: poolFrame.image, w: poolFrame.width, h: poolFrame.height } : null;
   }
   const videoElement = sources.videoFor(clip);
@@ -188,7 +189,7 @@ function syncMedia(sources: StageSources, isPlaying: boolean): void {
   for (const clip of state.clips) {
     if (clip.kind !== 'video' || (pool && !pool.fallback(clip.id))) continue;
     const shown = onScreen.find((stackItem) => stackItem.clip.id === clip.id);
-    syncFallbackVideo(sources.videoFor(clip), shown ? clip.in + shown.local : null, isPlaying);
+    syncFallbackVideo(sources.videoFor(clip), shown ? frameSourceAt(clip, shown.local) : null, isPlaying);
   }
 }
 

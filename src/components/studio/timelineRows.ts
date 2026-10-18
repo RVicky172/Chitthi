@@ -1,12 +1,15 @@
 // The timeline's picture rows (203 §10), free of React and the DOM so they can be unit-tested: which rows show and in
 // what order, which row a pointer is over while dragging, how a clip is named, and what to announce after a change;
-// and the keyframe lane's diamonds, names and announcements (205 §9).
+// and the keyframe lane's diamonds, names and announcements (205 §9); a clip's speed badge, filmstrip times and speed
+// announcements (207 §8).
 import { describeTransform } from '../../engine/clipBox';
 import type { Ease, Keyframe, Keyframes } from '../../engine/keyframes';
+import { sourceAt, speedFields } from '../../engine/speed';
 import { clipLength, IDENTITY, type TimedClip } from '../../engine/timeline';
 import { MAIN_VIDEO, lockedReason, type Track } from '../../engine/tracks';
 import { TRANSITION_LIMITS, cutsOf, type Transition, type TransitionKind } from '../../engine/transitions';
 import { V_FPS } from '../../engine/videoFormats';
+import { speedText } from './speedUi';
 
 /** A picture row's vertical extent on screen, in client pixels. */
 export interface RowBounds {
@@ -102,7 +105,71 @@ function describeChangedClip(clip: TimedClip, old: TimedClip | undefined, after:
   if (old && !movedInTime(old, clip)) return describeTransform(label, clip.tf ?? IDENTITY);
   const end = clip.start + clipLength(clip);
   const span = `${label}, ${clip.start.toFixed(1)} s to ${end.toFixed(1)} s`;
-  return clip.kind === 'video' ? `${span}, playing its source from ${clip.in.toFixed(1)} s` : span;
+  return clip.kind === 'video' ? `${span}, ${playing(clip)}` : span;
+}
+
+/**
+ * How a video clip plays its source, for announcements (207): from where, backwards, at what speed, or a still.
+ * @param clip the video clip
+ * @returns e.g. "playing its source from 1.0 s at 2×"
+ */
+function playing(clip: TimedClip): string {
+  if (clip.freeze !== undefined) return `a still of its source at ${clip.freeze.toFixed(1)} s`;
+  if (clip.ramp) return `playing its source from ${clip.in.toFixed(1)} s with a speed ramp`;
+  const speed = clip.speed ?? 1;
+  const at = speed === 1 ? '' : ` at ${speedText(speed)}`;
+  return clip.reverse ? `playing its source backwards from ${clip.out.toFixed(1)} s${at}` : `playing its source from ${clip.in.toFixed(1)} s${at}`;
+}
+
+/**
+ * A clip's speed badge on the timeline (207 AC-11): its speed, ◀ when reversed, "Ramp", or "Still" for a freeze frame.
+ * @param clip the clip
+ * @returns the badge, or null for a photo or a video at 1× forwards
+ */
+export function speedBadge(clip: TimedClip): string | null {
+  if (clip.kind !== 'video') return null;
+  if (clip.freeze !== undefined) return 'Still';
+  if (clip.ramp) return 'Ramp';
+  const speed = clip.speed ?? 1;
+  if (clip.reverse) return `◀ ${speedText(speed)}`;
+  return speed === 1 ? null : speedText(speed);
+}
+
+/**
+ * The source times a clip's filmstrip shows (207): each tile's middle through `sourceAt`, so a reversed clip's run
+ * backwards, a ramped clip's bunch where it is slow and a freeze frame's are all its still.
+ * @param clip the clip
+ * @param tiles how many tiles
+ * @returns source seconds per tile; none for a photo
+ */
+export function filmstripTimes(clip: TimedClip, tiles: number): number[] {
+  if (clip.kind !== 'video') return [];
+  const length = clipLength(clip);
+  return Array.from({ length: tiles }, (_, tile) => sourceAt(clip, ((tile + 0.5) / tiles) * length));
+}
+
+/**
+ * What to announce after a change to a clip's speed (207 AC-12, the timeline's live region): the first clip whose
+ * speed, reverse or ramp changed, its new speed and length.
+ * @param before the clips before the change
+ * @param after the clips after it
+ * @param tracks the project's tracks
+ * @returns e.g. "Clip 2: 0.5×, now 8.4 s"; '' when no speed changed
+ */
+export function describeSpeedChange(before: TimedClip[], after: TimedClip[], tracks: Track[]): string {
+  const previous = new Map(before.map((clip) => [clip.id, clip]));
+  const changed = after.find((clip) => {
+    const old = previous.get(clip.id);
+    return old && clip.kind === 'video' && clip.freeze === undefined && JSON.stringify(speedFields(old)) !== JSON.stringify(speedFields(clip));
+  });
+  const track = changed && tracks.find((candidate) => candidate.id === changed.track);
+  if (!changed || !track) return '';
+  const label = clipLabel(track, after.filter((candidate) => candidate.track === changed.track).indexOf(changed) + 1);
+  const speed = speedText(changed.speed ?? 1);
+  let words = speed;
+  if (changed.ramp) words = 'speed ramp';
+  else if (changed.reverse) words = `reversed at ${speed}`;
+  return `${label}: ${words}, now ${clipLength(changed).toFixed(1)} s`;
 }
 
 /**

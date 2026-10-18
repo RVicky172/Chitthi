@@ -27,6 +27,7 @@ import type { Layer } from '@/engine/layers';
 import { MAIN_VIDEO, defaultTracks } from '@/engine/tracks';
 import { mergeProject } from '@/engine/projectGate';
 import { clipLength, pack } from '@/engine/timeline';
+import { edgeSpeed, rampSpeedAt, sourceAt, type SpeedFields } from '@/engine/speed';
 import { toDocument, type ProjectDoc } from '@/engine/projectDoc';
 import { legacyFixtures, type LegacyClip } from '../../support/timeline.testkit';
 import { defined } from '../../support/defined';
@@ -995,5 +996,133 @@ describe('205: keyframes follow their clip; start-edge edits keep them at their 
     }
     expect(startEdges).toBeGreaterThan(50);
     expect(carried).toBeGreaterThan(50);
+  });
+});
+
+/* ---------- 207: edits at speed ---------- */
+
+describe('207: trims, roll, slip and slide at speed (AC-2, AC-3, D2)', () => {
+  /**
+   * A video clip of a 10 s source on the main track.
+   * @param id its id
+   * @param start its start
+   * @param part its source part [in, out]
+   * @param fields its speed fields
+   * @returns the clip
+   */
+  const sped = (id: string, start: number, part: [number, number], fields: SpeedFields = {}): EditClip => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind: 'video',
+    dur: 0,
+    in: part[0],
+    out: part[1],
+    srcDur: 10,
+    ...fields,
+  });
+  const still = (id: string, start: number, dur: number): EditClip => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind: 'photo',
+    dur,
+    in: 0,
+    out: 0,
+    srcDur: 0,
+  });
+  const ok = (result: ReturnType<typeof trim<EditClip>>): EditClip[] => {
+    if ('error' in result) throw new Error(result.error);
+    return result.clips;
+  };
+  const only = (clips: EditClip[], id = 'a') => defined(clips.find((clip) => clip.id === id));
+  const ripple = { ripple: true };
+
+  it('a 1 s trim of the end at 2× uses 2 s more source; the start edge 0.5 s uses 1 s less', () => {
+    const clips = [sped('a', 0, [1, 5], { speed: 2 })];
+    const longer = only(ok(trim(clips, 'a', 'end', 1, ripple, ctx)));
+    expect([longer.in, longer.out, longer.speed, clipLength(longer)]).toEqual([1, 7, 2, 3]);
+    const shorter = only(ok(trim(clips, 'a', 'start', 0.5, ripple, ctx)));
+    expect([shorter.in, shorter.out, clipLength(shorter)]).toEqual([2, 5, 1.5]);
+  });
+
+  it('at 2× the end stops at the source’s end and the start at its start, in timeline seconds', () => {
+    const clips = [sped('a', 0, [1, 5], { speed: 2 })];
+    const end = only(ok(trim(clips, 'a', 'end', 10, ripple, ctx)));
+    expect([end.out, clipLength(end)]).toEqual([10, 4.5]);
+    const start = only(ok(trim(clips, 'a', 'start', -10, ripple, ctx)));
+    expect([start.in, clipLength(start)]).toEqual([0, 2.5]);
+  });
+
+  it('a reversed clip’s start edge moves its out point and its end edge its in point (AC-3)', () => {
+    const clips = [sped('a', 0, [1, 5], { reverse: true })];
+    const start = only(ok(trim(clips, 'a', 'start', 0.5, ripple, ctx)));
+    expect([start.in, start.out, start.reverse]).toEqual([1, 4.5, true]);
+    const end = only(ok(trim(clips, 'a', 'end', -1, ripple, ctx)));
+    expect([end.in, end.out]).toEqual([2, 5]);
+    const longest = only(ok(trim(clips, 'a', 'end', 10, ripple, ctx)));
+    expect([longest.in, longest.out, clipLength(longest)]).toEqual([0, 5, 5]);
+    const fast = [sped('a', 0, [1, 5], { speed: 2, reverse: true })];
+    expect(only(ok(trim(fast, 'a', 'end', -0.5, ripple, ctx))).in).toBe(2);
+    expect(only(ok(trim(fast, 'a', 'start', -1, ripple, ctx))).out).toBe(7);
+  });
+
+  it('a ramped clip’s edge moves along its curve, which stays over its span: kept frames play as before (D2, D-050)', () => {
+    const ramp = [
+      { at: 0, v: 1 },
+      { at: 0.5, v: 0.5 },
+      { at: 1, v: 3 },
+    ];
+    const clip = sped('a', 0, [0, 4], { ramp });
+    const length = clipLength(clip);
+    const end = only(ok(trim([clip], 'a', 'end', -0.5, ripple, ctx)));
+    expect(end.out).toBeCloseTo(sourceAt(clip, length - 0.5), 9);
+    expect(end.in).toBe(0);
+    expect(edgeSpeed(end, 'end')).toBeCloseTo(rampSpeedAt(ramp, end.out / 4), 9);
+    expect(Math.abs(clipLength(end) - (length - 0.5))).toBeLessThan(1e-6);
+    expect([end.ramp, end.rampSpan]).toEqual([ramp, [0, 4]]);
+    const start = only(ok(trim([clip], 'a', 'start', 0.5, ripple, ctx)));
+    expect(start.in).toBeCloseTo(sourceAt(clip, 0.5), 9);
+    expect(start.out).toBe(4);
+    expect(edgeSpeed(start, 'start')).toBeCloseTo(rampSpeedAt(ramp, start.in / 4), 9);
+    expect(Math.abs(clipLength(start) - (length - 0.5))).toBeLessThan(1e-6);
+    // Every kept moment plays as before (D-050), and trimming back out restores the clip.
+    for (const local of [0.1, 1, 2, 3])
+      expect(Math.abs(sourceAt(start, local) - sourceAt(clip, local + 0.5))).toBeLessThan(1e-6);
+    const back = only(ok(trim([end], 'a', 'end', 0.5, ripple, ctx)));
+    expect(Math.abs(back.out - 4)).toBeLessThan(1e-6);
+    expect(Math.abs(clipLength(back) - length)).toBeLessThan(1e-6);
+  });
+
+  it('roll at 2×: the cut moves by timeline seconds, each side by its own speed, speeds kept', () => {
+    const clips = [sped('a', 0, [1, 5], { speed: 2 }), sped('b', 2, [2, 4], { speed: 0.5 })];
+    const rolled = ok(roll(clips, 'a', 0.5, ctx));
+    expect([only(rolled).out, only(rolled).speed, clipLength(only(rolled))]).toEqual([6, 2, 2.5]);
+    const right = only(rolled, 'b');
+    expect([right.start, right.in, right.speed, clipLength(right)]).toEqual([2.5, 2.25, 0.5, 3.5]);
+  });
+
+  it('roll stops where the faster side runs out of source', () => {
+    // a at 2× has 5 s of source after its out point: 2.5 s of timeline.
+    const clips = [sped('a', 0, [1, 5], { speed: 2 }), still('b', 2, 30)];
+    const rolled = ok(roll(clips, 'a', 10, ctx));
+    expect([only(rolled).out, clipLength(only(rolled))]).toEqual([10, 4.5]);
+  });
+
+  it('slip keeps the speed and the length; slide keeps each part’s speed', () => {
+    const slipped = only(ok(slip([sped('a', 0, [1, 5], { speed: 2 })], 'a', 1, ctx)));
+    expect([slipped.in, slipped.out, slipped.speed, clipLength(slipped)]).toEqual([2, 6, 2, 2]);
+    const clips = [still('p', 0, 2), sped('v', 2, [0, 4], { speed: 2 }), sped('q', 4, [1, 5], { speed: 2 })];
+    const slid = ok(slide(clips, 'v', 0.5, ctx));
+    expect(only(slid, 'p').dur).toBe(2.5);
+    expect([only(slid, 'v').start, only(slid, 'v').in, only(slid, 'v').out]).toEqual([2.5, 0, 4]);
+    const next = only(slid, 'q');
+    expect([next.start, next.in, next.out, next.speed, clipLength(next)]).toEqual([4.5, 2, 5, 2, 1.5]);
+  });
+
+  it('a reversed clip on the right of a roll gives up its out point', () => {
+    const clips = [still('p', 0, 2), sped('r', 2, [1, 5], { reverse: true })];
+    const rolled = ok(roll(clips, 'p', 0.5, ctx));
+    expect([only(rolled, 'r').start, only(rolled, 'r').in, only(rolled, 'r').out]).toEqual([2.5, 1, 4.5]);
   });
 });

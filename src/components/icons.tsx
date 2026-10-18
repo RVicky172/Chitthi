@@ -59,6 +59,7 @@ import {
   RotateCw,
   Ruler,
   Scissors,
+  Snowflake,
   Save,
   Search,
   Settings,
@@ -346,6 +347,10 @@ export function LayersIcon() {
 /** The scissors icon. */
 export function ScissorsIcon() {
   return <Scissors {...base} />;
+}
+/** Freeze frame (207). */
+export function FreezeIcon() {
+  return <Snowflake {...base} />;
 }
 /** The timeline's edit tools (202) and its switches. */
 const TOOL_ICONS = {

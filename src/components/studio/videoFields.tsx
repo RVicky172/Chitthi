@@ -60,6 +60,8 @@ interface NumberFieldProps {
   max: number;
   /** The value shown when not typing. */
   value: number;
+  /** The arrows' step; 1 when missing. */
+  step?: number;
   /** Gets each valid number typed or stepped. */
   onChange: (value: number) => void;
 }
@@ -67,9 +69,9 @@ interface NumberFieldProps {
 /**
  * A number field that keeps what is being typed until it is a number within range, then reports it; a new value from
  * outside replaces the draft.
- * @param props its label, unit, range, value and handler
+ * @param props its label, unit, range, value, step and handler
  */
-export function NumberField({ label, unit, min, max, value, onChange }: Readonly<NumberFieldProps>) {
+export function NumberField({ label, unit, min, max, value, step = 1, onChange }: Readonly<NumberFieldProps>) {
   const [draft, setDraft] = useState(String(value));
   const [valueShown, setValueShown] = useState(value);
   if (value !== valueShown) {
@@ -84,7 +86,7 @@ export function NumberField({ label, unit, min, max, value, onChange }: Readonly
         inputMode="decimal"
         min={min}
         max={max}
-        step={1}
+        step={step}
         value={draft}
         onChange={(event) => {
           setDraft(event.target.value);

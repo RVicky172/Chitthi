@@ -230,7 +230,7 @@ export async function playbackTiming(check: Check): Promise<string[]> {
     const cuts = clips.slice(1).map((clip) => clip.start);
     // D1: clip sound elements stay within the clips under the playhead and those starting within 2 s.
     const { liveSounds } = await import('@/components/studio/previewSound');
-    const { lanePlan } = await import('@/engine/decodePool');
+    const { lanePlan } = await import('@/engine/lanePlan');
     const lanes = (time: number) => {
       const plan = lanePlan(ed.v.projectOf(), time, 2);
       return plan.visible.length + plan.next.length;

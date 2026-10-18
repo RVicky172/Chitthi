@@ -360,3 +360,84 @@ describe('preview sound drift correction (204 §4)', () => {
     expect(time).toBeLessThan(4);
   });
 });
+
+describe('207: the preview’s sound at speed (AC-6, D5)', () => {
+  // Main: fast 0–2 (2×), back 2–4 (reversed), slow 4–6 (0.5×), quick 6–7 (3×). V2 (muted): m 0–1 at 3×.
+  const atSpeed = (name: string, track: string, start: number, len: number, fields: Partial<C>): C => ({
+    ...videoClip(name, track, start, len),
+    ...fields,
+  });
+  const fixture = (): Project<C> => ({
+    tracks: [
+      ...defaultTracks().filter((defaultTrack) => defaultTrack.id === MAIN_VIDEO),
+      overlay('V2', false, true),
+      ...defaultTracks().filter((defaultTrack) => defaultTrack.id === MUSIC),
+    ],
+    clips: [
+      atSpeed('fast', MAIN_VIDEO, 0, 2, { in: 1, out: 5, speed: 2 }),
+      atSpeed('back', MAIN_VIDEO, 2, 2, { reverse: true }),
+      atSpeed('slow', MAIN_VIDEO, 4, 2, { in: 1, out: 2, speed: 0.5 }),
+      atSpeed('quick', MAIN_VIDEO, 6, 1, { in: 1, out: 4, speed: 3 }),
+      atSpeed('m', 'V2', 0, 1, { in: 1, out: 4, speed: 3 }),
+    ],
+    audio: [],
+    layers: [],
+    fadeOut: false,
+  });
+
+  it('a clip at 0.5–2× sounds with its speed as its rate', () => {
+    const plan = soundPlan(fixture(), 0.5);
+    expect(plan.current.map((sounding) => [sounding.clip.name, sounding.rate])).toEqual([['fast', 2]]);
+    expect(soundPlan(fixture(), 4.5).current.map((sounding) => sounding.rate)).toEqual([0.5]);
+  });
+
+  it('a clip the export leaves silent is left out of current, next and held', () => {
+    expect(names(soundPlan(fixture(), 2.5))).toEqual({ current: [], next: ['slow'], held: [] });
+    expect(names(soundPlan(fixture(), 6.5))).toEqual({ current: [], next: [], held: [] });
+    expect(names(soundPlan(fixture(), 0.5)).held).toEqual([]);
+    expect(names(soundPlan(fixture(), 1.5)).next).toEqual([]);
+  });
+
+  it('a clip at 1× has no rate (as before 207)', () => {
+    expect('rate' in defined(soundPlan(project(), 0.5).current[0])).toBe(false);
+  });
+});
+
+describe('207: a clip at a speed plays its element at that rate, pitch kept (AC-6, D5)', () => {
+  const made: FakeAudio[] = [];
+  beforeEach(() => {
+    made.length = 0;
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const element = new FakeAudio();
+        made.push(element);
+        return element;
+      },
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('at 2× the element plays at 2 with preservesPitch, at the source time sourceAt gives', () => {
+    const fast: C = { ...videoClip('fast', MAIN_VIDEO, 0, 2), in: 1, out: 5, speed: 2 };
+    const fixture: Project<C> = { tracks: defaultTracks(), clips: [fast], audio: [], layers: [], fadeOut: false };
+    const sound = previewSound();
+    const plan = soundPlan(fixture, 0.5);
+    sound.update(
+      {
+        current: plan.current.map((sounding) => ({
+          clip: { id: sounding.clip.id, url: 'blob:fast', in: 1, out: 5, volume: 1, speed: 2 },
+          local: sounding.local,
+          ...(sounding.rate ? { rate: sounding.rate } : {}),
+        })),
+        next: [],
+        held: [],
+      },
+      true,
+      30,
+    );
+    const element = defined(made[0]);
+    expect([element.paused, element.playbackRate, element.preservesPitch]).toEqual([false, 2, true]);
+    expect(element.currentTime).toBeCloseTo(2, 9);
+    sound.dispose();
+  });
+});

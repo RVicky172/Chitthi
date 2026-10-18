@@ -30,6 +30,7 @@ import {
   type Track,
 } from '@/engine/tracks';
 import { audioPlan } from '@/engine/soundPlan';
+import { RAMP_PRESETS, SOUND_SPEEDS, soundMuted, type SpeedFields } from '@/engine/speed';
 import { fromSequence, toDocument } from '@/engine/projectDoc';
 import { mergeProject } from '@/engine/projectGate';
 import {
@@ -2212,5 +2213,257 @@ describe('audioPlan with transitions (206 AC-6)', () => {
       { ref: 'b', start: 3, end: 6, from: 2, volume: 0.9, fadeIn: 0.03, fadeOut: 0.03 },
     ]);
     expect(audioPlan(fixture).every((source) => !('lead' in source) && !('trail' in source))).toBe(true);
+  });
+});
+
+describe('207: clips’ sound at speed in the export (AC-6, Q8)', () => {
+  type SC = TimedClip & { volume: number };
+  /**
+   * A video clip on the main track at volume 1.
+   * @param id its id
+   * @param start its start
+   * @param part its source part
+   * @param fields its speed fields
+   * @returns the clip
+   */
+  const video = (id: string, start: number, part: [number, number], fields: SpeedFields = {}): SC => ({
+    id,
+    track: MAIN_VIDEO,
+    start,
+    kind: 'video',
+    in: part[0],
+    out: part[1],
+    dur: fields.freeze === undefined ? 0 : 2,
+    volume: 1,
+    ...fields,
+  });
+  const project = (clips: SC[]): Project<SC> => ({ tracks: defaultTracks(), clips, audio: [], layers: [], fadeOut: false });
+  const plan = (clips: SC[]) => audioPlan(project(pack(clips)));
+
+  it('a clip from 0.5× to 2× sounds at its speed as its rate; at 1× it has none', () => {
+    const sources = plan([
+      video('one', 0, [0, 2]),
+      video('fast', 0, [1, 5], { speed: 2 }),
+      video('slow', 0, [0, 1], { speed: 0.5 }),
+      video('edge', 0, [0, 1.5], { speed: 1.5 }),
+    ]);
+    expect(sources.map((source) => [source.ref, source.start, source.end, source.from, source.rate])).toEqual([
+      ['one', 0, 2, 0, undefined],
+      ['fast', 2, 4, 1, 2],
+      ['slow', 4, 6, 0, 0.5],
+      ['edge', 6, 7, 0, 1.5],
+    ]);
+    expect('rate' in defined(sources[0])).toBe(false);
+  });
+
+  it('outside 0.5–2×, reversed, ramped and frozen clips are left out', () => {
+    const sources = plan([
+      video('one', 0, [0, 2]),
+      video('quick', 0, [0, 3], { speed: 3 }),
+      video('crawl', 0, [0, 0.4], { speed: 0.4 }),
+      video('back', 0, [0, 2], { reverse: true }),
+      video('ramp', 0, [0, 2], { ramp: [...RAMP_PRESETS.hero] }),
+      video('still', 0, [0, 2], { freeze: 1 }),
+      video('last', 0, [0, 1]),
+    ]);
+    expect(sources.map((source) => source.ref)).toEqual(['one', 'last']);
+  });
+
+  it('soundMuted says why a clip is silent, and nothing for one that sounds', () => {
+    const clip = video('c', 0, [0, 2]);
+    expect(soundMuted(clip)).toBeNull();
+    expect(soundMuted({ ...clip, speed: 2 })).toBeNull();
+    expect(soundMuted({ ...clip, speed: 0.5 })).toBeNull();
+    expect(soundMuted({ ...clip, speed: 3 })).toBe('Sound plays from 0.5× to 2×: at 3× this clip is silent.');
+    expect(soundMuted({ ...clip, speed: 0.25 })).toBe('Sound plays from 0.5× to 2×: at 0.25× this clip is silent.');
+    expect(soundMuted({ ...clip, reverse: true })).toBe('A reversed clip plays without sound.');
+    expect(soundMuted({ ...clip, ramp: [...RAMP_PRESETS.hero] })).toBe('A clip with a speed ramp plays without sound.');
+    expect(soundMuted({ ...clip, freeze: 1 })).toBe('A freeze frame has no sound.');
+    expect(SOUND_SPEEDS).toEqual({ min: 0.5, max: 2 });
+  });
+});
+
+/* ---------- 207 T060: speed, reverse, ramps and freeze frames in the document (AC-9) ---------- */
+
+describe('speed in the document (207 AC-9)', () => {
+  /**
+   * The mixed 2.x project: photo 3 s, video (source 2–6.5 of a 7.5 s file), photo 1.5 s, video 0.33 s.
+   * @returns its document
+   */
+  const fixture = () => toDocument(mergeProject(legacyDoc(legacyFixtures().mixed), true).doc);
+  type Doc = ReturnType<typeof fixture>;
+  type Gated = ReturnType<typeof mergeProject>;
+  const UNREAD = /Some speed settings couldn’t be read and were left out/;
+  const RANGE = /Some clip speeds were out of range and were adjusted/;
+  const RAMP = /Some speed ramps couldn’t be read or had too few or too many points and were left out/;
+  const MENDED = /Some speed ramps were out of order or incomplete and were mended/;
+  const BOTH = /Some clips had a speed ramp with reverse or a constant speed; the ramp was kept/;
+  const FREEZE = /Some freeze frames were outside their video or out of length and were adjusted/;
+  const STILL = /Some freeze frames had speed settings, which were left out/;
+
+  /**
+   * The video clip (the second) with these fields added.
+   * @param fields the document's fields
+   * @returns the change for a document
+   */
+  const onVideo = (fields: Record<string, unknown>) => (doc: Doc) => ({
+    ...doc,
+    clips: doc.clips.map((clip, index) => (index === 1 ? { ...clip, ...fields } : clip)),
+  });
+  /**
+   * The video clip's speed fields are `expected` and the reasons `reasons`.
+   * @param expected the speed fields (and `dur` for a freeze frame) expected
+   * @param reasons the reasons expected
+   * @returns the check for a gated document
+   */
+  const videoHas =
+    (expected: Record<string, unknown>, ...reasons: RegExp[]) =>
+    (project: Gated) => {
+      const clip = defined(project.doc.clips[1]);
+      const fields = ['speed', 'reverse', 'ramp', 'rampSpan', 'freeze'] as const;
+      const got: Record<string, unknown> = {};
+      for (const field of fields) if (field in clip) got[field] = clip[field];
+      if ('dur' in expected) got.dur = clip.dur;
+      expect(got).toEqual(expected);
+      expect(project.dropped).toEqual(reasons.map((re): unknown => expect.stringMatching(re)));
+    };
+  const ramp = (...pairs: [number, number][]) => pairs.map(([at, speed]) => ({ at, v: speed }));
+
+  const bad: [string, (d: Doc) => unknown, (r: Gated) => void][] = [
+    ['a speed that is text', onVideo({ speed: 'fast' }), videoHas({}, UNREAD)],
+    ['a speed that isn’t a number (NaN → null)', onVideo({ speed: NaN }), videoHas({})],
+    ['a speed of 0', onVideo({ speed: 0 }), videoHas({ speed: 0.1 }, RANGE)],
+    ['a negative speed', onVideo({ speed: -3 }), videoHas({ speed: 0.1 }, RANGE)],
+    ['a speed over 10×', onVideo({ speed: 50 }), videoHas({ speed: 10 }, RANGE)],
+    ['a speed of 1 (not kept)', onVideo({ speed: 1 }), videoHas({})],
+    ['reverse that is text', onVideo({ reverse: 'yes' }), videoHas({}, UNREAD)],
+    ['reverse false (not kept)', onVideo({ reverse: false }), videoHas({})],
+    ['a ramp that is text', onVideo({ ramp: 'hero' }), videoHas({}, RAMP)],
+    ['a ramp of 1 point', onVideo({ ramp: ramp([0, 2]) }), videoHas({}, RAMP)],
+    [
+      'a ramp of 11 points',
+      onVideo({ ramp: Array.from({ length: 11 }, (_, index) => ({ at: index / 10, v: 1 })) }),
+      videoHas({}, RAMP),
+    ],
+    [
+      'a ramp with an unreadable point',
+      onVideo({ ramp: [{ at: 0, v: 1 }, { at: 0.5, v: 'x' }, null, { at: 1, v: 2 }] }),
+      videoHas({ ramp: ramp([0, 1], [1, 2]) }, MENDED),
+    ],
+    [
+      'a ramp left with 1 readable point',
+      onVideo({ ramp: [{ at: 0, v: 1 }, { at: 'x', v: 2 }] }),
+      videoHas({}, RAMP),
+    ],
+    [
+      'a ramp out of order',
+      onVideo({ ramp: ramp([1, 2], [0, 1], [0.5, 3]) }),
+      videoHas({ ramp: ramp([0, 1], [0.5, 3], [1, 2]) }, MENDED),
+    ],
+    [
+      'a ramp whose ends aren’t at 0 and 1',
+      onVideo({ ramp: ramp([0.2, 1], [0.8, 2]) }),
+      videoHas({ ramp: ramp([0, 1], [1, 2]) }, MENDED),
+    ],
+    [
+      'a ramp with two points at one place',
+      onVideo({ ramp: ramp([0, 1], [0.5, 2], [0.5, 3], [1, 1]) }),
+      videoHas({ ramp: ramp([0, 1], [0.5, 2], [1, 1]) }, MENDED),
+    ],
+    [
+      'a ramp with places outside 0–1',
+      onVideo({ ramp: ramp([-1, 1], [0.5, 2], [3, 1]) }),
+      videoHas({ ramp: ramp([0, 1], [0.5, 2], [1, 1]) }, MENDED),
+    ],
+    [
+      'ramp speeds out of range',
+      onVideo({ ramp: ramp([0, 50], [1, 0]) }),
+      videoHas({ ramp: ramp([0, 10], [1, 0.1]) }, RANGE),
+    ],
+    [
+      'a ramp with reverse',
+      onVideo({ ramp: ramp([0, 1], [1, 2]), reverse: true }),
+      videoHas({ ramp: ramp([0, 1], [1, 2]) }, BOTH),
+    ],
+    [
+      'a ramp with a speed',
+      onVideo({ ramp: ramp([0, 1], [1, 2]), speed: 3 }),
+      videoHas({ ramp: ramp([0, 1], [1, 2]) }, BOTH),
+    ],
+    [
+      'a ramp span that isn’t two numbers',
+      onVideo({ ramp: ramp([0, 1], [1, 2]), rampSpan: ['a', 2] }),
+      videoHas({}, RAMP),
+    ],
+    [
+      'a ramp span that ends before it starts',
+      onVideo({ ramp: ramp([0, 1], [1, 2]), rampSpan: [5, 3] }),
+      videoHas({}, RAMP),
+    ],
+    ['a ramp span without a ramp (not kept)', onVideo({ rampSpan: [1, 7] }), videoHas({})],
+    ['a freeze frame that is text', onVideo({ freeze: 'x' }), videoHas({}, UNREAD)],
+    ['a freeze frame before the file', onVideo({ freeze: -1, dur: 2 }), videoHas({ freeze: 0, dur: 2 }, FREEZE)],
+    ['a freeze frame past the file', onVideo({ freeze: 40, dur: 2 }), videoHas({ freeze: 7.5, dur: 2 }, FREEZE)],
+    ['a freeze frame of 500 s', onVideo({ freeze: 3, dur: 500 }), videoHas({ freeze: 3, dur: 60 }, FREEZE)],
+    ['a freeze frame without a length', onVideo({ freeze: 3 }), videoHas({ freeze: 3, dur: 2 }, FREEZE)],
+    [
+      'a freeze frame with a speed, reverse and a ramp',
+      onVideo({ freeze: 3, dur: 2, speed: 2, reverse: true, ramp: ramp([0, 1], [1, 2]) }),
+      videoHas({ freeze: 3, dur: 2 }, STILL),
+    ],
+    [
+      'speed fields on a photo',
+      (doc) => ({ ...doc, clips: doc.clips.map((clip, index) => (index === 0 ? { ...clip, speed: 2, freeze: 1 } : clip)) }),
+      (project) => {
+        expect(['speed' in project.doc.clips[0], 'freeze' in project.doc.clips[0]]).toEqual([false, false]);
+        expect(project.dropped).toEqual([expect.stringMatching(UNREAD)]);
+      },
+    ],
+    [
+      'a polluting ramp point',
+      (doc) =>
+        JSON.parse(
+          JSON.stringify(onVideo({ ramp: ramp([0, 1], [1, 2]) })(doc)).replace('{"at":0,', '{"__proto__":{"polluted":1},"at":0,'),
+        ) as unknown,
+      videoHas({ ramp: ramp([0, 1], [1, 2]) }),
+    ],
+  ];
+
+  it('has at least 20 malformed documents', () => expect(bad.length).toBeGreaterThanOrEqual(20));
+
+  it.each(bad)('%s: never throws, mends or drops with the reason, and round-trips', (_, make, check) => {
+    const doc = fixture();
+    let project: Gated | undefined;
+    expect(() => (project = mergeProject(JSON.parse(JSON.stringify(make(doc))), true))).not.toThrow();
+    check(defined(project));
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    const again = mergeProject(JSON.parse(JSON.stringify(toDocument(defined(project).doc))), true);
+    expect(again.dropped).toEqual([]);
+    expect(again.doc).toEqual(defined(project).doc);
+  });
+
+  it.each([
+    ['a speed', { speed: 2 }],
+    ['reverse at 0.5×', { speed: 0.5, reverse: true }],
+    ['a ramp', { ramp: ramp([0, 3], [0.5, 0.5], [1, 3]) }],
+    ['a ramp over its span', { ramp: ramp([0, 1], [1, 2]), rampSpan: [1, 7] }],
+    ['a freeze frame', { freeze: 4.25, dur: 1.5 }],
+  ])('%s is read without a reason, written, and round-trips gate → document → gate byte-identical', (_, fields) => {
+    // The main track is Magnetic: a clip's new length moves the later clips once.
+    const once = mergeProject(JSON.parse(JSON.stringify(onVideo(fields)(fixture()))), true);
+    expect(once.dropped).toEqual([]);
+    expect(once.doc.clips[1]).toMatchObject(fields);
+    const text = JSON.stringify(toDocument(once.doc));
+    expect(toDocument(once.doc).clips[1]).toMatchObject(fields);
+    expect(JSON.stringify(toDocument(mergeProject(JSON.parse(text), true).doc))).toBe(text);
+  });
+
+  it.each(fixtures)('%s: a 201–206 document without speed changes stays byte-identical', (_, project) => {
+    const once = mergeProject(legacyDoc(project), true).doc;
+    const text = JSON.stringify(toDocument(once));
+    expect(text).not.toMatch(/"(speed|reverse|ramp|rampSpan|freeze)"/);
+    const back = mergeProject(JSON.parse(text), true);
+    expect(back.dropped).toEqual([]);
+    expect(JSON.stringify(toDocument(back.doc))).toBe(text);
   });
 });

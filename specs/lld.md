@@ -80,13 +80,20 @@ src/
                              (IDENTITY), pack, gaps, videoAt, framePlan
     tracks.ts                Tracks (201, 203): the main video and music tracks, switches, add / rename / move / delete
     soundPlan.ts             The export's sound plan (audioPlan) and a clip's sound edges (206)
+    speed.ts                 Speed (207): sourceAt / localAt / playLength, ramps (curve, presets), soundMuted
+    speedEdits.ts            Speed edits (207): setSpeed (speed, reverse, ramp, reset), freezeFrame
+    speedEdges.ts            Trims and splits of a clip at speed (207): edgeRoom, moveEdge, splitSource
+    speedGate.ts             mergeSpeed: the gate for speed, reverse, ramps and freezes from project files (207)
+    timeStretch.ts           Same-pitch time-stretch (WSOLA) for the export's sound at speed (207)
     projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
     projectGate.ts           mergeProject: the gate for project files and 2.x projects
     edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
                              slide, nudge, checkTrack
     timeSnap.ts              Snapping on the timeline (202): the times a dragged clip, layer or edge snaps to
-    decodePool.ts            Decoder pool (204): lanes of decoded frames for the preview and the export, lanePlan,
-                             frameTime, poolLimits (section 4.10)
+    decodePool.ts            Decoder pool (204): lanes of decoded frames for the preview and the export, frameTime,
+                             poolLimits; key-frame skips, reversed and still lanes (207) (section 4.10)
+    poolLane.ts              One pool lane's state and frame bookkeeping: covers, hand, prune, readers, reverse chunks
+    lanePlan.ts              lanePlan (the clips a time needs) and laneWindow (the source span a lane covers, 207)
     frameSource.ts           The pool's frames from Mediabunny: inputs shared per file, readers, openFrames() registry
     videoExport.ts           MP4 export (H.264 + AAC, fast start) with Mediabunny over framePlan / audioPlan, on export
     printPages.ts            pagesOf, nup, SHEETS, exportSummary, baseName: what the studio shows before building
@@ -117,6 +124,7 @@ src/
     videoKeys.ts             Keyframe actions on clips and layers (toggle, remove animation, move, ease, delete)
     videoLayers.ts           Layer actions; updateLayerAt (keyed at the playhead), setLayerTimes
     videoTransitions.ts      Transition actions: set, remove, on every cut
+    videoSpeed.ts            Speed actions (207): speed, reverse, ramp and its points, reset, freeze at the playhead
     videoMedia.ts            Photos and videos into clips (addMedia, filmstrips), the music
     videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
   lib/
@@ -623,6 +631,42 @@ else follows (the preview picture and sound, the export, the decoder pool).
   state); `TransitionPanel.tsx` (the rail panel, `panelCut`) and `TransitionInspector`; the timeline's `CutMarks`
   (cut buttons and blocks, `draggedLength`, `describeTransitionChange`).
 
+**Speed (207, D-049–D-051).** `engine/speed.ts`; one mapping from a clip's time to its source time is what the
+preview, the export, the sound, the pool and the edits follow. Spec and plan: `specs/features/207-speed/`.
+
+- **The model**: a video clip's `SpeedFields`: `speed?` (0.1–10, missing = 1), `reverse?: true`, `ramp?` (2–10
+  `{ at, v }`: `at` a share of the ramp's span, `v` a speed; never with `reverse`, the ramp wins), `rampSpan?` (the
+  source seconds the shares refer to, set on the first trim or split, missing = in–out; D-050) and `freeze?` (a freeze
+  frame: the source time it holds, its length `dur` like a photo's; D1).
+- **The mapping**: `sourceAt(clip, local)` = `in + local × s`, `out − local × s` reversed, the ramp's inverse, or the
+  frozen time; at 1× forward it is exactly `in + local`, so 201–206 projects give bit-identical export inputs.
+  `localAt` is its inverse (trims, split, thumbnails), `playLength` the video case of `clipLength`, `edgeSpeed` the
+  speed at an edge (transition handles go on at it). `frameSourceAt` asks a reversed clip's frame 1 ms before its time
+  (`REVERSE_NUDGE`), so a frame starting exactly there isn't the one after it.
+- **The ramp curve**: the speed over the span is curve.ts's monotone (Fritsch–Carlson) spline through the points, held
+  flat past the ends, so it never overshoots; its play time T(p) = span × ∫₀ᵖ du / v(u) is tabulated once per ramp
+  (512 steps, adaptive Simpson split where the curve's pieces join, cached by ramp array in a `WeakMap`) and inverted
+  by Newton steps kept in their table step by bisection, so a clip ends at `out` within 1 µs. `RAMP_PRESETS` are data;
+  `rampPointRange` keeps a point 0.01 inside its neighbours (the store and the editor share it).
+- **Edits**: `setSpeed(clips, id, change, ctx)` keeps in and out (Q2) and hands the new clip to the existing rules
+  (`pack` with Magnetic on the main track, else `checkTrack`'s refusal with the room; the platform limit; a clip
+  shorter than 0.1 s refused); keyframes scale with the length (`scaleKeys`, Q9), transitions are clamped by
+  `tidyTransitions`. Trims go through `speedEdges.ts` (a 1 s drag at 2× moves 2 s of source; a reversed clip's start
+  moves its out point; a ramped clip moves along its fixed span). `freezeFrame` splits at the playhead and puts the
+  freeze between the parts, its keyframes held at their values at the cut (D-051). Freezes go with photos wherever
+  length comes from `dur` (trims, split, sound).
+- **Sound**: `soundMuted(clip)` is why a clip is silent (a freeze, a ramp, reverse, a speed outside 0.5–2×) or null;
+  `audioPlan` gives the rest `SoundSource.rate` = speed. The preview plays the element at `speed × nudge` with
+  `preservesPitch`; the export decodes `length × rate` of source per 10-second window and stretches it to the timeline
+  length with `timeStretch` (WSOLA: 40 ms Hann frames, 50 % overlap, ±10 ms search, 50 ms of the previous window carried
+  so joins don't click). The two keep the pitch by different means, so the preview's sound is close, not identical (D5).
+- **The document**: `DocClip` writes the fields only when set; `mergeSpeed` clamps speeds and freeze lengths, mends or
+  drops bad ramps (and a bad `rampSpan` drops the ramp) with each reason once.
+- **The store and UI**: `state/videoSpeed.ts` (one undo step per action, a slider or point drag coalesced;
+  `SpeedOutcome` with refusals and notes); `SpeedGroup.tsx` and `RampEditor.tsx` (log speed axis, focusable points)
+  in the clip inspector, helpers in `speedUi.ts`; on the timeline `speedBadge`, `filmstripTimes` and
+  `describeSpeedChange` (`timelineRows.ts`), the Transport's Freeze button and Shift + F (`freezeAtPlayhead`).
+
 ### 4.10 Decoder pool (`decodePool.ts`, `frameSource.ts`)
 
 The preview and the export get their video pictures from one place, so a paused preview shows the frame the export
@@ -647,9 +691,19 @@ pool decodes nothing.
 - `prepare(clip)` (look-ahead) opens the lane and decodes its first frame; `want(ids)` names the lanes still needed;
   `forget(id)` closes one; `fallback(id)` is why a clip can't be decoded (or null); `stats()` gives decoders, frames,
   bytes and holds; `dispose()` closes every lane.
-- Readers: a lane reads on while the time moves forward by less than 2 s (`REREAD`), else restarts its reader at the
-  new time (the source seeks to the key frame before it). Handing a frame out closes the frames before it, and of the
-  unshown frames at or before the goal only the newest is kept.
+- Readers: a lane reads on while the time it needs is before its reader's next key frame (`FrameSource.keyAfter`), else
+  restarts its reader at the time, so a 10× export decodes from key frames rather than through the source (207 D3);
+  a source that tells no key frames reads on for moves under 2 s (`REREAD`). Handing a frame out closes the frames
+  before it, and of the unshown frames at or before the goal only the newest is kept.
+- Reversed lanes (`PoolClip.reverse`, 207 §3c): decoders only go forwards, so the lane decodes **chunks**: from the key
+  frame before the newest frame wanted (`keyBefore`), at most `ahead` × 4 frames earlier and not before `in`, up to it
+  (`from(t, end)`), and hands them out newest first; handing one out closes the frames after it. Playing, it decodes
+  the next older chunk once fewer than a chunk's frames are left below the one shown. Within a chunk the oldest frames
+  go first when the chunk or the byte budget is full, and other lanes give way oldest first from a reversed lane. A
+  reversed lane decodes at `reverseWidth` when the pool has no `maxWidth` (the stage's size, D4), and its source makes
+  canvases of its own. Prepared, it decodes the frame just before `out`.
+- Still lanes (`PoolClip.still`, a freeze frame): the one frame is decoded once and held; the lane never decodes
+  ahead.
 - Limits (`poolLimits(videosAtOnce, desktop)`, Q3): decoders = `videosAtOnce` + 2 (the visible clips, the next to start,
   a spare for scrubbing), 4 frames ahead per lane, and a byte budget of 256 MB on the web and 1 GB on the desktop app,
   counted at the frame's width × height × 4 (D2: the display size in the preview, the resized canvas in the export).
@@ -666,7 +720,9 @@ pool decodes nothing.
 
 `lanePlan(project, t, ahead)` is the clips a time needs (Q10): on every visible picture track the video clip showing
 at `t` (the main track clamps at its ends as `videoAt` does) and the track's next video clip starting less than
-`ahead` seconds later. Photos need no lane. `frameTime(t, fps)` = `floor(t · fps + 1e-6) / fps` puts a time on the
+`ahead` seconds later. Photos need no lane. `laneWindow(clip, lead, trail)` (both in `engine/lanePlan.ts`) is the
+source span a clip's lane covers, from `sourceAt` at its first and last shown times with its transition handles: out → in
+reversed, one held time for a freeze frame (207). `frameTime(t, fps)` = `floor(t · fps + 1e-6) / fps` puts a time on the
 export's frame grid (D3).
 
 **Frames from Mediabunny (`engine/frameSource.ts`).** `mediabunnySource(file, { maxWidth })` shares one `Input` per file
@@ -674,7 +730,8 @@ export's frame grid (D3).
 track or `canDecode()` false rejects with a message naming the file. Each reader is one Mediabunny iterator, so one
 `VideoDecoder` until it ends or its `return()` stops it (T001). Preview sources read `VideoSampleSink.samples(t)` and
 keep a `VideoFrame` per sample (a canvas when the file asks for a rotation or flip); export sources (`maxWidth`, D5)
-read `CanvasSink.canvases(t)`, no wider than `maxWidth`, from a ring of 8 canvases. Frames go through one registry
+read `CanvasSink.canvases(t)`, no wider than `maxWidth`, from a ring of 8 canvases (a reversed lane's own canvases,
+`poolSize: 0`, emptied when closed). `keyBefore` / `keyAfter` come from `EncodedPacketSink`'s key packets (metadata only). Frames go through one registry
 (`trackFrame`) and readers through `reader`, so `openFrames()` gives the frames, bytes and decoders open right now
 across every pool, and `made`, every frame decoded so far: the self-tests read it after exports, cancels and failures
 (AC-11, AC-12). `undecodableForTests` (a `WeakSet` of files, empty in the app) makes a self-test's file fail as an
@@ -701,7 +758,8 @@ clips (covered by an overlay, kept loaded and silent). `previewSound()` keeps an
 exactly those and releases the rest, so elements don't grow with the clip count; the next ones are pre-seeked to their
 `in`, so a cut starts without a seek. A playing element is kept in step by `soundFix(drift, fps, rate)`: over 0.25 s
 it seeks; over one frame (or, while still nudging, over 10 ms) `playbackRate` moves by up to ±3 % in 0.5 % steps;
-otherwise it is 1. The music keeps its own element in `VideoStage`.
+otherwise it is 1. The rate is times the clip's speed (207, `preservesPitch` on), and a clip `soundMuted` says is
+silent gets no element. The music keeps its own element in `VideoStage`.
 
 **Export (`engine/videoExport.ts`).** Video clips decode through a pool of the export's own, with
 `poolLimits(videosAtOnce, …)` and `maxWidth` = 1.8 × the frame's long side (D5). Frames 0…N each draw

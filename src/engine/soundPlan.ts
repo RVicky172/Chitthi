@@ -4,6 +4,7 @@
  */
 import type { Keyframe } from './keyframes';
 import { clipLength, projectLength, type Project, type TimedClip } from './timeline';
+import { soundRate } from './speed';
 import { MAIN_VIDEO } from './tracks';
 import type { Transition } from './transitions';
 
@@ -18,6 +19,8 @@ export interface SoundSource {
   end: number;
   /** Source seconds at `start`. */
   from: number;
+  /** Source seconds per timeline second (207): a clip at 0.5–2× plays its part at its speed, same pitch; missing = 1. */
+  rate?: number;
   volume: number;
   /** Volume keyframes (205), seconds from `start`: when present they set the volume instead of `volume`. */
   gain?: Keyframe[];
@@ -61,7 +64,37 @@ export function soundEdges(clip: TimedClip, clips: readonly TimedClip[]): SoundE
 const volumeOf = (clip: TimedClip): number => ('volume' in clip && typeof clip.volume === 'number' ? clip.volume : 0);
 
 /**
- * The video clips' own sounds on one track, with short ramps at the cuts (or their transitions' edges).
+ * A video clip's own sound, with short ramps at its cuts (or its transitions' edges), at its speed (207).
+ * @param clip the video clip
+ * @param clips the project's clips
+ * @returns the sound, or null when it is silent (no volume, or `soundMuted`)
+ */
+function clipSound(clip: TimedClip, clips: readonly TimedClip[]): SoundSource | null {
+  const volume = volumeOf(clip);
+  // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
+  const gain = clip.keys?.volume?.length ? clip.keys.volume : undefined;
+  if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) return null;
+  // Reversed, ramped, frozen or outside 0.5–2× (207 AC-6): silent.
+  const rate = soundRate(clip);
+  if (rate === null) return null;
+  // A transition at a cut (206) replaces the 0.03 s ramp there: the sound plays into the handle with its edge.
+  const edges = soundEdges(clip, clips);
+  return {
+    ref: clip.id,
+    start: clip.start,
+    end: endOf(clip),
+    from: clip.in,
+    ...(rate === 1 ? {} : { rate }),
+    volume,
+    ...(gain ? { gain } : {}),
+    fadeIn: edges.lead ? 0 : 0.03,
+    fadeOut: edges.trail ? 0 : 0.03,
+    ...edges,
+  };
+}
+
+/**
+ * The video clips' own sounds on one track (`clipSound`): a silent one is left out.
  * @param project the project
  * @param track the track's id
  * @returns the sounds, in the track's order
@@ -70,23 +103,8 @@ function clipSounds(project: Project, track: string): SoundSource[] {
   const sounds: SoundSource[] = [];
   for (const clip of project.clips) {
     if (clip.track !== track || clip.kind !== 'video') continue;
-    const volume = volumeOf(clip);
-    // Volume keyframes (205) replace the stored volume: the clip sounds if any of them is above 0.
-    const gain = clip.keys?.volume?.length ? clip.keys.volume : undefined;
-    if (gain ? !gain.some((key) => key.v > 0) : volume <= 0) continue;
-    // A transition at a cut (206) replaces the 0.03 s ramp there: the sound plays into the handle with its edge.
-    const edges = soundEdges(clip, project.clips);
-    sounds.push({
-      ref: clip.id,
-      start: clip.start,
-      end: endOf(clip),
-      from: clip.in,
-      volume,
-      ...(gain ? { gain } : {}),
-      fadeIn: edges.lead ? 0 : 0.03,
-      fadeOut: edges.trail ? 0 : 0.03,
-      ...edges,
-    });
+    const sound = clipSound(clip, project.clips);
+    if (sound) sounds.push(sound);
   }
   return sounds;
 }

@@ -328,6 +328,7 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 | Nudge, trim to the playhead | Alt + ← / → moves the selected clip a frame with the tool (Shift + Alt: a second); Q / W trim its start / end to the playhead |
 | Keyframes | K sets keyframes at the playhead for the selected clip's or layer's animated values (or removes the ones there); Alt + [ / ] jump to its previous / next keyframe; its keyframe lane is under its row (below) |
 | Transitions | Click a cut between two touching clips (or press Enter on it) to choose one; drag a transition's edges to change its length; Delete removes it (below) |
+| Speed, freeze frame | The selected video clip's **Speed** in the inspector; **Freeze** in the transport or Shift + F holds the frame at the playhead (below) |
 | Zoom | Ctrl + wheel over the timeline, the zoom slider, + / −, or **Fit** |
 | Play | The play button or Space; the timeline follows the playhead |
 | Step | ← / → one frame, Shift + ← / → one second, Home / End |
@@ -492,6 +493,51 @@ Transitions are drawn on the same 2D canvas as the rest of the video (D-035), wi
 the export (`src/engine/transitions.ts`), so the file shows what the preview shows. Projects without transitions are
 saved, drawn and exported exactly as before.
 
+### Speed, reverse and freeze frames
+
+A video clip can play faster or slower, backwards, with a speed that changes over the clip (a ramp), or stop on one
+frame. Photos have no speed: their length is how long they show.
+
+- **Constant speed**: in the clip inspector's **Speed** group, pick **Constant** and set the speed from 0.1× to 10×
+  (in 0.01× steps) with the field, the slider, or the presets 0.25×, 0.5×, 0.75×, 1×, 1.5×, 2×, 4×. The clip keeps
+  the part of its video it uses (its in and out points) and gets shorter or longer: at 2× a 10 s part lasts 5 s. On
+  the Video track with **Magnetic** on the later clips move with it; elsewhere a clip that would run into the next
+  one is refused, with how much room there is. A change that would make the video longer than its platform allows,
+  or the clip shorter than 0.1 s, is refused too. Slowed clips repeat frames; there is no frame blending.
+- **Reverse**: plays the clip from its out point back to its in point, at any constant speed. On the timeline, its
+  left edge trims the end of the video (what plays first) and its right edge the start.
+- **Speed ramps**: pick **Ramp** for a curve of speed over the clip, 2 to 10 points, each a place along the clip and a
+  speed from 0.1× to 10×, joined smoothly without overshooting. Presets give a start: **Montage** (fast, slow, fast,
+  slow, fast), **Hero** (slow in the middle), **Bullet** (fast, very slow in the middle, fast), **Jump cut** (a short
+  fast burst), **Flash in** (fast into normal), **Flash out** (normal into fast). In the curve editor drag a point,
+  double-click to add one, Delete to remove one; from the keyboard Tab to a point, ← / → move it along the clip and
+  ↑ / ↓ change its speed (Shift: larger steps). A ramp always plays forwards: turning on Reverse sets the clip back
+  to a constant speed and choosing a ramp turns Reverse off (each says so). Trimming or splitting a ramped clip keeps
+  the curve where it was, so every frame left plays as before.
+- **Freeze frame**: **Freeze** in the transport, or Shift + F with the timeline focused, splits the video clip under
+  the playhead and puts a still of that exact frame between the two parts (before or after the clip at its first or
+  last frame). It lasts 2 s, from 0.1 s to 60 s (drag its end, or **On screen for** in the inspector), keeps the
+  clip's box, framing and look, and has no sound. Magnetic moves the later clips; elsewhere it is refused when it
+  doesn't fit.
+- **Sound**: at a constant speed from 0.5× to 2× the clip's sound plays faster or slower at the same pitch; outside
+  that range, reversed, with a ramp and on a freeze frame it is silent, and the inspector says why. Clip volume,
+  volume keyframes and transition fades work as before.
+- **Edits keep them**: a clip's keyframes stay at the same places along the clip when its speed changes, so an
+  animation keeps its shape; transitions keep their length, shortened (and announced) if the clip no longer has room.
+  Trimming a sped-up clip uses source at its speed (a 1 s drag at 2× uses 2 s more video); Roll, Slip, Slide and split
+  keep each part's speed. Every change is one undo step, a slider or point drag included; **Reset speed** goes back to
+  1× forwards.
+- **On the timeline** a sped-up, slowed, reversed or ramped clip shows a badge ("2×", "0.5×", "◀ 1×", "Ramp") and a
+  freeze frame shows "Still"; filmstrips show the frames that actually play. Speed changes are announced ("Clip 2:
+  0.5×, now 8.4 s").
+
+The preview and the export pick each frame with the same function (`src/engine/speed.ts`), so the file shows the
+frames the preview shows. Fast clips skip from key frame to key frame in the export instead of decoding the whole
+video; reversed clips decode in short chunks backwards (the preview may drop frames in their first second); a freeze
+frame is decoded once. The preview keeps the pitch with the browser's own stretching and the export with its own
+(WSOLA), so the two sound alike but not sample for sample. Projects without speed changes are saved and exported
+exactly as before.
+
 ### The preview
 
 The preview decodes video clips the way the export does, through one **decoder pool** (`src/engine/decodePool.ts`):
@@ -557,7 +603,8 @@ The longer plan for advanced features (masks, curves, multi-track timeline, keyf
 
 | Next | Why it isn't in this version |
 | --- | --- |
-| Speed changes and reverse | Needs re-timing the clip's sound as well |
+| Sound for reversed and ramped clips, and pitch-kept sound outside 0.5×–2× | Needs more audio work; those clips are silent for now |
+| Reverse together with a speed ramp; frame blending for slow motion | Rare, and doubles the cases to get right; slowed clips repeat frames |
 | Several music tracks, voice-over recording | One track covers the common Reel and vlog |
 | Clip waveforms | Music shows its waveform; clips would need their sound decoded on import |
 | Direct upload to YouTube or Instagram | Needs sign-in and a server (OAuth, hosting); exports go to the share sheet, a file, or the upload page |

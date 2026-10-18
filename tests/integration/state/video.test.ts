@@ -1,6 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_EDIT } from '@/engine/instagram';
 import { clipLength, IDENTITY, presetTransform } from '@/engine/timeline';
+import { RAMP_PRESETS, edgeSpeed, playLength, sourceAt } from '@/engine/speed';
+import { REVERSE_DROPS_RAMP } from '@/engine/speedEdits';
+import {
+  addRampPoint,
+  freezeFrameAtPlayhead,
+  moveRampPoint,
+  removeRampPoint,
+  resetSpeed,
+  setClipRamp,
+  setClipReverse,
+  setClipSpeed,
+  type SpeedOutcome,
+} from '@/state/videoSpeed';
 import { TEXT_STYLES } from '@/data/layers';
 import { layerAt, type Ease, type Keyframe } from '@/engine/keyframes';
 import { newSticker, newText, scaleLayer, type Layer, type TextLayer } from '@/engine/layers';
@@ -47,6 +60,7 @@ import {
 import { addTrack, clipPlace, deleteTrack, moveTrack, renameTrack, setTrack } from '@/state/videoTracks';
 import { removeTransition, setTransition, transitionEveryCut } from '@/state/videoTransitions';
 import { defined } from '../../support/defined';
+import { seededRandom } from '../../support/seededRandom';
 
 /*
  * The video store's Magnetic switch, tool and Snap (202 T020). Clips are made by hand (no media decoding in Node):
@@ -1165,5 +1179,297 @@ describe('206: transitions in the store', () => {
         expect(tr.dur / 2, where).toBeLessThanOrEqual(clipLength(defined(next)) + 1e-9);
       }
     }
+  });
+});
+
+describe('207: split gives each part its speed, reverse and part of the ramp (AC-2, D2)', () => {
+  const video = (fields: Partial<VClip>): VClip => ({
+    ...clip('a', 0, 0),
+    kind: 'video',
+    srcDur: 10,
+    in: 1,
+    out: 5,
+    ...fields,
+  });
+  const parts = () => getVideo().clips.filter((vClip) => vClip.track === MAIN_VIDEO);
+
+  it('at 2×: the cut is at the source time showing there, both parts at 2×', () => {
+    loadVideoProject({ clips: [video({ speed: 2 }), clip('b', 2, 1)] });
+    setPlayhead(0.5);
+    expect(splitAtPlayheadWhy()).toBeNull();
+    const [left, right, after] = parts();
+    expect([left.in, left.out, left.speed, clipLength(left)]).toEqual([1, 2, 2, 0.5]);
+    expect([right.start, right.in, right.out, right.speed, clipLength(right)]).toEqual([0.5, 2, 5, 2, 1.5]);
+    expect(after.start).toBe(2);
+  });
+
+  it('reversed: the left part plays from out back to the cut, the right part on to in', () => {
+    loadVideoProject({ clips: [video({ reverse: true })] });
+    setPlayhead(1);
+    expect(splitAtPlayheadWhy()).toBeNull();
+    const [left, right] = parts();
+    expect([left.in, left.out, left.reverse, clipLength(left)]).toEqual([4, 5, true, 1]);
+    expect([right.start, right.in, right.out, right.reverse, clipLength(right)]).toEqual([1, 1, 4, true, 3]);
+  });
+
+  it('ramped: both parts keep the curve over its span, the cut on the source time shown there (D-050)', () => {
+    const ramp = [
+      { at: 0, v: 1 },
+      { at: 0.5, v: 0.5 },
+      { at: 1, v: 3 },
+    ];
+    const whole = video({ ramp });
+    loadVideoProject({ clips: [whole] });
+    setPlayhead(2);
+    expect(splitAtPlayheadWhy()).toBeNull();
+    const [left, right] = parts();
+    const cut = sourceAt(whole, 2);
+    expect(left.out).toBeCloseTo(cut, 9);
+    expect(right.in).toBeCloseTo(cut, 9);
+    expect([left.in, right.out]).toEqual([1, 5]);
+    expect(edgeSpeed(left, 'end')).toBeCloseTo(edgeSpeed(right, 'start'), 9);
+    expect(Math.abs(clipLength(left) + clipLength(right) - clipLength(whole))).toBeLessThan(1e-6);
+    expect([left.ramp, left.rampSpan, right.ramp, right.rampSpan]).toEqual([ramp, [1, 5], ramp, [1, 5]]);
+    for (const local of [0.2, 1, 2.5])
+      expect(Math.abs(sourceAt(right, local) - sourceAt(whole, 2 + local))).toBeLessThan(1e-6);
+    expect(right.start).toBeCloseTo(2, 9);
+  });
+});
+
+/* ---------- 207 T070: speed actions in the store (AC-8) ---------- */
+
+describe('207: speed actions, one undo step each, refusals change nothing (AC-8)', () => {
+  /**
+   * A video clip of a 10 s file on a track.
+   * @param id its id
+   * @param start its start
+   * @param part its source part
+   * @param track its track
+   * @returns the clip
+   */
+  const video = (id: string, start: number, part: [number, number], track = MAIN_VIDEO): VClip => ({
+    ...clip(id, start, 0, track),
+    kind: 'video',
+    srcDur: 10,
+    in: part[0],
+    out: part[1],
+    volume: 1,
+  });
+  const byId = (id: string) => defined(getVideo().clips.find((vClip) => vClip.id === id));
+  const done = (outcome: SpeedOutcome) => {
+    if ('error' in outcome) throw new Error(`refused: ${outcome.error}`);
+    return outcome;
+  };
+  const load = () => loadVideoProject({ clips: [video('a', 0, [1, 5]), clip('b', 4, 3), video('c', 7, [0, 2])] });
+  beforeEach(load);
+
+  it('a speed is one step; a slider drag (one key) is one step however many changes', () => {
+    done(setClipSpeed('a', 2));
+    expect([byId('a').speed, byId('b').start]).toEqual([2, 2]);
+    expect(undos()).toBe(1);
+    load();
+    for (const speed of [1.5, 1.8, 2.2, 2.5]) done(setClipSpeed('a', speed, 'speed:a'));
+    expect(byId('a').speed).toBe(2.5);
+    expect(undos()).toBe(1);
+  });
+
+  it('reverse on and off are a step each', () => {
+    done(setClipReverse('a', true));
+    expect(byId('a').reverse).toBe(true);
+    done(setClipReverse('a', false));
+    expect('reverse' in byId('a')).toBe(false);
+    expect(undos()).toBe(2);
+  });
+
+  it('a ramp preset is one step; reverse then drops it and says so (Q7)', () => {
+    done(setClipRamp('a', 'hero'));
+    expect(byId('a').ramp).toEqual(RAMP_PRESETS.hero);
+    expect(done(setClipReverse('a', true)).note).toBe(REVERSE_DROPS_RAMP);
+    expect('ramp' in byId('a')).toBe(false);
+    expect(undos()).toBe(2);
+  });
+
+  it('a point drag is one step; adding and removing a point are a step each', () => {
+    done(setClipRamp('a', 'hero'));
+    endVStep();
+    for (const speed of [0.8, 0.6, 0.4]) done(moveRampPoint('a', 2, { at: 0.5, v: speed }, 'ramp:a:2'));
+    expect(defined(byId('a').ramp)[2]).toEqual({ at: 0.5, v: 0.4 });
+    done(addRampPoint('a', 0.2));
+    expect(defined(byId('a').ramp)).toHaveLength(6);
+    expect(defined(defined(byId('a').ramp)[1]).at).toBe(0.2);
+    done(removeRampPoint('a', 1));
+    expect(defined(byId('a').ramp)).toHaveLength(5);
+    expect(undos()).toBe(4);
+  });
+
+  it('a point stays between its neighbours and within 0.1–10×; the end points keep their places', () => {
+    done(setClipRamp('a', 'hero'));
+    done(moveRampPoint('a', 2, { at: 0.9, v: 50 }));
+    // Hero's neighbours are at 0.35 and 0.65: it stops 0.01 short of the next one.
+    expect(defined(defined(byId('a').ramp)[2]).at).toBeCloseTo(0.64, 12);
+    expect(defined(defined(byId('a').ramp)[2]).v).toBe(10);
+    done(moveRampPoint('a', 0, { at: 0.3, v: 2 }));
+    expect(defined(byId('a').ramp)[0]).toEqual({ at: 0, v: 2 });
+    done(moveRampPoint('a', 4, { at: 0.2, v: 3 }));
+    expect(defined(byId('a').ramp)[4]).toEqual({ at: 1, v: 3 });
+  });
+
+  it('point edits keep the ramp over its span (D-050)', () => {
+    done(setClipRamp('a', 'hero'));
+    setPlayhead(2);
+    expect(splitAtPlayheadWhy()).toBeNull();
+    const left = byId('a');
+    expect(left.rampSpan).toEqual([1, 5]);
+    done(moveRampPoint('a', 2, { at: 0.5, v: 0.5 }));
+    expect(byId('a').rampSpan).toEqual([1, 5]);
+  });
+
+  it('Reset speed is one step back to 1× forwards', () => {
+    done(setClipRamp('a', 'bullet'));
+    done(setClipReverse('a', true));
+    done(setClipSpeed('a', 3));
+    done(resetSpeed('a'));
+    const reset = byId('a');
+    expect(['speed', 'reverse', 'ramp', 'rampSpan'].filter((field) => field in reset)).toEqual([]);
+    expect(clipLength(reset)).toBe(4);
+    expect(undos()).toBe(4);
+  });
+
+  it('Freeze frame is one step and selects the still', () => {
+    setPlayhead(1.5);
+    done(freezeFrameAtPlayhead());
+    const still = defined(getVideo().clips.find((vClip) => vClip.freeze !== undefined));
+    expect([still.freeze, still.start, getVideo().selected]).toEqual([2.5, 1.5, still.id]);
+    expect(undos()).toBe(1);
+  });
+
+  it('a freeze frame splits like a photo: both parts keep the still', () => {
+    setPlayhead(1.5);
+    done(freezeFrameAtPlayhead());
+    const still = defined(getVideo().selected);
+    setPlayhead(2.5);
+    expect(splitAtPlayheadWhy()).toBeNull();
+    const parts = getVideo().clips.filter((vClip) => vClip.freeze !== undefined);
+    expect(parts.map((part) => [part.start, part.dur, part.freeze, part.in, part.out])).toEqual([
+      [1.5, 1, 2.5, 1, 5],
+      [2.5, 1, 2.5, 1, 5],
+    ]);
+    expect(parts[0]?.id).toBe(still);
+  });
+
+  it('refusals leave the state as it was and give the reason', () => {
+    loadVideoProject({
+      clips: [video('a', 0, [1, 5]), clip('b', 4, 3), video('o', 1, [0, 1], 'V2'), clip('q', 2.2, 1, 'V2')],
+      tracks: [...defaultTracks().slice(0, 1), { id: 'V2', kind: 'overlay', name: 'V2', hidden: false, muted: false, locked: false }, ...defaultTracks().slice(1)],
+    });
+    const before = getVideo().clips;
+    const refusals: [SpeedOutcome, RegExp][] = [
+      [setClipSpeed('o', 0.5), /1\.2 s of room before the next clip/],
+      [setClipSpeed('b', 2), /Only video clips have a speed/],
+      [(setPlayhead(5), freezeFrameAtPlayhead()), /video clip/i],
+      [removeRampPoint('a', 0), /ramp/i],
+    ];
+    for (const [outcome, reason] of refusals) expect('error' in outcome && outcome.error).toMatch(reason);
+    done(setClipRamp('a', 'hero'));
+    endVStep();
+    for (let point = 0; point < 5; point++) done(addRampPoint('a', 0.05 + point * 0.02));
+    const eleventh = addRampPoint('a', 0.99);
+    expect('error' in eleventh && eleventh.error).toMatch(/10 points/);
+    expect('error' in removeRampPoint('a', 0)).toBe(true);
+    expect('error' in removeRampPoint('a', 9)).toBe(true);
+    // Back to the state before the refusals: the ramp and the five points were the only steps.
+    for (let step = 0; step < 6; step++) undoV();
+    expect(getVideo().clips).toEqual(before);
+  });
+
+  it('a locked track refuses every speed action', () => {
+    setTrack(MAIN_VIDEO, { locked: true });
+    const before = getVideo().clips;
+    for (const outcome of [setClipSpeed('a', 2), setClipReverse('a', true), setClipRamp('a', 'hero'), resetSpeed('a')])
+      expect('error' in outcome && outcome.error).toMatch(/locked/i);
+    expect(getVideo().clips).toBe(before);
+  });
+
+  it('a seeded 1,000-edit property test keeps every clip inside its source, its length its speed’s, no overlaps', () => {
+    const random = seededRandom(2070);
+    const pick = <T>(list: readonly T[]): T => defined(list[Math.floor(random() * list.length)]);
+    const fresh = () =>
+      loadVideoProject({
+        clips: [video('a', 0, [1, 5]), clip('b', 4, 2), video('c', 6, [0, 3]), video('d', 9, [2, 8])],
+        magnetic: random() < 0.7,
+      });
+    fresh();
+    let applied = 0;
+    const presets = Object.keys(RAMP_PRESETS) as (keyof typeof RAMP_PRESETS)[];
+    for (let step = 0; step < 1000; step++) {
+      if (getVideo().clips.filter((vClip) => vClip.kind === 'video').length < 2) fresh();
+      const id = pick(getVideo().clips).id;
+      const before = getVideo().clips;
+      const [name, edit] = pick<[string, () => unknown]>([
+        ['speed', () => setClipSpeed(id, 0.1 + random() * 4)],
+        ['reverse', () => setClipReverse(id, random() < 0.5)],
+        ['preset', () => setClipRamp(id, pick(presets))],
+        ['move point', () => moveRampPoint(id, Math.floor(random() * 4), { at: random(), v: 0.1 + random() * 5 })],
+        ['add point', () => addRampPoint(id, random())],
+        ['remove point', () => removeRampPoint(id, Math.floor(random() * 4))],
+        ['reset', () => resetSpeed(id)],
+        [
+          'freeze',
+          () => {
+            setPlayhead(random() * videoLength(getVideo()));
+            return freezeFrameAtPlayhead();
+          },
+        ],
+        ['trim', () => trimClip(id, pick(['start', 'end'] as const), (random() - 0.5) * 2, { ripple: random() < 0.5 })],
+        [
+          'split',
+          () => {
+            setPlayhead(random() * videoLength(getVideo()));
+            return splitAtPlayheadWhy();
+          },
+        ],
+        ['move', () => moveClipTo(id, Math.floor(random() * getVideo().clips.length))],
+        ['undo', () => (undoV(), null)],
+      ]);
+      edit();
+      endVStep();
+      if (getVideo().clips !== before) applied++;
+      const where = `step ${step} (${name} ${id})`;
+      const tracks = new Map<string, VClip[]>();
+      for (const vClip of getVideo().clips) {
+        tracks.set(vClip.track, [...(tracks.get(vClip.track) ?? []), vClip]);
+        if (vClip.kind !== 'video') continue;
+        const length = clipLength(vClip);
+        expect(length, where).toBeCloseTo(Math.max(0.1, playLength(vClip)), 12);
+        expect(vClip.in, where).toBeGreaterThanOrEqual(0);
+        expect(vClip.out, where).toBeLessThanOrEqual(vClip.srcDur + 1e-9);
+        expect(vClip.in, where).toBeLessThan(vClip.out);
+        if (vClip.freeze !== undefined) {
+          expect(vClip.freeze, where).toBeGreaterThanOrEqual(0);
+          expect(vClip.freeze, where).toBeLessThanOrEqual(vClip.srcDur);
+          expect(['speed', 'reverse', 'ramp'].filter((field) => field in vClip), where).toEqual([]);
+          continue;
+        }
+        if (vClip.speed !== undefined) expect(vClip.speed >= 0.1 && vClip.speed <= 10, where).toBe(true);
+        if (vClip.ramp) {
+          expect(vClip.reverse, where).toBeUndefined();
+          expect(vClip.ramp.length >= 2 && vClip.ramp.length <= 10, where).toBe(true);
+          expect([vClip.ramp.at(0)?.at, vClip.ramp.at(-1)?.at], where).toEqual([0, 1]);
+        }
+        for (const share of [0, 0.25, 0.5, 0.75, 1]) {
+          const source = sourceAt(vClip, share * length);
+          expect(source, `${where} ${vClip.id}`).toBeGreaterThanOrEqual(vClip.in - 1e-6);
+          expect(source, `${where} ${vClip.id}`).toBeLessThanOrEqual(vClip.out + 1e-6);
+        }
+      }
+      for (const [track, onTrack] of tracks) {
+        const ordered = [...onTrack].sort((left, right) => left.start - right.start);
+        for (let index = 1; index < ordered.length; index++) {
+          const previous = defined(ordered[index - 1]);
+          expect(defined(ordered[index]).start, `${where} ${track}`).toBeGreaterThanOrEqual(previous.start + clipLength(previous) - 1e-6);
+        }
+      }
+    }
+    expect(applied).toBeGreaterThan(300);
   });
 });

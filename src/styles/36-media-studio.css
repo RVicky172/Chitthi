@@ -1528,3 +1528,47 @@
 .tl-trans-edge-end {
   right: -3px;
 }
+
+/* Speed (207): the inspector's Speed group and the ramp's curve editor (a wide graph, a log speed axis) */
+.v-speed .kf-row .v-number input {
+  width: 4.5em;
+}
+.ramp {
+  display: grid;
+  gap: 6px;
+}
+.ramp-graph {
+  max-width: 100%;
+  aspect-ratio: 258 / 138;
+}
+.ramp-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.ramp-one {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.ramp-axis {
+  fill: var(--muted);
+  font-size: 9px;
+  pointer-events: none;
+  user-select: none;
+}
+/* A clip's speed badge on the timeline, and a freeze frame's block (207 AC-11) */
+.tl-speed {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  padding: 0 4px;
+  border-radius: var(--r-sm);
+  background: color-mix(in oklch, var(--bg) 80%, transparent);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 14px;
+  pointer-events: none;
+}
+.tl-still .tl-film {
+  filter: saturate(0.6);
+}

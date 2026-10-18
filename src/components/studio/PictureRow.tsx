@@ -11,7 +11,7 @@ import { useFallbackNote } from './previewFrame';
 import { clipNow, refuseLocked, sayOnce } from './timelineActions';
 import type { SnapTime } from './TimelineBars';
 import { dragKey, startDrag, toFrame } from './timelineDrag';
-import { clipLabel } from './timelineRows';
+import { clipLabel, filmstripTimes, speedBadge } from './timelineRows';
 
 /*
  * One picture track's row: its clips (with filmstrips), their trims and drags with the edit tool, the gaps between
@@ -228,9 +228,11 @@ interface ClipBlockProps {
  */
 function filmstrip(clip: VClip, width: number): string[] {
   const tiles = Math.max(1, Math.min(24, Math.round(width / 56)));
+  const times = filmstripTimes(clip, tiles);
   return Array.from({ length: tiles }, (_, tile) => {
     if (clip.kind !== 'video' || clip.strip.length <= 1) return clip.strip[0] ?? clip.thumb;
-    const time = clip.in + ((tile + 0.5) / tiles) * (clip.out - clip.in);
+    // Through the speed (207): a reversed clip's tiles run backwards, a freeze frame's all show its still.
+    const time = times[tile] ?? clip.in;
     return clip.strip[Math.min(clip.strip.length - 1, Math.floor((time / clip.srcDur) * clip.strip.length))] ?? clip.thumb;
   });
 }
@@ -243,12 +245,14 @@ function ClipBlock({ clip, label, labelInSentence, left, width, selected, draggi
   // A clip the decoder pool can't decode previews from its <video>, but the export can't use it (204 §7).
   const cantExport = useFallbackNote(clip.file);
   const seconds = clipLength(clip).toFixed(1);
+  const badge = speedBadge(clip);
+  const spokenBadge = badge ? `, ${badge.replace('◀', 'reversed')}` : '';
   const source = clip.kind === 'video' ? ' · source ' + clip.in.toFixed(1) + '–' + clip.out.toFixed(1) + ' s' : '';
   const warning = cantExport ? '\n' + cantExport : '';
   const spokenWarning = cantExport ? '. ' + cantExport : '';
   return (
     <div
-      className={`tl-clip tl-${clip.kind}${selected ? ' on' : ''}${dragging !== null ? ' dragging' : ''}${locked ? ' locked' : ''}`}
+      className={`tl-clip tl-${clip.kind}${clip.freeze === undefined ? '' : ' tl-still'}${selected ? ' on' : ''}${dragging !== null ? ' dragging' : ''}${locked ? ' locked' : ''}`}
       style={{ left, width: Math.max(8, width - 2), transform: dragging !== null ? `translateX(${dragging}px)` : undefined }}
       onPointerDown={onBody}
       title={`${clip.name} · ${seconds} s${source}${warning}`}
@@ -261,12 +265,17 @@ function ClipBlock({ clip, label, labelInSentence, left, width, selected, draggi
       <span className="tl-clip-label">
         {locked && <LockIcon on />}
         {cantExport && <span aria-hidden="true">⚠ </span>}
-        {clip.kind === 'video' ? '▶ ' : ''}
+        {clip.kind === 'video' && clip.freeze === undefined ? '▶ ' : ''}
         {seconds}s{clip.fade ? ' · fade' : ''}
       </span>
+      {badge && (
+        <span className="tl-speed" aria-hidden="true">
+          {badge}
+        </span>
+      )}
       <button type="button" className="tl-edge tl-edge-start" aria-label={`Trim the start of ${labelInSentence}`} onPointerDown={(event) => onEdge(event, 'start')} />
       <button type="button" className="tl-edge tl-edge-end" aria-label={`Trim the end of ${labelInSentence}`} onPointerDown={(event) => onEdge(event, 'end')} />
-      <button type="button" className="vh" aria-label={`${label}: ${clip.name}, ${clip.kind}, ${seconds} seconds${spokenWarning}`} aria-pressed={selected} onClick={() => selectClip(clip.id)} />
+      <button type="button" className="vh" aria-label={`${label}: ${clip.name}, ${clip.kind}, ${seconds} seconds${spokenBadge}${spokenWarning}`} aria-pressed={selected} onClick={() => selectClip(clip.id)} />
     </div>
   );
 }

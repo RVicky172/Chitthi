@@ -3,9 +3,9 @@ import { formatTime } from '../../engine/timeline';
 import type { Track } from '../../engine/tracks';
 import { duplicateClipWhy, moveClipToTrack, removeClip } from '../../state/videoClips';
 import { setMagnetic, setPlayhead, setPlaying, setSnapping, setTool, setZoom, useVideo, videoLength, type VClip } from '../../state/videoStore';
-import { CopyIcon, EditToolIcon, MagneticIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
+import { CopyIcon, EditToolIcon, FreezeIcon, MagneticIcon, PauseIcon, PlayIcon, ScissorsIcon, SkipBackIcon, SkipForwardIcon, SnapIcon, TrashIcon, ZoomInIcon, ZoomOutIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
-import { EDIT_TOOLS, refuseLocked, splitAtPlayhead, tell } from './timelineActions';
+import { EDIT_TOOLS, freezeAtPlayhead, refuseLocked, splitAtPlayhead, tell } from './timelineActions';
 import { pictureTracksTopFirst } from './timelineRows';
 
 /* The bar above the timeline: play controls, editing buttons, the edit tools, Magnetic and Snap, and zoom. */
@@ -137,6 +137,10 @@ export function Transport() {
       <button type="button" className="sbtn" disabled={!clips.length} onClick={splitAtPlayhead} title="Split at the playhead (S)" aria-label="Split">
         <ScissorsIcon />
         <span className="mst-l">Split</span>
+      </button>
+      <button type="button" className="sbtn" disabled={!clips.length} onClick={freezeAtPlayhead} title="Freeze the frame at the playhead (Shift + F)" aria-label="Freeze frame">
+        <FreezeIcon />
+        <span className="mst-l">Freeze</span>
       </button>
       <button type="button" className="sbtn" disabled={!selected} onClick={() => editSelected(selected, (id) => tell(duplicateClipWhy(id)))} title="Duplicate the clip" aria-label="Duplicate">
         <CopyIcon />

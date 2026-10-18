@@ -2,6 +2,7 @@ import type { Adjustments } from '../engine/adjust';
 import { NOT_FOUND, TOO_LONG, closeGap, lift, moveTo, moveToTrack, nudge, reorder, rippleDelete, roll, slide, slip, trim, type Edit } from '../engine/edits';
 import type { IgEdit } from '../engine/instagram';
 import { splitKeys } from '../engine/keyframes';
+import { splitSource } from '../engine/speedEdges';
 import { clipLength, gaps } from '../engine/timeline';
 import { MAIN_VIDEO } from '../engine/tracks';
 import { browserNote, clipLocked, commit, editCtx, getVideo, lengthOf, limitText, limits, newId, projectOf, total, type VClip, type VState } from './videoStore';
@@ -208,7 +209,12 @@ function splitClip(clip: VClip, local: number): [VClip, VClip] {
   const { transition, ...left } = clip;
   const outgoing = transition ? { transition } : {};
   const start = clip.start + local;
-  if (clip.kind === 'video') return [{ ...left, out: clip.in + local, ...keys(keysLeft) }, { ...left, id: newId(), start, in: clip.in + local, fade: false, ...keys(keysRight), ...outgoing }];
+  // A freeze frame (207) splits like a photo: both parts show its still.
+  if (clip.kind === 'video' && clip.freeze === undefined) {
+    // The cut is the source time showing there (207): a reversed clip's left part keeps its out point, a ramp is cut.
+    const [leftPart, rightPart] = splitSource(clip, local);
+    return [{ ...left, ...leftPart, ...keys(keysLeft) }, { ...left, id: newId(), start, ...rightPart, fade: false, ...keys(keysRight), ...outgoing }];
+  }
   return [{ ...left, dur: local, ...keys(keysLeft) }, { ...left, id: newId(), start, dur: clipLength(clip) - local, fade: false, ...keys(keysRight), ...outgoing }];
 }
 

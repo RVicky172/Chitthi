@@ -1,3 +1,4 @@
+import { speedFields } from '../engine/speed';
 import { bitrateFor, vFormat } from '../engine/videoFormats';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
 import { getVideo, musicClips, setVideo } from './videoStore';
@@ -43,7 +44,7 @@ export async function exportVideo(): Promise<ExportOutcome> {
     const current = getVideo();
     const blob = await encodeVideo({
       tracks: current.tracks,
-      clips: current.clips.map((clip) => ({ id: clip.id, track: clip.track, start: clip.start, kind: clip.kind, dur: clip.dur, in: clip.in, out: clip.out, edit: clip.edit, motion: clip.motion, fade: clip.fade, file: clip.file, volume: clip.volume })),
+      clips: current.clips.map((clip) => ({ id: clip.id, track: clip.track, start: clip.start, kind: clip.kind, dur: clip.dur, in: clip.in, out: clip.out, edit: clip.edit, motion: clip.motion, fade: clip.fade, file: clip.file, volume: clip.volume, ...speedFields(clip) })),
       audio: musicClips(),
       layers: current.layers,
       width: format.w,

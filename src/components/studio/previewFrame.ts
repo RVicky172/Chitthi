@@ -2,6 +2,8 @@
 // clip shows at a time, its picture from a PreviewSource, and the drawing. VideoStage uses exactly these.
 import { useSyncExternalStore } from 'react';
 import { DecodePool, frameTime, poolLimits, type FrameSourceFactory, type PoolClip } from '../../engine/decodePool';
+import { laneWindow } from '../../engine/lanePlan';
+import { frameSourceAt } from '../../engine/speed';
 import { frameStack, type Mix, type StackItem } from '../../engine/stack';
 import { MAIN_VIDEO } from '../../engine/tracks';
 import { type Project, type TimedClip } from '../../engine/timeline';
@@ -104,8 +106,9 @@ export function videoElementSource(onFrame: () => void = () => undefined): Previ
 }
 
 /**
- * A clip as the decoder pool sees it. `lead` (206): the half of the transition leading into it, seconds; its lane is
- * primed that much before its in point, so a transition's first frame is ready (the pool primes at `in`).
+ * A clip as the decoder pool sees it: the source span it shows at its speed (207, `laneWindow`). `lead` (206): the
+ * half of the transition leading into it, seconds; its lane is primed that much before its first frame, so a
+ * transition's first frame is ready (the pool primes at `in`, a reversed lane at `out`).
  * @param clip the clip
  * @param lead the transition's leading half, seconds
  * @returns the clip for the pool
@@ -113,10 +116,9 @@ export function videoElementSource(onFrame: () => void = () => undefined): Previ
 export const poolClip = (clip: PreviewClip, lead = 0): PoolClip => ({
   id: clip.id,
   file: clip.file,
-  in: Math.max(0, clip.in - lead),
-  out: clip.out,
   start: clip.start,
   track: clip.track,
+  ...laneWindow(clip, lead, 0),
 });
 
 /**
@@ -195,7 +197,7 @@ export async function pausedFrame<C extends PreviewClip>(
   const { at, items: stack } = pausedAt(project, playhead, fps);
   const items = await Promise.all(
     stack.map(async ({ clip, local, mix }): Promise<StageItem<C>> => {
-      const pic = clip.kind === 'video' ? await source.frame(clip, clip.in + local) : photoPicture(clip);
+      const pic = clip.kind === 'video' ? await source.frame(clip, frameSourceAt(clip, local)) : photoPicture(clip);
       return { clip, local, pic, ...(mix ? { mix } : {}) };
     }),
   );
@@ -265,6 +267,9 @@ export function drawPreview(
   );
 }
 
+/** The width reversed lanes decode at in the preview (D4): about the stage's size, so a backward chunk fits. */
+const REVERSE_PREVIEW_WIDTH = 1280;
+
 /**
  * Mediabunny loads with the first clip the pool opens, not with the editor.
  * @param file the clip's file
@@ -284,7 +289,7 @@ export function stageSource(onFrame: () => void = () => undefined) {
   const elements = videoElementSource(onFrame);
   // Room for the videos a frame may show at once (203 §5; decoders = that limit + 2).
   const limits = poolLimits(limitsFor('reel', isDesktop).videosAtOnce, isDesktop);
-  const pool = typeof VideoDecoder === 'undefined' ? null : new DecodePool(lazyMediabunny, limits);
+  const pool = typeof VideoDecoder === 'undefined' ? null : new DecodePool(lazyMediabunny, limits, { reverseWidth: REVERSE_PREVIEW_WIDTH });
   const source: PreviewSource = pool ? poolSource(pool, elements) : elements;
   const stage = {
     source,

@@ -3,19 +3,24 @@ import type { Ease, Keyframe } from '@/engine/keyframes';
 import type { TimedClip } from '@/engine/timeline';
 import type { Track } from '@/engine/tracks';
 import type { Transition } from '@/engine/transitions';
+import { RAMP_PRESETS, type SpeedFields } from '@/engine/speed';
+import { defined } from '../../../support/defined';
 import {
   clipLabel,
   describeClipChange,
   describeKeyChange,
+  describeSpeedChange,
   describeTransitionChange,
   draggedLength,
   easeName,
   easeShape,
+  filmstripTimes,
   keyPropName,
   keyTimes,
   panelCut,
   pictureTracksTopFirst,
   rowUnderPointer,
+  speedBadge,
   transitionBlock,
   type RowBounds,
 } from '@/components/studio/timelineRows';
@@ -335,5 +340,60 @@ describe('transition blocks, their drags and their announcements (AC-9)', () => 
     );
     expect(describeTransitionChange(withOne, withOne, tracks)).toBe('');
     expect(describeTransitionChange(plain, [videoClip('b', 0), videoClip('c', 2)], tracks)).toBe('');
+  });
+});
+
+/* ---------- 207: speed on the timeline (AC-11, AC-12) ---------- */
+
+describe('207: badges, filmstrips and announcements at speed', () => {
+  const at = (fields: SpeedFields) => ({ ...clip('a', 'V1', 0, 4, 1), ...fields });
+
+  it('speedBadge: the speed, ◀ for reverse, Ramp, Still; none at 1× forwards or on a photo', () => {
+    expect(speedBadge(at({}))).toBeNull();
+    expect(speedBadge(at({ speed: 2 }))).toBe('2×');
+    expect(speedBadge(at({ speed: 0.5 }))).toBe('0.5×');
+    expect(speedBadge(at({ reverse: true }))).toBe('◀ 1×');
+    expect(speedBadge(at({ speed: 2, reverse: true }))).toBe('◀ 2×');
+    expect(speedBadge(at({ ramp: [...RAMP_PRESETS.hero] }))).toBe('Ramp');
+    expect(speedBadge(at({ freeze: 2 }))).toBe('Still');
+    expect(speedBadge({ ...at({ speed: 2 }), kind: 'photo' })).toBeNull();
+  });
+
+  it('filmstripTimes: the source time at each tile’s middle, through sourceAt', () => {
+    // Source 1–5 at 1×: tiles at 1.5, 2.5, 3.5, 4.5.
+    expect(filmstripTimes(at({}), 4)).toEqual([1.5, 2.5, 3.5, 4.5]);
+    // At 2× the clip is 2 s long and covers the same source.
+    expect(filmstripTimes(at({ speed: 2 }), 4)).toEqual([1.5, 2.5, 3.5, 4.5]);
+    expect(filmstripTimes(at({ reverse: true }), 4)).toEqual([4.5, 3.5, 2.5, 1.5]);
+    expect(filmstripTimes(at({ freeze: 2.5 }), 3)).toEqual([2.5, 2.5, 2.5]);
+    const ramped = at({ ramp: [...RAMP_PRESETS.hero] });
+    const times = filmstripTimes(ramped, 6);
+    times.slice(1).forEach((time, index) => expect(time).toBeGreaterThan(defined(times[index])));
+    expect(filmstripTimes({ ...at({}), kind: 'photo' }, 3)).toEqual([]);
+  });
+
+  it('describeClipChange says the speed, reverse, ramp or still', () => {
+    const was = [clip('a', 'V1', 0, 4, 1)];
+    const say = (fields: SpeedFields) => describeClipChange(was, [at(fields)], TRACKS, 'a');
+    expect(say({ speed: 2 })).toBe('Clip 1, 0.0 s to 2.0 s, playing its source from 1.0 s at 2×');
+    expect(say({ speed: 2, reverse: true })).toBe('Clip 1, 0.0 s to 2.0 s, playing its source backwards from 5.0 s at 2×');
+    expect(say({ ramp: [{ at: 0, v: 2 }, { at: 1, v: 2 }] })).toBe(
+      'Clip 1, 0.0 s to 2.0 s, playing its source from 1.0 s with a speed ramp',
+    );
+    expect(say({ freeze: 2.5, dur: 2 } as SpeedFields)).toBe('Clip 1, 0.0 s to 2.0 s, a still of its source at 2.5 s');
+  });
+
+  it('describeSpeedChange: the clip, its new speed and length; nothing when no speed changed', () => {
+    const was = [clip('a', 'V1', 0, 4, 1), clip('b', 'V1', 4, 4.2, 0)];
+    const slower = [was[0], { ...clip('b', 'V1', 4, 4.2, 0), speed: 0.5 }];
+    expect(describeSpeedChange(was, slower, TRACKS)).toBe('Clip 2: 0.5×, now 8.4 s');
+    expect(describeSpeedChange(was, [{ ...defined(was[0]), reverse: true as const }, was[1]], TRACKS)).toBe(
+      'Clip 1: reversed at 1×, now 4.0 s',
+    );
+    expect(describeSpeedChange(was, [{ ...defined(was[0]), ramp: [...RAMP_PRESETS.hero] }, was[1]], TRACKS)).toMatch(
+      /^Clip 1: speed ramp, now \d+\.\d s$/,
+    );
+    expect(describeSpeedChange(slower, was, TRACKS)).toBe('Clip 2: 1×, now 4.2 s');
+    expect(describeSpeedChange(was, was, TRACKS)).toBe('');
   });
 });

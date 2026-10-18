@@ -6,6 +6,7 @@ import { clipLength } from '../../engine/timeline';
 import { lockedReason, MUSIC, type Track } from '../../engine/tracks';
 import { toast } from '../../lib/toast';
 import { deleteGap, nudgeClip, removeClip, rippleDeleteClip, rippleTrimToPlayhead, splitAtPlayheadWhy } from '../../state/videoClips';
+import { freezeFrameAtPlayhead, type SpeedOutcome } from '../../state/videoSpeed';
 import { deleteKeys, toggleKey, type KeyProp, type KeyTarget } from '../../state/videoKeys';
 import { removeVLayer } from '../../state/videoLayers';
 import { slipMusic } from '../../state/videoMedia';
@@ -70,6 +71,25 @@ export function refuseLockedMusic(): boolean {
 /** Splits the clip under the playhead (S, the Split button), or says why not (locked, outside a clip, or over the videos-at-once limit). */
 export function splitAtPlayhead(): void {
   tell(splitAtPlayheadWhy());
+}
+
+/**
+ * Says what a speed action did (207): its refusal, or its note (a ramp dropped for reverse, a transition shortened).
+ * @param outcome the store's answer
+ * @returns whether it went through
+ */
+export function tellSpeed(outcome: SpeedOutcome): boolean {
+  if ('error' in outcome) {
+    toast(outcome.error);
+    return false;
+  }
+  if (outcome.note) toast(outcome.note);
+  return true;
+}
+
+/** Freeze frame at the playhead (207 AC-4, Q10: the Transport's button and Shift + F), saying why when refused. */
+export function freezeAtPlayhead(): void {
+  tellSpeed(freezeFrameAtPlayhead());
 }
 
 /** The edit tools (202, Q5): what dragging a clip or its edge does, and its key. */
@@ -212,6 +232,8 @@ function plainKeys(event: ReactKeyboardEvent, keyed: SelectedItem | null, total:
   return {
     ' ': () => setPlaying(!state.playing),
     s: splitAtPlayhead,
+    // Shift + F (Q10): F alone (Caps Lock too) stays free.
+    ...(event.shiftKey ? { F: freezeAtPlayhead } : {}),
     k: () => keyAtPlayhead(keyed, state.t, state.fps),
     q: () => tell(rippleTrimToPlayhead('start')),
     w: () => tell(rippleTrimToPlayhead('end')),
