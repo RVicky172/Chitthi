@@ -42,11 +42,11 @@
 - **Branches:** a finished feature merges into `main` (`--no-ff`); the next feature branches from `main`; a release is
   a tag on `main`.
 - **206 merged** into `main` and pushed (`797bbf2`, 2026-10-13).
-- **407:** `407-code-structure` ✔️ Implemented 2026-10-16, merged into `main` (not pushed): tests in
+- **407:** `407-code-structure` ✔️ Implemented 2026-10-16, merged into `main` and pushed: tests in
   `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md` (AC-4), every standards rule an error for
   `src/`, `electron/`, `tests/` (`FINISHED`), standards report 0, `noUncheckedIndexedAccess` for `src/`; React
   Compiler off (D-046); performance review `performance.md` (D-047); entry 313 KB (was 327). D-037–D-048.
-- **207:** `207-speed` ✔️ Implemented 2026-10-18 (`f2fb66a`), merged into `main` (`0443d4a`, not pushed): constant speed 0.1–10×, reverse,
+- **207:** `207-speed` ✔️ Implemented 2026-10-18 (`f2fb66a`), merged into `main` (`0443d4a`) and pushed: constant speed 0.1–10×, reverse,
   freeze frame, ramps (six presets, curve editor), one `sourceAt` for preview / export / pool / edits, same-pitch sound
   0.5–2× (browser in the preview, our WSOLA in the export), D-049–D-051. AC-6 listening, AC-11–14 wait for 290. Entry
   313 KB. Next: the next Phase 2 feature, branched from `main`.

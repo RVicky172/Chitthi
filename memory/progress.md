@@ -15,7 +15,7 @@ Newest first. One entry per working session.
 **Done:** T090 docs (MEDIA-STUDIO speed section + Still to do, lld Speed section and module map, CHANGELOG, in-app
 docs); T091 the deferred checks in 290's list; T092 close: check green (1,952), lint:full clean, build entry 313 KB;
 AC-1–10 and AC-15 ticked, status implemented.
-**Next:** the next Phase 2 feature (branch from `main`). Committed `f2fb66a`, merged into `main` `0443d4a` (not pushed).
+**Next:** the next Phase 2 feature (branch from `main`). Committed `f2fb66a`, merged into `main` `0443d4a`, pushed.
 **Blockers:** none.
 
 ## 2026-10-18 — 207 (T081–T082)
