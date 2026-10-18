@@ -46,10 +46,10 @@
   `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md` (AC-4), every standards rule an error for
   `src/`, `electron/`, `tests/` (`FINISHED`), standards report 0, `noUncheckedIndexedAccess` for `src/`; React
   Compiler off (D-046); performance review `performance.md` (D-047); entry 313 KB (was 327). D-037–D-048.
-- **207:** `207-speed` ✔️ Implemented 2026-10-18 on `feat/207-speed` (not committed yet): constant speed 0.1–10×, reverse,
+- **207:** `207-speed` ✔️ Implemented 2026-10-18 (`f2fb66a`), merged into `main` (`0443d4a`, not pushed): constant speed 0.1–10×, reverse,
   freeze frame, ramps (six presets, curve editor), one `sourceAt` for preview / export / pool / edits, same-pitch sound
   0.5–2× (browser in the preview, our WSOLA in the export), D-049–D-051. AC-6 listening, AC-11–14 wait for 290. Entry
-  313 KB. Next: commit (maintainer's OK), merge into `main`, then the next Phase 2 feature.
+  313 KB. Next: the next Phase 2 feature, branched from `main`.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
