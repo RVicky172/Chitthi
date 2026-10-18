@@ -17,6 +17,7 @@ import {
   removeKey,
   setEase,
   setKey,
+  scaleKeys,
   shiftKeys,
   splitKeys,
   stopAnimating,
@@ -387,6 +388,17 @@ describe('pure edits', () => {
     expect(shiftKeys(keys, -0.5)).toEqual({ x: [keyframe(-0.5, 0), keyframe(0.5, 1)], y: [keyframe(0.5, 0.3)] });
     expect(shiftKeys(keys, 0)).toBe(keys);
     expect(shiftKeys(undefined, 2)).toBeUndefined();
+  });
+
+  it('scaleKeys keeps keys at the same places along a clip whose length changes (207 Q9); by 1 the same object', () => {
+    const keys: Keyframes<ClipKeyProp> = { x: [keyframe(0, 0), keyframe(2, 1), keyframe(4, 0.5)], volume: [keyframe(3, 0.2)] };
+    expect(scaleKeys(keys, 0.5)).toEqual({
+      x: [keyframe(0, 0), keyframe(1, 1), keyframe(2, 0.5)],
+      volume: [keyframe(1.5, 0.2)],
+    });
+    expect(scaleKeys(keys, 2)?.x?.map((key) => key.t)).toEqual([0, 4, 8]);
+    expect(scaleKeys(keys, 1)).toBe(keys);
+    expect(scaleKeys(undefined, 2)).toBeUndefined();
   });
 
   it('splitKeys gives each part its keys plus one at the cut holding the value there', () => {

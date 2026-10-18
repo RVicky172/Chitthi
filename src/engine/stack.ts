@@ -1,5 +1,6 @@
 import type { Box } from './layers';
 import { clipLength, EDGE_EPS, projectLength, type Project, type TimedClip } from './timeline';
+import { frameSourceAt } from './speed';
 import { MAIN_VIDEO, type Track } from './tracks';
 import { progressAt, type DipColour, type Direction, type Transition, type TransitionKind } from './transitions';
 
@@ -65,6 +66,15 @@ function pairOf<C extends TimedClip>(
     { clip: incoming, local: time - incoming.start, track, mix: mix('to') },
   ];
 }
+
+/**
+ * The source time a stack item shows (207): its video frame through `frameSourceAt`, so a clip at speed, reversed,
+ * ramped or frozen shows the same frame in the preview and the export, its transition handles at its edge speed.
+ * @param item the item
+ * @returns source seconds, or null for a photo
+ */
+export const itemSource = <C extends TimedClip>(item: StackItem<C>): number | null =>
+  item.clip.kind === 'video' ? frameSourceAt(item.clip, item.local) : null;
 
 /**
  * The transition playing around the clip that covers a time (206 AC-2): its own, into the clip after it, or the one

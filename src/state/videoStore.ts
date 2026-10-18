@@ -3,6 +3,7 @@ import { closeGaps, limitVideos, type EditCtx, type Tool } from '../engine/edits
 import type { IgEdit } from '../engine/instagram';
 import type { ClipKeyProp, Keyframes } from '../engine/keyframes';
 import type { Layer } from '../engine/layers';
+import type { SpeedFields } from '../engine/speed';
 import { tidyTransitions, type Transition } from '../engine/transitions';
 import { pack, projectLength, type AudioClip, type ClipTransform, type Project } from '../engine/timeline';
 import { MAIN_VIDEO, MUSIC, defaultTracks, lockedReason, type Track } from '../engine/tracks';
@@ -24,8 +25,8 @@ import type { LayerTools } from './instagram';
  * are in videoTracks, videoClips, videoBox, videoKeys, videoLayers, videoTransitions, videoMedia and videoExportJob.
  */
 
-/** A photo or video on a picture track. */
-export interface VClip {
+/** A photo or video on a picture track; a video may play at a speed, reversed, ramped or frozen (207). */
+export interface VClip extends SpeedFields {
   id: string;
   kind: 'photo' | 'video';
   /** The picture track it is on: the main video track or an overlay track (203). */

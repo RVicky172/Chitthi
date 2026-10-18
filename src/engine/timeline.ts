@@ -1,6 +1,7 @@
 import { keysOf } from './guards';
 import type { ClipKeyProp, Keyframes } from './keyframes';
 import type { Layer } from './layers';
+import { playLength, type SpeedFields } from './speed';
 import { MAIN_VIDEO, isPictureTrack, type Track } from './tracks';
 import type { Transition } from './transitions';
 import { V_FPS } from './videoFormats';
@@ -110,10 +111,10 @@ export function presetTransform(preset: Preset, frameWidth: number, frameHeight:
 /** A new photo's seconds on screen. */
 export const V_PHOTO_SECONDS = 3;
 
-/** What the timeline needs to know about a clip. */
-export interface ClipTiming {
+/** What the timeline needs to know about a clip: its kind, the part of its source used and its speed (207). */
+export interface ClipTiming extends SpeedFields {
   kind: 'photo' | 'video';
-  /** Photo: seconds on screen. */
+  /** Photo or freeze frame (207): seconds on screen. */
   dur: number;
   /** Video: the start of the part used, in seconds of the source. */
   in: number;
@@ -124,9 +125,9 @@ export interface ClipTiming {
 /**
  * A clip's seconds on the timeline.
  * @param clip the clip
- * @returns a photo's duration or a video's trimmed length, at least 0.1 s
+ * @returns a photo's or freeze frame's duration, or a video's trimmed length at its speed (207), at least 0.1 s
  */
-export const clipLength = (clip: ClipTiming): number => Math.max(0.1, clip.kind === 'photo' ? clip.dur : clip.out - clip.in);
+export const clipLength = (clip: ClipTiming): number => Math.max(0.1, playLength(clip));
 
 /**
  * The frame numbers whose time falls in [start, end).

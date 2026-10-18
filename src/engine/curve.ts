@@ -142,9 +142,20 @@ function tangents(slopes: readonly number[]): number[] {
 /**
  * The spline through the points.
  * @param points the curve's points, sorted by input
- * @returns the curve as a function of input (0–1), flat beyond the first and last points
+ * @returns the curve as a function of input (0–1), flat beyond the first and last points, clamped to 0–1
  */
 export function spline(points: readonly CurvePoint[]): (x: number) => number {
+  const curve = monotoneSpline(points);
+  return (x) => clamp01(curve(x));
+}
+
+/**
+ * The monotone cubic (Fritsch–Carlson) through any points, unclamped: between two points it stays between their
+ * outputs. The tone curve clamps it to 0–1; a speed ramp (207) uses it on speeds.
+ * @param points the points, sorted by input
+ * @returns the curve as a function of input, flat beyond the first and last points
+ */
+export function monotoneSpline(points: readonly CurvePoint[]): (x: number) => number {
   const count = points.length;
   const inputs = points.map((point) => point[0]);
   const outputs = points.map((point) => point[1]);
@@ -162,11 +173,11 @@ export function spline(points: readonly CurvePoint[]): (x: number) => number {
     const along = (x - input(segment)) / width;
     const along2 = along * along;
     const along3 = along2 * along;
-    return clamp01(
+    return (
       (2 * along3 - 3 * along2 + 1) * output(segment) +
-        (along3 - 2 * along2 + along) * width * (tangent[segment] ?? 0) +
-        (-2 * along3 + 3 * along2) * output(segment + 1) +
-        (along3 - along2) * width * (tangent[segment + 1] ?? 0),
+      (along3 - 2 * along2 + along) * width * (tangent[segment] ?? 0) +
+      (-2 * along3 + 3 * along2) * output(segment + 1) +
+      (along3 - along2) * width * (tangent[segment + 1] ?? 0)
     );
   };
 }

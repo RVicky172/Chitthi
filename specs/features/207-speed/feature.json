@@ -1,0 +1,1195 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "207",
+  "title": "Speed: constant, reverse, freeze, ramps",
+  "workItem": "P2.7",
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-16",
+    "approved": "2026-10-18",
+    "started": "2026-10-18",
+    "done": "2026-10-18"
+  },
+  "git": {
+    "branch": "feat/207-speed"
+  },
+  "spec": {
+    "phase": "Phase 2 — Multi-track timeline (release 3.0.0)",
+    "summary": "Speed changes are one of the most used edits in short video: a slow-motion moment, a time-lapse of a long walk, a clip played backwards, a still held on the best frame, a ramp that speeds into an action and slows down at its peak. Today every video clip plays at its own speed, forwards, and the only still is a photo. 207 lets the user set a video clip’s speed (constant), play it in reverse, freeze a frame, and ramp the speed over the clip with a curve, and see it the same in the preview and the export. The clip’s sound follows a constant speed; it is muted for ramps and reverse at first, as the work item (P2.7) says. With 206’s transitions and 205’s keyframes it completes the timeline’s picture edits for Phase 2.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a creator making a Reel, I want to slow a clip down or speed it up to an exact speed, so that a jump lands in slow motion and a long walk becomes a few seconds."
+        },
+        "US-2": {
+          "text": "As a vlogger, I want to play a clip backwards, so that I can rewind a moment for effect."
+        },
+        "US-3": {
+          "text": "As an editor, I want to freeze the frame at the playhead for a few seconds, so that I can hold on a face or put a title over a still."
+        },
+        "US-4": {
+          "text": "As a creator, I want speed ramps (presets like Montage or Hero, or my own curve), so that a clip speeds into an action and slows at its peak, like the edits in my feed."
+        },
+        "US-5": {
+          "text": "As an editor, I want speed changes to keep the rest of my edit in order (later clips, transitions, keyframes, sound), and to undo them in one step."
+        },
+        "US-6": {
+          "text": "As a keyboard or screen-reader user, I want to set speed, reverse, freeze and ramps without a mouse and hear what changed."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Constant speed",
+          "proof": "unit",
+          "text": "A video clip has a speed from 0.1× to 10× (Q1), 1× by default, typed or chosen from presets 0.25×, 0.5×, 0.75×, 1×, 1.5×, 2×, 4×. At speed *s* the same part of the source (its in and out points) lasts (out − in) / *s* on the timeline, and the source time at *t* seconds into the clip is in + *t* × *s*. For a fixture at 0.25×, 0.5×, 2× and 10×, at 30 and 60 fps, the source time drawn at every frame of the export equals the expected list exactly (within 1 µs). Photos have no speed (their length is how long they show).",
+          "done": true
+        },
+        "AC-2": {
+          "group": "Constant speed",
+          "proof": "unit",
+          "text": "Changing a clip’s speed changes its length on the timeline, not the part of the source it uses (Q2). On the main track with **Magnetic** on, later clips move with it; elsewhere a clip that would run into the next clip is refused with the reason (Q3). A change that would make the video longer than its platform’s limit (Reels 90 s web / 180 s desktop, YouTube 15 min / 3 h) is refused with the reason, as is a speed that would make the clip shorter than 0.1 s. Trimming a sped-up clip moves its in and out points by its speed (a 1 s drag at 2× uses 2 s more source). Roll, Slip, Slide and split keep each part’s speed.",
+          "done": true
+        },
+        "AC-3": {
+          "group": "Reverse",
+          "proof": "unit",
+          "text": "A video clip can play in reverse, at any constant speed: the first frame shown is its out point and the last its in point, and the source time at *t* seconds into the clip is out − *t* × *s*. Trimming its start on the timeline moves its out point and trimming its end its in point, so what the user sees at each edge is what they trim. For a fixture reversed at 1× and 2×, the source time at every frame of the export equals the expected list exactly.",
+          "done": true
+        },
+        "AC-4": {
+          "group": "Freeze frame",
+          "proof": "unit",
+          "text": "**Freeze frame** with a video clip under the playhead splits it there and puts a still of that exact frame between the two parts (Q4): 2 s by default, 0.1 s to 60 s, its length changed like a photo’s by dragging its end. It is drawn from the video at that source time (not a screenshot of the preview), with the clip’s box, framing and look (203, 205, its edit) carried over; it has no sound. On the main track with Magnetic on, later clips move by its length; elsewhere it is refused when it doesn’t fit, with the reason. At the clip’s first or last frame it goes before or after the clip without a split.",
+          "done": true
+        },
+        "AC-5": {
+          "group": "Speed ramps",
+          "proof": "unit",
+          "text": "A video clip can have a speed ramp instead of a constant speed: a curve of speed over the clip, 2 to 10 points (Q5), each a place along the clip and a speed from 0.1× to 10×, joined smoothly. Six presets set the points (Montage, Hero, Bullet, Jump cut, Flash in, Flash out, Q6), which can then be changed. The clip’s length is the time the curve takes to play through its source part, and the source time is a function of clip time that always moves forwards, starts at its in point and ends exactly at its out point (within 1 µs); a ramp never reaches the out point early or late. For a fixture with each preset and a custom curve, at 30 and 60 fps, the source time at every frame equals the expected list exactly. A ramp and reverse don’t go together on one clip in 207 (Q7).",
+          "done": true
+        },
+        "AC-6": {
+          "group": "Sound",
+          "proof": "unit",
+          "text": "The clip’s sound follows a constant speed (Q8): over its length on the timeline it plays the same part of the source, faster or slower, at the same pitch, from 0.5× to 2×; outside that range, in reverse and with a ramp it is muted, and the inspector says why. A freeze frame is silent. Clip volume, 205’s volume keyframes and 206’s transition fades apply on the timeline as before. The export’s sound sources for a fixture with each case equal the expected list exactly.",
+          "done": true
+        },
+        "AC-7": {
+          "group": "Keeping the edit",
+          "proof": "unit",
+          "text": "A clip’s keyframes (205) stay at the same places along the clip when its speed or ramp changes, so an animation keeps its shape over the new length (Q9). Its transitions (206) keep their lengths and are shortened to the new limit if needed, with the reason; their handles (the source beyond in and out) are taken at the clip’s speed at that edge, held at its first or last frame where the source runs out. Layers and the music are timed on the timeline and don’t move unless Magnetic moves the clips they follow today.",
+          "done": true
+        },
+        "AC-8": {
+          "group": "Keeping the edit",
+          "proof": "unit",
+          "text": "Each change is one undo step: setting a speed (a slider drag is one step however long), reverse on or off, freeze frame, choosing a ramp preset, moving, adding or removing a ramp point (a drag is one step), and **Reset speed**. A seeded property test of 1,000 random speed, reverse, ramp, freeze, trim, split and move edits never leaves a clip whose source time leaves its in–out part, whose length differs from what its speed gives, or that overlaps another clip on its track.",
+          "done": true
+        },
+        "AC-9": {
+          "group": "Saving",
+          "proof": "unit",
+          "text": "Speed, reverse, ramps and freeze frames are saved with the project. The document validator reads them with the other fields: speeds are clamped to 0.1×–10×, ramps with fewer than 2 or more than 10 points, unordered places or non-finite values are mended or dropped with the reason, reverse together with a ramp keeps the ramp; at least 20 malformed documents never make it throw. A project with every case round-trips document → validator → document equal; documents without speed changes stay byte-identical.",
+          "done": true
+        },
+        "AC-10": {
+          "group": "Rendering",
+          "proof": "unit",
+          "text": "The preview and the export decide which source frame to draw with one function (the same one as AC-1, AC-3, AC-5): at any time, each clip under it and the source time to show. The export draws only the frames it shows, and when the next frame it needs is past the next key frame it jumps to that key frame instead of decoding through (at 10× it never plays through the source); a freeze frame is decoded once (D3).",
+          "done": true
+        },
+        "AC-11": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "The inspector of a selected video clip has a **Speed** group: Constant or Ramp; the speed as a field and slider with the presets (AC-1); **Reverse**; the ramp’s presets and a curve editor with its points (drag a point, double-click to add one, Delete to remove one); the clip’s new length; **Reset speed**. **Freeze frame** is in the timeline’s transport and on Shift + F with the timeline focused (Q10). On the timeline a sped-up, slowed, reversed or ramped clip shows a badge (“2×”, “0.5×”, “◀ 1×”, “Ramp”), and a freeze frame looks like a still.",
+          "done": false
+        },
+        "AC-12": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "Everything in AC-11 works from the keyboard: the ramp’s points are focusable, ← / → move a point along the clip and ↑ / ↓ change its speed (Shift: larger steps); every control has a name and state for screen readers and each change is announced (clip, speed, new length); axe finds no serious problems in the inspector and timeline; at 360 px wide nothing scrolls sideways outside the timeline.",
+          "done": false
+        },
+        "AC-13": {
+          "group": "Rendering",
+          "proof": "self-test (290)",
+          "text": "Golden frames: a test video with a frame counter burnt in, at 0.5×, 2×, 10×, reversed, frozen and with the Hero ramp, shows at each checked frame of the export exactly the source frame AC-1, AC-3, AC-4 and AC-5 say; the paused preview shows the same frame. No regressions: projects without speed changes are pixel-identical and give identical export inputs (frames, clips, times and sound sources) to 206 for 201’s to 206’s fixtures; every existing video e2e test passes unchanged.",
+          "done": false
+        },
+        "AC-14": {
+          "group": "Rendering",
+          "proof": "timing (290)",
+          "text": "Speed: on the reference mid-range laptop, a 1080p30 clip previews at 2× with no more dropped frames than at 1× and at 4× with at most 10 % dropped; reversed 1080p30 previews with at most 10 % dropped after its first second; a frozen frame costs no decoding while it shows. Exporting a 60-second Reel made of clips at 0.5× to 4× takes at most 25 % longer than the same Reel at 1×.",
+          "done": false
+        },
+        "AC-15": {
+          "group": "Docs",
+          "proof": "review",
+          "text": "`docs/MEDIA-STUDIO.md` (speed, reverse, freeze frame, ramps, their limits, the sound and the keys), `specs/lld.md` (the time mapping, the ramp curve, the sound), `CHANGELOG.md` and the in-app docs describe the change; the media studio’s “Still to do” no longer lists speed changes and reverse.",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11"
+      ],
+      "byId": {
+        "Q1": {
+          "open": false,
+          "text": "Speed range? _Answer (accepted 2026-10-18):_ 0.1× to 10× for constant speed and ramp points, in steps of 0.01×. Phone editors go further (CapCut 0.1×–100×), but past 10× a 1080p clip is mostly skipped frames and the export would decode most of the source to throw it away; a long time-lapse is better done by trimming. Easy to widen later."
+        },
+        "Q2": {
+          "open": false,
+          "text": "What does changing the speed keep: the part of the source, or the clip’s length on the timeline? _Answer (accepted 2026-10-18):_ the part of the source (in and out points stay; the clip gets shorter or longer), as Premiere, Resolve and CapCut do by default. Keeping the length (and moving the out point) can come later as an option."
+        },
+        "Q3": {
+          "open": false,
+          "text": "A slower clip on an overlay track, or on the main track with Magnetic off, that would run into the next clip? _Answer (accepted 2026-10-18):_ refused with the reason (“There is 1.2 s of room before the next clip; at 0.5× this clip needs 4 s”), like other edits that don’t fit; never silently trimmed and never overwriting the next clip."
+        },
+        "Q4": {
+          "open": false,
+          "text": "What is a freeze frame? _Answer (accepted 2026-10-18):_ a still of the frame at the playhead, placed between the two halves of the split clip (what CapCut and Premiere’s Insert Frame Hold Segment do), 2 s by default, with no sound; it keeps the clip’s box, framing and look so it matches the frames around it. It is its own clip (it can be moved, trimmed, deleted, given transitions and keyframes like a photo), not a speed of 0. The alternative, holding the last frame of a clip, is the same edit with the playhead on that frame."
+        },
+        "Q5": {
+          "open": false,
+          "text": "How many ramp points, and how are they joined? _Answer (accepted 2026-10-18):_ 2 to 10 points, joined by a smooth curve that doesn’t overshoot between points (so the speed never goes outside the points’ range or below 0.1×). Points are places along the clip’s source part (0 to 100 %), so trimming keeps the curve’s shape over what’s left."
+        },
+        "Q6": {
+          "open": false,
+          "text": "Which ramp presets? _Answer (accepted 2026-10-18):_ six, after CapCut’s familiar set, with our own numbers: **Montage** (fast–slow–fast–slow–fast), **Hero** (normal, slow in the middle, normal), **Bullet** (fast, very slow in the middle, fast), **Jump cut** (normal, a short fast burst, normal), **Flash in** (fast into normal), **Flash out** (normal into fast). Each is just a starting set of points."
+        },
+        "Q7": {
+          "open": false,
+          "text": "Ramps with reverse? _Answer (accepted 2026-10-18):_ not in 207: turning on Reverse sets the clip back to a constant speed (and says so), and choosing a ramp turns Reverse off. Reverse with a ramp is rare and doubles the cases to get right; it can come later."
+        },
+        "Q8": {
+          "open": false,
+          "text": "The sound at a constant speed: same pitch, or pitch follows the speed (“chipmunk”)? _Answer (accepted 2026-10-18):_ same pitch from 0.5× to 2×, muted outside it, in reverse and with ramps (the work item says muted for ramps and reverse at first). The preview gets the same pitch from the browser (audio elements keep pitch by default); the export needs a time-stretch of its own (no new library), which is the main cost of this feature. The cheaper choice is pitch following the speed (a simple resample, same in preview and export); it sounds like a tape played fast or slow. The maintainer chose same pitch on 2026-10-18."
+        },
+        "Q9": {
+          "open": false,
+          "text": "Keyframes when the speed changes: stay at the same timeline times, or the same places along the clip? _Answer (accepted 2026-10-18):_ the same places along the clip (scaled with its length), so a zoom that ran over the whole clip still does; keyframes are timed from the clip’s start on the timeline (205) and stay so."
+        },
+        "Q10": {
+          "open": false,
+          "text": "Keys? _Answer (accepted 2026-10-18):_ Shift + F for Freeze frame with the timeline focused (F alone is free today but reads as “fit” in other editors). No key for speed: it is in the inspector. Ctrl + R (Premiere’s speed dialog) is the browser’s reload and is left alone."
+        },
+        "Q11": {
+          "open": false,
+          "text": "Agent tools (MCP) for speed? _Answer (accepted 2026-10-18):_ not in 207; they come with the other timeline tools in 212, like 206’s transitions."
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-16",
+        "text": "Created: draft spec with 15 acceptance criteria and 11 open questions with proposed answers."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Q1–Q11: every proposed answer accepted by the maintainer (Q8: same pitch from 0.5× to 2×, with our own time-stretch in the export); Approved."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Plan drafted (§1–§8, D1–D5 for the maintainer)."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Plan approved (D1–D5 as recommended, D-049): AC-10 reworded (the export jumps to key frames rather than decoding only drawn frames, D3); AC-2 refuses a speed that would make a clip shorter than 0.1 s."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Tasks written (T010–T092)."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "D2 amended (T043, D-050): a ramp keeps its curve over a fixed source span (`rampSpan`) instead of being cut; trims and splits move in and out along it. `cutRamp` dropped."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Plan §4 amended (T044, D-051): a freeze frame holds the clip's keyframed values at the cut instead of replaying its keys scaled to its length."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** at 1× and without a ramp nothing changes: projects without speed changes preview and export within 5 % of 206 (AC-13); a speed change costs only the decoding it needs (fast clips skip frames in the export, freezes decode once); preview at high speeds and in reverse may drop frames within AC-14’s limits.\n- **Accuracy:** the source frame shown at every exported frame is exactly the one the speed, reverse, ramp or freeze says (AC-1, AC-3–AC-5, AC-10, AC-13); a clip’s length never drifts from its speed (AC-8).\n- **Accessibility:** every action works from the keyboard and is announced; names and states for screen readers; the curve editor has a non-pointer way to set every point (AC-12).\n- **Compatibility:** web and desktop alike; no new dependency; every existing project opens and exports unchanged (AC-9, AC-13).\n- **Free and open source:** every speed feature is for everyone, on the web and in the desktop app."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Speeds outside 0.1×–10×; keeping the clip’s length when the speed changes (Q1, Q2).\n- Sound for ramps and reverse, and pitch-kept sound outside 0.5×–2× (Q8): later, with the audio work.\n- Ramps together with reverse (Q7); frame blending or optical-flow slow motion (frames are repeated when slowed).\n- Speed for photos, layers or the music; speed keyframed through 205’s keyframes (ramps are their own curve).\n- Agent tools for speed (212, Q11)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-18, D1–D5 as recommended, D-049) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/speed.ts`, `tests/unit/engine/speed.test.ts`",
+        "change": "new",
+        "purpose": "§1: the time mapping, ramps, presets, `soundMuted`"
+      },
+      {
+        "file": "`src/engine/timeline.ts`, `tests/unit/engine/timeline.test.ts`",
+        "change": "modify",
+        "purpose": "§1: `SpeedFields` on `ClipTiming`, `clipLength` with speed"
+      },
+      {
+        "file": "`src/engine/speedEdits.ts`, `tests/unit/engine/speedEdits.test.ts`",
+        "change": "new",
+        "purpose": "§2, §4: `setSpeed`, `freezeFrame`"
+      },
+      {
+        "file": "`src/engine/edits.ts`, `src/engine/keyframes.ts`, `tests/unit/engine/edits.test.ts`, `tests/unit/engine/keyframes.test.ts`",
+        "change": "modify",
+        "purpose": "§2: trims through `sourceAt` / `localAt`, cut ramps, `scaleKeys`"
+      },
+      {
+        "file": "`src/engine/stack.ts`, `src/engine/video.ts`, `src/engine/transitions.ts`",
+        "change": "modify",
+        "purpose": "§3: source times through `sourceAt`, handles at the edge speed"
+      },
+      {
+        "file": "`src/engine/decodePool.ts`, `src/engine/frameSource.ts`, `tests/integration/engine/decodePool.test.ts`, `tests/support/fakeDecoder.ts`",
+        "change": "modify",
+        "purpose": "§3: lane windows, key-frame skips, reverse chunks, freeze"
+      },
+      {
+        "file": "`src/engine/soundPlan.ts`, `src/engine/timeStretch.ts` (new), `tests/unit/engine/timeStretch.test.ts` (new)",
+        "change": "new / modify",
+        "purpose": "§5: `rate`, muted cases, WSOLA"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`, `src/state/videoExportJob.ts`",
+        "change": "modify",
+        "purpose": "§3, §5: the job carries the fields; frames and sound at speed"
+      },
+      {
+        "file": "`src/engine/projectGate.ts`, `src/engine/projectDoc.ts`",
+        "change": "modify",
+        "purpose": "§7: `mergeSpeed`, saving"
+      },
+      {
+        "file": "`src/state/videoSpeed.ts` (new), `src/state/videoClips.ts`, `tests/integration/state/video.test.ts`",
+        "change": "new / modify",
+        "purpose": "§6: actions, undo keys, the property test"
+      },
+      {
+        "file": "`src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts`, `src/components/studio/VideoStage.tsx`",
+        "change": "modify",
+        "purpose": "§3, §5: preview frames and sound at speed"
+      },
+      {
+        "file": "`src/components/studio/SpeedGroup.tsx` (new), `src/components/studio/RampEditor.tsx` (new), `src/components/studio/ClipInspector.tsx`",
+        "change": "new / modify",
+        "purpose": "§8: the Speed group and curve editor"
+      },
+      {
+        "file": "`src/components/studio/PictureRow.tsx`, `src/components/studio/timelineRows.ts`, `src/components/studio/Transport.tsx`, `src/components/studio/Timeline.tsx`, `src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "§8: badges, thumbnails, Freeze frame button and Shift + F"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`",
+        "change": "modify",
+        "purpose": "AC-15"
+      },
+      {
+        "file": "`specs/features/290-phase2-test-pass-release/feature.json`",
+        "change": "modify",
+        "purpose": "the deferred checks for AC-6 (listening), AC-11–AC-14 (D-033)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Reverse playback cost** (§3, AC-14): decoders only go forwards, so reverse means decoding a key-frame group to show its frames backwards. Mitigation: a spike task first with the fake decoder (chunked backward lanes within the byte budget); preview reverse at stage size (D4); if a long-GOP phone video still drops too many frames in 290, the preview holds frames (as it does today when behind) while the export stays exact."
+      },
+      {
+        "text": "**Same-pitch export sound** (§5, AC-6): our own WSOLA can warble on music or clip at window edges. Mitigation: unit tests on sines and on window joins (no step larger than the signal's own between samples); the 50 ms carry-over between windows; a listening check in 290 with speech and music at 0.5×, 0.75×, 1.5×, 2×; if it isn't good enough, fall back to pitch following the speed (Q8's cheaper choice) after asking the maintainer."
+      },
+      {
+        "text": "**Missing one `clip.in + local`** (§3): a place left on the old mapping shows the wrong frame only at a speed ≠ 1. Mitigation: every site goes through `sourceAt` in one task, with a grep check that none is left; the golden frames in 290 cover preview and export."
+      },
+      {
+        "text": "**Ramp numerics** (§1, AC-5): an inverse that drifts reaches `out` early or late. Mitigation: the table's end is pinned to the exact integral and the last frame to `out`; tests against a 100× finer reference for every preset at 30 and 60 fps."
+      },
+      {
+        "text": "**Clip length floor** (§2): `clipLength` keeps a 0.1 s floor that would break the mapping for a tiny clip at 10×. Mitigation: speeds that would go under it are refused, so the floor never applies to a sped-up clip."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-18 (Q1–Q11 accepted, Q8 same pitch); AC-10 reworded and the shortest length added with the plan (D3, D-049)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Unit tests first for every task (D-033); e2e, golden frames, timing and listening checks listed in 290."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency: WSOLA is our own ~150 lines; ramps reuse curve.ts's spline; speed edits reuse 202's rules."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "Decisions and gotchas logged as they come; progress at the end."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Every speed feature for everyone, web and desktop alike."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "Decoding, stretching and mixing happen locally."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new to license."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "⚠️",
+        "notes": "Pictures: one `sourceAt` for preview and export. Sound: both keep the pitch but by different stretchers (browser vs WSOLA, D5), so the preview's sound is close, not sample-identical."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No IPC or Electron change."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "AC-14's timing budgets; keyboard, names, announcements for the curve editor (AC-12); the new UI is in the lazy studio chunk, the entry chunk unchanged."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Speed is data on a video clip, and **one function** turns a clip's time into a source time: `sourceAt(clip, local)` in a new `engine/speed.ts`. Today `clip.in + local` is written out in nine places (the export's frames and trace, the preview's frames, the stage's peek and fallback video, the preview sound, the sound plan, the pool's prime, the lanes' handles); each becomes a call to `sourceAt`, and `clipLength` learns the speed, so every rule that already asks `clipLength` / `frameStack` / `audioPlan` (packing, Magnetic, gaps, the export's frames, transitions' room, the videos-at-once limit) follows without change (Constitution VIII, AC-10). Under D-033 every task is proven by unit tests; e2e, golden frames, timing and listening checks go to 290.\n\n**§1 The time mapping (new `engine/speed.ts`, AC-1, AC-3, AC-5, AC-10).** A video clip gets `speed?` (0.1–10, missing = 1, Q1), `reverse?: true`, `ramp?: RampPoint[]` (2–10 points `{ at, v }`: `at` a share 0–1 of the source part `in`–`out`, `v` a speed; a ramp replaces `speed`, and never goes with `reverse`, Q7) and `freeze?: number` (§4). Pure functions: `clipLength` (timeline.ts) becomes `(out − in) / speed` for a constant speed and the ramp's play time for a ramp; `sourceAt(clip, local)` = `in + local × s`, `out − local × s` reversed, the ramp's inverse for a ramp, the frozen time for a freeze; `localAt(clip, source)` its inverse (for trims, split and the timeline's thumbnails). Outside 0…length (transition handles, 206) it goes on at the speed of that edge and the caller clamps to the file as today. A ramp's speed over the source part is a monotone cubic through its points (curve.ts's Fritsch–Carlson spline, no overshoot, Q5); its play time T(p) = (out − in) × ∫₀ᵖ du / v(u) is tabulated once per ramp (512 steps, adaptive Simpson within each step split at the points: plain Simpson misses 1 µs on steep curves; cached on the ramp array by a WeakMap) and inverted by Newton steps on the table, so `sourceAt(clip, length)` lands on `out` within 1 µs (AC-5). Presets (Q6) are data: `RAMP_PRESETS` = Montage, Hero, Bullet, Jump cut, Flash in, Flash out.\n\n**§2 Edits (`engine/edits.ts`, new `engine/speedEdits.ts`, AC-2, AC-7).** `setSpeed(clips, id, speed | ramp | reverse, ctx)` builds the new clip, keeps in and out (Q2), and then reuses the existing rules: on the main track with Magnetic on, `pack` moves the later clips; elsewhere `checkTrack` refuses an overlap with Q3's reason (\"There is 1.2 s of room before the next clip; at 0.5× this clip needs 4 s\"); the platform's length limit (`TOO_LONG`) and a new shortest length (a speed that would make the clip shorter than 0.1 s is refused, as `clipLength`'s floor would otherwise break the mapping) refuse the rest. `trim` turns the drag (timeline seconds) into source seconds with `localAt` / `sourceAt`, so a 1 s drag at 2× uses 2 s of source and a reversed clip's start edge moves its out point (AC-3); a ramped clip's edge moves along its curve, which stays over a fixed source span (`rampSpan`, D2, amended 2026-10-18). `split` gives both parts the speed and reverse, and each the same ramp and span (D2). Roll, Slip and Slide go through `trim` / in-out moves and keep each part's speed. Keyframes (Q9): `scaleKeys(keys, newLength / oldLength)` in keyframes.ts after a speed or ramp change. Transitions (206): `tidyTransitions` already clamps them to the new room; their handles come from §1's edge speed.\n\n**§3 Rendering and decoding (`stack.ts`, `video.ts`, `decodePool.ts`, `frameSource.ts`, `videoExport.ts`, `previewFrame.ts`, `VideoStage.tsx`, AC-10).** `StackItem` gains nothing: drawers call `sourceAt(item.clip, item.local)`. The export job (`videoExportJob.ts` copies clip fields by name) carries `speed`, `reverse`, `ramp`, `freeze`. The pool: (a) a lane's window (`PoolClip`) is the source span the clip shows, from `sourceAt` at its first and last shown local times (with handles), so a reversed clip's lane covers out → in; (b) **skipping**: a reader keeps reading forward only while the wanted frame is within the current group of pictures; past the next key frame it restarts there (`FrameSource.keyAfter(time)` from Mediabunny's key packets), so a 10× export decodes from key frames rather than through the whole source (D3); (c) **reverse**: a reversed lane decodes backwards in chunks (from the key frame before the wanted time up to it), holds that chunk's frames within the pool's byte budget and hands them out newest first; the preview's reversed lanes decode at stage size (`maxWidth`) so a chunk fits (D4). A spike task proves (c) with the fake frame source first (risk 1). A freeze frame's lane decodes its one frame once and holds it.\n\n**§4 Freeze frame (`speedEdits.ts`, `videoClips.ts`, AC-4).** A freeze frame is a video clip with `freeze` = the source time it shows and `dur` its length (2 s default, 0.1–60 s), the same file, box, framing, look and keyframes held at their values at the cut (one key each, as split gives its parts, so nothing jumps; D-051) as the clip it came from; `clipLength` uses `dur` like a photo's and it has no sound (D1). `freezeFrame(clips, id, local, ctx)` splits the clip at the playhead (none at its first or last frame) and inserts the freeze between the parts: on the main track with Magnetic on the later clips move by its length; elsewhere it is refused when it doesn't fit, with the reason. Its end is dragged like a photo's (`trim` treats it as a photo).\n\n**§5 Sound (`soundPlan.ts`, new `engine/timeStretch.ts`, `videoExport.ts`, `previewSound.ts`, AC-6).** `SoundSource` gains `rate` (source seconds per timeline second, missing = 1). `clipSounds` leaves out a clip whose speed is outside 0.5–2, reversed, ramped or frozen (`soundMuted(clip)` gives the reason the inspector shows); the rest get `rate = speed`. The preview sets `playbackRate = speed × nudge` on the clip's element with `preservesPitch` on (the browser keeps the pitch). The export decodes `[from, from + length × rate]` and runs it through `timeStretch(samples, rate, sampleRate)`: WSOLA (waveform-similarity overlap-add, 40 ms Hann frames, 50 % overlap, ±10 ms search; our own ~150 lines, no new dependency) to the timeline length, then schedules it as one buffer per window; windows carry 50 ms of the previous one's input so cuts between 10-second windows don't click (D5). Volume, 205's volume keyframes and 206's edges stay on the gain node in timeline time, unchanged.\n\n**§6 Store actions (new `state/videoSpeed.ts`, `state/videoClips.ts`, AC-8).** `setClipSpeed`, `setClipReverse`, `setClipRamp` (preset or points), `moveRampPoint`, `addRampPoint`, `removeRampPoint`, `resetSpeed`, `freezeFrame`: each one `change()` with a coalescing key (`speed:<id>`, `ramp:<id>:<point>`), so a slider or point drag is one undo step; refusals are toasts and announcements, as 202's edits. Turning on reverse with a ramp drops the ramp (and says so); choosing a ramp turns reverse off (Q7). A seeded property test runs 1,000 random speed, reverse, ramp, freeze, trim, split and move edits and checks the invariants after each (AC-8).\n\n**§7 Saving (`projectGate.ts`, `projectDoc.ts`, AC-9).** `readClip` reads the four fields through `mergeSpeed(raw, dropped)`: speeds clamped to 0.1–10, ramps with fewer than 2 or more than 10 points, unordered or non-finite places dropped or mended with the reason, a ramp with reverse keeps the ramp, `freeze` clamped into the file. A clip at 1× forward without ramp or freeze writes none of the fields, so documents without speed changes stay byte-identical.\n\n**§8 Inspector and timeline (new `components/studio/SpeedGroup.tsx`, `RampEditor.tsx`; `ClipInspector.tsx`, `PictureRow.tsx`, `timelineRows.ts`, `Transport.tsx`, `Timeline.tsx`, AC-11, AC-12).** The Speed group: Constant / Ramp; the speed as a field and slider (log scale, 0.1–10) with the presets; Reverse; the new length; Reset speed; for a ramp the six presets and `RampEditor`, an SVG curve with focusable points (drag, double-click to add, Delete to remove; ← / → along the clip, ↑ / ↓ speed, Shift for larger steps), each change announced. The badge on a clip (\"2×\", \"0.5×\", \"◀ 1×\", \"Ramp\", a still for a freeze) is a pure `speedBadge(clip)` in `timelineRows.ts`; thumbnails and the description use `sourceAt`. Freeze frame is a Transport button and Shift + F with the timeline focused (Q10). Unit tests cover the pure helpers; the UI itself is checked in 290."
+      },
+      {
+        "kind": "files",
+        "title": "Files",
+        "markdown": ""
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/speed.ts\nexport const SPEED_LIMITS = { min: 0.1, max: 10, step: 0.01 } as const;          // Q1\nexport const SPEED_PRESETS = [0.25, 0.5, 0.75, 1, 1.5, 2, 4] as const;\nexport const SOUND_SPEEDS = { min: 0.5, max: 2 } as const;                          // Q8\nexport interface RampPoint { at: number /* 0–1 of in–out */; v: number /* speed */ }\nexport type RampPreset = 'montage' | 'hero' | 'bullet' | 'jump' | 'flash-in' | 'flash-out';\nexport const RAMP_PRESETS: Readonly<Record<RampPreset, readonly RampPoint[]>>;\nexport interface SpeedFields { speed?: number; reverse?: true; ramp?: RampPoint[]; freeze?: number }\nexport function sourceAt(clip: ClipTiming & SpeedFields, local: number): number;   // the one mapping (AC-10)\nexport function localAt(clip: ClipTiming & SpeedFields, source: number): number;   // its inverse\nexport function playLength(clip: ClipTiming & SpeedFields): number;                // clipLength's video case\nexport function edgeSpeed(clip: ClipTiming & SpeedFields, edge: 'start' | 'end'): number;\n// SpeedFields also has rampSpan?: readonly [number, number]: the source seconds a ramp's shares refer to (D2); missing = in–out\nexport function soundMuted(clip: ClipTiming & SpeedFields): string | null;        // the reason, or null\n\n// engine/timeline.ts\ninterface ClipTiming extends SpeedFields { kind: 'photo' | 'video'; dur: number; in: number; out: number }\n\n// engine/soundPlan.ts\ninterface SoundSource { /* … */ rate?: number }   // source seconds per timeline second\n\n// engine/timeStretch.ts\nexport function timeStretch(input: Float32Array, rate: number, sampleRate: number): Float32Array; // length ≈ input / rate\n\n// engine/decodePool.ts\ninterface FrameSource { from(time: number): AsyncIterator<PoolFrame>; keyAfter?(time: number): Promise<number | null>; close(): void }\ninterface PoolClip { /* … */ reverse?: boolean; still?: boolean }\n\n// engine/speedEdits.ts\nexport function setSpeed<C extends EditClip>(clips: C[], id: string, change: SpeedChange, ctx: EditCtx): Edit<C>;\nexport function freezeFrame<C extends EditClip>(clips: C[], id: string, local: number, ctx: EditCtx, newId: () => string): Edit<C>;\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **One mapping, everywhere.** `sourceAt` replaces every `clip.in + local`; a grep for that pattern in `src/` is empty when §3 is done (checked in the task). At 1× forward without a ramp it returns exactly `in + local` (same floating-point operations), so 206's export inputs are bit-identical (AC-13).\n- **Ramps as a monotone spline over the source.** curve.ts's Fritsch–Carlson spline joins the points without overshoot (Q5), so v stays within the points' range and above 0.1×; the play-time table is computed once per ramp and cached, and the inverse is Newton on the table, with the end pinned to `out` exactly.\n- **Reuse the edit rules.** Speed edits build the new clip and hand it to `checkTrack` / `pack` / `limitVideos` / `tidyTransitions` as 202's edits do, so Magnetic, refusals, the videos-at-once limit and transitions follow without new code paths.\n- **WSOLA** for same-pitch sound in the export: overlap-add of Hann-windowed frames taken from the source at the rate, each shifted within ±10 ms to the best cross-correlation with the previous output; pure Float32Array in and out, unit-tested on sines (pitch kept: zero crossings per second within 1 %) and on length (within one frame).\n- **Reverse decoding in chunks** keeps the pool's limits: a chunk is at most the pool's `ahead` × 4 frames or the byte budget, whichever is smaller.\n- **Announcements** through the timeline's live region, as 202–206 do (\"Clip 2: 0.5×, now 8.4 s\")."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | Test |\n| --- | --- | --- |\n| AC-1 | unit | `sourceAt` / `playLength` / `frameStack` + `sourceAt` at every export frame for 0.25×, 0.5×, 2×, 10× at 30 and 60 fps against a hand-computed list, 1 µs (`tests/unit/engine/speed.test.ts`, `stack.test.ts`) |\n| AC-2 | unit | `setSpeed` with Magnetic on / off, overlay refusal text, length limit, shortest length; trim at 2× moves 2 s of source; roll, slip, slide, split keep speed (`tests/unit/engine/speedEdits.test.ts`, `edits.test.ts`) |\n| AC-3 | unit | reversed at 1× and 2×: first frame = out, last = in, every frame's source time; trim start moves out (`speed.test.ts`, `speedEdits.test.ts`) |\n| AC-4 | unit | `freezeFrame` in the middle, at the first and last frame, Magnetic on / off, refusal; the freeze's fields carried over; no sound (`speedEdits.test.ts`, `soundPlan` in `timeline.test.ts`) |\n| AC-5 | unit | each preset and a custom curve: monotone source, ends at `out` within 1 µs, every frame against a reference integrated at 100× the resolution; a clip inside its `rampSpan` plays exactly that part of the whole curve (`speed.test.ts`) |\n| AC-6 | unit + 290 | `audioPlan` sources for every case (rate, muted ones left out); `timeStretch` keeps a sine's pitch within 1 % and the length within a frame at 0.5×, 0.75×, 1.5×, 2× (`tests/unit/engine/timeStretch.test.ts`); a listening check in 290 |\n| AC-7 | unit | keyframes scaled with the length; transitions clamped with the reason; handles at the edge speed (`speedEdits.test.ts`, `stack.test.ts`) |\n| AC-8 | unit | undo-step counts per action, a drag one step; seeded 1,000-edit property test (`tests/integration/state/video.test.ts`) |\n| AC-9 | unit | ≥ 20 malformed documents, round trip, byte-identical without speed (`timeline.test.ts` gate tests) |\n| AC-10 | unit | the pool with the fake decoder: a 10× lane restarts at key frames (frames decoded counted), a reversed lane hands frames newest first within the byte budget, a freeze decodes once (`tests/integration/engine/decodePool.test.ts`); no `clip.in + local` left in `src/` |\n| AC-11, AC-12 | e2e (290) | the Speed group, ramp editor, badges, Freeze frame button and Shift + F, keyboard, announcements, axe, 360 px |\n| AC-13 | self-test (290) | golden frames with a burnt-in frame counter at 0.5×, 2×, 10×, reversed, frozen, Hero; 201–206 fixtures unchanged |\n| AC-14 | timing (290) | preview at 2× / 4× / reversed, export of a mixed-speed 60 s Reel vs 1× on the reference laptop |\n| AC-15 | review | the docs task |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations",
+        "markdown": ""
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check",
+        "markdown": ""
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-18: D1–D5 as recommended)",
+        "markdown": "- **D1 — What a freeze frame is in the data.** _Recommended:_ a video clip with `freeze` (the source time it shows) and `dur` (its length): it keeps the file, box, framing, look and keyframes with no new clip kind, and every rule that handles video clips (tracks, transitions, the videos-at-once limit, saving) takes it as it is. _Alternative:_ a third clip kind `still` (clearer in the data, but every `kind === 'photo' | 'video'` switch, the gate and the export job would need a new case).\n- **D2 — Ramps when a clip is trimmed or split.** _Recommended:_ the curve is **cut**: points stay at the same source moments, the speed at the new edge becomes a point there, points outside are dropped (and a trim outwards extends the edge speed), so what plays at every moment that is kept doesn't change and the trimmed edge shows what was there. Q5's \"trimming keeps the curve's shape over what's left\" read this way. **Amended 2026-10-18 (T043, D-050):** cutting re-fits the spline through fewer points, which changed what plays between them (a split Bullet ramp up to 0.59 s, 32 %); instead the ramp keeps its curve over a fixed source span (`rampSpan`, set on the first trim or split; missing = in–out) and trims and splits only move in and out along it, so every kept frame plays exactly as before and trimming back out restores the clip. _Alternative:_ the curve is **stretched** over what's left (its shares kept), which changes the speed of frames the user didn't touch.\n- **D3 — AC-10's \"decodes only the frames it draws\".** Compressed video can only be decoded from a key frame, so at 10× the export can't decode just the frames it draws. _Recommended:_ reword AC-10 to \"the export draws only the frames it shows, and when the next frame it needs is past the next key frame it jumps there instead of decoding through (at 10× it never plays through the source)\", and measure it with the fake decoder (frames decoded per frame drawn). _Alternative:_ keep the wording and accept it can't be met literally.\n- **D4 — Reverse in the preview.** _Recommended:_ reversed lanes in the preview decode at the stage's size, in backward chunks within the pool's byte budget (the export decodes at its own size as today); the first second may drop frames (AC-14). _Alternative:_ reverse decoded at full size (fewer frames per chunk, more key-frame restarts, more dropped frames).\n- **D5 — Sound in the preview vs the export.** _Recommended:_ the preview uses the browser's own pitch keeping (`preservesPitch`), the export our WSOLA: both keep the pitch, but they won't be sample-identical (the picture is). _Alternative:_ run our WSOLA in the preview too (an AudioWorklet and decoding the clip's sound up front: much more code and memory for a small gain).\n- **Spec changes with the plan:** AC-10's wording (D3) and the shortest length (a speed that would make a clip shorter than 0.1 s is refused) go into the spec's Changelog when the plan is approved."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); the e2e, golden-frame, listening and timing checks are listed in `290` (\"Deferred checks collected from the phase\": 207 AC-6, AC-11, AC-12, AC-13, AC-14).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 207 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "The time mapping",
+        "intro": "Pure functions in `engine/speed.ts` first: everything else asks them (Constitution VIII)."
+      },
+      {
+        "title": "Decoding",
+        "intro": "The spike proves reverse and key-frame skips with the fake decoder before anything relies on them (risk 1)."
+      },
+      {
+        "title": "Rendering",
+        "intro": null
+      },
+      {
+        "title": "Edits",
+        "intro": null
+      },
+      {
+        "title": "Sound",
+        "intro": null
+      },
+      {
+        "title": "Saving",
+        "intro": null
+      },
+      {
+        "title": "Store actions",
+        "intro": null
+      },
+      {
+        "title": "Inspector and timeline",
+        "intro": "Unit tests cover the pure helpers; the UI itself is checked in 290."
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T020",
+        "T021",
+        "T022",
+        "T030",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045",
+        "T050",
+        "T051",
+        "T052",
+        "T053",
+        "T060",
+        "T061",
+        "T070",
+        "T071",
+        "T080",
+        "T081",
+        "T082",
+        "T090",
+        "T091",
+        "T092"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing tests for a constant speed, reverse and a freeze: `sourceAt`, `localAt`, `playLength`, `edgeSpeed` and `clipLength` at 0.25×, 0.5×, 2×, 10×, reversed at 1× and 2×, frozen; every export frame at 30 and 60 fps against a hand-computed list within 1 µs; 1× forward returns exactly `in + local`; handles past the ends at the edge speed.",
+          "section": "The time mapping",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/engine/speed.test.ts",
+            "tests/unit/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speed.test.ts tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/engine/speed.test.ts: limits, constant speed (lengths, exact in + local at 1x, inverse, every export frame at 0.25/0.5/2/10x and 30/60 fps within 1 us, handles), reverse (1x/2x every frame, handles past out/in), freeze; fails until engine/speed.ts exists."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T011": {
+          "text": "Implement `engine/speed.ts` (`SpeedFields`, limits, presets list, constant / reverse / freeze mapping) and `clipLength` with the speed in `timeline.ts`; T010 passes.",
+          "section": "The time mapping",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "src/engine/speed.ts",
+            "src/engine/timeline.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speed.test.ts tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** src/engine/speed.ts: SpeedFields (speed, reverse, freeze), SPEED_LIMITS, SPEED_PRESETS, playLength, sourceAt, localAt, edgeSpeed; ClipTiming extends SpeedFields and clipLength = max(0.1, playLength) in timeline.ts (1x forward stays exactly out - in and in + local). speed.test.ts 20/20 (a 1e-7 scale mutation fails 3); npm run check green, 1,726 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T012": {
+          "text": "Failing tests for ramps: the six presets and a custom curve; speed never outside the points' range; the source time monotone, starting at `in` and ending at `out` within 1 µs; every frame at 30 and 60 fps against a reference integrated 100× finer; `cutRamp` keeps the speed at every kept source moment (D2) and stays within 2–10 points.",
+          "section": "The time mapping",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "tests/unit/engine/speed.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speed.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/engine/speed.test.ts: the six presets (2-10 points, 0 to 1, shapes per Q6), rampSpeedAt through its points without overshoot and flat past the ends, length and every frame at 30/60 fps against a Simpson reference 100x finer (51,200 steps) within 1 us for each preset and a steep custom curve, exact in/out ends, monotone, localAt inverse, handles at the edge speeds, ramp wins over reverse; cutRamp keeps kept points and edge speeds, 2-10 points, outwards trims; fails until speed.ts has ramps."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T013": {
+          "text": "Implement ramps in `speed.ts`: curve.ts's monotone spline over the source part, the cached play-time table (Simpson, 512 steps), Newton inverse with the end pinned, `RAMP_PRESETS`, `cutRamp`; T012 passes.",
+          "section": "The time mapping",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/speed.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speed.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** src/engine/speed.ts: RampPoint, RAMP_LIMITS, RAMP_PRESETS (Montage, Hero, Bullet, Jump cut, Flash in, Flash out), rampSpeedAt on curve.ts's monotone spline (new unclamped monotoneSpline; spline clamps it, tone curves unchanged), a 512-step play-time table per ramp cached in a WeakMap (adaptive Simpson within each step, split at the points: plain Simpson missed 1 us on the steep custom curve), Newton inverse kept in its step by bisection, both ends pinned, handles at the edge speeds; ramp wins over reverse; cutRamp (D2). speed.test.ts 82/82 (depth-0 Simpson fails 3); npm run check green, 1,788 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T020": {
+          "text": "Spike (risk 1): with the fake decoder, prove a reversed lane can decode backwards in chunks (key frame before the wanted time up to it) within the pool's byte budget and hand frames out newest first, and that a reader can jump to the next key frame instead of reading through. Record what `Lane` / `FrameSource` must change, for T022.",
+          "section": "Decoding",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "tests/integration/engine/decodePool.test.ts",
+            "tests/support/fakeDecoder.ts"
+          ],
+          "test": "`npx vitest run tests/integration/engine/decodePool.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** Spike proven on the fake decoder, which now has key frames (FakeFile.gop; a reader decodes from the key frame before its start, counted in counts.decoded, as Mediabunny's samples() does) and keyBefore / keyAfter (KeyedSource). Reverse in chunks (prototype in decodePool.test.ts): chunk = [max(keyBefore(last), last - 15, in), last] (ahead x 4 = 16 frames), handed newest first: every frame out to in once, peak 17 frames open (within the budget), decodes per frame shown 1 for groups up to 16, 1.47 for 1 s groups, about 4 for 4 s groups. Key-frame skip (restart when the wanted time is past keyAfter(reader pos)) is never worse than reading through: at 10x decodes per frame drawn 9.92 -> 1 / 5.67 / 7 / 9.21 for groups of 5 / 15 / 30 / 120, at most 10 for one frame; at 1x it never restarts. Mutation (chunk start not on its key frame) fails the cost test. For T022: FrameSource gains keyBefore as well as keyAfter (Mediabunny getKeyPacket / getNextKeyPacket); from() takes an optional end so a chunk's reader stops at it (samples(start, end); Mediabunny pre-decodes a few frames ahead otherwise); a reversed lane flips hand / prune / covers (they assume frames in rising time: hand closes frames before the one shown); the skip rule replaces REREAD's 2 s when keyAfter is known; a still lane must not decode ahead (peek at a fixed time decodes ahead frames today). npm run check green, 1,793 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T021": {
+          "text": "Failing pool tests: a lane's window from `sourceAt` (reversed covers out → in, with handles); at 10× frames decoded per frame drawn stay within a key-frame group (counted on the fake decoder); a reversed lane hands frames newest first within the byte budget; a freeze decodes its frame once.",
+          "section": "Decoding",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "tests/integration/engine/decodePool.test.ts",
+            "tests/support/fakeDecoder.ts"
+          ],
+          "test": "`npx vitest run tests/integration/engine/decodePool.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/integration/engine/decodePool.test.ts, 207 blocks: laneWindow(clip, lead, trail) from sourceAt (1x, 2x, handles at the edge speed, never before 0; reversed covers out -> in with handles past out and in; ramp edges; freeze = one held time, still); key-frame skips through pool.frame at 10x (gop 5: 1 decode a frame, gop 15/30/120 at most 6/7.5/9.5 and a group per frame; today 9.92) and 1x one reader; a reversed lane (exact frames out -> in at most 1.5 decodes a frame and a chunk + 1 open, today 15.5; a 6-frame budget; primes at out; preview playback newest first, no holds after the first second, today 59); a freeze decodes once (today decodes ahead). 9 fail, 46 pass (the budget and 1x guards pass today). Types only in decodePool.ts: FrameSource keyBefore? / keyAfter?, PoolClip reverse? / still?. The fake tells key frames only for files with a gop, so the 204 reread tests stay unchanged. Check fails only on the missing laneWindow export. decodePool.ts is 807 lines (max-lines warning): T022 splits it."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T022": {
+          "text": "Implement in `decodePool.ts` and `frameSource.ts`: `keyAfter`, key-frame skips, reverse chunks (preview at stage size, D4), still lanes; T021 passes, existing pool tests unchanged.",
+          "section": "Decoding",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/decodePool.ts",
+            "src/engine/frameSource.ts"
+          ],
+          "test": "`npx vitest run tests/integration/engine/decodePool.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** Pool in decodePool.ts: forward readers restart when the wanted time is past the reader's next key frame (FrameSource.keyAfter, cached per group; REREAD's 2 s only for sources without key frames); reversed lanes decode chunks from keyBefore(newest wanted), at most ahead x 4 frames back and not before in, up to it (from(t, end)), hand out newest first (hand closes frames after the one shown), prefetch the next older chunk while fewer than a chunk are left below the shown frame, slide out a chunk's oldest frames at the chunk size or the byte budget; other lanes give way oldest-first from a reversed lane; prime at out - 1 ms; a lane turned around reopens. Still lanes decode once and never ahead. frameSource.ts: from(t, end) to samples / canvases, keyBefore / keyAfter from EncodedPacketSink key packets (metadataOnly), reversed lanes on their own canvases (poolSize 0, emptied on close); SourceOptions.reverseWidth for D4 (previewFrame passes it in T030). Split: lanePlan + new laneWindow -> engine/lanePlan.ts, lane state and frame bookkeeping -> engine/poolLane.ts (decodePool.ts 763 lines). T021's 9 tests pass, 204's unchanged: pool tests 55/55; 10x gop 5 = 1 decode a frame; reversed 1 s groups 133 decodes for 90 frames (1.48); mutations (no key skip, no still stop, chunk off its key frame) each fail a test. A rule to finish a prefetch chunk before stopping made no difference on the fake at 4-24 ms a decode (dropped). npm run check green, 1,804 unit tests. lld.md 4.10 updated."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T030": {
+          "text": "Every `clip.in + local` through `sourceAt`: `stack.ts` / `transitions.ts` handles, `video.ts`, `videoExport.ts` (frames, trace, lanes), `videoExportJob.ts` (carry `speed`, `reverse`, `ramp`, `freeze`), `previewFrame.ts`, `VideoStage.tsx`. Test first: `frameStack` + `sourceAt` at every export frame for a fixture with each case; 201–206 fixtures give identical export inputs. A grep for `in + local` in `src/` is empty.",
+          "section": "Rendering",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3",
+            "AC-10"
+          ],
+          "files": [
+            "src/engine/stack.ts",
+            "src/engine/transitions.ts",
+            "src/engine/video.ts",
+            "src/engine/videoExport.ts",
+            "src/state/videoExportJob.ts",
+            "src/components/studio/previewFrame.ts",
+            "src/components/studio/VideoStage.tsx",
+            "tests/unit/engine/stack.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/stack.test.ts tests/unit/engine/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** Drawers ask one mapping: speed.ts frameSourceAt (sourceAt; a reversed clip 1 ms before it, REVERSE_NUDGE, now also the pool's prime) and speedFields; stack.ts itemSource(item). Wired: videoExport (pool frames, trace, laneOf = laneWindow with both transition halves), previewFrame (poolClip = laneWindow, pausedFrame, reverseWidth 1280 for the preview pool, D4), VideoStage (peek, fallback video), previewSound (sync point and length through sourceAt / playLength; rates are T053), videoExportJob carries speed / reverse / ramp / freeze (VClip extends SpeedFields). stack.test.ts: every export frame at 30 / 60 fps for 2x, 0.5x, reversed 1x / 2x, Hero ramp, freeze, 10x within 1 us and inside in-out; reversed first frame just before out, last at in; 201-206 fixtures exactly in + local (toBe); handles at the edge speed inside the lane window. Removing the nudge fails 4. grep: the one in + local left in src/ is split in state/videoClips.ts (T043); PictureRow thumbnails are T082, soundPlan's from is T053. npm run check green, 1,809 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T040": {
+          "text": "Failing tests for `setSpeed`: in and out kept (Q2); Magnetic on moves later clips; overlay / Magnetic off refused with Q3's reason; platform length limit; the 0.1 s shortest length; keyframes scaled with the length (Q9); transitions clamped with the reason; reverse drops a ramp and a ramp drops reverse (Q7).",
+          "section": "Edits",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-7"
+          ],
+          "files": [
+            "tests/unit/engine/speedEdits.test.ts",
+            "tests/unit/engine/keyframes.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speedEdits.test.ts tests/unit/engine/keyframes.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/engine/speedEdits.test.ts (19 tests): in/out kept and length at 2x / 0.5x, Magnetic on moves later clips, 1x drops the field, Q1 clamp, same speed = same array; Magnetic off / overlay refused with Q3's text ('There is 1.2 s of room before the next clip; at 0.5x this clip needs 4 s'), last clip grows freely; TOO_LONG (shortening always allowed); under 0.1 s refused; photos, freeze frames, unknown, locked refused; keyframes scaled (Q9); a transition shortened to whole frames with a note, kept silently when it fits; reverse keeps length, ramp replaces speed and moves later clips, reverse drops a ramp and a ramp drops reverse with notes (Q7); 1- or 11-point ramps refused, a ramp's Q3 text. keyframes.test.ts: scaleKeys. SpeedCtx = MoveCtx + fps (setSpeed tidies transitions to report them). Fails until speedEdits.ts and scaleKeys exist."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T041": {
+          "text": "Implement `engine/speedEdits.ts` `setSpeed` and `scaleKeys` in `keyframes.ts`; T040 passes.",
+          "section": "Edits",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-7"
+          ],
+          "files": [
+            "src/engine/speedEdits.ts",
+            "src/engine/keyframes.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speedEdits.test.ts tests/unit/engine/keyframes.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** src/engine/speedEdits.ts setSpeed(clips, id, { speed } | { reverse } | { ramp }, ctx): in/out kept (Q2), speed rounded to 0.01 and clamped 0.1-10, 1x drops the field; Magnetic on the main track shifts later clips (edits.ts shiftFrom / lengthOf now exported), elsewhere a longer clip must fit before the next ('There is X s of room before the next clip; at Nx | with this ramp this clip needs Y s', Q3); under 0.1 s and TOO_LONG refused; limitVideos; keyframes scaled by new / old length (keyframes.ts scaleKeys, Q9); tidyTransitions with a note when the clip's transitions were shortened or removed; reverse drops a ramp and a ramp drops reverse with notes (Q7). The context is SpeedCtx = MoveCtx + fps and the result carries an optional note (the plan's sketch said EditCtx / Edit). speedEdits.test.ts 20/20, keyframes scaleKeys; mutations (Magnetic overlay rule, unscaled keys) each fail a test. npm run check green, 1,830 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T042": {
+          "text": "Failing tests for edits at speed: a 1 s trim at 2× uses 2 s of source; a reversed clip's start edge moves its out point; a ramped clip's trim moves its edge along the curve, kept over its span (D2, D-050); split gives each part its speed, reverse and part of the ramp; roll, slip, slide keep each part's speed.",
+          "section": "Edits",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/engine/edits.test.ts",
+            "tests/integration/state/video.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/edits.test.ts tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** edits.test.ts '207' block (8 tests): end trim at 2x uses 2 s more source per timeline second, start 0.5 s uses 1 s less; source-end limits in timeline seconds; reversed start edge moves out, end edge moves in (1x and 2x); ramped trims cut the curve (new edge = sourceAt there, edge speed kept, 2-10 points); roll at mixed speeds and where the fast side runs out; slip keeps speed and length; slide keeps each part's speed; a reversed right side of a roll gives up its out. video.test.ts '207' block: split at 2x (cut at the source time shown), reversed (left = cut..out), ramped (cut = sourceAt, edge speeds match, lengths sum). 6 + 3 fail, 2 guards pass today."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T043": {
+          "text": "Implement trims through `sourceAt` / `localAt` in `edits.ts` (edges in new `engine/speedEdges.ts`; a ramp keeps its curve over `rampSpan`, D-050), and split in `videoClips.ts`; T042 passes, 202's edit tests unchanged.",
+          "section": "Edits",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [
+            "src/engine/edits.ts",
+            "src/state/videoClips.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/edits.test.ts tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** Edges at speed in new engine/speedEdges.ts (edgeRoom, withLength, moveEdge, splitSource); edits.ts trims, roll, slide (and their ranges) go through it, usedLength = playLength; split in videoClips.ts through splitSource. At 1x forwards every sum is the old one (202-206 edit tests unchanged). Ramps: cutting (D2 as planned) re-fit the spline and changed what plays between points (a split Bullet ramp up to 589 ms / 32 %, Montage 155, Hero 128; densified 130 ms), so the maintainer chose a fixed span (D-050): SpeedFields.rampSpan, set on the first trim or split; speed.ts measures play time along the one curve (held flat past its ends; curveSourceAt / curveLocalAt) and cutRamp is dropped. A trimmed or split ramp now plays every kept frame within 1 us and trimming back out restores it. Plan D2, spec changelog, D-050 updated. Tests: speed.test.ts span block (parts of each curve, span = in-out exact, flat past the ends) replaces the cutRamp block; edits / video tests tightened to 1 us. Dropping the span fails 2. npm run check green, 1,839 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T044": {
+          "text": "Failing tests for `freezeFrame`: in the middle (split, 2 s still between), at the first and last frame (no split), Magnetic on / off, refused when it doesn't fit; box, framing, look and keyframes carried over (D1); its end trimmed like a photo's (0.1–60 s).",
+          "section": "Edits",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "tests/unit/engine/speedEdits.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speedEdits.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** speedEdits.test.ts freezeFrame block (9 tests): middle with Magnetic on (split, 2 s still, later clips +2 s), the still = the frame shown (2x, reversed via REVERSE_NUDGE) with no speed fields; file, box and other fields carried, keyframes held at the cut (D-051, chosen by the maintainer over plan 4's scaled keys); first frame: before the clip, no split, takes its fade and incoming transition; last frame: after it, takes its outgoing transition; a split's outgoing transition stays on the right part; Magnetic off / overlay: the right part moves into the room after the clip, else 'There is X s of room after this clip; the freeze frame needs 2 s'; refusals (photo, freeze, playhead outside, locked, TOO_LONG); its trim like a photo's within 0.1-60 s, still unchanged. 9 fail (no freezeFrame)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T045": {
+          "text": "Implement `freezeFrame` in `speedEdits.ts` and the freeze's trim in `edits.ts`; T044 passes.",
+          "section": "Edits",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/speedEdits.ts",
+            "src/engine/edits.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/speedEdits.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** speedEdits.ts freezeFrame(clips, id, local, ctx, newId): the still is a video clip with freeze = frameSourceAt at the playhead, dur FREEZE_SECONDS (2), no speed fields, transition or fade, the clip's other fields kept and keyframed values held at the cut (heldKeys, D-051); within a frame of the start it goes before the clip (takes its fade, transitions into the clip retarget to it), within a frame of the end after it (takes its transition), else between a split (splitSource / splitKeys, right part keeps the transition); Magnetic on the main track shifts later clips, elsewhere it needs 2 s of room after the clip ('There is X s of room after this clip; the freeze frame needs 2 s'); TOO_LONG, limitVideos, tidyTransitions. edits.ts: freezes trim like photos (isStill) within FREEZE_LIMITS 0.1-60 s (shortestOf); FREEZE_SECONDS / FREEZE_LIMITS in speed.ts. speedEdits.test.ts 29/29; mutations (unheld keys, right part not shifted) fail 1 and 3. npm run check green, 1,848 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T050": {
+          "text": "Failing tests for `timeStretch`: at 0.5×, 0.75×, 1.5×, 2× a sine keeps its pitch (zero crossings per second within 1 %) and the output length is within one frame of input / rate; 1× returns the input; no step at window joins larger than the signal's own.",
+          "section": "Sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "tests/unit/engine/timeStretch.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeStretch.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/engine/timeStretch.test.ts (18 tests): at 0.5, 0.75, 1.5, 2x a 220 and a 440 Hz sine keep their pitch (zero crossings per second within 1 %); the length is input / rate within one frame (30 fps) and exactly rounded, for 0.5, 2 and 10.25 s; no step between samples larger than the input's own (x1.05) and RMS within 10 % at 110 / 440 / 1000 Hz; a 220 + 330 Hz chord keeps its crossings within 2 %; 1x returns the input itself; silence, empty and 10 ms inputs; deterministic. Fails until engine/timeStretch.ts exists."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T051": {
+          "text": "Implement `engine/timeStretch.ts` (WSOLA, 40 ms Hann frames, 50 % overlap, ±10 ms search); T050 passes.",
+          "section": "Sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "src/engine/timeStretch.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeStretch.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** src/engine/timeStretch.ts: WSOLA, 40 ms periodic-Hann frames every 20 ms (50 % overlap), each from rate x its output place moved within +-10 ms to best continue the frame before (dot product over half a frame: coarse every 4th offset and sample, then refined sample by sample), normalised by the summed windows (so the first half frame is the input unscaled), output exactly round(length / rate); 1x returns the input. timeStretchChannels lines frames up on the channels' sum so stereo stays in step (timeStretch = one channel). timeStretch.test.ts 17/17 (T050's 16 + stereo in step); plain overlap-add (no search) fails 8. 60 s of stereo in Node: 0.5x 497 ms, 2x 125 ms. npm run check green, 1,865 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T052": {
+          "text": "Failing tests: `audioPlan` for a fixture with each case (rate on 0.5–2× clips; outside it, reversed, ramped and frozen left out); `soundMuted` reasons; the preview's sound plan leaves out the same clips and asks for the speed as its rate.",
+          "section": "Sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "tests/unit/engine/timeline.test.ts",
+            "tests/integration/components/studio"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeline.test.ts tests/integration/components`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** timeline.test.ts '207 sound' block: audioPlan gives rate = speed for 0.5-2x clips (2, 0.5, 1.5; none at 1x), leaves out 3x, 0.4x, reversed, ramped and frozen clips; soundMuted's four reasons and null for sounding clips; SOUND_SPEEDS 0.5-2. previewSound.test.ts '207' block: soundPlan's current entries carry rate (2, 0.5), a silent clip is in none of current / next / held (reversed, 3x, a 3x clip on a muted overlay), 1x has no rate. 5 fail, the 1x guard passes."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T053": {
+          "text": "Implement `rate` in `soundPlan.ts`, the stretched buffers with a 50 ms carry-over in `videoExport.ts`, and `playbackRate = speed × nudge` with `preservesPitch` in `previewSound.ts`; T052 passes.",
+          "section": "Sound",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "src/engine/soundPlan.ts",
+            "src/engine/videoExport.ts",
+            "src/components/studio/previewSound.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeline.test.ts tests/integration/components`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** speed.ts SOUND_SPEEDS, soundMuted (freeze, ramp, reverse, outside 0.5-2x; the inspector's text) and soundRate. soundPlan.ts: SoundSource.rate (only when not 1); clipSound split out of clipSounds (cognitive complexity) leaves silent clips out. Preview: soundPlan drops silent clips from current, next and held and gives SoundingClip.rate; elements made with preservesPitch; follow plays at rate x nudge (drift and nudge measured per timeline second, seek threshold a frame of source). Export (videoExport.ts): a source with a rate decodes its part for the window plus 50 ms carried before it (decodeSpan, at the file's own sample rate), stretches it with timeStretchChannels and schedules one buffer, skipping the carried part; unverified in Node (Web Audio, Mediabunny): the listening check in 290 covers it. Tests: T052's 5 pass, + a preview element at 2x (playbackRate 2, preservesPitch; FakeAudio now starts with it false). Mutations (reverse sounding, no preservesPitch) fail 3 and 1. npm run check green, 1,872 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T060": {
+          "text": "Failing gate tests: ≥ 20 malformed documents (speeds out of range, ramps of 1 or 11 points, unordered or non-finite places, reverse with a ramp, freeze outside the file) never throw and are mended or dropped with the reason; every case round-trips; documents without speed changes stay byte-identical.",
+          "section": "Saving",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "tests/unit/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** timeline.test.ts 'speed in the document (207 AC-9)': 30 malformed documents (speed text / NaN / 0 / negative / 50 / 1; reverse text / false; ramp text, 1 and 11 points, unreadable points, out of order, ends off 0 and 1, duplicate places, places outside 0-1, speeds out of range, with reverse, with a speed; rampSpan not numbers, reversed, without a ramp (D-050: a malformed span drops the ramp); freeze text, before / past the file, 500 s, no length, with speed fields; speed fields on a photo; a polluting point) each never throw, mend or drop with one of 7 reasons, and round-trip gate -> document -> gate unchanged; five valid cases (speed, reverse at 0.5x, ramp, ramp with span, freeze) written and round-tripped byte-identical; 201-206 documents without speed byte-identical. 32 fail, 17 pass (silent drops and byte-identical cases)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T061": {
+          "text": "Implement `mergeSpeed` in `projectGate.ts` and saving in `projectDoc.ts` (no fields at 1× forward); T060 passes.",
+          "section": "Saving",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/engine/projectGate.ts",
+            "src/engine/projectDoc.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** new src/engine/speedGate.ts mergeSpeed (projectGate.ts is 675 lines): photos get no speed fields (reason if they had some); a freeze frame keeps its time clamped into the file and its length 0.1-60 s (2 s when missing or 0, as a video clip saves dur 0) and drops speed fields; a ramp of 2-10 readable points is mended (unreadable points dropped, places clamped to 0-1, sorted, one per place, ends pinned at 0 and 1), speeds clamped, and replaces speed and reverse; a rampSpan that isn't two ordered numbers drops the ramp (D-050); else speed clamped 0.1-10 (none at 1x) and reverse only when true. Seven reasons, each once. readClip spreads the fields (a freeze's dur from them); projectDoc's clipDocument writes speedFields last, only when set. Test fix: a valid speed changes the clip's length, so the Magnetic main track re-packs once; the byte-identical check is gate -> document -> gate. timeline.test.ts 49 speed-gate tests pass; mutations (span not checked, reorder unreported) fail 2 and 1. npm run check green, 1,921 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T070": {
+          "text": "Failing store tests: each action (speed, slider drag, reverse, freeze, ramp preset, point move / add / remove, Reset speed) is one undo step; refusals leave the state and announce the reason; a seeded 1,000-edit property test (speed, reverse, ramp, freeze, trim, split, move) never leaves a source time outside in–out, a length that differs from its speed, or an overlap.",
+          "section": "Store actions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "tests/integration/state/video.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** video.test.ts '207: speed actions' (10 tests): speed one step and a slider drag (one key) one step; reverse on / off; ramp preset, then reverse drops it with the Q7 note; a point drag one step, add and remove a step each; points kept between neighbours (0.01 short) and 0.1-10x, end points keep their places; point edits keep rampSpan after a split (D-050); Reset speed one step to 1x forwards; Freeze frame one step, selecting the still; refusals (overlay room, photo, freeze on a photo, no ramp, 11th point, end points) leave the clips as they were with the reason; a locked track refuses all; a seeded 1,000-edit property test (speed, reverse, presets, point edits, reset, freeze, trim, split, move, undo) checks sources inside in-out, lengths, freeze and ramp invariants, no overlaps. speedEdits.test.ts: setSpeed { reset } and { ramp, rampSpan }. Actions return { error } or { note? } (SpeedOutcome): notes (Q7, shortened transitions) need a way out. Fails: no state/videoSpeed.ts; the two engine tests fail."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T071": {
+          "text": "Implement `state/videoSpeed.ts` (actions with coalescing keys) and wire it into the store; T070 passes.",
+          "section": "Store actions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/state/videoSpeed.ts",
+            "src/state/videoStore.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** new src/state/videoSpeed.ts: setClipSpeed (key speed:<id>), setClipReverse, setClipRamp (preset or points), moveRampPoint (key ramp:<id>:<index>; ends stay at 0 / 1, others 0.01 inside their neighbours, speed 0.1-10), addRampPoint (curve's speed there, at most 10, not on a point), removeRampPoint (not the ends), resetSpeed, freezeFrameAtPlayhead (selected video under the playhead, else main, else top overlay; selects the still); each returns SpeedOutcome { error } | { note? } through commit (one undo step, videos-at-once checked). Point edits keep rampSpan (D-050). speedEdits.ts: SpeedChange { reset: true } and { ramp, rampSpan? }. The property test found that splitting a freeze frame cut its in / out at the frozen time (in === out): videoClips.splitClip now splits a freeze like a photo (test added). Store tests 92/92; mutation (last point not pinned) fails 2. npm run check green, 1,936 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T080": {
+          "text": "Failing tests for the pure helpers: `speedBadge` (“2×”, “0.5×”, “◀ 1×”, “Ramp”, still), the timeline description and thumbnails through `sourceAt`, the ramp editor's key steps (← / → along, ↑ / ↓ speed, Shift larger) and its point limits, the announcements' text.",
+          "section": "Inspector and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11",
+            "AC-12"
+          ],
+          "files": [
+            "tests/unit/components/studio",
+            "tests/integration/components/studio"
+          ],
+          "test": "`npx vitest run tests/integration/components`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/components/studio/speedUi.test.ts (new): speedText ('2x', '0.5x', '1.25x', 0.33x, 10x); the speed slider on a log scale (0.1x at 0, 1x at 0.5, 10x at 1; presets round-trip, 0.01x steps, clamped); rampKeyStep (left / right 0.01 along, 0.1 with Shift; up / down 0.1x, 1x with Shift; kept between neighbours 0.01 short, ends in place, 0.1-10x; other keys / missing points null); the ramp editor's speed axis (log, 10x at the top, round trip, clamped); describePoint ('Point 3 of 5: 50 % along, 0.3x', start / end named). timelineRows.test.ts '207' block: speedBadge ('2x', '0.5x', '< 1x', '< 2x', 'Ramp', 'Still', none at 1x or on photos); filmstripTimes through sourceAt (1x, 2x same source, reversed descending, freeze constant, ramp rising, photo none); describeClipChange at speed ('... at 2x', 'backwards from 5.0 s at 2x', 'with a speed ramp', 'a still of its source at 2.5 s'); describeSpeedChange ('Clip 2: 0.5x, now 8.4 s', 'reversed at 1x', 'speed ramp', back to '1x', '' when unchanged). Fails until speedUi.ts and the timelineRows helpers exist (T081, T082); npm run check is red until then."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T081": {
+          "text": "The Speed group (`SpeedGroup.tsx`): Constant / Ramp, speed field + log slider + presets, Reverse, new length, Reset speed, muted-sound reason; `RampEditor.tsx` (SVG curve, focusable points, drag, double-click add, Delete remove); in `ClipInspector.tsx`. T080's editor helpers pass.",
+          "section": "Inspector and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11",
+            "AC-12"
+          ],
+          "files": [
+            "src/components/studio/SpeedGroup.tsx",
+            "src/components/studio/RampEditor.tsx",
+            "src/components/studio/ClipInspector.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`npm run check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** new speedUi.ts (speedText, log slider, rampKeyStep, speed axis, describePoint; speedUi.test.ts 13/13), SpeedGroup.tsx (Constant / Ramp; speed slider on a log scale with a 0.01x field and the presets; Reverse; ramp presets Montage..Flash out; the new length and soundMuted's reason; Reset speed; refusals and notes toasted), RampEditor.tsx (on CurveEditor's pattern: log speed axis with 1x line, drag a point, double-click to add, Tab + arrows / Shift, Delete; points in span shares drawn over the clip's in-out, D-050; a polite live region says each change). ClipInspector: the Speed group for videos, a freeze frame's 'On screen for' 0.1-60 s and heading, 'Ends at' allows for the speed. The point-place rule moved to engine/speed.ts (rampPointRange, RAMP_POINT_GAP), shared by the store and the editor; NumberField takes a step. Styles in 36-media-studio.css. Typecheck, lint and tests pass except T080's four timelineRows tests (T082). The UI itself is checked in 290."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T082": {
+          "text": "Timeline: badges and freeze look in `PictureRow.tsx`, thumbnails and descriptions through `sourceAt`, Freeze frame in `Transport.tsx` and Shift + F with the timeline focused (Q10), announcements; T080 passes.",
+          "section": "Inspector and timeline",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-11",
+            "AC-12"
+          ],
+          "files": [
+            "src/components/studio/PictureRow.tsx",
+            "src/components/studio/timelineRows.ts",
+            "src/components/studio/Transport.tsx",
+            "src/components/studio/Timeline.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`npm run check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** timelineRows.ts speedBadge / filmstripTimes (through sourceAt) / describeSpeedChange and describeClipChange at speed; PictureRow: the badge (aria-hidden; said in the clip's button label, ◀ as 'reversed'), filmstrip tiles through filmstripTimes (reversed run backwards, a freeze all its still), a freeze frame's block (tl-still, no ▶); Transport: Freeze button (Snowflake icon, FreezeIcon); Shift + F with the timeline focused (only while Shift is held, so Caps Lock F stays free), through tellSpeed (refusals and notes toasted); Timeline's live region says a speed change as one ('Clip 2: 0.5x, now 8.4 s'). T080's four timelineRows tests pass (34 / 34); dropping the reverse badge fails one. npm run check green, 1,952 unit tests (a stale lint cache from T080 kept the test red until cleared; learnings). The UI itself is checked in 290."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T090": {
+          "text": "Docs: `docs/MEDIA-STUDIO.md` (speed, reverse, freeze, ramps, limits, sound, keys; “Still to do” updated), `specs/lld.md` (the mapping, the ramp curve, the sound), `CHANGELOG.md`, in-app docs (`src/data/docs.ts`).",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-15"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "specs/lld.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "review",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** docs/MEDIA-STUDIO.md: new 'Speed, reverse and freeze frames' section (constant 0.1-10x and presets, reverse and its trims, ramps with the six presets and the curve editor's mouse and keys, freeze frame 2 s / 0.1-60 s, sound 0.5-2x same pitch and the silent cases, keyframes / transitions / trims / undo, badges and announcements, how preview and export stay alike), a timeline table row, 'Still to do' now lists sound for reversed / ramped clips and reverse with a ramp instead of speed and reverse. specs/lld.md: module map (speed, speedEdits, speedEdges, speedGate, timeStretch, videoSpeed), a 'Speed (207)' section (model, the mapping, the ramp curve, edits, sound, document, store and UI), preview sound at the clip's speed; the pool's key-frame skips, reversed and still lanes were already written in T021-T022. CHANGELOG Unreleased: speed entry. In-app docs (src/data/docs.ts): a Speed line. npm run check green (1,952)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T091": {
+          "text": "Add 207's deferred checks to 290 (D-033): AC-6 listening (speech and music at 0.5×, 0.75×, 1.5×, 2×), AC-11 and AC-12 e2e, AC-13 golden frames, AC-14 timing.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6",
+            "AC-11",
+            "AC-12",
+            "AC-13",
+            "AC-14"
+          ],
+          "files": [
+            "specs/features/290-phase2-test-pass-release/feature.json"
+          ],
+          "test": "`npm run specs -- check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** 290's deferred-checks list (spec markdown, D-033) has a '207 speed' bullet after 206's: AC-6 listening (speech and music at 0.5x, 0.75x, 1.5x, 2x, export WSOLA and preview, window joins; fallback question to the maintainer), AC-11 and AC-12 e2e (Speed group, ramp editor, Freeze button and Shift + F, badges; keyboard, names, announcements, axe, 360 px), AC-13 golden frames (0.5x, 2x, 10x, reversed, frozen, Hero; 201-206 fixtures identical), AC-14 timing (preview 2x / 4x / reversed, freeze, mixed-speed 60 s Reel export within 25 %). npm run specs -- check: 15 features valid, Markdown up to date."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T092": {
+          "text": "Close: `npm run check`, `npm run lint:full`, `npm run build` (entry chunk unchanged, no AI code), unit-proven ACs ticked, status implemented, memory updated.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-4",
+            "AC-5",
+            "AC-7",
+            "AC-8",
+            "AC-9",
+            "AC-10",
+            "AC-15"
+          ],
+          "files": [],
+          "test": "`npm run check && npm run lint:full && npm run build`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** npm run check green (1,952 unit tests), npm run lint:full clean, npm run build: entry chunk 313 KB (unchanged from 407, budget 350), 9 AI chunks on demand, none in the entry. Ticked the unit-proven ACs AC-1 to AC-10 (AC-6's listening check is also listed in 290 and unticks it if the sound fails) and AC-15 (docs, T090). AC-11 and AC-12 (e2e), AC-13 (self-test) and AC-14 (timing) wait for 290 (D-033, T091). Status implemented."
+          ],
+          "doneOn": "2026-10-18",
+          "startedOn": "2026-10-18"
+        }
+      }
+    }
+  }
+}

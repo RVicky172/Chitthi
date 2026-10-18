@@ -1,4 +1,5 @@
 import { adjacentKey, keyState, transformAt, volumeAt } from '../../engine/keyframes';
+import { FREEZE_LIMITS, edgeSpeed } from '../../engine/speed';
 import { clipLength, formatTime, PRESETS, type ClipTransform } from '../../engine/timeline';
 import { lockedReason } from '../../engine/tracks';
 import { MOTIONS } from '../../engine/video';
@@ -13,6 +14,7 @@ import { KeyframeNav } from './KeyframeButton';
 import { useFallbackNote } from './previewFrame';
 import { tell } from './timelineActions';
 import { clipLabel } from './timelineRows';
+import { SpeedGroup } from './SpeedGroup';
 import { KeyButton, NumberField, Range } from './videoFields';
 
 /* The video editor's inspector for a clip (timing, sound, box, framing, colour) and, with nothing selected, the project. */
@@ -113,6 +115,19 @@ interface TimingGroupProps extends ClipAtProps {
 function TimingGroup({ clip, time, room }: Readonly<TimingGroupProps>) {
   const local = time - clip.start;
   const volume = volumeAt(clip, local);
+  // A freeze frame (207) lasts like a photo, 0.1–60 s, and has no sound.
+  if (clip.freeze !== undefined)
+    return (
+      <Range
+        id="v-dur"
+        label="On screen for"
+        value={clip.dur}
+        min={FREEZE_LIMITS.min}
+        max={Math.max(FREEZE_LIMITS.min, Math.min(FREEZE_LIMITS.max, clip.dur + room))}
+        show={`${clip.dur.toFixed(1)} s`}
+        onChange={(dur) => updateClip(clip.id, { dur })}
+      />
+    );
   if (clip.kind === 'photo')
     return (
       <>
@@ -152,7 +167,7 @@ function TimingGroup({ clip, time, room }: Readonly<TimingGroupProps>) {
         label="Ends at"
         value={clip.out}
         min={clip.in + 0.3}
-        max={Math.min(clip.srcDur, clip.in + room)}
+        max={Math.min(clip.srcDur, clip.out + room * edgeSpeed(clip, 'end'))}
         step={1 / 30}
         show={formatTime(clip.out)}
         onChange={(end) => updateClip(clip.id, { out: Math.max(end, clip.in + 0.3) }, `trim-out:${clip.id}`)}
@@ -172,6 +187,16 @@ function TimingGroup({ clip, time, room }: Readonly<TimingGroupProps>) {
       </div>
     </>
   );
+}
+
+/**
+ * What a clip is, for the inspector's heading.
+ * @param clip the clip
+ * @returns "video", "photo" or "freeze frame"
+ */
+function kindName(clip: VClip): string {
+  if (clip.kind === 'photo') return 'photo';
+  return clip.freeze === undefined ? 'video' : 'freeze frame';
 }
 
 /** A clip. */
@@ -243,7 +268,7 @@ export function ClipInspector({ clip }: Readonly<ClipProps>) {
       <fieldset className="lp-fs" disabled={!!locked}>
         <div className="ig-group">
           <h3>
-            {placeLabel} · {clip.kind === 'video' ? 'video' : 'photo'}
+            {placeLabel} · {kindName(clip)}
           </h3>
           <p className="hint ig-name" title={clip.name}>
             {clip.name} · {clip.w}×{clip.h}
@@ -259,6 +284,7 @@ export function ClipInspector({ clip }: Readonly<ClipProps>) {
             Fade in from black
           </Check>
         </div>
+        {clip.kind === 'video' && clip.freeze === undefined && <SpeedGroup clip={clip} />}
         <PositionGroup clip={clip} time={time} />
         <PictureGroups clip={clip} />
       </fieldset>

@@ -541,6 +541,19 @@ export function shiftKeys<P extends string>(keys: Keyframes<P> | undefined, by: 
 }
 
 /**
+ * Scales every key's time (207 Q9: a clip's speed changed its length, and its keys stay at the same places along it).
+ * @param keys the item's keys
+ * @param factor the new length over the old
+ * @returns the new keys (the same keys for a factor of 1)
+ */
+export function scaleKeys<P extends string>(keys: Keyframes<P> | undefined, factor: number): Keyframes<P> | undefined {
+  if (!keys || factor === 1) return keys;
+  const scaled: Keyframes<P> = {};
+  for (const prop of keysOf(keys)) scaled[prop] = keys[prop]?.map((key) => ({ ...key, t: key.t * factor }));
+  return scaled;
+}
+
+/**
  * The ease of the change running through a time.
  * @param list one value's keys, at least one
  * @param time seconds from the item's start

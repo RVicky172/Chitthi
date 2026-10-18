@@ -15,17 +15,20 @@ import {
   type StreamTargetChunk,
 } from 'mediabunny';
 import { isDesktop } from '../platform/desktop';
-import { DecodePool, lanePlan, poolLimits, type PoolClip } from './decodePool';
+import { DecodePool, poolLimits, type PoolClip } from './decodePool';
+import { lanePlan, laneWindow } from './lanePlan';
 import { mediabunnySource } from './frameSource';
 import { gainCurve } from './keyframes';
 import { loadImage } from './photo';
-import { frameStack, type StackItem } from './stack';
+import { frameSourceAt } from './speed';
+import { frameStack, itemSource, type StackItem } from './stack';
 import { halves } from './transitions';
 import { MAIN_VIDEO } from './tracks';
 import { audioPlan, type SoundSource } from './soundPlan';
 import { projectLength, type AudioClip, type Project, type TimedClip } from './timeline';
 import { limitsFor } from './videoFormats';
 import { renderStack, type FrameClip } from './video';
+import { timeStretchChannels } from './timeStretch';
 
 /*
  * Encodes the video editor's project (tracks, engine/timeline.ts) into an MP4: H.264 video and AAC sound at 48 kHz, with the index (`moov`) at the
@@ -89,6 +92,8 @@ const AUDIO_WINDOW = 10;
 const AAC_FRAME = 1024;
 /** The sound's bitrate, bits per second. */
 const AUDIO_BITRATE = 128000;
+/** Source seconds decoded before a stretched stretch, so its first frames have something to line up with (D5). */
+const STRETCH_CARRY = 0.05;
 
 /**
  * Stops the export when it was cancelled.
@@ -199,6 +204,10 @@ async function scheduleBuffers(
   windowStart: number,
 ): Promise<void> {
   const { from, to } = playing;
+  if (source.rate !== undefined && source.rate !== 1) {
+    await scheduleStretched(mix, gain, source, playing, windowStart);
+    return;
+  }
   // Source seconds covering the stretch. Before the source's own start (an incoming handle past the file's start)
   // there is nothing to play.
   const sourceFrom = Math.max(0, source.from + (from - source.start));
@@ -213,6 +222,76 @@ async function scheduleBuffers(
     const duration = Math.min(decoded.duration - offset, to - Math.max(from, lands));
     if (duration > 0) node.start(Math.max(from, lands) - windowStart, offset, duration);
   }
+}
+
+/**
+ * Decodes a source's sound between two source times into one buffer per channel, at the file's own sample rate.
+ * @param source the sound source
+ * @param sourceFrom source seconds
+ * @param sourceTo source seconds
+ * @returns the channels and their sample rate, or null when nothing decoded there
+ */
+async function decodeSpan(
+  source: AudioSource,
+  sourceFrom: number,
+  sourceTo: number,
+): Promise<{ channels: Float32Array[]; sampleRate: number } | null> {
+  let channels: Float32Array[] | null = null;
+  let sampleRate = SAMPLE_RATE;
+  for await (const decoded of source.sink.buffers(sourceFrom, sourceTo)) {
+    const { buffer } = decoded;
+    if (!channels) {
+      sampleRate = buffer.sampleRate;
+      const length = Math.max(1, Math.round((sourceTo - sourceFrom) * sampleRate));
+      channels = Array.from({ length: buffer.numberOfChannels }, () => new Float32Array(length));
+    }
+    const at = Math.round((decoded.timestamp - sourceFrom) * sampleRate);
+    channels.forEach((channel, index) => {
+      const samples = buffer.getChannelData(Math.min(index, buffer.numberOfChannels - 1));
+      const skip = Math.max(0, -at);
+      channel.set(samples.subarray(skip, skip + Math.max(0, channel.length - at - skip)), Math.max(0, at));
+    });
+  }
+  return channels ? { channels, sampleRate } : null;
+}
+
+/**
+ * A source at a speed (207 AC-6): its source part for the stretch decoded (with STRETCH_CARRY before it), stretched to
+ * the timeline's length with the same pitch (`timeStretchChannels`, WSOLA), and scheduled at its place; the carried
+ * part is skipped.
+ * @param mix the window's audio context
+ * @param gain the source's gain node
+ * @param source the sound source, with its `rate`
+ * @param playing the part of the window it plays, timeline seconds
+ * @param windowStart the window's start, timeline seconds (the context's time 0)
+ */
+async function scheduleStretched(
+  mix: OfflineAudioContext,
+  gain: GainNode,
+  source: AudioSource,
+  playing: Stretch,
+  windowStart: number,
+): Promise<void> {
+  const rate = source.rate ?? 1;
+  const { from, to } = playing;
+  // Before the file's start (an incoming handle) there is nothing to play.
+  const sourceFrom = Math.max(0, source.from + (from - source.start) * rate);
+  const sourceTo = source.from + (to - source.start) * rate;
+  if (sourceTo <= sourceFrom) return;
+  const decodeFrom = Math.max(0, sourceFrom - STRETCH_CARRY);
+  const span = await decodeSpan(source, decodeFrom, sourceTo);
+  if (!span) return;
+  const stretched = timeStretchChannels(span.channels, rate, span.sampleRate);
+  const buffer = mix.createBuffer(stretched.length, Math.max(1, stretched[0]?.length ?? 0), span.sampleRate);
+  stretched.forEach((channel, index) => buffer.getChannelData(index).set(channel));
+  const node = mix.createBufferSource();
+  node.buffer = buffer;
+  node.connect(gain);
+  // The stretched sound starts at decodeFrom's timeline time; the carried part before `from` is skipped.
+  const lands = source.start + (decodeFrom - source.from) / rate;
+  const offset = Math.max(0, from - lands);
+  const duration = Math.min(buffer.duration - offset, to - Math.max(from, lands));
+  if (duration > 0) node.start(Math.max(from, lands) - windowStart, offset, duration);
 }
 
 /**
@@ -321,7 +400,7 @@ class FramePictures {
     if (clip.kind === 'photo') {
       if (!this.pictures.has(clip.id)) this.pictures.set(clip.id, await loadPhoto(clip.file));
     } else {
-      const poolFrame = await this.pool.frame(this.laneOf(clip), clip.in + local).catch((error: unknown) => {
+      const poolFrame = await this.pool.frame(this.laneOf(clip), frameSourceAt(clip, local)).catch((error: unknown) => {
         throw new ExportError(error instanceof Error ? error.message : String(error));
       });
       if (poolFrame) this.pictures.set(clip.id, { image: poolFrame.image, width: poolFrame.width, height: poolFrame.height });
@@ -380,7 +459,7 @@ async function drawFrame(run: ExportRun, frameIndex: number, stack: StackItem<Ex
   const framePictures = await Promise.all(stack.map((stackItem) => run.pictures.pictureFor(stackItem.clip, stackItem.local)));
   job.trace?.(
     frameIndex,
-    stack.map(({ clip, local }) => ({ id: clip.id, at: clip.kind === 'video' ? clip.in + local : null })),
+    stack.map((stackItem) => ({ id: stackItem.clip.id, at: itemSource(stackItem) })),
   );
   const items = stack.map((stackItem, index) => {
     const picture = framePictures.at(index);
@@ -515,15 +594,11 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
 
   const { canvas, ctx } = frameCanvas(job);
   const pool = exportPool(job);
-  // A clip's lane starts at the first frame its picture shows: half its incoming transition before its in point (206).
-  const laneOf = (clip: ExportClip): PoolClip => ({
-    id: clip.id,
-    file: clip.file,
-    in: Math.max(0, clip.in - halves(clip, job.clips).before),
-    out: clip.out,
-    start: clip.start,
-    track: clip.track,
-  });
+  // A clip's lane covers the source its picture shows, its transitions' halves included (206), at its speed (207).
+  const laneOf = (clip: ExportClip): PoolClip => {
+    const { before, after } = halves(clip, job.clips);
+    return { id: clip.id, file: clip.file, start: clip.start, track: clip.track, ...laneWindow(clip, before, after) };
+  };
   const frameCount = Math.max(1, Math.round(total * job.fps));
   const { output, target, video, sound } = mp4Output(job, canvas, total, frameCount, sources.length > 0);
   await output.start();

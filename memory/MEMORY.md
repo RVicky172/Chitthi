@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-16)
+## Current State (2026-10-18)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -46,7 +46,10 @@
   `tests/{unit,integration,support,e2e,selftest}`, `specs/coding-standards.md` (AC-4), every standards rule an error for
   `src/`, `electron/`, `tests/` (`FINISHED`), standards report 0, `noUncheckedIndexedAccess` for `src/`; React
   Compiler off (D-046); performance review `performance.md` (D-047); entry 313 KB (was 327). D-037–D-048.
-- **Next (roadmap):** 207 (speed) branches from `main`; 290 collects the deferred checks.
+- **207:** `207-speed` ✔️ Implemented 2026-10-18 on `feat/207-speed` (not committed yet): constant speed 0.1–10×, reverse,
+  freeze frame, ramps (six presets, curve editor), one `sourceAt` for preview / export / pool / edits, same-pitch sound
+  0.5–2× (browser in the preview, our WSOLA in the export), D-049–D-051. AC-6 listening, AC-11–14 wait for 290. Entry
+  313 KB. Next: commit (maintainer's OK), merge into `main`, then the next Phase 2 feature.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

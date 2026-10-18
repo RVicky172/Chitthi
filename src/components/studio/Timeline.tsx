@@ -12,7 +12,7 @@ import { PictureRow, type DropMarker } from './PictureRow';
 import { onTimelineKey, selectedItem, type SelectedItem } from './timelineActions';
 import { LayerRow, MusicRow, type SnapTime } from './TimelineBars';
 import { RULER_PX, rulerLabel, SNAP_PX, startDrag, tickStep, toFrame, TRACK_PX } from './timelineDrag';
-import { describeClipChange, describeKeyChange, describeTransitionChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
+import { describeClipChange, describeKeyChange, describeSpeedChange, describeTransitionChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
 import { AddTrackButton, TrackHead } from './TrackHead';
 
 /*
@@ -26,7 +26,8 @@ import { AddTrackButton, TrackHead } from './TrackHead';
  * bar to move it in time or its ends to change when it shows, drag the music to slide the song (TimelineBars.tsx),
  * drag the playhead or click anywhere to seek. Moves snap to clip edges, layer edges and the playhead (Snap off, or Alt
  * held: to the frame, as is everything that doesn't snap). Ctrl + wheel zooms; the playhead is followed while playing.
- * Keyboard (with the timeline focused, timelineActions.ts): Space play / pause, S split, Delete remove (Magnetic
+ * Keyboard (with the timeline focused, timelineActions.ts): Space play / pause, S split, Shift + F freeze frame at the
+ * playhead (207), Delete remove (Magnetic
  * off: leaves a gap; Shift + Delete ripples; on a focused gap: closes it), Alt + ← → nudge the selected clip a frame
  * with the tool (Shift: a second), Q / W ripple-trim its start / end to the playhead,
  * ← → a frame (Shift: a second), Home / End, + / − zoom; V / R / Y / U pick the edit tool (Select, Roll, Slip, Slide).
@@ -50,7 +51,9 @@ function useAnnouncements(clips: VClip[], keyed: SelectedItem | null): string {
     if (previous === clips) return;
     const state = getVideo();
     // A clip's change and what it did to transitions (206: one dropped by an edit, or one added, changed, removed).
-    const message = [describeClipChange(previous, clips, state.tracks, state.selected), describeTransitionChange(previous, clips, state.tracks)].filter(Boolean).join('. ');
+    // A speed change (207) is said as one ("Clip 2: 0.5×, now 8.4 s") rather than as the clip's new times.
+    const clipChange = describeSpeedChange(previous, clips, state.tracks) || describeClipChange(previous, clips, state.tracks, state.selected);
+    const message = [clipChange, describeTransitionChange(previous, clips, state.tracks)].filter(Boolean).join('. ');
     if (!message) return;
     const timer = setTimeout(() => setSaid(message), 250);
     return () => clearTimeout(timer);

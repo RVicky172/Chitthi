@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Box } from '@/engine/layers';
 import { valueAt } from '@/engine/keyframes';
-import { frameStack, mostVideosAt, snapBox } from '@/engine/stack';
+import { frameStack, itemSource, mostVideosAt, snapBox } from '@/engine/stack';
+import { laneWindow } from '@/engine/lanePlan';
+import { RAMP_PRESETS, sourceAt, type SpeedFields } from '@/engine/speed';
 import { MAIN_VIDEO, MUSIC, defaultTracks, type Track } from '@/engine/tracks';
-import { framePlan, frameRange, pack, projectLength, videoAt, type Project, type TimedClip } from '@/engine/timeline';
+import { clipLength, framePlan, frameRange, pack, projectLength, videoAt, type Project, type TimedClip } from '@/engine/timeline';
 import { legacyFixtures, type LegacyClip, type LegacyProject } from '../../support/timeline.testkit';
-import type { Transition } from '@/engine/transitions';
+import { halves, type Transition } from '@/engine/transitions';
 import { defined } from '../../support/defined';
 
 /* ---------- helpers ---------- */
@@ -526,5 +528,127 @@ describe('mostVideosAt with transitions (206 AC-3, Q7)', () => {
     expect(mostVideosAt([withTransition(plain[0], 'b', 1), plain[1]], tracks)).toBe(2);
     // A photo on one side: one video at a time.
     expect(mostVideosAt([withTransition(clip('a', MAIN_VIDEO, 0, 2), 'b', 1), plain[1]], tracks)).toBe(1);
+  });
+});
+
+/* ---------- 207: the source time each item shows ---------- */
+
+describe('itemSource: the source time a stack item shows, through sourceAt (207 AC-1, AC-3, AC-10)', () => {
+  /**
+   * A video clip on the main track with speed fields.
+   * @param id its id
+   * @param part its source part [in, out]
+   * @param fields its speed fields
+   * @returns the clip (packed later)
+   */
+  const atSpeed = (id: string, part: [number, number], fields: SpeedFields = {}): TimedClip => ({
+    id,
+    track: MAIN_VIDEO,
+    start: 0,
+    kind: 'video',
+    dur: fields.freeze === undefined ? 0 : 2,
+    in: part[0],
+    out: part[1],
+    ...fields,
+  });
+  const cases = pack([
+    atSpeed('twice', [1, 5], { speed: 2 }),
+    atSpeed('half', [0, 1], { speed: 0.5 }),
+    atSpeed('back', [2, 4], { reverse: true }),
+    atSpeed('back2', [0, 4], { speed: 2, reverse: true }),
+    atSpeed('hero', [0, 3], { ramp: [...RAMP_PRESETS.hero] }),
+    atSpeed('still', [0, 6], { freeze: 1.5 }),
+    atSpeed('ten', [0, 20], { speed: 10 }),
+  ]);
+  /**
+   * The source time by hand, written without speed.ts for the constant cases: a reversed frame is the one ending at
+   * `out − local × speed`, asked 1 ms before it.
+   * @param timedClip the clip
+   * @param local seconds into it
+   * @returns source seconds
+   */
+  const byHand = (timedClip: TimedClip, local: number): number => {
+    if (timedClip.freeze !== undefined) return timedClip.freeze;
+    if (timedClip.ramp) return sourceAt(timedClip, local);
+    const speed = timedClip.speed ?? 1;
+    return timedClip.reverse ? timedClip.out - local * speed - 1e-3 : timedClip.in + local * speed;
+  };
+
+  it.each([30, 60])('every export frame of a project with each case at %i fps, within 1 µs and inside in–out', (fps) => {
+    const fixture = project(cases);
+    const [, frames] = frameRange(0, projectLength(fixture), fps);
+    const seen = new Set<string>();
+    for (let index = 0; index < frames; index++) {
+      const [item] = frameStack(fixture, index / fps);
+      const shown = defined(item);
+      seen.add(shown.clip.id);
+      const at = defined(itemSource(shown));
+      expect(Math.abs(at - byHand(shown.clip, shown.local)), `${shown.clip.id}, frame ${index}`).toBeLessThan(1e-6);
+      expect(at, `${shown.clip.id}, frame ${index}`).toBeGreaterThanOrEqual(shown.clip.in - 1e-9);
+      expect(at, `${shown.clip.id}, frame ${index}`).toBeLessThan(shown.clip.out);
+    }
+    expect([...seen]).toEqual(cases.map((timedClip) => timedClip.id));
+  });
+
+  it('a reversed clip starts on the frame just before its out point and ends on the one at its in point', () => {
+    const fixture = project([atSpeed('back', [2, 4], { reverse: true })]);
+    const first = defined(itemSource(defined(frameStack(fixture, 0)[0])));
+    expect(first).toBeLessThan(4);
+    expect(first).toBeGreaterThan(4 - 1 / 30);
+    const last = defined(itemSource(defined(frameStack(fixture, 59 / 30)[0])));
+    expect(last).toBeGreaterThanOrEqual(2);
+    expect(last).toBeLessThan(2 + 1 / 30);
+  });
+
+  it('201–206 projects: a video shows exactly in + local, a photo nothing, at every frame (AC-13 inputs unchanged)', () => {
+    const fixtures: Project[] = [
+      ...Object.entries(legacyFixtures())
+        .filter(([name]) => name !== 'clips500')
+        .map(([, legacy]) => onTracks(legacy)),
+      project(
+        [
+          withTransition(clip('v', MAIN_VIDEO, 0, 3, 'video'), 'p', 1),
+          clip('p', MAIN_VIDEO, 3, 2),
+          withTransition(clip('w', 'V2', 1, 2, 'video'), 'x', 0.5),
+          clip('x', 'V2', 3, 1.5, 'video'),
+        ],
+        [overlay('V2')],
+      ),
+    ];
+    for (const fixture of fixtures) {
+      const [, frames] = frameRange(0, projectLength(fixture), 30);
+      for (let index = 0; index < frames; index++)
+        for (const item of frameStack(fixture, index / 30))
+          expect(itemSource(item), `${item.clip.id}, frame ${index}`).toBe(
+            item.clip.kind === 'video' ? item.clip.in + item.local : null,
+          );
+    }
+  });
+
+  it('transition handles run on at the edge speed and stay inside the lane’s window', () => {
+    // 2× (source 0–4) dissolving over 1 s into a reversed clip (source 2–5), which dissolves into a 0.5× clip.
+    const fixture = project(
+      pack([
+        { ...atSpeed('fast', [0, 4], { speed: 2 }), transition: { kind: 'dissolve', dur: 1, to: 'back' } },
+        { ...atSpeed('back', [2, 5], { reverse: true }), transition: { kind: 'dissolve', dur: 1, to: 'slow' } },
+        atSpeed('slow', [1, 2], { speed: 0.5 }),
+      ]),
+    );
+    const [, frames] = frameRange(0, projectLength(fixture), 30);
+    let handles = 0;
+    for (let index = 0; index < frames; index++)
+      for (const item of frameStack(fixture, index / 30)) {
+        const at = defined(itemSource(item));
+        expect(Math.abs(at - byHand(item.clip, item.local)), `${item.clip.id}, frame ${index}`).toBeLessThan(1e-6);
+        const { before, after } = halves(item.clip, fixture.clips);
+        const window = laneWindow(item.clip, before, after);
+        expect(at, `${item.clip.id}, frame ${index}`).toBeGreaterThanOrEqual(window.in - 1e-9);
+        expect(at, `${item.clip.id}, frame ${index}`).toBeLessThanOrEqual(window.out);
+        if (item.local < 0 || item.local >= clipLength(item.clip)) handles++;
+      }
+    expect(handles).toBeGreaterThan(40);
+    // The fast clip's last handle frame runs past its out point at 2×; the reversed clip's first runs past its out.
+    expect(defined(itemSource({ clip: defined(fixture.clips[0]), local: 2.4, track: MAIN_VIDEO }))).toBeCloseTo(4.8, 9);
+    expect(defined(itemSource({ clip: defined(fixture.clips[1]), local: -0.4, track: MAIN_VIDEO }))).toBeCloseTo(5.399, 9);
   });
 });

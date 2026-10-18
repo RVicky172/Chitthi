@@ -3,8 +3,9 @@
 // clips of muted overlay tracks on screen, released after, so elements don't grow with the clip count and the pool
 // alone decodes pictures. Kept within a frame of the picture by nudging playbackRate (AC-8, Q5). The music keeps its
 // own element in VideoStage.
-import { lanePlan } from '../../engine/decodePool';
+import { lanePlan } from '../../engine/lanePlan';
 import { edgeGain, volumeAt, type ClipKeyProp, type Keyframes } from '../../engine/keyframes';
+import { playLength, soundRate, sourceAt, type SpeedFields } from '../../engine/speed';
 import { frameStack } from '../../engine/stack';
 import { soundEdges, type SoundEdges } from '../../engine/soundPlan';
 import { type Project, type TimedClip } from '../../engine/timeline';
@@ -14,6 +15,8 @@ export interface SoundingClip<C> {
   clip: C;
   local: number;
   edges?: SoundEdges;
+  /** Source seconds per timeline second (207): the clip's speed, 0.5–2×; missing = 1. */
+  rate?: number;
 }
 
 /** Whose sound plays at a time, what to load next and what to keep loaded but silent. */
@@ -42,15 +45,19 @@ export function soundPlan<C extends TimedClip>(project: Project<C>, time: number
   const current: SoundingClip<C>[] = [];
   const held: C[] = [];
   for (const stackItem of frameStack(shown, time)) {
-    if (stackItem.clip.kind !== 'video') continue;
+    // A silent clip (207: reversed, ramped, frozen or outside 0.5–2×) needs no element at all.
+    const rate = stackItem.clip.kind === 'video' ? soundRate(stackItem.clip) : null;
+    if (rate === null) continue;
+    const at = { clip: stackItem.clip, local: stackItem.local, ...(rate === 1 ? {} : { rate }) };
     if (muted.has(stackItem.track)) held.push(stackItem.clip);
     // During a transition (206) the clip plays into its handles with the transition's edges, as the export mixes it.
-    else if (stackItem.mix) current.push({ clip: stackItem.clip, local: stackItem.local, edges: soundEdges(stackItem.clip, project.clips) });
-    else current.push({ clip: stackItem.clip, local: stackItem.local });
+    else if (stackItem.mix) current.push({ ...at, edges: soundEdges(stackItem.clip, project.clips) });
+    else current.push(at);
   }
   const loaded = new Set([...current.map((sounding) => sounding.clip.id), ...held.map((clip) => clip.id)]);
   const sounding = { ...shown, tracks: shown.tracks.filter((track) => !muted.has(track.id)) };
-  return { current, next: lanePlan(sounding, time, ahead).next.filter((clip) => !loaded.has(clip.id)), held };
+  const next = lanePlan(sounding, time, ahead).next.filter((clip) => !loaded.has(clip.id) && soundRate(clip) !== null);
+  return { current, next, held };
 }
 
 /** Over this drift (seconds) the element seeks instead of catching up. */
@@ -78,7 +85,7 @@ export function soundFix(drift: number, fps: number, rate: number): { seek: true
 }
 
 /** What the sound player needs of a clip. */
-export interface SoundClip {
+export interface SoundClip extends SpeedFields {
   id: string;
   /** The clip's file. */
   url: string;
@@ -190,6 +197,8 @@ export class PreviewSound {
       made.dataset.clip = clip.id;
       made.src = clip.url;
       made.currentTime = clip.in;
+      // A clip at a speed keeps its pitch (207 AC-6, D5: the browser's own stretching).
+      made.preservesPitch = true;
       made.addEventListener('playing', () => this.started.add(made));
       made.addEventListener('pause', () => this.started.delete(made));
       made.addEventListener('waiting', () => this.started.delete(made));
@@ -208,12 +217,13 @@ export class PreviewSound {
    * @param isPlaying whether the video plays
    * @param fps the project's frame rate
    */
-  private follow({ clip, local, edges = {} }: SoundingClip<SoundClip>, isPlaying: boolean, fps: number): void {
+  private follow({ clip, local, edges = {}, rate = 1 }: SoundingClip<SoundClip>, isPlaying: boolean, fps: number): void {
     // Volume keyframes and transition edges are followed on every tick (within a frame of the picture, 205 AC-10).
-    const length = clip.out - clip.in;
+    const timing = { ...clip, kind: 'video' as const, dur: 0 };
+    const length = playLength(timing);
     const element = this.elementFor(clip, volumeAt(clip, local) * edgeGain({ start: 0, end: length, ...edges }, local));
-    const wanted = clip.in + local;
-    if (local < -(edges.lead ?? 0) || wanted < 0 || wanted >= clip.out + (edges.trail ?? 0) - 1e-3) {
+    const wanted = sourceAt(timing, local);
+    if (local < -(edges.lead ?? 0) || wanted < 0 || local >= length + (edges.trail ?? 0) - 1e-3) {
       halt(element);
       return;
     }
@@ -224,17 +234,18 @@ export class PreviewSound {
     }
     if (element.paused) {
       // A pre-seeked element starts at once on the cut's tick (a frame late at most); a seek would delay it.
-      if (Math.abs(element.currentTime - wanted) > 1 / fps) element.currentTime = wanted;
-      element.playbackRate = 1;
+      if (Math.abs(element.currentTime - wanted) > (1 / fps) * rate) element.currentTime = wanted;
+      element.playbackRate = rate;
       void element.play().catch(() => undefined);
       return;
     }
     if (!this.started.has(element)) return;
-    const fix = soundFix(element.currentTime - wanted, fps, element.playbackRate);
+    // The drift in timeline seconds, and the nudge on top of the clip's speed (207: playbackRate = speed × nudge).
+    const fix = soundFix((element.currentTime - wanted) / rate, fps, element.playbackRate / rate);
     if (fix.seek) {
       element.currentTime = wanted;
-      element.playbackRate = 1;
-    } else if (fix.rate !== element.playbackRate) element.playbackRate = fix.rate;
+      element.playbackRate = rate;
+    } else if (fix.rate * rate !== element.playbackRate) element.playbackRate = fix.rate * rate;
   }
 }
 

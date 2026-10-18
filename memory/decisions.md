@@ -597,3 +597,38 @@ missing), seeded randoms (`tests/support/seededRandom.ts`), explicit sort orders
 `eslint.config.js`, with the reason there: `sonarjs/no-floating-point-equality` (tests compare exact pass-through
 values on purpose) and, for `tests/e2e/`, `sonarjs/no-skipped-tests` (Playwright skips per project, desktop or phone).
 **Consequences:** new test code must pass the same rules as app code; a test that samples at random uses a seed.
+
+## D-049 — Speed (207): plan decisions D1–D5 (2026-10-18)
+
+**Context:** 207's plan left five calls to the maintainer; all were accepted as recommended on 2026-10-18 (Q8: same
+pitch, chosen the same day).
+**Decision:** D1 a freeze frame is a video clip with `freeze` (source time) and `dur`, not a new clip kind. D2 trimming
+or splitting a ramped clip cuts the curve (kept source moments keep their speed). D3 AC-10 reworded: the export draws
+only the frames it shows and jumps to the next key frame rather than decoding through. D4 reversed preview lanes decode
+at stage size in backward chunks within the byte budget. D5 preview sound keeps pitch with the browser's
+`preservesPitch`, the export with our own WSOLA (`engine/timeStretch.ts`): close, not sample-identical.
+**Consequences:** one `sourceAt` replaces every `clip.in + local`; no new dependency; a speed that would make a clip
+shorter than 0.1 s is refused (AC-2).
+
+## D-050 — A ramp keeps its curve over a fixed source span; trims and splits don't cut it (2026-10-18)
+
+**Context:** 207 T043. D2 (D-049) cut a ramp at a trimmed or split edge (`cutRamp`: points kept at their source
+moments, the edge speed added as a point). The monotone spline re-fitted through fewer points changes what plays
+between them: on a 4 s part a split changed the parts' length by up to 589 ms on Bullet (32 %), 155 ms Montage, 128 ms
+Hero; filling the cut with sampled points still left 130 ms.
+**Decision:** the maintainer chose a fixed span: a ramp's shares refer to `rampSpan: [from, to]` (source seconds; missing
+= in–out, so a new ramp needs none). The play time is measured along that one curve (held flat past its ends), and
+trims and splits only move in and out along it, setting `rampSpan` when it first differs from in–out. `cutRamp` is
+dropped.
+**Consequences:** every kept frame of a trimmed or split ramp plays exactly as before (within 1 µs) and trimming back
+out restores the clip. A clip can carry ramp points outside in–out: the ramp editor (T081) shows the part inside, and
+the gate (T060) must read `rampSpan` (finite, from < to) and drop it with the ramp when malformed; saving writes it only
+when present.
+
+## D-051 — A freeze frame holds the clip's keyframed values at the cut (2026-10-18)
+
+**Context:** 207 T044. Plan §4 gave a freeze frame the clip's keyframes "scaled to its length", which would replay the
+clip's whole box animation over the still and jump at both cuts; Q4 wants the freeze to match the frames around it.
+**Decision:** the maintainer chose to hold: the freeze gets one key per animated value, holding its value at the cut
+(as `splitKeys` gives a split's parts), and its stored box is that value.
+**Consequences:** nothing jumps at either cut; the user can still add keys to the freeze afterwards.

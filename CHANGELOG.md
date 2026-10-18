@@ -24,6 +24,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   directions) and Zoom, from **Transitions** in the tool rail or by clicking a cut on the timeline; **Apply to every
   cut**; drag a transition's edges to change its length (0.1–3 s). They are centred on the cut and play the clips past
   their ends, so the video's length never changes; the sound cross-fades with them. The export matches the preview.
+- Video editor: **speed**. In the clip inspector's Speed group, set a video clip's speed from 0.1× to 10× (presets
+  0.25×–4×), play it in **Reverse**, or give it a **speed ramp** (Montage, Hero, Bullet, Jump cut, Flash in, Flash out,
+  or your own curve of 2–10 points). **Freeze frame** (the transport, or Shift + F) holds the frame at the playhead for
+  2 s. The clip keeps its part of the video and changes length; Magnetic moves the clips after it. The sound keeps its
+  pitch from 0.5× to 2× and is silent otherwise, reversed or ramped. Clips at speed show a badge on the timeline; the
+  export matches the preview frame for frame.
 - Video editor: the number of videos on screen at once is limited (3 in the browser, 5 in the desktop app); an edit
   that would show more says so.
 

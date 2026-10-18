@@ -2,16 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DecodePool,
   frameTime,
-  lanePlan,
   poolLimits,
   type PoolClip,
   type PoolFrame,
   type PoolLimits,
 } from '@/engine/decodePool';
+import { lanePlan, laneWindow } from '@/engine/lanePlan';
 import { MAIN_VIDEO, MUSIC, defaultTracks } from '@/engine/tracks';
 import { type Project, type TimedClip } from '@/engine/timeline';
 import { DEFAULT_EDIT } from '@/engine/instagram';
-import { FAKE_FPS as FPS, FRAME_BYTES, fakeDecoder, type FakeFrame } from '../../support/fakeDecoder';
+import { sourceAt, type SpeedClip, type SpeedFields } from '@/engine/speed';
+import { defined } from '../../support/defined';
+import { FAKE_FPS as FPS, FRAME_BYTES, fakeDecoder, type FakeFrame, type KeyedSource } from '../../support/fakeDecoder';
 
 const clip = (id: string, file: Blob, inT: number, outT: number, start = 0): PoolClip => ({
   id,
@@ -682,5 +684,377 @@ describe('206: lanePlan with transitions (AC-2, AC-3)', () => {
     // At 1.6 s b starts in 2.4 s, but its transition in 1.9 s.
     expect(ids(lanePlan(project, 1.6, 2).next)).toEqual(['b']);
     expect(ids(lanePlan(project, 1.4, 2).next)).toEqual([]);
+  });
+});
+
+/* ---------- 207 spike (T020, risk 1): reverse in chunks and key-frame skips on a fake with key frames ---------- */
+
+describe('207 spike: reverse in chunks and key-frame skips', () => {
+  /** A chunk is at most the pool's `ahead` × 4 frames (plan, Techniques). */
+  const CHUNK = LIMITS.ahead * 4;
+
+  /**
+   * Waits for a fake decode, letting the fake timers run.
+   * @param pending what is being waited for
+   * @returns its result
+   */
+  const waitFor = async <T>(pending: Promise<T>): Promise<T> => {
+    await settle();
+    return pending;
+  };
+
+  /**
+   * The source of a fake file, with its key frames.
+   * @param fake the fake decoder
+   * @param file the file
+   * @returns its keyed source
+   */
+  const keyedSource = (fake: ReturnType<typeof fakeDecoder>, file: Blob) =>
+    waitFor(fake.open(file, {})) as Promise<KeyedSource>;
+
+  /**
+   * The prototype of a reversed lane: from the frame before `outTime` back to the one at `inTime`, in chunks of at most
+   * `chunk` frames, each from the key frame before its last frame (or `chunk` frames before it) up to it, handed out
+   * newest first.
+   * @param source the keyed source
+   * @param inTime the clip's in point
+   * @param outTime the clip's out point
+   * @param chunk most frames decoded and held at once
+   * @yields the frames, newest first; the caller closes each
+   */
+  async function* reversed(source: KeyedSource, inTime: number, outTime: number, chunk: number) {
+    const firstIndex = Math.floor(inTime * FPS + 1e-6);
+    let lastIndex = Math.ceil(outTime * FPS - 1e-6) - 1;
+    while (lastIndex >= firstIndex) {
+      const keyIndex = Math.round((await source.keyBefore(at(lastIndex))) * FPS);
+      const startIndex = Math.max(keyIndex, lastIndex - chunk + 1, firstIndex);
+      const iterator = source.from(at(startIndex));
+      const frames: PoolFrame[] = [];
+      while (frames.length < lastIndex - startIndex + 1) {
+        const result = await waitFor(iterator.next());
+        if (result.done) break;
+        frames.push(result.value);
+      }
+      await iterator.return?.();
+      yield* frames.toReversed();
+      lastIndex = startIndex - 1;
+    }
+  }
+
+  /**
+   * Plays a reversed clip the way a lane hands frames out: the frame shown is held until the next replaces it.
+   * @param fake the fake decoder
+   * @param file the file
+   * @param inTime the clip's in point
+   * @param outTime the clip's out point
+   * @returns the frame indexes shown, in order, and the most frames open at once
+   */
+  async function playReversed(fake: ReturnType<typeof fakeDecoder>, file: Blob, inTime: number, outTime: number) {
+    const source = await keyedSource(fake, file);
+    const shown: number[] = [];
+    let held: PoolFrame | null = null;
+    let peak = 0;
+    for await (const frame of reversed(source, inTime, outTime, CHUNK)) {
+      held?.close();
+      held = frame;
+      shown.push(Math.round(frame.time * FPS));
+      peak = Math.max(peak, fake.frames());
+    }
+    held?.close();
+    source.close();
+    return { shown, peak };
+  }
+
+  it('hands every frame from out back to in once, newest first', async () => {
+    const fake = fakeDecoder();
+    const { shown } = await playReversed(fake, fake.file({ name: 'a.mp4', dur: 4, gop: 30 }), 0.5, 3.5);
+    expect(shown).toEqual(Array.from({ length: 90 }, (_, index) => 104 - index));
+    expect(fake.frames()).toBe(0);
+    expect(fake.counts.doubleClose).toBe(0);
+  });
+
+  it("holds at most a chunk plus the frame shown: within the pool's byte budget", async () => {
+    for (const gop of [8, 30, 120]) {
+      const fake = fakeDecoder();
+      const { peak } = await playReversed(fake, fake.file({ name: 'a.mp4', dur: 10, gop }), 0, 10);
+      expect(peak).toBeLessThanOrEqual(CHUNK + 1);
+      expect(peak * FRAME_BYTES).toBeLessThanOrEqual(LIMITS.bytes);
+    }
+  });
+
+  it('decodes each frame once when a key-frame group fits a chunk; a longer group costs about gop / (2 × chunk) times', async () => {
+    const decodedFor = async (gop: number) => {
+      const fake = fakeDecoder();
+      const { shown } = await playReversed(fake, fake.file({ name: 'a.mp4', dur: 8, gop }), 0, 8);
+      return fake.counts.decoded / shown.length;
+    };
+    expect(await decodedFor(8)).toBe(1);
+    expect(await decodedFor(16)).toBe(1);
+    // 1 s groups: [14–29] from 0, then [0–13]: 44 decodes for 30 frames.
+    expect(await decodedFor(30)).toBeCloseTo(44 / 30, 9);
+    // 4 s groups (some phones): about 4 decodes a frame, still bounded.
+    const long = await decodedFor(120);
+    expect(long).toBeGreaterThan(3);
+    expect(long).toBeLessThanOrEqual(120 / (2 * CHUNK) + 1);
+  });
+
+  /**
+   * An export at a constant speed: the frame at each drawn frame's source time, read forward on one reader, which
+   * restarts only when `skip` says so.
+   * @param speed source seconds per timeline second
+   * @param gop the file's key-frame group
+   * @param skip whether to restart at the wanted time when it is past the next key frame
+   * @returns frames decoded per frame drawn, and the most decoded for one
+   */
+  async function exportAt(speed: number, gop: number, skip: boolean) {
+    const fake = fakeDecoder();
+    const source = await keyedSource(fake, fake.file({ name: 'a.mp4', dur: 40, gop }));
+    const drawn = Math.floor((38 / speed) * FPS);
+    let iterator: AsyncIterator<PoolFrame> | null = null;
+    let pos = Infinity;
+    let worst = 0;
+    for (let index = 0; index < drawn; index++) {
+      const wanted = (index / FPS) * speed;
+      const nextKey = Number.isFinite(pos) ? await source.keyAfter(pos) : null;
+      if (!iterator || wanted < pos - 1e-6 || (skip && nextKey !== null && wanted >= nextKey - 1e-6)) {
+        await iterator?.return?.();
+        iterator = source.from(wanted);
+      }
+      const before = fake.counts.decoded;
+      for (;;) {
+        const result = await waitFor(iterator.next());
+        if (result.done) throw new Error('ran out of frames');
+        const frame = result.value;
+        frame.close();
+        pos = frame.time + frame.duration;
+        if (wanted < pos - 1e-6) break;
+      }
+      worst = Math.max(worst, fake.counts.decoded - before);
+    }
+    await iterator?.return?.();
+    source.close();
+    return { perFrame: fake.counts.decoded / drawn, worst };
+  }
+
+  it('at 10× a reader that jumps to the next key frame decodes less than one reading through, and never more than a group per frame', async () => {
+    for (const gop of [5, 15, 30, 120]) {
+      const through = await exportAt(10, gop, false);
+      const skipping = await exportAt(10, gop, true);
+      expect(through.perFrame).toBeCloseTo(10, 0);
+      expect(skipping.perFrame).toBeLessThanOrEqual(through.perFrame + 1e-9);
+      expect(skipping.worst).toBeLessThanOrEqual(Math.max(gop, 10));
+    }
+    // Short groups gain the most: every wanted frame of a 5-frame group is a key frame.
+    expect((await exportAt(10, 5, true)).perFrame).toBe(1);
+  });
+
+  it('at 1× skipping never restarts: the next key frame is always met by reading on', async () => {
+    const through = await exportAt(1, 30, false);
+    const skipping = await exportAt(1, 30, true);
+    expect(skipping.perFrame).toBe(1);
+    expect(skipping.perFrame).toBe(through.perFrame);
+  });
+});
+
+/* ---------- 207 (T021): lanes at speed, key-frame skips, reversed lanes and freeze frames ---------- */
+
+describe('207: laneWindow, the source span a lane covers (AC-10)', () => {
+  /**
+   * A 4 s video clip of source 2–6 s.
+   * @param fields its speed fields
+   * @returns the clip
+   */
+  const speedClip = (fields: SpeedFields = {}): SpeedClip => ({ kind: 'video', dur: 0, in: 2, out: 6, ...fields });
+
+  it('is in to out at 1× forwards, widened by the handles at the edge speed and never before 0', () => {
+    expect(laneWindow(speedClip(), 0, 0)).toEqual({ in: 2, out: 6 });
+    expect(laneWindow(speedClip(), 0.5, 0.25)).toEqual({ in: 1.5, out: 6.25 });
+    expect(laneWindow(speedClip({ speed: 2 }), 0.5, 0.5)).toEqual({ in: 1, out: 7 });
+    expect(laneWindow(speedClip({ speed: 10 }), 1, 0).in).toBe(0);
+  });
+
+  it('covers out → in for a reversed clip: its handles reach past out before it and past in after it', () => {
+    expect(laneWindow(speedClip({ reverse: true }), 0, 0)).toEqual({ in: 2, out: 6, reverse: true });
+    expect(laneWindow(speedClip({ reverse: true, speed: 2 }), 0.5, 0.25)).toEqual({ in: 1.5, out: 7, reverse: true });
+  });
+
+  it('follows a ramp: the handles run on at each edge’s own speed', () => {
+    const ramp = [
+      { at: 0, v: 1 },
+      { at: 1, v: 4 },
+    ];
+    const window = laneWindow(speedClip({ ramp }), 0.5, 0.5);
+    expect(window.in).toBeCloseTo(1.5, 9);
+    expect(window.out).toBeCloseTo(8, 9);
+    expect(window.reverse).toBeUndefined();
+  });
+
+  it('is one held source time for a freeze frame', () => {
+    expect(laneWindow({ kind: 'video', dur: 2, in: 2, out: 6, freeze: 3.5 }, 0.5, 0.5)).toEqual({
+      in: 3.5,
+      out: 3.5,
+      still: true,
+    });
+  });
+});
+
+describe('207: key-frame skips (D3, AC-10)', () => {
+  /**
+   * An export through the pool at a constant speed: the exact frame at each drawn frame's source time.
+   * @param speed source seconds per timeline second
+   * @param gop the file's key-frame group, in frames
+   * @returns frames decoded per frame drawn, the most decoded for one, and the readers opened
+   */
+  async function exportThroughPool(speed: number, gop: number) {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const poolClip = clip('c', fake.file({ name: 'a.mp4', dur: 40, gop }), 0, 40);
+    const timing: SpeedClip = { kind: 'video', dur: 0, in: 0, out: 40, speed };
+    const drawn = Math.floor((38 / speed) * FPS);
+    let worst = 0;
+    for (let index = 0; index < drawn; index++) {
+      const wanted = sourceAt(timing, index / FPS);
+      const before = fake.counts.decoded;
+      const pending = pool.frame(poolClip, wanted);
+      await settle();
+      expect((await pending)?.time).toBeCloseTo(frameTime(wanted, FPS), 9);
+      worst = Math.max(worst, fake.counts.decoded - before);
+    }
+    pool.dispose();
+    return { perFrame: fake.counts.decoded / drawn, worst, readers: fake.counts.readers };
+  }
+
+  it('at 10× jumps to the next key frame instead of decoding through: within a key-frame group per frame drawn', async () => {
+    // Every wanted frame of a 5-frame group is a key frame: one decode each (reading through costs 10).
+    expect((await exportThroughPool(10, 5)).perFrame).toBe(1);
+    for (const [gop, most] of [
+      [15, 6],
+      [30, 7.5],
+      [120, 9.5],
+    ] as const) {
+      const { perFrame, worst } = await exportThroughPool(10, gop);
+      expect(perFrame).toBeLessThanOrEqual(most);
+      expect(worst).toBeLessThanOrEqual(Math.max(gop, 10));
+    }
+  });
+
+  it('at 1× never restarts: the next key frame is always met by reading on', async () => {
+    const { perFrame, readers } = await exportThroughPool(1, 30);
+    expect(perFrame).toBe(1);
+    expect(readers).toBe(1);
+  });
+});
+
+describe('207: a reversed lane (AC-3, AC-10)', () => {
+  /** Most frames a reversed lane decodes at once: the pool's `ahead` × 4 (plan, Techniques). */
+  const CHUNK = LIMITS.ahead * 4;
+
+  /**
+   * A reversed clip of source 0.5–3.5 s of a 4 s file.
+   * @param fake the fake decoder
+   * @param gop the file's key-frame group, in frames
+   * @returns the pool clip
+   */
+  const reversedClip = (fake: ReturnType<typeof fakeDecoder>, gop = 30): PoolClip => ({
+    ...clip('r', fake.file({ name: 'r.mp4', dur: 4, gop }), 0.5, 3.5),
+    reverse: true,
+  });
+
+  /**
+   * The source time of the frame a reversed clip shows i-th, newest first.
+   * @param index frames into the clip
+   * @returns the middle of frame 104 − index
+   */
+  const backwards = (index: number) => at(104 - index) + 0.5 / FPS;
+
+  it('gives exact frames from out back to in, decoding each about once, never more than a chunk at a time', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const reversed = reversedClip(fake);
+    let peak = 0;
+    for (let index = 0; index < 90; index++) {
+      const pending = pool.frame(reversed, backwards(index));
+      await settle();
+      expect((await pending)?.time).toBeCloseTo(at(104 - index), 9);
+      peak = Math.max(peak, fake.frames());
+    }
+    // 1 s groups decoded in chunks of 16 from their key frames: about the spike's 44 decodes per 30 frames.
+    expect(fake.counts.decoded / 90).toBeLessThanOrEqual(1.5);
+    expect(peak).toBeLessThanOrEqual(CHUNK + 1);
+    pool.dispose();
+    expect(fake.frames()).toBe(0);
+    expect(fake.counts.doubleClose).toBe(0);
+  });
+
+  it('stays within a byte budget smaller than a chunk: the chunk shrinks to fit', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, { ...LIMITS, bytes: 6 * FRAME_BYTES });
+    const reversed = reversedClip(fake, 8);
+    for (let index = 0; index < 60; index++) {
+      const pending = pool.frame(reversed, backwards(index));
+      await settle();
+      expect((await pending)?.time).toBeCloseTo(at(104 - index), 9);
+      expect(fake.bytes()).toBeLessThanOrEqual(6 * FRAME_BYTES);
+    }
+    pool.dispose();
+  });
+
+  it('primes at its out point: the first frame it shows is ready without a hold', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const reversed = reversedClip(fake);
+    pool.prepare(reversed);
+    await settle();
+    const holds = pool.stats().holds;
+    expect(pool.peek(reversed, backwards(0))?.time).toBeCloseTo(at(104), 9);
+    expect(pool.stats().holds).toBe(holds);
+    pool.dispose();
+  });
+
+  it('plays backwards in the preview: frames newest first, decoded ahead in chunks, no holds after the first second', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const reversed = reversedClip(fake);
+    pool.prepare(reversed);
+    await settle();
+    const shown: number[] = [];
+    let behind = 0;
+    for (let index = 0; index < 90; index++) {
+      const frame = pool.peek(reversed, backwards(index));
+      const frameIndex = frame ? Math.round(frame.time * FPS) : -1;
+      shown.push(frameIndex);
+      if (index >= FPS && frameIndex !== 104 - index) behind++;
+      expect(fake.frames()).toBeLessThanOrEqual(2 * CHUNK + 1);
+      expect(pool.stats().bytes).toBeLessThanOrEqual(LIMITS.bytes);
+      await vi.advanceTimersByTimeAsync(1000 / FPS);
+    }
+    for (const [index, frameIndex] of shown.entries())
+      if (index > 0) expect(frameIndex).toBeLessThanOrEqual(defined(shown[index - 1]));
+    expect(behind).toBe(0);
+    pool.dispose();
+    expect(fake.counts.doubleClose).toBe(0);
+  });
+});
+
+describe('207: a freeze frame (AC-4, AC-10)', () => {
+  it('decodes its frame once and holds it, playing or paused, decoding nothing ahead', async () => {
+    const fake = fakeDecoder();
+    const pool = new DecodePool(fake.open, LIMITS);
+    const still: PoolClip = { ...clip('f', fake.file({ name: 'f.mp4', dur: 4, gop: 30 }), 2.5, 2.5), still: true };
+    const first = pool.frame(still, 2.5);
+    await settle();
+    const frame = await first;
+    expect(frame?.time).toBeCloseTo(2.5, 9);
+    const decoded = fake.counts.decoded;
+    for (let index = 0; index < 60; index++) {
+      expect(pool.peek(still, 2.5)).toBe(frame);
+      await vi.advanceTimersByTimeAsync(1000 / FPS);
+    }
+    const again = pool.frame(still, 2.5);
+    await settle();
+    expect(await again).toBe(frame);
+    expect(fake.counts.decoded).toBe(decoded);
+    expect(pool.stats().frames).toBe(1);
+    pool.dispose();
   });
 });

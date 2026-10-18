@@ -6,6 +6,7 @@ export class FakeAudio {
   paused = true;
   currentTime = 0;
   playbackRate = 1;
+  preservesPitch = false;
   volume = 1;
   muted = false;
   preload = '';

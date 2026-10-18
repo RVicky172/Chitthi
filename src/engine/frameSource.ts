@@ -2,6 +2,7 @@ import {
   ALL_FORMATS,
   BlobSource,
   CanvasSink,
+  EncodedPacketSink,
   Input,
   VideoSampleSink,
   type InputVideoTrack,
@@ -16,6 +17,8 @@ import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
  * with the last; each reader (`from`) is one Mediabunny iterator, so one `VideoDecoder` until its `return()` (T001).
  * The preview gets `VideoFrame`s at full size; export lanes (`maxWidth`, D5) get canvases resized as the export always
  * decoded them. Every frame goes through one registry, so `openFrames()` tells any self-test what is still open.
+ * Speed (207 §3): a source tells where its key frames are (Mediabunny's key packets), and a reversed lane's canvases
+ * are its own (a chunk holds more frames than a ring would keep), freed when the pool closes them.
  */
 
 /** What is open right now across every pool, as `openFrames` returns it. */
@@ -174,6 +177,44 @@ function fromCanvas(wrapped: WrappedCanvas): PoolFrame {
 }
 
 /**
+ * A frame the pool can keep from a canvas of its own (a reversed lane's: no ring), freed when it is closed.
+ * @param wrapped the canvas and its timing
+ * @returns the frame
+ */
+function fromOwnCanvas(wrapped: WrappedCanvas): PoolFrame {
+  const { canvas } = wrapped;
+  return trackFrame(
+    { image: canvas, width: canvas.width, height: canvas.height, time: wrapped.timestamp, duration: wrapped.duration },
+    () => {
+      canvas.width = 0;
+      canvas.height = 0;
+    },
+  );
+}
+
+/**
+ * Where a track's key frames are, from its key packets (no packet data read).
+ * @param track the video track
+ * @returns `keyBefore` and `keyAfter` as `FrameSource` has them
+ */
+function keyFrames(track: InputVideoTrack): Pick<FrameSource, 'keyBefore' | 'keyAfter'> {
+  const packets = new EncodedPacketSink(track);
+  const options = { metadataOnly: true } as const;
+  const keyAt = async (time: number) =>
+    (await packets.getKeyPacket(time, options)) ?? (await packets.getFirstPacket(options));
+  return {
+    keyBefore: async (time) => (await keyAt(time))?.timestamp ?? 0,
+    async keyAfter(time) {
+      const key = await keyAt(time);
+      if (!key) return null;
+      // Before the first frame, the first key frame is the next one.
+      if (key.timestamp > time) return key.timestamp;
+      return (await packets.getNextKeyPacket(key, options))?.timestamp ?? null;
+    },
+  };
+}
+
+/**
  * Wraps one Mediabunny iterator as a reader: counted as a decoder until it ends or is stopped.
  * @param frames the iterator
  * @param toFrame turns what it yields into a pool frame
@@ -239,21 +280,24 @@ export const mediabunnySource: FrameSourceFactory = async (file, options) => {
     throw error;
   }
   let closed = false;
-  let readFrom: (time: number) => AsyncIterator<PoolFrame>;
+  let readFrom: (time: number, end?: number) => AsyncIterator<PoolFrame>;
   if (options.maxWidth) {
-    // Export lanes: resized canvases from a ring larger than the frames a lane holds (the last + 4 ahead + 1 decoding).
+    // Export lanes: resized canvases from a ring larger than the frames a lane holds (the last + 4 ahead + 1 decoding);
+    // a reversed lane holds a chunk, so its canvases are new ones (poolSize 0), freed as the pool closes them.
     const width = Math.min(await track.getDisplayWidth(), Math.round(options.maxWidth));
-    const canvases = new CanvasSink(track, { width, poolSize: 8 });
-    readFrom = (time) => reader(canvases.canvases(Math.max(0, time)), fromCanvas, file);
+    const canvases = new CanvasSink(track, { width, poolSize: options.reverse ? 0 : 8 });
+    const toFrame = options.reverse ? fromOwnCanvas : fromCanvas;
+    readFrom = (time, end) => reader(canvases.canvases(Math.max(0, time), end), toFrame, file);
   } else {
     const samples = new VideoSampleSink(track);
-    readFrom = (time) => reader(samples.samples(Math.max(0, time)), fromSample, file);
+    readFrom = (time, end) => reader(samples.samples(Math.max(0, time), end), fromSample, file);
   }
   const source: FrameSource = {
-    from(time) {
+    from(time, end) {
       if (closed) throw new Error('The video was closed.');
-      return readFrom(time);
+      return readFrom(time, end);
     },
+    ...keyFrames(track),
     close() {
       if (closed) return;
       closed = true;

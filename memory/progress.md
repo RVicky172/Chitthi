@@ -11,6 +11,124 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-18 — 207 (T090–T092) ✔️
+**Done:** T090 docs (MEDIA-STUDIO speed section + Still to do, lld Speed section and module map, CHANGELOG, in-app
+docs); T091 the deferred checks in 290's list; T092 close: check green (1,952), lint:full clean, build entry 313 KB;
+AC-1–10 and AC-15 ticked, status implemented.
+**Next:** commit with the maintainer's OK, merge `feat/207-speed` into `main` (`--no-ff`), next Phase 2 feature.
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T081–T082)
+**Done:** T081 (recorded earlier: speedUi.ts, SpeedGroup.tsx, RampEditor.tsx, ClipInspector). T082: timeline speed
+badges, filmstrips through sourceAt, freeze frame look, Freeze button in Transport, Shift + F (only with Shift held),
+speed announcements. Check green (1,952). A stale ESLint cache kept T080's test red (learnings).
+**Next:** T090 (docs: MEDIA-STUDIO, lld, CHANGELOG, in-app docs), T091 (deferred checks into 290), T092 (close).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T080)
+**Done:** failing tests for the UI helpers: new `speedUi.test.ts` (speed text, log slider, ramp key steps, speed
+axis, point announcements) and timelineRows' `speedBadge`, `filmstripTimes`, `describeClipChange` at speed,
+`describeSpeedChange`. Plan: the ramp point-place rule moves from `state/videoSpeed.ts` to `engine/speed.ts` so the
+store and the editor share it.
+**Next:** T081 (Speed group, RampEditor, `speedUi.ts`), then T082 (timeline: badges, filmstrip, Freeze frame button,
+Shift + F, announcements). `npm run check` fails until both are done (test-first).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T070–T071)
+**Done:** store actions `state/videoSpeed.ts` (speed, reverse, ramp, point move / add / remove, reset, freeze at the
+playhead), one undo step each, `SpeedOutcome` with notes; `setSpeed` `{ reset }` and `{ ramp, rampSpan }`. A seeded
+1,000-edit property test found split cutting freeze frames (fixed: freezes split like photos). Check green (1,936).
+**Next:** T080 (failing tests for the inspector / timeline pure helpers: `speedBadge`, ramp editor keys, announcements).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T060–T061)
+**Done:** saving and reading speed: new `engine/speedGate.ts` `mergeSpeed` (30 malformed documents, 7 reasons;
+`rampSpan` checked, a bad one drops the ramp, D-050; a freeze's `dur` 0.1–60 s, 2 s when 0), `clipDocument` writes the
+fields only when set; 201–206 documents byte-identical. Check green (1,921).
+**Next:** T070 (failing store tests: undo steps, refusals, seeded 1,000-edit property test).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T052–T053)
+**Done:** sound at speed: `soundMuted` / `soundRate` (0.5–2× sounds; reverse, ramp, freeze, outside silent);
+`SoundSource.rate` in the export's plan; the preview drops silent clips and plays at `speed × nudge` with
+`preservesPitch`; the export stretches each window's part with WSOLA (50 ms carried) at the file's sample rate. Check
+green (1,872). The export path needs 290's listening check (no Web Audio in Node).
+**Next:** T060 (failing gate tests: ≥ 20 malformed documents, incl. `rampSpan`, D-050).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T050–T051)
+**Done:** `engine/timeStretch.ts` WSOLA (40 ms Hann, 50 % overlap, ±10 ms coarse-then-fine search, exact output
+length; `timeStretchChannels` keeps stereo in step). 17 tests (pitch within 1 %, length, no steps, loudness, chord,
+stereo); plain OLA fails 8. 60 s stereo: 0.5× 497 ms, 2× 125 ms (Node). Check green (1,865).
+**Next:** T052 (failing `audioPlan` / `soundMuted` / preview sound-plan tests).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T044–T045)
+**Done:** `freezeFrame` in speedEdits.ts (still = frame shown at the playhead, 2 s; before / after the clip at its
+first / last frame, else between a split; Magnetic shift or a room refusal; transitions and fade follow). Freezes trim
+like photos, 0.1–60 s. The maintainer chose (D-051) that a freeze holds the clip's keyframed values at the cut instead
+of plan §4's scaled keys. Check green (1,848).
+**Next:** T050 (failing `timeStretch` tests, WSOLA).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T042–T043)
+**Done:** edits at speed: `engine/speedEdges.ts` (edge room, trims, edge moves, split parts); edits.ts trims / roll /
+slide and videoClips.ts split go through it, 202–206 tests unchanged. D2 amended with the maintainer (D-050): ramps keep
+their curve over `rampSpan`; trims and splits move in / out along it (cutting re-fit the spline: up to 32 % off).
+`cutRamp` dropped. Check green (1,839).
+**Next:** T044 (failing `freezeFrame` tests). T060 must read `rampSpan`; T081 shows the curve inside in–out.
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T040–T041)
+**Done:** `engine/speedEdits.ts` `setSpeed` (speed / reverse / ramp; in-out kept, Magnetic shift on the main track,
+Q3 refusal text elsewhere, 0.1 s floor, TOO_LONG, videos limit, keys scaled via new `scaleKeys`, transitions tidied
+with a note; Q7 notes). `SpeedCtx` = MoveCtx + fps; result has an optional `note`. `edits.ts` exports `shiftFrom`,
+`lengthOf`. speedEdits.test.ts 20 tests; check green (1,830).
+**Next:** T042 (failing tests: trims at speed, reversed start edge, ramp cut, split, roll / slip / slide).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T030)
+**Done:** T030 drawers through one mapping: `speed.ts` `frameSourceAt` (reversed asks 1 ms before `sourceAt`,
+`REVERSE_NUDGE`, shared with the pool's prime) and `speedFields`; `stack.ts` `itemSource`. Export (frames, trace,
+lanes via `laneWindow`), preview (poolClip, paused frames, `reverseWidth` 1280), stage peek and fallback, preview sound's
+sync point; the export job carries the speed fields (`VClip extends SpeedFields`). stack.test.ts +5 (all cases at
+30 / 60 fps; 201–206 exactly `in + local`; handles). Check green (1,809). Left `in + local`: split in videoClips.ts (T043).
+**Next:** T040 (failing `setSpeed` tests, new `speedEdits.ts`).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T022)
+**Done:** T022 pool: key-frame skips (`keyAfter`), reversed lanes in chunks from `keyBefore` (newest first, prefetch,
+chunk / budget sliding), still lanes; `frameSource.ts` key packets, `from(t, end)`, own canvases for reversed export
+lanes; `lanePlan.ts` and `poolLane.ts` split out of decodePool.ts (807 → 763 lines). Pool tests 55/55, check green
+(1,804). lld.md §4.10 updated. Learning: a reversed clip's `sourceAt(clip, 0)` = `out` is the frame after it.
+**Next:** T030 (drawers through `sourceAt`; previewFrame passes `reverseWidth`, D4).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (T021)
+**Done:** T021 failing pool tests in `decodePool.test.ts`: `laneWindow` (the lane's source span from `sourceAt`, with
+handles; reversed out → in; freeze still), 10× key-frame skips through `pool.frame` (gop 5 → 1 decode a frame, today
+9.92), reversed lane (≤ 1.5 decodes a frame, a chunk + 1 open, primes at out, preview newest first with no holds after
+1 s), a freeze decoding once. 9 fail, 46 pass. Type-only fields on `FrameSource` / `PoolClip`; the fake tells key
+frames only for files with a `gop` (204's reread tests unchanged). Check fails only on the missing `laneWindow`.
+**Next:** T022 (implement; decodePool.ts is 807 lines, over max-lines: split it).
+**Blockers:** none. Nothing committed yet.
+
+## 2026-10-18 — 207 (spec, plan, tasks, T010–T013, T020)
+**Done:** spec approved (Q1–Q11 as proposed, Q8 same pitch); plan written and approved (D1–D5, D-049; AC-10 reworded,
+0.1 s shortest length in AC-2); tasks T010–T092; branch `feat/207-speed` from `main` (`e5e1437`, equal to
+`origin/main`). T010–T011: `engine/speed.ts` (constant speed, reverse, freeze; `sourceAt` / `localAt` / `playLength`)
+and `clipLength` with speed. T012–T013: ramps (six presets, `rampSpeedAt` on curve.ts's new unclamped
+`monotoneSpline`, a 512-step play-time table with adaptive Simpson per step, Newton inverse, ends pinned, `cutRamp`);
+speed.test.ts 82/82, `npm run check` green (1,788 unit tests).
+T020 spike: the fake decoder has key frames (`gop`, `counts.decoded`, `keyBefore` / `keyAfter`); reverse in chunks of
+16 from a key frame stays within 17 frames open (1 decode a frame for groups up to 16, ~4 for 4 s groups); skipping to
+the next key frame at 10× decodes 1–9.2 frames a drawn frame instead of 9.9; findings for T022 in its result.
+`npm run check` green (1,793).
+**Next:** T021, failing pool tests (lane windows, skips, reverse, freeze).
+**Blockers:** none. Nothing committed yet.
+
+---
+
 ## 2026-10-16 — 407 (T092, close)
 **Done:** T092: AC-1–AC-13 ticked (each covered by done tasks; T091's full DoD and T062's tests/ clean-up); 407
 `Implemented`, roadmap ✔️; `npm run check` green (1,706 tests). Merged into `main` (`--no-ff`), not pushed.

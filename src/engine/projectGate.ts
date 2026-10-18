@@ -35,6 +35,7 @@ import {
   type TrackKind,
   type TrackLimits,
 } from './tracks';
+import { mergeSpeed } from './speedGate';
 import { TRANSITION_REASONS, mergeTransition, tidyTransitions } from './transitions';
 import { MOTIONS, type Motion } from './video';
 import { V_FPS, formatsFor, limitsFor, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from './videoFormats';
@@ -511,13 +512,15 @@ function readClip(entry: unknown, context: ClipContext): DocClip | null {
   const tf = readTransform(entry.transform, dropped);
   const keys = mergeKeys(entry.keys, CLIP_KEY_PROPS, 'clip', context.budget);
   const transition = mergeTransition(entry.transition, dropped);
+  // Speed, reverse, ramps and freeze frames (207): a freeze frame's `dur` is its length, as a photo's.
+  const { dur: stillFor, ...speed } = mergeSpeed(entry, kind, media.srcDur, dropped);
   return {
     id: context.unique(entry.id, 'v'),
     track: track.id,
     start: numberIn(entry.start, 0, MAX_TIME) ?? 0,
     media: media.id,
     kind,
-    dur: times.dur,
+    dur: stillFor ?? times.dur,
     in: times.in,
     out: times.out,
     edit: mergeEdit(entry.edit),
@@ -527,6 +530,7 @@ function readClip(entry: unknown, context: ClipContext): DocClip | null {
     ...(tf ? { tf } : {}),
     ...(keys ? { keys } : {}),
     ...(transition ? { transition } : {}),
+    ...speed,
   };
 }
 
