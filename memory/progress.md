@@ -20,8 +20,8 @@ docs (MEDIA-STUDIO, DESKTOP, TROUBLESHOOTING, architecture §6–7, lld §4.11 +
 T111 ✔️ 209 re-read (takes are owned project media). T112 ✔️ close: check (2,417), lint:full, build (entry 314 KB;
 Continue now lists through `lib/projectLibrary`, not the 513 KB studio chunk). AC-1, AC-3–9 ticked; status
 implemented.
-**Next:** commit `feat/408-project-saving` (nothing is committed yet), try it in `npm run dev` / `desktop:dev`, merge
-into `main`; then 209 (D2–D3) or 290.
+**Next:** committed (`301a7e0`, 209 docs `d7af03e`) and merged into `main` (`9b4d012`, not pushed). Try it in
+`npm run dev` / `desktop:dev`; then 209 (D2–D3) or 290. `package.json`'s `allowScripts` change is left uncommitted.
 **Blockers:** none.
 
 ## 2026-10-19 — 408 (T051, T052, T060–T064)
