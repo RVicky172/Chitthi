@@ -71,7 +71,7 @@ edits a sample photo in the photo studio and exports it.
 ## Tools
 
 Read-only tools are annotated `readOnlyHint`; `save_design` is `destructiveHint` and needs `confirm: true` to
-overwrite a saved design, as `delete_preset` does to delete a preset. Tools that call the user's AI or Pexels account are annotated `openWorldHint`.
+overwrite a saved design, as `delete_preset` and `delete_project` do to delete. Tools that call the user's AI or Pexels account are annotated `openWorldHint`.
 
 | Group | Tool | What it does |
 | --- | --- | --- |
@@ -129,6 +129,11 @@ overwrite a saved design, as `delete_preset` does to delete a preset. Tools that
 | | `list_luts` / `import_lut` | Imported 3D LUTs; import from `.cube` text or an https URL |
 | Photo output | `render_photo_preview` | PNG of a photo as it will be posted (≤ 1024 px), optionally with a mask shown in red |
 | | `export_photos` | Every photo at full size in the chosen format and file type |
+| Projects | `list_projects` | Saved photo and video projects, newest first (optionally one studio): id, name, kind, length or photos, changed, size, whether it can be opened |
+| | `new_project` | Start and open an empty project: `studio` photo or video, `kind` reel or vlog |
+| | `open_project` | Open a saved project in its studio (the open one is saved first) |
+| | `rename_project` | 1 to 80 characters |
+| | `delete_project` | A project and the stored media no other project uses (`confirm`); the user's own files are never deleted |
 
 Files a tool makes are written to **Documents/Chitthi agent output** and returned as paths.
 

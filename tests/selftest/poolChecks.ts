@@ -2,10 +2,12 @@
  * Development only: the decoder pool's self-test checks on the real decoder (specs/features/204-decoder-pool). Test
  * clips are made in memory (videoChecks.ts makeTestClip: a flat colour per frame that tells its source time).
  */
-import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
+import { ALL_FORMATS, CanvasSink, Input } from 'mediabunny';
 import { clipColour, codeColour, decodedColours, makeTestClip, testPhoto } from './videoChecks';
 import type { LegacyProject } from '../support/timeline.testkit';
+import { blobFile } from '../support/blobFile';
 import type { PoolClip, PoolFrame } from '@/engine/decodePool';
+import { mediaInput, type MediaFile } from '@/engine/mediaFile';
 import type { ExportClip, ExportJob } from '@/engine/videoExport';
 import { context2d, cycleOf, entryAt, firstFew, meanRgb, messageOf, sleep } from './helpers';
 
@@ -278,7 +280,7 @@ async function stageDrawsStacks(check: Check): Promise<string> {
     const project = {
       ...fixture.project,
       clips: fixture.project.clips.map((clip) => {
-        const url = URL.createObjectURL(clip.file);
+        const url = URL.createObjectURL(blobFile(clip.file));
         objectUrls.push(url);
         return { ...clip, url };
       }),
@@ -703,7 +705,7 @@ async function exportSameFrames(check: Check, clipA: Blob, clipB: Blob): Promise
   const WIDTH = 480,
     HEIGHT = 270;
   const photos = await Promise.all([0, 1, 2].map((index) => testPhoto(index, 640, 427)));
-  const images = new Map<Blob, HTMLImageElement>();
+  const images = new Map<MediaFile, HTMLImageElement>();
   for (const photo of photos) {
     const url = URL.createObjectURL(photo.blob);
     images.set(photo.blob, await loadImage(url));
@@ -775,7 +777,7 @@ async function exportSameFrames(check: Check, clipA: Blob, clipB: Blob): Promise
       idx.map((frameIndex) => (frameIndex + 0.5) / FPS),
     );
     const plan = framePlan(job, FPS);
-    const inputs = new Map<Blob, { input: Input; sink: CanvasSink }>();
+    const inputs = new Map<MediaFile, { input: Input; sink: CanvasSink }>();
     try {
       for (const [sample, frameIndex] of idx.entries()) {
         const span = plan.find((entry) => frameIndex >= entry.f0 && frameIndex < entry.f1);
@@ -816,7 +818,7 @@ async function exportSameFrames(check: Check, clipA: Blob, clipB: Blob): Promise
         } else {
           let opened = inputs.get(spanClip.file);
           if (!opened) {
-            const input = new Input({ source: new BlobSource(spanClip.file), formats: ALL_FORMATS });
+            const input = new Input({ source: mediaInput(spanClip.file), formats: ALL_FORMATS });
             const track = await input.getPrimaryVideoTrack();
             if (!track) throw new Error(`${name}: no video track in ${spanClip.id}`);
             const width = Math.min(await track.getDisplayWidth(), Math.round(Math.max(WIDTH, HEIGHT) * 1.8));

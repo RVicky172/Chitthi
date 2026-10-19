@@ -66,7 +66,8 @@ import {
 import { scanIO } from '@/state/soundScan';
 import { audioPlan } from '@/engine/soundPlan';
 import { mixKey, planLoudness, type MixMeasure } from '@/engine/exportSound';
-import { soundJob } from '@/state/videoExportJob';
+import { exportVideo, soundJob } from '@/state/videoExportJob';
+import { missingMedia } from '@/engine/mediaFile';
 import { soundLength } from '@/engine/soundClips';
 import { MUSIC } from '@/engine/tracks';
 import {
@@ -1953,3 +1954,19 @@ describe('208: the loudness measured in the background (AC-9)', () => {
     expect(masterGainDb(getVideo())).toBe(0);
   });
 });
+
+describe('408: the export is refused while files are missing (D4)', () => {
+  const goneClip = missingMedia({ id: 'm1', name: 'beach.mp4', size: 10, type: 'video/mp4' });
+  const goneVoice = missingMedia({ id: 'm2', name: 'voice.wav', size: 10, type: 'audio/wav' });
+
+  it('lists the missing clips and sounds, once each, before anything starts', async () => {
+    const voice: VSound = { id: 's1', track: MUSIC, start: 0, in: 0, out: 2, volume: 1, toEnd: false, srcDur: 2, file: goneVoice, url: '' };
+    loadVideoProject({
+      clips: [{ ...clip('a', 0, 2), file: goneClip }, clip('b', 2, 2), { ...clip('c', 4, 2), file: goneClip }],
+      sounds: [voice],
+    });
+    await expect(exportVideo()).rejects.toThrow('Find the missing files first: beach.mp4, voice.wav.');
+    expect(getVideo().progress).toBeNull();
+  });
+});
+

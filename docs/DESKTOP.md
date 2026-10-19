@@ -8,6 +8,7 @@ offline: fonts and sample photos ship inside the app.
 | | Web | Desktop |
 |---|---|---|
 | Gallery, photo store, last card | IndexedDB in the browser | JSON files in the app's data folder (below) |
+| Photo and video projects | IndexedDB `chitthi-projects`; media copied into the site's private storage (OPFS) | Project files in `library/projects/`; your media used where it is, never copied |
 | Downloads | Browser download | Native **Save as…** dialog |
 | Fonts | Google Fonts | Bundled offline (`npm run fetch:fonts`) |
 | Offline | Service worker | Always offline |
@@ -25,7 +26,16 @@ Desktop data folder (**File → Open library folder**):
 - macOS: `~/Library/Application Support/Chitthi/library`
 
 It contains `designs/<id>.json`, `photos/<id>.json` (the photo store), `presets/<id>.json` (saved presets of the
-photo & video editors) and `work.json` (the card in progress).
+photo & video editors) and `work.json` (the card in progress), and for saved photo and video projects:
+
+- `projects/<id>.project`: one project (its list entry on the first line, then the document), written whole: to a
+  `.tmp` file, then renamed. `projects/<id>.cache.json` beside it holds thumbnails, filmstrips, previews and waveforms.
+- `media-index.json`: where each project's media is on disk (path, size, modification time). Only the app's main
+  process writes it; the page knows media by id only and plays it through `chitthi-media://<id>`, which answers only
+  for files still as they were.
+- `media/<id>`: files the app made itself (recordings, downloads). Your own files are never copied, moved or deleted;
+  deleting a project removes only the app's own files no other project uses.
+
 Files made by agent tools go to `Documents/Chitthi agent output`.
 
 Command-line: `Chitthi --mcp` starts the MCP server for an agent over stdio, with no window. It runs beside an open

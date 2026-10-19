@@ -4,6 +4,7 @@ import { embeddedJpeg, isRawName, rawToRgba8, type RawImage } from '../engine/ra
 import { logError } from '../lib/errors';
 import { desktop } from '../platform/desktop';
 import { flags, getIg, PREVIEW_MAX, record, setIgState, type IgItem } from './instagram';
+import { keepMedia } from './projectSave';
 
 /*
  * Photos into the Instagram batch: files decoded into items with a preview copy, camera RAW developed by the desktop
@@ -71,6 +72,15 @@ async function makeRawItem(name: string, file: Blob): Promise<IgItem> {
   const img = await developRaw(name, file);
   return { id: newId(), name, file, w: img.width, h: img.height, preview: canvasOf(rawToRgba8(img, PREVIEW_MAX)), edit: { ...DEFAULT_EDIT }, layers: [], raw: true };
 }
+
+/**
+ * A photo's preview (at most PREVIEW_MAX px on the long side), made again from its file (a reopened project, 408).
+ * @param name the file's name
+ * @param file the file
+ * @param raw it is a camera RAW, developed again
+ * @returns the preview
+ */
+export const previewOf = async (name: string, file: Blob, raw = false): Promise<HTMLCanvasElement> => (raw ? await makeRawItem(name, file) : await makeItem(name, file)).preview;
 
 /**
  * A batch photo from an image file.
@@ -169,5 +179,7 @@ export async function addPhotos(files: PhotoFile[]): Promise<string[]> {
   if (added.length) record('');
   const current = getIg();
   setIgState({ items: [...current.items, ...added], selected: current.selected ?? added.at(0)?.id ?? null, busy: null, ...flags() });
+  // Kept for the saved project (408 §4) before the save that references it.
+  for (const item of added) void keepMedia(item.file, false);
   return messages;
 }

@@ -1,7 +1,12 @@
-import { useEffect, useState, type ReactNode, type RefObject } from 'react';
+import { Suspense, lazy, useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { isDesktop } from '../../platform/desktop';
 import { setUI } from '../../state/store';
-import { ImageIcon, LaptopIcon, Logo, ReelIcon, YouTubeIcon } from '../icons';
+import { FolderIcon, ImageIcon, LaptopIcon, Logo, ReelIcon, YouTubeIcon } from '../icons';
+import { StudioDialog } from './Dialog';
+import { SaveStatusLine } from './ProjectStatus';
+
+// The Projects panel (408) loads when it is first opened.
+const ProjectsPanel = lazy(() => import('./ProjectsPanel').then((module) => ({ default: module.ProjectsPanel })));
 
 /*
  * The media studio's workspace, shared by the photo, Reel and YouTube editors: a top bar (modes and actions), a tool
@@ -71,6 +76,7 @@ interface StudioShellProps<T extends string> {
  */
 export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T>>) {
   const { mode, onMode, actions, rail, tool, onTool, panel, stage, inspector, dock, children } = props;
+  const [isListing, setListing] = useState(false);
   return (
     <div className={`mst mst-${mode}${tool ? '' : ' mst-nopanel'}`}>
       <header className="mst-top">
@@ -88,6 +94,10 @@ export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T
             Chitthi <em>Studio</em>
           </span>
         </a>
+        <button type="button" className="btn ghost mst-projects-btn" aria-haspopup="dialog" onClick={() => setListing(true)} title="Your saved projects">
+          <FolderIcon />
+          <span>Projects</span>
+        </button>
         <nav className="mst-modes" aria-label="What to make">
           {MODES.map((option) => (
             <button key={option.id} type="button" aria-pressed={mode === option.id} onClick={() => onMode(option.id)} title={option.label}>
@@ -97,6 +107,7 @@ export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T
             </button>
           ))}
         </nav>
+        <SaveStatusLine />
         <div className="mst-actions">{actions}</div>
       </header>
       <div className="mst-body">
@@ -121,6 +132,11 @@ export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T
         <main className="mst-stage">{stage}</main>
       </div>
       <footer className="mst-dock">{dock}</footer>
+      <StudioDialog open={isListing} onClose={() => setListing(false)} title={mode === 'photos' ? 'Photo projects' : 'Video projects'}>
+        <Suspense fallback={<p className="hint">Loading…</p>}>
+          <ProjectsPanel studio={mode === 'photos' ? 'photo' : 'video'} kind={mode === 'vlog' ? 'vlog' : 'reel'} onClose={() => setListing(false)} />
+        </Suspense>
+      </StudioDialog>
       {children}
     </div>
   );

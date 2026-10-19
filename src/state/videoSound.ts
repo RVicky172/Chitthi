@@ -4,6 +4,7 @@ import { addSound, deleteSound, duplicateSound, moveSound, rippleSound, rollSoun
 import { MUSIC, lockedReason } from '../engine/tracks';
 import type { MixMeasure, SoundJob } from '../engine/exportSound';
 import { logError } from '../lib/errors';
+import { keepMedia } from './projectSave';
 import { scanMedia, scanSnapshot, subscribeScans } from './soundScan';
 import { soundJob } from './videoExportJob';
 import { keyEdit } from './videoKeys';
@@ -106,7 +107,11 @@ export async function addSoundFiles(files: File[], place: SoundPlace = {}): Prom
   }
   if (added.length > 0) {
     change('', { sounds, tracks });
-    for (const sound of added) scanMedia(sound.url, sound.file);
+    for (const sound of added) {
+      // Kept for the saved project (408 §4) before the save that references it.
+      void keepMedia(sound.file, false);
+      scanMedia(sound.url, sound.file);
+    }
   }
   return messages;
 }

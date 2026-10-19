@@ -4,6 +4,7 @@ import { drawLayers } from '../engine/layerDraw';
 import { aiTargets } from '../engine/masks';
 import { encodePhoto, PHOTO_TYPES } from '../engine/photoExport';
 import { loadImage } from '../engine/photo';
+import { blobOf, missingFilesMessage } from '../engine/mediaFile';
 import { rawToRgba8, type RawImage } from '../engine/raw';
 import { shareSegments } from '../engine/segments';
 import { ensureFonts } from '../lib/fonts';
@@ -43,14 +44,14 @@ interface ExportSource {
  */
 async function exportSource(item: IgItem): Promise<ExportSource> {
   if (item.raw) {
-    const raw = await developRaw(item.name, item.file),
+    const raw = await developRaw(item.name, await blobOf(item.file)),
       canvas = canvasOf(rawToRgba8(raw, Math.max(raw.width, raw.height)));
     const release = () => {
       canvas.width = canvas.height = 1;
     };
     return { img: canvas, w: canvas.width, h: canvas.height, raw, done: release };
   }
-  const url = URL.createObjectURL(item.file);
+  const url = URL.createObjectURL(await blobOf(item.file));
   try {
     const img = await loadImage(url);
     return { img, w: img.naturalWidth, h: img.naturalHeight, raw: null, done: () => undefined };
@@ -119,11 +120,15 @@ async function renderItem(context: CanvasRenderingContext2D, item: IgItem, mime:
 
 /**
  * Renders every photo at full size in the chosen format and file type. One photo is in full-size memory at a time.
+ * Refused while a photo's file is missing (408 D4).
  * @param onProgress told how many photos are done, of how many
  * @returns the files, named by format and position
  */
 export async function renderBatch(onProgress?: (done: number, total: number) => void): Promise<File[]> {
   const { format: formatId, fileType, items } = getIg();
+  // Refused while a photo's file is missing (408 D4).
+  const missing = missingFilesMessage(items.map((item) => item.file));
+  if (missing) throw new Error(missing);
   const format = igFormat(formatId),
     { mime: type, ext } = PHOTO_TYPES[fileType];
   const out: File[] = [];

@@ -45,6 +45,11 @@ Reports stay on your clipboard; nothing is sent automatically. Read one before y
 | Designs disappeared (web) | Clearing site data or browser cleanup tools delete them. Back up regularly with **Gallery → Back up gallery** |
 | Saving fails | Delete photos you no longer need from the photo library, or move to the desktop app (no browser limit) |
 | Moving designs to another computer | **Gallery → Back up gallery**, then **Restore a backup** on the other device; or save single `.chitthi` files |
+| The top bar says **Not saved: storage is full** (photo or video project) | The project stays open; delete projects you no longer need (**Projects**, which shows the space each frees) and it saves again on the next change, or within 30 s |
+| A project is listed as **can't be opened** | Its saved file is damaged (a disk error, or edited by hand). The other projects are unaffected; it can only be deleted |
+| Projects disappeared (browser) | Clearing site data, private windows and some cleanup tools delete them, with their media. Click **Keep my projects** in **Projects**, or use the desktop app |
+| A clip or photo shows as a hatched placeholder | Its file moved, changed or was deleted. Desktop: **Find file…** in the inspector or the bar over the timeline. Browser: add the file again. Exporting waits until no file is missing |
+| **This project is open in another window** | The same project was opened in another tab or window, which now saves it. Close one, or click **Open here again** |
 
 ## Video (Reels and YouTube)
 

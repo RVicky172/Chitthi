@@ -7,6 +7,8 @@
  */
 const { app, BrowserWindow, Menu, dialog, protocol, session, shell } = require('electron');
 const { handle, on } = require('./ipc.cjs');
+const { MEDIA_PRIVILEGES, MEDIA_SCHEME, registerMedia } = require('./media.cjs');
+const { registerProjects } = require('./projects.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -26,8 +28,10 @@ const hasLocalFonts = () => !DEV_URL && fs.existsSync(path.join(FONTS, 'ui.css')
 
 /* ------------------------------------------------------------------ app:// origin */
 
+// chitthi-media://<id>: saved projects' media, read with Range requests by <video>, fetch and workers (408, media.cjs).
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+  { scheme: MEDIA_SCHEME, privileges: MEDIA_PRIVILEGES },
 ]);
 
 const MIME = {
@@ -50,25 +54,7 @@ const MIME = {
   '.wasm': 'application/wasm',
 };
 
-// Google Fonts stay allowed as a fallback for builds made without `npm run fetch:fonts`.
-const CSP = [
-  "default-src 'self'",
-  // AI masks run their model with WebAssembly (ONNX Runtime Web), which needs 'wasm-unsafe-eval' (no JavaScript eval).
-  "script-src 'self' 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  // Pexels photo search (with the user's own key) and the photos it downloads.
-  "img-src 'self' data: blob: https://images.pexels.com",
-  // ...and the sky model, downloaded once from Hugging Face (its CDN is *.hf.co) when the user agrees.
-  "connect-src 'self' data: blob: https://api.pexels.com https://images.pexels.com https://huggingface.co https://*.hf.co",
-  // The video editor plays local clips and music from blob: URLs; the video encoder starts blob: workers.
-  "media-src 'self' blob:",
-  "worker-src 'self' blob:",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "frame-src 'none'",
-  "form-action 'none'",
-].join('; ');
+const { CSP } = require('./csp.cjs');
 
 function serveApp() {
   protocol.handle('app', async (req) => {
@@ -301,6 +287,14 @@ function openExternal(url) {
 
 let win = null;
 let pendingFile = null; // a .chitthi path passed at launch, opened once the page has loaded
+/** Asks the page to save its open project before the window closes (projects.cjs; set once the app is ready). */
+let projectsFlusher = null;
+/** The longest the window waits for that save, ms. */
+const FLUSH_LIMIT = 2000;
+let quitting = false;
+app.on('before-quit', () => {
+  quitting = true;
+});
 
 const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 function loadWindowState() {
@@ -342,6 +336,21 @@ function createWindow() {
   if (saved.maximized) win.maximize();
   win.once('ready-to-show', () => win.show());
   win.on('close', saveWindowState);
+  // The page saves its open project first (408): the close waits for its answer, at most FLUSH_LIMIT, then goes on
+  // (and a quit that started it quits).
+  let flush = 'not-asked';
+  win.on('close', (event) => {
+    if (flush === 'done' || !projectsFlusher) return;
+    event.preventDefault();
+    if (flush === 'asking') return;
+    flush = 'asking';
+    const closing = win;
+    projectsFlusher.ask(FLUSH_LIMIT).finally(() => {
+      flush = 'done';
+      if (quitting) app.quit();
+      else if (!closing.isDestroyed()) closing.close();
+    });
+  });
   win.on('closed', () => {
     win = null;
   });
@@ -494,6 +503,15 @@ const { registerAi } = require('./ai.cjs');
 const { registerRaw } = require('./raw.cjs');
 const agent = require('./mcp.cjs');
 
+/**
+ * Saved photo and video projects and their media (408): the handlers, and chitthi-media:// for the page's origin.
+ * @param {() => Electron.WebContents | null} contents the window's page (asked to save before it closes)
+ */
+function registerSaved(contents) {
+  projectsFlusher = registerProjects(path.join(LIB(), 'projects'), contents);
+  registerMedia(LIB(), { origin: DEV_URL ? new URL(DEV_URL).origin : ORIGIN });
+}
+
 if (MCP_MODE) {
   // Headless agent mode: its own process next to any open Chitthi window (no single-instance lock, no menu).
   app.whenReady().then(async () => {
@@ -503,6 +521,7 @@ if (MCP_MODE) {
     registerFiles();
     registerAi();
     registerRaw();
+    registerSaved(() => null);
     const page = DEV_URL || `${ORIGIN}/index.html`;
     try {
       await agent.startHeadless({ url: `${page}?agent`, preload: path.join(__dirname, 'preload.cjs') });
@@ -539,6 +558,7 @@ if (MCP_MODE) {
     registerFiles();
     registerAi();
     registerRaw();
+    registerSaved(() => (win ? win.webContents : null));
     // Live agent connection (Settings → AI): drives this window when turned on.
     agent.registerAgentIpc(() => (win ? win.webContents : null));
     menu();

@@ -118,7 +118,8 @@
           "404",
           "405",
           "406",
-          "407"
+          "407",
+          "408"
         ]
       }
     }
@@ -209,11 +210,12 @@
       "209": {
         "title": "Voice-over",
         "workItem": "P2.9",
-        "status": "not-started",
+        "status": "spec-approved",
         "note": "",
-        "folder": null,
+        "folder": "features/209-voice-over",
         "needs": [
-          "208"
+          "208",
+          "408"
         ]
       },
       "210": {
@@ -390,6 +392,14 @@
         "status": "done",
         "note": "",
         "folder": "features/407-code-structure",
+        "needs": []
+      },
+      "408": {
+        "title": "Saved photo and video projects",
+        "workItem": null,
+        "status": "done",
+        "note": "",
+        "folder": "features/408-project-saving",
         "needs": []
       },
       "000": {

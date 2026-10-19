@@ -54,7 +54,18 @@
   tracks (Music / Voice / Effects, volume, Solo), sound clips with the edit tools, fades, volume line and keyframes,
   waveforms (sound and video clips), ducking, loudness target (−14 LUFS) with a true-peak limiter, preview = export
   mix; `SoundRow.tsx`, `SoundInspector.tsx`, `AudioPanel.tsx`. AC-1–12, 17 ticked; AC-13–16 wait for 290. Decisions
-  D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB. Next: 209 (voice-over) from `main`, or the 290 test pass.
+  D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB.
+- **209:** `209-voice-over` spec Approved 2026-10-19 (Q1–Q14 accepted), plan drafted on `spec/209-voice-over`
+  (§1–§10). D1: video/photo projects aren't saved anywhere today (in memory until reload); the maintainer chose to
+  add project saving first as its own feature (**408**, now implemented); 209 re-read against it (408 T111: takes are
+  owned project media, the take store keeps takes in progress only). D2–D3 still open.
+- **408:** `408-project-saving` ✔️ Implemented 2026-10-19 on `feat/408-project-saving` (from `main`, **not committed
+  yet**): saved photo and video projects with autosave (`state/projectSave.ts`), the Projects panel, Continue on the
+  home screen, save status, Find file…, one window per project (`lib/projectLock.ts`), agent tools (61 now). Browser:
+  IndexedDB `chitthi-projects` + OPFS media copies; desktop: `library/projects/`, user media referenced through
+  `chitthi-media://` + a main-only `media-index.json` (`electron/media.cjs`). D-059, D-060 (cache by media id with
+  whole sound scans). AC-1, AC-3–9 ticked; AC-2 (export identity), AC-10–13 wait for 290; AC-14 docs for review.
+  The studios now start their project on opening (`showStudio`): not yet run in a browser. Entry 314 KB.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

@@ -27,6 +27,65 @@ export interface SoundScan {
   dur: number;
 }
 
+/** A scan as a saved project's cache keeps it (408 Q14): its arrays as base64 text. */
+export interface SavedScan {
+  dur: number;
+  /** `peaks`' bytes, base64. */
+  peaks: string;
+  /** `rms`' Float32 bytes (little-endian), base64. */
+  rms: string;
+}
+
+/**
+ * Bytes as base64.
+ * @param bytes the bytes
+ * @returns the text
+ */
+function toBase64(bytes: Uint8Array): string {
+  let text = '';
+  for (let at = 0; at < bytes.length; at += 0x8000) text += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+  return btoa(text);
+}
+
+/**
+ * Base64 as bytes.
+ * @param text the text
+ * @returns the bytes, or null when it isn't base64
+ */
+function fromBase64(text: string): Uint8Array | null {
+  try {
+    return Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A scan as text, to keep with a saved project.
+ * @param scan the scan
+ * @returns its saved form
+ */
+export function encodeScan(scan: SoundScan): SavedScan {
+  const rms = new Uint8Array(scan.rms.buffer, scan.rms.byteOffset, scan.rms.byteLength);
+  return { dur: scan.dur, peaks: toBase64(scan.peaks), rms: toBase64(rms) };
+}
+
+/**
+ * A saved scan read back, checked.
+ * @param saved what the cache held
+ * @returns the scan, or null when it isn't one
+ */
+export function decodeScan(saved: unknown): SoundScan | null {
+  if (!saved || typeof saved !== 'object') return null;
+  const { dur, peaks, rms } = saved as Record<string, unknown>;
+  if (typeof dur !== 'number' || !Number.isFinite(dur) || dur < 0 || typeof peaks !== 'string' || typeof rms !== 'string') return null;
+  const peakBytes = fromBase64(peaks);
+  const rmsBytes = fromBase64(rms);
+  if (!peakBytes || !rmsBytes || rmsBytes.length % 4 !== 0) return null;
+  // A copy on its own aligned buffer: the Float32Array view needs an offset that's a multiple of 4.
+  return { rate: SCAN_RATE, peaks: peakBytes, rms: new Float32Array(rmsBytes.slice().buffer), dur };
+}
+
 /**
  * A peak as a byte: its level in 255 steps from `PEAK_FLOOR` to 0 dBFS (~0.38 dB each).
  * @param amplitude the loudest |sample|

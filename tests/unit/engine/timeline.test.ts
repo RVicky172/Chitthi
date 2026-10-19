@@ -36,6 +36,7 @@ import { mergeProject } from '@/engine/projectGate';
 import {
   legacyAudioPlan,
   legacyClipAt,
+  legacyDoc,
   legacyFixtures,
   legacyFramePlan,
   legacyTimeline,
@@ -308,51 +309,6 @@ describe('gaps on the main video track (202)', () => {
 });
 
 /* ---------- T014: the document, the 2.x migration and the gate ---------- */
-
-/**
- * A 2.x project as a document: clips in order with their media, the song, layers (no version).
- * @param project the 2.x project
- * @returns the document
- */
-function legacyDoc(project: LegacyProject) {
-  const media = [
-    ...project.clips.map((clip) => ({
-      id: `m${clip.id}`,
-      kind: clip.kind,
-      name: `${clip.id}.${clip.kind === 'photo' ? 'jpg' : 'mp4'}`,
-      type: clip.kind === 'photo' ? 'image/jpeg' : 'video/mp4',
-      size: 1000,
-      w: 1600,
-      h: 900,
-      srcDur: clip.kind === 'video' ? clip.out + 1 : 0,
-    })),
-    ...(project.music
-      ? [
-          {
-            id: 'msong',
-            kind: 'audio' as const,
-            name: 'song.mp3',
-            type: 'audio/mpeg',
-            size: 5000,
-            w: 0,
-            h: 0,
-            srcDur: project.music.dur,
-          },
-        ]
-      : []),
-  ];
-  return {
-    kind: 'vlog' as const,
-    format: 'yt1080' as const,
-    fps: 30 as const,
-    quality: 'standard' as const,
-    fadeOut: project.fadeOut,
-    clips: project.clips.map((clip) => ({ ...clip, media: `m${clip.id}` })),
-    music: project.music ? { ...project.music, media: 'msong' } : null,
-    layers: project.layers,
-    media,
-  };
-}
 
 describe('the 2.x project becomes tracks (fromSequence)', () => {
   it.each(fixtures)('%s: one video track back to back, one music track', (_, project) => {

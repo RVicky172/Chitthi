@@ -29,6 +29,7 @@ import {
   type SoundClip,
   type SoundJob,
 } from './exportSound';
+import { blobOf, type MediaFile } from './mediaFile';
 import { projectLength } from './timeline';
 import { limitsFor } from './videoFormats';
 import { renderStack, type FrameClip } from './video';
@@ -146,12 +147,12 @@ class FramePictures {
 }
 
 /**
- * Decodes a photo through an object URL, revoked again if it fails.
+ * Decodes a photo through an object URL of its bytes (fetched once for disk media), revoked again if it fails.
  * @param file the photo's file
  * @returns its picture, holding the object URL
  */
-async function loadPhoto(file: Blob): Promise<Picture> {
-  const objectUrl = URL.createObjectURL(file);
+async function loadPhoto(file: MediaFile): Promise<Picture> {
+  const objectUrl = URL.createObjectURL(await blobOf(file));
   const image = await loadImage(objectUrl).catch((error: unknown) => {
     URL.revokeObjectURL(objectUrl);
     throw error;

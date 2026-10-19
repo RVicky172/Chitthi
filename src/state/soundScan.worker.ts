@@ -3,13 +3,14 @@
  * decodes, so a 3-hour file is never decoded whole; AudioBuffer doesn't exist in a worker, AudioData does) and folds it
  * with engine/soundScan.ts. One file at a time; a `cancel` message stops it between chunks.
  */
-import { ALL_FORMATS, AudioSampleSink, BlobSource, Input, type AudioSample } from 'mediabunny';
+import { ALL_FORMATS, AudioSampleSink, Input, type AudioSample } from 'mediabunny';
+import { mediaInput, type MediaFile } from '../engine/mediaFile';
 import { scanSamples, type SampleChunk } from '../engine/soundScan';
 
 /** A request: scan a file, or stop scanning one. */
 interface ScanRequest {
   id: number;
-  file?: Blob;
+  file?: MediaFile;
   cancel?: true;
 }
 
@@ -50,10 +51,10 @@ async function* chunks(sink: AudioSampleSink): AsyncGenerator<SampleChunk> {
  * @param id the request's id
  * @param file the file
  */
-async function scan(id: number, file: Blob): Promise<void> {
+async function scan(id: number, file: MediaFile): Promise<void> {
   const controller = new AbortController();
   running.set(id, controller);
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  const input = new Input({ source: mediaInput(file), formats: ALL_FORMATS });
   try {
     const track = await input.getPrimaryAudioTrack().catch(() => null);
     if (!track || !(await track.canDecode())) {

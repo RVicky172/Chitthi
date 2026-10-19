@@ -87,6 +87,10 @@ src/
     timeStretch.ts           Same-pitch time-stretch (WSOLA) for the export's sound at speed (207)
     projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
     projectGate.ts           mergeProject: the gate for project files and 2.x projects
+    photoProjectDoc.ts       The saved photo project (408): photoDocument / photoFromDocument, mergePhotoProject
+    mediaKey.ts              A file's media id: its fingerprint (size, type, first and last 64 KB) (408)
+    mediaFile.ts             MediaFile (Blob or desktop DiskMedia), mediaInput, blobOf, missing files (408)
+    missingDraw.ts           The hatched placeholder of a missing file (408 D4)
     edits.ts                 Edit operations on a track (202): ripple / lift / gaps, trim, moveTo, reorder, roll, slip,
                              slide, nudge, checkTrack
     timeSnap.ts              Snapping on the timeline (202): the times a dragged clip, layer or edge snaps to
@@ -127,6 +131,8 @@ src/
     videoSpeed.ts            Speed actions (207): speed, reverse, ramp and its points, reset, freeze at the playhead
     videoMedia.ts            Photos and videos into clips (addMedia, filmstrips), the music
     videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
+    projectSave.ts           Autosave of both studios' projects, the save status, keepMedia, the cache (408 §6)
+    projects.ts              Saved projects: new, open, rename, duplicate, delete, the last per studio, Find file… (408)
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     idb.ts                   The IndexedDB helpers db, userFonts and userLuts share (open, one request per transaction)
@@ -141,6 +147,11 @@ src/
     errors.ts                In-memory log of recent errors (uncaught, rejections, render, handled) for the reports;
                              components/ErrorBoundary.tsx shows the error screen
     download.ts, zip.ts, toast.ts, theme.ts
+    projects.ts              The ProjectLibrary interface, entries and cache (408); projectsWeb.ts (IndexedDB
+                             chitthi-projects), projectsDesktop.ts (bridge), projectLibrary.ts (chosen per platform)
+    mediaStore.ts            The MediaStore interface (408); mediaWeb.ts + mediaWeb.worker.ts (OPFS copies),
+                             mediaDesktop.ts (references through electron/media.cjs), mediaLibrary.ts (chosen)
+    projectLock.ts           One editor per project: a BroadcastChannel between tabs and windows (408 §8)
   ai/                      Loaded with import() only when an AI feature is used (section 5, AI)
     types.ts                 TextAdapter, ImageAdapter, requests, AiError, aspect helpers
     registry.ts              Provider id → lazy adapter module; request context per call
@@ -154,7 +165,7 @@ src/
                              modelState / deleteModel for Settings, 401), models.ts (the two models, modelRow),
                              worker.ts (ONNX Runtime Web), models/u2netp.onnx
   agent/
-    tools.ts                 The registry: the 56 agent tools in the order agents see them, toolNamed
+    tools.ts                 The registry: the 61 agent tools in the order agents see them, toolNamed
     catalogTools.ts          Print catalogue: products, sizes, layouts, themes, fonts, festivals (read only)
     designTools.ts           Print design: new design, size, layout, theme, words, back, calendar, any setting
     cardPhotoTools.ts        Photos on a print design: slots, calendar pages, files, URLs, Pexels, arrange
@@ -186,7 +197,7 @@ src/
                            mixer, looks), panes/ = the
                            print studio's step panes, ai/ = AI settings, words and artwork dialogs
   styles.css               Ordered @imports of styles/ (section 8, Styles)
-  styles/                  The stylesheet split by feature: 01-base.css … 40-site-nav.css, in cascade order
+  styles/                  The stylesheet split by feature: 01-base.css … 41-projects.css, in cascade order
 electron/
   main.cjs                 Main process: window, app:// protocol + CSP, file library, dialogs, menus, updater
   preload.cjs              contextBridge: the only system access for the page
@@ -195,6 +206,10 @@ electron/
   mcp.cjs                  MCP server (official SDK): loopback HTTP, headless start, agent IPC
   mcp-stdio.cjs            stdio ↔ HTTP relay run by the Electron binary in Node mode (headless)
   raw.cjs                  RAW photos: develops the page's bytes with LibRaw's dcraw_emu to 16-bit linear RGB (P1.9)
+  csp.cjs                  The page's Content Security Policy (testable without Electron)
+  projects.cjs             Saved projects' files in library/projects/ (atomic writes), the close-time flush (408)
+  media.cjs                Projects' media: the main-only index, app-made files, chitthi-media:// with Range, Find
+                           file…, sweep (408)
   dev.mjs                  Runs Vite + Electron together for development
   resources/               Not in git, fetched before packaging: fonts/ (npm run fetch:fonts) and
                            libraw/<platform>-<arch>/ (npm run fetch:libraw)
@@ -826,6 +841,40 @@ the default `npm test` (AC-1–AC-4, AC-9, AC-11, AC-14), with `playbackChecks`'
 bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: simultaneous videos through the pool);
 `CHITTHI_TEST_ONLY=pool npm test` runs only the pool section of the default run.
 
+### 4.11 Saved projects (408: `projectDoc.ts`, `photoProjectDoc.ts`, `mediaKey.ts`, `mediaFile.ts`, `lib/projects*.ts`, `lib/media*.ts`, `state/projectSave.ts`, `state/projects.ts`)
+
+- **Documents.** `videoDocument(state, name, mediaId)` / `videoFromDocument(doc, open)` and `photoDocument` /
+  `photoFromDocument` convert the editors to and from their documents; layers and edits are written with sorted keys,
+  so the same project gives the same bytes. Every load goes through a gate (`mergeProject`, `mergePhotoProject`).
+- **Media.** A file's media id is its fingerprint (`mediaKey`: size, type, FNV-1a of the first and last 64 KB). Clips,
+  sounds and photos hold a `MediaFile`: a `Blob` (picked, or a browser copy from OPFS) or `DiskMedia` (desktop,
+  `chitthi-media://<id>`, possibly `missing`). Every decode goes through `mediaInput()` (Mediabunny `BlobSource` or
+  `UrlSource` with no retries) or `blobOf()`. A missing file draws a hatched placeholder (`missingDraw.ts`), plays
+  silent and blocks the export (D4).
+- **Stores.** `ProjectLibrary` (`list`, `read`, `write` all-or-nothing, `readCache` / `writeCache`, `remove`, `usage`):
+  `projectsWeb.ts` (IndexedDB `chitthi-projects`, one transaction per save) and `projectsDesktop.ts` (over the bridge
+  to `electron/projects.cjs`), chosen in `projectLibrary.ts`. `MediaStore` (`keep`, `open`, `relink`, `sweep`):
+  `mediaWeb.ts` (OPFS copies, streamed, a worker for Safari, room checked first) and `mediaDesktop.ts` (references
+  through `electron/media.cjs`; app-made files in 4 MB pieces), chosen in `mediaLibrary.ts`. In-memory stand-ins for
+  both are in `tests/support/`.
+- **Autosave** (`projectSave.ts`). Watches both stores: a change to a document field (`VIDEO_FIELDS`, `PHOTO_FIELDS`)
+  saves 2 s after the last one; the playhead, track heights and the selected photo ride along; hide, `pagehide` and the
+  desktop window's close (`projects:flush`, ≤ 2 s) save at once. Saves run one after another and skip a document text
+  already written; the cache (D-060: thumbnails, filmstrips, previews and sound scans by media id) is written after
+  it when its text changed. A failed write keeps the project dirty, sets the status (`storage is full` for quota
+  errors) and retries every 30 s and on the next change. `keepMedia(file, owned)` starts keeping a file as it is added,
+  so a save only waits for a copy under way. `lib/projectLock.ts` (BroadcastChannel `chitthi-projects`): opening a
+  project elsewhere drops it here at once (status `elsewhere`).
+- **Projects** (`projects.ts`). `newProject`, `openProject` (save the one left, gate, open each media id, load with no
+  history, restore cached scans and pictures, rebuild the rest in the background, route by kind), `renameProject`,
+  `duplicateProject` (media shared), `deleteProject` (then `media.sweep` of ids no saved project or open editor uses;
+  nothing swept while a project can't be read), `startStudio` / `showStudio` (open, else the last per studio from
+  `localStorage`, else new), `findMissing` (relink, then reopen every other missing file), `spaceFreed`,
+  `projectsUsage`, `recentProject`. Its dependencies come from `ensureProjects()` (dynamic imports, so nothing is in
+  the entry chunk) or `configureProjects()` in tests. The UI is `components/studio/ProjectsPanel.tsx` (lazy),
+  `ProjectStatus.tsx` (save status, Find file…, the missing bar) and `components/ContinueLink.tsx`; agents use
+  `agent/projectTools.ts`.
+
 ## 5. Integrations
 
 ### Fonts (`lib/fonts.ts`)
@@ -919,6 +968,11 @@ keeps only records with the fields the app relies on (ids, names, urls); designs
 | `raw:available` | invoke | Whether LibRaw's RAW developer is installed (`electron/raw.cjs`) |
 | `raw:develop` | invoke | Develop a RAW file's bytes (≤ 300 MB, RAW extension) to 16-bit linear RGB; returns width, height and the pixels |
 | `agent:status` / `agent:setLive` | invoke | Live MCP endpoint: state, and turn it on or off (returns URL and token) |
+| `projects:list` / `read` / `write` / `readCache` / `writeCache` / `remove` / `usage` | invoke | Saved projects as JSON text (`electron/projects.cjs`); ids checked, Windows device names refused |
+| `projects:flush` / `projects:flushed` | main → page / page → main | Before the window closes: the page saves (the main process waits at most 2 s) |
+| `media:register(id, path)` | invoke | A picked file by its path, which only the preload supplies (`webUtils.getPathForFile`) |
+| `media:writeOwned` / `media:finishOwned` | invoke | An app-made file in pieces into `library/media/<id>` |
+| `media:status` / `media:freeSpace` / `media:findFile` / `media:sweep` | invoke | Ok / missing / changed per id; free space; Find file… (a main-process dialog); forget unused ids, deleting only app-made files |
 
 `app://chitthi` is a privileged standard scheme serving `dist/` (and `fonts/` from resources) with the CSP header on
 HTML. Navigation away from the origin is blocked, and external links open in the system browser. Window size is

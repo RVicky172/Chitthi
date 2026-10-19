@@ -3,6 +3,7 @@
  * Worker (soundScan.worker.ts), so an import never waits for it. Scans are kept in memory by media id (the media's
  * object URL, which a clip's splits and copies share) and dropped with the media; they aren't saved.
  */
+import type { MediaFile } from '../engine/mediaFile';
 import type { SoundScan } from '../engine/soundScan';
 import { logError } from '../lib/errors';
 
@@ -16,7 +17,7 @@ export interface ScanSnapshot {
 /** A file waiting for its scan. */
 interface Waiting {
   media: string;
-  file: Blob;
+  file: MediaFile;
 }
 
 let snapshot: ScanSnapshot = { busy: false, progress: null, scans: new Map() };
@@ -106,7 +107,7 @@ function getWorker(): Worker {
  * @param progress called with the share done
  * @returns the scan, or null when the file has no sound the browser can decode (or there are no workers here)
  */
-function scanInWorker(file: Blob, signal: AbortSignal, progress: (share: number) => void): Promise<SoundScan | null> {
+function scanInWorker(file: MediaFile, signal: AbortSignal, progress: (share: number) => void): Promise<SoundScan | null> {
   if (typeof Worker === 'undefined') return Promise.resolve(null);
   const target = getWorker();
   const id = ++lastId;
@@ -165,12 +166,21 @@ function next(): void {
  * @param media the media id
  * @param file the file
  */
-export function scanMedia(media: string, file: Blob): void {
+export function scanMedia(media: string, file: MediaFile): void {
   if (snapshot.scans.has(media) || current?.media === media || queue.some((waiting) => waiting.media === media)) return;
   queue.push({ media, file });
   if (!current) publish({ busy: true });
   // After this task: the import that asked returns first.
   setTimeout(next, 0);
+}
+
+/**
+ * Puts back a scan saved with a project (408 Q14), so its file isn't scanned again.
+ * @param media the media id
+ * @param scan the scan
+ */
+export function addScan(media: string, scan: SoundScan): void {
+  publish({ scans: new Map(snapshot.scans).set(media, scan) });
 }
 
 /**

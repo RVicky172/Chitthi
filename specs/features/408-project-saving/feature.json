@@ -1,0 +1,1266 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "408",
+  "title": "Saved photo and video projects",
+  "workItem": null,
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-19",
+    "approved": "2026-10-19",
+    "started": "2026-10-19",
+    "done": "2026-10-19"
+  },
+  "git": {
+    "branch": "feat/408-project-saving"
+  },
+  "spec": {
+    "phase": "Other features (400+)",
+    "summary": "The print studio autosaves the card in progress and keeps a gallery, but the photo and video studios keep nothing: a reload, a closed tab, a crash or quitting the desktop app throws away a whole Reel edit or a batch of edited photos, and an hour of timeline work can't be put down and picked up tomorrow. As the video editor grows (tracks, keyframes, audio, and next voice-over, whose recordings exist nowhere else, 209), that loss gets worse. 408 makes photo batches and video projects **saved projects**: saved automatically as you work, listed so you can keep several, reopened exactly as you left them. Storage follows how each version of the app already stores the print gallery (docs/DESKTOP.md): the **browser** keeps projects and copies of their media in the browser's own storage on this device, because a web page can't open a file by its path again; the **desktop app** keeps projects as files in its data folder and remembers where each photo, video and sound file is on disk instead of copying it, because desktop videos can be 50 GB. The two libraries stay separate, as the print galleries are today. Nothing is uploaded.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a creator editing a Reel, I want my work saved as I go, so that a reload, a crash or closing the app never loses it."
+        },
+        "US-2": {
+          "text": "As a creator, I want to keep several projects (this week's Reel, a YouTube video, a photo carousel) and switch between them, so that I can work on more than one thing."
+        },
+        "US-3": {
+          "text": "As a browser user, I want a reopened project to have its photos, videos and sounds without picking the files again, and to know how much space my projects take on this device."
+        },
+        "US-4": {
+          "text": "As a desktop user with large video files, I want projects to point to my files where they are instead of copying gigabytes, and to be helped to find a file I moved."
+        },
+        "US-5": {
+          "text": "As a creator, I want to delete a project and get its space back, without the app ever deleting my own original files."
+        },
+        "US-6": {
+          "text": "As a keyboard or screen-reader user, I want to create, open, rename and delete projects without a mouse and hear what happened."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Saving",
+          "proof": "unit",
+          "text": "**Autosave**: the video project and the photo batch are saved within 2 s of the last change (a drag or slider saves once it ends), and at once when the tab is hidden, the window closes or the app quits. There is no Save button to forget; the top bar shows “Saved” / “Saving…” / “Not saved: <reason>”. A crash or power cut loses at most the last 2 s of edits, and a project is never left half-written: after an interrupted save the project opens as it was at the last complete save.",
+          "done": true
+        },
+        "AC-2": {
+          "group": "Saving",
+          "proof": "unit",
+          "text": "**Everything comes back**: reopening a project (after a reload, in a new tab, after restarting the app or the computer) restores every saved setting: for video the format, tracks, clips, gaps, layers, keyframes, transitions, speed and ramps, audio tracks, sound clips, ducking, loudness, export settings and the playhead; for photos every photo, its order, edits, masks, layers, the post format and export settings. For the fixture projects of 201–208 and of the photo editor, the reopened project's saved document is identical to the one saved, and its export is byte-identical to the export before reopening. The undo history starts empty (Q2).",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Projects",
+          "proof": "unit",
+          "text": "**Several projects**: each studio (photo, video) has a **Projects** list (Q6): **New**, **Open**, **Rename**, **Duplicate** and **Delete** (asks first). Each entry shows its name, a thumbnail, its kind (Reel / Short / YouTube / photo post), its length or photo count, when it was last changed and the space it takes on this device; newest first. A new project is named after its kind and time (“Reel · 19 Oct 14:02”) and can be renamed (1–80 characters). Opening the studio reopens the last project used; the first visit starts a new one. There is no limit on the number of projects other than the device's storage.",
+          "done": true
+        },
+        "AC-4": {
+          "group": "Media in the browser",
+          "proof": "unit",
+          "text": "**Browser storage**: every photo, video and sound a project uses is copied once into the browser's storage on this device when it is added (Q3), so a reopened project needs no file to be picked again. A file used by several projects, or added twice, is stored once. Copying runs in the background with progress and never blocks editing; until it finishes the project says the file isn't kept yet. The app asks the browser to keep its storage (persistent storage, so it isn't cleared to free space) and, if the browser refuses, says that projects may be removed when the device runs low. A file that wouldn't fit in the space the browser allows is refused with the reason and the space left (“This 2.1 GB video doesn't fit: 1.4 GB left for projects in this browser”).",
+          "done": true
+        },
+        "AC-5": {
+          "group": "Media in the desktop app",
+          "proof": "unit",
+          "text": "**Desktop storage**: projects are files in the app's data folder (`library/projects/`). Photo, video and sound files the user added are **not copied**: the project remembers each one's location, size and modification time (Q4). Files the app itself made and that exist nowhere else (209's voice recordings, generated music, AI images, Pexels downloads, pasted images) are kept in the data folder (`library/media/`). Opening a project whose file was moved, renamed, changed or deleted still opens: the missing clip shows a placeholder with **Find file…**; choosing the file reconnects it (refused with the reason when it isn't the same kind of media or is shorter than the clip needs), and other missing files of the project found in the same folder reconnect at once.",
+          "done": true
+        },
+        "AC-6": {
+          "group": "Safety",
+          "proof": "unit",
+          "text": "**Loading is validated**: every project read from storage goes through the existing validators (the project document's and the photo edits'): a damaged project, one from a newer version of the app, or one with values out of range opens with everything that is valid, clamped where needed, and says what was left out; it never crashes the studio or loses the rest of the list. A project that can't be read at all stays in the list marked “can't be opened” with **Delete**, and its media is kept until it is deleted.",
+          "done": true
+        },
+        "AC-7": {
+          "group": "Safety",
+          "proof": "unit",
+          "text": "**Deleting gives the space back, and never touches the user's files**: deleting a project removes it and any stored media no other project uses (the browser's copies; on desktop only the app-made files in `library/media/`). A user's own files on disk are never deleted, moved or changed by the app. The list shows the space a delete will free before asking.",
+          "done": true
+        },
+        "AC-8": {
+          "group": "Safety",
+          "proof": "unit",
+          "text": "**One project, one editor at a time** (Q15): opening a project already open in another tab or window takes it over there: the other one stops saving at once and says “This project is open in another window” with **Open here again**. Two windows never overwrite each other's edits silently.",
+          "done": true
+        },
+        "AC-9": {
+          "group": "Storage",
+          "proof": "unit",
+          "text": "**Space on the device**: the Projects list shows the total used and, in the browser, the space the browser allows (“Projects use 3.2 GB; about 41 GB free for this site”). At 90 % of the allowed space it warns once per session; when a save fails because storage is full, the project stays open in memory, the top bar says “Not saved: storage is full”, and saving resumes once space is freed. The print studio's gallery, photo store and autosave are unchanged and share nothing with projects (Q8).",
+          "done": true
+        },
+        "AC-10": {
+          "group": "Speed",
+          "proof": "timing",
+          "text": "**Saving and opening don't slow editing**: saving a 500-clip video project or a 20-photo batch blocks the page for under 50 ms on the reference laptop; opening a 60-clip project shows its timeline within 2 s (thumbnails, filmstrips and waveforms may fill in after, from what was saved, Q14) and plays within 3 s; the entry chunk stays ≤ 350 KB (the projects code loads with `import()`). (Measured in 290.)",
+          "done": false
+        },
+        "AC-11": {
+          "group": "Keyboard and screen readers",
+          "proof": "e2e",
+          "text": "The Projects list and every action in it work from the keyboard (arrow keys move, Enter opens, F2 renames, Delete asks to delete) and are announced (“Opened Reel · 19 Oct 14:02, 24 clips”, “Deleted Holiday carousel, 210 MB freed”); the save status is a polite live region announced only on a failure; axe finds no violations with the list open. (Proven in 290.)",
+          "done": false
+        },
+        "AC-12": {
+          "group": "Web and desktop",
+          "proof": "e2e",
+          "text": "End to end in the browser (desktop and phone layouts): make a Reel with a video, a photo, text and a sound, reload, and it is all back and exports the same file; delete it and the browser's stored size goes back to what it was. In the desktop app on Windows and macOS: the same after quitting and restarting; a moved file reconnects with Find file…. (Proven in 290.)",
+          "done": false
+        },
+        "AC-13": {
+          "group": "Agents",
+          "proof": "selftest",
+          "text": "**Agent tools** (Constitution XI, Q10): `list_projects`, `new_project`, `open_project`, `rename_project` and `delete_project` for both studios, going through the same code as the UI; a deleted project needs `confirm: true`. Covered by the self-test and `test:mcp`, documented in `docs/MCP.md`. (Run in 290.)",
+          "done": false
+        },
+        "AC-14": {
+          "group": "Docs",
+          "proof": "review",
+          "text": "`docs/MEDIA-STUDIO.md` (projects, autosave, storage, Find file…), `docs/DESKTOP.md` (the `projects/` and `media/` folders, the separate libraries), `docs/TROUBLESHOOTING.md` (storage full, a project that can't be opened, browser storage cleared), `specs/architecture.md` §6 (the storage table), `specs/lld.md`, `docs/MCP.md`, `CHANGELOG.md` and the in-app docs describe the change.",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13",
+        "Q14",
+        "Q15"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "One autosaved project per studio, or a list? _Answer (accepted 2026-10-19):_ a list (AC-3): creators run several Reels at once, and a single autosave slot would make **New** throw the old one away. The last one used reopens, so for someone with one project it feels like a single autosave.",
+          "open": false
+        },
+        "Q2": {
+          "text": "Save the undo history? _Answer (accepted 2026-10-19):_ no: it starts empty when a project is reopened. Saving it would multiply what is written on every change, and the print studio doesn't either.",
+          "open": false
+        },
+        "Q3": {
+          "text": "How does the browser keep media? _Answer (accepted 2026-10-19):_ copy each file into the browser's own storage for this site (AC-4), in every browser. The alternative, keeping a handle to the original file (Chrome and Edge only), needs the user to grant access again on every visit and fails when the file moves, so it isn't used. The cost is space, so files are stored once however many projects use them, and the size is shown.",
+          "open": false
+        },
+        "Q4": {
+          "text": "How does the desktop app keep media? _Answer (accepted 2026-10-19):_ remember where the user's files are and never copy them (AC-5): desktop videos can be up to 50 GB and copying would double the disk used. Files only the app has (recordings, generated or downloaded media) go into the data folder, so nothing exists only in memory. A **Copy files into the project** option (for moving to another computer) is left for project files (Q7).",
+          "open": false
+        },
+        "Q5": {
+          "text": "How large can the browser's projects get? _Answer (accepted 2026-10-19):_ as large as the browser allows for the site (Chrome allows up to 60 % of the disk, Firefox up to 50 % of free space, Safari asks past ~1 GB), with the space shown and a clear refusal when a file wouldn't fit; no limit of our own. The existing per-file limits (4 GB video on the web) stay.",
+          "open": false
+        },
+        "Q6": {
+          "text": "Where is the Projects list? _Answer (accepted 2026-10-19):_ a **Projects** button at the left of each studio's top bar (next to the mark) opening a panel with the list and New; plus a **Continue: <project>** link on the home screen when there is a recent project. No separate screen.",
+          "open": false
+        },
+        "Q7": {
+          "text": "Project files (`.chitthi` for a video or photo project, with or without its media) to move a project between computers or between the browser and the desktop app? _Answer (accepted 2026-10-19):_ not in 408: it needs packing gigabytes of media into one file and streaming it, which is its own feature (a follow-up, 409). 209's AC-8 drops its `.chitthi` clause until then.",
+          "open": false
+        },
+        "Q8": {
+          "text": "Do projects share anything with the print studio? _Answer (accepted 2026-10-19):_ no: the print gallery, photo store and card autosave stay as they are (AC-9). A photo used in a print card and in a photo project is stored for each, as today.",
+          "open": false
+        },
+        "Q9": {
+          "text": "What is a photo project? _Answer (accepted 2026-10-19):_ the photo studio's batch (up to the batch limit), with its format, edits and export settings: each saved batch is a project. RAW files are kept as the original file (browser: copied; desktop: referenced) so they can be developed again.",
+          "open": false
+        },
+        "Q10": {
+          "text": "Agent tools? _Answer (accepted 2026-10-19):_ yes, the five of AC-13, because every user-facing feature must be reachable by agents (Constitution XI) and agents already build Reels and photo posts through the MCP server.",
+          "open": false
+        },
+        "Q11": {
+          "text": "When are 408's e2e, self-test and timing checks run? _Answer (accepted 2026-10-19):_ in 290, the Phase 2 test pass, with Phase 2's (D-033), and 408 ships in the 3.0.0 release with Phase 2, since 209 depends on it.",
+          "open": false
+        },
+        "Q12": {
+          "text": "How do 209's voice recordings relate? _Answer (accepted 2026-10-19):_ a recording is project media made by the app: in the browser stored like any copied file, on desktop in `library/media/`; 209's own take store then keeps only takes in progress, for crash recovery (D-058).",
+          "open": false
+        },
+        "Q13": {
+          "text": "How quickly is a change saved? _Answer (accepted 2026-10-19):_ within 2 s of the last change, and at once when the tab is hidden or the window closes (AC-1); the document is written whole each time (it is small: media is stored separately), media only when added.",
+          "open": false
+        },
+        "Q14": {
+          "text": "Are thumbnails, filmstrips and waveform peaks saved? _Answer (accepted 2026-10-19):_ yes, with the project (small: tens of KB to a few MB), so a reopened project looks complete at once instead of re-reading every file; they are rebuilt in the background if missing or if the file changed.",
+          "open": false
+        },
+        "Q15": {
+          "text": "Two tabs or windows on the same project? _Answer (accepted 2026-10-19):_ the latest one opened takes over and the other stops saving and says so (AC-8), on the web across tabs and on desktop across windows. Merging edits from two windows is out of scope.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-19",
+        "text": "Created: draft spec with 14 acceptance criteria and 15 open questions with proposed answers; storage separate for the browser (device storage, media copied) and the desktop app (data folder, media referenced), as the maintainer asked."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Q1–Q15: every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Plan drafted (§1–§11, D1–D6 for the maintainer)."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Plan approved (D1–D6 as recommended, D-059)."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Tasks written (T001–T112)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Reliability:** at most 2 s of edits lost to a crash; never a half-written project; a damaged project never takes the others down (AC-1, AC-6).\n- **Performance:** saving blocks the page < 50 ms; media copying and loading run in the background; the projects code loads with `import()`, entry chunk ≤ 350 KB (AC-10).\n- **Privacy:** everything stays on the device; nothing is uploaded (Constitution VI). Desktop keeps file locations only in its own data folder.\n- **Security (desktop):** reading the user's files by location goes through validated IPC registered with `electron/ipc.cjs`, only for files the user added to a project or chose with Find file…; the page never gets arbitrary file access.\n- **Compatibility:** browser and desktop alike in behaviour, each with its own storage (AC-4, AC-5); Chromium, Firefox and Safari; existing print data untouched; projects made by this version open in later ones (versioned documents through the validators).\n- **Accessibility:** keyboard and screen reader for every action; axe passes (AC-11).\n- **Free and open source:** no limit on projects other than the device's space; no account or cloud."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Project files for moving or sharing a project, with or without media (Q7, follow-up 409); copying a desktop project's files into one folder.\n- Sync between devices, between the browser and the desktop app, or any cloud storage.\n- Saving the undo history (Q2); version history or snapshots of a project.\n- Merging edits made in two windows (Q15).\n- Changes to the print studio's gallery, photo store or autosave (Q8)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-19, D1–D6 as recommended, D-059) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/projectDoc.ts`, `tests/unit/engine/projectDoc.test.ts`",
+        "change": "modify",
+        "purpose": "§1: `name`, `playhead`, `trackView` in the document; `videoDocument` / `videoFromDocument` (AC-2)"
+      },
+      {
+        "file": "`src/engine/projectGate.ts`, `tests/unit/engine/projectGate.test.ts`",
+        "change": "modify",
+        "purpose": "§1: read the new fields; unreadable / newer documents (AC-6)"
+      },
+      {
+        "file": "`src/engine/photoProjectDoc.ts`, `tests/unit/engine/photoProjectDoc.test.ts`",
+        "change": "new",
+        "purpose": "§1: the photo project document and `mergePhotoProject` (AC-2, AC-6)"
+      },
+      {
+        "file": "`src/engine/mediaKey.ts`, `tests/unit/engine/mediaKey.test.ts`",
+        "change": "new",
+        "purpose": "§2: media ids from fingerprints (AC-4)"
+      },
+      {
+        "file": "`src/engine/mediaFile.ts`, `tests/unit/engine/mediaFile.test.ts`",
+        "change": "new",
+        "purpose": "§5: `MediaFile`, `mediaInput`, `blobOf`, missing media"
+      },
+      {
+        "file": "`src/engine/frameSource.ts`, `decodePool.ts`, `poolLane.ts`, `exportSound.ts`, `videoExport.ts`; `src/state/soundScan.worker.ts`, `videoMedia.ts`, `videoSound.ts`, `videoExportJob.ts`, `instagramExport.ts`, `instagramMedia.ts`; `src/components/studio/previewFrame.ts`, `VideoStage.tsx`, `PictureRow.tsx`, `ClipInspector.tsx`",
+        "change": "modify",
+        "purpose": "§5: decode through `mediaInput`; keep media when added; missing placeholder; export refused while files are missing (D4)"
+      },
+      {
+        "file": "`src/lib/projects.ts`, `projectsWeb.ts`, `projectsDesktop.ts`, `tests/unit/lib/projects.test.ts`",
+        "change": "new",
+        "purpose": "§3: the project library, browser and desktop, and the in-memory one for tests (AC-3, AC-7, AC-9)"
+      },
+      {
+        "file": "`src/lib/mediaStore.ts`, `mediaWeb.ts`, `mediaWeb.worker.ts`, `mediaDesktop.ts`, `tests/unit/lib/mediaStore.test.ts`",
+        "change": "new",
+        "purpose": "§4: media kept once, OPFS in the browser, referenced on desktop; quota checks; sweep (AC-4, AC-5, AC-7)"
+      },
+      {
+        "file": "`src/lib/projectLock.ts`, `tests/unit/lib/projectLock.test.ts`",
+        "change": "new",
+        "purpose": "§8: one editor per project (AC-8)"
+      },
+      {
+        "file": "`src/state/projects.ts`, `src/state/projectSave.ts`, `tests/integration/state/projects.test.ts`",
+        "change": "new",
+        "purpose": "§6, §7: autosave, open / new / rename / duplicate / delete, the current project (AC-1–AC-3, AC-7, AC-9)"
+      },
+      {
+        "file": "`src/state/videoStore.ts`, `src/state/instagram.ts`",
+        "change": "modify",
+        "purpose": "§5, §7: `MediaFile` in clips, sounds and photos; loading every saved setting; the project name"
+      },
+      {
+        "file": "`src/platform/desktop.ts`, `electron/preload.cjs`",
+        "change": "modify",
+        "purpose": "§3, §4: `projects` and `media` on the bridge; `getPathForFile` in the preload"
+      },
+      {
+        "file": "`electron/projects.cjs`, `electron/media.cjs`, `tests/unit/electron/projects.test.ts`, `tests/unit/electron/media.test.ts`",
+        "change": "new",
+        "purpose": "§3, §4: project files with atomic writes; the media index (main-written only), app-made media, the `chitthi-media://` scheme with Range, Find file… (AC-1, AC-5, AC-7)"
+      },
+      {
+        "file": "`electron/main.cjs`, `electron-builder.yml`",
+        "change": "modify",
+        "purpose": "Register the scheme and the handlers (through `electron/ipc.cjs`); CSP `media-src` / `connect-src` gain `chitthi-media:`; flush on quit; new files in `files:`"
+      },
+      {
+        "file": "`src/components/studio/ProjectsPanel.tsx`, `Shell.tsx`, the home screen, `src/styles/` (a new numbered file at the end)",
+        "change": "new / modify",
+        "purpose": "§9: Projects button and panel, save status, Continue link, Find file… (AC-3, AC-9, AC-11)"
+      },
+      {
+        "file": "`src/agent/projectTools.ts`, `src/agent/tools.ts`",
+        "change": "new / modify",
+        "purpose": "§10 (AC-13)"
+      },
+      {
+        "file": "Docs (§11); `specs/features/290-phase2-test-pass-release/feature.json`",
+        "change": "modify",
+        "purpose": "AC-14; 408's deferred checks: e2e (AC-11, AC-12), self-test and MCP (AC-13), timing (AC-10)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**R1 Desktop media through `chitthi-media://`** (D1): `<video>` seeking, Mediabunny `UrlSource` range reads in the page and the scan worker, the decode pool's speed compared with a `File`, and the CSP. Mitigation: spike task first: a 4 GB local video through the scheme plays, seeks, scans, exports at the speed of today's `File` path (within 10 %); if `UrlSource` is too slow, a `StreamSource` reading ranges over IPC instead."
+      },
+      {
+        "text": "**R2 OPFS across browsers** (Safari's missing main-thread `createWritable`, Firefox quotas, private windows without OPFS). Mitigation: the spike also copies a 1 GB file in Chrome, Firefox and Safari; the worker path for Safari; where OPFS is missing (private windows), projects save without media and say “files aren't kept in a private window”."
+      },
+      {
+        "text": "**R3 Touching every decode site** (§5) risks regressions in 204–208. Mitigation: one helper (`mediaInput`) and a mechanical change per site, done in one task before anything else; the existing unit tests and 290's self-test cover the paths; `MediaFile` is a Blob on the web, so the web path is unchanged in behaviour."
+      },
+      {
+        "text": "**R4 Quota surprises**: the browser may evict non-persisted storage. Mitigation: `persist()` asked and shown (AC-4); the cache and documents are small; TROUBLESHOOTING explains it."
+      },
+      {
+        "text": "**R5 Saving on close**: `pagehide` gives no time for async work in some browsers. Mitigation: saves are already at most 2 s old; the desktop app waits for `flush()` before closing (bounded at 2 s); the 2 s loss bound of AC-1 holds without the close save."
+      },
+      {
+        "text": "**R6 Security of the new IPC and scheme** (Constitution IX). Mitigation: paths never come from the page; ids validated; the scheme answers only indexed ids with matching size and mtime; unit tests for refusal cases (AC-5); reviewed against `specs/architecture.md` §7 in the docs task."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-19 (Q1–Q15 accepted)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Conversions, gates, library, media store, lock and Electron handlers unit-tested with in-memory stand-ins and a fake clock; e2e, self-test, MCP and timing in 290 (Q11, D-033)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency: IndexedDB, OPFS, BroadcastChannel, Electron APIs, Mediabunny's `UrlSource` (already shipped)."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D1–D6 into `memory/decisions.md` when approved; spike findings into `learnings.md`."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "No project limit; the browser/desktop difference (copy vs reference) is technical (file paths, 50 GB files), as Q3/Q4 say."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "All storage on the device; `chitthi-media://` is a local scheme, not a network destination."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "Reopened projects use the same render and export paths; loading goes through the validators (`mergeProject`, `mergePhotoProject`); missing media blocks the export rather than exporting something else (D4)."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "⚠️",
+        "notes": "New IPC handlers (projects, media) and a privileged scheme: all through `electron/ipc.cjs`, ids validated, paths only from the preload's `getPathForFile` or a main-process dialog, never from the page (R6). Sandbox, context isolation and fuses unchanged."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "Projects code lazy-loaded; entry ≤ 350 KB; keyboard and screen reader for the panel (AC-11 in 290); memory: media streams to storage, never held whole."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "✅",
+        "notes": "Five project tools calling `state/projects.ts` (AC-13)."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Half the work exists: the video project already has a JSON shape (`engine/projectDoc.ts`, `toDocument`) and one validator (`engine/projectGate.ts`, `mergeProject`), and the photo edits and layers have theirs (`mergeEdit`, `mergeLayers`). Nothing writes or reads them: `VState` and `IgState` live in memory, each clip, sound and photo holding a `Blob` from the file picker. 408 adds (a) the conversions between the stores and the documents, (b) one **project library** interface with two implementations, browser and desktop, chosen once in `lib/` as `lib/db.ts` already does for the print gallery, (c) a **media store** behind the same split, (d) autosave and the Projects panel. Under D-033 every task is proven by unit tests (pure conversions and gates, the library against an in-memory implementation, the Electron handlers in `tests/unit/electron`); e2e, self-test and timing go to 290.\n\n**§1 Documents (`engine/projectDoc.ts`, new `engine/photoProjectDoc.ts`, AC-2, AC-6).** `videoDocument(state)` builds a `ProjectDoc` from `VState` (each `VClip` / `VSound` → `DocClip` / `DocAudio` with a media id, `DocMedia` for each file) plus the fields the document lacks today: `name`, `playhead`, `trackView`; `videoFromDocument(doc, media)` is the reverse, after `mergeProject`. The photo batch gets the same pair: `PhotoProjectDoc { version: 1, name, format, limit, fileType, quality, caption, selected, items: { id, name, media, w, h, edit, layers, raw? }[], media: DocMedia[] }` and `mergePhotoProject(raw)` (each item through `mergeEdit` and `mergeLayers`, unknown or newer versions handled as `mergeProject` does: what's valid opens, reasons listed). Both are pure, so AC-2's round trip (document → store → document identical; 201–208 fixtures) is a unit test.\n\n**§2 Media ids and fingerprints (`engine/mediaKey.ts`, AC-4).** A file's media id is its fingerprint: size + type + an FNV-1a hash of its first and last 64 KB (as `lib/photoKey.ts` does for data URLs), read with `Blob.slice` so a 4 GB file costs 128 KB of reading. The same file added twice or in two projects has one id and is stored once. A collision would need the same size, type and 128 KB of ends; D3 offers a full hash instead.\n\n**§3 The project library (`lib/projects.ts`, `lib/projectsWeb.ts`, `lib/projectsDesktop.ts`, AC-3, AC-7, AC-9).** One interface, `ProjectLibrary`: `list()` (entries: id, studio, name, kind, length or photo count, changed, bytes, thumbnail, readable), `read(id)`, `write(id, doc, entry)`, `writeCache(id, cache)`, `readCache(id)`, `remove(id)` (removes media no other project uses and returns the bytes freed), `usage()`. `lib/projectLibrary.ts` exports `projects = desktop ? desktopProjects(desktop.projects) : webProjects()` (its own module: the implementations import the shared helpers of `lib/projects.ts`), and an in-memory implementation used by every unit test. The **cache** is what's slow to rebuild and small: clip thumbnails, filmstrips, photo preview JPEGs, waveform peaks (Q14), written only when it changes.\n- **Browser (`projectsWeb.ts`):** IndexedDB database `chitthi-projects` (its own, so the print `chitthi` database's version doesn't move, D5) with stores `entries`, `docs`, `cache`; each write is one transaction, so a save is all or nothing (AC-1).\n- **Desktop (`projectsDesktop.ts` → IPC → `electron/projects.cjs`):** `library/projects/<id>.json` (the document), `<id>.entry.json`, `<id>.cache.json`, each written to `<name>.tmp` and renamed over the old one, so an interrupted save leaves the last complete file (AC-1).\n\n**§4 The media store (`lib/mediaStore.ts`, `lib/mediaWeb.ts`, `lib/mediaDesktop.ts`, AC-4, AC-5, AC-7).** `MediaStore`: `keep(file, owned)` (returns the media id; runs in the background with progress), `open(id)` (a `MediaFile` to play and decode, or `missing`), `relink(id)`, `sweep(usedIds)`, `usage()`.\n- **Browser (`mediaWeb.ts`, D2):** each file is copied into the Origin Private File System, `media/<id>`, streamed (`file.stream()` into a writable, in a worker with a sync access handle where the main-thread writable is missing, Safari), so a 4 GB video never sits in memory. Reopened, `getFile()` gives a disk-backed `File`: the existing Blob code (Mediabunny's `BlobSource`, `<video>` from an object URL) works unchanged. Before copying, `navigator.storage.estimate()` is checked and a file that doesn't fit is refused with the space left (AC-4); `navigator.storage.persist()` is asked once, and its answer shown (AC-4).\n- **Desktop (`mediaDesktop.ts` → IPC → `electron/media.cjs`, D1):** a file the user added isn't copied. The preload turns the picked `File` into its path (`webUtils.getPathForFile`, so the page can only name files the user actually picked or dropped), and the main process records `id → { path, size, mtime }` in `library/media-index.json`, which **only the main process writes**; the page refers to media by id only, never by path. App-made files (209's recordings, generated music, AI images, Pexels downloads, pasted images: `keep(file, true)`) are written into `library/media/<id>` through the existing chunked write pattern. Playing and decoding go through a privileged scheme `chitthi-media://<id>` served by the main process with `Range` support from the indexed path; it answers only for ids in the index whose file still has the recorded size and mtime (else 404, and the clip is missing). **Find file…** is a main-process open dialog: the chosen file is checked (kind, length via the page after it plays) and replaces the index entry; other missing ids whose file name exists in the chosen folder are reconnected at once (AC-5).\n\n**§5 Media in the stores (`engine/mediaFile.ts`, the decode sites, AC-2, AC-5).** `VClip.file`, `VSound.file` and `IgItem.file` become `MediaFile = Blob | DiskMedia` (`DiskMedia { id, url, size, type, name }`, desktop only). One helper, `mediaInput(file)`, returns Mediabunny's `BlobSource` for a Blob and its `UrlSource` (range requests) for disk media; the 14 decode sites (`frameSource`, `decodePool`, `poolLane`, `exportSound`, `soundScan.worker`, `videoExport`, `instagramExport`, previews …) call it instead of `new BlobSource(file)`. `<video>` / `<audio>` already play `url` (an object URL today, `chitthi-media://` for disk media). Photos are small: `blobOf(file)` fetches disk media once into a Blob for `createImageBitmap`. A missing file (`missing: true`) draws a hatched placeholder with its name in the preview, and the export is refused with “Find the missing files first: …” (D4).\n\n**§6 Autosave (`state/projectSave.ts`, AC-1, AC-9).** Subscribes to both stores; a change that alters the document (not the playhead during play, selections or view state; `trackView` and the playhead are written with the next real save or on hide) schedules a save 2 s after the last one, and `visibilitychange` → hidden, `pagehide` and the desktop window's close (`before-quit` waits for a `flush()` over IPC, at most 2 s) save at once. Saving serialises with `videoDocument` / photo document and `JSON.stringify` (under 50 ms for 500 clips, measured in 290, AC-10) and calls `projects.write`. Status for the top bar: `saved | saving | failed(reason)`; a failure (quota, disk full) keeps the project in memory, says “Not saved: …”, logs with `logError('handled', …)` and retries on the next change or every 30 s (AC-9). Media is kept (§4) when it is added, before the save that references it.\n\n**§7 Opening, new, current project (`state/projects.ts`, AC-3).** `openProject(id)`: read, gate (`mergeProject` / `mergePhotoProject`), `media.open` each id, then `loadVideoProject` (extended with the settings it doesn't take today: format, fps, quality, kind, fadeOut, playhead, name) or the photo equivalent, rebuilding previews from the cache or the file. The route follows the project's kind (a YouTube project opens `#/instagram/youtube`, D6). `newProject(studio, kind)` names it “Reel · 19 Oct 14:02”. The last project per studio is remembered in `localStorage` (`chitthi-projects-last`); opening a studio reopens it, else starts a new one. Rename (1–80 characters), duplicate (the document and cache copied; media shared by id) and delete (AC-7) go through the library.\n\n**§8 One editor at a time (`lib/projectLock.ts`, AC-8).** A `BroadcastChannel('chitthi-projects')`: opening a project posts `{ open: id, by }`; a tab or window holding that id stops saving at once, shows “This project is open in another window” with **Open here again** (which posts the same and reloads the project from storage). Works across browser tabs and across Electron windows (same origin).\n\n**§9 The UI (`components/studio/ProjectsPanel.tsx`, `Shell.tsx`, home, AC-3, AC-9, AC-11).** A **Projects** button at the left of the studio top bar (both studios, Q6) opens a lazy-loaded panel: New (with the kind for video), the list (thumbnail, name, kind, length or photos, changed, size; newest first), Open, Rename (F2), Duplicate, Delete (asks, showing the space freed), storage used and allowed, the persistent-storage note, and “can't be opened” entries with Delete only (AC-6). Arrow keys move, Enter opens; actions are announced. The top bar shows the save status (a polite live region that speaks only on failure). The home screen gets **Continue: <name>** for the most recent project. Missing files list with **Find file…** in the clip's inspector and in a bar over the timeline (desktop).\n\n**§10 Agent tools (`src/agent/projectTools.ts`, AC-13).** `list_projects`, `new_project`, `open_project`, `rename_project`, `delete_project` (`confirm: true` required), calling `state/projects.ts`; registered in `tools.ts`; self-test checks and `test:mcp` steps written in 290.\n\n**§11 Docs (AC-14).** `docs/MEDIA-STUDIO.md`, `docs/DESKTOP.md` (the table: projects and media rows; `projects/`, `media/`, `media-index.json`), `docs/TROUBLESHOOTING.md`, `specs/architecture.md` §6 and §7 (the media scheme), `specs/lld.md`, `docs/MCP.md`, `CHANGELOG.md`, in-app docs."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/projectDoc.ts (version stays 1: the new fields are optional, missing = today's defaults)\nexport interface ProjectDoc extends Project<DocClip> { /* … as today … */ name?: string; playhead?: number; trackView?: Record<string, TrackHeight> }\nexport function videoDocument(video: VState, name: string): { doc: ProjectDoc; files: Map<string, MediaFile> };\nexport function videoFromDocument(doc: ProjectDoc, media: Map<string, OpenedMedia>): LoadedProject;\n\n// engine/photoProjectDoc.ts\nexport interface PhotoProjectDoc { version: 1; name?: string; format: IgFormatId; limit: number; fileType: IgFileType; quality: number; caption: string; selected: string | null; items: DocPhoto[]; media: DocMedia[] }\n// a photo's name and size are its media entry's, as a clip's are; IgItem extends EditorPhoto<Blob>\nexport interface DocPhoto extends Pick<EditorPhoto<MediaLike>, 'id' | 'edit' | 'layers'> { media: string; raw?: true }\nexport function mergePhotoProject(raw: unknown, desktop: boolean): { doc: PhotoProjectDoc; dropped: string[] };\n\n// engine/mediaKey.ts, engine/mediaFile.ts\nexport function mediaKey(file: Blob): Promise<string>;              // \"m<size36>-<type hash>-<ends hash>\"\nexport interface DiskMedia { id: string; url: string; size: number; type: string; name: string }   // desktop: url = chitthi-media://<id>\nexport type MediaFile = Blob | DiskMedia;\nexport type OpenedMedia = { file: MediaFile; url: string } | { missing: true; name: string };\nexport function mediaInput(file: MediaFile): Source;              // Mediabunny BlobSource | UrlSource\nexport function blobOf(file: MediaFile): Promise<Blob>;\n\n// lib/projects.ts\nexport type Studio = 'photo' | 'video';\nexport interface ProjectEntry { id: string; studio: Studio; name: string; kind: VKind | 'photo'; length: number; photos: number; changed: number; bytes: number; thumb: string; readable: boolean }\nexport interface ProjectCache { thumbs: Record<string, string>; strips: Record<string, string[]>; previews: Record<string, string>; peaks: Record<string, string /* base64 Int8 */> }\nexport interface ProjectLibrary {\n  list(): Promise<ProjectEntry[]>;\n  read(id: string): Promise<unknown>;            // unvalidated: the gates check it\n  write(id: string, doc: ProjectDoc | PhotoProjectDoc, entry: ProjectEntry): Promise<void>;\n  readCache(id: string): Promise<unknown>;\n  writeCache(id: string, cache: ProjectCache): Promise<void>;\n  remove(id: string): Promise<number>;           // bytes freed\n  usage(): Promise<{ used: number; allowed: number | null; persisted: boolean | null }>;\n}\n\n// lib/mediaStore.ts\nexport interface MediaStore {\n  keep(file: MediaFile, owned: boolean, progress?: (share: number) => void): Promise<string | { error: string }>;   // disk media: kept already\n  open(id: string, name: string, type?: string): Promise<OpenedMedia>;   // OPFS keeps no type: given back so the id holds\n  relink(id: string, name?: string, type?: string): Promise<OpenedMedia | null>;    // desktop: Find file…\n  sweep(used: ReadonlySet<string>): Promise<number>;  // bytes freed\n}\n\n// state/projectSave.ts\nexport type SaveStatus = { state: 'saved' | 'saving' } | { state: 'failed'; reason: string } | { state: 'elsewhere' };\nexport function flush(): Promise<void>;\n\n// DesktopBridge additions (electron/projects.cjs, electron/media.cjs; every handler validates ids /^[A-Za-z0-9_-]{1,100}$/)\nprojects: { list(): Promise<unknown[]>; read(id): Promise<string | null>; write(id, doc: string, entry: string): Promise<void>; readCache(id): Promise<string | null>; writeCache(id, cache: string); remove(id): Promise<number>; usage(): Promise<{ used: number }> };\nmedia: { register(id, file: File): Promise<boolean /* false: no path, kept as owned */>; writeOwned(id, position, data: ArrayBuffer); finishOwned(id, keep: boolean): Promise<void>; status(ids: string[]): Promise<Record<string, { state: 'ok' | 'missing' | 'changed'; size: number }>>; freeSpace(): Promise<number>; findFile(id): Promise<{ found: string[] } | null>; sweep(used: string[]): Promise<number> };   // the page computes the id (mediaKey)\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Storage split chosen once** (as `lib/db.ts`): `desktop ? desktopX(desktop.x) : webX`. Callers never branch on the platform.\n- **Browser media in OPFS** (`navigator.storage.getDirectory()`), streamed: `file.stream().pipeTo(handle.createWritable())`, or in a worker with `createSyncAccessHandle` where `createWritable` is missing (Safari). The `File` from `getFile()` is disk-backed, so reopened media behaves like a picked file. Quota from `navigator.storage.estimate()`, `persist()` asked once.\n- **Desktop media by reference**, secured by keeping paths out of the page: the preload's `webUtils.getPathForFile` only works on real picked or dropped files; the main process writes `media-index.json`; the page only ever sees ids and `chitthi-media://<id>` URLs. The scheme is registered privileged (`stream`, `supportFetchAPI`, `secure`, `corsEnabled`, `bypassCSP: false`) and served with `Range` / `206` from `fs.createReadStream(start, end)`, checking size and mtime first. Mediabunny's `UrlSource` reads it with range requests in the page and in the scan worker.\n- **Atomic writes**: desktop `tmp` + `rename` (same folder, so same volume); browser one IndexedDB transaction per save.\n- **Autosave** is a debounce on the document-changing actions (the stores already know undo steps: `change()` / `commit()`), plus immediate saves on `visibilitychange` / `pagehide` and an IPC `flush` before the desktop window closes.\n- **Reference counting by sweep**: after a delete, the media ids still used are collected from every project's document, and the rest is deleted (browser copies; desktop only app-made files and index entries, never the user's files). No counters to drift.\n- **No new dependency.** Mediabunny (MPL-2.0, already shipped) has `UrlSource`; everything else is the platform."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `tests/integration/state/projects.test.ts` (fake clock: saved 2 s after the last change, once per drag, at once on hide; status; a write that throws mid-way leaves the last document, using the in-memory library's failure switch); `tests/unit/electron/projects.test.ts` (tmp + rename: a crash between them leaves the old file) | integration, unit |\n| AC-2 | `tests/unit/engine/projectDoc.test.ts` and `photoProjectDoc.test.ts`: store → document → store → document identical for the 201–208 fixtures and photo fixtures (edits, masks, layers, RAW); `projects.test.ts`: every setting back after open, history empty. Export byte-identity after reopening: **290** (self-test) | unit; self-test in 290 |\n| AC-3 | `projects.test.ts`: new (names), open, rename (1–80), duplicate, delete, newest first, the last one reopens, first visit new | integration |\n| AC-4 | `tests/unit/engine/mediaKey.test.ts` (same file → same id; one byte at an end changes it); `tests/unit/lib/mediaStore.test.ts` with an in-memory OPFS stand-in: stored once, progress, refusal with the space left, persist answer | unit |\n| AC-5 | `tests/unit/electron/media.test.ts`: register only from a path the preload gave, index written by main only, the scheme's 206 ranges, 404 for unknown / changed / moved files, owned files in `media/`, Find file… reconnects the folder's other files (dialog faked) | unit |\n| AC-6 | `projectGate.test.ts` / `photoProjectDoc.test.ts`: damaged, newer and out-of-range documents; `projects.test.ts`: an unreadable entry stays listed as can't be opened, the others load | unit, integration |\n| AC-7 | `mediaStore.test.ts` and `media.test.ts`: sweep keeps media used by another project, deletes the rest, never a user file (desktop), bytes freed reported | unit |\n| AC-8 | `tests/unit/lib/projectLock.test.ts` with a fake channel: the first holder stops saving, Open here again takes it back | unit |\n| AC-9 | `projects.test.ts`: usage shown, 90 % warning once, a quota failure keeps the project, says “Not saved: storage is full”, retries; print data untouched (a test that the print stores aren't opened) | integration |\n| AC-10 | Timing run (500-clip save < 50 ms, 60-clip open < 2 s / plays < 3 s) and the entry chunk: **290**; `npm run build` at the end of 408 | timing in 290; build |\n| AC-11 | Playwright + axe on the Projects panel: **290** | e2e in 290 |\n| AC-12 | Playwright (browser reload, delete frees space) and the desktop app on Windows and macOS (restart, move a file, Find file…): **290** | e2e, manual in 290 |\n| AC-13 | Self-test checks for the five tools and `test:mcp` steps: **290** | self-test in 290 |\n| AC-14 | Review at the end of 408 | review |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-19: D1–D6 as recommended)",
+        "markdown": "**D1 How the desktop app plays and decodes files it only references.** **Recommended:** a privileged `chitthi-media://<id>` scheme served by the main process with Range support, read by `<video>` / `<audio>` and by Mediabunny's `UrlSource`; paths stay in the main process. Alternative: a `StreamSource` reading byte ranges over IPC (no scheme, but every decode read crosses IPC and `<video>` still needs a URL). The spike (R1) confirms the speed.\n\n**D2 How the browser keeps media.** **Recommended:** the Origin Private File System (disk-backed `File`s, streamed copies, no size cap of its own). Alternative: Blobs in IndexedDB (simpler, but large Blobs are slower and some browsers buffer them in memory on write).\n\n**D3 Media ids.** **Recommended:** a fingerprint of size, type and the first and last 64 KB (fast for 4 GB files). Alternative: a full SHA-256 (no collision risk, but hashing a 4 GB file takes ~10–20 s).\n\n**D4 Exporting with missing files.** **Recommended:** refused with the list of missing files until they are found or their clips removed. Alternative: export with black frames and silence in their place.\n\n**D5 The browser database.** **Recommended:** a new database `chitthi-projects`, so the print `chitthi` database's version and upgrade code don't change. Alternative: new stores in `chitthi` (version 6).\n\n**D6 One video list for all kinds.** **Recommended:** the video studio's list holds Reels, Shorts and YouTube projects together (with their kind shown); opening one switches the studio to its mode. Alternative: a list per mode."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); the e2e, self-test, MCP and timing checks are listed in `290` (\"Deferred checks collected from the phase\": 408 AC-2 export identity, AC-10, AC-11, AC-12, AC-13).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 408 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Spike",
+        "intro": "R1 and R2 first: the desktop media scheme and the browser's OPFS must work, at today's speed, before §4 and §5 rely on them."
+      },
+      {
+        "title": "Documents",
+        "intro": "Pure functions in `engine/` (§1, §2): the saved documents, their gates, media ids."
+      },
+      {
+        "title": "Media files",
+        "intro": "§5: one `MediaFile` type at every decode site, before any storage exists, so 204–208 stay green on their own."
+      },
+      {
+        "title": "Project library",
+        "intro": "§3: the interface, its in-memory implementation for tests, then the browser and desktop ones."
+      },
+      {
+        "title": "Media store",
+        "intro": "§4: kept once; OPFS in the browser, referenced on desktop."
+      },
+      {
+        "title": "Desktop shell",
+        "intro": "§3, §4, Constitution IX: handlers through `electron/ipc.cjs`, paths never from the page."
+      },
+      {
+        "title": "Saving and opening",
+        "intro": "§6–§8."
+      },
+      {
+        "title": "Interface and agents",
+        "intro": "§9, §10."
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T002",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T020",
+        "T021",
+        "T022",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T040",
+        "T041",
+        "T042",
+        "T050",
+        "T051",
+        "T052",
+        "T060",
+        "T061",
+        "T062",
+        "T063",
+        "T064",
+        "T070",
+        "T071",
+        "T072",
+        "T110",
+        "T111",
+        "T112"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (throwaway, D1, R1): register a privileged `chitthi-media` scheme in `npm run desktop:dev` serving one local 4 GB H.264 file with `Range` / 206 from `fs.createReadStream`; check `<video>` plays and seeks, Mediabunny `UrlSource` decodes frames in the page and reads sound in a Worker, the CSP (`media-src`, `connect-src`) allows it, and decoding 300 frames is within 10 % of the same file as a picked `File`. Record the numbers, the scheme privileges needed, and the fallback (`StreamSource` over IPC) if it is slower.",
+          "section": "Spike",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "electron/main.cjs"
+          ],
+          "test": "recorded in the result note (no committed test)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Spike passed in Electron 44 (npm's electron, Windows), no fallback needed (D1 holds). A privileged scheme `chitthi-media` (standard, secure, supportFetchAPI, corsEnabled, stream; no bypassCSP) served a generated 4.06 GB H.264 + AAC MP4 (540 s, 1080p, 60 Mb/s, written by Mediabunny in 80 s) from `fs.createReadStream(path, { start, end })` wrapped with `Readable.toWeb`, answering `Range` with 206 + Content-Range and `Access-Control-Allow-Origin: app://chitthi`. <video>: metadata at once (540.0 s, 1920x1080), seek to 100 s in 188 ms, plays. Mediabunny `UrlSource` in the page: 300 frames decoded from 60 s in 527 ms vs 621 ms for the same file as a picked `File` / `BlobSource` (2 rounds each, alternating; UrlSource 15 % faster, so the 10 % budget holds). `UrlSource` in a module Worker: 10 s of sound (481,280 frames at 48 kHz) in 66 ms. 52 requests read 483 MB of the 4,061 MB file in total (Mediabunny and <video> ask open-ended ranges and abort them; the read streams stop, only the paused <video>'s one stays open). CSP with `media-src` and `connect-src` gaining `chitthi-media:`: no violations. Spike code stayed in the session scratchpad (nothing in the repo); the scheme privileges, the CORS header and the CDP trick for a real picked File in tests are in memory/learnings.md."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T002": {
+          "text": "Spike (throwaway, D2, R2): copy a 1 GB file into OPFS streamed (`createWritable`, and a Worker with `createSyncAccessHandle`) in Chrome, Firefox and Safari; reopen after a reload and decode it with `BlobSource` from `getFile()`; note memory during the copy, `storage.estimate()` / `persist()` answers, and what a private window does. Record which path each browser needs.",
+          "section": "Spike",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "recorded in the result note (no committed test)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Chrome and Firefox as in the block note (main-thread createWritable; Worker sync access handle optional; Firefox persist() prompts and never settles unanswered; Firefox private windows have no OPFS). Safari run by the maintainer on another computer, who marked T002 done on 2026-10-19; Safari's numbers weren't recorded here. Per plan, Safari copies through the Worker's sync access handle (T041)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T010": {
+          "text": "Failing tests: `videoDocument` / `videoFromDocument` round trip (document → store → document identical) for the 201–208 fixtures, with `name`, `playhead`, `trackView` and every export setting; media listed once per file; documents without the new fields stay byte-identical.",
+          "section": "Documents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/engine/projectDoc.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/projectDoc.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** tests/unit/engine/projectDoc.test.ts: the editor's project → videoDocument → JSON → mergeProject → videoFromDocument → videoDocument gives the same JSON byte for byte, for the 12 201 fixtures (2.x documents through the gate) and one project with everything 202–208 added (gaps with Magnetic off, overlay with a box and keys, a transition, speed / reverse / ramp / freeze, three audio tracks with roles, volume, ducking, Solo, voice off, sounds with fades, keys, toEnd, loudness −14, text and image layers, fps 60, quality high); name, playhead, trackView and every export setting come back; loudness Off and an empty view stay out of the document; media listed once per file in first-use order; reopened clips take name, size and length from their media; documents from before 408 get no new fields and stay byte-identical. legacyDoc moved from timeline.test.ts into tests/support/timeline.testkit.ts. Fails as expected: videoDocument / videoFromDocument don't exist (17 failing)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T011": {
+          "text": "`videoDocument` / `videoFromDocument` and the new optional document fields; `mergeProject` reads them (playhead clamped to the length, names 1–80 characters, `trackView` values checked).",
+          "section": "Documents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-6"
+          ],
+          "files": [
+            "src/engine/projectDoc.ts",
+            "src/engine/projectGate.ts",
+            "tests/unit/engine/projectGate.test.ts"
+          ],
+          "test": "T010; `npx vitest run tests/unit/engine/projectGate.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** engine/projectDoc.ts: ProjectDoc gains optional name, playhead, trackView (written by toDocument only when set, so documents from before 408 stay byte-identical); editor-side types MediaLike, EditorClip, EditorSound, EditorVideo (VState's shape), OpenedVideo; videoDocument(video, name, mediaId, images) lists each file once in first-use order (clips, sounds, image-layer pictures) and writes layers and edits with sorted keys, so a reopened project saves the same bytes (the gate rebuilds layers in its own key order); videoFromDocument(doc, open) asks open once per media entry. TrackHeight moved to engine/tracks.ts (+ TRACK_HEIGHTS; videoStore re-exports it). projectGate.ts readView: name trimmed and cut to NAME_MAX 80 graphemes (Intl.Segmenter: a family emoji counts as one), empty left out, a non-text name left out with a reason; playhead clamped to 0–the project's length, non-finite left out; trackView kept only for the project's tracks and known heights. T010's 29 tests pass; tests/unit/engine/projectGate.test.ts 15 tests (a mutation dropping the playhead clamp fails one). npm run check green: 2,220 tests. Open edge for T061: a file used both as a video clip and as a sound gets one media entry of the first kind, and the gate then drops the other use (it checks the kind)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T012": {
+          "text": "Failing tests then code: `PhotoProjectDoc` and `mergePhotoProject` (items through `mergeEdit` and `mergeLayers`, masks, RAW flag, the batch limit, format, file type, quality, caption, selection); round trip identical; damaged, newer-version and out-of-range documents open what is valid with reasons.",
+          "section": "Documents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-6"
+          ],
+          "files": [
+            "src/engine/photoProjectDoc.ts",
+            "tests/unit/engine/photoProjectDoc.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/photoProjectDoc.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** engine/photoProjectDoc.ts: PhotoProjectDoc (version 1; name optional like the video document's; format, limit, fileType, quality, caption, selected, items, media), DocPhoto { id, media, edit, layers, raw?: true } (a photo's name and size come from its media entry, as a clip's do; plan sketch updated), editor-side EditorPhoto / EditorBatch (IgItem and IgState now extend them instead of repeating the fields); photoDocument lists each file once in first-use order and writes edits and layers with sorted keys; photoFromDocument opens each media entry once; mergePhotoProject: not a project / newer version → empty batch with the reason, never throws; format, file type, quality (60–100), caption (2,200), limit (1–20, never below the photos held) clamped or defaulted; at most 20 photos; photos without photo media of a known size or unreadable left out; RAW photos only on desktop; duplicate ids renamed; edits through mergeEdit (masks via mergeMasks), layers through mergeLayers with one keyframe budget; unused media dropped; selection kept only if the photo is. projectGate.ts now exports ID, readMedia, readName (name reading moved out of readView) and versionText; projectDoc.ts exports sortedKeys. tests/unit/engine/photoProjectDoc.test.ts 18 tests (round trip byte-identical with edits, three mask kinds, layers, RAW, a file used twice; damaged / newer / out-of-range documents). Mutations (no key sorting; no RAW check) each fail a test. npm run check green: 2,246 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T013": {
+          "text": "Failing tests then code: `mediaKey` (size, type and the first and last 64 KB, read with `Blob.slice`; the same bytes give the same id, one byte changed at either end or a different size gives another; a 4 GB stand-in Blob reads only 128 KB).",
+          "section": "Documents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/mediaKey.ts",
+            "tests/unit/engine/mediaKey.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/mediaKey.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** engine/mediaKey.ts: mediaKey(file) = m<size36>-<type FNV-1a>-<FNV-1a of the first 64 KB><FNV-1a of the last 64 KB> (base 36, 7 characters per hash, at most 32 characters, matches the gate's media id pattern); takes Pick<Blob, size | type | slice>, so disk media with slice can use it too. tests/unit/engine/mediaKey.test.ts 8 tests: same bytes same id; one byte changed at either end of each 64 KB sample, another size or another type each give another id; tiny and empty files; a 4 GB stand-in reads exactly 128 KB (131,072 bytes) and gives the same id twice. Mutation (tail hash left out) fails 2 tests. npm run check green: 2,228 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T020": {
+          "text": "Failing tests then code: `MediaFile`, `DiskMedia`, `OpenedMedia`; `mediaInput` (a `BlobSource` for a Blob, a `UrlSource` for disk media), `blobOf`, `isMissing`.",
+          "section": "Media files",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/engine/mediaFile.ts",
+            "tests/unit/engine/mediaFile.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/mediaFile.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** engine/mediaFile.ts: DiskMedia { id, url, size, type, name, missing? } (the page never sees a path), MediaFile = Blob | DiskMedia, OpenedMedia; a missing file is a DiskMedia stand-in made by missingMedia(entry) (url '', missing: true), so a clip, sound or photo whose file is gone stays in the project (T022 draws it); isMissing; mediaInput gives a BlobSource for a Blob, a UrlSource on the chitthi-media URL for disk media with getRetryDelay () => null (Mediabunny otherwise retries a 404 for ever; learnings), and throws for a missing file; blobOf gives a Blob as it is, fetches disk media once (keeping its type), and rejects a missing file or a non-OK answer ('“long.mp4” couldn’t be read (404).'). Mediabunny's package is sideEffects: false, so importing mediaFile for isMissing doesn't pull it into the entry chunk (checked at T112's build). tests/unit/engine/mediaFile.test.ts 6 tests; mutations (no retry option; no missing check in blobOf) fail 2. npm run check green: 2,252 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T021": {
+          "text": "Every decode site through `mediaInput` / `blobOf` (R3): `frameSource`, `decodePool`, `poolLane`, `exportSound`, `videoExport`, `soundScan.worker`, `videoExportJob`, `instagramExport`, `previewFrame`; `VClip.file`, `VSound.file`, `IgItem.file` typed `MediaFile`. Behaviour unchanged on the web (Blobs).",
+          "section": "Media files",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/engine/frameSource.ts",
+            "src/engine/decodePool.ts",
+            "src/engine/poolLane.ts",
+            "src/engine/exportSound.ts",
+            "src/engine/videoExport.ts",
+            "src/state/soundScan.worker.ts",
+            "src/state/videoExportJob.ts",
+            "src/state/instagramExport.ts",
+            "src/components/studio/previewFrame.ts",
+            "src/state/videoStore.ts",
+            "src/state/instagram.ts"
+          ],
+          "test": "`npm run check` (every existing unit and integration test unchanged)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** VClip.file, VSound.file and IgItem.file are MediaFile (IgItem / IgState extend EditorPhoto / EditorBatch<MediaFile>); every decode site reads through engine/mediaFile.ts: frameSource (shared inputs, the self-test refuse set and names keyed by MediaFile, mediaName for messages), exportSound.openSound and soundScan.worker via mediaInput (no BlobSource left in src/), videoExport.loadPhoto and instagramExport (RAW develop and the photo decode) via blobOf; decodePool, poolLane, previewFrame (fallback notes), soundScan, videoExportJob typed MediaFile. videoMedia's own 'file to add' type renamed MediaToAdd (it clashed with MediaFile); 'Use the photos from Photos' goes through new state/videoMedia.addBatchPhotos (each photo read with blobOf; a missing or unreadable one is said and logged, the others added). Tests: maps keyed by MediaFile in videoExport / soundScan integration tests and fakeDecoder; self-test decoders (decodedColours, decodeFrames, poolChecks' export copy) through mediaInput; new tests/support/blobFile.ts for the two fixture sites that need a real Blob; mediaName test added (7 in mediaFile.test.ts). Web behaviour unchanged (Blobs): npm run check green, 2,253 tests; self-test runs in 290."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T022": {
+          "text": "Missing media (D4): a clip, sound or photo whose file is missing draws a hatched placeholder with its name (`previewFrame`, `PictureRow`, the photo stage), is silent, and the export is refused with “Find the missing files first: …” listing them; tests on the export guard and the frame plan.",
+          "section": "Media files",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/mediaFile.ts",
+            "src/state/videoExportJob.ts",
+            "src/state/instagramExport.ts",
+            "src/components/studio/previewFrame.ts",
+            "src/components/studio/PictureRow.tsx",
+            "tests/integration/state/video.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Missing media (D4). engine/mediaFile.ts missingFilesMessage(files) → 'Find the missing files first: a.mp4, voice.wav.' (each name once, in order) or null; exportVideo refuses through refuseMissing before the save picker, the encoder import or any progress (clips and sounds), renderBatch before drawing anything (photos); both throw the message, which the export UIs already toast. New engine/missingDraw.ts missingPicture(name, w, h): a cached hatched canvas with 'Missing: <name>' (16:9 by default; T062 uses it with a photo's own size as a missing photo's preview on the photo stage). previewFrame: the pool source and the <video> source give no picture for a missing file without trying it (a <video> with no URL would never load) and no can't-decode note; pausedFrame doesn't ask; drawPreview draws the placeholder in the clip's place (its box, edit, transitions as any picture); PreviewClip gains an optional name. VideoStage: pictureNow and usesPool skip missing files (no pool look-ahead), fallback <video> sync skips them, the preview sound plays audibleProject (missing clips and sounds silent). PictureRow: tl-missing (hatched, filmstrip hidden) and 'The file is missing: find it to export the video.' in the title and accessible name. Tests: mediaFile.test.ts +1, new tests/integration/components/studio/previewFrame.test.ts (2: paused frame, pool source), video.test.ts +1 (export refused, progress untouched), new tests/integration/state/photoExport.test.ts (1); mutations (no pool guard; no export guard) fail 2. npm run check green: 2,258 tests. The stage's look and Find file… are checked in 290 / T071."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T030": {
+          "text": "Failing tests against the `ProjectLibrary` interface, run on the in-memory implementation: list (newest first, entries with studio, kind, length / photos, changed, bytes, thumbnail, readable), read, write (all or nothing: a failure switch mid-write leaves the last document), cache read / write, remove (bytes freed), usage.",
+          "section": "Project library",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3",
+            "AC-6"
+          ],
+          "files": [
+            "tests/unit/lib/projects.test.ts",
+            "tests/support/memoryProjects.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/projects.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** tests/unit/lib/projects.test.ts: libraryContract(name, make) — the contract every ProjectLibrary keeps, so the browser (T032) and desktop (T033) libraries run the same suite: starts empty; lists newest first with studio, kind, length / photos, changed, thumbnail, readable, and bytes as stored (the library's own count, not the caller's); read gives back what was written, unvalidated; a second write replaces document and entry; a write broken half way (after the document, before the entry) leaves the last complete save, and a new project broken that way isn't listed; cache read / write counted in the bytes; a spoiled document listed as can't be opened, read rejects, the others load; remove frees document and cache and returns the bytes (0 for unknown); usage sums the bytes; ids that aren't /^[A-Za-z0-9_-]{1,100}$/ refused. Plus the in-memory library's quota (QuotaExceededError, last save kept) for T060. Fails as expected: tests/support/memoryProjects.ts and lib/projects.ts don't exist."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T031": {
+          "text": "`lib/projects.ts` (the interface, `projects` chosen once by platform) and the in-memory implementation; T030 passes.",
+          "section": "Project library",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "src/lib/projects.ts",
+            "tests/support/memoryProjects.ts"
+          ],
+          "test": "T030",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** src/lib/projects.ts: Studio, ProjectEntry, ProjectCache, LibraryUsage, ProjectLibrary (list newest first, read unvalidated, write all or nothing, readCache / writeCache, remove → bytes freed, usage), checkProjectId (/^[A-Za-z0-9_-]{1,100}$/, the desktop handlers' pattern), storedBytes, newestFirst. tests/support/memoryProjects.ts: the in-memory library storing JSON text as a real one does, every method a promise (a refused id rejects), with faults for tests: breakWrites / mendWrites (document lands, then the fault puts back the last save), spoil (listed can't be opened), and a quota (QuotaExceededError like a browser's, for T060). T030's contract: 11 tests pass; a mutation dropping the rollback fails 'a write that fails half way'. npm run check green: 2,269 tests. The platform chooser (projects = desktop ? … : …) comes with the implementations it chooses between, T032 / T033."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T032": {
+          "text": "Browser library `projectsWeb.ts`: database `chitthi-projects` (D5), stores `entries`, `docs`, `cache`, one transaction per write; an unreadable record listed as can't be opened; `usage()` from `storage.estimate()` and `persisted()`; a test that the print database `chitthi` is never opened.",
+          "section": "Project library",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-6",
+            "AC-9"
+          ],
+          "files": [
+            "src/lib/projectsWeb.ts",
+            "tests/unit/lib/projectsWeb.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/projectsWeb.test.ts` (with the `idb.ts` layer stubbed)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** src/lib/projectsWeb.ts: webProjects(open, storage) over its own IndexedDB database chitthi-projects v1 (D5; the print database chitthi is never opened) with stores entries, docs, cache keyed by project id; docs and cache kept as JSON text (exact bytes; a damaged record is a parse failure); write = one transaction over docs + entries (bytes counted from the stored text, cache included), writeCache = cache + entry bytes in one; remove deletes all three in one; list parses each document only after it changes (kept by id and changed) and lists a record that isn't an entry by its key as 'Project that can’t be opened'; usage = the entries' bytes + navigator.storage estimate().quota and persisted() (null without a storage manager). lib/idb.ts gains runTransaction (several stores, one transaction, result on complete). The ProjectsDb layer is stubbed in tests/unit/lib/projectsWeb.test.ts: the T030 contract (moved to tests/support/projectsContract.ts so it runs once per implementation) passes on it, plus usage with and without a storage manager, a junk entry record, and openProjectsDb opening only [chitthi-projects, 1] and creating entries, docs, cache. A mutation splitting the save into two transactions fails the half-way test once the fake crashes between document and entry (learnings). npm run check green: 2,283 tests. The real IndexedDB path runs in 290's e2e."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T033": {
+          "text": "Desktop library `projectsDesktop.ts` over `desktop.projects` (the bridge types in `platform/desktop.ts`), passing the same T030 suite through a fake bridge.",
+          "section": "Project library",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/lib/projectsDesktop.ts",
+            "src/platform/desktop.ts",
+            "tests/unit/lib/projects.test.ts"
+          ],
+          "test": "T030 (desktop variant)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** platform/desktop.ts: ProjectsBridge (list → entries with bytes and readable worked out by main; read / readCache → the stored JSON text or null; write(id, doc text, entry text) to .tmp then renamed; writeCache; remove → bytes; usage → used) as the optional bridge member projects. src/lib/projectsDesktop.ts: desktopProjects(bridge) sends JSON text only, checks ids, parses what comes back (a spoiled document rejects on read), lists a listed value that isn't an entry by its id as can't be opened (dropped without a valid id); usage has no quota or persistence (null). entryOf / unreadable / isProjectId moved into lib/projects.ts, shared with projectsWeb. src/lib/projectLibrary.ts: projects = desktop?.projects ? desktopProjects(…) : webProjects() (its own module, so lib/projects.ts and the implementations don't import each other; plan updated, also read / readCache returning text). tests/unit/lib/projectsDesktop.test.ts: the T030 contract through a fake main (one file per project, .tmp + rename) plus text-only IPC, odd listed values and usage: 13 tests; a mutation ignoring main's readable flag fails the AC-6 test. npm run check green: 2,296 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T040": {
+          "text": "Failing tests against `MediaStore` on an in-memory stand-in: `keep` stores a file once (same id for the same file, from two projects), reports progress, refuses a file that doesn't fit with the space left; `open` gives the file or missing; `sweep` keeps ids in use, frees the rest, reports bytes; owned vs referenced on desktop (a user file never deleted).",
+          "section": "Media store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-7"
+          ],
+          "files": [
+            "tests/unit/lib/mediaStore.test.ts",
+            "tests/support/memoryMedia.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/mediaStore.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** src/lib/mediaStore.ts: the MediaStore interface (keep(file, owned, progress) → id or { error }; open(id, name) → OpenedMedia; relink(id); sweep(used) → bytes freed), sizeText ('300 KB', '1.2 GB') and noRoomMessage ('There isn’t room for “beach.mp4”: it needs 300 KB, and 100 KB is left on this device.'). tests/support/mediaContract.ts: mediaContract(name, make(room)) for two kinds — copies (the browser) and references (desktop: user files pointed at, only app-made files kept): kept once by mediaKey whichever project adds it, bytes back unchanged; app-made files always kept; progress non-decreasing to 1; no room refused with both sizes and nothing kept (references: user files need no room, app-made ones do); unknown id opens as missing with its name; sweep frees what no project uses with the bytes (user files forgotten, 0 bytes) and those ids open missing; a user's file never deleted; Find file… null on copies, reconnects the id on references (cancel → null). tests/support/memoryMedia.ts: the in-memory stand-in of both kinds. tests/unit/lib/mediaStore.test.ts: the contract twice + sizes: 17 tests; a mutation copying user files on desktop fails 4. npm run check green: 2,313 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T041": {
+          "text": "Browser media store `mediaWeb.ts` (+ `mediaWeb.worker.ts` for the sync access handle, per T002): OPFS `media/<id>`, streamed copy, `estimate()` before copying, `persist()` asked once, private windows without OPFS saving without media and saying so; T040 passes on its OPFS stand-in.",
+          "section": "Media store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-7"
+          ],
+          "files": [
+            "src/lib/mediaStore.ts",
+            "src/lib/mediaWeb.ts",
+            "src/lib/mediaWeb.worker.ts"
+          ],
+          "test": "T040",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** src/lib/mediaWeb.ts: webMedia(env) over OPFS media/<id>: kept once by mediaKey (an entry with the file's size counts as kept; a copy of the same file already running is shared); persist() asked once on the first copy and never awaited (Firefox's prompt doesn't settle unanswered); estimate() checked before copying (noRoomMessage with both sizes); the copy streamed on the page (file.stream() → a counting TransformStream for progress → createWritable) or, where a file handle has no createWritable (Safari, per T002), in src/lib/mediaWeb.worker.ts with a sync access handle in 4 MB pieces; a failed copy (QuotaExceededError when the estimate was old, a file that can't be read) removes the partial entry and says why; a private window without OPFS keeps nothing and says PRIVATE_WINDOW (the edits save, the files stay until the window closes), opens missing, sweeps 0; open(id, name, type) wraps the disk file with its name and type (OPFS keeps none, so the media id holds; MediaStore.open gains the optional type, plan updated; learnings) and an object URL; sweep removes unused entries and returns their bytes; relink null. tests/support/fakeOpfs.ts: OPFS in memory (createWritable landing on close, capacity → QuotaExceededError, a Safari mode without createWritable). tests/unit/lib/mediaWeb.test.ts: the T040 contract on the fake (+ its new check that a reopened file kept again keeps its id) and 7 browser cases: 15 tests; mutations (no partial-file removal; no type restored) fail 2 each. npm run check green: 2,328 tests. The real OPFS, the worker in Safari and 1 GB copies run in 290."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T042": {
+          "text": "Desktop media store `mediaDesktop.ts` over `desktop.media`: `register(file)` for picked files, `writeOwned` / `finishOwned` in 4 MB pieces for app-made files, `open` → `DiskMedia` with its `chitthi-media://` URL or missing, `relink` via `findFile`; T040 through a fake bridge.",
+          "section": "Media store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-7"
+          ],
+          "files": [
+            "src/lib/mediaDesktop.ts",
+            "src/platform/desktop.ts"
+          ],
+          "test": "T040 (desktop variant)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** platform/desktop.ts: MediaBridge (register(id, file) → false when the file has no path, writeOwned / finishOwned(id, keep), status(ids) → { state ok | missing | changed, size }, freeSpace, findFile, sweep) as the optional bridge member media; the page computes the id with mediaKey (plan's register(file) → id changed to register(id, file); plan sketches updated). src/lib/mediaDesktop.ts: desktopMedia(bridge): kept already when status is ok; a picked File referenced through register; an app-made file, or one register can't place, written into the data folder in 4 MB pieces after a freeSpace check (noRoomMessage), finishOwned(false) on a failure; open → DiskMedia { id, url chitthi-media://<id>, size, type, name } or missing (changed counts as missing); relink(id, name, type) through findFile; sweep through the bridge. MediaStore.keep now takes a MediaFile (disk media is kept already: its id, via keptAlready, also in mediaWeb and the stand-in); relink takes the name and type back. The contract reads files back with blobOf (chitthi-media through a stubbed fetch). tests/unit/lib/mediaDesktop.test.ts: the T040 contract through a fake main + 4 desktop cases: 12 tests; mutations (no register, user files copied; no cleanup of a failed app-made write) fail 4 and 1. npm run check green: 2,340 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T050": {
+          "text": "Failing tests then code: `electron/projects.cjs` handlers (list, read, write, readCache, writeCache, remove, usage) in `library/projects/`; ids validated; writes to `.tmp` then rename (a crash between leaves the old file); unreadable files listed, not thrown.",
+          "section": "Desktop shell",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-6"
+          ],
+          "files": [
+            "electron/projects.cjs",
+            "tests/unit/electron/projects.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/electron/projects.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** electron/projects.cjs: createProjects(folder, fs) and registerProjects(folder) (projects:list / read / write / readCache / writeCache / remove / usage through ipc.cjs handle; wired in T052). One file per project, library/projects/<id>.project: a JSON header line { entry (the page's, id forced), docBytes } then the document text as sent; written to <file>.<pid>.tmp then renamed (the .tmp removed on failure; stray .tmp files never listed); the cache in <id>.cache.json the same way. list reads only each header (≤ 1 MB), the size and the last byte: a file whose length isn't header + docBytes or that doesn't end as JSON ends, or whose header doesn't parse, is listed { id, readable: false } (the page lists it as can't be opened); bytes = docBytes + cache size; read returns the document text or null; remove returns the bytes freed; usage sums them. Ids checked (the pattern, and Windows device names CON / NUL / COM1… refused, also in lib/projects.ts isProjectId; learnings), documents and caches must be text ≤ 256 MB, the entry a JSON object, all before touching the disk. tests/unit/electron/projects.test.ts on a temp folder: 8 tests (round trip and bytes, no folder yet, rename failing leaves the last project and no .tmp, stray .tmp, cut-short and junk files listed can't be opened, remove, refused ids / text, an entry with a newline). Mutations (no .tmp + rename; no device-name check) each fail a test. npm run check green: 2,348 tests."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T051": {
+          "text": "Failing tests then code: `electron/media.cjs`: the index `library/media-index.json` written by main only; `register` takes a path only from the preload (`webUtils.getPathForFile`), records size and mtime; owned files in `library/media/`; `status`; `sweep` deletes only owned files and index entries; the `chitthi-media://` handler answers indexed ids with 200 / 206 ranges, 404 for unknown, moved or changed files; `findFile` (dialog faked) reconnects the id and the other missing ids whose names are in the chosen folder.",
+          "section": "Desktop shell",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-7"
+          ],
+          "files": [
+            "electron/media.cjs",
+            "tests/unit/electron/media.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/electron/media.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `electron/media.cjs` (createMedia + registerMedia, 15 tests in `tests/unit/electron/media.test.ts`). The index `library/media-index.json` is written only by main, whole (.tmp then rename), writes queued in order (12 registers at once all land); a damaged index starts empty. `register(id, path)` takes an absolute path to a real file ('' → false, the page then keeps it as owned), records size and mtimeMs; bad ids (incl. CON), relative paths, folders and missing files refused. App-made files: pieces to `media/<id>.part`, `finishOwned` renames to `media/<id>` (owned) or removes the .part. `status`: ok / changed (size or mtime) / missing. `chitthi-media://<id>`: 200 whole, 206 for `bytes=a-b`, `a-`, `-n` (end clamped), 416 past the end, HEAD, 405 other methods, 404 for unknown / bad / moved / changed ids and any path after the id; CORS `Access-Control-Allow-Origin: app://chitthi`. `sweep` forgets unused ids and deletes only owned files directly in `media/` (a hand-edited 'owned' entry pointing at a user file is left alone), plus orphan and stale .part files, returning bytes freed. `findFile` (dialog injected) reconnects the id as a user file (never owned) and other missing non-owned ids whose name *and recorded size* match in the chosen folder (size check added so an unchosen file is never swapped silently). Mutations caught: sweep without the media-folder guard, status without the mtime check. Wiring (scheme, IPC, preload, CSP) is T052."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T052": {
+          "text": "Wire it: register the scheme (privileges from T001) and both handler sets through `electron/ipc.cjs`; preload exposes `projects` and `media` (with `getPathForFile`); Electron CSP `media-src` / `connect-src` gain `chitthi-media:`; `before-quit` waits for the page's `flush()` (at most 2 s); new files in `files:` of `electron-builder.yml`.",
+          "section": "Desktop shell",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-5"
+          ],
+          "files": [
+            "electron/main.cjs",
+            "electron/preload.cjs",
+            "electron-builder.yml"
+          ],
+          "test": "`npm run check` (+ the CSP test in `tests/unit/electron`)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Wired. `electron/csp.cjs` (new: the page CSP moved out of main.cjs so it is testable) adds `chitthi-media:` to `media-src` and `connect-src` only. `main.cjs` registers `chitthi-media` privileged with `MEDIA_PRIVILEGES` (media.cjs: standard, secure, supportFetchAPI, corsEnabled, stream; no bypassCSP) and, in both the window and the headless MCP start, `registerSaved`: `registerProjects(library/projects)` + `registerMedia(library, origin)` (CORS origin app://chitthi, or the dev server's origin), all through `ipc.cjs`. Preload exposes `projects` (+ `onFlush`) and `media`; `media.register(id, file)` sends `webUtils.getPathForFile(file)`, never a page-given path. Quit/close: the window's `close` waits for the page's flush (`projects:flush` → `projects:flushed`, `createFlusher` in projects.cjs) at most 2 s, then closes (or quits if a quit started it); the preload answers at once when nothing is registered and also when the save fails. Note: the plan said `before-quit`; the wait sits on the window's `close` so the X button and Quit both save (before-quit only marks that a quit is under way). `ProjectsBridge.onFlush?` added. New files csp/projects/media in electron-builder.yml `files:`. Tests: `shell.test.ts` (CSP, privileges, every required electron file packaged), `preload.test.ts` (fake electron through Module._load: exposed calls, register path from webUtils, flush answers), 3 flusher tests in projects.test.ts; 39 electron tests, 2,373 unit total. Mutations caught: register without webUtils, media.cjs missing from files:. Runtime check of the wiring (desktop:dev, self-test) in 290."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T060": {
+          "text": "Failing integration tests (in-memory library and media, fake clock): a change saves 2 s after the last one, a drag once when it ends, selections and play don't save, hide / pagehide save at once, the status goes saving → saved; a failing write keeps the project, says “Not saved: storage is full”, logs it, retries on the next change and every 30 s; the 90 % warning once per session.",
+          "section": "Saving and opening",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-9"
+          ],
+          "files": [
+            "tests/integration/state/projects.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/projects.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `tests/integration/state/projects.test.ts`: 13 tests over the video and photo stores, an in-memory library (counting writes, can be made full, usage set by the test) and in-memory media, fake clock: no save on open; a change saves 2 s after it (document + entry: studio, kind, length, photos, changed); 30 drag steps 100 ms apart save once 2 s after the last; selection / play / playhead / zoom don't save, hide saves them at once (playhead in the doc) and a second hide writes nothing; hide flushes a pending change and the timer then does nothing; flush() resolves when written; status saving → saved with subscribers and texts; the photo batch saves to its own project (selection waits for the next save); no project open or stopped = no saves; a save waits for a keep under way and uses its media id; quota failure → failed 'storage is full', 'Not saved: storage is full', logged 'handled', project kept, retry at +30 s and +60 s then saved and no more retries; retry on the next change; another error gives its message; the 90 % warning once per session. Fail now: `@/state/projectSave` doesn't exist (T061)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T061": {
+          "text": "`state/projectSave.ts`: the autosave over both stores, the status store, `flush()`; media kept when added (`videoMedia.ts`, `videoSound.ts`, `instagramMedia.ts` call `media.keep`, owned for app-made files) before the save that references it; T060 passes.",
+          "section": "Saving and opening",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-4",
+            "AC-9"
+          ],
+          "files": [
+            "src/state/projectSave.ts",
+            "src/state/videoMedia.ts",
+            "src/state/videoSound.ts",
+            "src/state/instagramMedia.ts"
+          ],
+          "test": "T060",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `src/state/projectSave.ts`: `startAutosave({ library, media, onHide?, warn? })` → `open(studio, id, name)`, `flush()`, `stop()` (one runs at a time); the status store `saveStatus` / `subscribeSaveStatus` / `saveStatusText` (Saved / Saving… / Not saved: reason); `keepMedia(file, owned)` and `rememberMedia(file, id)` (for T062's reopened files). Each studio's project has a dirty flag: a change to the document's fields (video: kind, tracks, clips, sounds, layers, loudness, magnetic, format, fps, quality, fadeOut; photos: items, format, limit, fileType, quality, caption) saves 2 s after the last one; riders (playhead, trackView; the selected photo) only mark it dirty; selections, play, zoom nothing. Hide (visibilitychange hidden, pagehide) and the desktop's `projects.onFlush` save at once; saves run one after another; the same document text isn't written twice. A failing write keeps the project dirty, logs `handled`, sets 'storage is full' for QuotaExceededError / ENOSPC (else the error's message) and retries every 30 s and on the next change. After a save, `library.usage()` ≥ 90 % of allowed warns once per session. Media ids: from the keep started when the file was added (a save waits for one under way); a file never kept is kept at save time; a failed keep warns and saves under its fingerprint (opens as missing). `subscribeIg` added to `instagram.ts`; `addMedia` (video clips, incl. photos from the batch), `addSoundFiles` and `addPhotos` call `keepMedia(file, false)` after their change (desktop writes a file with no path as owned by itself). 12 tests in projects.test.ts (T060 said 13: it is 12) pass; 2,385 unit total. Mutations caught: riders scheduling saves, no retry, not waiting for a keep. Not yet wired to the real library/media or the UI (T062, T070, T071)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T062": {
+          "text": "Failing tests then code, `state/projects.ts`: `newProject` (names “Reel · 19 Oct 14:02”), `openProject` (gate, media open, `loadVideoProject` extended with format, fps, quality, kind, fadeOut, playhead, name; the photo batch with previews from the cache or the file; history empty; the route follows the kind, D6), rename (1–80), duplicate (media shared), delete (sweep, bytes freed), the last project per studio in `localStorage`, first visit new.",
+          "section": "Saving and opening",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2",
+            "AC-3",
+            "AC-7"
+          ],
+          "files": [
+            "src/state/projects.ts",
+            "src/state/videoStore.ts",
+            "src/state/instagram.ts",
+            "tests/integration/state/projects.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/projects.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `src/state/projects.ts`: `newProject(studio, kind)` (empty editor, named 'Reel · 19 Oct 14:02' / 'YouTube · …' / 'Photos · …', saved at once so it is listed), `openProject(id)` (saves the project left first; gate `mergeProject` / `mergePhotoProject`; `media.open` per id, a missing file a placeholder keeping its id and name; `loadVideoProject` now takes kind, format, fps, quality, fadeOut, trackView and the playhead; new `loadPhotoBatch` in instagram.ts; history empty; route by kind, D6: `#/instagram/video`, `#/instagram/youtube`, `#/instagram`), `renameProject` (1–80 after trimming; the open one through the autosave), `duplicateProject` ('<name> copy', media shared, cache copied), `deleteProject` (the open one is replaced by a new one first; library bytes + `media.sweep` of ids no saved project or open editor uses; nothing swept while a project can't be read), `startStudio` (open one, else the last per studio from localStorage `chitthi-projects-last`, else new), `listProjects`. Dependencies through `configureProjects` (tests) or `ensureProjects()` (dynamic imports of the library and the new `lib/mediaLibrary.ts`, so none of it is in the entry). Autosave gained `open(…, unsaved)`, `close`, `current`, `rename` and `editorMediaIds`; its projects are a Map. Pictures on reopening through `openIO` (photo clip still / thumb via `mediaIO.photo`, video filmstrip via `mediaIO.strip`, batch previews via the new `previewOf` in instagramMedia.ts; placeholders for missing files). Known gap for T063: reopened video clips have no thumbnail, and on desktop (chitthi-media URLs) no filmstrip, until the cache. 8 tests added (20 in projects.test.ts, 2,393 total). Written code-first, then tests; mutations caught: sweep ignoring other projects' media, open without saving the project left (needed a new test case), no name length cap, no reopening of the last project."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T063": {
+          "text": "The cache (Q14): thumbnails, filmstrips, photo previews and waveform peaks written with `writeCache` when they change, read on open, rebuilt in the background when missing or when the file changed; tests on what is written and when.",
+          "section": "Saving and opening",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/state/projectSave.ts",
+            "src/state/projects.ts",
+            "src/state/soundScan.ts",
+            "tests/integration/state/projects.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/projects.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** The cache (Q14), keyed by media id (D-060): `ProjectCache` is now `{ thumbs, strips, previews, scans }` (scans replace peaks: duration, peaks and RMS as base64 via the new `encodeScan` / `decodeScan` in engine/soundScan.ts, so ducking needs no rescan either). Writing (`state/projectSave.ts`): each save builds the cache from the editor with the document's media ids (video clips' thumbnail and filmstrip, every clip's and sound's scan from `scanOf(url)`, photo previews as JPEG data URLs through `cacheIO.previewData`, made once per canvas and per scan) and writes it after the document only when its text changed (a new project's empty cache isn't written; a failure is logged only). A filmstrip arriving (`shareStrip`) or a scan finishing (the autosave now listens to `subscribeScans`) triggers a save that writes the cache and not the unchanged document. Reading (`state/projects.ts`): `cacheFrom` checks the stored cache entry by entry; opening a video takes thumbnails and filmstrips from it (a video clip's thumbnail falls back to its strip's first frame), puts cached scans back (new `addScan` in state/soundScan.ts, after `clearScans`) and scans the rest in the background, and makes filmstrips only for clips without one; photo previews come from the cached JPEG (`openIO.previewFromData`), else from the file. `makeStrip` now also reads `chitthi-media://` URLs (desktop reopened clips). Tests: 6 integration (what is written and when; what opening uses and what it remakes), 2 codec units; 2,401 total. Mutations caught: cache written only with a document, scans not watched, cached scans or strips ignored."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T064": {
+          "text": "Failing tests then code, `lib/projectLock.ts` (a fake `BroadcastChannel`): opening a project open elsewhere makes the holder stop saving with “This project is open in another window”; **Open here again** takes it back and reloads from storage; wired into `projectSave`.",
+          "section": "Saving and opening",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/lib/projectLock.ts",
+            "src/state/projectSave.ts",
+            "tests/unit/lib/projectLock.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/projectLock.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `src/lib/projectLock.ts`: `projectLock(channel)` over a `BroadcastChannel('chitthi-projects')` (`broadcastLock()`; null where there is none): `hold(studio, id)` posts `{ open, by }` (by = a random id per window), a window holding that id in a studio lets it go and tells its `onTaken` listeners; `release`, `holds`, `close` (closes the channel, so Node's real BroadcastChannel doesn't keep a test process alive; a closed lock posts nothing). Wired into the autosave: `open` holds, `close` releases, `stop` closes; when taken, the studio's project and timer are dropped at once (nothing more is saved, flush included) and the status becomes `{ state: 'elsewhere', studio, id }` → 'This project is open in another window'. Open here again = `openProject(id)` (T062), which holds it again and reloads from storage; the button is T071's. Tests: `tests/unit/lib/projectLock.test.ts` (5, a fake hub in `tests/support/lockHub.ts` that, like the real channel, never delivers to the sender) and one wiring test in projects.test.ts; 2,407 total. Mutations caught: the lock keeping a taken project, the autosave saving a taken one."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T070": {
+          "text": "`ProjectsPanel.tsx` (lazy) from a **Projects** button in `Shell.tsx`: New (with the kind for video), the list (thumbnail, name, kind, length / photos, changed, size), Open, Rename (F2), Duplicate, Delete (asks, showing the space freed), storage used / allowed and the persistent-storage note, can't-be-opened entries with Delete; arrow keys and Enter; announcements; styles in a new numbered file at the end of `src/styles.css`.",
+          "section": "Interface and agents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/ProjectsPanel.tsx",
+            "src/components/studio/Shell.tsx",
+            "src/styles/"
+          ],
+          "test": "`npm run check` (UI checks in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `src/components/studio/ProjectsPanel.tsx`, lazy-loaded from a **Projects** button (folder icon; icon only on phones) at the left of the studio top bar in `Shell.tsx`, inside the existing `StudioDialog` ('Video projects' / 'Photo projects'): New Reel / New YouTube video (video) or New photo post; the list newest first (thumbnail, name, kind · length or photos · changed · size); the row opens the project (the gate's notes as a toast); Rename (F2 or the pencil, 1–80, Enter / Escape / blur), Duplicate, Delete (asks first: 'Delete “X”? This frees 12 MB. Your own files on this computer are never deleted.'); can't-be-opened rows are dashed with Delete only; arrow keys move between rows, Enter opens; a polite live region announces renames, copies and deletes; the space line 'Projects use 3.2 GB; about 41 GB free for this site' and, when the browser hasn't promised to keep it, a 'Keep my projects' button (`persist()` from the click). Styles: new `src/styles/41-projects.css` imported last. State added with tests first (3 in projects.test.ts): `spaceFreed(id)` (document + cache, and in the browser the media no other project or open editor uses; desktop: the project only), `projectsUsage()` (library + each media copy once in the browser), `askToKeepStorage()`, entry thumbnails from the autosave (first clip's thumbnail or strip frame; the first photo at 160 px via `cacheIO.thumbData`, once per canvas). Wiring found missing and added: `InstagramStudio` calls the new `showStudio(studio, kind)` (= `startStudio`, failures toasted and logged) when the photo or video studio is shown, and the app's autosave warns through `toast`: the studios now save. 2,410 tests; mutations caught (shared media counted as freed, media counted per project, no entry thumbnail). Not run in a browser (UI, keyboard and screen-reader checks are 290's, AC-11)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T071": {
+          "text": "Save status in the top bar (Saved / Saving… / Not saved: reason / open elsewhere, polite live region speaking on failure only); **Continue: <name>** on the home screen; **Find file…** for missing files in the clip inspector and a bar over the timeline (desktop), calling `media.relink`.",
+          "section": "Interface and agents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/Shell.tsx",
+            "src/components/studio/ClipInspector.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/Landing.tsx"
+          ],
+          "test": "`npm run check` (UI checks in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `components/studio/ProjectStatus.tsx`: `SaveStatusLine` in the top bar after the modes (Saved / Saving… / Not saved: reason / 'This project is open in another window' with **Open here again** = `openProject(id)`; a polite live region that speaks only on failure or open elsewhere), `FindFileButton` (desktop only; toasts 'Found X and N more missing files in the same folder.'), `MissingBar` over the timeline while files are missing (names them; desktop: Find file… for the first, the folder's others reconnect with it; browser: 'add the file again'; a text selector, since a new array per read re-renders for ever). The clip inspector says 'This file is missing…' with Find file…. `components/ContinueLink.tsx` on the home screen's call-to-action row: 'Continue: <name>' for the most recent readable project, the projects code loaded with import(). State with tests first (2 in projects.test.ts): `findMissing(id)` (`media.relink`, then every other missing file reopened; placeholders replaced in clips, sounds and photos, not an undo step; photo looks, previews, filmstrips and scans remade) and `recentProject()`. Styles appended to 41-projects.css. 2,412 tests; `npm run build`: entry 314 KB (unchanged), Landing in its own chunk. Not run in a browser (290)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T072": {
+          "text": "Agent tools `list_projects`, `new_project`, `open_project`, `rename_project`, `delete_project` (`confirm: true` required) in `src/agent/projectTools.ts`, registered in `tools.ts`, calling `state/projects.ts`; argument validation tests.",
+          "section": "Interface and agents",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "src/agent/projectTools.ts",
+            "src/agent/tools.ts",
+            "tests/unit/agent/projectTools.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/agent/projectTools.test.ts` (self-test and MCP in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `src/agent/projectTools.ts` (`PROJECT_TOOLS`, registered last in `tools.ts`): `list_projects` (read-only; optional studio; id, studio, name, kind, seconds or photos, changed as ISO, bytes, canOpen), `new_project` (studio required, kind reel / vlog, default reel; opens it), `open_project` (the gate's notes in the text), `rename_project` (1–80, the state's message as a ToolError), `delete_project` (destructive; refuses without `confirm: true`, reports the space freed). All go through `state/projects.ts`, as the Projects panel does; arguments are checked first (studio, kind, a project id that is listed: 'Unknown project … Use list_projects.'). Tests: `tests/unit/agent/projectTools.test.ts`, 5 over in-memory stores (registration via a stubbed `location` and a dynamic import of the registry, see learnings), 2,417 total. Mutations caught: confirm loosened, kind unchecked. Self-test checks, `test:mcp` steps and docs/MCP.md in 290 / T110."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T110": {
+          "text": "Docs: `docs/MEDIA-STUDIO.md` (projects, autosave, storage, Find file…), `docs/DESKTOP.md` (the storage table rows; `projects/`, `media/`, `media-index.json`), `docs/TROUBLESHOOTING.md` (storage full, can't be opened, browser storage cleared), `specs/architecture.md` §6 and §7 (the scheme), `specs/lld.md`, `docs/MCP.md`, `CHANGELOG.md`, the in-app docs.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-14"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "docs/DESKTOP.md",
+            "docs/TROUBLESHOOTING.md",
+            "specs/architecture.md",
+            "specs/lld.md",
+            "docs/MCP.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "review",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Docs written. `docs/MEDIA-STUDIO.md`: a 'Saved projects' section after 'The workspace' (autosave and the status, the Projects list and its actions, what a project keeps, media per platform, space and Keep my projects, missing files and Find file…, one window at a time, moving projects is 409), the top bar row, and a 'Still to do' row (project files, 409). `docs/DESKTOP.md`: a storage table row and the data folder's `projects/`, `media-index.json`, `media/`. `docs/TROUBLESHOOTING.md`: storage full, can't be opened, projects disappeared, a hatched placeholder, open in another window. `specs/architecture.md` §6 (three storage rows, projects' media not self-contained, D-059) and §7 (the desktop media security bullet: paths only from the preload or a main dialog, the scheme's privileges, size and mtime check, sweep deletes only app-made files). `specs/lld.md`: module map (engine, state, lib, electron entries; 61 tools; styles to 41), new §4.11 Saved projects, the IPC rows. `docs/MCP.md`: a Projects group of five tools and the confirm note. `CHANGELOG.md` Unreleased › Added. In-app docs (`src/data/docs.ts`): 'Saved projects' in the video editor page and a short one in the photo editor page. Tool counts 56 → 61 in README.md and plugins/chitthi/README.md. `npm run check` green (2,417)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T111": {
+          "text": "Re-read 209 against 408 (D-058): 209's take store keeps takes in progress only, recordings are owned media (`media.keep(file, true)`), AC-8's `.chitthi` clause dropped (Q7); update 209's spec and plan with changelog lines.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "specs/features/209-voice-over/feature.json"
+          ],
+          "test": "`npm run specs:check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** 209 re-read against 408 (D-058). `specs/features/209-voice-over/feature.json`: AC-8's last sentence now keeps a take as the project's own media (`keepMedia(file, true)`: copied into the browser's project storage, or `library/media/` on desktop), reopening with the project and freed with its last project; the `.chitthi` clause is dropped (project files are 409, 408 Q7). Plan §6: the take store (`chitthi-takes`) keeps takes in progress only, for AC-9's crash recovery; a finished take is kept as owned media before `addTake()` places it and its take-store entry is deleted once it is on the timeline; 'no room' from the media store is handled like a full disk. Plan header, Constitution I note and D1 (a 're-read against 408' paragraph) updated; spec changelog line added. Markdown regenerated (`specs:sync`); `npm run specs:check` green. 209 stays Draft for its D2–D3."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T112": {
+          "text": "Close: `npm run check`, `npm run lint:full`, `npm run build` (entry chunk ≤ 350 KB, projects code in its own chunks, no AI code), unit-proven ACs ticked, status implemented, memory updated.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [],
+          "test": "`npm run check && npm run lint:full && npm run build`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Close: `npm run check` green (88 files, 2,417 tests); `npm run lint:full` 0 errors (1 old warning, engine/patterns.ts 810 lines); `npm run build`: entry 314 KB (budget 350, unchanged), no AI code in the entry; projects code in its own chunks (`projectLibrary` 3.8 KB, `mediaLibrary` 3.7 KB, `ProjectsPanel` 5.4 KB, the studio's shared `projects` chunk 513 KB, which holds the photo media code that was its own chunk before). Found at close: the home screen's Continue imported `state/projects` and so loaded that 513 KB chunk on every home visit; it now lists through `lib/projectLibrary` (3.8 KB) and loads the editors' code only on a click. Ticked AC-1, AC-3–AC-9 (unit-proven). Open: AC-2 (its export-identity half), AC-10–AC-13 (in 290's deferred checks), AC-14 (docs review)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        }
+      }
+    }
+  }
+}

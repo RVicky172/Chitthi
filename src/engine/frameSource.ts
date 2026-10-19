@@ -1,6 +1,5 @@
 import {
   ALL_FORMATS,
-  BlobSource,
   CanvasSink,
   EncodedPacketSink,
   Input,
@@ -11,6 +10,7 @@ import {
 } from 'mediabunny';
 import { isDesktop } from '../platform/desktop';
 import type { FrameSource, FrameSourceFactory, PoolFrame } from './decodePool';
+import { mediaInput, mediaName, type MediaFile } from './mediaFile';
 
 /*
  * The decoder pool's frames from Mediabunny (204 §2). One `Input` per file, shared by every lane on it and disposed
@@ -63,17 +63,17 @@ function trackFrame(frame: Omit<PoolFrame, 'close'>, release: () => void): PoolF
   };
 }
 
-const nameOf = (file: Blob) => (file instanceof File ? file.name : 'A clip');
+const nameOf = (file: MediaFile) => mediaName(file, 'A clip');
 
 /** Files refused as if their codec couldn't be decoded (self-tests only). */
-const undecodable = new WeakSet<Blob>();
+const undecodable = new WeakSet<MediaFile>();
 
 /**
  * Self-tests only (204 T040, poolChecks.ts): refuses a file here as if its codec couldn't be decoded, so a check can
  * give the preview and the export a clip the pool can't decode. Never called in the app.
  * @param file the file
  */
-export function refuseDecodingForTests(file: Blob): void {
+export function refuseDecodingForTests(file: MediaFile): void {
   undecodable.add(file);
 }
 
@@ -81,7 +81,7 @@ export function refuseDecodingForTests(file: Blob): void {
  * Self-tests only: decodes a file refused by `refuseDecodingForTests` again.
  * @param file the file
  */
-export function allowDecodingForTests(file: Blob): void {
+export function allowDecodingForTests(file: MediaFile): void {
   undecodable.delete(file);
 }
 
@@ -92,17 +92,17 @@ interface SharedInput {
   /** The lanes using it; the input is disposed with the last. */
   refs: number;
 }
-const inputs = new Map<Blob, SharedInput>();
+const inputs = new Map<MediaFile, SharedInput>();
 
 /**
  * The file's video track, opened once per file and refused (naming the file) when it has none or can't be decoded.
  * @param file the video file
  * @returns its shared input, with one more user counted
  */
-function share(file: Blob): SharedInput {
+function share(file: MediaFile): SharedInput {
   let shared = inputs.get(file);
   if (!shared) {
-    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    const input = new Input({ source: mediaInput(file), formats: ALL_FORMATS });
     const track = (async () => {
       const videoTrack = await input.getPrimaryVideoTrack().catch(() => {
         throw new Error(`${nameOf(file)} couldn’t be read. It may be damaged, or not a video file.`);
@@ -127,7 +127,7 @@ function share(file: Blob): SharedInput {
  * @param file the video file
  * @param shared its shared input
  */
-function unshare(file: Blob, shared: SharedInput): void {
+function unshare(file: MediaFile, shared: SharedInput): void {
   shared.refs--;
   if (shared.refs > 0) return;
   if (inputs.get(file) === shared) inputs.delete(file);
@@ -224,7 +224,7 @@ function keyFrames(track: InputVideoTrack): Pick<FrameSource, 'keyBefore' | 'key
 function reader<T>(
   frames: AsyncGenerator<T, void, unknown>,
   toFrame: (value: T) => PoolFrame,
-  file: Blob,
+  file: MediaFile,
 ): AsyncIterator<PoolFrame> {
   open.decoders++;
   let live = true;

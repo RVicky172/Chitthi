@@ -13,6 +13,7 @@ import {
   type Lane,
   type Reader,
 } from './poolLane';
+import type { MediaFile } from './mediaFile';
 import { REVERSE_NUDGE } from './speed';
 
 /*
@@ -61,7 +62,7 @@ export interface SourceOptions {
 }
 
 /** Opens a frame source on a file (frameSource.ts's `mediabunnySource` in the app). */
-export type FrameSourceFactory = (file: Blob, options: SourceOptions) => Promise<FrameSource>;
+export type FrameSourceFactory = (file: MediaFile, options: SourceOptions) => Promise<FrameSource>;
 
 /** What a pool may hold at once. */
 export interface PoolLimits {
@@ -84,7 +85,7 @@ export interface PoolStats {
 /** A clip as the pool sees it: its file, the part of it used, and where it sits. */
 export interface PoolClip {
   id: string;
-  file: Blob;
+  file: MediaFile;
   in: number;
   out: number;
   start: number;

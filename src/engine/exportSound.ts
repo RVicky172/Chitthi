@@ -1,9 +1,10 @@
-import { ALL_FORMATS, AudioBufferSink, BlobSource, Input, type AudioBufferSource } from 'mediabunny';
+import { ALL_FORMATS, AudioBufferSink, Input, type AudioBufferSource } from 'mediabunny';
 import type { DuckCurves } from './ducking';
 import { gainCurve } from './keyframes';
 import { MasterStage } from './limiter';
 import { LoudnessMeter } from './loudness';
 import { chainCurve, trackGain } from './mixGain';
+import { mediaInput, type MediaFile } from './mediaFile';
 import { audioPlan, type SoundSource } from './soundPlan';
 import { projectLength, type AudioClip, type Project, type TimedClip } from './timeline';
 import { timeStretchChannels } from './timeStretch';
@@ -17,13 +18,13 @@ import { timeStretchChannels } from './timeStretch';
 
 /** A clip's sound to export: its timing, its file and its own sound's volume (0–1). */
 export interface SoundClip extends TimedClip {
-  file: Blob;
+  file: MediaFile;
   volume: number;
 }
 
 /** A sound clip with its file. */
 export interface ExportAudio extends AudioClip {
-  file: Blob;
+  file: MediaFile;
 }
 
 /** What the export's sound needs of the job: the project with its files, and the sound settings. */
@@ -85,8 +86,8 @@ export interface AudioSource extends SoundSource, OpenSound {}
  * @param file the file
  * @returns its sound, or null when it has none the browser can decode
  */
-async function openSound(file: Blob): Promise<OpenSound | null> {
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+async function openSound(file: MediaFile): Promise<OpenSound | null> {
+  const input = new Input({ source: mediaInput(file), formats: ALL_FORMATS });
   const track = await input.getPrimaryAudioTrack().catch(() => null);
   if (!track || !(await track.canDecode())) {
     input.dispose();
@@ -102,7 +103,7 @@ async function openSound(file: Blob): Promise<OpenSound | null> {
  * @returns the sources; clips without sound are left out
  * @throws {ExportError} when a sound clip's file can't be read
  */
-export async function openAudio(job: SoundJob, open: (file: Blob) => Promise<OpenSound | null> = openSound): Promise<AudioSource[]> {
+export async function openAudio(job: SoundJob, open: (file: MediaFile) => Promise<OpenSound | null> = openSound): Promise<AudioSource[]> {
   const sources: AudioSource[] = [];
   const clipFiles = new Map(job.clips.map((clip) => [clip.id, clip.file]));
   const sounds = new Map(job.audio.map((audioClip) => [audioClip.id, audioClip]));
@@ -509,7 +510,7 @@ function audioBufferOf(window: SoundWindow): AudioBuffer {
  * @param open opens a file's sound (tests pass a fake decoder)
  * @returns the measurement, or null when Loudness is Off
  */
-export async function measureLoudness(job: SoundJob, open: (file: Blob) => Promise<OpenSound | null> = openSound): Promise<MixMeasure | null> {
+export async function measureLoudness(job: SoundJob, open: (file: MediaFile) => Promise<OpenSound | null> = openSound): Promise<MixMeasure | null> {
   if (job.loudness === undefined) return null;
   if (job.measured?.key === mixKey(job)) return job.measured;
   const sources = await openAudio(job, open);

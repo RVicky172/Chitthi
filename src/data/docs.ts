@@ -301,6 +301,13 @@ export const DOC_PAGES: readonly [DocPage, ...DocPage[]] = [
           { p: 'Download all as a ZIP, or prepare the photos and share them to the Instagram app with the caption copied.' },
         ],
       },
+      {
+        id: 'projects',
+        title: 'Saved projects',
+        blocks: [
+          { p: 'Each batch is a project, saved as you work with its photos, edits, masks, layers, caption and export settings. **Projects** (top left) lists them with New, Open, Rename, Duplicate and Delete; see the video editor’s **Saved projects** for how saving and storage work.' },
+        ],
+      },
     ],
   },
   {
@@ -365,6 +372,22 @@ export const DOC_PAGES: readonly [DocPage, ...DocPage[]] = [
             },
           },
           { p: 'The web video editor needs WebCodecs: Chrome or Edge 94+, Firefox 130+, Safari 26.' },
+        ],
+      },
+      {
+        id: 'projects',
+        title: 'Saved projects',
+        blocks: [
+          {
+            list: [
+              'Every video and photo post is saved as you work, 2 seconds after a change and at once when the tab is hidden or the app closes. The top bar says **Saved**, **Saving…** or **Not saved** and why.',
+              '**Projects** (top left) lists them, newest first: **New**, **Open**, **Rename** (F2), **Duplicate** and **Delete**, which asks first and says how much space it frees. Reels, Shorts and YouTube videos share one list.',
+              'Opening the studio reopens the project you used last; the home screen has **Continue**.',
+              'In the browser each file is copied once into the site’s own storage; **Keep my projects** asks the browser not to clear it when space runs low. The desktop app uses your files where they are and never copies, moves or deletes them.',
+              'A file that moved shows as a hatched placeholder. In the desktop app, **Find file…** finds it, and the other missing files in the same folder with it; exporting waits until no file is missing.',
+              'A project opened in another tab or window is saved there; the first one says so and offers **Open here again**.',
+            ],
+          },
         ],
       },
     ],

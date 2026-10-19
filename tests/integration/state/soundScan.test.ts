@@ -6,6 +6,7 @@ import { clearScans, dropScan, scanIO, scanMedia, scanOf, scanSnapshot, subscrib
 import { addMedia, mediaIO } from '@/state/videoMedia';
 import { loadVideoProject, type VClip } from '@/state/videoStore';
 import { defined } from '../../support/defined';
+import type { MediaFile } from '@/engine/mediaFile';
 
 /* 208 T033 (D5): each file's sound scanned once in the background, one file at a time, dropped with its media. */
 
@@ -18,7 +19,7 @@ interface FakeSound {
   hold?: Promise<void>;
 }
 
-const sounds = new Map<Blob, FakeSound>();
+const sounds = new Map<MediaFile, FakeSound>();
 const fileOf = (sound: FakeSound): Blob => {
   const file = new Blob([String(sounds.size)]);
   sounds.set(file, sound);
@@ -28,7 +29,7 @@ const fileOf = (sound: FakeSound): Blob => {
 /** Scans running now, the most at once, and the files in the order they started. */
 let running = 0;
 let mostAtOnce = 0;
-let started: Blob[] = [];
+let started: MediaFile[] = [];
 let signals: AbortSignal[] = [];
 
 /**
