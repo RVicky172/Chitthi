@@ -50,11 +50,11 @@
   freeze frame, ramps (six presets, curve editor), one `sourceAt` for preview / export / pool / edits, same-pitch sound
   0.5–2× (browser in the preview, our WSOLA in the export), D-049–D-051. AC-6 listening, AC-11–14 wait for 290. Entry
   313 KB.
-- **208:** `208-audio-tracks` ✔️ Implemented 2026-10-19 on `feat/208-audio-tracks` (not committed yet): up to 8 audio
+- **208:** `208-audio-tracks` ✔️ Implemented 2026-10-19 (`c6bc535`), merged into `main` (`92b45cb`) and pushed: up to 8 audio
   tracks (Music / Voice / Effects, volume, Solo), sound clips with the edit tools, fades, volume line and keyframes,
   waveforms (sound and video clips), ducking, loudness target (−14 LUFS) with a true-peak limiter, preview = export
   mix; `SoundRow.tsx`, `SoundInspector.tsx`, `AudioPanel.tsx`. AC-1–12, 17 ticked; AC-13–16 wait for 290. Decisions
-  D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB. Next: commit, merge into `main`.
+  D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB. Next: 209 (voice-over) from `main`, or the 290 test pass.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

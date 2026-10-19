@@ -17,7 +17,8 @@ Newest first. One entry per working session.
 Add sound never cuts a song short, moved past the end it gets a fixed length; the 1,000-edit property test runs
 unskipped. Spec Q7 extended. T112: check (2,176, none skipped), lint:full and build green; entry 314 KB; scanner,
 limiter worklet and meter (in `exportSound`) in their own chunks. AC-1–12, 17 ticked; status implemented.
-**Next:** commit 208 and merge into `main` (maintainer's call); then 209 (voice-over) or the 290 test pass.
+Committed `c6bc535`, merged into `main` (`92b45cb`, `--no-ff`) and pushed; check green on `main`.
+**Next:** 209 (voice-over), branched from `main`, or the 290 test pass.
 **Blockers:** none.
 
 ## 2026-10-19 — 208 (T110)
