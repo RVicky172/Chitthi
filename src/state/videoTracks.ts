@@ -1,19 +1,35 @@
-import { addTrack as withNewTrack, deleteTrack as withoutTrack, moveTrack as withTrackMoved, patchTrack, renameTrack as withTrackRenamed, type Track } from '../engine/tracks';
+import {
+  DUCK_DEFAULTS,
+  addAudioTrack,
+  addTrack as withNewTrack,
+  deleteTrack as withoutTrack,
+  moveTrack as withTrackMoved,
+  patchTrack,
+  renameTrack as withTrackRenamed,
+  setAudioTrack,
+  soundRole,
+  type AudioTrackPatch,
+  type Ducking,
+  type SoundRole,
+  type Track,
+  type TrackSwitches,
+} from '../engine/tracks';
 import { isDesktop } from '../platform/desktop';
 import { change, getVideo, setVideo, type TrackHeight, type VState } from './videoStore';
 
 /*
- * The video editor's track actions (201, 203): hide / mute / lock, add, rename, move and delete overlay tracks, track
- * heights, and where a clip sits among its track's clips. Each change is one undo step.
+ * The video editor's track actions (201, 203, 208): hide / mute / solo / lock, add, rename, move and delete overlay and
+ * sound tracks, a sound track's role, volume and ducking, track heights, and where a clip sits among its track's clips.
+ * Each change is one undo step (a slider's drag, one).
  */
 
 /**
- * Hides / mutes / locks a track (one undo step each; Hide is for picture tracks, Mute for sound and overlay tracks:
- * an overlay clip's own sound, 203 Q7).
+ * Hides / mutes / solos / locks a track (one undo step each; Hide is for picture tracks, Mute for sound and overlay
+ * tracks: an overlay clip's own sound, 203 Q7; Solo for sound tracks, heard in the preview only, 208 Q2).
  * @param id the track
  * @param patch the switches to change
  */
-export function setTrack(id: string, patch: Partial<Pick<Track, 'hidden' | 'muted' | 'locked'>>): void {
+export function setTrack(id: string, patch: Partial<TrackSwitches>): void {
   const tracks = patchTrack(getVideo().tracks, id, patch);
   if (tracks !== getVideo().tracks) change('', { tracks });
 }
@@ -56,17 +72,103 @@ export function moveTrack(id: string, by: 1 | -1): string | null {
 }
 
 /**
- * Deletes an overlay track with its clips (the UI asks first when it holds any).
+ * Deletes an overlay or sound track with its clips (the UI asks first when it holds any).
  * @param id the track
  * @returns null, or why not
  */
 export function deleteTrack(id: string): string | null {
   const video = getVideo();
-  const result = withoutTrack(video.tracks, video.clips, id);
+  const result = withoutTrack(video.tracks, video.clips, id, video.sounds);
   if ('error' in result) return result.error;
   const selected = result.clips.some((clip) => clip.id === video.selected) ? video.selected : (result.clips.at(0)?.id ?? null);
-  change('', { tracks: result.tracks, clips: result.clips }, { selected });
+  change('', { tracks: result.tracks, clips: result.clips, sounds: result.audio }, { selected });
   return null;
+}
+
+/**
+ * Adds an empty sound track after the last one, "Audio N", role Effects (208 AC-1).
+ * @returns null, or why not (8 sound tracks)
+ */
+export function addSoundTrack(): string | null {
+  const result = addAudioTrack(getVideo().tracks);
+  if ('error' in result) return result.error;
+  change('', { tracks: result.tracks });
+  return null;
+}
+
+/**
+ * Changes a sound track's settings through the engine's rules.
+ * @param key the undo step's key ('' for a step of its own)
+ * @param id the track
+ * @param patch the settings
+ * @returns null, or why not
+ */
+function patchSoundTrack(key: string, id: string, patch: AudioTrackPatch): string | null {
+  const result = setAudioTrack(getVideo().tracks, id, patch);
+  if ('error' in result) return result.error;
+  if (result.tracks !== getVideo().tracks) change(key, { tracks: result.tracks });
+  return null;
+}
+
+/**
+ * A sound track's role (208 Q3): making it Voice turns its ducking off.
+ * @param id the track
+ * @param role Music, Voice or Effects
+ * @returns null, or why not
+ */
+export const setTrackRole = (id: string, role: SoundRole): string | null => patchSoundTrack('', id, { role });
+
+/**
+ * A sound track's volume, 0–200 % (Q8); a slider's drag is one undo step.
+ * @param id the track
+ * @param volume 0–2
+ * @returns null, or why not
+ */
+export const setTrackVolume = (id: string, volume: number): string | null => patchSoundTrack(`track-volume:${id}`, id, { volume });
+
+/**
+ * Whether a sound track counts as voice for ducking (Q10).
+ * @param id the track
+ * @param on counts as voice
+ * @returns null, or why not
+ */
+export const setCountsAsVoice = (id: string, on: boolean): string | null => patchSoundTrack('', id, { voice: on });
+
+/**
+ * A Music or Effects track's ducking (AC-6): on with an amount and threshold, or off (null). Turning it on or off is a
+ * step of its own; dragging its sliders, one.
+ * @param id the track
+ * @param duck the amount and threshold, or null for off
+ * @returns null, or why not
+ */
+export function setDucking(id: string, duck: Ducking | null): string | null {
+  const track = getVideo().tracks.find((candidate) => candidate.id === id);
+  const switching = !track?.duck || duck === null;
+  return patchSoundTrack(switching ? '' : `duck:${id}`, id, { duck });
+}
+
+/**
+ * Whether every Music track is lowered under the voice (the Audio panel's switch, Q9).
+ * @returns true when there is a Music track and each has ducking on
+ */
+export function lowerMusicUnderVoice(): boolean {
+  const music = getVideo().tracks.filter((track) => track.kind === 'audio' && soundRole(track) === 'music');
+  return music.length > 0 && music.every((track) => track.duck);
+}
+
+/**
+ * Lower music under voice (Q9): ducking on for every Music track (at the defaults where it was off), or off for all,
+ * as one undo step.
+ * @param on on or off
+ */
+export function setLowerMusicUnderVoice(on: boolean): void {
+  let tracks = getVideo().tracks;
+  for (const track of tracks) {
+    if (track.kind !== 'audio' || soundRole(track) !== 'music') continue;
+    const result = setAudioTrack(tracks, track.id, { duck: on ? (track.duck ?? { ...DUCK_DEFAULTS }) : null });
+    if (!('error' in result)) tracks = result.tracks;
+  }
+  if (tracks !== getVideo().tracks) change('', { tracks });
 }
 
 /**

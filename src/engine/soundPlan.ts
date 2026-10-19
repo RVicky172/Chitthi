@@ -3,17 +3,20 @@
  * and how a clip's sound meets its transitions (shared with the preview's sound, so they blend alike).
  */
 import type { Keyframe } from './keyframes';
-import { clipLength, projectLength, type Project, type TimedClip } from './timeline';
+import { clipLength, projectLength, type AudioClip, type Project, type TimedClip } from './timeline';
 import { soundRate } from './speed';
-import { MAIN_VIDEO } from './tracks';
+import { MAIN_VIDEO, soundRole, type SoundRole, type Track } from './tracks';
 import type { Transition } from './transitions';
 
 const endOf = (clip: TimedClip) => clip.start + clipLength(clip);
 
 /** One sound the export mixes: a video clip's own sound or an audio clip. */
 export interface SoundSource {
-  /** The clip's id, or the audio clip's id ('music'). */
+  /** The clip's id, or the sound clip's id ('music' for the migrated music). */
   ref: string;
+  /** A sound clip's audio track and its role (208); missing on a video clip's own sound. */
+  track?: string;
+  role?: SoundRole;
   /** Timeline seconds. */
   start: number;
   end: number;
@@ -21,6 +24,7 @@ export interface SoundSource {
   from: number;
   /** Source seconds per timeline second (207): a clip at 0.5–2× plays its part at its speed, same pitch; missing = 1. */
   rate?: number;
+  /** 0–1 for a video clip's own sound, 0–2 for a sound clip (208 D6). */
   volume: number;
   /** Volume keyframes (205), seconds from `start`: when present they set the volume instead of `volume`. */
   gain?: Keyframe[];
@@ -110,11 +114,44 @@ function clipSounds(project: Project, track: string): SoundSource[] {
 }
 
 /**
+ * A sound clip's sound (208): its part of the file from its start, cut at the video's end (Q6: sound never lengthens
+ * the video), with its fades, volume keys, track and role. A `toEnd` clip plays to the end of the video (or the next
+ * sound on its track, T072) and, without a fade-out of its own, fades out over min(1.5 s, a third of the video), as
+ * 2.x's music did (AC-3).
+ * @param clip the sound clip
+ * @param track its track
+ * @param total the video's length, seconds
+ * @param audio the project's sound clips
+ * @returns the sound, or null when it is silent (no volume and no key above 0) or starts after the video's end
+ */
+function soundClipSound(clip: AudioClip, track: Track, total: number, audio: readonly AudioClip[]): SoundSource | null {
+  const gain = clip.keys?.volume?.length ? clip.keys.volume : undefined;
+  if (gain ? !gain.some((key) => key.v > 0) : clip.volume <= 0) return null;
+  // A toEnd clip plays to the video's end or the next sound on its track, whichever is first (208 T072, option A).
+  const next = clip.toEnd ? audio.filter((other) => other.track === clip.track && other.start > clip.start + 1e-9).map((other) => other.start) : [];
+  const length = clip.toEnd ? Math.min(...next) - clip.start : Math.max(0, (clip.out ?? clip.srcDur) - clip.in);
+  const end = Math.min(total, clip.start + length);
+  if (end <= clip.start) return null;
+  return {
+    ref: clip.id,
+    track: track.id,
+    role: soundRole(track),
+    start: clip.start,
+    end,
+    from: Math.max(0, clip.in),
+    volume: clip.volume,
+    ...(gain ? { gain } : {}),
+    fadeIn: clip.fadeIn ?? 0,
+    fadeOut: clip.fadeOut ?? (clip.toEnd ? Math.min(1.5, total / 3) : 0),
+  };
+}
+
+/**
  * The sounds the export mixes: each video clip's own sound on the main track (hiding the track keeps it: hiding is
  * about pictures) with short ramps at the cuts, then each video clip's on the overlay tracks that aren't muted (hidden
- * ones too, 203 Q7), bottom track first, then the audio clips of tracks that aren't muted; a `toEnd` clip plays to the
- * end of the video and fades out over min(1.5 s, a third of the video), as 2.x's music did. The main track's entries
- * come first in their own order, so a project without overlay clips mixes exactly 202's sources (203 AC-10).
+ * ones too, 203 Q7), bottom track first, then the sound clips of the audio tracks that aren't muted, track by track
+ * (`soundClipSound`; Solo is the preview's only, 208 Q2). The main track's entries come first in their own order, so a
+ * project without overlay clips mixes exactly 202's sources (203 AC-10), and one without new sound 207's (208 AC-3).
  * @param project the project
  * @returns the sounds, in mixing order
  */
@@ -123,21 +160,13 @@ export function audioPlan(project: Project): SoundSource[] {
   const sounds = clipSounds(project, MAIN_VIDEO);
   for (const track of project.tracks)
     if (track.kind === 'overlay' && !track.muted) sounds.push(...clipSounds(project, track.id));
-  const muted = new Set(
-    project.tracks.filter((track) => track.kind === 'audio' && track.muted).map((track) => track.id),
-  );
-  for (const audio of project.audio) {
-    if (muted.has(audio.track) || audio.volume <= 0) continue;
-    const end = audio.toEnd ? total : audio.start + Math.max(0, audio.srcDur - audio.in);
-    sounds.push({
-      ref: audio.id,
-      start: audio.start,
-      end,
-      from: Math.max(0, audio.in),
-      volume: audio.volume,
-      fadeIn: 0,
-      fadeOut: Math.min(1.5, total / 3),
-    });
+  for (const track of project.tracks) {
+    if (track.kind !== 'audio' || track.muted) continue;
+    for (const clip of project.audio) {
+      if (clip.track !== track.id) continue;
+      const sound = soundClipSound(clip, track, total, project.audio);
+      if (sound) sounds.push(sound);
+    }
   }
   return sounds;
 }

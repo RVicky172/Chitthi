@@ -1,11 +1,7 @@
 import {
-  ALL_FORMATS,
-  AudioBufferSink,
   AudioBufferSource,
-  BlobSource,
   BufferTarget,
   CanvasSource,
-  Input,
   Mp4OutputFormat,
   Output,
   Quality,
@@ -18,17 +14,24 @@ import { isDesktop } from '../platform/desktop';
 import { DecodePool, poolLimits, type PoolClip } from './decodePool';
 import { lanePlan, laneWindow } from './lanePlan';
 import { mediabunnySource } from './frameSource';
-import { gainCurve } from './keyframes';
 import { loadImage } from './photo';
 import { frameSourceAt } from './speed';
 import { frameStack, itemSource, type StackItem } from './stack';
 import { halves } from './transitions';
 import { MAIN_VIDEO } from './tracks';
-import { audioPlan, type SoundSource } from './soundPlan';
-import { projectLength, type AudioClip, type Project, type TimedClip } from './timeline';
+import {
+  ExportError,
+  SAMPLE_RATE,
+  SoundFeed,
+  openAudio,
+  planLoudness,
+  throwIfAborted,
+  type SoundClip,
+  type SoundJob,
+} from './exportSound';
+import { projectLength } from './timeline';
 import { limitsFor } from './videoFormats';
 import { renderStack, type FrameClip } from './video';
-import { timeStretchChannels } from './timeStretch';
 
 /*
  * Encodes the video editor's project (tracks, engine/timeline.ts) into an MP4: H.264 video and AAC sound at 48 kHz, with the index (`moov`) at the
@@ -41,23 +44,17 @@ import { timeStretchChannels } from './timeStretch';
  *     exactly the times needed, through the decoder pool (decodePool.ts, as the preview), one lane per video on
  *     screen, which opens the next clips while the current ones encode and releases every frame once replaced; photos
  *     are decoded once per clip and released once it has passed; no clip at a time gives black with the layers on top;
- *   - sound (`audioPlan`: clips' own sound plus music, unless its track is muted) is decoded and mixed in 10-second
- *     windows, interleaved with the frames;
+ *   - sound (`audioPlan`: clips' own sound plus every sound clip, unless its track is muted) is decoded and mixed in
+ *     10-second windows, interleaved with the frames, each source through the gain chain (mixGain.ts, 208);
  *   - long videos stream to a file (desktop: through the main process; Chrome and Edge: the File System Access API),
  *     with space reserved at the front for the index; short ones are built in memory so they can be shared.
  */
 
 /** A clip to export: what the drawing and the timeline need, its file and its sound's volume. */
-export interface ExportClip extends FrameClip, TimedClip {
-  file: Blob;
-  /** Video: 0–1. */
-  volume: number;
-}
+export interface ExportClip extends FrameClip, SoundClip {}
 
-/** A sound clip (the music) with its file. */
-export interface ExportAudio extends AudioClip {
-  file: Blob;
-}
+export { ExportError };
+export type { ExportAudio, MixMeasure } from './exportSound';
 
 /** Where the MP4 goes: built in memory (returned as a Blob), or streamed to a writable file. */
 export type ExportSink = { kind: 'memory' } | { kind: 'stream'; writable: WritableStream<StreamTargetChunk> };
@@ -69,283 +66,22 @@ export interface TracedClip {
 }
 
 /** The project to encode: its tracks, clips (with their files), sound clips and layers, and the output settings. */
-export interface ExportJob extends Project<ExportClip> {
-  audio: ExportAudio[];
+export interface ExportJob extends SoundJob {
+  clips: ExportClip[];
   width: number;
   height: number;
   fps: number;
   bitrate: number;
   sink: ExportSink;
-  onProgress?: (fraction: number, phase: string) => void;
-  signal?: AbortSignal;
   /** Self-tests: each frame's clips as drawn, bottom first. */
   trace?: (frame: number, drawn: TracedClip[]) => void;
 }
 
-/** An export that can't be made, with a message for the user. */
-export class ExportError extends Error {}
-
-const SAMPLE_RATE = 48000;
-/** Seconds of sound mixed at a time. */
-const AUDIO_WINDOW = 10;
 /** AAC frames carry 1024 samples. */
 const AAC_FRAME = 1024;
 /** The sound's bitrate, bits per second. */
 const AUDIO_BITRATE = 128000;
-/** Source seconds decoded before a stretched stretch, so its first frames have something to line up with (D5). */
-const STRETCH_CARRY = 0.05;
 
-/**
- * Stops the export when it was cancelled.
- * @param signal the job's abort signal
- * @throws {DOMException} an AbortError once the signal has fired
- */
-const throwIfAborted = (signal?: AbortSignal) => {
-  if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
-};
-
-/** A file opened for decoding its sound. */
-interface OpenSound {
-  sink: AudioBufferSink;
-  input: Input;
-}
-
-/** A sound the mix plays (timeline times, source time, volume and its ramps), opened for decoding. */
-interface AudioSource extends SoundSource, OpenSound {}
-
-/**
- * Opens a file's sound for decoding.
- * @param file the file
- * @returns its sound, or null when it has none the browser can decode
- */
-async function openSound(file: Blob): Promise<OpenSound | null> {
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
-  const track = await input.getPrimaryAudioTrack().catch(() => null);
-  if (!track || !(await track.canDecode())) {
-    input.dispose();
-    return null;
-  }
-  return { input, sink: new AudioBufferSink(track) };
-}
-
-/**
- * Opens the sounds of `audioPlan` for windowed decoding.
- * @param job the export
- * @returns the sources; clips without sound are left out
- * @throws {ExportError} when the music can't be read
- */
-async function openAudio(job: ExportJob): Promise<AudioSource[]> {
-  const sources: AudioSource[] = [];
-  const clipFiles = new Map(job.clips.map((clip) => [clip.id, clip.file]));
-  const musicFiles = new Map(job.audio.map((audioClip) => [audioClip.id, audioClip.file]));
-  for (const planned of audioPlan(job)) {
-    const music = musicFiles.get(planned.ref);
-    const file = music ?? clipFiles.get(planned.ref);
-    if (!file) continue;
-    const sound = await openSound(file);
-    if (!sound && music) throw new ExportError('The music file couldn’t be read. Try an MP3, M4A or WAV file.');
-    if (sound) sources.push({ ...planned, ...sound });
-  }
-  return sources;
-}
-
-/**
- * A source's volume at a time, with its fade-in and fade-out ramps.
- * @param source the sound source
- * @param time timeline seconds
- * @returns the gain
- */
-function rampedVolume(source: SoundSource, time: number): number {
-  let volume = source.volume;
-  if (source.fadeIn > 0 && time < source.start + source.fadeIn) volume *= Math.max(0, (time - source.start) / source.fadeIn);
-  if (source.fadeOut > 0 && time > source.end - source.fadeOut) volume *= Math.max(0, (source.end - time) / source.fadeOut);
-  return volume;
-}
-
-/** A stretch of the timeline, seconds. */
-interface Stretch {
-  from: number;
-  to: number;
-}
-
-/**
- * Schedules a source's volume over the part of a window it plays: volume keyframes (205) or transition edges (206) as
- * one curve, the only automation on this gain node, so events never overlap; else its volume with its ramps.
- * @param gain the source's gain parameter
- * @param source the sound source
- * @param playing the part of the window it plays, timeline seconds
- * @param windowStart the window's start, timeline seconds (the context's time 0)
- */
-function scheduleGain(gain: AudioParam, source: SoundSource, playing: Stretch, windowStart: number): void {
-  const { from, to } = playing;
-  if (source.gain || source.lead || source.trail) {
-    gain.setValueCurveAtTime(gainCurve(source, from, to - from), from - windowStart, to - from);
-    return;
-  }
-  gain.setValueAtTime(rampedVolume(source, from), from - windowStart);
-  for (const edge of [source.start + source.fadeIn, source.end - source.fadeOut, to]) {
-    if (edge > from && edge <= to) gain.linearRampToValueAtTime(rampedVolume(source, edge), edge - windowStart);
-  }
-}
-
-/**
- * Decodes a source's sound for the part of a window it plays and schedules each buffer at its place.
- * @param mix the window's audio context
- * @param gain the source's gain node
- * @param source the sound source
- * @param playing the part of the window it plays, timeline seconds
- * @param windowStart the window's start, timeline seconds (the context's time 0)
- */
-async function scheduleBuffers(
-  mix: OfflineAudioContext,
-  gain: GainNode,
-  source: AudioSource,
-  playing: Stretch,
-  windowStart: number,
-): Promise<void> {
-  const { from, to } = playing;
-  if (source.rate !== undefined && source.rate !== 1) {
-    await scheduleStretched(mix, gain, source, playing, windowStart);
-    return;
-  }
-  // Source seconds covering the stretch. Before the source's own start (an incoming handle past the file's start)
-  // there is nothing to play.
-  const sourceFrom = Math.max(0, source.from + (from - source.start));
-  const sourceTo = source.from + (to - source.start);
-  for await (const decoded of source.sink.buffers(sourceFrom, sourceTo)) {
-    const node = mix.createBufferSource();
-    node.buffer = decoded.buffer;
-    node.connect(gain);
-    // Where this decoded buffer lands on the timeline, trimmed to the stretch.
-    const lands = source.start + (decoded.timestamp - source.from);
-    const offset = Math.max(0, from - lands);
-    const duration = Math.min(decoded.duration - offset, to - Math.max(from, lands));
-    if (duration > 0) node.start(Math.max(from, lands) - windowStart, offset, duration);
-  }
-}
-
-/**
- * Decodes a source's sound between two source times into one buffer per channel, at the file's own sample rate.
- * @param source the sound source
- * @param sourceFrom source seconds
- * @param sourceTo source seconds
- * @returns the channels and their sample rate, or null when nothing decoded there
- */
-async function decodeSpan(
-  source: AudioSource,
-  sourceFrom: number,
-  sourceTo: number,
-): Promise<{ channels: Float32Array[]; sampleRate: number } | null> {
-  let channels: Float32Array[] | null = null;
-  let sampleRate = SAMPLE_RATE;
-  for await (const decoded of source.sink.buffers(sourceFrom, sourceTo)) {
-    const { buffer } = decoded;
-    if (!channels) {
-      sampleRate = buffer.sampleRate;
-      const length = Math.max(1, Math.round((sourceTo - sourceFrom) * sampleRate));
-      channels = Array.from({ length: buffer.numberOfChannels }, () => new Float32Array(length));
-    }
-    const at = Math.round((decoded.timestamp - sourceFrom) * sampleRate);
-    channels.forEach((channel, index) => {
-      const samples = buffer.getChannelData(Math.min(index, buffer.numberOfChannels - 1));
-      const skip = Math.max(0, -at);
-      channel.set(samples.subarray(skip, skip + Math.max(0, channel.length - at - skip)), Math.max(0, at));
-    });
-  }
-  return channels ? { channels, sampleRate } : null;
-}
-
-/**
- * A source at a speed (207 AC-6): its source part for the stretch decoded (with STRETCH_CARRY before it), stretched to
- * the timeline's length with the same pitch (`timeStretchChannels`, WSOLA), and scheduled at its place; the carried
- * part is skipped.
- * @param mix the window's audio context
- * @param gain the source's gain node
- * @param source the sound source, with its `rate`
- * @param playing the part of the window it plays, timeline seconds
- * @param windowStart the window's start, timeline seconds (the context's time 0)
- */
-async function scheduleStretched(
-  mix: OfflineAudioContext,
-  gain: GainNode,
-  source: AudioSource,
-  playing: Stretch,
-  windowStart: number,
-): Promise<void> {
-  const rate = source.rate ?? 1;
-  const { from, to } = playing;
-  // Before the file's start (an incoming handle) there is nothing to play.
-  const sourceFrom = Math.max(0, source.from + (from - source.start) * rate);
-  const sourceTo = source.from + (to - source.start) * rate;
-  if (sourceTo <= sourceFrom) return;
-  const decodeFrom = Math.max(0, sourceFrom - STRETCH_CARRY);
-  const span = await decodeSpan(source, decodeFrom, sourceTo);
-  if (!span) return;
-  const stretched = timeStretchChannels(span.channels, rate, span.sampleRate);
-  const buffer = mix.createBuffer(stretched.length, Math.max(1, stretched[0]?.length ?? 0), span.sampleRate);
-  stretched.forEach((channel, index) => buffer.getChannelData(index).set(channel));
-  const node = mix.createBufferSource();
-  node.buffer = buffer;
-  node.connect(gain);
-  // The stretched sound starts at decodeFrom's timeline time; the carried part before `from` is skipped.
-  const lands = source.start + (decodeFrom - source.from) / rate;
-  const offset = Math.max(0, from - lands);
-  const duration = Math.min(buffer.duration - offset, to - Math.max(from, lands));
-  if (duration > 0) node.start(Math.max(from, lands) - windowStart, offset, duration);
-}
-
-/**
- * Mixes the sound of a window of the timeline into one stereo 48 kHz buffer.
- * @param sources the opened sound sources
- * @param windowStart the window's start, timeline seconds
- * @param windowLength its length, seconds
- * @returns the mixed sound
- */
-async function mixWindow(sources: AudioSource[], windowStart: number, windowLength: number): Promise<AudioBuffer> {
-  const mix = new OfflineAudioContext(2, Math.max(1, Math.round(windowLength * SAMPLE_RATE)), SAMPLE_RATE);
-  const windowEnd = windowStart + windowLength;
-  for (const source of sources) {
-    // A source plays into its transitions' handles (206): from half the one leading in, to half its own.
-    const first = source.start - (source.lead ?? 0);
-    const last = source.end + (source.trail ?? 0);
-    if (last <= windowStart || first >= windowEnd) continue;
-    const playing = { from: Math.max(windowStart, first), to: Math.min(windowEnd, last) };
-    const gain = mix.createGain();
-    gain.connect(mix.destination);
-    scheduleGain(gain.gain, source, playing, windowStart);
-    await scheduleBuffers(mix, gain, source, playing, windowStart);
-  }
-  return mix.startRendering();
-}
-
-/** Adds the mixed sound a window ahead of the frames, so the two tracks interleave in the file. */
-class SoundFeed {
-  /** Timeline seconds of sound added so far. */
-  private until = 0;
-
-  /**
-   * @param track the sound track, or null for a video without sound
-   * @param sources the opened sound sources
-   * @param total the project's length, seconds
-   */
-  constructor(
-    private readonly track: AudioBufferSource | null,
-    private readonly sources: AudioSource[],
-    private readonly total: number,
-  ) {}
-
-  /**
-   * Adds sound windows until they reach a second past a time (or the end).
-   * @param time timeline seconds
-   */
-  async feedUntil(time: number): Promise<void> {
-    while (this.track && this.until < this.total && this.until <= time + 1) {
-      const length = Math.min(AUDIO_WINDOW, this.total - this.until);
-      await this.track.add(await mixWindow(this.sources, this.until, length));
-      this.until += length;
-    }
-  }
-}
 
 /** A clip's picture: a photo's decoded image (with its object URL) or a video's latest frame. */
 interface Picture {
@@ -591,6 +327,8 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   job.onProgress?.(0, 'Opening the sound…');
   const sources = withSound ? await openAudio(job) : [];
   throwIfAborted(job.signal);
+  const measure = sources.length > 0 ? await planLoudness(sources, job, total) : null;
+  throwIfAborted(job.signal);
 
   const { canvas, ctx } = frameCanvas(job);
   const pool = exportPool(job);
@@ -604,7 +342,7 @@ export async function encodeVideo(job: ExportJob): Promise<Blob | null> {
   await output.start();
 
   try {
-    const soundFeed = new SoundFeed(sound, sources, total);
+    const soundFeed = new SoundFeed(sound, sources, total, job, measure);
     const pictures = new FramePictures(pool, laneOf);
     await encodeFrames({ job, ctx, total, frameCount, video, soundFeed, pool, pictures, laneOf });
     await soundFeed.feedUntil(total);

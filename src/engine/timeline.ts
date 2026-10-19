@@ -167,14 +167,27 @@ export interface TimedClip extends ClipTiming {
   transition?: Transition;
 }
 
-/** A sound on an audio track: the music. `toEnd` plays it to the end of the video whatever its length (2.x music). */
+/**
+ * A sound clip on an audio track (208): a part of a sound file at a time on the timeline. `toEnd` plays it to the end
+ * of the video whatever its length (2.x music, Q7); otherwise it plays from `in` to `out`.
+ */
 export interface AudioClip {
   id: string;
   track: string;
   start: number;
   /** Seconds into the source where it starts (the music's offset). */
   in: number;
+  /** Seconds into the source where it ends (208); missing on a `toEnd` clip, which ends with the video. */
+  out?: number;
+  /** 0–2 (208 D6). */
   volume: number;
+  /** Seconds of fade at its start and end (208, 0–10 each); missing = none. */
+  fadeIn?: number;
+  fadeOut?: number;
+  /** Volume keyframes (205, 208 AC-5), seconds from its start, values 0–2; missing = none. */
+  keys?: Keyframes<Extract<ClipKeyProp, 'volume'>>;
+  /** The file's name, shown on the clip (208). */
+  name?: string;
   toEnd: boolean;
   /** Length of the source, seconds. */
   srcDur: number;

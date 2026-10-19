@@ -11,6 +11,7 @@ import {
   setKey,
   stopAnimating,
   valueOf,
+  volumeAt,
   type ClipKeyProp,
   type Ease,
   type KeyEdit,
@@ -19,20 +20,24 @@ import {
 } from '../engine/keyframes';
 import type { Layer } from '../engine/layers';
 import { isIdentity } from '../engine/timeline';
-import { change, clipLocked, getVideo, type VClip } from './videoStore';
+import { lockedReason } from '../engine/tracks';
+import { change, clipLocked, getVideo, type VClip, type VSound } from './videoStore';
 
 /*
- * Keyframe actions (205) on a clip or a layer: the inspector's keyframe button, Remove animation, and the timeline's
+ * Keyframe actions (205) on a clip, a layer or a sound clip (208: its volume, 0–2): the inspector's keyframe button, Remove animation, and the timeline's
  * key moves, eases and deletes. Each is one undo step and returns null, or why it was refused. The helpers here
  * (which item a target names, how its keys are checked) also serve videoBox.ts and videoLayers.ts.
  */
 
-/** What a keyframe action works on: a clip or a layer, by id. Times are the playhead's, or a key's own (`at`). */
-export type KeyTarget = { clip: string } | { layer: string };
+/** What a keyframe action works on: a clip, a layer or a sound clip, by id. Times are the playhead's, or a key's own (`at`). */
+export type KeyTarget = { clip: string } | { layer: string } | { sound: string };
 /** A clip's or a layer's animatable value. */
 export type KeyProp = ClipKeyProp | LayerKeyProp;
-/** A clip or a layer. */
-type KeyItem = VClip | Layer;
+/** A clip, a layer or a sound clip. */
+type KeyItem = VClip | Layer | VSound;
+
+/** The message when a sound clip is gone. */
+export const SOUND_GONE = 'That sound isn’t in the video any more.';
 
 /** The message when a layer is gone. */
 export const LAYER_GONE = 'That layer isn’t in the video any more.';
@@ -42,7 +47,33 @@ export const LAYER_GONE = 'That layer isn’t in the video any more.';
  * @param item a clip or a layer
  * @returns true for a clip
  */
-const isClip = (item: KeyItem): item is VClip => 'track' in item;
+const isClip = (item: KeyItem): item is VClip => 'kind' in item && 'track' in item;
+
+/**
+ * Whether an item is a sound clip (208).
+ * @param item a clip, a layer or a sound clip
+ * @returns true for a sound clip
+ */
+const isSound = (item: KeyItem): item is VSound => !('kind' in item) && 'track' in item;
+
+/**
+ * What kind of item carries the keys (their ranges differ).
+ * @param item a clip, a layer or a sound clip
+ * @returns its kind
+ */
+const kindOf = (item: KeyItem): KeyEdit['on'] => {
+  if (isSound(item)) return 'sound';
+  return isClip(item) ? 'clip' : 'layer';
+};
+
+/**
+ * A value of an item at a time: animated, else stored; a sound clip's volume on 0–2.
+ * @param item a clip, a layer or a sound clip
+ * @param prop the value
+ * @param local seconds from its start
+ * @returns the value
+ */
+const itemValue = (item: KeyItem, prop: KeyProp, local: number): number => (isSound(item) ? volumeAt(item, local, 'sound') : valueOf(item, prop, local));
 
 /**
  * Every keyframe in the project now (the 5,000 limit, Q5).
@@ -50,7 +81,8 @@ const isClip = (item: KeyItem): item is VClip => 'track' in item;
  */
 export const projectKeyCount = (): number => {
   const video = getVideo();
-  return video.clips.reduce((count, clip) => count + countKeys(clip.keys), 0) + video.layers.reduce((count, layer) => count + countKeys(layer.keys), 0);
+  const sounds = video.sounds.reduce((count, sound) => count + countKeys(sound.keys), 0);
+  return video.clips.reduce((count, clip) => count + countKeys(clip.keys), 0) + video.layers.reduce((count, layer) => count + countKeys(layer.keys), 0) + sounds;
 };
 
 /**
@@ -65,7 +97,7 @@ const keysOfItem = (item: KeyItem): Keyframes<KeyProp> | undefined => item.keys;
  * @param item a clip or a layer
  * @returns the check's settings
  */
-export const keyEdit = (item: KeyItem): KeyEdit => ({ on: isClip(item) ? 'clip' : 'layer', fps: getVideo().fps, projectKeys: projectKeyCount() });
+export const keyEdit = (item: KeyItem): KeyEdit => ({ on: kindOf(item), fps: getVideo().fps, projectKeys: projectKeyCount() });
 
 /** The item a target names and its time at the playhead (seconds from its start). */
 export interface FoundItem<T extends KeyItem = KeyItem> {
@@ -95,12 +127,18 @@ export function keyClip(id: string): FoundItem<VClip> | { error: string } {
 function keyItem(target: KeyTarget): FoundItem | { error: string } {
   if ('clip' in target) return keyClip(target.clip);
   const video = getVideo();
+  if ('sound' in target) {
+    const sound = video.sounds.find((candidate) => candidate.id === target.sound);
+    if (!sound) return { error: SOUND_GONE };
+    const locked = lockedReason(video.tracks, sound.track);
+    return locked ? { error: locked } : { item: sound, local: video.t - sound.start };
+  }
   const layer = video.layers.find((candidate) => candidate.id === target.layer);
   return layer ? { item: layer, local: video.t - (layer.start ?? 0) } : { error: LAYER_GONE };
 }
 
 /** Changed fields of a clip or a layer, or new keys for either. */
-type ItemPatch = Partial<VClip> | Partial<Layer> | { keys: Keyframes<KeyProp> | undefined };
+type ItemPatch = Partial<VClip> | Partial<Layer> | Partial<VSound> | { keys: Keyframes<KeyProp> | undefined };
 
 /**
  * Stores the target's changed fields as one undo step.
@@ -113,6 +151,7 @@ function storeItem(target: KeyTarget, patch: ItemPatch, key: string): null {
   const video = getVideo();
   // The patch belongs to the target's kind: every action builds it from the item the target names.
   if ('clip' in target) change(key, { clips: video.clips.map((clip) => (clip.id === target.clip ? { ...clip, ...(patch as Partial<VClip>) } : clip)) });
+  else if ('sound' in target) change(key, { sounds: video.sounds.map((sound) => (sound.id === target.sound ? ({ ...sound, ...patch } as VSound) : sound)) });
   else change(key, { layers: video.layers.map((layer) => (layer.id === target.layer ? ({ ...layer, ...patch } as Layer) : layer)) });
   return null;
 }
@@ -124,7 +163,8 @@ function storeItem(target: KeyTarget, patch: ItemPatch, key: string): null {
  * @param local the time, seconds from its start
  * @returns the fields to change
  */
-function stoppedAt(item: KeyItem, prop: KeyProp, local: number): Partial<VClip> | Partial<Layer> {
+function stoppedAt(item: KeyItem, prop: KeyProp, local: number): Partial<VClip> | Partial<Layer> | Partial<VSound> {
+  if (isSound(item)) return { volume: volumeAt(item, local, 'sound'), keys: undefined };
   if (!isClip(item)) return isLayerKeyProp(prop) ? stopAnimating(item, prop, local) : {};
   if (!isClipKeyProp(prop)) return {};
   const patch = stopAnimating(item, prop, local);
@@ -171,7 +211,7 @@ export function toggleKey(target: KeyTarget, props: KeyProp | KeyProp[]): string
   }
   let keys = keysOfItem(item);
   for (const name of names) {
-    const added = setKey(keys, name, local, valueOf(item, name, local), { ...keyEdit(item), projectKeys: projectKeyCount() + countKeys(keys) - countKeys(keysOfItem(item)) });
+    const added = setKey(keys, name, local, itemValue(item, name, local), { ...keyEdit(item), projectKeys: projectKeyCount() + countKeys(keys) - countKeys(keysOfItem(item)) });
     if ('error' in added) return added.error;
     keys = added;
   }

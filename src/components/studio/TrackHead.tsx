@@ -1,14 +1,15 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { addTrack as withNewTrack, type Track } from '../../engine/tracks';
+import { addAudioTrack, addTrack as withNewTrack, type Track } from '../../engine/tracks';
 import { isDesktop } from '../../platform/desktop';
 import type { TrackHeight } from '../../state/videoStore';
-import { addTrack, deleteTrack, moveTrack, renameTrack, setTrack, setTrackHeight } from '../../state/videoTracks';
-import { HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PlusIcon } from '../icons';
+import { addSoundTrack, addTrack, deleteTrack, moveTrack, renameTrack, setTrack, setTrackHeight } from '../../state/videoTracks';
+import { AdjustIcon, HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PlusIcon, SoloIcon } from '../icons';
+import { SoundTrackSettings } from './AudioPanel';
 import { tell } from './timelineActions';
 import { TRACK_PX } from './timelineDrag';
 
-/* The timeline's track headers: add an overlay track, and each track's name, switches and menu. */
+/* The timeline's track headers: add an overlay or sound track, and each track's name, switches, settings and menu. */
 
 /** The track heights and their names. */
 const HEIGHTS: [TrackHeight, string][] = [
@@ -40,6 +41,27 @@ export function AddTrackButton({ tracks }: Readonly<AddTrackButtonProps>) {
       onClick={() => tell(refusal ?? addTrack())}
     >
       <PlusIcon />
+    </button>
+  );
+}
+
+/**
+ * Adds a sound track after the last one, "Audio N" (208 AC-1). At 8 sound tracks it is disabled and its title says why.
+ * @param props the tracks
+ */
+export function AddSoundTrackButton({ tracks }: Readonly<AddTrackButtonProps>) {
+  const result = addAudioTrack(tracks);
+  const refusal = 'error' in result ? result.error : null;
+  return (
+    <button
+      type="button"
+      className="tl-tbtn tl-add-track"
+      aria-label="Add a sound track"
+      title={refusal ?? 'Add a sound track below the others, for voice-overs and effects'}
+      aria-disabled={!!refusal}
+      onClick={() => tell(refusal ?? addSoundTrack())}
+    >
+      <MusicIcon />
     </button>
   );
 }
@@ -81,7 +103,8 @@ interface TrackNameProps {
 }
 
 /**
- * A track's name: an overlay track's name is a button that becomes a text field (Enter keeps, Escape cancels).
+ * A track's name: an overlay or sound track's name is a button that becomes a text field (Enter keeps, Escape
+ * cancels); the main video track's isn't renamed.
  * @param props the track and whether it is being renamed
  */
 function TrackName({ track, isRenaming, setRenaming }: Readonly<TrackNameProps>) {
@@ -105,28 +128,29 @@ function TrackName({ track, isRenaming, setRenaming }: Readonly<TrackNameProps>)
         onBlur={(event) => finishRename(event.currentTarget.value)}
       />
     );
-  if (track.kind === 'overlay')
+  if (track.kind !== 'video')
     return (
       <button type="button" className="tl-h-name tl-h-name-button" aria-label={`Rename ${track.name}`} title="Rename this track" onClick={() => setRenaming(true)}>
-        {track.name}
+        {track.kind === 'audio' && <MusicIcon />} {track.name}
       </button>
     );
   return (
     <span className="tl-h-name" aria-hidden="true">
-      {track.kind === 'audio' && <MusicIcon />} {track.name}
+      {track.name}
     </span>
   );
 }
 
 /**
- * A track's header: its name, Hide (picture tracks) and Mute (overlay and sound tracks), Lock and its height. An
- * overlay track's header also renames it, and its menu (the height button) moves it up or down among the overlays and
- * deletes it (asking first when it holds clips).
+ * A track's header: its name, Hide (picture tracks), Mute (overlay and sound tracks), Solo and the sound settings
+ * (sound tracks, 208), Lock and its height. An overlay or sound track's header also renames it, and its menu (the
+ * height button) moves it up or down among its kind and deletes it (asking first when it holds clips).
  * @param props the track, its height and how many clips it holds
  */
 export function TrackHead({ track, height, clipCount = 0 }: Readonly<TrackHeadProps>) {
   const isPicture = track.kind !== 'audio';
   const isOverlay = track.kind === 'overlay';
+  const isSound = track.kind === 'audio';
   const [isRenaming, setRenaming] = useState(false);
   /** Deletes the track, asking first when it holds clips. */
   const confirmDelete = () => {
@@ -138,6 +162,15 @@ export function TrackHead({ track, height, clipCount = 0 }: Readonly<TrackHeadPr
     { label: 'Move down', onSelect: () => tell(moveTrack(track.id, -1)) },
     { label: `Delete ${track.name}`, onSelect: confirmDelete },
   ];
+  // Sound tracks move among the sound tracks: +1 is down the list (208 AC-1).
+  const soundActions = [
+    { label: 'Move up', onSelect: () => tell(moveTrack(track.id, -1)) },
+    { label: 'Move down', onSelect: () => tell(moveTrack(track.id, 1)) },
+    { label: `Delete ${track.name}`, onSelect: confirmDelete },
+  ];
+  let actions: TrackMenuAction[] = [];
+  if (isOverlay) actions = overlayActions;
+  else if (isSound) actions = soundActions;
   return (
     <div className={`tl-h tl-h-track tl-h-${height}${isOverlay ? ' tl-h-overlay' : ''}`} style={{ height: TRACK_PX[height] }} role="group" aria-label={`${track.name} track`}>
       <TrackName track={track} isRenaming={isRenaming} setRenaming={setRenaming} />
@@ -163,6 +196,16 @@ export function TrackHead({ track, height, clipCount = 0 }: Readonly<TrackHeadPr
             <MuteIcon on={track.muted} />
           </TrackSwitch>
         )}
+        {isSound && (
+          <TrackSwitch
+            isOn={!!track.solo}
+            label={`Solo ${track.name}`}
+            title={track.solo ? 'Solo: only soloed sound tracks play in the preview (the export plays every track)' : 'Hear only this sound track (and other soloed ones) in the preview'}
+            onToggle={() => setTrack(track.id, { solo: !track.solo })}
+          >
+            <SoloIcon />
+          </TrackSwitch>
+        )}
         <TrackSwitch
           isOn={track.locked}
           label={`Lock ${track.name}`}
@@ -171,7 +214,8 @@ export function TrackHead({ track, height, clipCount = 0 }: Readonly<TrackHeadPr
         >
           <LockIcon on={track.locked} />
         </TrackSwitch>
-        <HeightMenu track={track} height={height} actions={isOverlay ? overlayActions : []} />
+        {isSound && <SoundSettingsButton track={track} />}
+        <HeightMenu track={track} height={height} actions={actions} />
       </span>
     </div>
   );
@@ -305,6 +349,69 @@ function HeightMenu({ track, height, actions = [] }: Readonly<HeightMenuProps>) 
               </li>
             ))}
           </ul>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+/**
+ * A sound track's settings (role, volume, ducking or Counts as voice) in a popover from its header: the Audio panel's
+ * fields for this track (Escape or a press outside closes it).
+ * @param props the sound track
+ * @param props.track the track
+ */
+function SoundSettingsButton({ track }: Readonly<{ track: Track }>) {
+  const [place, setPlace] = useState<MenuPlace | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const id = useId();
+  useEffect(() => {
+    if (!place) return;
+    const onDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+      if (!boxRef.current?.contains(target) && !buttonRef.current?.contains(target)) setPlace(null);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [place]);
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="tl-tbtn"
+        aria-label={`${track.name}: sound settings`}
+        title="Role, volume and ducking"
+        aria-expanded={!!place}
+        aria-controls={place ? id : undefined}
+        onClick={() => {
+          if (place) setPlace(null);
+          else if (buttonRef.current) setPlace(menuPlace(buttonRef.current, 6));
+        }}
+      >
+        <AdjustIcon />
+      </button>
+      {place &&
+        createPortal(
+          <div
+            ref={boxRef}
+            id={id}
+            className="tl-sound-pop"
+            role="dialog"
+            aria-label={`${track.name}: sound settings`}
+            style={{ position: 'fixed', ...place }}
+            onKeyDown={(event) => {
+              // Keys typed here mustn't reach the timeline's shortcuts.
+              event.stopPropagation();
+              if (event.key === 'Escape') {
+                setPlace(null);
+                buttonRef.current?.focus();
+              }
+            }}
+          >
+            <SoundTrackSettings track={track} />
+          </div>,
           document.body,
         )}
     </>

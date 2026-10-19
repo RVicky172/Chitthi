@@ -51,7 +51,9 @@ product × size × layout, where API keys may be sent (`keyAllowed`, `isResultHo
 Instagram formats, batch limit, placement and colour maths, and the video formats, bitrates and per-platform limits.
 The photo editor: light, curves, mixer, detail, LUT parsing, presets, masks (cached rasters against painting from
 nothing, gradients against their formulas, AI parts from a map), GPU node graphs, the TIFF writer, the RAW embedded
-preview reader and a synthetic DNG, segmentation map stretching and the pinned models.
+preview reader and a synthetic DNG, segmentation map stretching and the pinned models. The video editor's sound (208): sound clip edits, the gain chain
+against expected gains at 1,000 times, scans of tone bursts, the duck curve, loudness against EBU Tech 3341's
+signals (synthesised in the test), the limiter's ceiling at 4× oversampling, and the export's sound plan.
 
 Add a test as `tests/unit/<same path as the module>.test.ts` (or under `tests/integration/`, see above). Keep it free
 of DOM and canvas: anything that needs them belongs in the self-test. Test files are type-checked with the app but
@@ -103,6 +105,11 @@ of each failed test.
 - Firefox and Safari (WebKit): add projects in `playwright.config.ts` when needed.
 - Printing on paper: use the print samples (`npm run build:print-samples`, [print-quote](../docs/print-quote/README.md)).
 - Signed installers and auto-update: manual, in [release.md](release.md).
+- **The listening test** (208 AC-15, run in each phase's test pass): export a 60-second vlog with music on the Music
+  track, a voice on a Voice track and two effects, ducking on and −14 LUFS, and listen on headphones and a phone
+  speaker: the music dips under every sentence without pumping between words, nothing clicks at cuts, fades or ducking
+  edges, the limiter doesn't audibly distort, and the preview sounds like the file. Upload it unlisted to YouTube:
+  "Stats for nerds" shows a content loudness within 1 dB of 0 dB.
 
 ## Rules
 

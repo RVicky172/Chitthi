@@ -2,12 +2,13 @@ import { limitVideos } from '../engine/edits';
 import { DEFAULT_EDIT } from '../engine/instagram';
 import { checkFile, loadImage } from '../engine/photo';
 import { clipLength, pack, V_PHOTO_SECONDS } from '../engine/timeline';
-import { MAIN_VIDEO, MUSIC, addTrack as withNewTrack, lockedReason, type Track } from '../engine/tracks';
+import { MAIN_VIDEO, addTrack as withNewTrack, lockedReason, type Track } from '../engine/tracks';
 import type { VLimits } from '../engine/videoFormats';
 import { logError } from '../lib/errors';
 import { isDesktop } from '../platform/desktop';
+import { scanMedia } from './soundScan';
 import { endOn, insertOnTrack } from './videoClips';
-import { browserNote, change, editCtx, getVideo, limitText, limits, musicLocked, newId, setVideo, shareStrip, total, type VClip, type VMusic } from './videoStore';
+import { browserNote, change, editCtx, getVideo, limitText, limits, newId, setVideo, shareStrip, type VClip } from './videoStore';
 
 /*
  * Media in the video: photos and video files read into clips (a preview copy, a thumbnail and, for videos, a
@@ -393,122 +394,13 @@ export async function addMedia(files: MediaFile[], place: MediaPlace = {}): Prom
   const first = adding.added.at(0);
   if (first) {
     change('', { tracks: target.tracks, clips: withAdded(adding, adding.added) }, { selected: getVideo().selected ?? first.id });
-    for (const clip of adding.added) if (clip.kind === 'video') void mediaIO.strip(clip.id, clip.url, clip.srcDur);
+    for (const clip of adding.added) {
+      if (clip.kind !== 'video') continue;
+      void mediaIO.strip(clip.id, clip.url, clip.srcDur);
+      // Its sound's scan (208 D5), in the background: waveforms and ducking read it.
+      scanMedia(clip.url, clip.file);
+    }
   }
   setVideo({ busy: null });
   return adding.messages;
-}
-
-/* ---------- music ---------- */
-
-const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/i;
-
-/**
- * Loudness peaks through a song, for the waveform. The decoded sound is dropped right after.
- * @param file the song
- * @param count how many peaks
- * @returns peaks, 0–1 of the loudest
- */
-async function measurePeaks(file: Blob, count = 800): Promise<number[]> {
-  const context = new OfflineAudioContext(1, 1, 44100);
-  const buffer = await context.decodeAudioData(await file.arrayBuffer());
-  const data = buffer.getChannelData(0);
-  const step = Math.max(1, Math.floor(data.length / count));
-  const peaks: number[] = [];
-  let loudest = 0;
-  for (let index = 0; index < count; index++) {
-    let peak = 0;
-    for (let sample = index * step, end = Math.min(data.length, sample + step); sample < end; sample += 4) peak = Math.max(peak, Math.abs(data[sample] ?? 0));
-    peaks.push(peak);
-    loudest = Math.max(loudest, peak);
-  }
-  return peaks.map((peak) => (loudest ? peak / loudest : 0));
-}
-
-/**
- * A sound file's length.
- * @param url its object URL
- * @returns seconds; rejects when it can't be played
- */
-const audioLength = (url: string): Promise<number> =>
-  new Promise<number>((resolve, reject) => {
-    const audio = new Audio();
-    audio.preload = 'metadata';
-    audio.onloadedmetadata = () => {
-      if (Number.isFinite(audio.duration)) resolve(audio.duration);
-      else reject(new Error('no duration'));
-    };
-    audio.onerror = () => {
-      reject(new Error('unplayable'));
-    };
-    audio.src = url;
-  });
-
-/**
- * Sets the music from a file; its waveform is measured in the background.
- * @param file the sound file
- * @returns null, or why not
- */
-export async function setMusicFile(file: File): Promise<string | null> {
-  const locked = musicLocked();
-  if (locked) return locked;
-  if (!file.type.startsWith('audio/') && !AUDIO_EXT.test(file.name)) return `${file.name} isn’t a sound file. Use MP3, M4A, WAV, OGG or FLAC.`;
-  if (file.size > 100 * 1048576) return `${file.name} is too large. Music files up to 100 MB can be added.`;
-  const url = URL.createObjectURL(file);
-  try {
-    const duration = await audioLength(url);
-    const old = getVideo().music;
-    if (old) URL.revokeObjectURL(old.url);
-    setVideo({ music: { track: MUSIC, file, name: file.name, url, dur: duration, volume: 0.8, offset: 0, peaks: [] } });
-    void measurePeaks(file)
-      .then((peaks) => {
-        const music = getVideo().music;
-        if (music?.url === url) setVideo({ music: { ...music, peaks } });
-      })
-      .catch(() => undefined);
-    return null;
-  } catch (error) {
-    URL.revokeObjectURL(url);
-    logError('handled', error);
-    return `${file.name} couldn’t be played here.`;
-  }
-}
-
-/**
- * Changes the music's volume or offset (not recorded for undo).
- * @param patch the volume or offset
- * @returns false when there is no music or its track is locked
- */
-export function updateMusic(patch: Partial<Pick<VMusic, 'volume' | 'offset'>>): boolean {
-  const music = getVideo().music;
-  if (!music || musicLocked()) return false;
-  setVideo({ music: { ...music, ...patch } });
-  return true;
-}
-
-/**
- * Removes the music.
- * @returns false when its track is locked
- */
-export function removeMusic(): boolean {
-  if (musicLocked()) return false;
-  const music = getVideo().music;
-  if (music) URL.revokeObjectURL(music.url);
-  setVideo({ music: null });
-  return true;
-}
-
-/**
- * The Slip keys on the music (Q8): moves where in the song the video's sound starts.
- * @param delta seconds
- * @returns null, or why not
- */
-export function slipMusic(delta: number): string | null {
-  const music = getVideo().music;
-  if (!music) return 'There’s no music to slip.';
-  const why = musicLocked();
-  if (why) return why;
-  const max = Math.max(0, music.dur - Math.min(total(), music.dur));
-  updateMusic({ offset: Math.max(0, Math.min(max, music.offset + delta)) });
-  return null;
 }

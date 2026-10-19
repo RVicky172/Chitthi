@@ -12,6 +12,7 @@ import {
   type Keyframe,
   type Keyframes,
   type LayerKeyProp,
+  type KeyTarget,
 } from './keyframes';
 
 /**
@@ -56,7 +57,7 @@ const KEY_REASONS = {
 function readKey(
   entry: unknown,
   prop: ClipKeyProp | LayerKeyProp,
-  on: 'clip' | 'layer',
+  on: KeyTarget,
   note: (reason: string) => void,
 ): Keyframe | null {
   const time = isRecord(entry) ? entry.t : undefined;
@@ -122,7 +123,7 @@ function settleList(read: Keyframe[], budget: KeyBudget, note: (reason: string) 
 export function mergeKeys<P extends ClipKeyProp | LayerKeyProp>(
   raw: unknown,
   props: readonly P[],
-  on: 'clip' | 'layer',
+  on: KeyTarget,
   budget: KeyBudget,
 ): Keyframes<P> | undefined {
   const note = (reason: string) => {

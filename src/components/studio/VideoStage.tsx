@@ -6,23 +6,26 @@ import { drawSelection } from '../../engine/layerPick';
 import { frameSourceAt } from '../../engine/speed';
 import { frameStack } from '../../engine/stack';
 import { formatTime } from '../../engine/timeline';
-import { MUSIC } from '../../engine/tracks';
 import { halves } from '../../engine/transitions';
 import { vFormat } from '../../engine/videoFormats';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import { setVLayers, updateLayerAt, removeVLayer } from '../../state/videoLayers';
-import { endVStep, getVideo, projectOf, selectVLayer, setPlayhead, setPlaying, total as videoTotal, useVideo, videoLength, type VClip, type VMusic } from '../../state/videoStore';
+import { endVStep, getVideo, projectOf, selectVLayer, setPlayhead, setPlaying, total as videoTotal, useVideo, videoLength, type VClip, type VState } from '../../state/videoStore';
+import { masterGainDb } from '../../state/videoSound';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import { drawPreview, heldStageFrame, noteFallback, pausedAt, pausedFrame, photoPicture, poolClip, stageSource, type Picture, type StageFrame } from './previewFrame';
-import { previewSound, soundPlan } from './previewSound';
+import { previewSound, soundPlan, type PreviewMix } from './previewSound';
+import { chainGainAt } from '../../engine/mixGain';
+import { audioPlan } from '../../engine/soundPlan';
+import { soundDucks } from '../../state/videoExportJob';
 import { useFit } from './Shell';
 import { useClipTransform } from './useClipTransform';
 
 /*
  * The video editor's stage: plays the timeline live on a canvas. Pictures come from the decoder pool (204), with
- * <video> elements for clips it can't decode; clip sound from <audio> elements (previewSound.ts); the music from one
- * <audio>. Paused, it draws at once with what is held, then the exact frame of the export's grid. Layers and the
+ * <video> elements for clips it can't decode; clip and sound clip sound from <audio> elements through one Web Audio
+ * graph at the export's gains (previewSound.ts, 208). Paused, it draws at once with what is held, then the exact frame of the export's grid. Layers and the
  * selected overlay clip's box are edited on it directly.
  */
 
@@ -183,7 +186,7 @@ function drawStage({ canvas, width, height, sources, last, drawBox }: StageDrawi
 function syncMedia(sources: StageSources, isPlaying: boolean): void {
   if (!sources.mounted.current) return;
   const state = getVideo();
-  sources.sound().update(soundPlan(projectOf(state), state.t), isPlaying, state.fps);
+  sources.sound().update(soundPlan(projectOf(state), state.t), isPlaying, state.fps, previewMix(state));
   const { pool } = sources.stage();
   const onScreen = frameStack(projectOf(state), state.t);
   for (const clip of state.clips) {
@@ -191,6 +194,27 @@ function syncMedia(sources: StageSources, isPlaying: boolean): void {
     const shown = onScreen.find((stackItem) => stackItem.clip.id === clip.id);
     syncFallbackVideo(sources.videoFor(clip), shown ? frameSourceAt(clip, shown.local) : null, isPlaying);
   }
+}
+
+/**
+ * The tick's gains (208 AC-5, AC-9): each sound's from the export's chain at the playhead (its volume, keys, fades,
+ * transitions, track volume and ducking) and the loudness gain, so the preview sounds as the export will.
+ * @param state the video's state
+ * @returns the gains
+ */
+function previewMix(state: VState): PreviewMix {
+  const project = projectOf(state);
+  const plan = new Map(audioPlan(project).map((source) => [source.ref, source]));
+  const ducks = soundDucks(state);
+  return {
+    time: state.t,
+    master: 10 ** (masterGainDb(state) / 20),
+    limit: state.loudness !== 'off',
+    gainOf: (ref) => {
+      const source = plan.get(ref);
+      return source ? chainGainAt(source, state.tracks, ducks, state.t) : null;
+    },
+  };
 }
 
 /**
@@ -231,20 +255,6 @@ function lookAhead(sources: StageSources, time: number): void {
 }
 
 /**
- * Starts the music for playback from a time.
- * @param element the music's <audio> element
- * @param music the song
- * @param from the playhead
- */
-function startMusic(element: HTMLAudioElement, music: VMusic, from: number): void {
-  if (element.src !== music.url) element.src = music.url;
-  element.volume = music.volume;
-  element.muted = getVideo().tracks.some((track) => track.id === MUSIC && track.muted);
-  element.currentTime = music.offset + from;
-  void element.play().catch(() => undefined);
-}
-
-/**
  * Playback: advances the playhead with the wall clock (from the start when at the end), keeps the clip media and the
  * music in step, and redraws each frame; stops at the end.
  * @param playing whether the video plays
@@ -252,20 +262,14 @@ function startMusic(element: HTMLAudioElement, music: VMusic, from: number): voi
  * @param draw the stage's draw function
  */
 function usePlayback(playing: boolean, sources: StageSources, draw: RefObject<DrawStage>): void {
-  const music = useVideo((state) => state.music);
-  const musicMuted = useVideo((state) => state.tracks.some((track) => track.id === MUSIC && track.muted));
-  // The music's <audio> element, made the first time the video plays with music.
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!playing) return;
     const startState = getVideo();
     const startTime = startState.t >= videoLength(startState) - 0.05 ? 0 : startState.t;
     const startWall = performance.now();
     setPlayhead(startTime);
-    // The element this playback started; its cleanup pauses it (on stop and on unmount).
-    if (music && !audioRef.current) audioRef.current = new Audio();
-    const audio = audioRef.current;
-    if (music && audio) startMusic(audio, music, startTime);
+    // Play is a user gesture: the browser lets the sound's AudioContext start now (208 D3).
+    void sources.sound().resume();
     let animationFrame = 0;
     const loop = () => {
       const now = startTime + (performance.now() - startWall) / 1000;
@@ -284,14 +288,9 @@ function usePlayback(playing: boolean, sources: StageSources, draw: RefObject<Dr
     animationFrame = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(animationFrame);
-      audio?.pause();
       syncMedia(sources, false);
     };
-  }, [playing, music, sources, draw]);
-  // Muting the music track while it plays.
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.muted = musicMuted;
-  }, [musicMuted]);
+  }, [playing, sources, draw]);
 }
 
 /**

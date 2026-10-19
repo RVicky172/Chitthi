@@ -1,27 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import type { Ease, Keyframe } from '@/engine/keyframes';
-import type { TimedClip } from '@/engine/timeline';
+import type { AudioClip, TimedClip } from '@/engine/timeline';
 import type { Track } from '@/engine/tracks';
 import type { Transition } from '@/engine/transitions';
 import { RAMP_PRESETS, type SpeedFields } from '@/engine/speed';
 import { defined } from '../../../support/defined';
 import {
   clipLabel,
+  clipSilence,
   describeClipChange,
   describeKeyChange,
   describeSpeedChange,
   describeTransitionChange,
   draggedLength,
+  duckPoints,
   easeName,
   easeShape,
+  fadeAfterDrag,
   filmstripTimes,
+  gainAtY,
   keyPropName,
   keyTimes,
   panelCut,
   pictureTracksTopFirst,
   rowUnderPointer,
+  nudgedFade,
+  nudgedVolume,
+  soundAnnouncement,
+  soundBar,
+  soundSilence,
   speedBadge,
   transitionBlock,
+  volumePoints,
+  volumeY,
   type RowBounds,
 } from '@/components/studio/timelineRows';
 
@@ -395,5 +406,120 @@ describe('207: badges, filmstrips and announcements at speed', () => {
     );
     expect(describeSpeedChange(slower, was, TRACKS)).toBe('Clip 2: 1×, now 4.2 s');
     expect(describeSpeedChange(was, was, TRACKS)).toBe('');
+  });
+});
+
+/* ---------- 208 T102: sound rows' geometry (AC-2, AC-6, Q6) ---------- */
+
+describe('sound rows: bars, fade handles, the volume line and the duck curve (208)', () => {
+  const clip = (patch: Partial<AudioClip> = {}): AudioClip => ({ id: 's', track: 'A2', start: 2, in: 1, out: 5, volume: 1, toEnd: false, srcDur: 30, ...patch });
+
+  it('a bar from its start for its length; the part past the video’s end is dimmed (Q6)', () => {
+    expect(soundBar(clip(), 10, 20)).toEqual({ left: 40, width: 80, heard: 80 });
+    expect(soundBar(clip({ start: 8 }), 10, 20)).toEqual({ left: 160, width: 80, heard: 40 });
+    expect(soundBar(clip({ start: 11 }), 10, 20)).toEqual({ left: 220, width: 80, heard: 0 });
+    // A toEnd clip ends with the video.
+    expect(soundBar(clip({ toEnd: true, out: undefined }), 10, 20)).toEqual({ left: 40, width: 160, heard: 160 });
+  });
+
+  it('a fade handle dragged: in grows to the right, out to the left; 0–10 s, never past the other fade', () => {
+    expect(fadeAfterDrag('in', 0, 0, 4, 20, 20)).toBe(1);
+    expect(fadeAfterDrag('out', 0.5, 0, 4, -20, 20)).toBe(1.5);
+    expect(fadeAfterDrag('in', 1, 0, 4, -100, 20)).toBe(0);
+    expect(fadeAfterDrag('in', 0, 1.5, 4, 200, 20)).toBe(2.5);
+    expect(fadeAfterDrag('out', 0, 0, 60, -400, 20)).toBe(10);
+    expect(fadeAfterDrag('in', 0, 0, 4, 7, 20)).toBe(0.35);
+  });
+
+  it('the volume line: 0 % at the bottom, 200 % at the top, 100 % in the middle; and back', () => {
+    expect(volumeY(0, 64)).toBe(60);
+    expect(volumeY(2, 64)).toBe(4);
+    expect(volumeY(1, 64)).toBe(32);
+    expect(gainAtY(32, 64)).toBe(1);
+    expect(gainAtY(-50, 64)).toBe(2);
+    expect(gainAtY(200, 64)).toBe(0);
+    expect(gainAtY(volumeY(1.5, 64), 64)).toBeCloseTo(1.5, 9);
+  });
+
+  it('the volume line follows the volume keys (0–2), else is flat', () => {
+    expect(volumePoints(clip({ volume: 1 }), 4, 20, 64)).toBe('0,32 80,32');
+    const keyed = clip({ keys: { volume: [{ t: 0, v: 0, ease: 'linear' }, { t: 4, v: 2, ease: 'linear' }] } });
+    const points = volumePoints(keyed, 4, 20, 64).split(' ');
+    expect(points[0]).toBe('0,60');
+    expect(points.at(-1)).toBe('80,4');
+    expect(points.length).toBeGreaterThan(10);
+  });
+
+  it('the duck curve over a clip: 0 dB at the top, −30 dB at the bottom (4 px padding), sampled every 4 px', () => {
+    // −12 dB from 2 s to 4 s, 0 dB elsewhere, in 10 ms points.
+    const curve = Float32Array.from({ length: 1001 }, (_, index) => (index >= 200 && index <= 400 ? -12 : 0));
+    const points = duckPoints(curve, 2, 4, 20, 64).split(' ');
+    expect(points[0]).toBe('0,26.4');
+    expect(points.at(-1)).toBe('80,4');
+    expect(points).toHaveLength(21);
+  });
+
+  it('says why a sound clip is flat: its muted track, a volume of 0, or a start past the video’s end (AC-4, Q6)', () => {
+    expect(soundSilence(clip(), MUSIC, 10)).toBeNull();
+    expect(soundSilence(clip(), { ...MUSIC, muted: true }, 10)).toBe('Its track is muted, so it isn’t heard.');
+    expect(soundSilence(clip({ volume: 0 }), MUSIC, 10)).toBe('Its volume is 0 %, so it isn’t heard.');
+    expect(soundSilence(clip({ volume: 0, keys: { volume: [{ t: 1, v: 0.5, ease: 'linear' }] } }), MUSIC, 10)).toBeNull();
+    expect(soundSilence(clip({ start: 10 }), MUSIC, 10)).toBe('It starts after the video ends, so it isn’t heard.');
+  });
+});
+
+describe('video clips’ waveforms: why one is flat (208 T103, AC-4)', () => {
+  const heard = { ...clip('c', 'V2', 0, 4), volume: 1 };
+  it('is heard at 1×, with a volume and on a track that isn’t muted', () => {
+    expect(clipSilence(heard, OVERLAY_1)).toBeNull();
+  });
+  it('says why: a muted track, 207’s silent speeds, or a volume of 0 (unless a volume key is above 0)', () => {
+    expect(clipSilence(heard, { ...OVERLAY_1, muted: true })).toBe('Its track is muted, so it isn’t heard.');
+    expect(clipSilence({ ...heard, reverse: true }, OVERLAY_1)).toBe('A reversed clip plays without sound.');
+    expect(clipSilence({ ...heard, volume: 0 }, OVERLAY_1)).toBe('Its sound is off (volume 0 %).');
+    expect(clipSilence({ ...heard, volume: 0, keys: { volume: [{ t: 0, v: 0.4, ease: 'linear' }] } }, OVERLAY_1)).toBeNull();
+  });
+});
+
+describe('a sound clip’s keyframe names (208 T104)', () => {
+  it('its volume is “Volume”; a video clip’s stays “Clip sound”', () => {
+    expect(keyPropName('volume', 'sound')).toBe('Volume');
+    expect(keyPropName('volume', 'clip')).toBe('Clip sound');
+  });
+});
+
+describe('sound clips from the keyboard and their announcements (208 T105, AC-14)', () => {
+  const sfx = (patch: Partial<AudioClip> = {}): AudioClip => ({ id: 's', track: 'A2', start: 2, in: 0, out: 4, volume: 1, toEnd: false, srcDur: 30, name: 'Whoosh', ...patch });
+  const AUDIO_2 = track('A2', 'audio', 'Audio 2');
+  const tracks = [...TRACKS, AUDIO_2];
+
+  it('fade handles: → grows a fade in, ← a fade out, 0.1 s (Shift: 1 s), within 0–10 s and the other fade', () => {
+    expect(nudgedFade('in', 0.5, 0, 4, 'ArrowRight', false)).toBe(0.6);
+    expect(nudgedFade('in', 0.5, 0, 4, 'ArrowLeft', true)).toBe(0);
+    expect(nudgedFade('out', 0.5, 0, 4, 'ArrowLeft', true)).toBe(1.5);
+    expect(nudgedFade('out', 1, 2.5, 4, 'ArrowLeft', true)).toBe(1.5);
+    expect(nudgedFade('in', 1, 0, 4, 'ArrowUp', false)).toBeNull();
+  });
+
+  it('the volume line: ↑ / ↓ 5 % (Shift: 25 %), 0–200 %', () => {
+    expect(nudgedVolume(1, 'ArrowUp', false)).toBe(1.05);
+    expect(nudgedVolume(1, 'ArrowDown', true)).toBe(0.75);
+    expect(nudgedVolume(1.9, 'ArrowUp', true)).toBe(2);
+    expect(nudgedVolume(0.02, 'ArrowDown', false)).toBe(0);
+    expect(nudgedVolume(1, 'ArrowLeft', false)).toBeNull();
+  });
+
+  it('says what changed on a sound clip: its track and name, then the change and its new value', () => {
+    const was = [sfx()];
+    expect(soundAnnouncement(was, [sfx({ fadeIn: 0.5 })], tracks)).toBe('Audio 2: Whoosh, fade in 0.5 s');
+    expect(soundAnnouncement(was, [sfx({ fadeOut: 1.25 })], tracks)).toBe('Audio 2: Whoosh, fade out 1.3 s');
+    expect(soundAnnouncement(was, [sfx({ volume: 1.5 })], tracks)).toBe('Audio 2: Whoosh, volume 150 %');
+    expect(soundAnnouncement(was, [sfx({ start: 3 })], tracks)).toBe('Audio 2: Whoosh, 3.0 s to 7.0 s');
+    expect(soundAnnouncement(was, [sfx({ track: 'A1' })], tracks)).toBe('Music: Whoosh, 2.0 s to 6.0 s');
+    expect(soundAnnouncement(was, [sfx({ in: 1, out: 5 })], tracks)).toBe('Audio 2: Whoosh, plays its file from 1.0 s');
+    expect(soundAnnouncement(was, [sfx({ toEnd: true, out: undefined })], tracks)).toBe('Audio 2: Whoosh, plays to the end of the video');
+    expect(soundAnnouncement([], was, tracks)).toBe('Audio 2: Whoosh added, 2.0 s to 6.0 s');
+    expect(soundAnnouncement(was, [], tracks)).toBe('Audio 2: Whoosh removed');
+    expect(soundAnnouncement(was, was, tracks)).toBe('');
   });
 });

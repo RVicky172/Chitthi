@@ -632,3 +632,61 @@ clip's whole box animation over the still and jump at both cuts; Q4 wants the fr
 **Decision:** the maintainer chose to hold: the freeze gets one key per animated value, holding its value at the cut
 (as `splitKeys` gives a split's parts), and its stored box is that value.
 **Consequences:** nothing jumps at either cut; the user can still add keys to the freeze afterwards.
+
+## D-052 — 208 plan: one sound model, one gain chain, measured loudness (2026-10-18)
+
+**Context:** 208 (audio tracks, waveforms, ducking, loudness) plan, D1–D6.
+**Decision:** the maintainer approved D1–D6 as recommended: (D1) the song becomes a sound clip, `state.music` is
+replaced by `state.sounds`; (D2) 8 audio tracks on the web as on the desktop (picture tracks stay 4 / 8); (D3) the
+preview plays all sound through one Web Audio graph (gains, master, limiter worklet); (D4) loudness is measured on the
+real mix in a sound-only pass, with one corrective pass when the limiter would reduce more than 1 dB; (D5) one
+background scan per sound file in a Worker (peaks 100 / s, 50 ms RMS), in memory only; (D6) sound clips 0–200 %,
+video clips' own sound stays 0–100 %. AC-3's wording corrected: migrated music keeps its min(1.5 s, a third) fade-out.
+**Consequences:** preview and export share the gain chain, duck curve, loudness gain and limiter; edits never decode
+sound again; a spike proves the limiter worklet under the production CSP and in Electron first.
+
+## D-053 — 208: a scan's media id is the media's object URL (2026-10-18)
+
+**Context:** T033 keeps scans "per media id", but video clips have no media id: a split or copied clip shares the
+original's `file` and `url`.
+**Decision:** the object URL is the media id (`scanMedia(clip.url, clip.file)`; sounds use their `url` too). Deleting
+a clip keeps its scan (undo can bring it back, and the URL isn't revoked); replacing or removing the music drops its
+scan; `clearScans()` for a new project.
+**Consequences:** no new field on `VClip`; `VSound` (T070) has no `media` field: its `url` is the media id.
+
+## D-054 — 208: a selected sound clip is `soundSel`, a view setting like `layerSel` (2026-10-19)
+
+**Context:** T102's sound rows select clips, and the keys (Delete, S, Alt + ← / →) and T104's inspector need to know a
+sound clip is selected; `selected` means a picture clip everywhere (lanes, the inspector, transitions).
+**Decision:** `VState.soundSel` (not undone, not saved): `selectSound(id)` clears the layer and the cut; selecting a
+clip or a layer clears it; it wins over `selected` on the timeline (no picture clip highlighted, no keyframe lane).
+Delete removes it, S splits it at the playhead, Alt + ← / → nudge it with the edit tool. Sound rows keep the classes
+`.tl-music` / `.tl-bar-music` so the existing e2e tests run unchanged (AC-16). The duck curve on a bar is linear in dB,
+0 dB at the bar's top and −30 dB (the deepest duck amount) at its bottom.
+**Consequences:** T104 routes the inspector on `soundSel`; cross-track drops find the target row by
+`data-sound-track` under the pointer (sound rows aren't in the picture rows' bounds).
+
+## D-055 — 208: sound clips are keyframe targets; "Play to the end" on waits for T072 (2026-10-19)
+
+**Context:** T104's inspector needs 205's keyframe button and lane on a sound clip's volume (0–2), and the Play to the
+end switch; what a toEnd clip does when another sound follows it is T072's open question.
+**Decision:** the store's `KeyTarget` gains `{ sound: id }` (state/videoKeys.ts: found in `sounds`, locked by its
+track, keys on the engine's `'sound'` range; `KeyEdit.on` and `volumeAt(…, on)` take `'sound'`), so `toggleKey`,
+`removeAnimation`, the lane's moves / eases / deletes, K and Alt + [ / ] work unchanged. `setSoundVolumeAt` sets the key
+at the playhead when keyed. `setToEnd` (engine/soundClips.ts): off keeps the current length as a fixed out point; on is
+refused while another sound follows on the track (true under both T072 options; relax it when the rule is chosen).
+**Consequences:** the inspector routes on `soundSel` (VideoWorkspace's `Inspector`); a selected sound's lane shows under
+its row, named "Volume".
+
+## D-056 — 208 T072: a "Play to the end" clip stops at the next sound on its track (option A) (2026-10-19)
+
+**Context:** the seeded 1,000-edit test found overlaps: a toEnd clip's length followed the video, so lengthening the
+video ran it into the next sound on its track, and at or past the end it was 0 s long so clips could cover it.
+**Decision (maintainer, option A):** a toEnd clip plays to the end of the video or to the next sound on its track,
+whichever is first (`soundLength` takes the clips; `audioPlan` caps it the same way). An edit that puts a sound after
+a toEnd clip's start shortens it there (`isFree` measures it with the edited clip in its new place); Add sound's own
+choice of a track never does (it keeps the old room check, so a new file goes to another track instead of cutting
+the song). Moved to or past the video's end, the clip turns toEnd off and keeps its length. Turning toEnd on is
+always allowed. Option C (nothing may follow a toEnd clip) was not chosen.
+**Consequences:** the property test runs unskipped (no overlaps in 1,000 edits); D-055's "on is refused" is gone;
+spec Q7 extended (changelog 2026-10-19).

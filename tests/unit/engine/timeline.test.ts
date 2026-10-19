@@ -194,9 +194,9 @@ describe('tracks', () => {
     expect(clips[2]).toMatchObject({ kind: 'video', in: 1, out: 3 });
   });
 
-  it('track limits: 8 + 8 in the desktop app, 4 + 4 in the browser', () => {
+  it('track limits: 8 + 8 in the desktop app, 4 picture + 8 sound in the browser (208 D2)', () => {
     expect(TRACK_LIMITS(true)).toEqual({ visual: 8, audio: 8 });
-    expect(TRACK_LIMITS(false)).toEqual({ visual: 4, audio: 4 });
+    expect(TRACK_LIMITS(false)).toEqual({ visual: 4, audio: 8 });
   });
 });
 
@@ -1005,7 +1005,7 @@ describe('overlay tracks and transforms in the document (203 AC-11)', () => {
   const TR = presetTransform('top-right', 1920, 1080);
   const UNREAD = /position and size couldn’t be read; it fills the frame/;
   const ADJUSTED = /position and size were out of range or incomplete and were adjusted/;
-  const leftOut = (name: string) => `A project holds up to 4 picture and 4 sound tracks here; “${name}” was left out.`;
+  const leftOut = (name: string) => `A project holds up to 4 picture and 8 sound tracks here; “${name}” was left out.`;
   /**
    * o1a has no tf and the reason says its transform couldn't be read.
    * @param project the gated document
@@ -1589,7 +1589,7 @@ describe('overlay clips’ sound in the export (203 AC-8, Q7)', () => {
     fadeIn: 0.03,
     fadeOut: 0.03,
   });
-  const music = { ref: 'music', start: 0, end: 9, from: 2, volume: 0.6, fadeIn: 0, fadeOut: 1.5 };
+  const music = { ref: 'music', track: MUSIC, role: 'music', start: 0, end: 9, from: 2, volume: 0.6, fadeIn: 0, fadeOut: 1.5 };
 
   it('mixes each overlay video clip’s own sound at its volume, after the main track’s clips, with the same ramps', () => {
     expect(audioPlan(fixture())).toEqual([
@@ -2462,6 +2462,266 @@ describe('speed in the document (207 AC-9)', () => {
     const once = mergeProject(legacyDoc(project), true).doc;
     const text = JSON.stringify(toDocument(once));
     expect(text).not.toMatch(/"(speed|reverse|ramp|rampSpan|freeze)"/);
+    const back = mergeProject(JSON.parse(text), true);
+    expect(back.dropped).toEqual([]);
+    expect(JSON.stringify(toDocument(back.doc))).toBe(text);
+  });
+});
+
+/* ---------- 208 T020: sound clips in the sound plan (AC-2, AC-3, Q6) ---------- */
+
+describe('sound clips in the sound plan (208 AC-2, AC-3, Q6)', () => {
+  type SC = TimedClip & { volume: number };
+  const main: SC = { id: 'v', track: MAIN_VIDEO, start: 0, kind: 'video', in: 0, out: 10, dur: 0, volume: 1 };
+  const audioTrack = (id: string, patch: Partial<Track>): Track => ({
+    id,
+    kind: 'audio',
+    name: id,
+    hidden: false,
+    muted: false,
+    locked: false,
+    ...patch,
+  });
+  const sound = (id: string, track: string, start: number, patch: Partial<AudioClip> = {}): AudioClip => ({
+    id,
+    track,
+    start,
+    in: 0,
+    out: 4,
+    volume: 1,
+    toEnd: false,
+    srcDur: 60,
+    ...patch,
+  });
+  const gain: Keyframe[] = [
+    { t: 0, v: 0.5, ease: 'linear' },
+    { t: 4, v: 1.8, ease: 'linear' },
+  ];
+  // The video is 10 s. Tracks in this order: Music, Voice (A3), Effects (A2), so the plan follows the tracks, not ids.
+  const fixture = (a2: Partial<Track> = {}, a3: Partial<Track> = {}): Project<SC> => ({
+    tracks: [...defaultTracks(), audioTrack('A3', { role: 'voice', ...a3 }), audioTrack('A2', { role: 'effects', ...a2 })],
+    clips: [main],
+    audio: [
+      { id: 'music', track: MUSIC, start: 0, in: 2, volume: 0.6, toEnd: true, srcDur: 60 },
+      sound('s1', 'A2', 1, { in: 0.5, out: 3.5, volume: 1.5, fadeIn: 0.5, fadeOut: 1, name: 'Whoosh' }),
+      sound('s2', 'A3', 2, { keys: { volume: gain } }),
+      sound('quiet', 'A3', 6, { volume: 0 }),
+      // Runs past the video's end (10 s): cut there, fading out at the cut.
+      sound('s4', 'A2', 8, { out: 6, fadeOut: 0.5 }),
+      // Starts after the video's end: never heard.
+      sound('late', 'A2', 11),
+    ],
+    layers: [],
+    fadeOut: false,
+  });
+  const video = { ref: 'v', start: 0, end: 10, from: 0, volume: 1, fadeIn: 0.03, fadeOut: 0.03 };
+  const music = { ref: 'music', track: MUSIC, role: 'music', start: 0, end: 10, from: 2, volume: 0.6, fadeIn: 0, fadeOut: 1.5 };
+  const s2 = { ref: 's2', track: 'A3', role: 'voice', start: 2, end: 6, from: 0, volume: 1, gain, fadeIn: 0, fadeOut: 0 };
+  const s1 = { ref: 's1', track: 'A2', role: 'effects', start: 1, end: 4, from: 0.5, volume: 1.5, fadeIn: 0.5, fadeOut: 1 };
+  const s4 = { ref: 's4', track: 'A2', role: 'effects', start: 8, end: 10, from: 0, volume: 1, fadeIn: 0, fadeOut: 0.5 };
+
+  it('lists the sound clips after the clips’ sounds, track by track in the tracks’ order, with fades, keys, track and role', () => {
+    expect(audioPlan(fixture())).toEqual([video, music, s2, s1, s4]);
+  });
+
+  it('sound past the video’s end is cut there, and never lengthens the video (Q6)', () => {
+    const plan = audioPlan(fixture());
+    expect(plan.every((source) => source.end <= 10)).toBe(true);
+    expect(plan.some((source) => source.ref === 'late')).toBe(false);
+    expect(projectLength(fixture())).toBe(10);
+  });
+
+  it('a muted track adds nothing; Solo is the preview’s only (Q2), the export hears every unmuted track', () => {
+    expect(audioPlan(fixture({ muted: true }))).toEqual([video, music, s2]);
+    expect(audioPlan(fixture({}, { muted: true }))).toEqual([video, music, s1, s4]);
+    expect(audioPlan(fixture({}, { solo: true }))).toEqual(audioPlan(fixture()));
+  });
+
+  it('the migrated music fades out over min(1.5 s, a third of the video); a set fade-out is kept', () => {
+    const short = { ...fixture(), clips: [{ ...main, out: 3 }] };
+    expect(audioPlan(short).find((source) => source.ref === 'music')).toMatchObject({ end: 3, fadeOut: 1 });
+    const faded = fixture();
+    faded.audio = faded.audio.map((clip) => (clip.id === 'music' ? { ...clip, fadeOut: 4, fadeIn: 2 } : clip));
+    expect(audioPlan(faded).find((source) => source.ref === 'music')).toMatchObject({ fadeIn: 2, fadeOut: 4 });
+  });
+
+  it('a sound clip keyed above 0 is heard at a stored volume of 0; all keys at 0 is silent', () => {
+    const project = fixture();
+    project.audio = [sound('k', 'A2', 0, { volume: 0, keys: { volume: gain } }), sound('z', 'A2', 5, { volume: 1, keys: { volume: [{ t: 0, v: 0, ease: 'linear' }] } })];
+    expect(audioPlan(project).map((source) => source.ref)).toEqual(['v', 'k']);
+  });
+});
+
+/* ---------- 208 T080: sound clips, sound tracks and loudness in the document (AC-3, AC-11) ---------- */
+
+describe('sound in the document (208 AC-11)', () => {
+  /**
+   * The 2.x project with its song (photo 2 s, video 4 s: a 6 s video), with a Voice track (A2) and an Effects track
+   * (A3), a whoosh and a voice clip on them, and their media.
+   * @returns its document, as the app writes it
+   */
+  const fixture = () => {
+    const doc = toDocument(mergeProject(legacyDoc(legacyFixtures().musicOffset), true).doc);
+    const soundMedia = (id: string, srcDur: number) => ({ id, kind: 'audio' as const, name: `${id}.wav`, type: 'audio/wav', size: 100, w: 0, h: 0, srcDur });
+    return {
+      ...doc,
+      tracks: [
+        ...doc.tracks,
+        { id: 'A2', kind: 'audio' as const, name: 'Voice', hidden: false, muted: false, locked: false },
+        { id: 'A3', kind: 'audio' as const, name: 'Audio 3', hidden: false, muted: false, locked: false },
+      ],
+      audio: [
+        ...doc.audio,
+        { id: 'talk', track: 'A2', start: 1, media: 'mtalk', in: 0, out: 3, volume: 1, toEnd: false, srcDur: 10 },
+        { id: 'whoosh', track: 'A3', start: 2, media: 'mwhoosh', in: 0.5, out: 1.5, volume: 1, toEnd: false, srcDur: 2 },
+      ],
+      media: [...doc.media, soundMedia('mtalk', 10), soundMedia('mwhoosh', 2)],
+    };
+  };
+  type Doc = ReturnType<typeof fixture>;
+  type Gated = ReturnType<typeof mergeProject>;
+  const SOUND_RANGE = /Some sound volumes, fades or in and out points were out of range and were adjusted/;
+  const SOUND_UNREAD = /Some sound settings couldn’t be read and were left out/;
+  const OVERLAP = /Some sounds overlapped another sound on their track and were left out/;
+  const TRACK_RANGE = /Some sound track volumes or ducking settings were out of range and were adjusted/;
+  const TRACK_UNREAD = /Some sound track settings couldn’t be read and were left out/;
+  const LOUDNESS_RANGE_REASON = /The loudness target was out of range and was adjusted/;
+  const LOUDNESS_UNREAD = /The loudness target couldn’t be read, so loudness is off/;
+  const MISSING = /A sound on a missing or picture track, or without its media, was left out/;
+  const KEY_RANGE = /Some keyframe values were out of range and were adjusted/;
+
+  /**
+   * The document with the whoosh's fields changed.
+   * @param fields the fields
+   * @returns the change
+   */
+  const onWhoosh = (fields: Record<string, unknown>) => (doc: Doc) => ({
+    ...doc,
+    audio: doc.audio.map((sound) => (sound.id === 'whoosh' ? { ...sound, ...fields } : sound)),
+  });
+  /**
+   * The document with track A3's fields changed.
+   * @param fields the fields
+   * @returns the change
+   */
+  const onEffects = (fields: Record<string, unknown>) => (doc: Doc) => ({
+    ...doc,
+    tracks: doc.tracks.map((track) => (track.id === 'A3' ? { ...track, ...fields } : track)),
+  });
+  const whoosh = (project: Gated) => project.doc.audio.find((sound) => sound.id === 'whoosh');
+  const effects = (project: Gated) => defined(project.doc.tracks.find((track) => track.id === 'A3'));
+  /**
+   * The check: what is read and the reasons given.
+   * @param check what the gated project must show
+   * @param reasons the reasons, in order
+   * @returns the check
+   */
+  const expectThat =
+    (check: (project: Gated) => void, ...reasons: RegExp[]) =>
+    (project: Gated) => {
+      check(project);
+      expect(project.dropped).toEqual(reasons.map((re): unknown => expect.stringMatching(re)));
+    };
+  const whooshHas = (fields: Record<string, unknown>, ...reasons: RegExp[]) =>
+    expectThat((project) => expect(whoosh(project)).toMatchObject(fields), ...reasons);
+  const effectsHas = (fields: Record<string, unknown>, ...reasons: RegExp[]) =>
+    expectThat((project) => expect(effects(project)).toMatchObject(fields), ...reasons);
+  const loudnessIs = (loudness: number | undefined, ...reasons: RegExp[]) =>
+    expectThat((project) => expect(project.doc.loudness).toBe(loudness), ...reasons);
+  const key = (time: number, value: number) => ({ t: time, v: value, ease: 'linear' });
+
+  const bad: [string, (d: Doc) => unknown, (r: Gated) => void][] = [
+    ['a volume over 200 %', onWhoosh({ volume: 3 }), whooshHas({ volume: 2 }, SOUND_RANGE)],
+    ['a negative volume', onWhoosh({ volume: -1 }), whooshHas({ volume: 0 }, SOUND_RANGE)],
+    ['a volume that is text', onWhoosh({ volume: 'loud' }), whooshHas({ volume: 0.8 }, SOUND_UNREAD)],
+    ['an out point past the file', onWhoosh({ out: 9 }), whooshHas({ in: 0.5, out: 2 }, SOUND_RANGE)],
+    ['an out point before the in point', onWhoosh({ out: 0.2 }), whooshHas({ in: 0.5, out: 2 }, SOUND_RANGE)],
+    ['a clip that isn’t toEnd without an out point', onWhoosh({ out: undefined }), whooshHas({ in: 0.5, out: 2 })],
+    ['a fade over 10 s', onWhoosh({ fadeIn: 12, out: 2, in: 0, srcDur: 2 }), whooshHas({ fadeIn: 2 }, SOUND_RANGE)],
+    ['a negative fade', onWhoosh({ fadeOut: -2 }), expectThat((project) => expect(defined(whoosh(project)).fadeOut).toBeUndefined(), SOUND_RANGE)],
+    ['fades longer than the clip together', onWhoosh({ fadeIn: 0.75, fadeOut: 0.75 }), whooshHas({ fadeIn: 0.5, fadeOut: 0.5 }, SOUND_RANGE)],
+    ['a fade that is text', onWhoosh({ fadeIn: 'slow' }), expectThat((project) => expect(defined(whoosh(project)).fadeIn).toBeUndefined(), SOUND_UNREAD)],
+    ['a name that isn’t text', onWhoosh({ name: 42 }), expectThat((project) => expect(defined(whoosh(project)).name).toBeUndefined(), SOUND_UNREAD)],
+    ['volume keys over 200 %', onWhoosh({ keys: { volume: [key(0, 1), key(0.5, 5)] } }), whooshHas({ keys: { volume: [key(0, 1), key(0.5, 2)] } }, KEY_RANGE)],
+    ['keys for a value a sound has not', onWhoosh({ keys: { x: [key(0, 0.5)] } }), expectThat((project) => expect(defined(whoosh(project)).keys).toBeUndefined(), /Some keyframes couldn’t be read/)],
+    [
+      'two sounds overlapping on a track (the later one goes)',
+      (doc) => ({ ...doc, audio: [...doc.audio, { ...defined(doc.audio.find((sound) => sound.id === 'whoosh')), id: 'whoosh2', start: 2.5 }] }),
+      expectThat((project) => expect(project.doc.audio.map((sound) => sound.id)).toEqual(['music', 'talk', 'whoosh']), OVERLAP),
+    ],
+    [
+      'a sound on a track that isn’t there',
+      onWhoosh({ track: 'A7' }),
+      expectThat((project) => expect(whoosh(project)).toBeUndefined(), MISSING),
+    ],
+    ['a role that isn’t one', onEffects({ role: 'drums' }), expectThat((project) => expect(effects(project).role).toBeUndefined(), TRACK_UNREAD)],
+    ['a track volume over 200 %', onEffects({ volume: 5 }), effectsHas({ volume: 2 }, TRACK_RANGE)],
+    ['a track volume that is text', onEffects({ volume: 'max' }), expectThat((project) => expect(effects(project).volume).toBeUndefined(), TRACK_UNREAD)],
+    ['ducking out of range', onEffects({ duck: { amount: 50, threshold: -90 } }), effectsHas({ duck: { amount: 30, threshold: -60 } }, TRACK_RANGE)],
+    ['ducking that isn’t settings', onEffects({ duck: 'yes' }), expectThat((project) => expect(effects(project).duck).toBeUndefined(), TRACK_UNREAD)],
+    ['ducking on a Voice track', onEffects({ role: 'voice', duck: { amount: 12, threshold: -40 } }), expectThat((project) => expect(effects(project).duck).toBeUndefined(), TRACK_UNREAD)],
+    ['solo and Counts as voice that are text', onEffects({ solo: 'on', voice: 'no' }), expectThat((project) => expect([effects(project).solo, effects(project).voice]).toEqual([undefined, undefined]), TRACK_UNREAD)],
+    [
+      'a ninth sound track',
+      (doc) => ({
+        ...doc,
+        tracks: [...doc.tracks, ...[4, 5, 6, 7, 8, 9].map((number) => ({ id: `A${number}`, kind: 'audio' as const, name: `Audio ${number}`, hidden: false, muted: false, locked: false }))],
+      }),
+      expectThat(
+        (project) => expect(project.doc.tracks.filter((track) => track.kind === 'audio')).toHaveLength(8),
+        /A project holds up to 8 picture and 8 sound tracks here; “Audio 9” was left out/,
+      ),
+    ],
+    ['a loudness over −9 LUFS', (doc) => ({ ...doc, loudness: 0 }), loudnessIs(-9, LOUDNESS_RANGE_REASON)],
+    ['a loudness under −24 LUFS', (doc) => ({ ...doc, loudness: -60 }), loudnessIs(-24, LOUDNESS_RANGE_REASON)],
+    ['a loudness that is text', (doc) => ({ ...doc, loudness: 'loud' }), loudnessIs(undefined, LOUDNESS_UNREAD)],
+  ];
+
+  it('has at least 20 malformed documents', () => expect(bad.length).toBeGreaterThanOrEqual(20));
+
+  it.each(bad)('%s: never throws, mends or drops with the reason, and round-trips', (_, make, check) => {
+    let project: Gated | undefined;
+    expect(() => (project = mergeProject(JSON.parse(JSON.stringify(make(fixture()))), true))).not.toThrow();
+    check(defined(project));
+    const again = mergeProject(JSON.parse(JSON.stringify(toDocument(defined(project).doc))), true);
+    expect(again.dropped).toEqual([]);
+    expect(again.doc).toEqual(defined(project).doc);
+  });
+
+  it('a project with every new field reads without a reason, and round-trips document → gate → document byte-identical', () => {
+    const every = {
+      ...fixture(),
+      loudness: -16,
+      tracks: fixture().tracks.map((track) => {
+        if (track.id === 'A1') return { ...track, volume: 0.7, duck: { amount: 9, threshold: -45 } };
+        if (track.id === 'A2') return { ...track, role: 'voice', solo: true };
+        if (track.id === 'A3') return { ...track, role: 'effects', voice: false, volume: 1.5 };
+        return track;
+      }),
+      audio: fixture().audio.map((sound) =>
+        sound.id === 'whoosh' ? { ...sound, volume: 1.8, fadeIn: 0.2, fadeOut: 0.3, name: 'whoosh.wav', keys: { volume: [key(0, 0.5), key(0.8, 1.6)] } } : sound,
+      ),
+    };
+    const once = mergeProject(JSON.parse(JSON.stringify(every)), true);
+    expect(once.dropped).toEqual([]);
+    expect(once.doc.loudness).toBe(-16);
+    expect(once.doc.tracks.find((track) => track.id === 'A1')).toMatchObject({ volume: 0.7, duck: { amount: 9, threshold: -45 } });
+    expect(once.doc.tracks.find((track) => track.id === 'A2')).toMatchObject({ role: 'voice', solo: true });
+    expect(once.doc.tracks.find((track) => track.id === 'A3')).toMatchObject({ role: 'effects', voice: false, volume: 1.5 });
+    expect(whoosh(once)).toMatchObject({ volume: 1.8, fadeIn: 0.2, fadeOut: 0.3, name: 'whoosh.wav', out: 1.5, keys: { volume: [key(0, 0.5), key(0.8, 1.6)] } });
+    const text = JSON.stringify(toDocument(once.doc));
+    const back = mergeProject(JSON.parse(text), true);
+    expect(back.dropped).toEqual([]);
+    expect(JSON.stringify(toDocument(back.doc))).toBe(text);
+  });
+
+  it.each(fixtures)('%s: a 2.x or 201–207 document stays byte-identical, with none of the new fields', (_, project) => {
+    const once = mergeProject(legacyDoc(project), true).doc;
+    const text = JSON.stringify(toDocument(once));
+    const written = JSON.parse(text) as { loudness?: unknown; tracks: object[]; audio: object[] };
+    expect(written.loudness).toBeUndefined();
+    for (const track of written.tracks) expect(Object.keys(track)).toEqual(['id', 'kind', 'name', 'hidden', 'muted', 'locked']);
+    for (const sound of written.audio) expect(Object.keys(sound)).toEqual(['id', 'track', 'start', 'media', 'in', 'volume', 'toEnd', 'srcDur']);
     const back = mergeProject(JSON.parse(text), true);
     expect(back.dropped).toEqual([]);
     expect(JSON.stringify(toDocument(back.doc))).toBe(text);

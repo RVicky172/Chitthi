@@ -8,8 +8,25 @@ import type { TimedClip } from './timeline';
 /** What a track holds: the main video, overlay pictures, or sound. */
 export type TrackKind = 'video' | 'overlay' | 'audio';
 
-/** A track of the project, as saved (its field names are the document's). */
-export interface Track {
+/**
+ * A sound track's own settings (208), as saved. Each is written only when it differs from the default, so a track
+ * without them (every picture track, every track saved before 208) means today's behaviour.
+ */
+export interface AudioTrackSettings {
+  /** What it holds; missing = Music for the music track, Effects for any other (Q3). */
+  role?: SoundRole;
+  /** Its volume, 0–2; missing = 1 (Q8). */
+  volume?: number;
+  /** Only soloed sound tracks are heard in the preview; missing = not soloed (Q2). */
+  solo?: true;
+  /** false when its sound doesn't count as voice for ducking; missing = it does (Q10). */
+  voice?: false;
+  /** Music or Effects: lowered under the voice; missing = no ducking (Q9). */
+  duck?: Ducking;
+}
+
+/** A track of the project, as saved (its field names are the document's); sound tracks add their settings. */
+export interface Track extends AudioTrackSettings {
   id: string;
   kind: TrackKind;
   name: string;
@@ -20,6 +37,22 @@ export interface Track {
   /** Its clips can't be selected, moved, trimmed, split, duplicated or deleted. */
   locked: boolean;
 }
+
+/** What an audio track holds (208 Q3): ducking listens to Voice and lowers Music (and Effects when turned on). */
+export type SoundRole = 'music' | 'voice' | 'effects';
+
+/** How a track is lowered under the voice (208 AC-6). */
+export interface Ducking {
+  /** How far it goes down, dB (3–30). */
+  amount: number;
+  /** The voice's loudness above which it counts as speaking, dBFS (−60 to −20). */
+  threshold: number;
+}
+
+/** Ducking's starting values (208 AC-6). */
+export const DUCK_DEFAULTS: Readonly<Ducking> = { amount: 12, threshold: -40 };
+/** Ducking's ranges (208 AC-6). */
+export const DUCK_RANGES = { amount: [3, 30], threshold: [-60, -20] } as const;
 
 /** The main video track and the music track: every project has them. */
 export const MAIN_VIDEO = 'V1';
@@ -34,12 +67,14 @@ export const defaultTracks = (): Track[] => [
   { id: MUSIC, kind: 'audio', name: 'Music', hidden: false, muted: false, locked: false },
 ];
 
-/** A track's switches. */
-export type TrackSwitches = Pick<Track, 'hidden' | 'muted' | 'locked'>;
+/** A track's switches: its saved ones, and Solo as on / off (saved only while on). */
+export interface TrackSwitches extends Pick<Track, 'hidden' | 'muted' | 'locked'> {
+  solo: boolean;
+}
 
 /**
  * A track with its switches changed: Hide applies to picture tracks, Mute to sound and overlay tracks (an overlay
- * clip's own sound, 203 Q7; the main track keeps Hide only, 201 D2), Lock to all.
+ * clip's own sound, 203 Q7; the main track keeps Hide only, 201 D2), Solo to sound tracks (208 Q2), Lock to all.
  * @param tracks the project's tracks
  * @param id the track's id
  * @param patch the switches to change
@@ -49,14 +84,23 @@ export type TrackSwitches = Pick<Track, 'hidden' | 'muted' | 'locked'>;
 export function patchTrack(tracks: Track[], id: string, patch: Partial<TrackSwitches>): Track[] {
   const track = tracks.find((candidate) => candidate.id === id);
   if (!track) return tracks;
-  const showsPictures = track.kind !== 'audio';
+  const isSound = track.kind === 'audio';
   const next: Track = {
     ...track,
-    hidden: showsPictures && patch.hidden !== undefined ? patch.hidden : track.hidden,
+    hidden: !isSound && patch.hidden !== undefined ? patch.hidden : track.hidden,
     muted: track.kind !== 'video' && patch.muted !== undefined ? patch.muted : track.muted,
     locked: patch.locked ?? track.locked,
   };
-  if (next.hidden === track.hidden && next.muted === track.muted && next.locked === track.locked) return tracks;
+  // Solo is written only while on, so tracks without it stay as saved.
+  const solo = isSound && patch.solo !== undefined ? patch.solo : Boolean(track.solo);
+  if (solo) next.solo = true;
+  else delete next.solo;
+  const same =
+    next.hidden === track.hidden &&
+    next.muted === track.muted &&
+    next.locked === track.locked &&
+    solo === Boolean(track.solo);
+  if (same) return tracks;
   return tracks.map((other) => (other === track ? next : other));
 }
 
@@ -85,7 +129,8 @@ export interface TrackLimits {
  * @returns the limits
  */
 export const TRACK_LIMITS = (desktop: boolean): TrackLimits =>
-  desktop ? { visual: 8, audio: 8 } : { visual: 4, audio: 4 };
+  // Sound tracks cost no decoders by themselves, so the browser holds as many as the desktop app (208 D2).
+  desktop ? { visual: 8, audio: 8 } : { visual: 4, audio: 8 };
 
 /**
  * Why Add track is refused at the picture track limit (the button shows it).
@@ -150,6 +195,92 @@ export function addTrack(tracks: Track[], desktop: boolean): TrackAdded | Refusa
 }
 
 const NO_TRACK = 'That track isn’t in the project.';
+const AUDIO_ID = /^A(\d+)$/;
+
+/**
+ * A new empty audio track after the last audio track, "Audio N" with the lowest free N (A1 is the Music track), role
+ * Effects (208 AC-1).
+ * @param tracks the project's tracks
+ * @returns the new tracks and the new track's id, or a refusal at the sound track limit (8 everywhere, D2)
+ */
+export function addAudioTrack(tracks: Track[]): TrackAdded | Refusal {
+  const limit = TRACK_LIMITS(false).audio;
+  if (tracks.filter((track) => track.kind === 'audio').length >= limit)
+    return { error: `A project holds up to ${limit} sound tracks.` };
+  const number = lowestFree(
+    tracks.map((track) => track.id),
+    AUDIO_ID,
+  );
+  const id = `A${number}`;
+  const track: Track = { id, kind: 'audio', name: `Audio ${number}`, hidden: false, muted: false, locked: false, role: 'effects' };
+  const at = tracks.findLastIndex((other) => other.kind === 'audio') + 1;
+  return { tracks: [...tracks.slice(0, at), track, ...tracks.slice(at)], id };
+}
+
+/**
+ * An audio track's role (208 Q3).
+ * @param track the track
+ * @returns its role; missing = Music for the music track, Effects for any other
+ */
+export const soundRole = (track: Track): SoundRole => track.role ?? (track.id === MUSIC ? 'music' : 'effects');
+
+/**
+ * An audio track's volume (208 Q8).
+ * @param track the track
+ * @returns 0–2; missing = 1
+ */
+export const trackVolume = (track: Track): number => track.volume ?? 1;
+
+/**
+ * Whether a track's sound counts as voice for ducking (208 Q10) when its role or kind makes it a voice source.
+ * @param track the track
+ * @returns false only when switched off
+ */
+export const countsAsVoice = (track: Track): boolean => track.voice !== false;
+
+/**
+ * An audio track's settings to change (208 AC-1, AC-6): role and volume as saved; Counts as voice as on / off
+ * (`voice: true` back on) and `duck: null` to turn ducking off.
+ */
+export interface AudioTrackPatch extends Pick<AudioTrackSettings, 'role' | 'volume'> {
+  voice?: boolean;
+  duck?: Ducking | null;
+}
+
+const clamp = (value: number, [low, high]: readonly [number, number]) => Math.min(high, Math.max(low, value));
+
+/**
+ * An audio track with its settings changed: volume clamped to 0–2, ducking to its ranges; a Voice track doesn't duck
+ * (it is what ducking listens to), so making a track Voice turns its ducking off.
+ * @param tracks the project's tracks
+ * @param id the track's id
+ * @param patch the settings
+ * @returns the new tracks (the same array when nothing changes), or why not
+ */
+export function setAudioTrack(tracks: Track[], id: string, patch: AudioTrackPatch): TracksChanged | Refusal {
+  const track = tracks.find((candidate) => candidate.id === id);
+  if (!track) return { error: NO_TRACK };
+  if (track.kind !== 'audio') return { error: 'Only sound tracks have a role, a volume and ducking.' };
+  const role = patch.role ?? soundRole(track);
+  if (patch.duck && role === 'voice') return { error: `The ${track.name} track is a Voice track: ducking lowers music under it.` };
+  const next: Track = { ...track };
+  if (patch.role !== undefined) next.role = patch.role;
+  if (patch.volume !== undefined) next.volume = clamp(patch.volume, [0, 2]);
+  if (patch.voice === false) next.voice = false;
+  else if (patch.voice) delete next.voice;
+  if (patch.duck)
+    next.duck = { amount: clamp(patch.duck.amount, DUCK_RANGES.amount), threshold: clamp(patch.duck.threshold, DUCK_RANGES.threshold) };
+  if (patch.duck === null || role === 'voice') delete next.duck;
+  const same =
+    soundRole(next) === soundRole(track) &&
+    trackVolume(next) === trackVolume(track) &&
+    countsAsVoice(next) === countsAsVoice(track) &&
+    next.duck?.amount === track.duck?.amount &&
+    next.duck?.threshold === track.duck?.threshold;
+  if (same) return { tracks };
+  return { tracks: tracks.map((other) => (other === track ? next : other)) };
+}
+
 const MAIN_FIXED = 'The main video track stays the bottom picture track.';
 
 /** Tracks changed, as `renameTrack` and `moveTrack` return them. */
@@ -176,25 +307,41 @@ export function renameTrack(tracks: Track[], id: string, name: string): TracksCh
 }
 
 /**
- * An overlay track moved one place among the overlay tracks; the main video track stays the bottom picture track
- * (203 Q10), sound tracks don't move.
+ * Where a track would go one place along: among the overlay tracks for an overlay (+1 up, drawn later; the main video
+ * track stays the bottom picture track, 203 Q10), among the sound tracks for a sound track (+1 down, 208 AC-1).
+ * @param tracks the project's tracks
+ * @param track the track to move
+ * @param by +1 or −1
+ * @returns the index to swap with, or why not
+ */
+function moveTarget(tracks: Track[], track: Track, by: 1 | -1): number | Refusal {
+  const kind = track.kind;
+  const same = tracks.flatMap((other, index) => (other.kind === kind ? [index] : []));
+  const place = same.indexOf(tracks.indexOf(track)) + by;
+  const to = same.at(place);
+  if (place >= 0 && to !== undefined) return to;
+  if (kind === 'audio')
+    return { error: `The ${track.name} track is already the ${place < 0 ? 'first' : 'last'} sound track.` };
+  if (place < 0) return { error: `The ${track.name} track is already just above the main video track.` };
+  return { error: `The ${track.name} track is already the top track.` };
+}
+
+/**
+ * A track moved one place among the tracks of its kind: overlay tracks among the overlays, sound tracks among the
+ * sound tracks (208 AC-1); the main video track doesn't move.
  * @param tracks the project's tracks
  * @param id the track's id
- * @param by +1 for up (drawn later), −1 for down
+ * @param by +1 for up (overlays, drawn later) or down (sound tracks), −1 the other way
  * @returns the new tracks, or why not
  */
 export function moveTrack(tracks: Track[], id: string, by: 1 | -1): TracksChanged | Refusal {
   const track = tracks.find((candidate) => candidate.id === id);
   if (!track) return { error: NO_TRACK };
-  if (track.id === MAIN_VIDEO) return { error: MAIN_FIXED };
-  if (track.kind !== 'overlay') return { error: 'Only overlay tracks can be moved.' };
-  const overlays = tracks.flatMap((other, index) => (other.kind === 'overlay' ? [index] : []));
+  if (track.kind === 'video') return { error: MAIN_FIXED };
+  const to = moveTarget(tracks, track, by);
+  if (typeof to !== 'number') return to;
   const from = tracks.indexOf(track);
-  const place = overlays.indexOf(from) + by;
-  if (place >= overlays.length) return { error: `The ${track.name} track is already the top track.` };
-  if (place < 0) return { error: `The ${track.name} track is already just above the main video track.` };
-  const to = overlays.at(place);
-  const swapped = to === undefined ? undefined : tracks.at(to);
+  const swapped = tracks.at(to);
   if (!swapped) return { error: NO_TRACK };
   return {
     tracks: tracks.map((other, index) => {
@@ -205,24 +352,38 @@ export function moveTrack(tracks: Track[], id: string, by: 1 | -1): TracksChange
 }
 
 /** A track deleted, as `deleteTrack` returns it. */
-export interface TrackDeleted<C> {
+export interface TrackDeleted<C, A> {
   tracks: Track[];
-  /** The clips without the track's. */
+  /** The picture clips without the track's. */
   clips: C[];
+  /** The sound clips without the track's (208). */
+  audio: A[];
 }
 
 /**
- * An overlay track deleted with its clips; the main video and sound tracks can't be, nor a locked track.
+ * A track deleted with its clips: an overlay track, or a sound track while another sound track is left (208 AC-1);
+ * the main video track can't be, nor a locked track.
  * @param tracks the project's tracks
  * @param clips the picture clips
  * @param id the track's id
+ * @param audio the sound clips
  * @returns the new tracks and clips, or why not
  */
-export function deleteTrack<C extends TimedClip>(tracks: Track[], clips: C[], id: string): TrackDeleted<C> | Refusal {
+export function deleteTrack<C extends TimedClip, A extends { track: string } = never>(
+  tracks: Track[],
+  clips: C[],
+  id: string,
+  audio: A[] = [],
+): TrackDeleted<C, A> | Refusal {
   const track = tracks.find((candidate) => candidate.id === id);
   if (!track) return { error: NO_TRACK };
-  if (track.id === MAIN_VIDEO) return { error: 'The main video track can’t be deleted.' };
-  if (track.kind !== 'overlay') return { error: 'Only overlay tracks can be deleted.' };
+  if (track.kind === 'video') return { error: 'The main video track can’t be deleted.' };
+  if (track.kind === 'audio' && tracks.filter((other) => other.kind === 'audio').length <= 1)
+    return { error: 'A project keeps at least one sound track.' };
   if (track.locked) return { error: `The ${track.name} track is locked. Unlock it to delete it.` };
-  return { tracks: tracks.filter((other) => other !== track), clips: clips.filter((clip) => clip.track !== id) };
+  return {
+    tracks: tracks.filter((other) => other !== track),
+    clips: clips.filter((clip) => clip.track !== id),
+    audio: audio.filter((sound) => sound.track !== id),
+  };
 }

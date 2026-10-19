@@ -18,7 +18,7 @@ All three modes share one layout (`src/components/studio/`), built like a deskto
 | --- | --- |
 | Top bar | The Chitthi Studio mark (home), the three modes, undo and redo, the format menu, **Export** |
 | Tool rail | Photos / Media, Text, Elements (shapes and stickers), Draw, Audio (video), Layers; a second click hides the panel |
-| Tool panel | The chosen tool: add media, text styles, shapes and stickers, brushes, music, the layer list |
+| Tool panel | The chosen tool: add media, text styles, shapes and stickers, brushes, sound and loudness, the layer list |
 | Stage | The canvas on a dark surface, sized to fit; layers are edited right on it |
 | Inspector | Whatever is selected: a layer's properties (and its timing on video), else the photo's or clip's settings |
 | Dock | The photo strip (drag to reorder), or the video transport and timeline |
@@ -232,9 +232,10 @@ step.
 | Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
 | Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layerGate.ts` |
 | Edit operations: ripple delete, lift, close gaps, trim, roll, slip, slide, move to a time, reorder, nudge, snapping, `checkTrack` | `src/engine/edits.ts` |
-| Video state: kind, tracks (hide / mute / lock, heights), Magnetic, edit tool, Snap, clips, layers, music, playhead, undo, lock guards, export | `src/state/videoStore.ts` (state, history, `change`); actions in `videoTracks.ts`, `videoClips.ts`, `videoBox.ts`, `videoKeys.ts`, `videoLayers.ts`, `videoTransitions.ts`, `videoMedia.ts`, `videoExportJob.ts` |
+| Video state: kind, tracks (hide / mute / solo / lock, heights), Magnetic, edit tool, Snap, clips, layers, sound clips, loudness, playhead, undo, lock guards, export | `src/state/videoStore.ts` (state, history, `change`); actions in `videoTracks.ts`, `videoClips.ts`, `videoBox.ts`, `videoKeys.ts`, `videoLayers.ts`, `videoTransitions.ts`, `videoMedia.ts`, `videoSound.ts`, `videoExportJob.ts`; the background scans in `soundScan.ts` |
+| Sound (208): sound clip edits, the gain chain, scans and waveforms, ducking, loudness and the limiter; the export's sound | `src/engine/soundClips.ts`, `mixGain.ts`, `soundScan.ts`, `ducking.ts`, `loudness.ts`, `loudnessTargets.ts`, `limiter.ts`; `src/engine/exportSound.ts` |
 | Streaming a file to disk (desktop IPC, File System Access) | `src/lib/fileSink.ts`; `desktop:openWrite` / `write` / `closeWrite` in `electron/main.cjs` |
-| Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx` with `PhotoStage.tsx`, `PhotoEditPanel.tsx`, `PhotoPanels.tsx`, `PhotoStrip.tsx`, `PhotoExport.tsx`, `VideoWorkspace.tsx` with `VideoStage.tsx`, `ClipInspector.tsx`, `VideoPanels.tsx`, `VideoExport.tsx`, `Timeline.tsx` with `PictureRow.tsx`, `CutMarks.tsx`, `TimelineBars.tsx`, `TrackHead.tsx`, `Transport.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
+| Workspace: shell, photo editor, video editor, timeline, export sheet | `src/components/studio/` (`Shell.tsx`, `PhotoWorkspace.tsx` with `PhotoStage.tsx`, `PhotoEditPanel.tsx`, `PhotoPanels.tsx`, `PhotoStrip.tsx`, `PhotoExport.tsx`, `VideoWorkspace.tsx` with `VideoStage.tsx`, `ClipInspector.tsx`, `VideoPanels.tsx`, `VideoExport.tsx`, `AudioPanel.tsx`, `SoundInspector.tsx`, `Timeline.tsx` with `PictureRow.tsx`, `SoundRow.tsx`, `CutMarks.tsx`, `TimelineBars.tsx`, `TrackHead.tsx`, `Transport.tsx`, `Dialog.tsx`), `src/components/InstagramStudio.tsx` (routes the modes) |
 | Styles | `src/styles/36-media-studio.css` (workspace, timeline), `src/styles/35-instagram.css` (panels and controls) |
 | Agent tools for the photo studio (MCP): batch, framing, colour, masks, presets, LUTs, preview, export | `src/agent/photoTools.ts` |
 
@@ -297,7 +298,7 @@ the preview, a LUT, presets in and out, export), and `npm run test:mcp` edits a 
 ## Video editor: Reels, Shorts and YouTube
 
 **Reels & Shorts** and **YouTube video** are one editor with two kinds of project. Switching between them keeps the
-clips, layers and music and changes the frame and limits.
+clips, layers and sound and changes the frame and limits.
 
 | | Reels & Shorts | YouTube video |
 | --- | --- | --- |
@@ -323,7 +324,7 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 | Trim | Drag a clip's left or right edge (videos: in and out points; photos: how long they show); Shift ripples with Magnetic off |
 | Roll, Slip, Slide | Pick the tool (V / R / Y / U), then drag a cut, a video clip, or a clip between its neighbours (below) |
 | Time a layer | Drag its bar to move it in time, or its ends to change when it appears and disappears |
-| Slide the music | Drag the music bar to choose which part of the song plays; its waveform shows the loudness |
+| Sound clips | Drag a sound clip like a picture clip; its top corners fade it, its volume line sets its volume ([below](#audio-tracks-sound-clips-and-the-mix)) |
 | Split, duplicate, delete | Transport buttons, or S and Delete with the timeline focused; Shift + Delete ripple-deletes |
 | Nudge, trim to the playhead | Alt + ← / → moves the selected clip a frame with the tool (Shift + Alt: a second); Q / W trim its start / end to the playhead |
 | Keyframes | K sets keyframes at the playhead for the selected clip's or layer's animated values (or removes the ones there); Alt + [ / ] jump to its previous / next keyframe; its keyframe lane is under its row (below) |
@@ -347,16 +348,16 @@ switches, **Magnetic** and **Snap**. With the timeline focused, V / R / Y / U pi
 | --- | --- | --- | --- |
 | **Select** (V) | Magnetic on: reorder; off: put it at a time (the nearest free spot where it fits, or refused: "No room here") | Trim; ripple with Magnetic on or Shift | Magnetic on: one place in the order; off: a frame in time |
 | **Roll** (R) | Selects it | Moves the cut between this clip and its neighbour: one gets longer as the other gets shorter, the video's length stays | Moves the clip's end cut |
-| **Slip** (Y) | A video clip plays a later (right) or earlier (left) part of its source, in the same place and length; refused on a photo | As dragging the clip | Slips; with no clip selected, slips the music |
+| **Slip** (Y) | A video clip plays a later (right) or earlier (left) part of its source, in the same place and length; refused on a photo | As dragging the clip | Slips; with nothing selected, slips the song on the Music track |
 | **Slide** (U) | Moves the clip between its neighbours: the one before ends later, the one after starts later, nothing else moves | As dragging the clip | Slides |
 
 **Magnetic** (on by default) keeps the video track end to end, as before: deleting or trimming a clip pulls the later
-ones along. Switched off, edits leave **gaps**: Delete lifts a clip and leaves its length empty, trims move only the
+ones along (the Video track only). Switched off, edits leave **gaps**: Delete lifts a clip and leaves its length empty, trims move only the
 clip, and a clip can be dropped at any time. A gap plays black with the layers on top and the music going on, and
 exports as black frames for exactly its length. Gaps are buttons in the video row ("Gap, 1.5 s, from 0:03.0"): click
 one and press Delete to close it. Switching Magnetic back on closes every gap in one undo step (undoing it brings the
 gaps back with Magnetic off). Magnetic belongs to the project and is kept when switching Reel ↔ YouTube; the tool and
-Snap are view settings for the session. Layers and music keep their own times when clips ripple.
+Snap are view settings for the session. Layers and sound clips keep their own times when clips ripple.
 
 Every edit is one undo step (a drag is one step however long), stops at 0.3 s, at a video's source and at the
 project's length limit, and is refused with the reason on a locked track. A polite announcement tells screen readers
@@ -364,17 +365,19 @@ what changed ("Clip 2, 2.0 s to 4.0 s").
 
 ### Tracks
 
-The timeline has a **Video** track (the main clips), any **overlay tracks** above it, and a **Music** track; text,
+The timeline has a **Video** track (the main clips), any **overlay tracks** above it, and up to 8 **audio tracks**
+(the **Music** track first); text,
 shapes, stickers and drawings keep a row each, timed by **Appears at** and **Disappears at**. Each track's header, at
 the left of the timeline, has:
 
 | Control | What it does |
 | --- | --- |
 | **Hide** (Video, overlays) | The clips aren't drawn in the preview or the export (the Video track: black frames with the layers on top; an overlay: the tracks below show). Their own sound still plays (lower a clip's volume to silence it). |
-| **Mute** (overlays, Music) | The track is silent in the preview and the export; its pictures still show. The Video track's sound is set per clip. |
+| **Mute** (overlays, audio tracks) | The track is silent in the preview and the export; its pictures still show. The Video track's sound is set per clip. |
+| **Solo** (audio tracks) | Only the soloed audio tracks play in the preview; the export plays every track that isn't muted. |
 | **Lock** | The track's clips can't be selected, dragged, trimmed, split, duplicated or deleted, and the inspector shows them read-only; the editor says why. A locked track still plays and exports. |
-| **Height** | Small (40 px), Medium (64 px) or Large (96 px), from a menu (arrow keys, Home / End, Enter, Escape). An overlay track's menu also has **Move up**, **Move down** and **Delete** (asking first when the track holds clips). |
-| **Name** (overlays) | Click it to rename the track (1–40 characters): Enter keeps the name, Escape cancels. |
+| **Height** | Small (40 px), Medium (64 px) or Large (96 px), from a menu (arrow keys, Home / End, Enter, Escape). An overlay or audio track's menu also has **Move up**, **Move down** and **Delete** (asking first when the track holds clips). |
+| **Name** (overlays, audio tracks) | Click it to rename the track (1–40 characters): Enter keeps the name, Escape cancels. |
 
 Hide, Mute and Lock are undo steps; the height is a view setting that lasts for the session. Each control is a button
 with a name for screen readers, usable from the keyboard; hidden and muted rows are dimmed, locked clips show a lock.
@@ -538,6 +541,63 @@ frame is decoded once. The preview keeps the pitch with the browser's own stretc
 (WSOLA), so the two sound alike but not sample for sample. Projects without speed changes are saved and exported
 exactly as before.
 
+### Audio tracks, sound clips and the mix
+
+A video's sound is its clips' own sound plus any number of **sound clips** on **audio tracks**: a song, a second song
+after it, sound effects on the cuts, an ambience bed, a recorded voice.
+
+- **Add sound** from **Audio** in the tool rail: MP3, M4A, AAC, WAV, OGG, Opus or FLAC files up to 100 MB each,
+  several at once. They go at the playhead on the chosen track, or the first audio track with room there, or a new
+  one. A song longer than the video, added as the first clip on the Music track, plays **to the end of the video**.
+- **Audio tracks**: every project has the **Music** track; **+** (the second button at the top left of the timeline)
+  adds **Audio 2**, **Audio 3** … up to 8, in the browser and the desktop app alike. Each has a header like the other
+  tracks (name, **Mute**, **Solo**, **Lock**, height, Move up / down, Delete, asking first when it holds sounds) and a
+  settings button with its **role** (**Music**, **Voice** or **Effects**), its **volume** (0–200 %) and its ducking.
+  **Solo** plays only the soloed audio tracks in the preview, to check one layer of the mix; the export always plays
+  every track that isn't muted.
+- **Sound clips** are edited like picture clips: drag to move (onto another audio row to change track), drag an edge
+  to trim (Shift: ripple the later clips on the track), and Roll, Slip and Slide with the edit tools, within their own
+  track. Moves snap to clip, layer and sound clip edges and the playhead. S splits the selected sound clip at the
+  playhead, Delete removes it, Alt + ← / → nudges it with the tool. Sound clips never overlap on a track and stay
+  inside their file; an edit that would break that is refused with the reason. Magnetic belongs to the Video track
+  only: sound clips keep their time when picture clips ripple.
+- **On the bar**: the clip's name, its **waveform**, its **fade handles** at the top corners (drag, or ← / → with one
+  focused: 0.1 s, Shift 1 s), its **volume line** (drag it up and down, or ↑ / ↓: 5 %, Shift 25 %), and, on a ducked
+  track, the ducking curve. Sound past the end of the video is hatched: it isn't heard and doesn't lengthen the video.
+- **The inspector** of a selected sound clip: **Volume** (0–200 %) with its keyframe diamond, **Fade in** and **Fade
+  out** (0–10 s each, together no longer than the clip), **Play to the end of the video**, where it **plays its file
+  from**, and **Remove sound**. With volume keyframes, the clip's keyframe lane shows under its row (the diamonds, keys
+  and interpolations of [Keyframes](#keyframes)). A clip that plays to the end stops at the next sound on its track
+  if that comes first; moved to or past the end of the video it keeps its length and the switch turns off. **Add
+  sound** never puts a sound where it would cut such a clip short (it uses another track).
+- **Waveforms** show on every sound clip and, under the filmstrip, on every video clip with sound. They are measured
+  once per file in the background after import (100 peaks a second; the import isn't slower) and drawn through the
+  clip's trim, speed, volume, fades, keyframes, track volume and ducking, so their shape is what is heard. A silent
+  clip (a muted track, a volume of 0, a reversed or ramped clip, a freeze frame) draws a flat line and says why in its
+  tooltip and to screen readers.
+- **Ducking** lowers a Music or Effects track while someone speaks. **Lower music under voice** in the Audio panel
+  turns it on for every Music track; each track can set it itself: **Lowered by** 3–30 dB (12 by default) and **Voice
+  louder than** −60 to −20 dBFS (−40 by default). The voice is the sound of Voice tracks plus the clips' own sound
+  (**Counts as voice** leaves a track out). The music fades down over 0.3 s before speech starts and back up over
+  0.8 s after it, with pauses under 0.5 s bridged so it doesn't pump between words. "Speaking" means louder than the
+  threshold (there is no speech recognition), so the threshold is how to tune it. The curve follows every edit at once.
+- **Loudness**: the export can be turned up or down to a target, measured as YouTube and Instagram measure it (ITU-R
+  BS.1770-4 / EBU R 128): **Off**, **YouTube · Instagram** (−14 LUFS, the default for new projects), **Quiet**
+  (−16 LUFS) or a custom −24 to −9 LUFS. The Audio panel shows the mix's measurement ("−18.4 LUFS, peak −2.1 dBTP; the
+  export will be turned up 4.4 dB"), taken in the background half a second after the last change. A true-peak
+  **limiter** keeps peaks at or below −1 dBTP; the panel warns when it would turn the loudest moments down by more
+  than 6 dB. Projects from before this version keep Off, so they sound as they did.
+- **The preview plays the export's mix**: every sound goes through the same gains (volume × fades × keyframes × track
+  volume × ducking), then the loudness gain and the limiter (an AudioWorklet; where it can't load, the browser's own
+  compressor stands in).
+
+Every change is one undo step (a drag or a slider is one step) and is announced to screen readers ("Audio 2: Whoosh,
+fade in 0.5 s"). Audio tracks, sound clips, their keyframes, roles, volumes, ducking and the loudness target are saved
+with the project; the validator clamps every value and drops overlapping clips with the reason. The gains are
+multiplied in one place (`src/engine/mixGain.ts`) for the preview and the export; scans in `src/engine/soundScan.ts`
+(a Worker, `src/state/soundScan.worker.ts`), ducking in `ducking.ts`, loudness in `loudness.ts`, the limiter in
+`limiter.ts`.
+
 ### The preview
 
 The preview decodes video clips the way the export does, through one **decoder pool** (`src/engine/decodePool.ts`):
@@ -547,7 +607,8 @@ The preview decodes video clips the way the export does, through one **decoder p
 - **Paused or scrubbing**, the preview shows the exact frame the export will encode at that time (the time is put on
   the project's frame grid, as the export does). When scrubbing fast, the last position asked for wins.
 - **Sound** comes from the clip itself (audio-only elements, at most for the clip under the playhead and the next one
-  to start) and is kept within a frame of the picture; the music plays as before.
+  to start) and is kept within a frame of the picture; sound clips play from the file, through the export's gains,
+  the loudness gain and the limiter.
 
 **"This clip can’t be exported here: <reason>".** Some files a browser can play can't be decoded frame by frame (such as
 some HEVC video, the format iPhones record by default, or a damaged file). Such a clip still previews, from the
@@ -585,9 +646,11 @@ Photos don't count.
   clips are decoded through the export's own decoder pool, frame by frame at exactly the times needed, no wider than
   the frame needs; each frame is released as soon as the next replaces it, and the next clip opens while the current
   one is encoded. The pool is released when the export ends, is cancelled or fails.
-- **Sound** is decoded and mixed in 10-second windows (`OfflineAudioContext`): each clip's own track at its volume,
-  with short ramps at the cuts, plus the music with its fade-out. Windows are added just ahead of the frames, so the two
-  tracks interleave in the file.
+- **Sound** is decoded and mixed in 10-second windows (`OfflineAudioContext`): each clip's own sound and every sound
+  clip with its full gain curve (volume, fades, keyframes, track volume, ducking), then the loudness gain and the
+  limiter. Memory is the same whatever the number of tracks. Windows are added just ahead of the frames, so the two
+  tracks interleave in the file. With a loudness target the mix is measured first (the Audio panel's measurement is
+  reused when nothing changed).
 - **Long videos** stream to disk. Space for the index is reserved at the front of the file (Mediabunny's `reserve`
   fast start, sized from the exact number of video frames and AAC packets), so even a 3-hour 4K video gets fast start
   without being held in memory. Reels are built in memory, because sharing needs the whole file.
@@ -605,8 +668,10 @@ The longer plan for advanced features (masks, curves, multi-track timeline, keyf
 | --- | --- |
 | Sound for reversed and ramped clips, and pitch-kept sound outside 0.5×–2× | Needs more audio work; those clips are silent for now |
 | Reverse together with a speed ramp; frame blending for slow motion | Rare, and doubles the cases to get right; slowed clips repeat frames |
-| Several music tracks, voice-over recording | One track covers the common Reel and vlog |
-| Clip waveforms | Music shows its waveform; clips would need their sound decoded on import |
+| Voice-over recording | Comes next (209), recording onto the audio tracks |
+| A clip's sound as its own clip (J and L cuts), sound linked to a picture clip | Changes how clips and their sound are linked; with compound clips (210) |
+| Pan, track volume keyframes, EQ and noise removal | Reels and Shorts are mostly heard on phones; the loudness target is the master volume |
+| Agent tools for audio tracks, ducking and loudness | With the other timeline tools (212) |
 | Direct upload to YouTube or Instagram | Needs sign-in and a server (OAuth, hosting); exports go to the share sheet, a file, or the upload page |
 | Firefox and Safari checks | Encoding support varies by version; check before relying on them |
 | Text animation presets (slide, pop, typewriter) | Keyframes animate a title by hand; presets and text style animation are a separate design (210) |

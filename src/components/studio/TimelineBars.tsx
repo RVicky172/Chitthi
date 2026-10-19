@@ -1,20 +1,18 @@
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { layerName, type Layer } from '../../engine/layers';
 import { formatTime } from '../../engine/timeline';
-import type { Track } from '../../engine/tracks';
+import type { SnapSkip } from '../../engine/timeSnap';
 import { setLayerTimes } from '../../state/videoLayers';
-import { updateMusic } from '../../state/videoMedia';
-import { getVideo, selectVLayer, setPlayhead, useVideo, type VMusic } from '../../state/videoStore';
-import { refuseLockedMusic } from './timelineActions';
+import { getVideo, selectVLayer, setPlayhead } from '../../state/videoStore';
 import { dragKey, startDrag, toFrame } from './timelineDrag';
 
 /*
- * The timeline's layer rows (one per layer: drag the bar to move it in time, its ends to change when it shows) and the
- * music row (drag the song to choose where it starts), with the waveform.
+ * The timeline's layer rows (one per layer: drag the bar to move it in time, its ends to change when it shows); the
+ * audio tracks' rows are SoundRow.tsx (208).
  */
 
-/** Snaps a time as the timeline does, leaving out the dragged clip or layer. */
-export type SnapTime = (time: number, skip?: { clip?: string; layer?: string }, event?: { altKey: boolean }) => number;
+/** Snaps a time as the timeline does, leaving out the dragged clip, layer or sound clip. */
+export type SnapTime = (time: number, skip?: SnapSkip, event?: { altKey: boolean }) => number;
 
 /** A layer's bar. */
 interface LayerBarProps {
@@ -101,83 +99,6 @@ export function LayerRow({ layer, total, zoom, selected, snap, seekFrom }: Reado
   return (
     <div className="tl-row tl-layer" onPointerDown={seekFrom}>
       <LayerBar layer={layer} total={total} zoom={zoom} selected={selected} onBody={onBody} onEdge={onEdge} />
-    </div>
-  );
-}
-
-/** The song's bar. */
-interface MusicBarProps {
-  music: VMusic;
-  total: number;
-  zoom: number;
-  height: number;
-  onDrag: (event: ReactPointerEvent) => void;
-}
-
-/**
- * The song's bar with its waveform, from where it starts.
- * @param props the song, the video's length, zoom, row height and the drag
- */
-function MusicBar({ music, total, zoom, height, onDrag }: Readonly<MusicBarProps>) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const width = Math.max(10, Math.min(total, music.dur - music.offset) * zoom);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context) return;
-    const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.min(8000, Math.round(width * pixelRatio));
-    canvas.height = Math.round((height - 8) * pixelRatio);
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    const { peaks } = music;
-    if (!peaks.length) return;
-    context.fillStyle = getComputedStyle(canvas).color;
-    const columns = canvas.width;
-    for (let column = 0; column < columns; column += 2) {
-      const songTime = music.offset + (column / columns) * (width / zoom);
-      const peak = peaks[Math.min(peaks.length - 1, Math.floor((songTime / music.dur) * peaks.length))] ?? 0;
-      const barHeight = Math.max(1, peak * music.volume * canvas.height * 0.9);
-      context.fillRect(column, (canvas.height - barHeight) / 2, 1.5, barHeight);
-    }
-  }, [music, width, zoom, height]);
-  return (
-    <div className="tl-bar tl-bar-music" style={{ left: 0, width }} onPointerDown={onDrag} title={`${music.name}: drag to choose where the song starts`}>
-      <canvas ref={canvasRef} aria-hidden="true" />
-      <span>
-        {music.name} · from {formatTime(music.offset)}
-      </span>
-    </div>
-  );
-}
-
-/** The music row. */
-interface MusicRowProps {
-  track: Track;
-  total: number;
-  zoom: number;
-  height: number;
-  seekFrom: (event: ReactPointerEvent) => void;
-}
-
-/**
- * The music row: the song (drag it to choose where it starts), or a hint to add one.
- * @param props the music track, the video's length, zoom, row height and seeking
- */
-export function MusicRow({ track, total, zoom, height, seekFrom }: Readonly<MusicRowProps>) {
-  const music = useVideo((state) => state.music);
-  let content: ReactNode = <span className="tl-placeholder">Add music from the Audio tool</span>;
-  if (music) {
-    const onDrag = (event: ReactPointerEvent) => {
-      const startOffset = music.offset;
-      if (refuseLockedMusic()) return;
-      const latest = Math.max(0, music.dur - Math.min(total, music.dur));
-      startDrag(event, (dx) => updateMusic({ offset: Math.max(0, Math.min(latest, startOffset - dx / zoom)) }));
-    };
-    content = <MusicBar music={music} total={total} zoom={zoom} height={height} onDrag={onDrag} />;
-  }
-  return (
-    <div className={`tl-row tl-music${track.muted ? ' tl-off' : ''}`} style={{ height }} onPointerDown={seekFrom}>
-      {content}
     </div>
   );
 }

@@ -1,0 +1,1524 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "208",
+  "title": "Audio tracks, waveforms, ducking, loudness",
+  "workItem": "P2.8",
+  "status": "implemented",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-18",
+    "approved": "2026-10-18",
+    "started": "2026-10-18",
+    "done": "2026-10-19"
+  },
+  "git": {
+    "branch": "feat/208-audio-tracks"
+  },
+  "spec": {
+    "phase": "Phase 2 — Multi-track timeline (release 3.0.0)",
+    "summary": "Sound is half of a Reel or a vlog, and today the editor has one song: a single music file on one track, playing from its offset to the end of the video, plus each video clip’s own sound. Creators layer more than that: a song, a sound effect on a cut, a second song after the first, an ambience bed, a recorded voice. And they need the song to step out of the way when someone speaks, and the finished video to be as loud as YouTube and Instagram expect, so it isn’t turned down or drowned out next to other videos. 208 turns the music track into real **audio tracks**: several tracks, each holding sound clips that are added, moved, trimmed, split and faded like picture clips; **waveforms** on every sound clip and on video clips’ own sound; **volume keyframes** on sound clips (205’s keyframes); **ducking**, which lowers music under speech by measuring how loud the voice tracks are; and a **loudness target** for the export (−14 LUFS for YouTube and Instagram). The preview and the export play the same mix. It is the base 209 (voice-over) records onto.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4",
+        "US-5",
+        "US-6"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a creator making a Reel, I want several sounds on the timeline (two songs, a whoosh on a cut, a crowd ambience), each placed where I want it, so that my video sounds finished."
+        },
+        "US-2": {
+          "text": "As an editor, I want to see each clip’s sound as a waveform, so that I can cut on a beat or a word without listening to it over and over."
+        },
+        "US-3": {
+          "text": "As a vlogger, I want the music to dip automatically while I talk and come back up when I stop, so that my voice is clear without drawing volume curves by hand."
+        },
+        "US-4": {
+          "text": "As a creator, I want my export to be as loud as YouTube and Instagram expect, so that it isn’t turned down or too quiet next to other videos, and never clips."
+        },
+        "US-5": {
+          "text": "As an editor, I want to fade, set the volume of and keyframe each sound clip and each track, and undo any of it in one step."
+        },
+        "US-6": {
+          "text": "As a keyboard or screen-reader user, I want to add, place and adjust sound clips and tracks, and turn on ducking and the loudness target, without a mouse and hear what changed."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15",
+        "AC-16",
+        "AC-17"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Audio tracks and sound clips",
+          "proof": "unit",
+          "text": "A project has 1 to 8 audio tracks on web and desktop alike (Q1); the Music track every project has today is the first. Tracks can be added (named “Audio 2”, “Audio 3” …), renamed, reordered among the audio tracks, muted, soloed (Q2), locked and deleted (a track with clips asks first; one undo step). A ninth track, or deleting the last audio track, is refused with the reason. Each audio track has a role, **Music**, **Voice** or **Effects** (Q3): Music for the first and Effects for new ones by default.",
+          "done": true
+        },
+        "AC-2": {
+          "group": "Audio tracks and sound clips",
+          "proof": "unit",
+          "text": "An audio track holds any number of sound clips that don’t overlap, from the files the music takes today (Q4). A sound clip has a start on the timeline, in and out points in its source, a volume from 0 to 200 % (−∞ to +6 dB) and a fade in and fade out of 0 to 10 s each (together not longer than the clip). It is added at the playhead on the chosen track (or the first track with room there; a new track when none has room and there are fewer than 8), and moved, trimmed, split, duplicated and deleted with the timeline’s tools as picture clips are (202: Snap, Slip on its source; Roll, Ripple and Slide within its track, Q5). An edit that would overlap another sound clip on the track, or run past the source’s end, is refused with the reason. Sound past the end of the video is not heard (Q6).",
+          "done": true
+        },
+        "AC-3": {
+          "group": "Audio tracks and sound clips",
+          "proof": "unit",
+          "text": "Migration: a 2.x or 201–207 project’s music becomes one sound clip on the Music track that plays from its offset **to the end of the video** (Q7) with its volume, and its fade-out over the last min(1.5 s, a third of the video), as today. For 201’s to 207’s fixtures the export’s sound sources and gains equal the old ones exactly, and documents without new audio data stay byte-identical when saved.",
+          "done": true
+        },
+        "AC-4": {
+          "group": "Waveforms",
+          "proof": "unit",
+          "text": "Every sound clip and every video clip with sound shows its waveform on the timeline: peaks measured from the decoded sound in the background after import (the import itself is not slower), at least 100 peaks per second of source, scaled by the clip’s volume, fades and volume keyframes so the shape shows what is heard. A trimmed, slipped or sped-up clip (207) shows the part and speed it plays; a clip whose sound is silent (reversed, ramped, a freeze frame, a muted track) shows a flat line and says why on hover and to screen readers. For a fixture of tone bursts at known times and levels, the peaks are within 1 dB and 10 ms of the expected list. Peaks for up to 3 hours of sound per project take under 10 MB.",
+          "done": true
+        },
+        "AC-5": {
+          "group": "Volume",
+          "proof": "unit",
+          "text": "A sound clip’s volume can be keyframed with 205’s keyframes (the same diamonds, lane, easing and keys as a video clip’s volume), and each audio track has a volume from 0 to 200 % (Q8). What is heard at any time is the clip’s volume × its fades × its keyframed volume × its track’s volume × ducking (AC-6) × the loudness gain (AC-8), with gain changes smooth (no step longer than 5 ms). For a fixture with every one of these, the export’s gain at 1,000 checked times equals the expected value within 0.01 dB.",
+          "done": true
+        },
+        "AC-6": {
+          "group": "Ducking",
+          "proof": "unit",
+          "text": "**Ducking** is set per Music or Effects track (off by default, Q9): it lowers that track by an amount (default 12 dB, 3–30 dB) wherever the **voice** is speaking. Voice is the sound of Voice tracks plus the own sound of video and overlay clips (Q10), measured in 50 ms steps; it is speaking where its loudness is above a threshold (default −40 dBFS, −60 to −20), with pauses shorter than 0.5 s bridged so the music doesn’t pump between words. The music fades down over 0.3 s before speech starts and back up over 0.8 s after it stops (Q11). For a fixture with speech at 2.0–5.0 s and 8.0–8.6 s, the ducked track’s gain at every 10 ms equals the expected curve within 0.1 dB; with no voice the gain is unchanged.",
+          "done": true
+        },
+        "AC-7": {
+          "group": "Ducking",
+          "proof": "unit",
+          "text": "Ducking follows the edit: moving, trimming, muting or changing the volume of a voice clip or track updates the curve within 1 s of the change (measured in the background, never blocking the timeline). The ducking curve is drawn on the ducked track’s clips. The preview and the export apply the same curve, from one function (the one AC-6 checks).",
+          "done": true
+        },
+        "AC-8": {
+          "group": "Loudness",
+          "proof": "unit",
+          "text": "The export has a **Loudness** setting: Off, YouTube / Instagram −14 LUFS (the default for new projects, Q12), Quiet −16 LUFS, or a value from −24 to −9 LUFS. Loudness is measured as integrated loudness to ITU-R BS.1770-4 / EBU R 128: for EBU Tech 3341 test signals 1–5 (synthesised in the test) the measurement is within 0.1 LU of the expected value. The whole mix is turned up or down by one gain so it measures the target, and peaks are held at or below −1 dBTP true peak by a limiter (Q13): for a fixture mix the exported sound measures the target within 0.5 LU, and no sample exceeds −1 dBTP at 4× oversampling. Off leaves the mix as today. Projects from before 208 keep Off (AC-3).",
+          "done": true
+        },
+        "AC-9": {
+          "group": "Loudness",
+          "proof": "unit",
+          "text": "The Audio panel shows the mix’s measured loudness and true peak (“−18.4 LUFS, peak −2.1 dBTP; the export will be turned up 4.4 dB”), measured in the background within 2 s of a change for a 60-second project, and says when the limiter will work hard (more than 6 dB of reduction). The preview plays with the same loudness gain as the export (Q14).",
+          "done": true
+        },
+        "AC-10": {
+          "group": "Keeping the edit",
+          "proof": "unit",
+          "text": "Each change is one undo step: adding, moving, trimming, splitting or deleting a sound clip; a volume or fade drag however long; adding, renaming, reordering, muting, soloing, locking or deleting a track; any ducking or loudness setting. A seeded property test of 1,000 random sound clip, track, ducking and picture edits never leaves overlapping sound clips on a track, a clip outside its source, fades longer than their clip, or more than 8 audio tracks.",
+          "done": true
+        },
+        "AC-11": {
+          "group": "Saving",
+          "proof": "unit",
+          "text": "Audio tracks, sound clips, their keyframes, track roles and volumes, ducking and the loudness setting are saved with the project. The document validator clamps volumes, fades, ducking and loudness values to their ranges, drops overlapping or unknown-track clips with the reason, and keeps at most 8 audio tracks; at least 20 malformed documents never make it throw. A project with every case round-trips document → validator → document equal. The sound files themselves are kept as the music is today.",
+          "done": true
+        },
+        "AC-12": {
+          "group": "Rendering",
+          "proof": "unit",
+          "text": "The export mixes every audible sound clip, video clip sound and track with the gains of AC-5, AC-6 and AC-8, still in 10-second windows interleaved with the frames: memory for sound stays within today’s budget whatever the number of tracks, and for a fixture with 8 tracks the export’s sound sources and gain curves equal the expected list exactly.",
+          "done": true
+        },
+        "AC-13": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "The Audio panel adds sound files (at the playhead, on the chosen track), lists the tracks with their role, volume and ducking, and has the loudness setting with its readout (AC-9). Audio tracks have headers like the others (name, Mute, Solo, Lock, volume, role, ducking) and an **Add audio track** button; sound clips show their name, waveform, fade handles at their top corners and their volume line. The inspector of a selected sound clip has volume, fades, its keyframes and its source. Everything is in the in-app docs.",
+          "done": false
+        },
+        "AC-14": {
+          "group": "Editing",
+          "proof": "e2e (290)",
+          "text": "Everything in AC-13 works from the keyboard (fade handles and the volume line included, with ← / → and ↑ / ↓, Shift for larger steps); every control has a name and state for screen readers and each change is announced (clip or track, what changed, the new value); axe finds no serious problems in the Audio panel, inspector and timeline; at 360 px wide nothing scrolls sideways outside the timeline.",
+          "done": false
+        },
+        "AC-15": {
+          "group": "Listening and timing",
+          "proof": "manual (290)",
+          "text": "Listening test (noted in `specs/testing-strategy.md`): a 60-second vlog with music on the Music track, a voice on a Voice track and two effects is exported with ducking on and −14 LUFS; the music dips under every sentence without pumping between words, nothing clicks at cuts, fades or ducking edges, and the preview sounds the same as the export. YouTube’s “Stats for nerds” shows a content loudness within 1 dB of 0 dB for the uploaded file.",
+          "done": false
+        },
+        "AC-16": {
+          "group": "Listening and timing",
+          "proof": "timing (290)",
+          "text": "On the reference mid-range laptop: a 60-second Reel with 4 audio tracks, ducking and the loudness target exports at most 15 % slower than the same Reel with one song and loudness Off; the preview plays it with no more dropped frames than with one song; waveforms of a 10-minute video appear within 10 s of import without dropping preview frames. No regressions: projects without new audio give identical export inputs to 207, and every existing video e2e test passes unchanged.",
+          "done": false
+        },
+        "AC-17": {
+          "group": "Docs",
+          "proof": "review",
+          "text": "`docs/MEDIA-STUDIO.md` (audio tracks, sound clips, waveforms, ducking, loudness, keys, limits), `specs/lld.md` (the audio model, the gain chain, the ducking and loudness measurement), `specs/testing-strategy.md` (the listening test), `CHANGELOG.md` and the in-app docs describe the change; the media studio’s “Still to do” no longer lists several music tracks and clip waveforms.",
+          "done": true
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13",
+        "Q14",
+        "Q15",
+        "Q16",
+        "Q17",
+        "Q18"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "How many audio tracks? _Answer (accepted 2026-10-18):_ up to 8, on web and desktop alike. Mixing is cheap (the export mixes in 10-second windows); the cost is decoding, which grows with clips, not tracks. Reels rarely use more than 4. There is no technical reason to differ by platform (Constitution V), so one limit.",
+          "open": false
+        },
+        "Q2": {
+          "text": "Solo on audio tracks? _Answer (accepted 2026-10-18):_ yes, for audio tracks only: soloed tracks are the only audio tracks heard **in the preview** (the export ignores Solo and says so), so the user can check one layer of the mix. The Video and overlay tracks’ sound isn’t soloed in 208.",
+          "open": false
+        },
+        "Q3": {
+          "text": "Track roles: why, and which? _Answer (accepted 2026-10-18):_ three roles, Music, Voice and Effects, a simpler form of Premiere’s Essential Sound and Resolve’s Fairlight roles. The role decides what ducking listens to (Voice) and what it can lower (Music, and Effects when turned on). No role-specific processing (EQ, noise removal) in 208.",
+          "open": false
+        },
+        "Q4": {
+          "text": "Which sound files? _Answer (accepted 2026-10-18):_ the same as the music today (what the browser decodes: MP3, AAC / M4A, WAV, OGG / Opus, FLAC in Chrome and the desktop app), with today’s size limit per file. Pulling the sound out of a video file as a sound clip (“Extract sound”) is Q15.",
+          "open": false
+        },
+        "Q5": {
+          "text": "Which edit tools work on sound clips? _Answer (accepted 2026-10-18):_ select, move, trim, split, duplicate, delete, Snap (to clips, cuts, the playhead and other sound clips), Slip on its source, and Roll / Ripple / Slide within its own track. Magnetic stays the main video track’s only (audio tracks are free like overlay tracks, 203), and sound clips don’t move when the main track ripples, as the music today (Q16 asks about linking).",
+          "open": false
+        },
+        "Q6": {
+          "text": "Sound past the end of the video? _Answer (accepted 2026-10-18):_ the video’s length stays set by its pictures and layers; sound clips may run past it on the timeline (drawn dimmed there) but are not heard and don’t lengthen the export. A video made only of sound isn’t possible in 208.",
+          "open": false
+        },
+        "Q7": {
+          "text": "The migrated music, and new songs: fixed length or “to the end of the video”? _Answer (accepted 2026-10-18):_ a sound clip has a **Play to the end of the video** switch. Migrated music has it on, so old projects stay identical; a newly added song has it on when it is the first clip on the Music track and is longer than the video, off otherwise. Trimming its end turns it off. Such a clip plays to the end of the video or to the next sound on its track, whichever is first; moved to or past the end, it turns the switch off and keeps the length it had (maintainer, 2026-10-19, T072 option A). Add sound never puts a sound where it would cut such a clip short.",
+          "open": false
+        },
+        "Q8": {
+          "text": "Track volume and pan? _Answer (accepted 2026-10-18):_ track volume yes (0–200 %, not keyframed); pan (left / right) not in 208: Reels and Shorts are mostly heard on phones, and pan doubles the mix cases. The loudness target (AC-8) acts as the master volume.",
+          "open": false
+        },
+        "Q9": {
+          "text": "Ducking on by default? _Answer (accepted 2026-10-18):_ off for every track, with one **Lower music under voice** switch in the Audio panel that turns ducking on for every Music track at the defaults. On by default would change how old projects sound.",
+          "open": false
+        },
+        "Q10": {
+          "text": "What counts as voice? _Answer (accepted 2026-10-18):_ sound on Voice tracks plus the own sound of video and overlay clips (most vlogs talk in the camera clip), with a per-track **Counts as voice** switch to leave a track out (say, a clip with loud music of its own). No speech-recognition model: “speaking” means “louder than the threshold”, so a loud non-speech sound on a voice track ducks too, and the threshold slider is how the user tunes it.",
+          "open": false
+        },
+        "Q11": {
+          "text": "Ducking timing: fixed or adjustable? _Answer (accepted 2026-10-18):_ amount and threshold adjustable per track; the fade down (0.3 s, starting before the speech so the first word is clear), the fade up (0.8 s) and the 0.5 s bridging fixed in 208. Most editors expose them, but they are rarely changed and each slider needs explaining.",
+          "open": false
+        },
+        "Q12": {
+          "text": "Loudness target by default? _Answer (accepted 2026-10-18):_ −14 LUFS (YouTube’s and Instagram’s reference) for new projects; Off for projects from before 208, so they export exactly as before. YouTube and Instagram turn louder videos down but don’t turn quiet ones up, so a video quieter than −14 just sounds quiet; hitting −14 is the usual advice.",
+          "open": false
+        },
+        "Q13": {
+          "text": "Peaks: a limiter, or only lower the target? _Answer (accepted 2026-10-18):_ a true-peak limiter at −1 dBTP (look-ahead 5 ms, release 100 ms), hand-written (no new library, Constitution III), applied after the loudness gain. Without it, turning a quiet mix up to −14 LUFS would clip; lowering the target instead would miss it. The Audio panel warns when it reduces more than 6 dB (AC-9).",
+          "open": false
+        },
+        "Q14": {
+          "text": "Should the preview play at the loudness target? _Answer (accepted 2026-10-18):_ yes, with the same gain and limiter, on web and desktop alike, so what the user hears is what they export (Constitution VIII); while a new measurement runs, the last gain is used and the panel says “measuring”.",
+          "open": false
+        },
+        "Q15": {
+          "text": "“Extract sound” (a video clip’s sound onto an audio track as its own clip, to cut picture and sound apart for J and L cuts)? _Answer (accepted 2026-10-18):_ not in 208; it changes how clips and their sound are linked and fits better with 210 (compound clips). Video clip sound keeps its volume and keyframes on the clip.",
+          "open": false
+        },
+        "Q16": {
+          "text": "Sound clips linked to a picture clip (moving with it when it ripples)? _Answer (accepted 2026-10-18):_ not in 208: sound clips keep their timeline time, as the music does today. Linking is a later feature, with Q15.",
+          "open": false
+        },
+        "Q17": {
+          "text": "Sound for reversed and ramped clips, and same-pitch sound outside 0.5×–2× (left out of 207 “for the audio work”)? _Answer (accepted 2026-10-18):_ not in 208; it stays in “Still to do”. 208 is about mixing many sounds, not re-timing one; it can come with 209 or later.",
+          "open": false
+        },
+        "Q18": {
+          "text": "Agent tools (MCP) for audio tracks, ducking and loudness? _Answer (accepted 2026-10-18):_ not in 208; they come with the other timeline tools in 212, like 206’s and 207’s.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-18",
+        "text": "Created: draft spec with 17 acceptance criteria and 18 open questions with proposed answers."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Q1–Q18: every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Plan drafted (§1–§9, D1–D6 for the maintainer)."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Plan approved (D1–D6 as recommended, D-052); AC-3 reworded: the migrated music keeps its min(1.5 s, a third) fade-out."
+      },
+      {
+        "date": "2026-10-18",
+        "text": "Tasks written (T001–T112)."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Q7 extended (T072, option A, chosen by the maintainer): a Play to the end clip stops at the next sound on its track; moved past the end it gets a fixed length; Add sound never cuts it short."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** waveforms, ducking and loudness are measured in the background and never block the timeline or the import; the export costs at most 15 % more for 4 tracks with ducking and loudness (AC-16); sound memory stays within today’s budget whatever the number of tracks (AC-12); the entry chunk stays ≤ 350 KB (sound measuring code loads with `import()` when used).\n- **Accuracy:** loudness measured to BS.1770-4 within 0.1 LU on EBU Tech 3341 signals, exports within 0.5 LU of the target and ≤ −1 dBTP (AC-8); gains within 0.01 dB of the expected chain (AC-5); ducking within 0.1 dB of its curve (AC-6).\n- **What you hear is what you export:** the preview and the export use the same gain chain, ducking curve and loudness gain (AC-5–AC-9, Constitution VIII).\n- **Accessibility:** every control works from the keyboard and is announced; waveforms have a text equivalent (clip name, length, whether it is silent and why); axe passes (AC-14).\n- **Compatibility:** web and desktop alike; no new dependency (loudness measurement and the limiter are hand-written, Q13); every existing project opens and exports unchanged (AC-3, AC-16).\n- **Free and open source:** every audio feature is for everyone, on the web and in the desktop app."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Voice-over recording (209).\n- EQ, noise removal, compression other than the output limiter, reverb or other effects; pan (Q8).\n- Speech recognition for ducking (voice is measured by loudness, Q10); adjustable duck fade times (Q11).\n- “Extract sound” from a video clip, and sound clips linked to picture clips (Q15, Q16).\n- Sound for reversed and ramped clips; same-pitch sound outside 0.5×–2× (Q17).\n- Sound-only videos; sound lengthening the video (Q6).\n- Agent tools for audio (212, Q18)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (2026-10-18, D1–D6 as recommended, D-052) <!-- Draft | Approved -->",
+    "files": [
+      {
+        "file": "`src/engine/timeline.ts`, `src/engine/tracks.ts`, `tests/unit/engine/tracks.test.ts`",
+        "change": "modify",
+        "purpose": "§1: `AudioClip` and audio track fields, `addAudioTrack`, 8 audio tracks on web (D2)"
+      },
+      {
+        "file": "`src/engine/soundClips.ts`, `tests/unit/engine/soundClips.test.ts`",
+        "change": "new",
+        "purpose": "§1: sound clip edits and refusals"
+      },
+      {
+        "file": "`src/engine/timeSnap.ts`, `src/engine/edits.ts`",
+        "change": "modify",
+        "purpose": "§1: Snap to sound clip edges; shared refusal texts"
+      },
+      {
+        "file": "`src/engine/soundPlan.ts`, `src/engine/keyframes.ts`, `src/engine/mixGain.ts` (new), `tests/unit/engine/mixGain.test.ts` (new)",
+        "change": "new / modify",
+        "purpose": "§2: sound clips in `audioPlan`, the gain chain, `SOUND_RANGES`"
+      },
+      {
+        "file": "`src/engine/soundScan.ts`, `tests/unit/engine/soundScan.test.ts`",
+        "change": "new",
+        "purpose": "§3: peaks and 50 ms RMS from streamed samples"
+      },
+      {
+        "file": "`src/engine/ducking.ts`, `tests/unit/engine/ducking.test.ts`",
+        "change": "new",
+        "purpose": "§3: voice level, speaking, the duck curve"
+      },
+      {
+        "file": "`src/engine/loudness.ts`, `src/engine/limiter.ts`, `tests/unit/engine/loudness.test.ts`, `tests/unit/engine/limiter.test.ts`",
+        "change": "new",
+        "purpose": "§4: BS.1770-4 meter, true peak, streaming limiter"
+      },
+      {
+        "file": "`src/engine/videoExport.ts`, `src/state/videoExportJob.ts`, `tests/integration/engine/videoExport.test.ts`",
+        "change": "modify",
+        "purpose": "§4, §5: `measureMix`, the chain, loudness gain and limiter in the export"
+      },
+      {
+        "file": "`src/state/soundScan.ts`, `src/state/soundScan.worker.ts`",
+        "change": "new",
+        "purpose": "§3: the background scanner (Worker, Mediabunny streaming), scans per media id"
+      },
+      {
+        "file": "`src/components/studio/limiter.worklet.ts`",
+        "change": "new",
+        "purpose": "§6: the preview limiter (wraps `engine/limiter.ts`)"
+      },
+      {
+        "file": "`src/components/studio/previewSound.ts`, `src/components/studio/VideoStage.tsx`, `tests/unit/components/previewSound.test.ts`",
+        "change": "modify",
+        "purpose": "§6: the Web Audio graph, sound clips in the preview, Solo; the music element goes"
+      },
+      {
+        "file": "`src/state/videoStore.ts`, `src/state/videoSound.ts` (new), `src/state/videoMedia.ts`, `src/state/videoTracks.ts`, `tests/integration/state/video.test.ts`",
+        "change": "new / modify",
+        "purpose": "§7: `sounds` replaces `music`, actions, undo keys, the property test"
+      },
+      {
+        "file": "`src/engine/projectDoc.ts`, `src/engine/projectGate.ts`, `tests/unit/engine/timeline.test.ts`",
+        "change": "modify",
+        "purpose": "§8: saving and validating the new fields"
+      },
+      {
+        "file": "`src/components/studio/AudioPanel.tsx` (new), `src/components/studio/VideoPanels.tsx`",
+        "change": "new / modify",
+        "purpose": "§9: the Audio panel (`MusicPanel` goes)"
+      },
+      {
+        "file": "`src/components/studio/SoundRow.tsx` (new), `src/components/studio/TimelineBars.tsx`, `src/components/studio/Timeline.tsx`, `src/components/studio/TrackHead.tsx`, `src/components/studio/PictureRow.tsx`, `src/components/studio/timelineRows.ts`, `src/components/studio/timelineDrag.ts`, `src/components/studio/timelineActions.ts`",
+        "change": "new / modify",
+        "purpose": "§9: sound rows, waveforms, fade handles, volume line, duck curve, audio track headers"
+      },
+      {
+        "file": "`src/components/studio/SoundInspector.tsx` (new), `src/components/studio/ClipInspector.tsx`",
+        "change": "new / modify",
+        "purpose": "§9: the sound clip inspector"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "§9: sound rows and handles"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `specs/lld.md`, `specs/testing-strategy.md`, `CHANGELOG.md`, `src/data/docs.ts`",
+        "change": "modify",
+        "purpose": "AC-17"
+      },
+      {
+        "file": "`specs/features/290-phase2-test-pass-release/feature.json`",
+        "change": "modify",
+        "purpose": "the deferred checks for AC-13–AC-16 (D-033)"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**The preview's Web Audio graph** (§6, D3): `createMediaElementSource` takes an element for good, the context needs a gesture, and the limiter worklet must load under the production CSP and in Electron. Mitigation: a spike task first (worklet module from the Vite build, `app://` origin, autoplay on Play, 207's `preservesPitch` still working through the graph); if the worklet can't load, the preview falls back to a `DynamicsCompressorNode` set as a limiter and says the preview's peaks are approximate (export unchanged)."
+      },
+      {
+        "text": "**Scanning long files** (§3, AC-4, AC-16): a 3-hour video's sound streamed in a Worker may take long and compete with the decoder pool. Mitigation: the scan runs at low priority (one file at a time, yielding between chunks), waveforms fill in as it goes, ducking waits for its voice scans and says \"measuring\"; measured in 290."
+      },
+      {
+        "text": "**Loudness accuracy with heavy limiting** (§4, AC-8): one gain then a limiter lands below the target when the limiter works hard. Mitigation: the second, corrective pass when predicted reduction exceeds 1 dB (D4); the panel warns over 6 dB."
+      },
+      {
+        "text": "**Correlated voices** (§3): the power sum overestimates two copies of the same sound. Mitigation: it only moves the threshold crossing slightly; the threshold slider tunes it; noted in the docs."
+      },
+      {
+        "text": "**Removing `state.music`** (§7, D1) touches the stage, the timeline, the panel, the export job and tests. Mitigation: one task migrates the store with `projectOf` producing the same `Project` as today (the 201–207 fixtures prove it) before any UI changes."
+      },
+      {
+        "text": "**Waveforms on every clip** (§9) could slow the timeline at high zoom. Mitigation: canvas per visible bar, columns from the scan by index (no per-sample work), redrawn only on change."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-18 (Q1–Q18 accepted). AC-3's wording about the migrated music's fade-out is corrected with the plan (it keeps its min(1.5 s, a third) fade, as `audioPlan` does today)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "Every engine part test-first with unit tests (fixtures, EBU signals, property test); e2e, listening and timing in 290 (D-033)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency: Mediabunny already decodes; meter, filters, limiter and FIR are our own."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D1–D6 go to `memory/decisions.md` on approval; gotchas (Web Audio, worklets) to `learnings.md`."
+      },
+      {
+        "principle": "V. Free and Open Source, Always",
+        "status": "✅",
+        "notes": "Everything for everyone; the web gets 8 audio tracks like the desktop (D2)."
+      },
+      {
+        "principle": "VI. On the User's Device, No Backend",
+        "status": "✅",
+        "notes": "All analysis and mixing on the device; no network."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new to licence; BS.1770 / EBU R 128 are public standards implemented from the text."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "One gain chain, one duck curve, one loudness gain and one limiter for preview and export (§2–§6)."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No IPC change; the worklet is same-origin under the existing CSP."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "⚠️",
+        "notes": "Entry chunk: the scanner, meter and limiter load with `import()` (the Worker and worklet are separate chunks); keyboard, names and announcements for every control, checked in 290."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "⚠️",
+        "notes": "Agent tools for audio come in 212 with the other timeline tools (Q18), as for 206 and 207."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Today the sound is two separate things: the video clips' own sound (204's <audio> elements in the preview, \\`audioPlan\\` + \\`mixWindow\\` in the export) and **one song** (\\`state.music: VMusic\\`, its own <audio> element in VideoStage, \\`musicClips()\\` turning it into one \\`AudioClip\\` with \\`toEnd\\`). 208 makes the song an ordinary **sound clip**, lets audio tracks hold many, and puts **one gain chain** in \\`engine/\\` that the export and the preview both evaluate: clip volume × fades × volume keys × track volume × ducking × loudness gain, then one limiter (Constitution VIII). Under D-033 every task is proven by unit tests; the UI, listening and timing checks go to 290.\n\n**§1 The audio model (\\`engine/timeline.ts\\`, \\`engine/tracks.ts\\`, new \\`engine/soundClips.ts\\`, AC-1–AC-3).** \\`AudioClip\\` gains \\`out\\` (source seconds; missing on a \\`toEnd\\` clip), \\`fadeIn\\` / \\`fadeOut\\` (0–10 s, missing = 0), \\`keys?: Keyframes<'volume'>\\` (205) and \\`name\\`; \\`toEnd\\` stays (Q7). \\`Track\\` gains, for audio tracks only, \\`role?: 'music' | 'voice' | 'effects'\\`, \\`volume?\\` (0–2), \\`solo?\\`, \\`voice?: false\\` (Counts as voice off, Q10) and \\`duck?: { amount, threshold }\\` (Q9, Q11); missing fields mean today's behaviour, so old documents stay byte-identical (AC-3). \\`TRACK_LIMITS\\` audio becomes 8 on web as on desktop (D2). \\`tracks.ts\\` gets \\`addAudioTrack\\` (\"Audio N\", role Effects, placed after the last audio track), and \\`moveTrack\\` / \\`deleteTrack\\` learn audio tracks (reorder only among audio tracks; the last one can't go). \\`soundClips.ts\\` holds the pure sound clip edits: \\`addSound\\` (at the playhead on the chosen track, else the first with room, else a new track below 8), \\`moveSound\\`, \\`trimSound\\`, \\`splitSound\\`, \\`duplicateSound\\`, \\`deleteSound\\`, \\`slipSound\\`, \\`rollSound\\`, \\`rippleSound\\`, \\`slideSound\\`, \\`setFades\\` — each refusing overlaps on the track, running past the source, fades longer than the clip, and locked tracks with the reason, as 202's edits do; Snap targets gain sound clip edges (\\`timeSnap.ts\\`). A sound clip's length is \\`out − in\\`, or for \\`toEnd\\` the video's end minus its start (capped by the source). Trimming a \\`toEnd\\` clip's end turns \\`toEnd\\` off (Q7). Sound past the video's end is cut by \\`audioPlan\\`, never lengthening \\`projectLength\\` (Q6).\n\n**§2 The gain chain (\\`engine/soundPlan.ts\\`, \\`engine/keyframes.ts\\`, new \\`engine/mixGain.ts\\`, AC-5, AC-12).** \\`SoundSource\\` gains \\`track\\` and \\`role\\`; \\`audioPlan\\` emits every sound clip of every unmuted audio track (with its fades, keys and \\`toEnd\\` fade-out of min(1.5 s, a third), exactly as today for migrated music) after the clip sounds, in track order, so a project without new audio yields exactly 207's list (AC-3). \\`mixGain.ts\\` is the one place the chain is evaluated: \\`sourceGainAt\\` (today's: keys or volume × edges × fades) × \\`trackGain\\` (track volume) × \\`duckGain\\` (§3) — with sound clip volume keys on a 0–2 range (\\`SOUND_RANGES\\`; video clips stay 0–1, D6). \\`gainCurve\\` keeps its 5 ms step, so every change is a ramp of at most 5 ms (AC-5). The loudness gain and the limiter (§4) act on the summed mix, after the chain.\n\n**§3 Waveforms, voice and ducking (new \\`engine/soundScan.ts\\`, \\`engine/ducking.ts\\`, new \\`state/soundScan.ts\\` + \\`state/soundScan.worker.ts\\`, AC-4, AC-6, AC-7).** Each media file with sound is **scanned once** in the background (D5): a module Worker streams its sound through Mediabunny's \\`AudioBufferSink\\` (as the export does, so a 3-hour file is never decoded whole) and \\`soundScan.ts\\` folds the samples into a \\`SoundScan\\`: peaks (max |sample|, 100 per second, as Uint8 dB steps) for the waveform and RMS in 50 ms steps (Float32, dBFS) for voice detection. 3 hours = 1.08 M peaks + 216 k RMS ≈ 2 MB (< 10 MB, AC-4). Scans are kept per media id in memory and dropped with the media. **Waveforms** are drawn from the scan through the clip's mapping (\\`sourceAt\\` for video clips at speed, 207) and scaled by \\`mixGain\\` at each column; silent clips (\\`soundMuted\\`, muted tracks) draw flat with the reason as their title. **Voice** on the timeline is computed, not measured again: for each 50 ms step, the power sum of every voice source's scanned RMS × its chain gain (without ducking) at that time (\\`voiceLevel(plan, scans, step)\\`); **speaking** = above the track's threshold, pauses < 0.5 s bridged; \\`duckCurve(speaking, amount)\\` ramps down over 0.3 s *before* speech (look-ahead: we know the future) and up over 0.8 s after, as dB, sampled every 10 ms. Because it reads cached scans only, an edit's new curve takes milliseconds (AC-7's 1 s), and the export and the preview call the same \\`duckGain(curve, time)\\`. The curve is cached per (project sound edit, scans) and recomputed on change.\n\n**§4 Loudness and the limiter (new \\`engine/loudness.ts\\`, \\`engine/limiter.ts\\`, AC-8, AC-9).** \\`loudness.ts\\` is BS.1770-4: the K-weighting filters (the standard's two biquads at 48 kHz), 400 ms blocks with 75 % overlap, the −70 LUFS absolute and −10 LU relative gates, channel weights 1.0 for L / R, and true peak by 4× oversampling (the standard's 48-tap polyphase FIR); a streaming \\`LoudnessMeter\\` takes window after window. \\`limiter.ts\\` is a streaming true-peak limiter: 5 ms look-ahead, instant attack to hold the oversampled peak at −1 dBTP, 100 ms release, state carried across windows (Q13). **Measuring the mix** (\\`measureMix(job)\\` in \\`videoExport.ts\\`, sharing \\`mixWindow\\`): render the mix window by window (sound only, no pictures), feed the meter, keep nothing else. The loudness gain is \\`target − measured\\` (clamped to ±24 dB); when that gain plus the measured true peak goes over −1 dBTP by more than 1 dB, a second pass measures *with* gain and limiter and corrects the gain once, so heavy limiting still lands within 0.5 LU (D4). **The panel readout** (AC-9) runs \\`measureMix\\` in the background 500 ms after the last sound edit (cancelled by the next), and stores \\`{ key, lufs, peak, gain, reduction }\\` keyed by a hash of the sound plan; **the export** reuses it when its key matches, else measures first (\"Measuring loudness…\"). Loudness Off: no gain, no limiter, the mix exactly as today.\n\n**§5 The export (\\`engine/videoExport.ts\\`, \\`state/videoExportJob.ts\\`, AC-12).** \\`ExportJob\\` carries the sound clips with their files (\\`ExportAudio\\` already has a file), the tracks' audio fields, the duck curves and the loudness gain. \\`mixWindow\\` schedules each source's gain as one \\`setValueCurveAtTime\\` of the full chain (\\`gainCurve\\` over \\`mixGain\\`), then the window's output (still 10 s, interleaved with the frames, so memory is the same whatever the number of tracks) passes through the loudness gain and the streaming limiter before \\`SoundFeed\\` adds it; the limiter's 5 ms delay is compensated by starting the mix 5 ms early and flushing at the end, so sound stays on the frame.\n\n**§6 The preview (\\`components/studio/previewSound.ts\\`, \\`VideoStage.tsx\\`, D3, AC-7, AC-9).** Element volume can't go over 1 or carry curves, so the preview routes its <audio> elements through **one \\`AudioContext\\`**: each element → \\`MediaElementAudioSourceNode\\` → its gain (the chain from \\`mixGain\\`, set each tick with a ≤ 1-frame ramp) → the master gain (loudness gain) → an \\`AudioWorkletNode\\` running \\`limiter.ts\\` → the speakers. \\`soundPlan\\` (preview) learns sound clips: those under the playhead on unmuted (and, when any is soloed, soloed) audio tracks play, the next within 2 s are loaded, as video clip sound is today; the music's separate element in VideoStage goes. Solo is preview-only (Q2). The context is resumed on Play (a user gesture). The worklet loads from a same-origin module URL (CSP \\`script-src 'self'\\` covers worklets; a spike proves it in the production build and Electron, risk 1).\n\n**§7 State and undo (\\`state/videoStore.ts\\`, new \\`state/videoSound.ts\\`, \\`state/videoMedia.ts\\`, \\`state/videoTracks.ts\\`, AC-10).** \\`state.music\\` becomes \\`state.sounds: VSound[]\\` (an \\`AudioClip\\` with its \\`file\\`, \\`url\\` and media id, D1) and \\`projectOf\\` passes them as \\`audio\\`; \\`state.loudness\\` (\\`'off' | number\\`) and the per-track fields live on \\`tracks\\`. \\`videoSound.ts\\` has the actions (\\`addSoundFiles\\`, \\`moveSound\\`, \\`trimSound\\`, \\`splitSound\\`, \\`duplicateSound\\`, \\`deleteSound\\`, \\`setSoundVolume\\`, \\`setSoundFades\\`, \\`setTrackVolume\\`, \\`setTrackRole\\`, \\`setDucking\\`, \\`setLowerMusicUnderVoice\\`, \\`setLoudness\\`), each one \\`change()\\` with a coalescing key so a drag is one step; \\`updateMusic\\` (not recorded for undo today) goes. \\`setMusicFile\\` becomes \\`addSoundFiles\\` (same formats and 100 MB limit, Q4) and starts the scan instead of \\`measurePeaks\\`; video imports start a scan too. A seeded property test runs 1,000 random sound clip, track, ducking and picture edits and checks AC-10's invariants after each.\n\n**§8 Saving (\\`engine/projectDoc.ts\\`, \\`engine/projectGate.ts\\`, AC-3, AC-11).** \\`toDocument\\` writes the new fields only when set; \\`readAudio\\` reads \\`out\\`, fades, keys and \\`name\\` (clamped; overlapping clips on a track dropped with the reason, later one first to go), \\`readTracks\\` the audio fields and keeps at most 8 audio tracks; the document's \\`loudness\\` is read with its range, missing = Off (Q12: pre-208 projects stay Off; new projects start at −14 in the store). 2.x documents go through \\`fromSequence\\` as today.\n\n**§9 UI (\\`VideoPanels.tsx\\` → new \\`AudioPanel.tsx\\`, new \\`SoundRow.tsx\\`, \\`TrackHead.tsx\\`, \\`ClipInspector.tsx\\` → new \\`SoundInspector.tsx\\`, \\`PictureRow.tsx\\`, \\`Timeline.tsx\\`, \\`36-media-studio.css\\`, AC-13, AC-14).** The Audio panel: Add sound (several files), the tracks (role, volume, ducking), **Lower music under voice**, the Loudness setting and readout with the limiter warning. Audio track headers: name, Mute, Solo, Lock, volume, role, ducking; **Add audio track**. \\`SoundRow\\` replaces \\`MusicRow\\`: one bar per sound clip with name, waveform canvas, fade handles at its top corners, the volume line, the ducking curve, dimmed past the video's end; drag, trim and the edit tools go through \\`timelineDrag.ts\\` as picture clips do. Video clips draw their waveform under the filmstrip. The sound clip inspector: volume (0–200 %), fades, its volume keyframes (205's \\`KeyframeButton\\` / lane), Play to the end of the video, source. Pure helpers (waveform columns, bar geometry, announcements) are unit-tested; the UI is checked in 290."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "\\`\\`\\`ts\n// engine/timeline.ts\nexport interface AudioClip {\n  id: string; track: string; start: number;\n  in: number; out?: number;            // out missing only on a toEnd clip\n  volume: number;                      // 0–2 (Q, AC-2)\n  fadeIn?: number; fadeOut?: number;   // 0–10 s; missing = 0\n  keys?: Keyframes<'volume'>;          // 205, values 0–2\n  toEnd: boolean; srcDur: number; name?: string;\n}\n\n// engine/tracks.ts\nexport type SoundRole = 'music' | 'voice' | 'effects';\nexport interface Ducking { amount: number /* dB 3–30 */; threshold: number /* dBFS −60…−20 */ }\ninterface Track { /* … */ role?: SoundRole; volume?: number; solo?: boolean; voice?: false; duck?: Ducking }\nexport const DUCK_DEFAULTS: Ducking = { amount: 12, threshold: -40 };\nexport function addAudioTrack(tracks: Track[]): TrackAdded | Refusal;\n\n// engine/soundClips.ts\nexport function addSound(audio: AudioClip[], tracks: Track[], clip: NewSound, at: number, ctx: SoundCtx): SoundEdit;\nexport function trimSound(audio: AudioClip[], id: string, edge: 'start' | 'end', by: number, ctx: SoundCtx): SoundEdit;\n// moveSound, splitSound, duplicateSound, deleteSound, slipSound, rollSound, rippleSound, slideSound, setFades …\nexport function soundLength(clip: AudioClip, videoEnd: number): number;\n\n// engine/mixGain.ts\nexport function chainGainAt(source: SoundSource, tracks: Track[], ducks: DuckCurves, time: number): number;\n\n// engine/soundScan.ts\nexport interface SoundScan { rate: 100; peaks: Uint8Array /* dB steps */; rms: Float32Array /* dBFS per 50 ms */; dur: number }\nexport class ScanBuilder { constructor(sampleRate: number); add(channels: Float32Array[]): void; finish(): SoundScan }\n\n// engine/ducking.ts\nexport function speaking(level: Float32Array, threshold: number, bridge = 0.5): Uint8Array; // per 50 ms step\nexport function duckCurve(speaking: Uint8Array, amount: number): Float32Array;          // dB per 10 ms\nexport function duckGain(curve: Float32Array, time: number): number;\n\n// engine/loudness.ts\nexport class LoudnessMeter { constructor(sampleRate: number); add(left: Float32Array, right: Float32Array): void; integrated(): number; truePeak(): number }\nexport const LOUDNESS_PRESETS = { youtube: -14, quiet: -16 } as const; // range −24…−9\n\n// engine/limiter.ts\nexport class Limiter { constructor(sampleRate: number, ceilingDb = -1, lookahead = 0.005, release = 0.1); process(left: Float32Array, right: Float32Array): void; reduction(): number }\n\n// state/videoStore.ts\ninterface VSound extends AudioClip { media: string; file: Blob; url: string }\ninterface VState { /* … */ sounds: VSound[]; loudness: 'off' | number }\n\\`\\`\\`"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **One chain, two players.** `chainGainAt` is the only place gains are multiplied; the export samples it into `setValueCurveAtTime` (5 ms steps), the preview sets it each tick. `limiter.ts` is plain TypeScript run by the export directly and by the preview's worklet, so both limit alike.\n- **Scan once, compute the rest.** Waveforms, voice level and ducking read the per-file scan; nothing is decoded again for an edit. Voice level is a power sum of scaled RMS (sources assumed uncorrelated, which a voice under music is); loudness is measured on the real mix, not estimated (D4).\n- **BS.1770-4 to the letter**, tested against EBU Tech 3341 signals 1–5 synthesised in the test (stereo 1 kHz sines and the gating cases): integrated within 0.1 LU, true peak by the standard's 4× polyphase FIR.\n- **Streaming everything:** the scanner, `measureMix`, the meter and the limiter take one chunk or window at a time with state carried, so memory is per window, never per project (AC-12).\n- **Old projects untouched:** missing fields mean today's behaviour; `audioPlan` lists clip sounds first as today; Loudness Off skips the gain and limiter, so 201–207 fixtures give bit-identical export inputs (AC-3, AC-16).\n- **Announcements** through the timeline's live region, as 202–207 do (\"Audio 2: Whoosh, fade in 0.5 s\").\n- **No new dependency** (Constitution III): Mediabunny (already used) decodes; filters, meter, limiter and FIR are ~400 lines of our own."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Proof | Test |\n| --- | --- | --- |\n| AC-1 | unit | add / rename / reorder / mute / solo / lock / delete audio tracks, the 8 limit on web and desktop, the last track kept, default roles (`tests/unit/engine/tracks.test.ts`) |\n| AC-2 | unit | every sound clip edit and its refusals (overlap, past the source, locked, fades too long), add at the playhead / first track with room / new track (`tests/unit/engine/soundClips.test.ts`) |\n| AC-3 | unit | 2.x and 201–207 fixtures: `audioPlan` and export sources equal the old lists; byte-identical documents (`timeline.test.ts`, `tests/integration/engine/videoExport.test.ts`) |\n| AC-4 | unit | `ScanBuilder` on tone bursts at known times / levels: peaks within 1 dB and 10 ms; waveform columns through speed and gains; 3 h scan size < 10 MB (`soundScan.test.ts`) |\n| AC-5 | unit | `chainGainAt` at 1,000 times vs a hand-computed chain within 0.01 dB; no curve step > 5 ms (`mixGain.test.ts`) |\n| AC-6 | unit | speech fixture 2.0–5.0 s and 8.0–8.6 s: the curve every 10 ms within 0.1 dB; pauses < 0.5 s bridged; no voice = unchanged; roles and Counts as voice (`ducking.test.ts`) |\n| AC-7 | unit | after moving / trimming / muting a voice clip the curve changes, computed from cached scans in < 1 s for a 10-minute project; export and preview read the same function (`ducking.test.ts`, `previewSound.test.ts`) |\n| AC-8 | unit | EBU Tech 3341 signals 1–5 within 0.1 LU; a fixture mix exported (fake encoder) measures the target within 0.5 LU and ≤ −1 dBTP at 4×; Off leaves samples as before (`loudness.test.ts`, `limiter.test.ts`, `videoExport.test.ts`) |\n| AC-9 | unit | the readout text from a measurement; the 6 dB warning; the background measurement is cancelled by a new edit and keyed by the plan hash; the preview's master gain = the export's (`tests/integration/state/video.test.ts`) |\n| AC-10 | unit | undo-step counts per action, a drag one step; the seeded 1,000-edit property test (`tests/integration/state/video.test.ts`) |\n| AC-11 | unit | ≥ 20 malformed documents, round trip, clamping, overlap drops with reasons, 8-track cap (`timeline.test.ts` gate tests) |\n| AC-12 | unit | an 8-track fixture: export sources and gain curves equal the expected list; window memory independent of track count (`videoExport.test.ts`) |\n| AC-13, AC-14 | e2e (290) | the Audio panel, track headers, sound rows, inspector, keyboard, announcements, axe, 360 px |\n| AC-15 | manual (290) | the listening test and YouTube's content loudness, noted in `specs/testing-strategy.md` |\n| AC-16 | timing (290) | 4-track Reel export vs one song, preview drops, 10-minute waveform time; 207 fixtures unchanged |\n| AC-17 | review | the docs task |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer (accepted 2026-10-18: D1–D6 as recommended)",
+        "markdown": "- **D1 — The song becomes a sound clip.** `state.music: VMusic` is replaced by `state.sounds: VSound[]`; the music's own <audio> element, `musicClips()`, `updateMusic` and `MusicRow` go. *Recommended*: one model for every sound; the alternative (keeping `music` beside a new list) doubles every rule.\n- **D2 — 8 audio tracks on the web too.** `TRACK_LIMITS` has 4 sound tracks on the web today (201); the spec (Q1) says 8 everywhere. Audio tracks cost no decoders by themselves (the videos-at-once limit still bounds video clips). *Recommended*: raise the web to 8; picture tracks stay 4 / 8.\n- **D3 — The preview through Web Audio.** Clip and sound elements go through one `AudioContext` (gains, master, limiter worklet) instead of `element.volume`, which can't pass 100 % or follow the duck curve exactly. *Recommended*; spike first (risk 1).\n- **D4 — Loudness measured on the real mix.** A sound-only pass before the export (or the panel's background measurement when still valid), plus one corrective pass only when the limiter would reduce more than 1 dB. *Recommended*: exact and cheap next to encoding pictures; the alternative (estimating from per-file scans) can be off by several LU for correlated sounds.\n- **D5 — One background scan per file**, in a module Worker, streamed with Mediabunny: peaks (100 / s) and 50 ms RMS, kept in memory per media id (not saved). *Recommended*; ducking and waveforms then cost no decoding per edit.\n- **D6 — Volume ranges.** Sound clips 0–200 % (with keys on 0–2); video clips' own sound stays 0–100 % as today (205 Q8). *Recommended*: the spec only asks 200 % for sound clips; widening video clips can come with \"Extract sound\" (Q15)."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); the e2e, listening and timing checks are listed in `290` (\"Deferred checks collected from the phase\": 208 AC-13, AC-14, AC-15, AC-16).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 208 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Spike",
+        "intro": "Risk 1 first: the preview's Web Audio graph and limiter worklet must work in the production build and the desktop app before §6 relies on them."
+      },
+      {
+        "title": "Audio model",
+        "intro": "Pure functions in `engine/` first (§1): tracks and sound clip edits."
+      },
+      {
+        "title": "Gain chain",
+        "intro": null
+      },
+      {
+        "title": "Scans and waveforms",
+        "intro": null
+      },
+      {
+        "title": "Ducking",
+        "intro": null
+      },
+      {
+        "title": "Loudness and limiter",
+        "intro": "BS.1770-4 and the limiter are tested against synthesised EBU Tech 3341 signals before the export uses them."
+      },
+      {
+        "title": "Export",
+        "intro": null
+      },
+      {
+        "title": "Store",
+        "intro": "The store migration (D1) lands before any UI change, proven by 201–207 fixtures giving the same `Project`."
+      },
+      {
+        "title": "Saving",
+        "intro": null
+      },
+      {
+        "title": "Preview",
+        "intro": null
+      },
+      {
+        "title": "Panel, timeline and inspector",
+        "intro": "Unit tests cover the pure helpers; the UI itself is checked in 290."
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T040",
+        "T041",
+        "T042",
+        "T050",
+        "T051",
+        "T052",
+        "T053",
+        "T060",
+        "T061",
+        "T070",
+        "T071",
+        "T072",
+        "T073",
+        "T080",
+        "T081",
+        "T090",
+        "T091",
+        "T100",
+        "T101",
+        "T102",
+        "T103",
+        "T104",
+        "T105",
+        "T110",
+        "T111",
+        "T112"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (throwaway, D3): an `AudioContext` with a `MediaElementAudioSourceNode` → gain (set to 1.5) → an `AudioWorkletNode` loaded from a same-origin module built by Vite, in `npm run build` + `vite preview` (production CSP) and in `npm run desktop:dev` (`app://` CSP); `preservesPitch` and `playbackRate` still work through the graph; the context resumes on Play. Record what loads and how (the worklet URL pattern), or the fallback (risk 1).",
+          "section": "Spike",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/components/studio/limiter.worklet.ts"
+          ],
+          "test": "recorded in the result note (no committed test)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** Spike passed on both platforms, no fallback needed. A pass-through AudioWorklet imported with Vite's `?worker&url` builds to its own asset (assets/limiter.worklet-<hash>.js, 0.37 kB) referenced by a same-origin URL. In the production build under vite preview (production CSP, Chrome) and in the desktop app (app://chitthi/index.html, npm run build + Electron via Playwright _electron): addModule ok, no console errors; <audio> (blob: WAV, 440 Hz at 0.5) → MediaElementSource → gain 1.5 → worklet → destination gave a peak of 0.75 at 48 kHz, so gains above 1 work; playbackRate 1.5 and preservesPitch stay set through the graph. AudioContext was running here because autoplay was allowed (Chrome flag; Electron's default); on the web without a gesture it starts suspended, so T090 resumes it on Play as planned. Spike code removed (src/dev/audioSpike.ts, the main.tsx hook, the pass-through worklet); the URL pattern and the Electron launch gotcha are in memory/learnings.md."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T010": {
+          "text": "Failing tests for audio tracks: `addAudioTrack` (“Audio N”, role Effects, after the last audio track), 8 audio tracks on web and desktop (D2), the ninth refused with the reason; rename; reorder only among audio tracks; Mute, Solo, Lock through `patchTrack`; delete (the last audio track refused); track `role`, `volume` (0–2), `voice`, `duck` defaults; picture track limits unchanged.",
+          "section": "Audio model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/unit/engine/tracks.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/tracks.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/engine/tracks.test.ts (new, 15 tests): addAudioTrack (A2 'Audio 2', role effects, after the last audio track, lowest free number, 8 on web and desktop, the ninth refused), picture limits unchanged; soundRole / trackVolume / countsAsVoice defaults; setAudioTrack (role, volume clamped 0-2, voice, duck clamped 3-30 dB / -60..-20 dBFS, duck null; Voice tracks can't duck, becoming Voice drops ducking; picture and unknown tracks refused; same array when unchanged); Solo on audio tracks only, Solo off drops the field; rename; moveTrack among audio tracks; deleteTrack with sound clips, the last audio track and locked tracks refused, Music deletable when another is left. timeline.test.ts: web limit now 4 picture + 8 sound. 16 fail until T011."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T011": {
+          "text": "Audio tracks: `SoundRole`, `Ducking`, `DUCK_DEFAULTS`, the new `Track` fields, `addAudioTrack`, audio in `moveTrack` / `deleteTrack` / `patchTrack` (solo), `TRACK_LIMITS` audio 8 everywhere; `AudioClip` gains `out`, `fadeIn`, `fadeOut`, `keys`, `name` (§1).",
+          "section": "Audio model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/engine/tracks.ts",
+            "src/engine/timeline.ts",
+            "tests/unit/engine/tracks.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/tracks.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** engine/tracks.ts: Track gains role / volume / solo / voice / duck (written only when set, so old documents are unchanged); SoundRole, Ducking, DUCK_DEFAULTS (12 dB, -40 dBFS), DUCK_RANGES; addAudioTrack (A<n> 'Audio n', role effects, after the last audio track); soundRole, trackVolume, countsAsVoice; setAudioTrack (clamps, Voice tracks can't duck, same array when unchanged); patchTrack's Solo for audio tracks only; moveTrack among tracks of the same kind (moveTarget); deleteTrack takes and returns the sound clips, refuses the last sound track; TRACK_LIMITS audio 8 on the web too (D2). engine/timeline.ts: AudioClip gains out, fadeIn, fadeOut, keys (Keyframes<'volume'>), name. Updated three older expectations to the new rules (web limit text in two timeline.test.ts places; video.test.ts: deleting the only sound track now says 'at least one sound track' instead of 'Only overlay'). Breaking the web limit back to 4 fails tracks.test.ts. npm run check green: 1,968 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T012": {
+          "text": "Failing tests for sound clip edits: `addSound` (at the playhead on the chosen track, else the first with room, else a new track below 8, else refused), `moveSound`, `trimSound` (start and end; a `toEnd` clip's end trim turns `toEnd` off, Q7), `splitSound`, `duplicateSound`, `deleteSound`, `soundLength` (`toEnd` to the video's end, capped by the source); refusals with the reason: overlap on the track, past the source's start or end, locked track.",
+          "section": "Audio model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/engine/soundClips.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundClips.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** tests/unit/engine/soundClips.test.ts (new, 13 tests): soundLength (out - in; toEnd to the video's end capped by the source, 0 past the end); addSound (playhead on the chosen track at 100 %, first track with room when the chosen one is full or locked, a new track when none has room, refused with 'No room' at 8 tracks; a song longer than the video as the first clip on the Music track plays to the end, Q7); moveSound (time, another track, start clamped at 0, overlap refused); trimSound (both edges within the source with the reason, SOUND_MIN floor, neighbour refused, start trims shift volume keys, end trim of a toEnd clip turns it off at its length); splitSound (parts, fades kept on the outer ends, keys split, too near an edge refused); duplicateSound (right after, refused without room); deleteSound; locked tracks and unknown clips refused; each track kept in start order. Fails until T013 (module missing)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T013": {
+          "text": "Implement `engine/soundClips.ts`: add, move, trim, split, duplicate, delete, `soundLength`, refusal texts shared with `edits.ts` (§1).",
+          "section": "Audio model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/engine/soundClips.ts",
+            "src/engine/edits.ts",
+            "tests/unit/engine/soundClips.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundClips.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** src/engine/soundClips.ts (new): SOUND_MIN 0.1 s (shorter than pictures' 0.3 s: a click or whoosh can be short), SoundCtx { videoEnd, locked }, soundLength (toEnd to the video's end capped by the file), addSound (chosen track, else first sound track with room, else a new track via addAudioTrack; a first clip on a Music-role track longer than the rest of the video plays to the end, Q7; new clips at 100 %), moveSound, trimSound (source edges refused with the reason, SOUND_MIN floor clamps, start trims shift keys, end trim of a toEnd clip fixes its out), splitSound (fades on the outer ends, splitKeys), duplicateSound, deleteSound; every edit refuses locked tracks and overlaps; clips kept in start order. 14/14 soundClips tests; making the overlap check always pass fails 5 of them. npm run check green: 1,982 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T014": {
+          "text": "Tests and code for the rest of the tools on sound clips: `slipSound` (on its source), `rollSound`, `rippleSound`, `slideSound` within its track (Q5), `setFades` (0–10 s each, together ≤ the clip, refused otherwise); Snap targets gain sound clip edges (`timeSnap.ts`).",
+          "section": "Audio model",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/engine/soundClips.ts",
+            "src/engine/timeSnap.ts",
+            "tests/unit/engine/soundClips.test.ts",
+            "tests/unit/engine/timeSnap.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundClips.test.ts tests/unit/engine/timeSnap.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** engine/soundClips.ts: slipSound (another part of the file, clamped; a toEnd clip keeps toEnd), rollSound (the cut with the clip touching it after; both stay >= SOUND_MIN and within their files), rippleSound (edge trim in place, later clips on the same track move by the change, other tracks don't), slideSound (between clips touching both sides), setFades (0-10 s each, 0 removes, together <= the clip), FADE_MAX; trims, Roll, Ripple and Slide shrink fades that no longer fit (fitFades). engine/timeSnap.ts: sound clip edges are snap targets (SnapSkip.sound, an audio parameter). Also, at the maintainer's request, the 208 types now state their relations with utility types (coding-standards 'Utility types for real relations'): AudioTrackSettings split out of Track (Track extends it), TrackSwitches and AudioTrackPatch extend Pick<>s, SoundCtx extends Pick<EditCtx, 'locked'>, SoundDone / SoundEdit as EditDone / Edit, SoundAdded extends SoundDone, NewSound = Pick + Required<Pick> of AudioClip, FadeChange = Pick, AudioClip.keys = Keyframes<Extract<ClipKeyProp, 'volume'>>. 23/23 soundClips tests; Ripple without moving later clips fails one. npm run check green: 1,991 unit tests."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T020": {
+          "text": "Failing tests: `audioPlan` lists every sound clip of unmuted audio tracks after the clip sounds, in track order, with fades, keys, `track` and `role`; sound past the video's end is cut (Q6) and never lengthens `projectLength`; 2.x and 201–207 fixtures give exactly the old list (migrated music: `toEnd`, min(1.5 s, a third) fade-out). `chainGainAt` (clip volume × fades × keys on 0–2 × track volume × duck) at 1,000 times against a hand-computed chain within 0.01 dB; `gainCurve` over it has no step longer than 5 ms.",
+          "section": "Gain chain",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-5"
+          ],
+          "files": [
+            "tests/unit/engine/mixGain.test.ts",
+            "tests/unit/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/mixGain.test.ts tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** failing tests: new `mixGain.test.ts` (SOUND_RANGES 0–2 vs video 0–1, `trackGain`, `chainGainAt` at 1,000 seeded times vs the chain by hand within 0.01 dB with fades and keys past 1 and 2, `chainCurve` ≤ 5 ms steps); `timeline.test.ts` sound clips in `audioPlan` (after clip sounds, in track order, fades / keys / track / role, cut at the video's end Q6, muted tracks out, Solo ignored by the export Q2, migrated music's min(1.5 s, a third) fade-out). The legacy plan's music is labelled `track: 'A1', role: 'music'`; its timing and gains stay 2.x's."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T021": {
+          "text": "Implement §2: sound clips in `audioPlan`, `SoundSource.track` / `role`, `SOUND_RANGES` (volume 0–2, D6) in `keyframes.ts`, `engine/mixGain.ts` (`chainGainAt`, `trackGain`; `duckGain` stubbed to 1 until T041).",
+          "section": "Gain chain",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-5"
+          ],
+          "files": [
+            "src/engine/soundPlan.ts",
+            "src/engine/keyframes.ts",
+            "src/engine/mixGain.ts",
+            "tests/unit/engine/mixGain.test.ts",
+            "tests/unit/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/mixGain.test.ts tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `audioPlan` adds each unmuted audio track's sound clips after the clip sounds, track by track (`soundClipSound`: fades, keys, `track`, `role`; cut at the video's end, a clip starting after it dropped; `toEnd` without its own fade-out keeps min(1.5 s, a third)); `SoundSource.track` / `role` only on sound clips, so 201–207 plans differ only by the music's label. `SOUND_RANGES` (volume 0–2) used by `sourceGainAt` for sources with a role; `sampleCurve` shared by `gainCurve` and the new `engine/mixGain.ts` (`trackGain`, `duckGain` stub = 1, `chainGainAt`, `chainCurve`). Dropping the track volume fails 4 mixGain tests. Check green (2,004)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T030": {
+          "text": "Failing tests for `ScanBuilder`: tone bursts at known times and levels fed in uneven chunks at 44.1 and 48 kHz give peaks (100 / s) within 1 dB and 10 ms of the expected list and 50 ms RMS within 0.1 dB; stereo folds to the louder channel for peaks and to the mean power for RMS; a 3-hour scan is under 10 MB.",
+          "section": "Scans and waveforms",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "tests/unit/engine/soundScan.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundScan.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** failing tests in new `soundScan.test.ts`: 1 kHz bursts (0.5, 0.1, 1.0) at 44.1 and 48 kHz in seeded uneven chunks (1–5,000 frames): 100 peaks / 20 RMS steps per second, peaks within 1 dB and silence at the floor, edges within 10 ms, RMS within 0.1 dB (sine −3.01 dB), same scan whatever the chunks; stereo folds to the louder channel / mean power; 3 h under 10 MB; an empty file."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T031": {
+          "text": "Implement `engine/soundScan.ts` (`SoundScan`, `ScanBuilder`, streaming, peaks as Uint8 dB steps, RMS Float32 dBFS) (§3).",
+          "section": "Scans and waveforms",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/soundScan.ts",
+            "tests/unit/engine/soundScan.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundScan.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `engine/soundScan.ts`: `ScanBuilder` streams chunks into peaks (100 / s, Uint8 in 255 steps from −96 dBFS, `peakDb`) and 50 ms RMS (Float32 dBFS, −120 floor), bins on whole frames so chunking never changes the scan, stereo to the louder channel / mean power; growing typed arrays trimmed at `finish`. A 3 h scan is 1.94 MB. Counting RMS per frame instead of per sample fails the stereo test. 13 tests; check green (2,017)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T032": {
+          "text": "Tests and code for `waveformColumns(scan, clip, gain, from, to, columns)`: the source part through `sourceAt` (207 speeds and trims), scaled by the chain gain at each column; a silent clip (`soundMuted`, muted track) gives a flat line and its reason.",
+          "section": "Scans and waveforms",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/soundScan.ts",
+            "tests/unit/engine/soundScan.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundScan.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `waveformColumns(scan, clip, gain, from, to, columns)` in `engine/soundScan.ts`: each column the loudest scanned peak of the source part it plays (`sourceAt` for video clips, `in + local` for sound clips) × the chain gain at the column's middle; `gain` is a function or `{ silent }` (a muted track), video clips also silent by `soundMuted`, flat with the reason. 5 tests (part from the in point, gain scaling, 2×, reversed and muted flat, empty); mapping without `sourceAt` fails the 2× test. Check green (2,022)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T033": {
+          "text": "The background scanner (D5): `state/soundScan.ts` keeps scans per media id, scans one file at a time at low priority in `soundScan.worker.ts` (Mediabunny `AudioBufferSink` streaming), drops a scan with its media, reports progress; started on sound and video import. Integration test with a fake sample source: chunks folded in order, one file at a time, cancel on removal, the import doesn't wait for it.",
+          "section": "Scans and waveforms",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/state/soundScan.ts",
+            "src/state/soundScan.worker.ts",
+            "src/state/videoMedia.ts",
+            "tests/integration/state/soundScan.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/soundScan.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `state/soundScan.ts`: a queue scanning one file at a time after the importing task (`setTimeout`), each media once, progress and scans in an immutable snapshot (`scanSnapshot` / `subscribeScans`), `dropScan` aborts a running scan or removes a waiting one, `clearScans`; media id = object URL (D-053). `soundScan.worker.ts` streams with Mediabunny's `AudioSampleSink` (no `AudioBuffer` in workers) into the engine's new `scanSamples`; scans sent back transferred. Started on video import (`addMedia`) and music import; dropped when the music is replaced or removed. 7 integration tests with a fake decoder; letting two scans run at once fails one. Check green (2,029); build: worker its own 348 KB chunk, entry 314 KB."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T040": {
+          "text": "Failing tests: `voiceLevel` (power sum of voice sources' scanned RMS × chain gain without ducking; Voice tracks plus video and overlay clip sound; a track with Counts as voice off left out, Q10); `speaking` (threshold, pauses < 0.5 s bridged); `duckCurve` (down over 0.3 s before speech, up over 0.8 s after, amount 3–30 dB); for speech at 2.0–5.0 s and 8.0–8.6 s the ducked track's gain every 10 ms within 0.1 dB of the expected curve; no voice = unchanged; only tracks with `duck` are lowered (Music / Effects).",
+          "section": "Ducking",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "tests/unit/engine/ducking.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/ducking.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** failing tests in new `ducking.test.ts`: `voiceLevel` (power sum × gain without ducking, Voice tracks plus video / overlay clip sound, Music / Effects left out, Counts as voice off left out, the clip's place and in point, the floor where silent); `speaking` (threshold, a 0.45 s pause bridged, 0.5 s not, ends not); the duck curve for speech at 2.0–5.0 s (with a bridged 0.3 s pause) and 8.0–8.6 s every 10 ms within 0.1 dB at 12, 3 and 30 dB; no voice = 1; only ducked Music / Effects tracks lowered through `chainGainAt`."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T041": {
+          "text": "Implement `engine/ducking.ts` and wire `duckGain` into `chainGainAt` (§3).",
+          "section": "Ducking",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-6"
+          ],
+          "files": [
+            "src/engine/ducking.ts",
+            "src/engine/mixGain.ts",
+            "tests/unit/engine/ducking.test.ts",
+            "tests/unit/engine/mixGain.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/ducking.test.ts tests/unit/engine/mixGain.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `engine/ducking.ts`: `voiceLevel` (per 50 ms step at its middle, scanned RMS × `sourceGainAt` × track volume, power-summed; clip sounds mapped to their track through the project), `speaking` (pauses ≤ 9 steps bridged), `duckCurve` (dB every 10 ms, 0.3 s down / 0.8 s up, overlaps keep the lower), `duckGain` (dB linear between points), `duckedTracks`; `mixGain.duckOf` reads the source's track curve in `chainGainAt` / `chainCurve`. Bridging 0.5 s pauses fails the bridge test. Check green (2,040)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T042": {
+          "text": "Duck curves follow the edit: `duckCurves(project, scans)` cached by the sound plan's key; moving, trimming, muting or changing a voice clip's volume changes the curve, computed from cached scans in under 1 s for a 10-minute, 8-track fixture; a voice whose scan isn't ready yet is reported (“measuring”).",
+          "section": "Ducking",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7"
+          ],
+          "files": [
+            "src/engine/ducking.ts",
+            "tests/unit/engine/ducking.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/ducking.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `duckCurves(project, plan, scanFor)` → `{ curves, measuring }`: one voice level, each ducked track's own threshold and amount; a one-entry cache keyed by the video's length, the voice sources (with track volume and scan readiness) and the ducked tracks' settings, so an unchanged edit returns the same object. `DuckCurves` moved to `ducking.ts` (re-exported by `mixGain.ts`). Tests: move, trim, mute and volume change the curve; measuring voices reported and silent until ready; nothing without a ducked track; 10-minute 8-track fixture (120 voice clips) in 20 ms (< 1 s). Leaving scan readiness out of the key fails the measuring test. Check green (2,046)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T050": {
+          "text": "Failing tests for `LoudnessMeter`: EBU Tech 3341 signals 1–5 synthesised in the test give integrated loudness within 0.1 LU; the gates (−70 LUFS absolute, −10 LU relative); true peak at 4× oversampling on inter-sample peaks; fed in uneven windows gives the same result as at once.",
+          "section": "Loudness and limiter",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "tests/unit/engine/loudness.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/loudness.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** failing tests in new `loudness.test.ts`: EBU Tech 3341 signals 1–5 synthesised (stereo 1 kHz sines at their dBFS) at 48 kHz within 0.1 LU, 1–2 at 44.1 kHz; −∞ for silence and under −70 LUFS; one channel 3 dB under; uneven windows exactly equal to one feed (integrated and true peak); true peak of an fs/4 sine at 45° within Tech 3341's +0.2 / −0.4 dB where the samples read 3 dB under; `Oversampler` per-sample peaks; 1 kHz true peak = peak; `LOUDNESS_PRESETS` and `LOUDNESS_RANGE`."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T051": {
+          "text": "Implement `engine/loudness.ts` (K-weighting biquads, 400 ms blocks with 75 % overlap, gating, the 4× polyphase FIR, `LOUDNESS_PRESETS`) (§4).",
+          "section": "Loudness and limiter",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/engine/loudness.ts",
+            "tests/unit/engine/loudness.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/loudness.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `engine/loudness.ts`: K-weighting biquads derived for the rate (libebur128's prototypes, the standard's at 48 kHz), 100 ms steps into 400 ms blocks (75 % overlap), −70 LUFS and −10 LU gates, −0.691 offset; true peak through `Oversampler` (BS.1770-4's 48-tap, 4-phase FIR, a doubled ring buffer), exported for the limiter; `LOUDNESS_PRESETS`, `LOUDNESS_RANGE`. Tech 3341 signals 1–5 pass within 0.1 LU; dropping the relative gate fails 3 and 4. Filter state in fields, not a per-sample array (the 15 tests 2.4 → 1.6 s). Check green (2,061)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T052": {
+          "text": "Failing tests for `Limiter`: no sample over −1 dBTP at 4× oversampling for hot sines, transients and noise; unchanged under the ceiling (bit-identical); 5 ms look-ahead delay reported and compensated; release 100 ms; state carried across windows gives the same output as one buffer; `reduction()` the most applied.",
+          "section": "Loudness and limiter",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "tests/unit/engine/limiter.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/limiter.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** failing tests in new `limiter.test.ts`: hot 1 kHz sine (+6 dBFS), fs/4 at 45°, clicks and a burst, loud stereo noise never over −1 dBTP at 4× (measured with the meter's `Oversampler`); under the ceiling bit-identical, delayed 5 ms (`delay` = 240 frames); a click lands exactly `delay` later; uneven windows equal one buffer; release over ~100 ms; `reduction()` 7.02 dB for +6 dBFS."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T053": {
+          "text": "Implement `engine/limiter.ts` (streaming true-peak limiter, shares the oversampler with `loudness.ts`) (§4).",
+          "section": "Loudness and limiter",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/engine/limiter.ts",
+            "tests/unit/engine/limiter.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/limiter.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `engine/limiter.ts`: per sample the gain the 4× oversampled peak (the meter's `Oversampler`, both channels) needs, held at its lowest over `delay` + 1 samples (monotonic queue), released exponentially (τ 100 ms, snapped to 1), averaged over `delay` − 11 samples, applied to the sound `delay` (240 at 48 kHz) samples late; 0.02 dB margin; exactly 1 (bit-identical) when nothing in the average is below 1; `flush()`, `reduction()`. 9 tests pass; an average longer than the hold lets peaks over −1 dBTP in all 4 hot signals. Check green (2,070)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T060": {
+          "text": "The export mixes with the chain: `ExportJob` carries sound clips with files, the tracks' audio fields and the duck curves; `mixWindow` schedules each source's `gainCurve` over `chainGainAt`. Tests with the fake audio context: an 8-track fixture's sources and gain curves equal the expected list; window memory doesn't grow with the track count; 201–207 fixtures unchanged (AC-3).",
+          "section": "Export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-12"
+          ],
+          "files": [
+            "src/engine/videoExport.ts",
+            "src/state/videoExportJob.ts",
+            "tests/integration/engine/videoExport.test.ts",
+            "tests/support/fakeAudio.ts"
+          ],
+          "test": "`npx vitest run tests/integration/engine/videoExport.test.ts tests/support/fakeAudio.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `ExportJob.ducks` (duck curves; the job builds them with `duckCurves` from the scans, `exportDucks` in `state/videoExportJob.ts`); `openAudio` (exported, injectable opener) opens every sound clip with its file, naming the file when it can't be read; `mixWindow` (exported, takes the tracks and ducks) schedules a source with a track volume ≠ 1 or a duck curve as one `chainCurve` (5 ms points), everything else exactly as before (ramps, or `gainCurve` for keys / transitions). New `tests/integration/engine/videoExport.test.ts` with `FakeOfflineContext` / `FakeParam` / `FakeBuffer` in `tests/support/fakeAudio.ts`: 8-track fixture's sources and every gain call equal the expected list, the ducked song 0.7 × 0.8 × −12 dB at 4 s; one 10 s context per window and decode requests ≤ the window for 1 and 8 tracks; a 207-style job's ramps and `gainCurve` unchanged. Ignoring track volume fails the 8-track test. Check green (2,074)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T061": {
+          "text": "`measureMix(job)` (sound-only windows into the meter); the loudness gain (target − measured, ±24 dB) and the streaming limiter after `mixWindow`, start 5 ms early and flushed at the end so the sound stays on the frame; the corrective second pass when predicted reduction > 1 dB (D4); a valid stored measurement reused by key. Tests: a fixture mix exported measures the target within 0.5 LU and ≤ −1 dBTP, also with heavy limiting; Off gives samples identical to before.",
+          "section": "Export",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/engine/videoExport.ts",
+            "tests/integration/engine/videoExport.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/engine/videoExport.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `planLoudness`: a stored `MixMeasure` reused when its `mixKey` (hash of the sound plan, the tracks' sound fields, the duck curves and the target) matches, else `measureMix` (sound only, window by window, only the meter kept); gain = target − measured (±24 dB); a second pass through gain + limiter corrects it once when the predicted reduction is > 1 dB (D4). `soundWindows` (shared by measuring and encoding) runs the `MasterStage` (gain → limiter, its 5 ms delay dropped at the start and flushed at the end: as many samples out as in); Off yields `mixWindow`'s own buffers. The fake `OfflineAudioContext` now renders (Web Audio set / ramp / curve rules). Tests: Off sample for sample as before; a −26 LUFS song exports at −14 ± 0.5 LU, ≤ −1 dBTP, 12 s × 48 kHz samples exactly; 10 ms clicks over the song (reduction > 6 dB) within 0.5 LU (−14.37), which without the corrective pass lands at −17.25; a loud song turned down; a stored measurement reused without decoding, a changed mix measured again (+6.02 dB). The export's sound moved to new `engine/exportSound.ts` (`videoExport.ts` 841 → 370 lines). Check green (2,079); build entry 314 KB."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T070": {
+          "text": "Store migration (D1): `state.music` → `state.sounds: VSound[]`, `state.loudness` (new projects −14, Q12); `projectOf` passes sounds as `audio`, giving the same `Project` as today for the 201–207 fixtures; `setMusicFile` → `addSoundFiles` (several files, same formats and 100 MB, Q4; first song on Music with `toEnd` when longer than the video, Q7); `musicClips`, `updateMusic`, `measurePeaks` removed; callers (VideoStage, TimelineBars, VideoPanels, timelineActions, the export job) compile against the new state.",
+          "section": "Store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/state/videoStore.ts",
+            "src/state/videoMedia.ts",
+            "src/state/videoExportJob.ts",
+            "src/components/studio/VideoStage.tsx",
+            "src/components/studio/TimelineBars.tsx",
+            "src/components/studio/VideoPanels.tsx",
+            "src/components/studio/timelineActions.ts",
+            "tests/integration/state/video.test.ts",
+            "tests/support/timeline.testkit.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts tests/support/timeline.testkit.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `state.music` → `state.sounds: VSound[]` (an `AudioClip` with `file` and `url`; the url is the media id, D-053) in the undo snapshot, `state.loudness` (−14 for new projects, Off for a loaded project without one, Q12); `projectOf` passes the sounds as `audio` (a migrated song gives 207's sound plan); new `state/videoSound.ts`: `addSoundFiles` (several files, type / 100 MB / unplayable refusals, the engine's `addSound`, one undo step, each scanned), `setSoundVolume` (0–2), `setSoundIn`, `removeSound`, `slipMusic` on the song, `songOf`; `musicClips`, `VMusic`, `setMusicFile`, `updateMusic`, `removeMusic`, `measurePeaks` removed. Callers moved: the export job (sounds, ducks by url, loudness), Slip keys, and, until T090 / T100 / T102, the Music panel, music row and stage play the song (no waveform until T102). 8 new store tests; restoring sounds from the state instead of the snapshot fails 2. Check green (2,087)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T071": {
+          "text": "`state/videoSound.ts` actions and `videoTracks.ts` audio track actions, each one `change()` with a coalescing key (a volume or fade drag one step): add / move / trim / split / duplicate / delete sound, volume, fades, track add / rename / reorder / mute / solo / lock / delete (asks first with clips), role, track volume, ducking, Lower music under voice, loudness. Tests count the undo steps of each.",
+          "section": "Store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/state/videoSound.ts",
+            "src/state/videoTracks.ts",
+            "tests/integration/state/video.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `state/videoSound.ts` gains `moveSoundTo`, `trimSoundEdge`, `splitSoundAt` (playhead), `duplicateSoundClip`, `setSoundFades`, `setLoudness` (Off or −24…−9, clamped); `state/videoTracks.ts` gains `addSoundTrack`, Solo through `setTrack`, `deleteTrack` with its sounds, `setTrackRole`, `setTrackVolume`, `setCountsAsVoice`, `setDucking`, `lowerMusicUnderVoice` / `setLowerMusicUnderVoice` (every Music track at the defaults, one step). The loudness is in the undo snapshot; drags share a key (move, trim, volume, fades, track volume, ducking amount, loudness value), switching ducking or loudness on / off is its own step. `LOUDNESS_PRESETS` / `LOUDNESS_RANGE` moved to `engine/loudnessTargets.ts` (the store doesn't load the meter). 8 tests count the undo steps of every action; giving ducking's on / off the drag key fails 2. Check green (2,095)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T072": {
+          "text": "Seeded property test: 1,000 random sound clip, track, ducking and picture edits; after each, no overlapping sound clips on a track, no clip outside its source, no fade longer than its clip, at most 8 audio tracks.",
+          "section": "Store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "tests/integration/state/video.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** the maintainer chose option A (D-056): a Play to the end clip plays to the end of the video or to the next sound on its track, whichever is first. `soundLength(clip, videoEnd, audio)` takes the clips (every caller passes them: edits, the validator, snapping, the preview, the UI); `audioPlan` caps the same way (a lone toEnd song unchanged, AC-3); `isFree` measures a toEnd clip with the edited clip in its new place, so a sound moved after its start shortens it, while Add sound's own track choice keeps the old room check and never cuts a song; moved to or past the video's end it turns toEnd off with the length it had; turning toEnd on is always allowed. The seeded 1,000-edit property test is unskipped and passes (no overlaps, no clip outside its file, no fade longer than its clip, ≤ 8 tracks, > 400 edits applied); removing the next-sound cap fails it. 3 new engine tests, 1 plan test; spec Q7 extended. Check green (2,176, none skipped)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-19"
+        },
+        "T073": {
+          "text": "The background loudness measurement (§4): 500 ms after the last sound edit, cancelled by the next, stored as `{ key, lufs, peak, gain, reduction }`; `loudnessReadout(measure, target)` (“−18.4 LUFS, peak −2.1 dBTP; the export will be turned up 4.4 dB”, the limiter warning over 6 dB, “measuring”). Tests: text, cancellation, key reuse, the preview's master gain equals the export's gain.",
+          "section": "Store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/state/videoSound.ts",
+            "src/engine/loudness.ts",
+            "tests/integration/state/video.test.ts",
+            "tests/unit/engine/loudness.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/video.test.ts tests/unit/engine/loudness.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `watchLoudness()` (state/videoSound.ts): watches the store and the scans; 500 ms after the last change to sounds, tracks, clips, loudness or scans (and once at the start) it measures through `measureIO.measure` (default: the export module's new `measureLoudness`, loaded on demand, which reuses the stored measurement when `mixKey` matches), a newer change aborts it and its late result is dropped; view changes (playhead, selection) and Off don't measure. `state.measure` / `state.measuring` (not saved, not stale-making); `subscribeVideo`; `masterGainDb` = the stored gain, which the export reuses (`soundJob` in videoExportJob.ts builds one sound job for both). `loudnessReadout` in `engine/loudnessTargets.ts` (“−18.4 LUFS, peak −2.1 dBTP; the export will be turned up 4.4 dB”, turned down / keeps, the 6 dB limiter warning, measuring, nothing to measure, Off). 3 readout + 4 store tests; letting a cancelled result land fails the cancel test. Check green (2,103 + 1 skipped); entry 314 KB."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T080": {
+          "text": "Failing gate tests: at least 20 malformed documents (bad volumes, fades, keys, roles, ducking, loudness, overlapping clips, unknown tracks, a ninth audio track) never throw, are clamped or dropped with the reason; a project with every case round-trips document → validator → document equal; 2.x and 201–207 documents byte-identical.",
+          "section": "Saving",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-11"
+          ],
+          "files": [
+            "tests/unit/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** failing gate tests in `timeline.test.ts` (‘sound in the document’): 26 malformed documents (sound volumes over / under / text, out points past the file or before in, missing out, fades over 10 s / negative / together too long / text, a name not text, volume keys over 200 %, keys for x, overlapping sounds (the later goes), an unknown track, a bad role, track volume over / text, ducking out of range / not settings / on a Voice track, solo and voice as text, a ninth sound track, loudness over / under / text), each never throwing, mended or dropped with its reason and round-tripping; a project with every new field reads without a reason and round-trips byte-identical; the 12 2.x / 201–207 fixtures write no new fields and stay byte-identical. 25 fail until T081."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T081": {
+          "text": "Implement §8 in `projectDoc.ts` (write new fields only when set) and `projectGate.ts` (`readAudio`, `readTracks`, `loudness`, missing = Off).",
+          "section": "Saving",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3",
+            "AC-11"
+          ],
+          "files": [
+            "src/engine/projectDoc.ts",
+            "src/engine/projectGate.ts",
+            "tests/unit/engine/timeline.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/timeline.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** new `engine/soundGate.ts` (beside speedGate.ts; projectGate.ts 853 → 654 lines): `readSoundTrack` (role, volume 0–2, Solo, Counts as voice, ducking clamped; a Voice track loses its ducking), `readAudio` (out point: the file's end when missing, past the file or not after in; volume 0–2, text → 0.8; fades 0–10 s, scaled down together to the clip; volume keys through `mergeKeys` on the new `'sound'` target, 0–2; name; overlapping sounds on a track, the later dropped), `readLoudness` (−24…−9 clamped, missing or unreadable = Off), each reason once (`SOUND_REASONS`). `ProjectDoc.loudness`; `toDocument` writes every new track and sound field only when set. `KeyTarget` ('clip' | 'layer' | 'sound') for `clampValue` / `mergeKeys`. All 40 gate tests pass (26 malformed, the every-field round trip, 12 fixtures byte-identical); turning off the overlap rule fails its test. Check green (2,143 + 1 skipped)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T090": {
+          "text": "The preview's `soundPlan` learns sound clips: under the playhead on unmuted audio tracks (only soloed ones when any is soloed, Q2), the next within 2 s loaded; tests. `PreviewSound` routes every element through one `AudioContext` (element → its gain from `chainGainAt` each tick with a ≤ 1-frame ramp → master gain = loudness gain → limiter), resumed on Play; the music's own element in VideoStage removed.",
+          "section": "Preview",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7",
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/previewSound.ts",
+            "src/components/studio/VideoStage.tsx",
+            "tests/unit/components/previewSound.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/components/previewSound.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `soundPlan` also gives `sounds` (sound clips under the playhead on unmuted audio tracks, only the soloed ones while any is, Q2; heard length cut at the video's end, Q6) and `nextSounds` (starting within 2 s). `PreviewSound(makeContext)`: one AudioContext, each element → MediaElementSource → its gain → master gain → speakers; gains from `PreviewMix.gainOf` (VideoStage's `previewMix`: `chainGainAt` over `audioPlan` with `soundDucks`) as a ramp of 1 frame, scheduled only on change; master = 10^(`masterGainDb`/20); elements at volume 1; `resume()` on Play; without Web Audio the element's volume (capped 100 %) as before. Sound clips play from in + local, stopped past their length. VideoStage's song element and `startMusic` removed. 8 new tests (28 in the file); skipping the master gain fails one. Check green (2,151 + 1 skipped). For 290: per-tick cost of audioPlan + duck key at 60 fps, and editors.e2e's music check (it looks for an <audio> without `data-clip`) needs the new elements."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T091": {
+          "text": "The limiter worklet (`limiter.worklet.ts` wrapping `engine/limiter.ts`, loaded as T001 found), with the fallback when it can't load (a `DynamicsCompressorNode` as limiter, and a note); kept out of the entry chunk.",
+          "section": "Preview",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/limiter.worklet.ts",
+            "src/components/studio/previewSound.ts"
+          ],
+          "test": "`npx vitest run `",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** `limiter.worklet.ts` runs `engine/limiter.ts` on the audio thread (stereo, mono input to both sides, silence without allocating; `{ limit }` messages pass the sound through while Loudness is Off), served as its own 3.1 KB file through `limiterWorkletUrl.ts` (`?worker&url`, loaded on demand; entry 314 KB). `PreviewSound` loads it after the master gain (master → limiter → speakers; `PreviewMix.limit` = Loudness on); when `addModule` fails, a `DynamicsCompressorNode` (−1 dB, knee 0, 20:1, 1 ms, 100 ms) stands in, only while limiting, and `limiter` says 'compressor' for the panel's note. Fake worklet / compressor in `tests/support/fakeAudio.ts`; 2 tests; leaving the compressor in while not limiting fails one. Check green (2,153 + 1 skipped). The worklet's real sound waits for 290's listening check."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T100": {
+          "text": "The Audio panel (`AudioPanel.tsx` replaces `MusicPanel`): Add sound (several files), the tracks with role, volume and ducking, Lower music under voice, Loudness (Off, −14, −16, custom −24…−9) with the readout and warning.",
+          "section": "Panel, timeline and inspector",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/AudioPanel.tsx",
+            "src/components/studio/VideoPanels.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`npm run check` (UI checked in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** new `AudioPanel.tsx` replaces `MusicPanel` (removed from VideoPanels.tsx): Add sound (several files at the playhead, messages for those left out), Sound tracks (Lower music under voice for every Music track; per track: role, track volume 0–200 %, Lower under voice with Lowered by 3–30 dB and Voice louder than −60…−20 dBFS, or Counts as voice on a Voice track; a locked track read-only with its reason), Loudness (Off / YouTube · Instagram −14 / Quiet −16 / Custom −24…−9 with the readout in a live region and the limiter warning). `watchLoudness` starts with the video workspace. `.ap-track` styles. Check green (2,153 + 1 skipped); entry 314 KB. The song's own volume, start and remove move to the sound inspector (T104); the compressor-fallback note needs the stage's `limiter` kind in the store (T104 / 290). UI checked in 290."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T101": {
+          "text": "Audio track headers: name, Mute, Solo, Lock, volume, role, ducking (amount, threshold, Counts as voice); Add audio track; delete asks first with clips.",
+          "section": "Panel, timeline and inspector",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/TrackHead.tsx",
+            "src/components/studio/Timeline.tsx"
+          ],
+          "test": "`npm run check` (UI checked in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** every sound track has a header (TrackHead.tsx): its name renamable (as overlays'), Mute, Solo (new `SoloIcon`, its title says the export plays every track), Lock, a sound settings popover (`SoundSettingsButton`: the Audio panel's `SoundTrackSettings` for that track, role, volume, ducking amount / threshold or Counts as voice; Escape or a press outside closes it, keys kept from the timeline), and the height menu with Move up / Move down among the sound tracks and Delete (asks first when it holds sounds). `AddSoundTrackButton` beside the overlay one (disabled at 8 with the reason). Timeline.tsx renders every sound track's header and a row of its height (the Music row as before; empty rows until T102's sound rows). `.tl-sound-pop` styles. Check green (2,153 + 1 skipped). UI checked in 290."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T102": {
+          "text": "`SoundRow.tsx` replaces `MusicRow`: a bar per sound clip with name, waveform canvas (`waveformColumns`), fade handles at its top corners, the volume line, the duck curve, dimmed past the video's end; select, drag, trim and the edit tools through `timelineDrag.ts` / `timelineActions.ts`. Pure bar geometry and fade-handle maths unit-tested in `timelineRows.ts`.",
+          "section": "Panel, timeline and inspector",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/SoundRow.tsx",
+            "src/components/studio/TimelineBars.tsx",
+            "src/components/studio/Timeline.tsx",
+            "src/components/studio/timelineRows.ts",
+            "src/components/studio/timelineDrag.ts",
+            "src/components/studio/timelineActions.ts",
+            "src/styles/36-media-studio.css",
+            "tests/unit/components/timelineRows.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/components/timelineRows.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** new `SoundRow.tsx` replaces `MusicRow` (removed from TimelineBars.tsx) for every audio track: a bar per sound clip with its name, a waveform canvas (`waveformColumns` through the export's chain gain, a column per 2 px up to 2,048; flat and dimmed with the reason from `soundSilence` for a muted track, volume 0 or a start past the video's end; 'measuring' in the title until scanned), fade lines and handles at its top corners, the volume line (keys sampled) with a drag grip when unkeyed, the track's duck curve, the part past the video's end hatched (Q6). Drags with the edit tool: Select moves it (dropped on another audio row: moves there) and trims (Shift: ripple), Roll at an edge, Slip, Slide; new store actions `slipSoundBy`, `rollSoundBy`, `slideSoundBy`, `rippleSoundEdge`; `startDrag` takes a vertical axis. Selection is `soundSel` (D-054): Delete, S and Alt + ← / → act on it. `useSoundMix` recomputes plan, ducks and scans only on sound changes (not every playhead tick). Pure helpers in timelineRows.ts unit-tested: `soundBar`, `fadeAfterDrag`, `volumeY` / `gainAtY`, `volumePoints`, `duckPoints` (expectation corrected to the linear 0…−30 dB scale: −12 dB → 26.4 px), `soundSilence`; dropping the past-the-end clamp fails 1. Check green (2,159 + 1 skipped). UI checked in 290."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-19"
+        },
+        "T103": {
+          "text": "Video clips draw their waveform under the filmstrip in `PictureRow.tsx` (flat with the reason when silent).",
+          "section": "Panel, timeline and inspector",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": true,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/PictureRow.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`npm run check` (UI checked in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** video clips draw their own sound's waveform in a strip under the filmstrip (PictureRow.tsx `useClipWave`, the shared `WaveCanvas` from SoundRow.tsx, now taking the scan, clip, gain and stretch), through `sourceAt` and the export's chain gain (`clipWaveGain`); flat and dimmed with the reason in the title and the screen-reader label when silent (new pure `clipSilence` in timelineRows.ts: a muted overlay track, 207's silent speeds, volume 0 unless a volume key is above 0; 2 unit tests). Photos have no strip. `.tl-clip-wave` styles. Check green (2,161 + 1 skipped). UI checked in 290."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T104": {
+          "text": "The sound clip inspector (`SoundInspector.tsx`): volume 0–200 %, fades, volume keyframes (205's `KeyframeButton` and lane on the 0–2 range), Play to the end of the video, the source file; `ClipInspector` routes a selected sound clip there.",
+          "section": "Panel, timeline and inspector",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "src/components/studio/SoundInspector.tsx",
+            "src/components/studio/ClipInspector.tsx"
+          ],
+          "test": "`npm run check` (UI checked in 290)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** new `SoundInspector.tsx` (routed from VideoWorkspace's `Inspector` when `soundSel` is set): track and file, its place on the timeline; Volume 0–200 % with 205's `KeyButton` and `KeyframeNav` (keyed: sets the key at the playhead, `setSoundVolumeAt`), Fade in / Fade out (each up to 10 s, never past the other), Play to the end of the video (`setSoundToEnd`, engine `setToEnd`), Source (Plays its file from, Remove sound); disabled with the reason on a locked track. Sound clips are keyframe targets (D-055): `KeyTarget` `{ sound }` in state/videoKeys.ts on the engine's 0–2 range, so the timeline's lane (under the sound row, named Volume), K and Alt + [ / ] work on them. Turning Play to the end on is refused while another sound follows on the track (pending T072's rule). Tests: 4 engine (`setToEnd`), 2 store (keys 0–2, keyed volume, Remove animation, locked; the switch with undo), 1 naming; clamping sound keys to 0–1 fails 1. Check green (2,168 + 1 skipped). UI checked in 290."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T105": {
+          "text": "Keyboard and announcements: fade handles and the volume line take ← / → and ↑ / ↓ (Shift for larger steps); names and states on every control; `soundAnnouncement(change)` texts (“Audio 2: Whoosh, fade in 0.5 s”) unit-tested.",
+          "section": "Panel, timeline and inspector",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-14"
+          ],
+          "files": [
+            "src/components/studio/SoundRow.tsx",
+            "src/components/studio/timelineRows.ts",
+            "tests/unit/components/timelineRows.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/components/timelineRows.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** fade handles take ← / → (0.1 s, Shift 1 s; → grows a fade in, ← a fade out, within 0–10 s and the other fade) and the volume line ↑ / ↓ (5 %, Shift 25 %, 0–200 %), each kept from the timeline's playhead keys and selecting the clip; their names say the value and the keys. Sound clip changes are announced in the timeline's live region (`soundAnnouncement`: added, removed, moved / trimmed with its times, slipped, Play to the end, fades, volume, e.g. 'Audio 2: Whoosh, fade in 0.5 s'); volume keys are announced as keyframes (the lane's `describeKeyChange`, named 'Audio 2: Whoosh'). Pure `nudgedFade`, `nudgedVolume`, `soundAnnouncement` in timelineRows.ts with 3 unit tests; disabling the volume announcement fails 1. Check green (2,171 + 1 skipped). Keyboard, axe and 360 px checked in 290."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T110": {
+          "text": "Docs: `docs/MEDIA-STUDIO.md` (audio tracks, sound clips, waveforms, ducking, loudness, keys, limits; “Still to do” without several music tracks and clip waveforms), `specs/lld.md` (audio model, gain chain, scans, ducking, loudness and limiter), `specs/testing-strategy.md` (the listening test), `CHANGELOG.md`, `src/data/docs.ts`.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-17"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "specs/lld.md",
+            "specs/testing-strategy.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "review",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** docs/MEDIA-STUDIO.md: new 'Audio tracks, sound clips and the mix' section (adding sound, tracks with role / volume / Solo, sound clip edits and keys, the bar's handles, the inspector, waveforms, ducking with its numbers, loudness and the limiter, the preview's mix, files), the timeline, edit-tool, Tracks (Solo, audio names / menus), preview and export-memory text updated, 'Still to do' without several music tracks and clip waveforms (now voice-over 209, J / L cuts 210, pan / EQ, agent tools 212), the How it works table. specs/lld.md §4.9 'Audio tracks (208)': model, edits, gain chain, scans, ducking, loudness and limiter, export, UI. specs/testing-strategy.md: 208's unit coverage and the listening test (AC-15). CHANGELOG Added: audio tracks, waveforms, ducking, loudness. src/data/docs.ts: audio tracks, waveforms, ducking, loudness. Found and fixed while writing (T102 bug): sound clip edges weren't snap targets and a sound drag skipped itself as a clip; the Timeline now passes the sounds to `snapTargets` and SoundRow skips `{ sound }` (`snapSound`). Check green (2,171 + 1 skipped)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T111": {
+          "text": "Add 208's deferred checks to 290 (D-033): AC-13 and AC-14 e2e, AC-15 listening and YouTube loudness, AC-16 timing and regressions.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13",
+            "AC-14",
+            "AC-15",
+            "AC-16"
+          ],
+          "files": [
+            "specs/features/290-phase2-test-pass-release/feature.json"
+          ],
+          "test": "`npm run specs -- check`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-18):** written with the tasks: 290's deferred-checks list has a '208 audio tracks' bullet after 207's (AC-13, AC-14 e2e; AC-15 listening and YouTube content loudness; AC-16 timing and regressions)."
+          ],
+          "startedOn": "2026-10-18",
+          "doneOn": "2026-10-18"
+        },
+        "T112": {
+          "text": "Close: `npm run check`, `npm run lint:full`, `npm run build` (entry chunk ≤ 350 KB, scanner / meter / limiter / worklet in their own chunks, no AI code), unit-proven ACs ticked, status implemented, memory updated.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-4",
+            "AC-5",
+            "AC-6",
+            "AC-7",
+            "AC-8",
+            "AC-9",
+            "AC-10",
+            "AC-11",
+            "AC-12",
+            "AC-17"
+          ],
+          "files": [],
+          "test": "`npm run check && npm run lint:full && npm run build`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** `npm run check` green (68 files, 2,176 tests, none skipped), `npm run lint:full` clean, `npm run build` passes: entry 314 KB (budget 350 KB), no AI code in it; the scanner (`soundScan.worker`), the limiter worklet (`limiter.worklet`, `limiterWorkletUrl`) and the meter with the export's sound (`exportSound`, loaded by `import()`) are their own chunks, none of their code in the entry. AC-1–AC-12 (unit) and AC-17 (docs) ticked; AC-13–AC-16 wait for 290 (e2e, listening, timing; T111). Status implemented."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        }
+      }
+    }
+  }
+}

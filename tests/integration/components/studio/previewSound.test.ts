@@ -5,7 +5,8 @@ import { MAIN_VIDEO, MUSIC, defaultTracks } from '@/engine/tracks';
 import { edgeGain } from '@/engine/keyframes';
 import { limitsFor } from '@/engine/videoFormats';
 import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from '@/components/studio/previewSound';
-import { FakeAudio } from '../../../support/fakeAudio';
+import { FakeAudio, FakeLiveContext, FakeWorkletNode } from '../../../support/fakeAudio';
+import type { AudioClip } from '@/engine/timeline';
 import { defined } from '../../../support/defined';
 
 type C = TimedClip & { name: string; volume: number };
@@ -438,6 +439,176 @@ describe('207: a clip at a speed plays its element at that rate, pitch kept (AC-
     const element = defined(made[0]);
     expect([element.paused, element.playbackRate, element.preservesPitch]).toEqual([false, 2, true]);
     expect(element.currentTime).toBeCloseTo(2, 9);
+    sound.dispose();
+  });
+});
+
+/* ---------- 208 T090: sound clips in the preview, through one Web Audio graph (AC-7, AC-9, D3, Q2) ---------- */
+
+describe('208: the preview plays sound clips (Q2: Solo is the preview’s)', () => {
+  type S = AudioClip & { url: string };
+  const sound = (id: string, track: string, start: number, length: number, patch: Partial<S> = {}): S => ({
+    id, track, start, in: 1, out: 1 + length, volume: 1, toEnd: false, srcDur: 30, url: `blob:${id}`, ...patch,
+  });
+  const audioTrack = (id: string, patch: Record<string, unknown> = {}) => ({ id, kind: 'audio' as const, name: id, hidden: false, muted: false, locked: false, ...patch });
+  // A 10 s video (a 0–4, photo 4–7, c 7–10); the song on Music from 0 to the end, a whoosh on A2 at 3–3.5, a voice on
+  // A3 at 5–9.
+  const withSounds = (a2: Record<string, unknown> = {}, a3: Record<string, unknown> = {}): Project<C> & { audio: S[] } => ({
+    ...project(),
+    tracks: [...project().tracks, audioTrack('A2', a2), audioTrack('A3', a3)],
+    audio: [sound('song', MUSIC, 0, 0, { toEnd: true, out: undefined }), sound('whoosh', 'A2', 3, 0.5), sound('talk', 'A3', 5, 4)],
+  });
+  const sounding = (plan: ReturnType<typeof soundPlan<C, S>>) => ({
+    sounds: plan.sounds.map((x) => [x.clip.id, x.local, x.length]),
+    nextSounds: plan.nextSounds.map((x) => x.id),
+  });
+
+  it('the sound clips under the playhead, with their time and length heard, and those starting within 2 s', () => {
+    expect(sounding(soundPlan(withSounds(), 3.25))).toEqual({ sounds: [['song', 3.25, 10], ['whoosh', 0.25, 0.5]], nextSounds: ['talk'] });
+    expect(sounding(soundPlan(withSounds(), 0.5))).toEqual({ sounds: [['song', 0.5, 10]], nextSounds: [] });
+    expect(sounding(soundPlan(withSounds(), 9.5))).toEqual({ sounds: [['song', 9.5, 10]], nextSounds: [] });
+  });
+
+  it('a muted track is silent; with a track soloed only soloed sound tracks play, clip sound stays', () => {
+    expect(sounding(soundPlan(withSounds({ muted: true }), 3.25)).sounds.map((x) => x[0])).toEqual(['song']);
+    const solo = soundPlan(withSounds({}, { solo: true }), 6);
+    expect(sounding(solo).sounds.map((x) => x[0])).toEqual(['talk']);
+    expect(solo.current.map((x) => x.clip.id)).toEqual(soundPlan(withSounds(), 6).current.map((x) => x.clip.id));
+    expect(sounding(soundPlan(withSounds({ solo: true }), 1.5)).nextSounds).toEqual(['whoosh']);
+  });
+
+  it('sound past the video’s end isn’t heard (Q6)', () => {
+    const late = { ...withSounds(), audio: [sound('tail', 'A2', 9, 5)] };
+    expect(sounding(soundPlan(late, 9.5)).sounds).toEqual([['tail', 0.5, 1]]);
+    expect(sounding(soundPlan(late, 10.5)).sounds).toEqual([]);
+  });
+});
+
+describe('208: the preview’s Web Audio graph (D3, AC-7, AC-9)', () => {
+  const made: FakeAudio[] = [];
+  let context: FakeLiveContext;
+  beforeEach(() => {
+    made.length = 0;
+    context = new FakeLiveContext();
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const el = new FakeAudio();
+        made.push(el);
+        return el;
+      },
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const clipSound: SoundClip = { id: 'a', url: 'blob:a', in: 1, out: 5, volume: 1 };
+  const song = { id: 'song', url: 'blob:song', in: 2, start: 0, volume: 1.6 };
+  const gains = { a: 0.5, song: 1.6 } as Record<string, number>;
+  const mix = (time: number, master = 1) => ({ time, master, gainOf: (ref: string) => gains[ref] ?? null });
+  const lastRamp = (index: number) => {
+    const calls = defined(context.gains[index]).gain.calls.filter((call) => call.kind === 'ramp');
+    return calls.at(-1);
+  };
+
+  it('each element plays through its own gain into one master gain to the speakers', () => {
+    const sound = previewSound(() => context as unknown as AudioContext);
+    sound.update({ current: [{ clip: clipSound, local: 0.5 }], next: [], held: [], sounds: [{ clip: song, local: 0.5, length: 10 }], nextSounds: [] }, true, 30, mix(0.5));
+    // The master first, then a gain per element.
+    const [master, clipGain, songGain] = context.gains;
+    expect(defined(master).to).toBe(context.destination);
+    expect(context.sources.map((source) => source.to)).toEqual([clipGain, songGain]);
+    expect([defined(clipGain).to, defined(songGain).to]).toEqual([master, master]);
+    // Elements stay at full volume: the gains (up to 200 % and more) are the nodes'.
+    expect(made.map((el) => [el.volume, el.muted])).toEqual([
+      [1, false],
+      [1, false],
+    ]);
+    sound.dispose();
+  });
+
+  it('the chain gain at each tick, as a ramp of at most a frame; the master gain is the loudness gain', () => {
+    const sound = previewSound(() => context as unknown as AudioContext);
+    context.currentTime = 12;
+    sound.update({ current: [{ clip: clipSound, local: 0.5 }], next: [], held: [], sounds: [{ clip: song, local: 0.5, length: 10 }], nextSounds: [] }, true, 30, mix(0.5, 1.4));
+    expect(lastRamp(1)).toEqual({ kind: 'ramp', value: 0.5, time: 12 + 1 / 30 });
+    expect(lastRamp(2)).toEqual({ kind: 'ramp', value: 1.6, time: 12 + 1 / 30 });
+    expect(lastRamp(0)).toEqual({ kind: 'ramp', value: 1.4, time: 12 + 1 / 30 });
+    // An unchanged gain isn't scheduled again.
+    const before = defined(context.gains[1]).gain.calls.length;
+    sound.update({ current: [{ clip: clipSound, local: 0.6 }], next: [], held: [], sounds: [{ clip: song, local: 0.6, length: 10 }], nextSounds: [] }, true, 30, mix(0.6, 1.4));
+    expect(defined(context.gains[1]).gain.calls).toHaveLength(before);
+    sound.dispose();
+  });
+
+  it('a sound clip’s element plays its file from its in point, seeked to the playhead; stops past its length', () => {
+    const sound = previewSound(() => context as unknown as AudioContext);
+    sound.update({ current: [], next: [], held: [], sounds: [{ clip: song, local: 3, length: 10 }], nextSounds: [] }, true, 30, mix(3));
+    const element = defined(made[0]);
+    expect(element.src).toBe('blob:song');
+    expect(element.currentTime).toBe(5);
+    expect(element.paused).toBe(false);
+    sound.update({ current: [], next: [], held: [], sounds: [{ clip: song, local: 10, length: 10 }], nextSounds: [] }, true, 30, mix(10));
+    expect(element.paused).toBe(true);
+    sound.dispose();
+  });
+
+  it('resumes the context on Play (a user gesture)', async () => {
+    const sound = previewSound(() => context as unknown as AudioContext);
+    sound.update({ current: [{ clip: clipSound, local: 0.5 }], next: [], held: [], sounds: [], nextSounds: [] }, false, 30, mix(0.5));
+    expect(context.state).toBe('suspended');
+    await sound.resume();
+    expect(context.state).toBe('running');
+    sound.dispose();
+  });
+
+  it('without Web Audio, the element’s volume follows the gain (capped at 100 %)', () => {
+    const sound = previewSound(() => null);
+    sound.update({ current: [{ clip: clipSound, local: 0.5 }], next: [], held: [], sounds: [{ clip: song, local: 0.5, length: 10 }], nextSounds: [] }, true, 30, mix(0.5));
+    expect(made.map((el) => el.volume)).toEqual([0.5, 1]);
+    sound.dispose();
+  });
+});
+
+describe('208: the preview’s limiter (D3, T091)', () => {
+  let context: FakeLiveContext;
+  beforeEach(() => {
+    context = new FakeLiveContext();
+    vi.stubGlobal('document', { createElement: () => new FakeAudio() });
+    vi.stubGlobal('AudioWorkletNode', FakeWorkletNode);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const clipSound: SoundClip = { id: 'a', url: 'blob:a', in: 1, out: 5, volume: 1 };
+  const tick = (sound: ReturnType<typeof previewSound>, limit: boolean) =>
+    sound.update({ current: [{ clip: clipSound, local: 0.5 }], next: [], held: [] }, true, 30, { time: 0.5, master: 1, limit, gainOf: () => 1 });
+  const loaded = () => vi.waitFor(() => expect(context.modules.length).toBeGreaterThan(0));
+
+  it('loads the limiter worklet after the master gain: master → limiter → speakers, told when to limit', async () => {
+    const sound = previewSound(() => context as unknown as AudioContext, () => Promise.resolve('/assets/limiter.worklet.js'));
+    tick(sound, false);
+    await loaded();
+    await vi.waitFor(() => expect(sound.limiter).toBe('worklet'));
+    expect(context.modules).toEqual(['/assets/limiter.worklet.js']);
+    const master = defined(context.gains[0]);
+    const worklet = master.to as FakeWorkletNode;
+    expect(worklet).toBeInstanceOf(FakeWorkletNode);
+    expect(worklet.name).toBe('chitthi-limiter');
+    expect(worklet.to).toBe(context.destination);
+    expect(worklet.posted).toEqual([{ limit: false }]);
+    tick(sound, true);
+    expect(worklet.posted).toEqual([{ limit: false }, { limit: true }]);
+    sound.dispose();
+  });
+
+  it('when the worklet can’t load, the browser’s compressor stands in as a hard limiter, only while limiting', async () => {
+    context.failWorklet = true;
+    const sound = previewSound(() => context as unknown as AudioContext, () => Promise.resolve('/assets/limiter.worklet.js'));
+    tick(sound, true);
+    await vi.waitFor(() => expect(sound.limiter).toBe('compressor'));
+    const compressor = defined(context.compressors[0]);
+    expect([compressor.threshold.value, compressor.knee.value, compressor.ratio.value, compressor.attack.value, compressor.release.value]).toEqual([-1, 0, 20, 0.001, 0.1]);
+    const master = defined(context.gains[0]);
+    expect(master.to).toBe(compressor);
+    expect(compressor.to).toBe(context.destination);
+    tick(sound, false);
+    expect(master.to).toBe(context.destination);
     sound.dispose();
   });
 });

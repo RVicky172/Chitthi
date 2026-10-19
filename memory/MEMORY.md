@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-18)
+## Current State (2026-10-19)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -49,7 +49,12 @@
 - **207:** `207-speed` ✔️ Implemented 2026-10-18 (`f2fb66a`), merged into `main` (`0443d4a`) and pushed: constant speed 0.1–10×, reverse,
   freeze frame, ramps (six presets, curve editor), one `sourceAt` for preview / export / pool / edits, same-pitch sound
   0.5–2× (browser in the preview, our WSOLA in the export), D-049–D-051. AC-6 listening, AC-11–14 wait for 290. Entry
-  313 KB. Next: the next Phase 2 feature, branched from `main`.
+  313 KB.
+- **208:** `208-audio-tracks` ✔️ Implemented 2026-10-19 on `feat/208-audio-tracks` (not committed yet): up to 8 audio
+  tracks (Music / Voice / Effects, volume, Solo), sound clips with the edit tools, fades, volume line and keyframes,
+  waveforms (sound and video clips), ducking, loudness target (−14 LUFS) with a true-peak limiter, preview = export
+  mix; `SoundRow.tsx`, `SoundInspector.tsx`, `AudioPanel.tsx`. AC-1–12, 17 ticked; AC-13–16 wait for 290. Decisions
+  D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB. Next: commit, merge into `main`.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

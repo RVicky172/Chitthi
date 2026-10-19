@@ -667,6 +667,50 @@ preview, the export, the sound, the pool and the edits follow. Spec and plan: `s
   in the clip inspector, helpers in `speedUi.ts`; on the timeline `speedBadge`, `filmstripTimes` and
   `describeSpeedChange` (`timelineRows.ts`), the Transport's Freeze button and Shift + F (`freezeAtPlayhead`).
 
+**Audio tracks (208, D-052–D-055).** One sound model: `A1` and every added audio track (`addAudioTrack`, at most
+8; `role` Music / Voice / Effects, `volume` 0–2, `solo`, `duck: { amount, threshold }`, `voice`) hold `AudioClip`s
+(`start`, `in`, `out` or `toEnd`, `volume` 0–2, `fadeIn` / `fadeOut`, volume `keys` on 0–2). The store keeps them as
+`state.sounds: VSound[]` (the clip, its file and object URL, which is also its media id, D-053) in the undo snapshot,
+with `state.loudness` (Off or −24…−9 LUFS) and the view setting `soundSel` (D-054).
+- **Edits** (`engine/soundClips.ts`): `addSound` (the chosen track, the first with room, or a new one; the first song
+  longer than the video gets `toEnd`), `moveSound`, `trimSound` (a toEnd clip's end trim fixes its length), `splitSound`,
+  `duplicateSound`, `deleteSound`, `slipSound`, `rollSound`, `rippleSound`, `slideSound` (within the track),
+  `setFades`, `setToEnd`; all refuse overlaps, running past the file and locked tracks with the reason, and keep fades
+  within the clip (`fitFades`). A toEnd clip runs to the video's end or the next sound on its track, whichever is
+  first (`soundLength(clip, videoEnd, audio)`, T072 option A, D-056); `isFree` measures it with the edited clip in its
+  new place, except for Add sound's own track choice, which never cuts it short; moved to or past the end it gets a
+  fixed length. `state/videoSound.ts` wraps
+  each as one `change()`.
+- **The gain chain** (`engine/mixGain.ts`, AC-5): `chainGainAt(source, tracks, ducks, t)` = `sourceGainAt` (volume or
+  keys, fades, transitions) × `trackGain` × `duckOf`; the export samples it with `chainCurve` (points at most 5 ms
+  apart) into `setValueCurveAtTime`, the preview sets it each tick (`VideoStage.previewMix`). `audioPlan` lists sound
+  clips after the clips' own sound, track by track, cut at the video's end (Q6), muted tracks left out; Solo is the
+  preview's only (`previewSound.ts`).
+- **Scans** (`engine/soundScan.ts`, D5): a module Worker (`state/soundScan.worker.ts`) streams each file's sound through
+  Mediabunny, one file at a time; `ScanBuilder` keeps peaks (100 / s, Uint8 dB steps) and 50 ms RMS (Float32 dBFS):
+  3 hours ≈ 2 MB. `waveformColumns(scan, clip, gain, from, to, n)` reads peaks through `sourceAt` and scales them by
+  the chain gain, or returns the reason a clip is silent. `SoundRow.tsx` and `PictureRow.tsx` draw them in a canvas
+  (at most 2,048 columns).
+- **Ducking** (`engine/ducking.ts`): `voiceLevel` sums the scanned RMS power of every voice source × its gain (without
+  ducking) per 50 ms step; `speaking` thresholds it and bridges pauses under 0.5 s; `duckCurve` ramps down 0.3 s before
+  speech and up 0.8 s after, as dB every 10 ms; `duckGain` reads it. `duckCurves` caches the result by its inputs, so an
+  edit's new curve costs milliseconds and reads no audio.
+- **Loudness and the limiter** (`engine/loudness.ts`, `limiter.ts`, D4): BS.1770-4 integrated loudness (K-weighting,
+  400 ms blocks, the two gates) and true peak (4× oversampling, a 48-tap FIR) on the real mix; `planLoudness` gives the
+  gain to the target (±24 dB) and the limiter (−1 dBTP, 5 ms look-ahead, 100 ms release) holds peaks after it. The
+  background measurement (`watchLoudness`, 500 ms after the last edit, keyed by `mixKey`) renders the mix as the export
+  would; the export reuses it when the key matches. The preview's master gain is the same gain, then
+  `limiter.worklet.ts` (a `DynamicsCompressorNode` where the worklet can't load).
+- **The export** (`engine/exportSound.ts`): `soundWindows` mixes each 10-second window through the chain, then the
+  `MasterStage` (gain → limiter, its 5 ms delay compensated); 201–207 jobs without track volume or ducking take the
+  old path, so their inputs are unchanged (AC-3).
+- **UI**: `AudioPanel.tsx` (Add sound, the tracks' settings, Lower music under voice, Loudness with its readout),
+  `TrackHead.tsx` (audio track headers, `SoundSettingsButton`), `SoundRow.tsx` (bars, waveforms, fade handles, the
+  volume line, the duck curve, drags with the edit tools, keys), `SoundInspector.tsx`; pure helpers in
+  `timelineRows.ts` (`soundBar`, `fadeAfterDrag`, `volumeY` / `gainAtY`, `volumePoints`, `duckPoints`, `soundSilence`,
+  `clipSilence`, `nudgedFade`, `nudgedVolume`, `soundAnnouncement`). Sound clips are keyframe targets (`KeyTarget`
+  `{ sound }`, D-055).
+
 ### 4.10 Decoder pool (`decodePool.ts`, `frameSource.ts`)
 
 The preview and the export get their video pictures from one place, so a paused preview shows the frame the export

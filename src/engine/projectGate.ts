@@ -9,7 +9,6 @@ import { CLIP_KEY_PROPS } from './keyframes';
 import { mergeLayers } from './layerGate';
 import {
   fromSequence,
-  type DocAudio,
   type DocClip,
   type DocMedia,
   type MediaKind,
@@ -20,6 +19,7 @@ import {
   clipLength,
   isIdentity,
   pack,
+  projectLength,
   TRANSFORM_RANGES,
   V_PHOTO_SECONDS,
   type ClipTransform,
@@ -35,6 +35,7 @@ import {
   type TrackKind,
   type TrackLimits,
 } from './tracks';
+import { readAudio, readLoudness, readSoundTrack } from './soundGate';
 import { mergeSpeed } from './speedGate';
 import { TRANSITION_REASONS, mergeTransition, tidyTransitions } from './transitions';
 import { MOTIONS, type Motion } from './video';
@@ -385,6 +386,7 @@ function readTrack(entry: unknown, tracks: readonly Track[], limits: TrackLimits
     // The main track has Hide only (201 D2): its clips' sound is set per clip.
     muted: kind !== 'video' && entry.muted === true,
     locked: entry.locked === true,
+    ...(kind === 'audio' ? readSoundTrack(entry, dropped) : {}),
   };
 }
 
@@ -554,36 +556,6 @@ function readClips(raw: unknown, context: ClipContext): DocClip[] {
 }
 
 /**
- * A document's sound clips: on a sound track, with sound media.
- * @param raw the document's `audio`
- * @param context what reading needs
- * @returns the sound clips
- */
-function readAudio(raw: unknown, context: ClipContext): DocAudio[] {
-  const audio: DocAudio[] = [];
-  for (const entry of listOf(raw)) {
-    const record = isRecord(entry) ? entry : null;
-    const track = record && context.tracks.find((candidate) => candidate.id === record.track);
-    const media = record && context.media.find((candidate) => candidate.id === record.media);
-    if (!record || track?.kind !== 'audio' || media?.kind !== 'audio') {
-      context.dropped.push('A sound on a missing or picture track, or without its media, was left out.');
-      continue;
-    }
-    audio.push({
-      id: context.unique(record.id, 'a'),
-      track: track.id,
-      start: numberIn(record.start, 0, MAX_TIME) ?? 0,
-      media: media.id,
-      in: Math.min(numberIn(record.in, 0, MAX_TIME) ?? 0, media.srcDur),
-      volume: numberIn(record.volume, 0, 1) ?? 0.8,
-      toEnd: record.toEnd !== false,
-      srcDur: media.srcDur,
-    });
-  }
-  return audio;
-}
-
-/**
  * A document's version as text, for the message about a newer version.
  * @param value the document's `version`
  * @returns the text (an object as JSON, not "[object Object]")
@@ -621,7 +593,8 @@ function readProject(document: Record<string, unknown>, desktop: boolean, droppe
     settings.fps,
   );
   if (placed.dropped.length && !dropped.includes(TRANSITION_REASONS.cut)) dropped.push(TRANSITION_REASONS.cut);
-  const audio = readAudio(document.audio, context);
+  const audio = readAudio(document.audio, context, projectLength({ tracks, clips: placed.clips, audio: [], layers: [], fadeOut: false }));
+  const loudness = readLoudness(document.loudness, dropped);
   const images = new Set(media.filter((entry) => entry.kind === 'image').map((entry) => entry.id));
   const layers = mergeLayers(document.layers, images, budget);
   const layersRead = listOf(document.layers).length;
@@ -636,6 +609,7 @@ function readProject(document: Record<string, unknown>, desktop: boolean, droppe
     quality,
     fadeOut,
     magnetic,
+    ...(loudness === undefined ? {} : { loudness }),
     tracks,
     clips: placed.clips,
     audio,
