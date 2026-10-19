@@ -690,3 +690,15 @@ the song). Moved to or past the video's end, the clip turns toEnd off and keeps 
 always allowed. Option C (nothing may follow a toEnd clip) was not chosen.
 **Consequences:** the property test runs unskipped (no overlaps in 1,000 edits); D-055's "on is refused" is gone;
 spec Q7 extended (changelog 2026-10-19).
+
+## D-057 — Object-literal members need a one-line JSDoc; their type documents the parameters (2026-10-19)
+
+**Context:** Dependabot #32 bumped eslint-plugin-jsdoc 65.3.2 → 65.3.6. 65.3.5 made `require-jsdoc` with
+`publicOnly` check members of exported object literals, so the 22 `PAT` patterns and three provider `listModels`
+failed lint; documenting them then made `require-param` ask for every `PatternFn` parameter 22 times.
+**Decision:** keep the stricter rule and give each member a one-line description; `require-param` and
+`require-returns` skip functions that are a property's value (`:not(Property > *)`), because the object's type
+(`PatternFn`, `ProviderModule`) documents their parameters and result.
+**Consequences:** new members of exported objects need a description, not repeated `@param` lines. The Anthropic SDK
+0.134 pulls in `@opentelemetry/api` (Apache-2.0, in the AI chunk only: 214 → 310 KB, gzip 53 → 70 KB); the client
+is built with `openTelemetry: false`.

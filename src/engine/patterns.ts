@@ -413,6 +413,7 @@ function buntingString(context: CanvasRenderingContext2D, theme: Theme, unit: nu
 
 /** Every pattern, by name. */
 export const PAT: Record<PatternName, PatternFn> = {
+  /** Confetti: dots, strips and curls in the theme colours. */
   confetti(context, box, unit, theme, random, mode) {
     const count = mode === 'over' ? 50 : 80;
     for (let piece = 0; piece < count; piece++) {
@@ -438,6 +439,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       context.restore();
     }
   },
+  /** Balloons on strings in the top corners. */
   balloons(context, box, unit, theme, random, mode) {
     const spots: readonly Spot[] =
       mode === 'over'
@@ -459,11 +461,13 @@ export const PAT: Record<PatternName, PatternFn> = {
       balloon(context, box.x + box.w * shareX, box.y + box.h * shareY, radius, unit, colourAt(theme.pal, index));
     });
   },
+  /** A row of oil lamps along the bottom edge. */
   diya(context, box, unit) {
     const count = Math.max(3, Math.round(box.w / (unit * 16)));
     const size = unit * 1.1;
     for (let lamp = 0; lamp < count; lamp++) diyaLamp(context, box.x + ((lamp + 0.5) * box.w) / count, box.y + box.h - unit * 5, size);
   },
+  /** Small four-point sparkles scattered over the box. */
   sparkle(context, box, unit, theme, random) {
     for (let index = 0; index < 28; index++) {
       const [x, y] = pt(box, random, 0.3);
@@ -471,6 +475,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       star(context, x, y, unit * (0.5 + random() * 1.2), 4, 0.28);
     }
   },
+  /** A toran: marigold garlands and leaves hung from a bar along the top. */
   toran(context, box, unit, _theme, _random, mode) {
     const count = Math.max(3, Math.round(box.w / (unit * 34)));
     const segment = box.w / count;
@@ -494,6 +499,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       leaf(context, x, top + flower * 6.4, flower * 3.6, Math.PI / 2, '#2D7A3A');
     }
   },
+  /** Holi colour splashes in the corners and along the edges. */
   splash(context, box, unit, theme, random, mode) {
     const spots: readonly Spot[] =
       mode === 'over'
@@ -528,6 +534,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       }
     });
   },
+  /** Two wavy rakhi threads near the bottom, with a rakhi flower. */
   rakhi(context, box, unit) {
     const y = box.y + box.h * 0.86;
     for (const [colour, offset] of [
@@ -544,6 +551,7 @@ export const PAT: Record<PatternName, PatternFn> = {
     }
     rakhiFlower(context, box.x + box.w * 0.18, y, unit * 8);
   },
+  /** A crescent moon with stars and hanging lanterns (Eid). */
   crescent(context, box, unit, theme, random, mode) {
     const x = box.x + box.w * 0.84;
     const y = box.y + box.h * 0.24;
@@ -571,6 +579,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       lantern(context, box, unit, moon, box.x + box.w * share, box.y + length);
     });
   },
+  /** Falling snowflakes. */
   snow(context, box, unit, _theme, random, mode) {
     const count = mode === 'over' ? 70 : 110;
     for (let flake = 0; flake < count; flake++) {
@@ -581,6 +590,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       context.fill();
     }
   },
+  /** Stars scattered over the box. */
   stars(context, box, unit, theme, random, mode) {
     for (let index = 0; index < 30; index++) {
       const [x, y] = pt(box, random, mode === 'over' ? 0.16 : 0.3);
@@ -588,6 +598,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       star(context, x, y, unit * (0.5 + random() * 1.4), 5, 0.45);
     }
   },
+  /** Kites flying on their strings. */
   kites(context, box, unit, theme, random, mode) {
     const spots: readonly Spot[] =
       mode === 'over'
@@ -621,6 +632,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       context.restore();
     });
   },
+  /** Rain streaks, with puddles along the bottom. */
   rain(context, box, unit, _theme, random, mode) {
     const count = mode === 'over' ? 90 : 140;
     context.lineWidth = unit * 0.22;
@@ -644,6 +656,7 @@ export const PAT: Record<PatternName, PatternFn> = {
         context.stroke();
       }
   },
+  /** Leaves scattered over the box. */
   leaves(context, box, unit, theme, random, mode) {
     const count = mode === 'over' ? 16 : 24;
     for (let index = 0; index < count; index++) {
@@ -651,6 +664,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       leaf(context, x, y, unit * (3 + random() * 3), random() * 6.28, colourAt(theme.pal, index));
     }
   },
+  /** A sun with rays in the top-right corner. */
   sunrays(context, box, unit, theme, _random, mode) {
     const centreX = box.x + box.w * 0.9;
     const centreY = box.y + box.h * 0.12;
@@ -670,6 +684,7 @@ export const PAT: Record<PatternName, PatternFn> = {
     context.arc(centreX, centreY, unit * 10, 0, 7);
     context.fill();
   },
+  /** Flowers scattered over the box. */
   flowers(context, box, unit, theme, random, mode) {
     const count = mode === 'over' ? 26 : 36;
     for (let index = 0; index < count; index++) {
@@ -689,6 +704,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       context.fill();
     }
   },
+  /** Mandala rings in two opposite corners. */
   mandala(context, box, unit, theme, _random, mode) {
     const corners: readonly Spot[] = [
       [0, 1],
@@ -701,6 +717,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       for (let ring = 4; ring >= 0; ring--) mandalaRing(context, x, y, ring, step, { petal: colourAt(theme.pal, ring + corner), disc: colourAt(theme.pal, ring + corner + 1) });
     });
   },
+  /** Kolam dot-and-loop patterns in two opposite corners. */
   kolam(context, box, unit, theme) {
     const spacing = unit * 4.2;
     const corners: readonly Spot[] = [
@@ -720,6 +737,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       context.stroke();
     }
   },
+  /** Peacock feathers fanning from the bottom-right corner. */
   peacock(context, box, unit, _theme, random, mode) {
     const originX = box.x + box.w + box.e;
     const originY = box.y + box.h + box.e;
@@ -730,6 +748,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       peacockFeather(context, originX, originY, angle, length, unit);
     }
   },
+  /** Saffron and green wavy bands at the top and bottom, with the Ashoka chakra. */
   tricolor(context, box, unit, _theme, _random, mode) {
     const band = unit * (mode === 'over' ? 4.5 : 7);
     context.fillStyle = '#FF9933';
@@ -738,6 +757,7 @@ export const PAT: Record<PatternName, PatternFn> = {
     waveBand(context, box, unit, box.y + box.h + box.e, box.y + box.h - band);
     if (mode !== 'over') chakra(context, box.x + box.w * 0.84, box.y + box.h * 0.5, unit * 18, unit);
   },
+  /** Wheat stalks along the bottom edge. */
   wheat(context, box, unit, _theme, random) {
     const count = Math.round(box.w / (unit * 3.6));
     const base = box.y + box.h + box.e;
@@ -767,6 +787,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       }
     }
   },
+  /** Sparks rising from a glow at the bottom. */
   sparks(context, box, unit, theme, random, mode) {
     glow(context, box.x + box.w * 0.5, box.y + box.h + box.e, box.w * 0.45, '#FF7A00', mode === 'over' ? 0.4 : 0.55);
     for (let spark = 0; spark < 70; spark++) {
@@ -779,6 +800,7 @@ export const PAT: Record<PatternName, PatternFn> = {
       context.fill();
     }
   },
+  /** Two strings of flag bunting across the top. */
   bunting(context, box, unit, theme) {
     const width = (box.w + 2 * box.e) / 2;
     for (let string = 0; string < 2; string++) {

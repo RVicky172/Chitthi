@@ -15,7 +15,8 @@ import { AiError, parseJsonLoose, type AiCtx, type ProviderModule, type TextRequ
  * @returns the client
  */
 function client(ctx: AiCtx): Anthropic {
-  return new Anthropic({ apiKey: ctx.sdkKey, dangerouslyAllowBrowser: true, fetch: ctx.http.sdkFetch, maxRetries: 1 });
+  // No tracing: the page registers no tracer, and requests carry no trace headers even if a library ever did.
+  return new Anthropic({ apiKey: ctx.sdkKey, dangerouslyAllowBrowser: true, fetch: ctx.http.sdkFetch, maxRetries: 1, openTelemetry: false });
 }
 
 /**
