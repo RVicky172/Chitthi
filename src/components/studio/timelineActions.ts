@@ -2,15 +2,16 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Tool } from '../../engine/edits';
 import { adjacentKey, isClipKeyProp, isLayerKeyProp } from '../../engine/keyframes';
 import { layerName, type Layer } from '../../engine/layers';
+import { soundLength } from '../../engine/soundClips';
 import { clipLength } from '../../engine/timeline';
-import { lockedReason, MUSIC, type Track } from '../../engine/tracks';
+import type { Track } from '../../engine/tracks';
 import { toast } from '../../lib/toast';
 import { deleteGap, nudgeClip, removeClip, rippleDeleteClip, rippleTrimToPlayhead, splitAtPlayheadWhy } from '../../state/videoClips';
 import { freezeFrameAtPlayhead, type SpeedOutcome } from '../../state/videoSpeed';
 import { deleteKeys, toggleKey, type KeyProp, type KeyTarget } from '../../state/videoKeys';
 import { removeVLayer } from '../../state/videoLayers';
-import { slipMusic } from '../../state/videoMedia';
-import { clipLocked, getVideo, setPlayhead, setPlaying, setTool, setZoom, type VClip } from '../../state/videoStore';
+import { moveSoundTo, removeSound, rollSoundBy, slideSoundBy, slipMusic, slipSoundBy, songOf, splitSoundAt } from '../../state/videoSound';
+import { clipLocked, getVideo, setPlayhead, setPlaying, setTool, setZoom, type VClip, type VSound } from '../../state/videoStore';
 import { typingIn } from '../ig/LayerPanel';
 import { animatedProps, type LaneItem } from './KeyframeLane';
 import { clipLabel, keyTimes } from './timelineRows';
@@ -58,19 +59,27 @@ export function refuseLocked(id: string): boolean {
   return !!why;
 }
 
-/**
- * Whether the music track is locked (and says why in a toast).
- * @returns true when the music can't be changed
- */
-export function refuseLockedMusic(): boolean {
-  const why = lockedReason(getVideo().tracks, MUSIC);
-  if (why) toast(why);
-  return !!why;
+/** Splits the selected sound clip (208), else the clip under the playhead (S, the Split button), or says why not (locked, outside a clip, or over the videos-at-once limit). */
+export function splitAtPlayhead(): void {
+  const { soundSel } = getVideo();
+  tell(soundSel ? splitSoundAt(soundSel) : splitAtPlayheadWhy());
 }
 
-/** Splits the clip under the playhead (S, the Split button), or says why not (locked, outside a clip, or over the videos-at-once limit). */
-export function splitAtPlayhead(): void {
-  tell(splitAtPlayheadWhy());
+/**
+ * Nudges the selected sound clip with the edit tool (208, Q5): Select moves it, Slip plays another part of its file,
+ * Slide moves it between its neighbours, Roll moves the cut at its end.
+ * @param id the sound clip
+ * @param by seconds (positive: later)
+ * @returns null, or why not
+ */
+function nudgeSound(id: string, by: number): string | null {
+  const state = getVideo();
+  const clip = state.sounds.find((sound) => sound.id === id);
+  if (!clip) return null;
+  if (state.tool === 'slip') return slipSoundBy(id, by);
+  if (state.tool === 'slide') return slideSoundBy(id, by);
+  if (state.tool === 'roll') return rollSoundBy(id, by);
+  return moveSoundTo(id, Math.max(0, clip.start + by));
 }
 
 /**
@@ -119,16 +128,24 @@ export interface SelectionContext {
   selected: string | null;
   /** The selected layer, or null (it wins over a selected clip). */
   layerSel: string | null;
+  /** The sound tracks and their clips, and the selected sound clip (208: it wins over a selected clip). */
+  soundTracks?: Track[];
+  sounds?: readonly VSound[];
+  soundSel?: string | null;
   /** The video's length in seconds. */
   total: number;
 }
 
 /**
- * The selected picture clip (when no layer is) or layer.
+ * The selected sound clip (208), else the selected layer, else the selected picture clip.
  * @param context the tracks, clips, layers and selection
  * @returns it as the keyframe lane sees it, or null
  */
-export function selectedItem({ pictureTracks, pictureClips, layers, selected, layerSel, total }: SelectionContext): SelectedItem | null {
+export function selectedItem({ pictureTracks, pictureClips, layers, selected, layerSel, total, soundTracks = [], sounds = [], soundSel = null }: SelectionContext): SelectedItem | null {
+  const sound = soundSel ? sounds.find((candidate) => candidate.id === soundSel) : undefined;
+  const soundTrack = sound && soundTracks.find((candidate) => candidate.id === sound.track);
+  if (sound && soundTrack)
+    return { target: { sound: sound.id }, item: { start: sound.start, length: soundLength(sound, total, sounds), keys: sound.keys }, name: `${soundTrack.name}: ${sound.name ?? 'Sound'}`, row: soundTrack.id };
   if (layerSel) {
     const layer = layers.find((candidate) => candidate.id === layerSel);
     if (!layer) return null;
@@ -197,13 +214,14 @@ function jumpToKey(keyed: SelectedItem | null, back: boolean): void {
 function nudgeSelection(back: boolean, bySecond: boolean): void {
   const state = getVideo();
   const frames = (back ? -1 : 1) * (bySecond ? state.fps : 1);
-  if (state.selected) tell(nudgeClip(state.selected, frames));
-  else if (state.tool === 'slip' && state.music) tell(slipMusic(frames / state.fps));
+  if (state.soundSel) tell(nudgeSound(state.soundSel, frames / state.fps));
+  else if (state.selected) tell(nudgeClip(state.selected, frames));
+  else if (state.tool === 'slip' && songOf(state.sounds)) tell(slipMusic(frames / state.fps));
   else toast('Select a clip first.');
 }
 
 /**
- * Delete: a focused gap closes; a layer goes; a clip goes (Magnetic off: leaves a gap; Shift: ripples).
+ * Delete: a focused gap closes; a layer or a sound clip goes; a clip goes (Magnetic off: leaves a gap; Shift: ripples).
  * @param gap the focused gap's element, if any
  * @param ripple true with Shift
  */
@@ -211,6 +229,7 @@ function deleteSelection(gap: HTMLElement | null, ripple: boolean): void {
   const state = getVideo();
   if (gap) tell(deleteGap(Number(gap.dataset.at)));
   else if (state.layerSel) removeVLayer(state.layerSel);
+  else if (state.soundSel) tell(removeSound(state.soundSel));
   else if (state.selected && !refuseLocked(state.selected)) {
     if (ripple) tell(rippleDeleteClip(state.selected));
     else removeClip(state.selected);

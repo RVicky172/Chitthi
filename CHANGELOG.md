@@ -32,6 +32,18 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   export matches the preview frame for frame.
 - Video editor: the number of videos on screen at once is limited (3 in the browser, 5 in the desktop app); an edit
   that would show more says so.
+- Video editor: **audio tracks**. Up to 8 tracks (Music, then Audio 2 …), each with a role (Music, Voice, Effects),
+  a volume up to 200 %, Mute, Solo (preview only) and Lock. **Add sound** puts several files at the playhead; sound
+  clips are moved, trimmed, split, duplicated and deleted with the edit tools, and have fades (drag their top
+  corners), a volume line, volume keyframes and **Play to the end of the video**. A selected sound clip has its own
+  inspector.
+- Video editor: **waveforms** on every sound clip and under every video clip with sound, measured in the background
+  and drawn as they will be heard; silent clips say why.
+- Video editor: **ducking**: **Lower music under voice** turns the music down while someone speaks in a clip or on a
+  Voice track (3–30 dB, with a threshold), with the curve drawn on the music.
+- Video editor: a **loudness target** for the export: YouTube · Instagram (−14 LUFS, the default for new projects),
+  Quiet (−16 LUFS), a custom level or Off, with the mix's measured loudness in the Audio panel and a true-peak limiter
+  at −1 dBTP. The preview plays at the same loudness as the export.
 
 - Roadmap dashboard (development tool): copyable task briefs, phase filtering, prerequisite and dependent links,
   feature outcome summaries, the recorded update date and clearer next-task states.

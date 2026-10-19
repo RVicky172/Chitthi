@@ -1,7 +1,12 @@
+import { duckCurves, type DuckCurves } from '../engine/ducking';
+import type { SoundJob } from '../engine/exportSound';
+import type { ExportClip } from '../engine/videoExport';
+import { audioPlan } from '../engine/soundPlan';
 import { speedFields } from '../engine/speed';
 import { bitrateFor, vFormat } from '../engine/videoFormats';
 import { canStreamToDisk, openFileSink } from '../lib/fileSink';
-import { getVideo, musicClips, setVideo } from './videoStore';
+import { scanOf } from './soundScan';
+import { getVideo, projectOf, setVideo, type VState } from './videoStore';
 
 /*
  * The video's export: encoded with engine/videoExport.ts (loaded on export), in memory for Reels (so they can be
@@ -20,6 +25,48 @@ export type ExportOutcome = { kind: 'file'; file: File } | { kind: 'saved'; name
 function exportName(): string {
   const video = getVideo();
   return `chitthi-${video.kind === 'vlog' ? 'youtube' : video.format}-${new Date().toISOString().slice(0, 10)}.mp4`;
+}
+
+/**
+ * The duck curves the export and the preview apply (208 AC-6, AC-7): from the scans, so both duck alike. A voice
+ * still being scanned counts as silent.
+ * @param video the video's state
+ * @returns the curves by track id
+ */
+export function soundDucks(video: VState): DuckCurves {
+  const project = projectOf(video);
+  const media = new Map(video.clips.map((clip) => [clip.id, clip.url]));
+  for (const sound of video.sounds) media.set(sound.id, sound.url);
+  return duckCurves(project, audioPlan(project), (ref) => {
+    const url = media.get(ref);
+    return url === undefined ? undefined : scanOf(url);
+  }).curves;
+}
+
+/**
+ * The clips as the export takes them: their timing, look, speed, file and sound's volume.
+ * @param video the video's state
+ * @returns the clips
+ */
+const exportClips = (video: VState): ExportClip[] =>
+  video.clips.map((clip) => ({ id: clip.id, track: clip.track, start: clip.start, kind: clip.kind, dur: clip.dur, in: clip.in, out: clip.out, edit: clip.edit, motion: clip.motion, fade: clip.fade, file: clip.file, volume: clip.volume, ...speedFields(clip) }));
+
+/**
+ * The export's sound (208): its tracks, clips, sound clips, duck curves and loudness target, as the export and the
+ * background measurement both take it, so they measure the same mix.
+ * @param video the video's state
+ * @returns the sound job
+ */
+export function soundJob(video: VState): SoundJob & { clips: ExportClip[] } {
+  return {
+    tracks: video.tracks,
+    clips: exportClips(video),
+    audio: video.sounds,
+    layers: video.layers,
+    fadeOut: video.fadeOut,
+    ducks: soundDucks(video),
+    ...(video.loudness === 'off' ? {} : { loudness: video.loudness }),
+  };
 }
 
 /**
@@ -43,9 +90,8 @@ export async function exportVideo(): Promise<ExportOutcome> {
     const { encodeVideo } = await import('../engine/videoExport');
     const current = getVideo();
     const blob = await encodeVideo({
-      tracks: current.tracks,
-      clips: current.clips.map((clip) => ({ id: clip.id, track: clip.track, start: clip.start, kind: clip.kind, dur: clip.dur, in: clip.in, out: clip.out, edit: clip.edit, motion: clip.motion, fade: clip.fade, file: clip.file, volume: clip.volume, ...speedFields(clip) })),
-      audio: musicClips(),
+      ...soundJob(current),
+      ...(current.measure ? { measured: current.measure } : {}),
       layers: current.layers,
       width: format.w,
       height: format.h,

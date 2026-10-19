@@ -19,22 +19,23 @@ export type DragMove = (dx: number, event: PointerEvent) => void;
 export type DragEnd = (moved: boolean, event: PointerEvent) => void;
 
 /**
- * Starts a horizontal drag; it ends the undo step on release.
+ * Starts a drag, horizontal unless asked; it ends the undo step on release.
  * @param event the pointer press
- * @param onMove gets the pointer's distance in px from where it started (after a 3 px threshold)
+ * @param onMove gets the pointer's distance in px from where it started along the axis (after a 3 px threshold)
  * @param onEnd gets whether it moved, on release or cancel
+ * @param axis 'y' for a vertical drag (a sound clip's volume line, 208)
  */
-export function startDrag(event: ReactPointerEvent, onMove: DragMove, onEnd?: DragEnd): void {
+export function startDrag(event: ReactPointerEvent, onMove: DragMove, onEnd?: DragEnd, axis: 'x' | 'y' = 'x'): void {
   event.stopPropagation();
   event.preventDefault();
   const element = event.currentTarget;
   // Every draggable part of the timeline is an HTML element.
   if (!(element instanceof HTMLElement)) return;
-  const startX = event.clientX;
+  const startAt = axis === 'x' ? event.clientX : event.clientY;
   let moved = false;
   element.setPointerCapture(event.pointerId);
   const handleMove = (moveEvent: PointerEvent) => {
-    const dx = moveEvent.clientX - startX;
+    const dx = (axis === 'x' ? moveEvent.clientX : moveEvent.clientY) - startAt;
     if (!moved && Math.abs(dx) < 3) return;
     moved = true;
     onMove(dx, moveEvent);

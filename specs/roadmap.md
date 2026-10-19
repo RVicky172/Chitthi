@@ -5,7 +5,7 @@
 > Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.
 > Status legend: ⬜ Not started · 📝 Spec drafted · ✅ Spec approved · 🚧 In progress · ✔️ Done
 
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-19
 
 The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work
 items (files, tests, notes and measurements for Phases 0–1) are in
@@ -41,7 +41,7 @@ _Release:_ 3.0.0
 | 205 | Keyframes: `Animated<T>`, keyframe lane (P2.5) | [spec](features/205-keyframes/spec.md) | ✔️ | 201 |
 | 206 | Transitions between clips (P2.6) | [spec](features/206-transitions/spec.md) | ✔️ | 201, 204 |
 | 207 | Speed: constant, reverse, freeze, ramps (P2.7) | [spec](features/207-speed/spec.md) | ✔️ | 201 |
-| 208 | Audio tracks, waveforms, ducking, loudness (P2.8) | — | ⬜ | 201, 205 |
+| 208 | Audio tracks, waveforms, ducking, loudness (P2.8) | [spec](features/208-audio-tracks/spec.md) | ✔️ | 201, 205 |
 | 209 | Voice-over (P2.9) | — | ⬜ | 208 |
 | 210 | Markers, in/out, range export, text animations, compound clips (P2.10) | — | ⬜ | 201 |
 | 211 | Proxies and frame cache, desktop first (P2.11) | — | ⬜ | 201 |

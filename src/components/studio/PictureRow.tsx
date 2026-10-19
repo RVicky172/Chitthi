@@ -1,4 +1,4 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Tool } from '../../engine/edits';
 import { clipLength, formatTime } from '../../engine/timeline';
 import { MAIN_VIDEO, type Track } from '../../engine/tracks';
@@ -7,6 +7,7 @@ import { moveClipTo, moveClipToTime, moveClipToTrack, rollClip, slideClip, slipC
 import { getVideo, selectClip, selectVLayer, setPlayhead, type VClip } from '../../state/videoStore';
 import { LockIcon } from '../icons';
 import { CutMarks } from './CutMarks';
+import { clipWaveGain, WaveCanvas, type SoundMix } from './SoundRow';
 import { useFallbackNote } from './previewFrame';
 import { clipNow, refuseLocked, sayOnce } from './timelineActions';
 import type { SnapTime } from './TimelineBars';
@@ -14,7 +15,7 @@ import { dragKey, startDrag, toFrame } from './timelineDrag';
 import { clipLabel, filmstripTimes, speedBadge } from './timelineRows';
 
 /*
- * One picture track's row: its clips (with filmstrips), their trims and drags with the edit tool, the gaps between
+ * One picture track's row: its clips (with filmstrips and, for videos, their sound's waveform, 208), their trims and drags with the edit tool, the gaps between
  * them (main track only: an overlay's gaps are see-through, and overlay clips are lifted, never rippled, 203 Q8), and
  * the drop markers of a clip being moved or files being dropped. A clip dragged with Select onto another picture row
  * moves to that track at the time it is dropped (`moveClipToTrack`); the target row draws the marker.
@@ -218,6 +219,25 @@ interface ClipBlockProps {
   locked: boolean;
   onBody: (event: ReactPointerEvent) => void;
   onEdge: (event: ReactPointerEvent, side: 'start' | 'end') => void;
+  /** The clip's track and the sound mix, for its waveform (208). */
+  track: Track;
+  mix: SoundMix;
+}
+
+/** A waveform strip's canvas height, pixels (stretched to the strip). */
+const WAVE_PX = 24;
+
+/**
+ * A clip's own sound's waveform under its filmstrip (208 T103): its gain, and why it is flat when silent.
+ * @param clip the clip
+ * @param track its track
+ * @param mix the sound mix
+ * @returns the gain, the reason (null when heard or a photo) and the reason for its title and screen readers
+ */
+function useClipWave(clip: VClip, track: Track, mix: SoundMix) {
+  const gain = useMemo(() => clipWaveGain(clip, track, mix), [clip, track, mix]);
+  const silent = clip.kind === 'video' && typeof gain !== 'function' ? gain.silent : null;
+  return { gain, silent, silence: silent ? '\n' + silent : '', spokenSilence: silent ? '. Silent: ' + silent : '' };
 }
 
 /**
@@ -241,7 +261,7 @@ function filmstrip(clip: VClip, width: number): string[] {
  * A clip's block: its filmstrip, length, trim edges and a button for screen readers.
  * @param props the clip, its labels, place, selection, drag state and handlers
  */
-function ClipBlock({ clip, label, labelInSentence, left, width, selected, dragging, locked, onBody, onEdge }: Readonly<ClipBlockProps>) {
+function ClipBlock({ clip, label, labelInSentence, left, width, selected, dragging, locked, onBody, onEdge, track, mix }: Readonly<ClipBlockProps>) {
   // A clip the decoder pool can't decode previews from its <video>, but the export can't use it (204 §7).
   const cantExport = useFallbackNote(clip.file);
   const seconds = clipLength(clip).toFixed(1);
@@ -250,18 +270,24 @@ function ClipBlock({ clip, label, labelInSentence, left, width, selected, draggi
   const source = clip.kind === 'video' ? ' · source ' + clip.in.toFixed(1) + '–' + clip.out.toFixed(1) + ' s' : '';
   const warning = cantExport ? '\n' + cantExport : '';
   const spokenWarning = cantExport ? '. ' + cantExport : '';
+  const { gain, silent, silence, spokenSilence } = useClipWave(clip, track, mix);
   return (
     <div
       className={`tl-clip tl-${clip.kind}${clip.freeze === undefined ? '' : ' tl-still'}${selected ? ' on' : ''}${dragging !== null ? ' dragging' : ''}${locked ? ' locked' : ''}`}
       style={{ left, width: Math.max(8, width - 2), transform: dragging !== null ? `translateX(${dragging}px)` : undefined }}
       onPointerDown={onBody}
-      title={`${clip.name} · ${seconds} s${source}${warning}`}
+      title={`${clip.name} · ${seconds} s${source}${silence}${warning}`}
     >
       <div className="tl-film" aria-hidden="true">
         {filmstrip(clip, width).map((picture, tile) => (
           <img key={tile} src={picture} alt="" draggable={false} />
         ))}
       </div>
+      {clip.kind === 'video' && (
+        <div className={`tl-clip-wave${silent ? ' tl-silent' : ''}`}>
+          <WaveCanvas scan={mix.scans.get(clip.url)} clip={clip} gain={gain} from={clip.start} to={clip.start + clipLength(clip)} width={width} height={WAVE_PX} />
+        </div>
+      )}
       <span className="tl-clip-label">
         {locked && <LockIcon on />}
         {cantExport && <span aria-hidden="true">⚠ </span>}
@@ -275,7 +301,7 @@ function ClipBlock({ clip, label, labelInSentence, left, width, selected, draggi
       )}
       <button type="button" className="tl-edge tl-edge-start" aria-label={`Trim the start of ${labelInSentence}`} onPointerDown={(event) => onEdge(event, 'start')} />
       <button type="button" className="tl-edge tl-edge-end" aria-label={`Trim the end of ${labelInSentence}`} onPointerDown={(event) => onEdge(event, 'end')} />
-      <button type="button" className="vh" aria-label={`${label}: ${clip.name}, ${clip.kind}, ${seconds} seconds${spokenBadge}${spokenWarning}`} aria-pressed={selected} onClick={() => selectClip(clip.id)} />
+      <button type="button" className="vh" aria-label={`${label}: ${clip.name}, ${clip.kind}, ${seconds} seconds${spokenBadge}${spokenSilence}${spokenWarning}`} aria-pressed={selected} onClick={() => selectClip(clip.id)} />
     </div>
   );
 }
@@ -302,6 +328,8 @@ interface PictureRowProps {
   dropMarkerAt: number | null;
   /** Shows (or, with null, hides) the drop marker on a row: the timeline draws it. */
   setDropMarker: (marker: DropMarker | null) => void;
+  /** The sound mix, for the clips' waveforms (208). */
+  mix: SoundMix;
 }
 
 /**
@@ -319,7 +347,7 @@ const gapsBetween = (placed: PlacedClip[]): { start: number; end: number }[] =>
  * One picture track's row (see the file's comment).
  * @param props the track, its clips, sizes, tool, selection, snapping, row lookup and drop marker
  */
-export function PictureRow({ track, clips, height, zoom, tool, selected, snap, snapSpan, seekFrom, rowRef, rowTargetAt, dropMarkerAt, setDropMarker }: Readonly<PictureRowProps>) {
+export function PictureRow({ track, clips, height, zoom, tool, selected, snap, snapSpan, seekFrom, rowRef, rowTargetAt, dropMarkerAt, setDropMarker, mix }: Readonly<PictureRowProps>) {
   const isMainTrack = track.id === MAIN_VIDEO;
   const [reorder, setReorder] = useState<Reorder | null>(null);
   const placed: PlacedClip[] = clips.map((clip, index) => ({ clip, index, start: clip.start, end: clip.start + clipLength(clip) }));
@@ -356,6 +384,8 @@ export function PictureRow({ track, clips, height, zoom, tool, selected, snap, s
           locked={track.locked}
           onBody={(event) => onClipBody(event, clipPlace, context)}
           onEdge={(event, side) => onClipEdge(event, side, clipPlace, context)}
+          track={track}
+          mix={mix}
         />
       ))}
       {gaps.map((gap) => (

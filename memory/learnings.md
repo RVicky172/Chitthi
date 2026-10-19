@@ -440,3 +440,46 @@ T070's seeded property test, not by the freeze tests). Freezes go with photos wh
 module (T080) is linted with the import unresolved (`no-unsafe-call` on every use); once the module exists the test
 file is unchanged, so the cached errors stay and `npm run check` stays red. Run `npx eslint <test>` (no cache) or
 delete `node_modules/.cache/eslint/`; `npm run lint:full` is never stale.
+
+**AudioWorklet modules under the CSP (208 T001, 2026-10-18).** `import url from './x.worklet.ts?worker&url'` makes Vite
+8 bundle the worklet as its own asset (`assets/x.worklet-<hash>.js`) and gives a same-origin URL
+(`new URL(…, import.meta.url)`); `audioWorklet.addModule(url)` loads it under the production CSP (`script-src 'self'`,
+vite preview) and from `app://chitthi` in Electron, no CSP change. `new URL('./x.ts', import.meta.url)` alone would
+ship the raw `.ts`. A `MediaElementAudioSourceNode` keeps the element's `playbackRate` and `preservesPitch`, and a
+GainNode above 1 is heard (0.5 tone × 1.5 → peak 0.75 after the worklet).
+**Driving Electron from a script:** Playwright's `_electron.launch` fails ("Process failed to launch!") while
+`ELECTRON_RUN_AS_NODE` is in the env, even empty: filter the key out of `env`, don't set it to ''. Playwright's own
+Chromium may be missing (`npx playwright install chromium`); `chromium.launch({ channel: 'chrome' })` uses the
+installed Chrome for a one-off check.
+
+**Editing CRLF files from scripts (208 T014, 2026-10-18).** Some `src/` files have CRLF line endings
+(`src/engine/timeSnap.ts`), others LF: a Node script matching a multi-line string with `\n` silently misses in a CRLF
+file, so check each replacement (throw when the old text isn't found) or use the Edit tool. Inline `node -e` / bash
+heredocs holding TypeScript with backticks, `${…}` or straight apostrophes break the Bash tool's quoting: write the
+script to a file first.
+
+## 2026-10-18 — No `AudioBuffer` in a worker: scan with `AudioSampleSink` (208 T033)
+
+Web Audio (and so `AudioBuffer`) exists only on the window, and Mediabunny's `AudioBufferSink` makes `AudioBuffer`s, so
+it can't decode in a Worker. `AudioSampleSink` yields `AudioSample`s (WebCodecs `AudioData`): `copyTo(Float32Array,
+{ planeIndex, format: 'f32-planar' })` per channel, then `close()` each. And a state module that starts a Worker
+from a timer must check `typeof Worker` and run the call through a promise: `video.test.ts` imports videos in Node, and
+a synchronous `ReferenceError` in a `setTimeout` is an unhandled error that turns `npm run check` red.
+
+## 2026-10-18 — A look-ahead limiter's lengths must line up with the oversampler's taps (208 T053)
+
+The true-peak limiter's gain must be flat at the needed value over every sample an oversampled peak is made of,
+or the peak comes out over the ceiling. The `Oversampler` reports a peak made of the 12 samples before it, so with a
+delay of D samples: hold the needed gain at its lowest over D + 1 samples, then average over D − 11 (D − taps + 1).
+An average even a few samples longer reaches back before the hold and lets every hot test signal over −1 dBTP. For a
+bit-identical pass-through, count the averaged gains that aren't exactly 1 and return 1 (and reset the running sum)
+when there are none: a running sum of gains never returns to an exact integer by itself.
+
+## 2026-10-18 — Loudness fixtures: the relative gate drops a quiet bed under long loud parts (208 T061)
+
+A "heavy limiting" fixture of a quiet song (−34 LUFS) with 0.3 s hits near full scale measured −3.7 LUFS, not
+somewhere between: BS.1770's relative gate (−10 LU under the ungated mean) throws away every block of the song alone,
+so integrated loudness is the hits'. The loudness gain then turns the mix *down* and the limiter does nothing. To test
+heavy limiting, put short transients (10 ms clicks) over a steady bed (−26 LUFS): the bed sets the loudness, the
+clicks set the peaks (12 dB of reduction), and only the corrective pass lands it on the target (−17.25 → −14.37).
+Also: `console.log` doesn't show in this Vitest setup; print with `process.stderr.write` when probing numbers.

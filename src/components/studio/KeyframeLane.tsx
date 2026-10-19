@@ -18,7 +18,7 @@ import { deleteKeys, type KeyProp, type KeyTarget, moveKeys, setKeyEase } from '
 import { getVideo } from '../../state/videoStore';
 import { tell } from './timelineActions';
 import type { DragEnd, DragMove } from './timelineDrag';
-import { easeName, easeShape, keyPropName, keyTimes, type KeyTime } from './timelineRows';
+import { easeName, easeShape, keyPropName, keyTimes, type KeyOwner, type KeyTime } from './timelineRows';
 
 /** The item whose keyframes the lane shows: where it starts and how long it is on the timeline, and its keys. */
 export interface LaneItem {
@@ -59,7 +59,7 @@ interface KeyframeLaneProps {
   /** Its place on the timeline and its keys. */
   item: LaneItem;
   /** Whether it is a clip or a layer (for the values' names). */
-  on: 'clip' | 'layer';
+  on: KeyOwner;
   /** Its name in labels and announcements ("Clip 1", a layer's name). */
   name: string;
   /** The timeline's pixels per second. */
@@ -82,7 +82,7 @@ interface KeyframeLaneProps {
  * @param fps the project's frame rate
  * @returns the rows
  */
-function laneRows(item: LaneItem, { name, on, expanded }: { name: string; on: 'clip' | 'layer'; expanded: boolean }, fps: number): LaneRow[] {
+function laneRows(item: LaneItem, { name, on, expanded }: { name: string; on: KeyOwner; expanded: boolean }, fps: number): LaneRow[] {
   const rows: LaneRow[] = [{ prop: 'all', label: `Keyframes of ${name}`, times: keyTimes(item, fps) }];
   if (!expanded) return rows;
   for (const prop of animatedProps(item)) {
@@ -232,7 +232,7 @@ export function KeyframeLane({ target, item, on, name, zoom, expanded, snapAt, d
 /** The lane's header cells. */
 interface KeyframeLaneHeadsProps {
   item: LaneItem;
-  on: 'clip' | 'layer';
+  on: KeyOwner;
   expanded: boolean;
   onExpand: (expanded: boolean) => void;
 }

@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react';
+import type { MixMeasure } from '../engine/exportSound';
+import { LOUDNESS_PRESETS } from '../engine/loudnessTargets';
 import { closeGaps, limitVideos, type EditCtx, type Tool } from '../engine/edits';
 import type { IgEdit } from '../engine/instagram';
 import type { ClipKeyProp, Keyframes } from '../engine/keyframes';
@@ -67,19 +69,10 @@ export interface VClip extends SpeedFields {
   still: HTMLCanvasElement | null;
 }
 
-/** The music under the video. */
-export interface VMusic {
-  /** The music track. */
-  track: string;
+/** A sound clip in the store (208 D1): the clip, its file and the file's object URL (its media id, D-053). */
+export interface VSound extends AudioClip {
   file: Blob;
-  name: string;
   url: string;
-  dur: number;
-  volume: number;
-  /** Seconds into the song where the video's sound starts. */
-  offset: number;
-  /** Loudness peaks (0–1) through the whole song, for the timeline's waveform; empty until measured. */
-  peaks: number[];
 }
 
 /** A track's height on the timeline (Q5): small 40 px, medium 64 px (2.x's rows), large 96 px. */
@@ -106,8 +99,17 @@ export interface VState {
   /** The selected cut (206): the id of the clip before it, whose transition (if any) the inspector shows. A view
    * setting: not undone, not saved. */
   transitionSel: string | null;
+  /** The selected sound clip (208): it wins over a selected clip, as a layer does. A view setting. */
+  soundSel: string | null;
   tools: LayerTools;
-  music: VMusic | null;
+  /** The sound clips on the audio tracks (208), in start order. */
+  sounds: VSound[];
+  /** The export's loudness target, LUFS, or Off (208 AC-8). */
+  loudness: 'off' | number;
+  /** The mix's last loudness measurement (208 AC-9; the export reuses it while its key is the mix's). Not saved. */
+  measure: MixMeasure | null;
+  /** A measurement is under way: `measure` is out of date. */
+  measuring: boolean;
   /** Fade to black over the last half second. */
   fadeOut: boolean;
   /** The main track packs its clips end to end (202); off, clips keep their times and gaps. Part of the project. */
@@ -144,8 +146,13 @@ let state: VState = {
   layers: [],
   layerSel: null,
   transitionSel: null,
+  soundSel: null,
   tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
-  music: null,
+  sounds: [],
+  // New projects aim at YouTube's and Instagram's −14 LUFS (Q12).
+  loudness: LOUDNESS_PRESETS.youtube,
+  measure: null,
+  measuring: false,
   fadeOut: true,
   magnetic: true,
   tool: 'select',
@@ -164,7 +171,7 @@ let state: VState = {
 
 const listeners = new Set<() => void>();
 /** Fields whose changes leave the last export current (view settings and the export's own state). */
-const PURE = ['selected', 'layerSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo'];
+const PURE = ['selected', 'layerSel', 'soundSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo', 'measure', 'measuring'];
 
 /**
  * Changes the state (not recorded for undo) and tells the subscribers.
@@ -177,6 +184,16 @@ export function setVideo(patch: Partial<VState>): void {
   listeners.forEach((listener) => {
     listener();
   });
+}
+
+/**
+ * Listens to the store (outside React: the background loudness measurement).
+ * @param listener called after every change
+ * @returns the unsubscribe function
+ */
+export function subscribeVideo(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 /**
@@ -227,19 +244,11 @@ export const lengthOf = (clips: VClip[], tracks: Track[] = state.tracks, magneti
 export const editCtx = (): EditCtx => ({ maxLength: limits().seconds, locked: (track) => lockedReason(state.tracks, track), maxVideos: limits().videosAtOnce, desktop: isDesktop });
 
 /**
- * The music as a sound clip on its track (as `fromSequence` makes it): from its offset to the end of the video.
- * @param music the music
- * @returns none or one sound clip
- */
-export const musicClips = (music: VMusic | null = state.music): (AudioClip & { file: Blob })[] =>
-  music ? [{ id: 'music', track: music.track, start: 0, in: music.offset, volume: music.volume, toEnd: true, srcDur: music.dur, file: music.file }] : [];
-
-/**
  * The state as the track model sees it (engine/timeline.ts): for the preview, the timeline and the export.
  * @param video the state
  * @returns the project
  */
-export const projectOf = (video: VState = state): Project<VClip> => ({ tracks: video.tracks, clips: video.clips, audio: musicClips(video.music), layers: video.layers, fadeOut: video.fadeOut });
+export const projectOf = (video: VState = state): Project<VClip> & { audio: VSound[] } => ({ tracks: video.tracks, clips: video.clips, audio: video.sounds, layers: video.layers, fadeOut: video.fadeOut });
 
 /**
  * The video's length (a selector: `useVideo(videoLength)`).
@@ -267,7 +276,7 @@ export const setPlayhead = (seconds: number): void => {
  * @param id the clip, or null
  */
 export const selectClip = (id: string | null): void => {
-  setVideo({ selected: id, transitionSel: null });
+  setVideo({ selected: id, transitionSel: null, ...(id ? { soundSel: null } : {}) });
 };
 
 /**
@@ -275,7 +284,15 @@ export const selectClip = (id: string | null): void => {
  * @param id the layer, or null
  */
 export const selectVLayer = (id: string | null): void => {
-  setVideo({ layerSel: id, transitionSel: null });
+  setVideo({ layerSel: id, transitionSel: null, ...(id ? { soundSel: null } : {}) });
+};
+
+/**
+ * Selects a sound clip (208); a layer and a cut give way.
+ * @param id the sound clip, or null
+ */
+export const selectSound = (id: string | null): void => {
+  setVideo({ soundSel: id, ...(id ? { layerSel: null, transitionSel: null } : {}) });
 };
 
 /**
@@ -397,6 +414,10 @@ export interface Snap {
   layers: Layer[];
   /** With the clips, so undoing a gap close brings back the gaps with Magnetic off (D1). */
   magnetic: boolean;
+  /** The sound clips (208). */
+  sounds: VSound[];
+  /** The loudness target (208 AC-10: undone like any edit). */
+  loudness: 'off' | number;
 }
 
 const past: Snap[] = [];
@@ -408,7 +429,7 @@ let lastAt = 0;
  * The undoable part of the state now.
  * @returns a snapshot
  */
-const snapshot = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers, magnetic: state.magnetic });
+const snapshot = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers, magnetic: state.magnetic, sounds: state.sounds, loudness: state.loudness });
 
 /**
  * Records an undo step, unless it continues the last one (the same key within 800 ms: a drag).
@@ -449,9 +470,12 @@ function restore(snap: Snap): void {
     clips: snap.clips,
     layers: snap.layers,
     magnetic: snap.magnetic,
+    sounds: snap.sounds,
+    loudness: snap.loudness,
     selected: snap.clips.some((clip) => clip.id === state.selected) ? state.selected : (snap.clips.at(0)?.id ?? null),
     layerSel: snap.layers.some((layer) => layer.id === state.layerSel) ? state.layerSel : null,
     transitionSel: snap.clips.some((clip) => clip.id === state.transitionSel) ? state.transitionSel : null,
+    soundSel: snap.sounds.some((sound) => sound.id === state.soundSel) ? state.soundSel : null,
     t: Math.min(state.t, lengthOf(snap.clips, snap.tracks, snap.magnetic)),
     ...flags(),
   });
@@ -544,13 +568,15 @@ export interface LoadedProject {
   clips: VClip[];
   tracks?: Track[];
   magnetic?: boolean;
-  music?: VMusic | null;
+  sounds?: VSound[];
+  /** Missing: a project from before 208, Off (Q12). */
+  loudness?: 'off' | number;
   layers?: Layer[];
 }
 
 /**
  * Starts a project from clips already made: no history, packed when magnetic, else in start order.
- * @param project the clips, tracks, Magnetic, music and layers
+ * @param project the clips, tracks, Magnetic, sounds, loudness and layers
  */
 export function loadVideoProject(project: LoadedProject): void {
   past.length = 0;
@@ -566,7 +592,7 @@ export function loadVideoProject(project: LoadedProject): void {
   };
   const sorted = project.clips.slice().sort((first, second) => rank(first) - rank(second) || (magnetic && first.track === MAIN_VIDEO ? 0 : first.start - second.start));
   const clips = magnetic ? pack(sorted) : sorted;
-  setVideo({ clips, tracks, magnetic, music: project.music ?? null, layers: project.layers ?? [], layerSel: null, transitionSel: null, selected: clips.at(0)?.id ?? null, t: 0, ...flags() });
+  setVideo({ clips, tracks, magnetic, sounds: project.sounds ?? [], loudness: project.loudness ?? 'off', measure: null, measuring: false, layers: project.layers ?? [], layerSel: null, transitionSel: null, soundSel: null, selected: clips.at(0)?.id ?? null, t: 0, ...flags() });
 }
 
 /**

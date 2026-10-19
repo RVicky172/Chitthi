@@ -46,6 +46,7 @@ import {
   EyeOff,
   Lock,
   LockOpen,
+  Headphones,
   Volume2,
   VolumeX,
   Package,
@@ -335,6 +336,10 @@ export function MuteIcon({ on }: Readonly<{ on: boolean }>) {
  */
 export function LockIcon({ on }: Readonly<{ on: boolean }>) {
   return on ? <Lock {...base} /> : <LockOpen {...base} />;
+}
+/** The Solo icon (208 Q2: only soloed sound tracks heard in the preview). */
+export function SoloIcon() {
+  return <Headphones {...base} />;
 }
 /** The height icon. */
 export function HeightIcon() {

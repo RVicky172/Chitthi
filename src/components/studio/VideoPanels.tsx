@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import { formatTime } from '../../engine/timeline';
-import { lockedReason, MUSIC } from '../../engine/tracks';
 import { useIg } from '../../state/instagram';
-import { addMedia, removeMusic, setMusicFile, updateMusic } from '../../state/videoMedia';
-import { limits, limitText, useVideo, videoLength } from '../../state/videoStore';
-import { AddPhotoIcon, MusicIcon, ReelIcon, TrashIcon, YouTubeIcon } from '../icons';
+import { addMedia } from '../../state/videoMedia';
+import { limits, limitText, useVideo } from '../../state/videoStore';
+import { AddPhotoIcon, ReelIcon, YouTubeIcon } from '../icons';
 import { DesktopNote } from './Shell';
-import { Range } from './videoFields';
 
-/* The video editor's Media and Audio panels, the empty stage, and the browser's limits. */
+/* The video editor's Media panel, the empty stage, and the browser's limits (the Audio panel is AudioPanel.tsx). */
 
 /** The files the media pickers take. */
 const ACCEPT = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.mov,.m4v,.mkv';
@@ -133,60 +130,3 @@ export function MediaPanel() {
   );
 }
 
-/** The Audio panel: the music, its volume and where the song starts; disabled while the music track is locked. */
-export function MusicPanel() {
-  const music = useVideo((state) => state.music);
-  const [message, setMessage] = useState('');
-  const total = useVideo(videoLength);
-  const locked = useVideo((state) => lockedReason(state.tracks, MUSIC));
-  return (
-    <div className="ig-group">
-      <h3>Music</h3>
-      <p className="hint">Add a song or sound from this device. Use music you have the right to post: Instagram and YouTube may mute or claim recognised songs.</p>
-      {locked && <p className="hint lp-locked">{locked}</p>}
-      <fieldset className="lp-fs" disabled={!!locked}>
-        <label className="sbtn mst-file">
-          <MusicIcon />
-          {music ? 'Choose another sound' : 'Add music'}
-          <input
-            type="file"
-            accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = '';
-              if (file) void setMusicFile(file).then((refusal) => setMessage(refusal ?? ''));
-            }}
-          />
-        </label>
-        {message && (
-          <p className="hint bad" role="alert">
-            {message}
-          </p>
-        )}
-        {music && (
-          <>
-            <p className="hint ig-name" title={music.name}>
-              {music.name} · {formatTime(music.dur)}
-            </p>
-            <Range id="m-vol" label="Volume" value={music.volume} min={0} max={1} step={0.05} show={`${Math.round(music.volume * 100)}%`} onChange={(volume) => updateMusic({ volume })} />
-            <Range
-              id="m-off"
-              label="Start the song at"
-              value={music.offset}
-              min={0}
-              max={Math.max(0, music.dur - Math.min(total, music.dur))}
-              step={0.5}
-              show={formatTime(music.offset)}
-              onChange={(offset) => updateMusic({ offset })}
-            />
-            <p className="hint">Or drag the music on the timeline. It fades out over the last seconds. Lower a clip’s own sound in its inspector.</p>
-            <button type="button" className="sbtn" onClick={removeMusic}>
-              <TrashIcon />
-              Remove music
-            </button>
-          </>
-        )}
-      </fieldset>
-    </div>
-  );
-}

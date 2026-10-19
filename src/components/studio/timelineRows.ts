@@ -1,11 +1,13 @@
 // The timeline's picture rows (203 §10), free of React and the DOM so they can be unit-tested: which rows show and in
 // what order, which row a pointer is over while dragging, how a clip is named, and what to announce after a change;
 // and the keyframe lane's diamonds, names and announcements (205 §9); a clip's speed badge, filmstrip times and speed
-// announcements (207 §8).
+// announcements (207 §8); sound rows' bars, fade handles, volume line and duck curve (208 §9).
 import { describeTransform } from '../../engine/clipBox';
-import type { Ease, Keyframe, Keyframes } from '../../engine/keyframes';
-import { sourceAt, speedFields } from '../../engine/speed';
-import { clipLength, IDENTITY, type TimedClip } from '../../engine/timeline';
+import { duckGain } from '../../engine/ducking';
+import { valueAt, type Ease, type Keyframe, type Keyframes } from '../../engine/keyframes';
+import { FADE_MAX, soundLength } from '../../engine/soundClips';
+import { soundMuted, sourceAt, speedFields } from '../../engine/speed';
+import { clipLength, IDENTITY, type AudioClip, type TimedClip } from '../../engine/timeline';
 import { MAIN_VIDEO, lockedReason, type Track } from '../../engine/tracks';
 import { TRANSITION_LIMITS, cutsOf, type Transition, type TransitionKind } from '../../engine/transitions';
 import { V_FPS } from '../../engine/videoFormats';
@@ -242,13 +244,16 @@ const EASE_NAMES: Record<Ease | 'mixed', string> = {
  */
 export const easeName = (ease: Ease | 'mixed'): string => EASE_NAMES[ease];
 
+/** Whose keys: a picture clip's, a layer's or a sound clip's (208). */
+export type KeyOwner = 'clip' | 'layer' | 'sound';
+
 /**
  * An animated value's name, as the inspector's field shows it (a clip's turn is "Rotation", a layer's "Turn").
  * @param prop the value
- * @param on whether it is a clip's or a layer's
+ * @param on whether it is a clip's, a layer's or a sound clip's
  * @returns its name (the value itself when unknown)
  */
-export function keyPropName(prop: string, on: 'clip' | 'layer'): string {
+export function keyPropName(prop: string, on: KeyOwner): string {
   const names: Partial<Record<string, string>> = {
     x: 'X',
     y: 'Y',
@@ -256,7 +261,7 @@ export function keyPropName(prop: string, on: 'clip' | 'layer'): string {
     rot: on === 'clip' ? 'Rotation' : 'Turn',
     opacity: 'Opacity',
     radius: 'Corners',
-    volume: 'Clip sound',
+    volume: on === 'sound' ? 'Volume' : 'Clip sound',
   };
   return names[prop] ?? prop;
 }
@@ -432,4 +437,236 @@ export function describeTransitionChange(before: TimedClip[], after: TimedClip[]
     }
   }
   return '';
+}
+
+/* ---------- Sound rows (208 §9) ---------- */
+
+/** The padding above and below a sound bar's volume line and duck curve, pixels. */
+const LINE_PAD = 4;
+/** The deepest duck the curve shows, dB (the track's duck amount goes to 30 dB). */
+const DUCK_FLOOR_DB = -30;
+/** The volume line's and duck curve's sampling, pixels. */
+const LINE_STEP_PX = 4;
+/** The most segments a line has (a long clip's are further apart). */
+const MAX_LINE_STEPS = 1024;
+
+/** A sound clip's bar on its row, pixels. */
+export interface SoundBarBox {
+  left: number;
+  width: number;
+  /** How much of it, from its left, is before the video's end (heard, Q6); the rest is dimmed. */
+  heard: number;
+}
+
+/**
+ * A sound clip's bar (Q6: the part past the video's end isn't heard and is dimmed).
+ * @param clip the sound clip
+ * @param videoEnd the video's length, seconds
+ * @param zoom pixels per second
+ * @param audio the sound clips on its track (a toEnd clip stops at the next one, T072)
+ * @returns its left edge, width and heard width
+ */
+export function soundBar(clip: AudioClip, videoEnd: number, zoom: number, audio: readonly AudioClip[] = []): SoundBarBox {
+  const length = soundLength(clip, videoEnd, audio);
+  const heard = Math.min(length, Math.max(0, videoEnd - clip.start));
+  return { left: clip.start * zoom, width: length * zoom, heard: heard * zoom };
+}
+
+/**
+ * Why a sound clip isn't heard (AC-4: its waveform is a flat line and says so), matching what the export leaves out.
+ * @param clip the sound clip
+ * @param track its track
+ * @param videoEnd the video's length, seconds
+ * @returns the reason, or null when it is heard
+ */
+export function soundSilence(clip: AudioClip, track: Track, videoEnd: number): string | null {
+  if (track.muted) return 'Its track is muted, so it isn’t heard.';
+  if (clip.start >= videoEnd) return 'It starts after the video ends, so it isn’t heard.';
+  const keys = clip.keys?.volume;
+  const loud = keys?.length ? keys.some((key) => key.v > 0) : clip.volume > 0;
+  return loud ? null : 'Its volume is 0 %, so it isn’t heard.';
+}
+
+/**
+ * Why a video clip's own sound isn't heard (AC-4: its waveform is a flat line and says so), as the export decides.
+ * @param clip the video clip
+ * @param track its track
+ * @returns the reason, or null when it is heard
+ */
+export function clipSilence(clip: TimedClip & { volume?: number }, track: Track): string | null {
+  if (track.muted) return 'Its track is muted, so it isn’t heard.';
+  const muted = soundMuted(clip);
+  if (muted) return muted;
+  const keys = clip.keys?.volume;
+  const loud = keys?.length ? keys.some((key) => key.v > 0) : (clip.volume ?? 0) > 0;
+  return loud ? null : 'Its sound is off (volume 0 %).';
+}
+
+/**
+ * A fade after dragging its handle `dx` pixels: the fade in grows to the right, the fade out to the left; to the
+ * hundredth of a second, 0–10 s and never into the other fade.
+ * @param side which fade
+ * @param fade its length before the drag, seconds
+ * @param other the other fade's length, seconds
+ * @param length the clip's length, seconds
+ * @param dx how far the handle was dragged, pixels
+ * @param zoom pixels per second
+ * @returns the new length, seconds
+ */
+export function fadeAfterDrag(side: 'in' | 'out', fade: number, other: number, length: number, dx: number, zoom: number): number {
+  const wanted = fade + (side === 'in' ? dx : -dx) / zoom;
+  const longest = Math.min(FADE_MAX, Math.max(0, length - other));
+  return Math.round(Math.min(longest, Math.max(0, wanted)) * 100) / 100;
+}
+
+/**
+ * Where a volume sits on a sound bar: 0 % at the bottom, 100 % in the middle, 200 % at the top.
+ * @param gain 0–2
+ * @param height the bar's height, pixels
+ * @returns y from the bar's top, pixels
+ */
+export const volumeY = (gain: number, height: number): number => LINE_PAD + (1 - gain / 2) * (height - 2 * LINE_PAD);
+
+/**
+ * The volume at a height on a sound bar (dragging its volume line).
+ * @param y pixels from the bar's top
+ * @param height the bar's height, pixels
+ * @returns 0–2
+ */
+export function gainAtY(y: number, height: number): number {
+  const gain = 2 * (1 - (y - LINE_PAD) / (height - 2 * LINE_PAD));
+  return Math.min(2, Math.max(0, gain));
+}
+
+/**
+ * A number for SVG points, to a tenth of a pixel.
+ * @param value pixels
+ * @returns its text
+ */
+const px = (value: number): string => String(Math.round(value * 10) / 10);
+
+/**
+ * SVG points sampled across a bar every few pixels.
+ * @param width the bar's width, pixels
+ * @param yAt y at an x, pixels
+ * @returns "x,y x,y …", at least two points
+ */
+function sampledPoints(width: number, yAt: (x: number) => number): string {
+  const steps = Math.min(MAX_LINE_STEPS, Math.max(1, Math.ceil(width / LINE_STEP_PX)));
+  return Array.from({ length: steps + 1 }, (_, step) => {
+    const x = (step / steps) * width;
+    return `${px(x)},${px(yAt(x))}`;
+  }).join(' ');
+}
+
+/**
+ * A sound clip's volume line (AC-5): its volume keys (0–2) where it has them, else flat at its volume.
+ * @param clip the sound clip
+ * @param length its length, seconds
+ * @param zoom pixels per second
+ * @param height the bar's height, pixels
+ * @returns SVG points
+ */
+export function volumePoints(clip: AudioClip, length: number, zoom: number, height: number): string {
+  const width = length * zoom;
+  const keys = clip.keys?.volume;
+  if (!keys?.length) {
+    const y = px(volumeY(clip.volume, height));
+    return `0,${y} ${px(width)},${y}`;
+  }
+  return sampledPoints(width, (x) => volumeY(Math.min(2, Math.max(0, valueAt(keys, x / zoom))), height));
+}
+
+/**
+ * The duck curve over a sound clip (AC-6): 0 dB at the bar's top, −30 dB at its bottom.
+ * @param curve the track's duck curve, dB every 10 ms (`duckCurve`)
+ * @param start the clip's start, seconds
+ * @param length its length, seconds
+ * @param zoom pixels per second
+ * @param height the bar's height, pixels
+ * @returns SVG points
+ */
+export function duckPoints(curve: Float32Array, start: number, length: number, zoom: number, height: number): string {
+  return sampledPoints(length * zoom, (x) => {
+    const db = Math.max(DUCK_FLOOR_DB, 20 * Math.log10(duckGain(curve, start + x / zoom)));
+    return LINE_PAD + (db / DUCK_FLOOR_DB) * (height - 2 * LINE_PAD);
+  });
+}
+
+/* ---------- Sound clips from the keyboard, and their announcements (208 T105, AC-14) ---------- */
+
+/**
+ * A fade after an arrow key on its handle: → grows a fade in and ← a fade out, by 0.1 s (Shift: 1 s), within 0–10 s
+ * and the other fade.
+ * @param side which fade
+ * @param fade its length now, seconds
+ * @param other the other fade's length, seconds
+ * @param length the clip's length, seconds
+ * @param key the key pressed
+ * @param shift whether Shift is held
+ * @returns the new length, or null for a key that doesn't change it
+ */
+export function nudgedFade(side: 'in' | 'out', fade: number, other: number, length: number, key: string, shift: boolean): number | null {
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight') return null;
+  const step = (key === 'ArrowRight' ? 1 : -1) * (shift ? 1 : 0.1);
+  return fadeAfterDrag(side, fade, other, length, step, 1);
+}
+
+/**
+ * A volume after an arrow key on the volume line: ↑ / ↓ by 5 % (Shift: 25 %), within 0–200 %.
+ * @param volume the volume now, 0–2
+ * @param key the key pressed
+ * @param shift whether Shift is held
+ * @returns the new volume, or null for a key that doesn't change it
+ */
+export function nudgedVolume(volume: number, key: string, shift: boolean): number | null {
+  if (key !== 'ArrowUp' && key !== 'ArrowDown') return null;
+  const step = (key === 'ArrowUp' ? 1 : -1) * (shift ? 0.25 : 0.05);
+  return Math.round(Math.min(2, Math.max(0, volume + step)) * 100) / 100;
+}
+
+/**
+ * What changed on one sound clip, in words.
+ * @param old the clip before
+ * @param clip the clip after
+ * @param videoEnd the video's length, seconds (where a toEnd clip ends)
+ * @param lists the sound clips before and after the change (where a toEnd clip stops)
+ * @returns the change and its new value, or '' when nothing announced changed
+ */
+function soundChange(old: AudioClip, clip: AudioClip, videoEnd: number, lists: Record<'before' | 'after', readonly AudioClip[]>): string {
+  const length = soundLength(clip, videoEnd, lists.after);
+  if (old.toEnd !== clip.toEnd) return clip.toEnd ? 'plays to the end of the video' : `has a fixed length, ${length.toFixed(1)} s`;
+  if (old.track !== clip.track || old.start !== clip.start || soundLength(old, videoEnd, lists.before) !== length)
+    return `${clip.start.toFixed(1)} s to ${(clip.start + length).toFixed(1)} s`;
+  if (old.in !== clip.in) return `plays its file from ${clip.in.toFixed(1)} s`;
+  if ((old.fadeIn ?? 0) !== (clip.fadeIn ?? 0)) return `fade in ${(clip.fadeIn ?? 0).toFixed(1)} s`;
+  if ((old.fadeOut ?? 0) !== (clip.fadeOut ?? 0)) return `fade out ${(clip.fadeOut ?? 0).toFixed(1)} s`;
+  if (old.volume !== clip.volume) return `volume ${Math.round(clip.volume * 100)} %`;
+  return '';
+}
+
+/**
+ * What to announce after a change to the sound clips (the timeline's live region): the first clip added, removed or
+ * changed, with its track and name ("Audio 2: Whoosh, fade in 0.5 s"). Volume keys are announced as keyframes.
+ * @param before the sound clips before the change
+ * @param after them after it
+ * @param tracks the project's tracks
+ * @param videoEnd the video's length, seconds
+ * @returns the announcement, or '' when no sound clip changed
+ */
+export function soundAnnouncement(before: readonly AudioClip[], after: readonly AudioClip[], tracks: readonly Track[], videoEnd = Infinity): string {
+  const name = (clip: AudioClip) => `${tracks.find((track) => track.id === clip.track)?.name ?? 'Sound'}: ${clip.name ?? 'Sound'}`;
+  const previous = new Map(before.map((clip) => [clip.id, clip]));
+  for (const clip of after) {
+    const old = previous.get(clip.id);
+    if (!old) {
+      const end = clip.start + soundLength(clip, videoEnd, after);
+      return `${name(clip)} added, ${clip.start.toFixed(1)} s to ${end.toFixed(1)} s`;
+    }
+    const change = soundChange(old, clip, videoEnd, { before, after });
+    if (change) return `${name(clip)}, ${change}`;
+  }
+  const afterIds = new Set(after.map((clip) => clip.id));
+  const removed = before.find((clip) => !afterIds.has(clip.id));
+  return removed ? `${name(removed)} removed` : '';
 }

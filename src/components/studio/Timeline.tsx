@@ -1,29 +1,59 @@
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react';
 import type { Keyframes } from '../../engine/keyframes';
 import type { Layer } from '../../engine/layers';
 import { formatTime } from '../../engine/timeline';
 import { snapTargets, snapTime } from '../../engine/timeSnap';
-import { MUSIC, type Track } from '../../engine/tracks';
+import type { Track } from '../../engine/tracks';
 import { toast } from '../../lib/toast';
 import { addMedia, NEW_TRACK } from '../../state/videoMedia';
-import { getVideo, setPlayhead, setPlaying, setZoom, useVideo, videoLength, type TrackHeight, type VClip } from '../../state/videoStore';
+import {
+  getVideo,
+  setPlayhead,
+  setPlaying,
+  setZoom,
+  useVideo,
+  videoLength,
+  type TrackHeight,
+  type VClip,
+  type VSound,
+} from '../../state/videoStore';
 import { KeyframeLane, KeyframeLaneHeads, animatedProps } from './KeyframeLane';
 import { PictureRow, type DropMarker } from './PictureRow';
 import { onTimelineKey, selectedItem, type SelectedItem } from './timelineActions';
-import { LayerRow, MusicRow, type SnapTime } from './TimelineBars';
+import { SoundRow, useSoundMix } from './SoundRow';
+import { LayerRow, type SnapTime } from './TimelineBars';
 import { RULER_PX, rulerLabel, SNAP_PX, startDrag, tickStep, toFrame, TRACK_PX } from './timelineDrag';
-import { describeClipChange, describeKeyChange, describeSpeedChange, describeTransitionChange, pictureTracksTopFirst, rowUnderPointer, type RowBounds } from './timelineRows';
-import { AddTrackButton, TrackHead } from './TrackHead';
+import {
+  describeClipChange,
+  describeKeyChange,
+  describeSpeedChange,
+  describeTransitionChange,
+  pictureTracksTopFirst,
+  rowUnderPointer,
+  soundAnnouncement,
+  type RowBounds,
+  type KeyOwner,
+} from './timelineRows';
+import { AddSoundTrackButton, AddTrackButton, TrackHead } from './TrackHead';
 
 /*
  * The video editor's timeline: a time ruler, one row per picture track (overlay tracks above the main video track, 203
- * §10) with their clips and filmstrips, one row per layer, and the music with its waveform. Add track (the + by the
+ * §10) with their clips and filmstrips, one row per layer, and one per audio track with its sound clips and their waveforms (208). Add track (the + by the
  * ruler) adds an overlay track; files dropped on a row land there at the drop time, on the ruler in a new track; a
  * clip dragged onto another picture row moves to that track ("Move to" in the toolbar does it by keyboard). Everything
  * is direct: what a drag on a clip does depends on the edit tool (202, PictureRow.tsx): Select
  * reorders it (Magnetic on) or puts it at a time (off) and trims at its edges (ripple with Magnetic on or Shift), Roll
  * moves the cut at an edge, Slip changes what a video plays, Slide moves a clip between its neighbours. Drag a layer's
- * bar to move it in time or its ends to change when it shows, drag the music to slide the song (TimelineBars.tsx),
+ * bar to move it in time or its ends to change when it shows, drag a sound clip as a picture clip, its top corners to
+ * fade it and its volume line to set its volume (208, SoundRow.tsx),
  * drag the playhead or click anywhere to seek. Moves snap to clip edges, layer edges and the playhead (Snap off, or Alt
  * held: to the frame, as is everything that doesn't snap). Ctrl + wheel zooms; the playhead is followed while playing.
  * Keyboard (with the timeline focused, timelineActions.ts): Space play / pause, S split, Shift + F freeze frame at the
@@ -37,12 +67,13 @@ import { AddTrackButton, TrackHead } from './TrackHead';
 
 /**
  * Announces each change to a picture track (the clip, its track and new times, and what it did to transitions) and to
- * the selection's keyframes, politely, once a drag settles.
+ * the selection's keyframes and the sound clips (208: "Audio 2: Whoosh, fade in 0.5 s"), politely, once a drag settles.
  * @param clips the clips
+ * @param sounds the sound clips
  * @param keyed the selection
  * @returns the latest announcement
  */
-function useAnnouncements(clips: VClip[], keyed: SelectedItem | null): string {
+function useAnnouncements(clips: VClip[], sounds: VSound[], keyed: SelectedItem | null): string {
   const [said, setSaid] = useState('');
   const clipsBefore = useRef(clips);
   useEffect(() => {
@@ -52,12 +83,24 @@ function useAnnouncements(clips: VClip[], keyed: SelectedItem | null): string {
     const state = getVideo();
     // A clip's change and what it did to transitions (206: one dropped by an edit, or one added, changed, removed).
     // A speed change (207) is said as one ("Clip 2: 0.5×, now 8.4 s") rather than as the clip's new times.
-    const clipChange = describeSpeedChange(previous, clips, state.tracks) || describeClipChange(previous, clips, state.tracks, state.selected);
+    const clipChange =
+      describeSpeedChange(previous, clips, state.tracks) ||
+      describeClipChange(previous, clips, state.tracks, state.selected);
     const message = [clipChange, describeTransitionChange(previous, clips, state.tracks)].filter(Boolean).join('. ');
     if (!message) return;
     const timer = setTimeout(() => setSaid(message), 250);
     return () => clearTimeout(timer);
   }, [clips]);
+  const soundsBefore = useRef(sounds);
+  useEffect(() => {
+    const previous = soundsBefore.current;
+    soundsBefore.current = sounds;
+    if (previous === sounds) return;
+    const message = soundAnnouncement(previous, sounds, getVideo().tracks, videoLength(getVideo()));
+    if (!message) return;
+    const timer = setTimeout(() => setSaid(message), 250);
+    return () => clearTimeout(timer);
+  }, [sounds]);
   const keysBefore = useRef<{ id: string; keys?: Keyframes<string> } | null>(null);
   const keyedId = keyed ? JSON.stringify(keyed.target) : '';
   const keyedKeys = keyed?.item.keys;
@@ -83,7 +126,11 @@ function useAnnouncements(clips: VClip[], keyed: SelectedItem | null): string {
  * @param playing whether the video plays
  * @returns the element's ref and its width in pixels
  */
-function useScroller(time: number, zoom: number, playing: boolean): { scroller: RefObject<HTMLDivElement | null>; viewWidth: number } {
+function useScroller(
+  time: number,
+  zoom: number,
+  playing: boolean,
+): { scroller: RefObject<HTMLDivElement | null>; viewWidth: number } {
   const scroller = useRef<HTMLDivElement>(null);
   const [viewWidth, setViewWidth] = useState(600);
   useLayoutEffect(() => {
@@ -97,7 +144,8 @@ function useScroller(time: number, zoom: number, playing: boolean): { scroller: 
     const element = scroller.current;
     if (!element || !playing) return;
     const x = time * zoom;
-    if (x < element.scrollLeft + 40 || x > element.scrollLeft + element.clientWidth - 60) element.scrollLeft = Math.max(0, x - element.clientWidth * 0.25);
+    if (x < element.scrollLeft + 40 || x > element.scrollLeft + element.clientWidth - 60)
+      element.scrollLeft = Math.max(0, x - element.clientWidth * 0.25);
   }, [time, zoom, playing]);
   useEffect(() => {
     const element = scroller.current;
@@ -125,6 +173,8 @@ interface TimelineHeadsProps {
   tracks: Track[];
   pictureTracks: Track[];
   clips: VClip[];
+  /** The sound clips (208): a sound track's header asks before deleting the ones it holds. */
+  sounds: readonly { track: string }[];
   layers: Layer[];
   trackView: Partial<Record<string, TrackHeight>>;
   lane: SelectedItem | null;
@@ -133,22 +183,39 @@ interface TimelineHeadsProps {
 }
 
 /**
- * The left column: the add-track button, each picture track's header (with the keyframe lane's heads under the
- * selection's row), the layers' label and the music track's header.
+ * The left column: the add-track buttons, each picture track's header (with the keyframe lane's heads under the
+ * selection's row), the layers' label and each sound track's header (208).
  * @param props the tracks, clips, layers, heights and the keyframe lane
  */
-function TimelineHeads({ tracks, pictureTracks, clips, layers, trackView, lane, keysExpanded, setKeysExpanded }: Readonly<TimelineHeadsProps>) {
-  const musicTrack = tracks.find((track) => track.id === MUSIC);
+function TimelineHeads({
+  tracks,
+  pictureTracks,
+  clips,
+  sounds,
+  layers,
+  trackView,
+  lane,
+  keysExpanded,
+  setKeysExpanded,
+}: Readonly<TimelineHeadsProps>) {
+  const soundTracks = tracks.filter((track) => track.kind === 'audio');
   const layerRows = layers.length ? [...layers].reverse() : [null];
   return (
     <div className="tl-heads">
       <div className="tl-h tl-h-ruler">
         <AddTrackButton tracks={tracks} />
+        <AddSoundTrackButton tracks={tracks} />
       </div>
       {pictureTracks.map((track) => (
         <div key={track.id}>
-          <TrackHead track={track} height={trackView[track.id] ?? 'medium'} clipCount={clips.filter((clip) => clip.track === track.id).length} />
-          {lane?.row === track.id && <KeyframeLaneHeads item={lane.item} on="clip" expanded={keysExpanded} onExpand={setKeysExpanded} />}
+          <TrackHead
+            track={track}
+            height={trackView[track.id] ?? 'medium'}
+            clipCount={clips.filter((clip) => clip.track === track.id).length}
+          />
+          {lane?.row === track.id && (
+            <KeyframeLaneHeads item={lane.item} on="clip" expanded={keysExpanded} onExpand={setKeysExpanded} />
+          )}
         </div>
       ))}
       {layerRows.map((layer, index) => (
@@ -156,12 +223,35 @@ function TimelineHeads({ tracks, pictureTracks, clips, layers, trackView, lane, 
           <div className="tl-h tl-h-layer" aria-hidden="true">
             {index === 0 ? 'Layers' : ''}
           </div>
-          {layer && lane?.row === layer.id && <KeyframeLaneHeads item={lane.item} on="layer" expanded={keysExpanded} onExpand={setKeysExpanded} />}
+          {layer && lane?.row === layer.id && (
+            <KeyframeLaneHeads item={lane.item} on="layer" expanded={keysExpanded} onExpand={setKeysExpanded} />
+          )}
         </div>
       ))}
-      {musicTrack && <TrackHead track={musicTrack} height={trackView[MUSIC] ?? 'medium'} />}
+      {soundTracks.map((track) => (
+        <div key={track.id}>
+          <TrackHead
+            track={track}
+            height={trackView[track.id] ?? 'medium'}
+            clipCount={sounds.filter((sound) => sound.track === track.id).length}
+          />
+          {lane?.row === track.id && (
+            <KeyframeLaneHeads item={lane.item} on="sound" expanded={keysExpanded} onExpand={setKeysExpanded} />
+          )}
+        </div>
+      ))}
     </div>
   );
+}
+
+/**
+ * Whose keys a lane shows, for its names.
+ * @param shown the selection
+ * @returns a clip's, a layer's or a sound clip's
+ */
+function laneKind(shown: SelectedItem): KeyOwner {
+  if ('clip' in shown.target) return 'clip';
+  return 'sound' in shown.target ? 'sound' : 'layer';
 }
 
 /** The time ruler. */
@@ -210,16 +300,29 @@ export function Timeline() {
   const pictureTracks = pictureTracksTopFirst(tracks);
   const pictureTrackIds = new Set(pictureTracks.map((track) => track.id));
   const pictureClips = clips.filter((clip) => pictureTrackIds.has(clip.track));
-  const musicTrack = tracks.find((track) => track.id === MUSIC);
+  const soundTracks = tracks.filter((track) => track.kind === 'audio');
+  const sounds = useVideo((state) => state.sounds);
+  const soundSel = useVideo((state) => state.soundSel);
+  const mix = useSoundMix();
   const { scroller, viewWidth } = useScroller(time, zoom, playing);
   const canvas = useRef<HTMLDivElement>(null);
   const width = Math.max(viewWidth - 2, total * zoom + 160);
 
   // The selected clip or layer, for its keyframe lane, K and Alt + [ / ] (205 §9); the lane shows when it is animated.
   const [keysExpanded, setKeysExpanded] = useState(false);
-  const keyed = selectedItem({ pictureTracks, pictureClips, layers, selected, layerSel, total });
+  const keyed = selectedItem({
+    pictureTracks,
+    pictureClips,
+    layers,
+    selected,
+    layerSel,
+    total,
+    soundTracks,
+    sounds,
+    soundSel,
+  });
   const lane = keyed && animatedProps(keyed.item).length ? keyed : null;
-  const said = useAnnouncements(clips, keyed);
+  const said = useAnnouncements(clips, sounds, keyed);
 
   // The picture rows' elements, so a drag or a file drop can tell which row the pointer is over.
   const rowElements = useRef(new Map<string, HTMLDivElement>());
@@ -256,16 +359,21 @@ export function Timeline() {
     if (!target || !event.dataTransfer.files.length) return;
     event.preventDefault();
     const files = [...event.dataTransfer.files].map((file) => ({ name: file.name, blob: file, type: file.type }));
-    void addMedia(files, { track: target === 'new' ? NEW_TRACK : target, at: toFrame(timeAt(event.clientX)) }).then((messages) => {
-      messages.forEach((message) => toast(message));
-    });
+    void addMedia(files, { track: target === 'new' ? NEW_TRACK : target, at: toFrame(timeAt(event.clientX)) }).then(
+      (messages) => {
+        messages.forEach((message) => toast(message));
+      },
+    );
   };
 
-  // Snaps a time to the nearest clip edge, layer edge or the playhead within a few pixels, leaving out the dragged clip
-  // or layer; with Snap off, Alt held, or nothing near, to the nearest frame.
+  // Snaps a time to the nearest clip edge, layer edge, sound clip edge (208) or the playhead within a few pixels, leaving
+  // out the dragged clip, layer or sound clip; with Snap off, Alt held, or nothing near, to the nearest frame.
   const snap: SnapTime = (value, skip = {}, event) => {
     const state = getVideo();
-    const snapped = state.snapping && !event?.altKey ? snapTime(value, snapTargets(pictureClips, layers, state.t, total, skip), SNAP_PX / zoom) : value;
+    const snapped =
+      state.snapping && !event?.altKey
+        ? snapTime(value, snapTargets(pictureClips, layers, state.t, total, skip, state.sounds), SNAP_PX / zoom)
+        : value;
     return snapped === value ? toFrame(value) : snapped;
   };
   // Snaps a clip moved to start at `start`: by its start, else by its end.
@@ -284,7 +392,7 @@ export function Timeline() {
       key={shown.row}
       target={shown.target}
       item={shown.item}
-      on={'clip' in shown.target ? 'clip' : 'layer'}
+      on={laneKind(shown)}
       name={shown.name}
       zoom={zoom}
       expanded={keysExpanded}
@@ -295,7 +403,17 @@ export function Timeline() {
 
   return (
     <div className={`tl tl-tool-${tool}`} onKeyDown={(event) => onTimelineKey(event, keyed, total)}>
-      <TimelineHeads tracks={tracks} pictureTracks={pictureTracks} clips={clips} layers={layers} trackView={trackView} lane={lane} keysExpanded={keysExpanded} setKeysExpanded={setKeysExpanded} />
+      <TimelineHeads
+        tracks={tracks}
+        pictureTracks={pictureTracks}
+        clips={clips}
+        sounds={sounds}
+        layers={layers}
+        trackView={trackView}
+        lane={lane}
+        keysExpanded={keysExpanded}
+        setKeysExpanded={setKeysExpanded}
+      />
       <div className="tl-live vh" aria-live="polite">
         {said}
       </div>
@@ -306,7 +424,14 @@ export function Timeline() {
         role="group"
         aria-label={`Timeline, ${formatTime(total)}. Space plays, S splits, Delete removes, arrow keys move the playhead, V R Y U pick the edit tool, Alt + arrow keys nudge the selected clip, Q and W trim it to the playhead.`}
       >
-        <div className="tl-canvas" ref={canvas} style={{ width }} onDragOver={onFilesOver} onDragLeave={() => setDropMarker(null)} onDrop={onFilesDrop}>
+        <div
+          className="tl-canvas"
+          ref={canvas}
+          style={{ width }}
+          onDragOver={onFilesOver}
+          onDragLeave={() => setDropMarker(null)}
+          onDrop={onFilesDrop}
+        >
           <Ruler width={width} zoom={zoom} dropMarker={dropMarker} seekFrom={seekFrom} />
           {pictureTracks.map((track) => (
             <div key={track.id}>
@@ -316,7 +441,7 @@ export function Timeline() {
                 height={rowHeight(track.id)}
                 zoom={zoom}
                 tool={tool}
-                selected={layerSel ? null : selected}
+                selected={layerSel || soundSel ? null : selected}
                 snap={snap}
                 snapSpan={snapSpan}
                 seekFrom={seekFrom}
@@ -327,6 +452,7 @@ export function Timeline() {
                 rowTargetAt={rowTargetAt}
                 dropMarkerAt={dropMarker?.target === track.id ? dropMarker.at : null}
                 setDropMarker={setDropMarker}
+                mix={mix}
               />
               {lane?.row === track.id && laneRow(lane)}
             </div>
@@ -338,11 +464,34 @@ export function Timeline() {
           )}
           {[...layers].reverse().map((layer) => (
             <div key={layer.id}>
-              <LayerRow layer={layer} total={total} zoom={zoom} selected={layer.id === layerSel} snap={snap} seekFrom={seekFrom} />
+              <LayerRow
+                layer={layer}
+                total={total}
+                zoom={zoom}
+                selected={layer.id === layerSel}
+                snap={snap}
+                seekFrom={seekFrom}
+              />
               {lane?.row === layer.id && laneRow(lane)}
             </div>
           ))}
-          {musicTrack && <MusicRow track={musicTrack} total={total} zoom={zoom} height={rowHeight(MUSIC)} seekFrom={seekFrom} />}
+          {soundTracks.map((track) => (
+            <div key={track.id}>
+              <SoundRow
+                track={track}
+                sounds={sounds.filter((sound) => sound.track === track.id)}
+                total={total}
+                zoom={zoom}
+                height={rowHeight(track.id)}
+                tool={tool}
+                selected={soundSel}
+                mix={mix}
+                snap={snap}
+                seekFrom={seekFrom}
+              />
+              {lane?.row === track.id && laneRow(lane)}
+            </div>
+          ))}
           <div className="tl-playhead" style={{ left: Math.min(time, total) * zoom }}>
             <button
               type="button"

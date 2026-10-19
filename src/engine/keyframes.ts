@@ -56,10 +56,17 @@ export const LAYER_RANGES: Readonly<Record<LayerKeyProp, readonly [number, numbe
   opacity: [0, 1],
 };
 
+/** A sound clip's volume range (208 D6): up to 200 % (+6 dB), where a video clip's own sound stops at 100 %. */
+export const SOUND_RANGES = { volume: [0, 2] } as const satisfies Readonly<Record<'volume', readonly [number, number]>>;
+
+/** What carries keys: a picture clip, a layer, or a sound clip (208: its volume on 0–2). */
+export type KeyTarget = 'clip' | 'layer' | 'sound';
+
 /** The ranges looked up by any value name (none for a name only the other kind animates), for clampValue. */
-const RANGES_BY_NAME: Readonly<Record<'clip' | 'layer', Readonly<Partial<Record<string, readonly [number, number]>>>>> = {
+const RANGES_BY_NAME: Readonly<Record<KeyTarget, Readonly<Partial<Record<string, readonly [number, number]>>>>> = {
   clip: CLIP_RANGES,
   layer: LAYER_RANGES,
+  sound: SOUND_RANGES,
 };
 
 export const CLIP_KEY_PROPS = keysOf(CLIP_RANGES);
@@ -87,7 +94,7 @@ export const isLayerKeyProp = (prop: string): prop is LayerKeyProp => Object.has
  * @param on whether it is a clip's or a layer's
  * @returns the value clamped to its range (unchanged for a name without one)
  */
-export function clampValue(prop: ClipKeyProp | LayerKeyProp, value: number, on: 'clip' | 'layer'): number {
+export function clampValue(prop: ClipKeyProp | LayerKeyProp, value: number, on: KeyTarget): number {
   // A plain lookup, not isClipKeyProp / isLayerKeyProp: this runs per sample of every volume curve (407 T072).
   const range = RANGES_BY_NAME[on][prop];
   if (!range) return value;
@@ -236,12 +243,13 @@ export interface VolumeKeyed {
  * A clip's volume at a time.
  * @param clip the clip
  * @param local seconds from its start
- * @returns its volume, 0–1
+ * @param on a picture clip's own sound (0–1) or a sound clip (0–2, 208)
+ * @returns its volume
  */
-export function volumeAt(clip: VolumeKeyed, local: number): number {
+export function volumeAt(clip: VolumeKeyed, local: number, on: 'clip' | 'sound' = 'clip'): number {
   const list = clip.keys?.volume;
   if (!list || list.length === 0) return clip.volume;
-  return clampValue('volume', valueAt(list, local), 'clip');
+  return clampValue('volume', valueAt(list, local), on);
 }
 
 /**
@@ -284,10 +292,16 @@ export function layersAt(layers: Layer[], time?: number): Layer[] {
  * A sound source's volume at a timeline time: its volume keys (or its volume) times its end ramps and transitions.
  * @param source the sound source
  * @param time timeline seconds
- * @returns the gain, 0–1
+ * @returns the gain, 0–1 (0–2 for a sound clip, 208 D6)
  */
 export function sourceGainAt(source: SoundSource, time: number): number {
-  let volume = source.gain ? clampValue('volume', valueAt(source.gain, time - source.start), 'clip') : source.volume;
+  let volume = source.volume;
+  if (source.gain) {
+    const keyed = valueAt(source.gain, time - source.start);
+    // Only sound clips have a role (208): their keys go to 200 %, a video clip's to 100 %.
+    const [low, high] = source.role ? SOUND_RANGES.volume : CLIP_RANGES.volume;
+    volume = Math.min(high, Math.max(low, keyed));
+  }
   volume *= edgeGain(source, time);
   if (source.fadeIn > 0 && time < source.start + source.fadeIn)
     volume *= Math.max(0, (time - source.start) / source.fadeIn);
@@ -340,10 +354,22 @@ export function edgeGain(
  * @returns the gains, at least two
  */
 export function gainCurve(source: SoundSource, from: number, length: number, step = 0.005): Float32Array {
+  return sampleCurve((time) => sourceGainAt(source, time), from, length, step);
+}
+
+/**
+ * A gain sampled over a stretch of the timeline at evenly spread points at most `step` apart, both ends included (as
+ * `gainCurve`; 208's whole chain samples through it too).
+ * @param gainAt the gain at a timeline time
+ * @param from the stretch's start, timeline seconds
+ * @param length its length, seconds
+ * @param step the largest distance between points, seconds
+ * @returns the gains, at least two
+ */
+export function sampleCurve(gainAt: (time: number) => number, from: number, length: number, step = 0.005): Float32Array {
   const count = Math.max(2, Math.ceil(length / step - 1e-9) + 1);
   const curve = new Float32Array(count);
-  for (let index = 0; index < count; index++)
-    curve[index] = sourceGainAt(source, from + (index * length) / (count - 1));
+  for (let index = 0; index < count; index++) curve[index] = gainAt(from + (index * length) / (count - 1));
   return curve;
 }
 
@@ -351,7 +377,7 @@ export function gainCurve(source: SoundSource, from: number, length: number, ste
 
 /** How a key edit is checked: the item it is on (for ranges), the frame rate, and the project's key count. */
 export interface KeyEdit {
-  on: 'clip' | 'layer';
+  on: KeyTarget;
   /** Keys within half a frame count as the same time; 30 when not given. */
   fps?: number;
   /** Keys in the whole project before the edit (the 5,000 limit). */

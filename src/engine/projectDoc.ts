@@ -68,6 +68,8 @@ export interface ProjectDoc extends Project<DocClip> {
   media: DocMedia[];
   /** The main track packs its clips end to end (202); missing in a document = on. */
   magnetic?: boolean;
+  /** The export's loudness target, LUFS (208 AC-8); missing = Off (every project from before 208, Q12). */
+  loudness?: number;
 }
 
 /** A 2.x clip: its timing and id. */
@@ -178,25 +180,40 @@ export function toDocument(project: ProjectDoc): ProjectDoc {
     quality: project.quality,
     fadeOut: project.fadeOut,
     magnetic: project.magnetic !== false,
-    tracks: project.tracks.map(({ id, kind, name, hidden, muted, locked }) => ({
+    ...(project.loudness === undefined ? {} : { loudness: project.loudness }),
+    // A sound track's settings (208) are written only when set, so older documents stay as they were.
+    tracks: project.tracks.map(({ id, kind, name, hidden, muted, locked, role, volume, solo, voice, duck }) => ({
       id,
       kind,
       name,
       hidden,
       muted,
       locked,
+      ...(role ? { role } : {}),
+      ...(volume === undefined ? {} : { volume }),
+      ...(solo ? { solo } : {}),
+      ...(voice === false ? { voice } : {}),
+      ...(duck ? { duck: { amount: duck.amount, threshold: duck.threshold } } : {}),
     })),
     clips: project.clips.map(clipDocument),
-    audio: project.audio.map(({ id, track, start, media, in: inPoint, volume, toEnd, srcDur }) => ({
-      id,
-      track,
-      start,
-      media,
-      in: inPoint,
-      volume,
-      toEnd,
-      srcDur,
-    })),
+    audio: project.audio.map(({ id, track, start, media, in: inPoint, out, volume, fadeIn, fadeOut, keys, name, toEnd, srcDur }) => {
+      const kept = keys ? tidyKeys(keys) : undefined;
+      return {
+        id,
+        track,
+        start,
+        media,
+        in: inPoint,
+        ...(out === undefined || toEnd ? {} : { out }),
+        volume,
+        ...(fadeIn ? { fadeIn } : {}),
+        ...(fadeOut ? { fadeOut } : {}),
+        ...(kept ? { keys: kept } : {}),
+        ...(name ? { name } : {}),
+        toEnd,
+        srcDur,
+      };
+    }),
     layers: project.layers,
     media: project.media.map(({ id, kind, name, type, size, w: width, h: height, srcDur }) => ({
       id,

@@ -1,0 +1,408 @@
+import { LOUDNESS_RANGE } from '../engine/loudnessTargets';
+import { isAnimated, setKey, volumeAt } from '../engine/keyframes';
+import { addSound, deleteSound, duplicateSound, moveSound, rippleSound, rollSound, setFades, setToEnd, slideSound, slipSound, splitSound, trimSound, type FadeChange, type SoundCtx } from '../engine/soundClips';
+import { MUSIC, lockedReason } from '../engine/tracks';
+import type { MixMeasure, SoundJob } from '../engine/exportSound';
+import { logError } from '../lib/errors';
+import { scanMedia, scanSnapshot, subscribeScans } from './soundScan';
+import { soundJob } from './videoExportJob';
+import { keyEdit } from './videoKeys';
+import { change, getVideo, newId, setVideo, subscribeVideo, total, type VSound, type VState } from './videoStore';
+
+/*
+ * The sound clips' actions (208 §7, D1): adding sound files at the playhead and changing sound clips, each one
+ * `change()` (one undo step; a drag's steps share a key). The edits themselves are engine/soundClips.ts's.
+ */
+
+const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/i;
+/** The largest sound file taken (Q4: as the music before 208). */
+const MAX_BYTES = 100 * 1048576;
+
+/**
+ * A sound file's length, read by an <audio> element.
+ * @param _file the file (tests read its name)
+ * @param url its object URL
+ * @returns seconds; rejects when it can't be played
+ */
+const audioLength = (_file: Blob, url: string): Promise<number> =>
+  new Promise<number>((resolve, reject) => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => {
+      if (Number.isFinite(audio.duration)) resolve(audio.duration);
+      else reject(new Error('no duration'));
+    };
+    audio.onerror = () => {
+      reject(new Error('unplayable'));
+    };
+    audio.src = url;
+  });
+
+/** How sound files are read (tests put a stand-in here: Node plays no media). */
+export const soundIO = { length: audioLength };
+
+/**
+ * What every sound edit checks: the tracks' locks and where the video ends.
+ * @returns the context
+ */
+const soundCtx = (): SoundCtx => ({ locked: (track) => lockedReason(getVideo().tracks, track), videoEnd: total() });
+
+/** Where added sounds go: a chosen sound track and a time (default: the playhead). */
+export interface SoundPlace {
+  track?: string;
+  at?: number;
+}
+
+/**
+ * Why a file can't be added as sound, before reading it.
+ * @param file the file
+ * @returns the reason, or null
+ */
+function refusal(file: File): string | null {
+  if (!file.type.startsWith('audio/') && !AUDIO_EXT.test(file.name)) return `${file.name} isn’t a sound file. Use MP3, M4A, WAV, OGG or FLAC.`;
+  if (file.size > MAX_BYTES) return `${file.name} is too large. Sound files up to 100 MB can be added.`;
+  return null;
+}
+
+/**
+ * Adds sound files at the playhead (AC-2, Q4): each on the chosen track when it has room, else the first sound track
+ * that has, else a new one; the first song on the Music track plays to the end of the video when it is longer (Q7).
+ * All of them are one undo step, and each is scanned in the background (waveforms and ducking read it).
+ * @param files the files
+ * @param place the chosen track and time
+ * @returns messages for the files left out
+ */
+export async function addSoundFiles(files: File[], place: SoundPlace = {}): Promise<string[]> {
+  const messages: string[] = [];
+  const at = place.at ?? getVideo().t;
+  let { sounds, tracks } = getVideo();
+  const added: VSound[] = [];
+  for (const file of files) {
+    const why = refusal(file);
+    if (why) {
+      messages.push(why);
+      continue;
+    }
+    const url = URL.createObjectURL(file);
+    const srcDur = await soundIO.length(file, url).catch((error: unknown) => {
+      logError('handled', error);
+      return null;
+    });
+    if (srcDur === null) {
+      URL.revokeObjectURL(url);
+      messages.push(`${file.name} couldn’t be played here.`);
+      continue;
+    }
+    const id = newId();
+    const result = addSound(sounds, tracks, { id, srcDur, name: file.name }, at, place.track ?? null, soundCtx());
+    if ('error' in result) {
+      URL.revokeObjectURL(url);
+      messages.push(`${file.name}: ${result.error}`);
+      continue;
+    }
+    sounds = result.audio.map((clip) => (clip.id === id ? { ...clip, file, url } : (clip as VSound)));
+    tracks = result.tracks;
+    added.push(...sounds.filter((clip) => clip.id === id));
+  }
+  if (added.length > 0) {
+    change('', { sounds, tracks });
+    for (const sound of added) scanMedia(sound.url, sound.file);
+  }
+  return messages;
+}
+
+/**
+ * Puts changed sound clips in the store, or says why not.
+ * @param key the undo step's key ('' for a step of its own)
+ * @param result the edit's result
+ * @returns null once changed, else why not
+ */
+function commitSounds(key: string, result: { audio: VSound[] } | { error: string }): string | null {
+  if ('error' in result) return result.error;
+  change(key, { sounds: result.audio });
+  return null;
+}
+
+/**
+ * A sound clip's volume (208 D6): 0–200 %; a slider's drag is one undo step.
+ * @param id the clip's id
+ * @param volume 0–2
+ * @returns null, or why not
+ */
+export function setSoundVolume(id: string, volume: number): string | null {
+  const { sounds } = getVideo();
+  const clip = sounds.find((sound) => sound.id === id);
+  if (!clip) return 'That sound isn’t in the project.';
+  const locked = lockedReason(getVideo().tracks, clip.track);
+  if (locked) return locked;
+  const next = Math.min(2, Math.max(0, volume));
+  return commitSounds(`sound-volume:${id}`, { audio: sounds.map((sound) => (sound === clip ? { ...sound, volume: next } : sound)) });
+}
+
+/**
+ * Where in its file a sound clip starts (Slip, Q5), kept within the file; a drag is one undo step.
+ * @param id the clip's id
+ * @param inPoint seconds into the file
+ * @returns null, or why not
+ */
+export function setSoundIn(id: string, inPoint: number): string | null {
+  const { sounds } = getVideo();
+  const clip = sounds.find((sound) => sound.id === id);
+  if (!clip) return 'That sound isn’t in the project.';
+  return commitSounds(`sound-in:${id}`, slipSound(sounds, id, inPoint - clip.in, soundCtx()));
+}
+
+/**
+ * Removes a sound clip (its file stays for undo).
+ * @param id the clip's id
+ * @returns null, or why not
+ */
+export function removeSound(id: string): string | null {
+  const result = deleteSound(getVideo().sounds, id, soundCtx());
+  if ('error' in result) return result.error;
+  const { soundSel } = getVideo();
+  change('', { sounds: result.audio }, { soundSel: soundSel === id ? null : soundSel });
+  return null;
+}
+
+/**
+ * The song: the first sound clip on the Music track (the Audio panel and the timeline show it until 208's sound rows).
+ * @param sounds the sound clips
+ * @returns it, or undefined
+ */
+export const songOf = (sounds: readonly VSound[]): VSound | undefined => sounds.find((sound) => sound.track === MUSIC);
+
+/**
+ * The Slip keys on the music (Q8): moves where in the song the video's sound starts.
+ * @param delta seconds
+ * @returns null, or why not
+ */
+export function slipMusic(delta: number): string | null {
+  const song = songOf(getVideo().sounds);
+  if (!song) return 'There’s no music to slip.';
+  return commitSounds('slip-music', slipSound(getVideo().sounds, song.id, delta, soundCtx()));
+}
+
+/**
+ * A sound clip moved to a time, on its track or another sound track; a drag is one undo step.
+ * @param id the clip's id
+ * @param start its new start, seconds
+ * @param track another sound track to move it to
+ * @returns null, or why not
+ */
+export const moveSoundTo = (id: string, start: number, track?: string): string | null =>
+  commitSounds(`sound-move:${id}`, moveSound(getVideo().sounds, id, start, soundCtx(), track));
+
+/**
+ * A sound clip's start or end edge moved; a drag is one undo step.
+ * @param id the clip's id
+ * @param edge which edge
+ * @param by seconds (positive: later)
+ * @returns null, or why not
+ */
+export const trimSoundEdge = (id: string, edge: 'start' | 'end', by: number): string | null =>
+  commitSounds(`sound-trim:${id}:${edge}`, trimSound(getVideo().sounds, id, edge, by, soundCtx()));
+
+/**
+ * A sound clip's volume at a time: its keys when it has them (0–2), else its volume.
+ * @param clip the sound clip
+ * @param local seconds from its start
+ * @returns 0–2
+ */
+export const soundVolumeAt = (clip: VSound, local: number): number => volumeAt(clip, local, 'sound');
+
+/**
+ * The inspector's volume (AC-5): with volume keys, the key at the playhead is set (or added); else the volume. A
+ * slider's drag is one undo step.
+ * @param id the clip's id
+ * @param volume 0–2
+ * @returns null, or why not
+ */
+export function setSoundVolumeAt(id: string, volume: number): string | null {
+  const video = getVideo();
+  const clip = video.sounds.find((sound) => sound.id === id);
+  if (!clip || !isAnimated(clip, 'volume')) return setSoundVolume(id, volume);
+  const locked = lockedReason(video.tracks, clip.track);
+  if (locked) return locked;
+  const keys = setKey(clip.keys, 'volume', video.t - clip.start, volume, keyEdit(clip));
+  if ('error' in keys) return keys.error;
+  return commitSounds(`sound-volume:${id}`, { audio: video.sounds.map((sound) => (sound === clip ? { ...sound, keys } : sound)) });
+}
+
+/**
+ * **Play to the end of the video** (Q7) on or off; one undo step.
+ * @param id the clip's id
+ * @param on the switch
+ * @returns null, or why not
+ */
+export const setSoundToEnd = (id: string, on: boolean): string | null => {
+  const result = setToEnd(getVideo().sounds, id, on, soundCtx());
+  if ('audio' in result && result.audio === getVideo().sounds) return null;
+  return commitSounds('', result);
+};
+
+/**
+ * Slip (Q5): a sound clip plays another part of its file in the same place; a drag is one undo step.
+ * @param id the clip's id
+ * @param by seconds later in the file
+ * @returns null, or why not
+ */
+export const slipSoundBy = (id: string, by: number): string | null =>
+  commitSounds(`sound-slip:${id}`, slipSound(getVideo().sounds, id, by, soundCtx()));
+
+/**
+ * Roll (Q5): the cut after a sound clip moves, the next clip on its track giving or taking the time.
+ * @param id the clip before the cut
+ * @param by seconds (positive: later)
+ * @returns null, or why not
+ */
+export const rollSoundBy = (id: string, by: number): string | null =>
+  commitSounds(`sound-roll:${id}`, rollSound(getVideo().sounds, id, by, soundCtx()));
+
+/**
+ * Slide (Q5): a sound clip moves between the clips touching it, which give and take the time.
+ * @param id the clip's id
+ * @param by seconds (positive: later)
+ * @returns null, or why not
+ */
+export const slideSoundBy = (id: string, by: number): string | null =>
+  commitSounds(`sound-slide:${id}`, slideSound(getVideo().sounds, id, by, soundCtx()));
+
+/**
+ * Ripple (Q5): a sound clip's edge trimmed and the later clips on its track moved by the change.
+ * @param id the clip's id
+ * @param edge which edge
+ * @param by seconds the edge moves (positive: later)
+ * @returns null, or why not
+ */
+export const rippleSoundEdge = (id: string, edge: 'start' | 'end', by: number): string | null =>
+  commitSounds(`sound-ripple:${id}:${edge}`, rippleSound(getVideo().sounds, id, edge, by, soundCtx()));
+
+/**
+ * A sound clip split in two at the playhead.
+ * @param id the clip's id
+ * @returns null, or why not
+ */
+export const splitSoundAt = (id: string): string | null =>
+  commitSounds('', splitSound(getVideo().sounds, id, getVideo().t, newId(), soundCtx()));
+
+/**
+ * A copy of a sound clip right after it (or where its track has room).
+ * @param id the clip's id
+ * @returns null, or why not
+ */
+export const duplicateSoundClip = (id: string): string | null =>
+  commitSounds('', duplicateSound(getVideo().sounds, id, newId(), soundCtx()));
+
+/**
+ * A sound clip's fades (0–10 s each, together no longer than the clip); a handle's drag is one undo step.
+ * @param id the clip's id
+ * @param fades the fades to set
+ * @returns null, or why not
+ */
+export const setSoundFades = (id: string, fades: FadeChange): string | null =>
+  commitSounds(`sound-fades:${id}`, setFades(getVideo().sounds, id, fades, soundCtx()));
+
+/**
+ * The export's loudness target (AC-8): Off, or −24…−9 LUFS. Switching it on or off is a step of its own; a value's
+ * slider drag is one.
+ * @param target LUFS, or 'off'
+ */
+export function setLoudness(target: 'off' | number): void {
+  const now = getVideo().loudness;
+  const next = target === 'off' ? 'off' : Math.min(LOUDNESS_RANGE[1], Math.max(LOUDNESS_RANGE[0], target));
+  if (next === now) return;
+  change(next === 'off' || now === 'off' ? '' : 'loudness', { loudness: next });
+}
+
+/* ---------- the background loudness measurement (AC-9) ---------- */
+
+/** Milliseconds after the last change before the mix is measured. */
+const MEASURE_DELAY = 500;
+
+/**
+ * Measures the mix as the export will, in the export's module (loaded on demand).
+ * @param job the export's sound
+ * @param previous the last measurement (reused when it is of this mix)
+ * @param signal stops it
+ * @returns the measurement, or null when Loudness is Off
+ */
+async function measureInBackground(job: SoundJob, previous: MixMeasure | null, signal: AbortSignal): Promise<MixMeasure | null> {
+  const { measureLoudness } = await import('../engine/exportSound');
+  return measureLoudness({ ...job, signal, ...(previous ? { measured: previous } : {}) });
+}
+
+/** How the mix is measured (tests put a stand-in here: Node has no Web Audio). */
+export const measureIO = { measure: measureInBackground };
+
+/**
+ * What the mix's loudness depends on, by identity: an edit replaces one of them, a view change none.
+ * @param video the state
+ * @returns the inputs
+ */
+const mixInputs = (video: VState): unknown[] => [video.sounds, video.tracks, video.clips, video.loudness, scanSnapshot().scans];
+
+/**
+ * Keeps `measure` current (AC-9): measures the mix 500 ms after the last change to its sound (and once at the start),
+ * cancelling a measurement a newer change makes stale. The Audio panel shows it; the export and the preview use its
+ * gain.
+ * @returns stops watching
+ */
+export function watchLoudness(): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let running: AbortController | null = null;
+  let seen = mixInputs(getVideo());
+  const run = () => {
+    timer = null;
+    const controller = new AbortController();
+    running = controller;
+    const video = getVideo();
+    measureIO
+      .measure(soundJob(video), video.measure, controller.signal)
+      .then((measure) => {
+        if (running !== controller) return;
+        running = null;
+        setVideo({ measure, measuring: false });
+      })
+      .catch((error: unknown) => {
+        if (running !== controller) return;
+        running = null;
+        if (!controller.signal.aborted) logError('handled', error);
+        setVideo({ measuring: false });
+      });
+  };
+  const restart = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    running?.abort();
+    running = null;
+    if (getVideo().loudness === 'off') {
+      if (getVideo().measuring) setVideo({ measuring: false });
+      return;
+    }
+    if (!getVideo().measuring) setVideo({ measuring: true });
+    timer = setTimeout(run, MEASURE_DELAY);
+  };
+  const check = () => {
+    const now = mixInputs(getVideo());
+    if (now.every((input, index) => input === seen[index])) return;
+    seen = now;
+    restart();
+  };
+  const stopVideo = subscribeVideo(check);
+  const stopScans = subscribeScans(check);
+  restart();
+  return () => {
+    stopVideo();
+    stopScans();
+    if (timer) clearTimeout(timer);
+    running?.abort();
+  };
+}
+
+/**
+ * The loudness gain the preview plays with (AC-9, Q14): the export's, from the same measurement.
+ * @param video the state
+ * @returns dB, 0 when Off or not measured yet
+ */
+export const masterGainDb = (video: VState): number => (video.loudness === 'off' || !video.measure ? 0 : video.measure.gain);

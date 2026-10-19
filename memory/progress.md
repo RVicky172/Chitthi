@@ -11,6 +11,85 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-19 — 208 (T072, T112) ✔️
+**Done:** T072 with the maintainer's option A (D-056): a Play to the end clip stops at the next sound on its track
+(`soundLength(clip, videoEnd, audio)`, `audioPlan` capped alike), an edit placing a sound after its start shortens it,
+Add sound never cuts a song short, moved past the end it gets a fixed length; the 1,000-edit property test runs
+unskipped. Spec Q7 extended. T112: check (2,176, none skipped), lint:full and build green; entry 314 KB; scanner,
+limiter worklet and meter (in `exportSound`) in their own chunks. AC-1–12, 17 ticked; status implemented.
+**Next:** commit 208 and merge into `main` (maintainer's call); then 209 (voice-over) or the 290 test pass.
+**Blockers:** none.
+
+## 2026-10-19 — 208 (T110)
+**Done:** docs for 208 (MEDIA-STUDIO audio section and Still to do, lld §4.9 Audio tracks, testing-strategy listening
+test, CHANGELOG, in-app docs). Bug fix found while writing: sound clips now snap to other sound clips' edges (the
+Timeline passes `sounds` to `snapTargets`; SoundRow skips itself as `{ sound }`). Check green (2,171 + 1 skipped).
+**Next:** T112 close (`check`, `lint:full`, `build` with the entry ≤ 350 KB); T072 waits on the maintainer.
+**Blockers:** T072.
+
+## 2026-10-19 — 208 (T104, T105)
+**Done:** T104: `SoundInspector.tsx` (routed on `soundSel`): volume 0–200 % with the keyframe button (keyed: the key at
+the playhead), fades, Play to the end of the video (engine `setToEnd`: on refused while another sound follows on the
+track, pending T072), source (Plays its file from, Remove sound). Sound clips are keyframe targets (`KeyTarget`
+`{ sound }`, D-055): the lane shows under a selected sound's row. T105: fade handles ← / →, volume line ↑ / ↓ (Shift:
+larger), `soundAnnouncement` in the live region. A mutation first slipped through the key test (without keys the
+stored volume isn't clamped); the test now adds a key between keys above 100 %. Check green (2,171 + 1 skipped).
+**Next:** T110 docs, T112 close (`lint:full`, `build`); T072 waits on the maintainer.
+**Blockers:** T072 (maintainer's call on toEnd clips followed by another sound).
+
+## 2026-10-19 — 208 (T102, T103)
+**Done:** T102: new `SoundRow.tsx` replaces `MusicRow` on every audio track: bars with name, waveform canvas
+(`waveformColumns` × the export's chain gain), fade handles and lines, volume line (drag grip when unkeyed), duck
+curve, the part past the video's end hatched; Select / Roll / Slip / Slide drags (drop on another audio row moves
+there; Shift ripples a trim); new store actions `slipSoundBy`, `rollSoundBy`, `slideSoundBy`, `rippleSoundEdge`;
+`startDrag` takes a vertical axis; selection `soundSel` (D-054) with Delete, S and Alt + ← / →. Pure helpers in
+timelineRows.ts unit-tested (`soundBar`, `fadeAfterDrag`, `volumeY` / `gainAtY`, `volumePoints`, `duckPoints`,
+`soundSilence`). The pre-written `duckPoints` expectation (19.2 px for −12 dB) fitted no linear scale; corrected to
+26.4 (0 dB top, −30 dB bottom, 4 px padding). Sound rows keep `.tl-music` / `.tl-bar-music` for the e2e tests.
+T103: video clips' waveform strip under the filmstrip (`useClipWave`, shared `WaveCanvas`, `clipSilence`).
+Check green (2,161 + 1 skipped).
+**Next:** T104 (sound clip inspector, routed on `soundSel`), T105 (keys and announcements), T110 docs, T112 close;
+T072 still blocked on the maintainer (toEnd overlap rule).
+**Blockers:** T072 (maintainer's call).
+
+## 2026-10-18 — 208 (T020–T021, T030–T033, T040–T042, T050–T053, T060–T061, T070–T073, T080–T081, T090–T091, T100–T101)
+**Done:** the gain chain: sound clips in `audioPlan` (after clip sounds, in track order, cut at the video's end, Solo
+ignored by the export), `SOUND_RANGES` 0–2 for sound clip keys, new `engine/mixGain.ts` (`chainGainAt`, `chainCurve`,
+`trackGain`; `duckGain` = 1 until T041). The legacy plan's music now carries `track: 'A1', role: 'music'` (timing and
+gains unchanged). Scans: new `engine/soundScan.ts` (`ScanBuilder` peaks 100 / s as Uint8 dB steps, 50 ms RMS; 3 h =
+1.94 MB; `waveformColumns` through `sourceAt` × the chain gain, flat with the reason when silent). Background
+scanner `state/soundScan.ts` + `soundScan.worker.ts` (`AudioSampleSink`, one file at a time, media id = object URL,
+D-053), started on video and music import. Ducking `engine/ducking.ts` (`voiceLevel`, `speaking`, `duckCurve`,
+`duckGain`, cached `duckCurves` with "measuring"), wired into `chainGainAt`; 10-min 8-track curves in 20 ms.
+Loudness `engine/loudness.ts` (BS.1770-4: Tech 3341 signals 1–5 within 0.1 LU, true peak by the 48-tap FIR,
+`Oversampler`) and the true-peak limiter `engine/limiter.ts` (5 ms look-ahead, 100 ms release, bit-identical under
+the ceiling). The export mixes with the chain: `ExportJob.ducks`, exported `openAudio` / `mixWindow`, a
+`chainCurve` only where a track volume or ducking acts (201–207 jobs unchanged); fake `OfflineAudioContext` in
+`tests/support/fakeAudio.ts` (it renders). Loudness in the export: `planLoudness` (stored measurement by
+`mixKey`, measure, gain ±24 dB, one corrective pass, D4), `soundWindows` through `MasterStage` (gain → limiter, delay
+compensated). The export's sound split into `engine/exportSound.ts` (videoExport.ts 841 → 370 lines). Check green
+(2,079); build entry 314 KB, worker 348 KB chunk. Store migration: `state.sounds: VSound[]` (in undo),
+`state.loudness` (−14 new, Off loaded), new `state/videoSound.ts` (`addSoundFiles`, volume, in point, remove, Slip);
+until T090 / T100 / T102 the Music panel, music row and stage play "the song" (first Music clip), no waveform. Check
+green (2,087). T071: every sound and audio track action one undo step (drags one), loudness in undo,
+`engine/loudnessTargets.ts`. T072: the seeded property test found split keeping a fade longer than its part (fixed in
+`splitSound`, unit test) and toEnd clips overlapping the next sound when the video lengthens or when one sits at the
+video's end (0 s): **blocked**, the test is written and skipped. T073: `watchLoudness` measures 500 ms after the
+last sound change (cancelled by the next, stored measurement reused by key), `loudnessReadout`, `masterGainDb` = the
+export's gain (`soundJob` shared). T080–T081: saving and the gate for sound (new `engine/soundGate.ts`; 26
+malformed documents, every-field round trip, 2.x / 201–207 byte-identical; `KeyTarget` 'sound'). Check green
+(2,143 + 1 skipped); entry 314 KB. T090–T091: the preview through one AudioContext (each element → its gain at
+the export's chain, 1-frame ramps → master = loudness gain → the limiter worklet, or a compressor when it can't
+load), sound clips in `soundPlan` (Solo), VideoStage's song element gone. Check green (2,153 + 1 skipped); worklet
+3.1 KB own file. 290 notes: per-tick cost (audioPlan + duck key), editors.e2e's music check, listening. T100: the
+Audio panel (`AudioPanel.tsx`: add sound, track roles / volume / ducking, Lower music under voice, Loudness with the
+readout); `watchLoudness` starts with the workspace; the song's own controls move to the sound inspector (T104).
+T101: every sound track's header (rename, Mute, Solo, Lock, settings popover, move / delete) and Add sound track;
+empty rows for non-Music tracks until T102.
+**Next:** the maintainer's rule for toEnd clips (T072: A = cut at the next sound and toEnd off past the end,
+recommended; C = nothing after a toEnd clip); T102 (sound rows: bars, waveforms, fade handles, drags).
+**Blockers:** T072 waits on that decision. Nothing committed yet.
+
 ## 2026-10-18 — 207 (T090–T092) ✔️
 **Done:** T090 docs (MEDIA-STUDIO speed section + Still to do, lld Speed section and module map, CHANGELOG, in-app
 docs); T091 the deferred checks in 290's list; T092 close: check green (1,952), lint:full clean, build entry 313 KB;

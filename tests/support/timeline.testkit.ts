@@ -126,24 +126,27 @@ export function legacyFramePlan(
   return out;
 }
 
+/** A sound the 2.x export mixed, as `legacyAudioPlan` lists it; the music is labelled with its track (208). */
+export interface LegacySound {
+  ref: string;
+  track?: string;
+  role?: 'music';
+  start: number;
+  end: number;
+  from: number;
+  volume: number;
+  fadeIn: number;
+  fadeOut: number;
+}
+
 /**
  * The sound sources the export mixes (before checking which files have decodable sound).
  * @param project the 2.x project
  * @returns the sources, in mixing order
  */
-export function legacyAudioPlan(
-  project: LegacyProject,
-): { ref: string; start: number; end: number; from: number; volume: number; fadeIn: number; fadeOut: number }[] {
+export function legacyAudioPlan(project: LegacyProject): LegacySound[] {
   const total = legacyTotal(project.clips);
-  const out: {
-    ref: string;
-    start: number;
-    end: number;
-    from: number;
-    volume: number;
-    fadeIn: number;
-    fadeOut: number;
-  }[] = [];
+  const out: LegacySound[] = [];
   for (const pl of legacyTimeline(project.clips)) {
     const legacyClip = pl.clip;
     if (legacyClip.kind !== 'video' || legacyClip.volume <= 0) continue;
@@ -160,6 +163,9 @@ export function legacyAudioPlan(
   if (project.music && project.music.volume > 0)
     out.push({
       ref: 'music',
+      // 208: the music is a sound clip on the Music track; its timing and gains are 2.x's.
+      track: 'A1',
+      role: 'music',
       start: 0,
       end: total,
       from: Math.max(0, project.music.offset),

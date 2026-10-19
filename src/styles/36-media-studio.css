@@ -1572,3 +1572,151 @@
 .tl-still .tl-film {
   filter: saturate(0.6);
 }
+/* The Audio panel's sound tracks (208): one bordered group per track, its name as the legend. */
+.ap-track {
+  margin-top: 10px;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.ap-track > legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+.ap-track .seg {
+  margin-bottom: 6px;
+}
+/* A sound track's settings from its header (208): the Audio panel's fields in a box over the timeline. */
+.tl-sound-pop {
+  z-index: 60;
+  width: 280px;
+  max-width: calc(100vw - 32px);
+  padding: 4px 8px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.4);
+}
+.tl-sound-pop .ap-track {
+  margin-top: 0;
+  border: 0;
+}
+
+/* ---------- Sound rows (208): a bar per sound clip with its waveform, fades, volume line and duck curve ---------- */
+.tl-sound {
+  padding: 0;
+}
+.tl-sound canvas,
+.tl-sound-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.tl-sound-lines {
+  overflow: visible;
+}
+.tl-sound-lines polyline {
+  fill: none;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.tl-fade-line {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.tl-volume-line {
+  stroke: #f4c430;
+}
+.tl-duck-line {
+  stroke: color-mix(in srgb, var(--danger) 80%, transparent);
+  stroke-dasharray: 3 2;
+}
+/* The part past the video's end isn't heard (Q6). */
+.tl-sound-past {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--panel) 70%, transparent) 0 5px, color-mix(in srgb, var(--panel) 45%, transparent) 5px 10px);
+  pointer-events: none;
+}
+.tl-sound-name {
+  position: absolute;
+  top: 2px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  padding: 0 6px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  color: var(--text);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.tl-sound-name svg {
+  width: 10px;
+  height: 10px;
+  margin-right: 3px;
+  vertical-align: -1px;
+}
+.tl-sound.tl-silent canvas {
+  opacity: 0.4;
+}
+.tl-sound.locked {
+  cursor: not-allowed;
+}
+/* Fade handles at the top corners, and the volume line's grip. */
+.tl-fade {
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+  background: #fff;
+  cursor: ew-resize;
+  opacity: 0;
+  z-index: 2;
+}
+.tl-sound:hover .tl-fade,
+.tl-sound.on .tl-fade,
+.tl-fade:focus-visible {
+  opacity: 1;
+}
+.tl-volume-grip {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  z-index: 1;
+}
+.tl-volume-grip:focus-visible {
+  outline: 2px solid var(--accent);
+}
+/* An audio row a sound clip would be dropped on. */
+.tl-drop-row {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* A video clip's own sound under its filmstrip (208). */
+.tl-clip-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  color: #2a9d8f;
+  background: color-mix(in srgb, #000 45%, transparent);
+  pointer-events: none;
+}
+.tl-clip-wave canvas {
+  width: 100%;
+  height: 100%;
+}
+.tl-clip-wave.tl-silent canvas {
+  opacity: 0.4;
+}

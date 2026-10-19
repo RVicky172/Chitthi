@@ -8,6 +8,7 @@ import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type 
 import { BrushIcon, DownloadIcon, ImageIcon, LayersIcon, MusicIcon, RedoIcon, ShapesIcon, TransitionIcon, TypeIcon, UndoIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { ClipInspector, ProjectInspector } from './ClipInspector';
+import { SoundInspector } from './SoundInspector';
 import { OPEN_TRANSITIONS } from './CutMarks';
 import { StudioDialog } from './Dialog';
 import { KeyframeNav } from './KeyframeButton';
@@ -18,7 +19,9 @@ import { TransitionInspector, TransitionPanel } from './TransitionPanel';
 import { Transport } from './Transport';
 import { KeyButton } from './videoFields';
 import { VideoExport } from './VideoExport';
-import { EmptyStage, MediaPanel, MusicPanel } from './VideoPanels';
+import { watchLoudness } from '../../state/videoSound';
+import { AudioPanel } from './AudioPanel';
+import { EmptyStage, MediaPanel } from './VideoPanels';
 import { VideoStage } from './VideoStage';
 
 /*
@@ -112,7 +115,7 @@ function ToolPanel({ tool, layerProps }: Readonly<ToolPanelProps>) {
   const hasClips = useVideo((state) => state.clips.length > 0);
   const tools = useVideo((state) => state.tools);
   if (tool === 'media') return <MediaPanel />;
-  if (tool === 'audio') return <MusicPanel />;
+  if (tool === 'audio') return <AudioPanel />;
   if (!hasClips) return <p className="hint mst-pad">Add photos or videos first: choose Media in the tool rail.</p>;
   if (tool === 'text') return <AddText {...layerProps} />;
   if (tool === 'elements') return <AddElements {...layerProps} />;
@@ -127,7 +130,7 @@ interface InspectorProps {
 }
 
 /**
- * The inspector: the selected layer, else the selected cut's transition (206), else the selected clip, else the project.
+ * The inspector: the selected sound clip (208), else the selected layer, else the selected cut's transition (206), else the selected clip, else the project.
  * @param props the layer panels' props
  */
 function Inspector({ layerProps }: Readonly<InspectorProps>) {
@@ -135,6 +138,8 @@ function Inspector({ layerProps }: Readonly<InspectorProps>) {
   const layerSel = useVideo((state) => state.layerSel);
   const selected = useVideo((state) => state.selected);
   const transitionSel = useVideo((state) => state.transitionSel);
+  const sound = useVideo((state) => state.sounds.find((candidate) => candidate.id === state.soundSel));
+  if (sound) return <SoundInspector sound={sound} />;
   if (layerSel) return <LayerProps {...layerProps} />;
   const cut = clips.find((clip) => clip.id === transitionSel);
   if (cut) return <TransitionInspector clip={cut} />;
@@ -199,6 +204,9 @@ interface VideoWorkspaceProps {
 export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) {
   const kind = mode === 'vlog' ? 'vlog' : 'reel';
   useEffect(() => setKind(kind), [kind]);
+  // The mix's loudness, measured in the background while the editor is open (208 AC-9): the Audio panel shows it, the
+  // preview and the export use its gain.
+  useEffect(() => watchLoudness(), []);
   const hasClips = useVideo((state) => state.clips.length > 0);
   const [tool, setTool] = useState<Tool | null>(() => (getVideo().clips.length ? 'text' : 'media'));
   const [isExporting, setExporting] = useState(false);
