@@ -2,7 +2,7 @@
  * The only bridge between the sandboxed page and the system. Everything here is a narrow, typed call into the
  * main process (see src/platform/desktop.ts for the matching TypeScript interface).
  */
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const invoke = (channel) => (...args) => ipcRenderer.invoke(channel, ...args);
 const listen = (channel) => (cb) => {
@@ -10,6 +10,15 @@ const listen = (channel) => (cb) => {
   ipcRenderer.on(channel, handler);
   return () => ipcRenderer.removeListener(channel, handler);
 };
+
+/** What saves the open project before the window closes (the page's autosave flush), if anything. */
+let flush = null;
+// The main process asks before the window closes; the answer comes when the save is done (or failed), at once when
+// nothing is registered. The main process stops waiting after 2 s either way.
+ipcRenderer.on('projects:flush', (_e, id) => {
+  const saving = flush ? Promise.resolve().then(flush) : Promise.resolve();
+  saving.catch(() => undefined).then(() => ipcRenderer.send('projects:flushed', id));
+});
 
 contextBridge.exposeInMainWorld('chitthiDesktop', {
   info: ipcRenderer.sendSync('desktop:info'),
@@ -44,6 +53,33 @@ contextBridge.exposeInMainWorld('chitthiDesktop', {
     reply: (id, result) => ipcRenderer.send('agent:reply', id, result),
     writeFiles: invoke('agent:writeFiles'),
     readPhoto: invoke('agent:readPhoto'),
+  },
+  // Saved photo and video projects (408): JSON text both ways; the main process writes the files.
+  projects: {
+    list: invoke('projects:list'),
+    read: invoke('projects:read'),
+    write: invoke('projects:write'),
+    readCache: invoke('projects:readCache'),
+    writeCache: invoke('projects:writeCache'),
+    remove: invoke('projects:remove'),
+    usage: invoke('projects:usage'),
+    onFlush: (cb) => {
+      flush = cb;
+      return () => {
+        if (flush === cb) flush = null;
+      };
+    },
+  },
+  // Their media (408): the page names files by media id only. A picked or dropped File becomes its path here, so the
+  // page can only point the app at files the user chose ('' for a file with no place on disk).
+  media: {
+    register: (id, file) => ipcRenderer.invoke('media:register', id, webUtils.getPathForFile(file)),
+    writeOwned: invoke('media:writeOwned'),
+    finishOwned: invoke('media:finishOwned'),
+    status: invoke('media:status'),
+    freeSpace: invoke('media:freeSpace'),
+    findFile: invoke('media:findFile'),
+    sweep: invoke('media:sweep'),
   },
   db: {
     all: invoke('db:all'),

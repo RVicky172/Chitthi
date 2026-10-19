@@ -9,6 +9,7 @@ import { adjustClip, editClip, updateClipWhy } from '../../state/videoClips';
 import { limits, limitText, setPlayhead, useVideo, videoLength, type VClip } from '../../state/videoStore';
 import { clipPlace } from '../../state/videoTracks';
 import { Check, Seg } from '../common';
+import { FindFileButton } from './ProjectStatus';
 import { LookPicker } from '../ig/LookPicker';
 import { KeyframeNav } from './KeyframeButton';
 import { useFallbackNote } from './previewFrame';
@@ -274,6 +275,11 @@ export function ClipInspector({ clip }: Readonly<ClipProps>) {
             {clip.name} · {clip.w}×{clip.h}
             {clip.kind === 'video' ? ` · ${formatTime(clip.srcDur)}` : ''}
           </p>
+          {!(clip.file instanceof Blob) && clip.file.missing && (
+            <p className="hint bad" role="status">
+              This file is missing: it may have moved or changed. <FindFileButton file={clip.file} />
+            </p>
+          )}
           {cantExport && (
             <p className="hint bad" role="status">
               {cantExport}

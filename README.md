@@ -69,8 +69,8 @@ documentation too: **Docs** in the site menu (`#/docs`), for using it and for de
   blend modes; edit Reels, Shorts and vlogs on a timeline with music, and export MP4 files made on your device.
 - **Optional AI, your own key.** Greetings, calendar captions and slot-shaped artwork from Claude, OpenAI, Gemini,
   a local Ollama and 12 more services, in 12 languages.
-- **Works with AI agents.** The desktop app is an MCP server with 56 tools for print designs and photo editing; a
-  Claude Code plugin adds six workflow skills.
+- **Works with AI agents.** The desktop app is an MCP server with 61 tools for print designs, photo editing and
+  saved projects; a Claude Code plugin adds six workflow skills.
 - **Private by design.** No account and no server: photos, designs and keys never leave the device.
 
 ## Screenshots
@@ -311,7 +311,7 @@ a worker), with no key and no upload.
 
 ## AI agents (MCP)
 
-The desktop app is an [MCP](https://modelcontextprotocol.io) server with 56 tools, 5 workflow prompts and 5
+The desktop app is an [MCP](https://modelcontextprotocol.io) server with 61 tools, 5 workflow prompts and 5
 resources. For print (34 tools), an agent can create designs, write the words, find Pexels photos or create pictures,
 check print quality, render previews and export print packs, PDFs and quote requests. For the photo studio (22 tools),
 it can add photos (RAW too), set any colour setting on one photo or the whole batch, add masks (AI included), use and

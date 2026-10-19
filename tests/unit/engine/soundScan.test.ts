@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PEAK_FLOOR, RMS_FLOOR, ScanBuilder, peakDb, waveformColumns, type SoundScan } from '@/engine/soundScan';
+import { PEAK_FLOOR, RMS_FLOOR, ScanBuilder, decodeScan, encodeScan, peakDb, waveformColumns, type SoundScan } from '@/engine/soundScan';
 import type { AudioClip } from '@/engine/timeline';
 import { defined } from '../../support/defined';
 import { seededRandom } from '../../support/seededRandom';
@@ -208,5 +208,24 @@ describe('waveformColumns (208 AC-4)', () => {
   it('an empty stretch or no columns gives nothing to draw', () => {
     expect(waveformColumns(scan, sound, unity, 3, 3, 10).heights.every((height) => height === 0)).toBe(true);
     expect(waveformColumns(scan, sound, unity, 2, 4, 0).heights).toHaveLength(0);
+  });
+});
+
+describe('a scan saved with a project (408 T063, Q14)', () => {
+  const scan: SoundScan = { rate: 100, peaks: Uint8Array.from([0, 1, 128, 255, 7]), rms: Float32Array.from([RMS_FLOOR, -60.5, -3.25]), dur: 0.05 };
+
+  it('encodes as text and decodes to the same scan', () => {
+    const saved = encodeScan(scan);
+    expect(JSON.parse(JSON.stringify(saved))).toEqual(saved);
+    const back = decodeScan(saved);
+    expect(back).toEqual(scan);
+    expect(back?.peaks).toBeInstanceOf(Uint8Array);
+    expect(back?.rms).toBeInstanceOf(Float32Array);
+  });
+
+  it('anything else decodes to null', () => {
+    for (const bad of [null, 'x', { dur: 1, peaks: 'AA', rms: 'AAA' }, { dur: -1, peaks: '', rms: '' }, { dur: 1, peaks: '!!', rms: '' }, { dur: 1, peaks: 'AA==', rms: 4 }]) {
+      expect(decodeScan(bad)).toBeNull();
+    }
   });
 });

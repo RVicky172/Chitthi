@@ -5,10 +5,11 @@ import { closeGaps, limitVideos, type EditCtx, type Tool } from '../engine/edits
 import type { IgEdit } from '../engine/instagram';
 import type { ClipKeyProp, Keyframes } from '../engine/keyframes';
 import type { Layer } from '../engine/layers';
+import type { MediaFile } from '../engine/mediaFile';
 import type { SpeedFields } from '../engine/speed';
 import { tidyTransitions, type Transition } from '../engine/transitions';
 import { pack, projectLength, type AudioClip, type ClipTransform, type Project } from '../engine/timeline';
-import { MAIN_VIDEO, MUSIC, defaultTracks, lockedReason, type Track } from '../engine/tracks';
+import { MAIN_VIDEO, MUSIC, defaultTracks, lockedReason, type Track, type TrackHeight } from '../engine/tracks';
 import { formatsFor, limitsFor, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from '../engine/videoFormats';
 import type { Motion } from '../engine/video';
 import { isDesktop } from '../platform/desktop';
@@ -42,8 +43,9 @@ export interface VClip extends SpeedFields {
   /** Seconds from the start of the video; kept packed end to end while Magnetic is on. */
   start: number;
   name: string;
-  file: Blob;
-  /** Object URL of the file, for <video> playback and thumbnails. */
+  /** The file (408 §5): a Blob, or disk media on desktop; read through engine/mediaFile.ts. */
+  file: MediaFile;
+  /** The file's URL for <video> playback and thumbnails: an object URL, or chitthi-media:// for disk media. */
   url: string;
   /** Pixel size of the picture. */
   w: number;
@@ -71,12 +73,12 @@ export interface VClip extends SpeedFields {
 
 /** A sound clip in the store (208 D1): the clip, its file and the file's object URL (its media id, D-053). */
 export interface VSound extends AudioClip {
-  file: Blob;
+  file: MediaFile;
   url: string;
 }
 
-/** A track's height on the timeline (Q5): small 40 px, medium 64 px (2.x's rows), large 96 px. */
-export type TrackHeight = 'small' | 'medium' | 'large';
+/** A track's height on the timeline (engine/tracks.ts). */
+export type { TrackHeight } from '../engine/tracks';
 
 /** Export progress (0–1) and what it is doing. */
 export interface ExportProgress {
@@ -563,8 +565,8 @@ export function commit(key: string, patch: Partial<Snap> & { clips: VClip[] }, e
   return null;
 }
 
-/** A project to start from (tests; opening a saved project goes through mergeProject first). */
-export interface LoadedProject {
+/** A project to start from (a saved project after mergeProject, 408; tests). Settings left out stay as they are. */
+export interface LoadedProject extends Partial<Pick<VState, 'kind' | 'format' | 'fps' | 'quality' | 'fadeOut' | 'trackView'>> {
   clips: VClip[];
   tracks?: Track[];
   magnetic?: boolean;
@@ -572,6 +574,8 @@ export interface LoadedProject {
   /** Missing: a project from before 208, Off (Q12). */
   loudness?: 'off' | number;
   layers?: Layer[];
+  /** The playhead, seconds (0 when left out). */
+  t?: number;
 }
 
 /**
@@ -592,7 +596,10 @@ export function loadVideoProject(project: LoadedProject): void {
   };
   const sorted = project.clips.slice().sort((first, second) => rank(first) - rank(second) || (magnetic && first.track === MAIN_VIDEO ? 0 : first.start - second.start));
   const clips = magnetic ? pack(sorted) : sorted;
-  setVideo({ clips, tracks, magnetic, sounds: project.sounds ?? [], loudness: project.loudness ?? 'off', measure: null, measuring: false, layers: project.layers ?? [], layerSel: null, transitionSel: null, soundSel: null, selected: clips.at(0)?.id ?? null, t: 0, ...flags() });
+  const { kind, format, fps, quality, fadeOut, trackView } = project;
+  const settings = Object.fromEntries(Object.entries({ kind, format, fps, quality, fadeOut, trackView }).filter(([, value]) => value !== undefined));
+  const playhead = Math.min(Math.max(0, project.t ?? 0), lengthOf(clips, tracks, magnetic));
+  setVideo({ ...settings, clips, tracks, magnetic, sounds: project.sounds ?? [], loudness: project.loudness ?? 'off', measure: null, measuring: false, layers: project.layers ?? [], layerSel: null, transitionSel: null, soundSel: null, selected: clips.at(0)?.id ?? null, t: playhead, ...flags() });
 }
 
 /**

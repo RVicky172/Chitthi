@@ -483,3 +483,91 @@ so integrated loudness is the hits'. The loudness gain then turns the mix *down*
 heavy limiting, put short transients (10 ms clicks) over a steady bed (−26 LUFS): the bed sets the loudness, the
 clicks set the peaks (12 dB of reduction), and only the corrective pass lands it on the target (−17.25 → −14.37).
 Also: `console.log` doesn't show in this Vitest setup; print with `process.stderr.write` when probing numbers.
+
+## 2026-10-19 — Serving local media to the page through a custom scheme (408 T001)
+
+`protocol.registerSchemesAsPrivileged` with `{ standard, secure, supportFetchAPI, corsEnabled, stream }` (no
+`bypassCSP`) lets `<video>`, `fetch` and Mediabunny's `UrlSource` (in the page and in a module Worker) read a local
+file from `chitthi-media://…`, as long as the handler answers `Range` with `206` + `Content-Range` and sends
+`Access-Control-Allow-Origin: app://chitthi` (the page's origin differs from the scheme's) and the page's CSP lists
+`chitthi-media:` in `media-src` and `connect-src`. Body: `Readable.toWeb(fs.createReadStream(path, { start, end }))`.
+Mediabunny and `<video>` ask open-ended ranges (`bytes=N-`) and abort them, so count bytes on the stream's `data`
+events, not from the range asked (52 requests "asked" 35 GB of a 1 GB file but read 483 MB of a 4 GB one). Decoding
+through it is as fast as a picked `File` (527 vs 621 ms for 300 1080p frames).
+**A real, disk-backed picked `File` in an Electron test** without a dialog: attach `webContents.debugger`, then CDP
+`DOM.getDocument` → `DOM.querySelector('#input')` → `DOM.setFileInputFiles({ nodeId, files: [path] })`.
+
+## 2026-10-19 — OPFS across browsers: persist() prompts, private windows, Windows WebKit (408 T002)
+
+Firefox's `navigator.storage.persist()` opens a permission prompt and its promise doesn't settle until the user
+answers (headless: never), so ask it from a click and never `await` it on a save path; Chrome answers `false` at once
+without asking. Firefox private windows throw `SecurityError` from `navigator.storage.getDirectory()` (Chrome's
+incognito keeps OPFS). Playwright's Windows WebKit cannot stand in for Safari's OPFS: a fixed 1,000 MB quota,
+`createWritable` writes that end with 0 bytes, `createSyncAccessHandle` NotSupportedError, no `VideoDecoder`; Safari
+needs a Mac. A dependency bump of `playwright` needs `npx playwright install chromium` again (new headless shell
+build), or every Playwright launch fails with "Executable doesn't exist".
+
+## 2026-10-19 — Same project, different bytes: the gate rebuilds layers in its own key order (408 T011)
+
+A video project saved, reopened through `mergeProject` and saved again was equal as objects but not as JSON: layers
+(and could be photo edits) pass through `toDocument` as they are, and the editor builds them in a different key order
+from `mergeLayers`. `videoDocument` writes layers and edits with sorted keys, so the same project always gives the
+same bytes (needed for "identical" round trips and for skipping saves that change nothing). When a byte comparison
+fails but `toEqual` passes, look at key order first.
+
+
+## 2026-10-19 — Mediabunny's UrlSource retries a failed read for ever (408 T020)
+
+`new UrlSource(url)` retries a failed request with exponential backoff and never gives up unless it suspects a CORS
+error (a cross-origin `fetch` rejected while online). For a `chitthi-media://` file that moved or changed (404), that
+means a decode that hangs, retrying, instead of failing. `engine/mediaFile.ts` passes `getRetryDelay: () => null`: a
+local file that can't be read now won't be readable on a retry.
+
+## 2026-10-19 — An "interrupted write" fake must fail between the steps, or it can't see atomicity (408 T032)
+
+The first fake for the browser library aborted every commit at its first put. A mutation that split a save into two
+transactions (document, then entry) still passed: both halves failed alike, so nothing landed. The fake has to model
+the real fault, a crash after the document lands and before the entry does: a transaction writing an entry aborts
+and rolls back only its own changes. Then a split save leaves the new document behind and the test catches it.
+When a fault-injection test passes a mutation it should catch, check where the fake injects the fault.
+
+## 2026-10-19 — OPFS gives files back without their type, so a reopened file would get a new media id (408 T041)
+
+`FileSystemFileHandle.getFile()` returns a File named after the entry (the media id) with `type: ''`. The media id
+(`engine/mediaKey.ts`) includes the type, so adding a reopened file to another project would key it differently and
+copy it a second time. `MediaStore.open(id, name, type)` takes the document's name and type, and `mediaWeb` wraps the
+disk file as `new File([disk], name, { type })` (still disk-backed: no bytes are read). The media contract checks that
+a reopened file kept again gives the same id.
+
+## 2026-10-19 — An id pattern isn't a safe file name on Windows: CON, NUL, COM1… (408 T050)
+
+`/^[A-Za-z0-9_-]{1,100}$/` keeps ids out of other folders, but Windows reserves `CON`, `PRN`, `AUX`, `NUL`, `COM0–9`
+and `LPT0–9` as device names whatever the extension, so `library/projects/CON.project` would be the console, not a
+file. `electron/projects.cjs` and `lib/projects.ts` refuse them (case-insensitive). The older `safeId` in
+`electron/main.cjs` (designs, photos, presets) has the same gap; its ids are app-made, so it hasn't bitten.
+
+## 2026-10-19 — Scripted edits of CRLF files fail silently; testing the preload without Electron (408 T052)
+
+`core.autocrlf` is true, so tracked files such as `electron/main.cjs` and `preload.cjs` are CRLF in the working tree
+(new files are LF until committed). A `node -e` / heredoc `s.replace('a\nb', …)` on them matches nothing and writes
+the file back unchanged, or only the one-line replacements: normalise (`replace(/\r\n/g, '\n')`, write back with
+`\r\n`), check `includes` before replacing, or use the Edit tool, which copes. Tests reading `electron-builder.yml`
+must strip `\r` too. **The preload in Vitest:** patch `Module._load` to answer `'electron'` with fakes
+(`contextBridge.exposeInMainWorld` captures the API), drop it from `require.cache` and `createRequire(preload)(preload)`;
+`tests/unit/electron/preload.test.ts` does this. main.cjs can't load outside Electron (it calls `app.setPath` at
+the top), so testable pieces such as the CSP live in their own modules (`electron/csp.cjs`).
+
+## 2026-10-19 — The agent tool registry can't be imported plainly in Vitest (408 T072)
+
+`@/agent/tools` imports every tool module, and one of them reads `location` while loading, so a unit test that
+imports it fails with "location is not defined" (Node has no `location`). Test a tool module directly
+(`@/agent/projectTools`), and check the registration with `vi.stubGlobal('location', …)` then a dynamic
+`await import('@/agent/tools')` (`tests/unit/agent/projectTools.test.ts`).
+
+## 2026-10-19 — A dynamic import from the home screen can still pull a big shared chunk (408 T112)
+
+`ContinueLink` (home screen) did `import('../state/projects')` to find the latest project. That kept it out of the
+entry chunk, but Rollup put `state/projects` in one shared chunk with everything it imports (the photo and video
+media code, RAW, …): 513 KB fetched on every home visit just to read one name. `check-bundle` doesn't catch it (only
+the entry is budgeted). Read the build's chunk list after adding an `import()` to an always-shown screen, and import
+the smallest module that answers the question (here `lib/projectLibrary`, 3.8 KB).

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { startGpuEffects } from '../lib/gpuSetting';
+import { showStudio } from '../state/projects';
 import { PhotoWorkspace } from './studio/PhotoWorkspace';
 import { MODES, modeOf, type StudioMode } from './studio/Shell';
 import { VideoWorkspace } from './studio/VideoWorkspace';
@@ -11,6 +12,13 @@ import { VideoWorkspace } from './studio/VideoWorkspace';
 export function InstagramStudio() {
   const [mode, setMode] = useState<StudioMode>(() => modeOf(location.hash));
   useEffect(startGpuEffects, []);
+  // The studio's project (408): the one open, else the last one used, else a new one.
+  const studio = mode === 'photos' ? 'photo' : 'video';
+  useEffect(() => {
+    showStudio(studio, mode === 'vlog' ? 'vlog' : 'reel');
+    // The kind matters only for a new project: switching Reels and YouTube keeps the one open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studio]);
   useEffect(() => {
     const on = () => setMode(modeOf(location.hash));
     window.addEventListener('hashchange', on);

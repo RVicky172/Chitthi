@@ -1,5 +1,6 @@
 import { duckCurves, type DuckCurves } from '../engine/ducking';
 import type { SoundJob } from '../engine/exportSound';
+import { missingFilesMessage } from '../engine/mediaFile';
 import type { ExportClip } from '../engine/videoExport';
 import { audioPlan } from '../engine/soundPlan';
 import { speedFields } from '../engine/speed';
@@ -70,14 +71,26 @@ export function soundJob(video: VState): SoundJob & { clips: ExportClip[] } {
 }
 
 /**
+ * Refuses the export while a clip's or a sound's file is missing (408 D4).
+ * @param video the video's state
+ * @throws "Find the missing files first: …"
+ */
+function refuseMissing(video: VState): void {
+  const missing = missingFilesMessage([...video.clips, ...video.sounds].map((item) => item.file));
+  if (missing) throw new Error(missing);
+}
+
+/**
  * Encodes the video. Reels are built in memory (so they can be shared); YouTube videos stream to a file the user
  * picks (desktop, Chrome, Edge), or are built in memory where the browser can't stream. Call straight from a click:
- * the save picker needs it.
+ * the save picker needs it. Refused while a clip's or a sound's file is missing (408 D4).
  * @returns the outcome, or null when cancelled
+ * @throws when files are missing, or the export fails
  */
 export async function exportVideo(): Promise<ExportOutcome> {
   if (running) return null;
   const video = getVideo();
+  refuseMissing(video);
   const format = vFormat(video.format);
   const name = exportName();
   const stream = video.kind === 'vlog' && canStreamToDisk();

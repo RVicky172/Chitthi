@@ -10,15 +10,19 @@ import { type Project, type TimedClip } from '../../engine/timeline';
 import { limitsFor } from '../../engine/videoFormats';
 import { renderStack, type FrameClip } from '../../engine/video';
 import type { Layer } from '../../engine/layers';
+import { isMissing, mediaName, type MediaFile } from '../../engine/mediaFile';
+import { missingPicture } from '../../engine/missingDraw';
 import { logError } from '../../lib/errors';
 import { isDesktop } from '../../platform/desktop';
 
 /** What the stage needs of a clip. */
 export interface PreviewClip extends FrameClip, TimedClip {
+  /** The file's name (a missing file's placeholder shows it). */
+  name?: string;
   /** The clip's file as a URL (for its <video>). */
   url: string;
   /** The clip's file (for the decoder pool). */
-  file: Blob;
+  file: MediaFile;
   /** A photo's prepared still. */
   still?: HTMLCanvasElement | null;
 }
@@ -84,6 +88,8 @@ export function videoElementSource(onFrame: () => void = () => undefined): Previ
   return {
     element,
     async frame(clip, srcTime) {
+      // A missing file has nothing to load: waiting for its metadata would never end (408 D4).
+      if (isMissing(clip.file)) return null;
       const video = element(clip);
       if (video.readyState < 1) await eventOf(video, 'loadedmetadata');
       if (Math.abs(video.currentTime - srcTime) > 0.02) {
@@ -125,6 +131,7 @@ export const poolClip = (clip: PreviewClip, lead = 0): PoolClip => ({
  * Pictures from the decoder pool (204 §3): exact frames, latest wins (a superseded ask resolves to null). A clip the
  * pool can't decode (its fallback reason is set) is drawn from `fallback`, the <video> path, as it previews today
  * (Q6). The pool keeps the frame until a newer one replaces it, so the picture can be drawn as soon as it resolves.
+ * A missing file (408 D4) gets no picture and isn't tried: the stage draws its placeholder.
  * @param pool the decoder pool
  * @param fallback the <video> source for clips the pool can't decode
  * @returns the source
@@ -132,6 +139,7 @@ export const poolClip = (clip: PreviewClip, lead = 0): PoolClip => ({
 export function poolSource(pool: DecodePool, fallback: PreviewSource): PreviewSource {
   return {
     async frame(clip, srcTime) {
+      if (isMissing(clip.file)) return null;
       const why = pool.fallback(clip.id);
       if (why) {
         noteFallback(clip.file, why);
@@ -179,6 +187,16 @@ export function photoPicture(clip: PreviewClip): Picture | null {
 }
 
 /**
+ * A clip's picture at seconds into it: a photo's still, a video's frame from the source.
+ * @param clip the clip
+ * @param local seconds into it
+ * @param source where video frames come from
+ * @returns the picture, or null
+ */
+const clipPicture = (clip: PreviewClip, local: number, source: PreviewSource): Promise<Picture | null> | Picture | null =>
+  clip.kind === 'video' ? source.frame(clip, frameSourceAt(clip, local)) : photoPicture(clip);
+
+/**
  * The paused stage's pictures at a playhead time: every clip of the frame's stack with its picture (a photo's still, a
  * video's frame from `source`), all awaited together so the frame is drawn whole.
  * @param project the video project
@@ -197,7 +215,7 @@ export async function pausedFrame<C extends PreviewClip>(
   const { at, items: stack } = pausedAt(project, playhead, fps);
   const items = await Promise.all(
     stack.map(async ({ clip, local, mix }): Promise<StageItem<C>> => {
-      const pic = clip.kind === 'video' ? await source.frame(clip, frameSourceAt(clip, local)) : photoPicture(clip);
+      const pic = isMissing(clip.file) ? null : await clipPicture(clip, local, source);
       return { clip, local, pic, ...(mix ? { mix } : {}) };
     }),
   );
@@ -234,7 +252,8 @@ export function heldStageFrame<C extends PreviewClip>(
 
 /**
  * Draws the stage: the stack's pictures with their edits, motion and boxes, the layers and the fades (renderStack, as
- * the export draws). A frame with no clips (a hidden or empty main track at a gap) is black with the layers on top.
+ * the export draws). A frame with no clips (a hidden or empty main track at a gap) is black with the layers on top. A
+ * clip whose file is missing is drawn as its placeholder (408 D4).
  * @param context the stage canvas's 2D context
  * @param width the canvas width in pixels
  * @param height the canvas height in pixels
@@ -252,19 +271,32 @@ export function drawPreview(
     context,
     width,
     height,
-    frame.items.map(({ clip, local, pic, mix }) => ({
-      clip: { ...clip, overlay: clip.track !== MAIN_VIDEO },
-      src: pic?.image ?? null,
-      sw: pic?.w ?? 0,
-      sh: pic?.h ?? 0,
-      local,
-      mix,
-    })),
+    frame.items.map(({ clip, local, pic, mix }) => {
+      const shown = isMissing(clip.file) ? placeholderOf(clip) : pic;
+      return {
+        clip: { ...clip, overlay: clip.track !== MAIN_VIDEO },
+        src: shown?.image ?? null,
+        sw: shown?.w ?? 0,
+        sh: shown?.h ?? 0,
+        local,
+        mix,
+      };
+    }),
     view.layers,
     frame.at,
     view.total,
     view.fadeOut,
   );
+}
+
+/**
+ * A missing file's placeholder as a picture.
+ * @param clip the clip
+ * @returns the hatched picture with the file's name
+ */
+function placeholderOf(clip: PreviewClip): Picture {
+  const image = missingPicture(clip.name ?? mediaName(clip.file, 'A clip'));
+  return { image, w: image.width, h: image.height };
 }
 
 /** The width reversed lanes decode at in the preview (D4): about the stage's size, so a backward chunk fits. */
@@ -314,7 +346,7 @@ export const liveStages = new Set<ReturnType<typeof stageSource>>();
  * the clip says so (timeline title and accessible name, inspector). Kept per file, so a split or a duplicate of the
  * clip says it at once; each file is logged once for reports.
  */
-const cantDecode = new WeakMap<Blob, string>();
+const cantDecode = new WeakMap<MediaFile, string>();
 const noteListeners = new Set<() => void>();
 
 /**
@@ -322,7 +354,7 @@ const noteListeners = new Set<() => void>();
  * @param file the clip's file
  * @param reason why
  */
-export function noteFallback(file: Blob, reason: string): void {
+export function noteFallback(file: MediaFile, reason: string): void {
   if (cantDecode.get(file) === reason) return;
   cantDecode.set(file, reason);
   logError('handled', new Error(reason));
@@ -334,7 +366,7 @@ export function noteFallback(file: Blob, reason: string): void {
  * @param file the clip's file
  * @returns "This clip can’t be exported here: <reason>", or null
  */
-export function fallbackNote(file: Blob): string | null {
+export function fallbackNote(file: MediaFile): string | null {
   const why = cantDecode.get(file);
   return why ? `This clip can’t be exported here: ${why}` : null;
 }
@@ -356,7 +388,7 @@ const subscribeNotes = (listener: () => void) => {
  * @param file the clip's file
  * @returns the note, or null
  */
-export function useFallbackNote(file: Blob): string | null {
+export function useFallbackNote(file: MediaFile): string | null {
   // The note itself is the snapshot (a string), so React, and the compiler's memoisation, see it change.
   return useSyncExternalStore(subscribeNotes, () => fallbackNote(file));
 }

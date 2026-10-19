@@ -6,6 +6,7 @@ import { DESIGN_TOOLS } from './designTools';
 import { GALLERY_TOOLS } from './galleryTools';
 import { OUTPUT_TOOLS } from './outputTools';
 import { PHOTO_TOOLS } from './photoTools';
+import { PROJECT_TOOLS } from './projectTools';
 
 /*
  * Agent tools (Command pattern): every studio capability an AI agent may use, as {name, description, JSON Schema,
@@ -15,7 +16,7 @@ import { PHOTO_TOOLS } from './photoTools';
  * agent output folder and returned as paths; images for the agent to look at come back small (≤ 1024 px).
  */
 
-/** Every tool, in the order agents see them: catalogue, design, photos, AI, checks and output, gallery, photo studio. */
+/** Every tool, in the order agents see them: catalogue, design, photos, AI, checks and output, gallery, photo studio, saved projects. */
 export const TOOLS: AgentTool[] = [
   ...CATALOG_TOOLS,
   ...DESIGN_TOOLS,
@@ -24,6 +25,7 @@ export const TOOLS: AgentTool[] = [
   ...OUTPUT_TOOLS,
   ...GALLERY_TOOLS,
   ...PHOTO_TOOLS,
+  ...PROJECT_TOOLS,
 ];
 
 /** The tools by name. */

@@ -150,8 +150,14 @@ install newer versions. A `v*` tag pushed to GitHub builds and publishes both pl
 | AI keys | `localStorage` (or `sessionStorage` for this tab only) | `ai-keys.json` in the app data folder, encrypted with `safeStorage` | Until deleted in Settings |
 | Agent output | — | `Documents/Chitthi agent output` | Until deleted |
 | Uploaded fonts | IndexedDB `chitthi-fonts` (names also in `localStorage`) | same (IndexedDB in the app) | Until deleted in Settings |
+| Photo and video projects (408) | IndexedDB `chitthi-projects` (entry, document, cache; one transaction per save) | `library/projects/<id>.project` + `<id>.cache.json` (written to `.tmp`, then renamed) | Until deleted |
+| Projects' media | OPFS `media/<id>`, a copy of each file (by fingerprint, once) | The user's files where they are, by `library/media-index.json` (main process only); app-made files in `library/media/<id>` | Until no project uses it |
+| Last project per studio | `localStorage` `chitthi-projects-last` | same | Until replaced |
 
-Photos are stored as data URLs so designs, backups and `.chitthi` files are self-contained.
+Photos are stored as data URLs so designs, backups and `.chitthi` files are self-contained. Photo and video projects
+are not: their media can be gigabytes, so it is kept beside them by media id (a fingerprint of size, type and the
+first and last 64 KB, `engine/mediaKey.ts`), and a project autosaves its document only (D-059). Projects share
+nothing with the print gallery.
 
 ## 7. Security
 
@@ -163,6 +169,13 @@ Photos are stored as data URLs so designs, backups and `.chitthi` files are self
   (`electron/ipc.cjs`). File ids are validated, and only files the session saved can be shown in the folder. Every
   browser permission is refused except fullscreen and writing to the clipboard. Reading a photo by path works only
   while an agent is connected.
+- **Projects' media on desktop** (408, D-059): the page never sees or sends a file path. A picked or dropped file
+  becomes its path in the preload (`webUtils.getPathForFile`, which works only on real picked files), or in a
+  main-process dialog (Find file…); the main process alone writes `library/media-index.json`. The page plays and
+  decodes media through the privileged scheme `chitthi-media://<id>` (standard, secure, fetch, CORS for the app's
+  origin only, streaming; not `bypassCSP`: the CSP lists it in `media-src` and `connect-src`), which answers with
+  Range support only for indexed ids whose file still has the recorded size and modification time. A sweep deletes
+  only app-made files inside `library/media/`, never a user's file.
 - **Desktop binary**: Electron fuses are set at packaging (`electron-builder.yml`): `NODE_OPTIONS` and `--inspect`
   are ignored, and app code loads only from the integrity-checked `app.asar`. `RunAsNode` stays on because the MCP
   stdio relay needs it.

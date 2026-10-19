@@ -5,6 +5,7 @@
 // its time and decodes (counted, not handed out) up to it (207 T020), and its source tells where its key frames are
 // (`keyBefore` / `keyAfter`); a file without one tells none, so the pool reads on as it did before 207.
 import type { FrameSource, FrameSourceFactory, PoolFrame } from '@/engine/decodePool';
+import type { MediaFile } from '@/engine/mediaFile';
 
 /** Frames per second of every fake file. */
 export const FAKE_FPS = 30;
@@ -102,7 +103,7 @@ const afterDelay = <T>(ms: number, work: () => T): Promise<T> =>
 export function fakeDecoder(opts: { openMs?: number; frameMs?: number } = {}) {
   const openMs = opts.openMs ?? 5,
     frameMs = opts.frameMs ?? 2;
-  const files = new Map<Blob, FakeFile>();
+  const files = new Map<MediaFile, FakeFile>();
   const live = new Set<FakeFrame>();
   /** `decoded`: every frame decoded, handed out or not (a reader decodes from the key frame before its start). */
   const counts = { sources: 0, readers: 0, doubleClose: 0, decoded: 0 };

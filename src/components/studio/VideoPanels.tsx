@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useIg } from '../../state/instagram';
-import { addMedia } from '../../state/videoMedia';
+import { addBatchPhotos, addMedia } from '../../state/videoMedia';
 import { limits, limitText, useVideo } from '../../state/videoStore';
 import { AddPhotoIcon, ReelIcon, YouTubeIcon } from '../icons';
 import { DesktopNote } from './Shell';
@@ -107,7 +107,7 @@ export function MediaPanel() {
           />
         </label>
         {photos.length > 0 && (
-          <button type="button" className="sbtn" onClick={() => void addMedia(photos.map((photo) => ({ name: photo.name, blob: photo.file }))).then(setMessages)}>
+          <button type="button" className="sbtn" onClick={() => void addBatchPhotos(photos).then(setMessages)}>
             Use the {photos.length} photo{photos.length === 1 ? '' : 's'} from Photos
           </button>
         )}

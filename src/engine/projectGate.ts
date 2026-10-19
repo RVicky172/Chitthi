@@ -1,6 +1,6 @@
 /*
- * The single gate for project data from outside the running app (201; 203, 205, 206): a project file or a 2.x
- * project becomes a valid version 1 project, with each problem said once. Never throws.
+ * The single gate for project data from outside the running app (201; 203, 205, 206, 408): a project file, a saved
+ * project or a 2.x project becomes a valid version 1 project, with each problem said once. Never throws.
  */
 import { isOneOf, isRecord, keysOf } from './guards';
 import { mergeEdit } from './instagram';
@@ -28,6 +28,7 @@ import {
 import {
   MAIN_VIDEO,
   MUSIC,
+  TRACK_HEIGHTS,
   TRACK_LIMITS,
   defaultTracks,
   isPictureTrack,
@@ -35,13 +36,15 @@ import {
   type TrackKind,
   type TrackLimits,
 } from './tracks';
+import type { TrackView } from './projectDoc';
 import { readAudio, readLoudness, readSoundTrack } from './soundGate';
 import { mergeSpeed } from './speedGate';
 import { TRANSITION_REASONS, mergeTransition, tidyTransitions } from './transitions';
 import { MOTIONS, type Motion } from './video';
 import { V_FPS, formatsFor, limitsFor, type VFormatId, type VFps, type VKind, type VLimits, type VQuality } from './videoFormats';
 
-const ID = /^[A-Za-z0-9_-]{1,40}$/;
+/** An id in a document: a clip's, a sound's, a media entry's, a photo's (408). */
+export const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const MEDIA_KINDS: readonly MediaKind[] = ['photo', 'video', 'audio', 'image'];
 const TRACK_KINDS: readonly TrackKind[] = ['video', 'overlay', 'audio'];
 const MOTION_IDS: readonly Motion[] = MOTIONS.map(([motion]) => motion);
@@ -273,12 +276,12 @@ function readSettings(document: Record<string, unknown>, desktop: boolean): Sett
 }
 
 /**
- * A document's media: entries with a valid, unique id and a known kind.
+ * A document's media: entries with a valid, unique id and a known kind (the photo gate's too, 408).
  * @param raw the document's `media`
  * @param dropped the gate's reasons
  * @returns the media
  */
-function readMedia(raw: unknown, dropped: string[]): DocMedia[] {
+export function readMedia(raw: unknown, dropped: string[]): DocMedia[] {
   const media: DocMedia[] = [];
   for (const entry of listOf(raw)) {
     const id = isRecord(entry) ? entry.id : undefined;
@@ -560,10 +563,55 @@ function readClips(raw: unknown, context: ClipContext): DocClip[] {
  * @param value the document's `version`
  * @returns the text (an object as JSON, not "[object Object]")
  */
-const versionText = (value: unknown): string =>
+export const versionText = (value: unknown): string =>
   typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
     ? String(value)
     : JSON.stringify(value);
+
+/** The longest project name (408). */
+export const NAME_MAX = 80;
+
+/**
+ * A saved project's name (408, the photo gate's too): trimmed and cut to 80 characters, an emoji counting as one.
+ * @param value the document's `name`
+ * @param dropped the gate's reasons
+ * @returns the name, or undefined when it is missing, empty or not text
+ */
+export function readName(value: unknown, dropped: string[]): string | undefined {
+  if (typeof value !== 'string') {
+    if (value !== undefined) dropped.push('The project’s name couldn’t be read.');
+    return undefined;
+  }
+  const letters = Array.from(new Intl.Segmenter().segment(value.trim()), (part) => part.segment);
+  return letters.slice(0, NAME_MAX).join('').trim() || undefined;
+}
+
+/** What a saved project keeps of its view and its name (408). */
+type ProjectView = Pick<ProjectDoc, 'name' | 'playhead' | 'trackView'>;
+
+/**
+ * A saved project's name, playhead and track heights (408): the name as `readName` reads it, the playhead within the
+ * project's length, heights only for the project's tracks.
+ * @param document the document
+ * @param tracks the project's tracks, as read
+ * @param length the project's length, seconds
+ * @param dropped the gate's reasons
+ * @returns the fields that are set
+ */
+function readView(document: Record<string, unknown>, tracks: readonly Track[], length: number, dropped: string[]): ProjectView {
+  const name = readName(document.name, dropped);
+  const view: ProjectView = name ? { name } : {};
+  if (typeof document.playhead === 'number' && Number.isFinite(document.playhead))
+    view.playhead = Math.min(Math.max(0, document.playhead), length);
+  if (isRecord(document.trackView)) {
+    const ids = new Set(tracks.map((track) => track.id));
+    const trackView: TrackView = {};
+    for (const [id, height] of Object.entries(document.trackView))
+      if (ids.has(id) && isOneOf(TRACK_HEIGHTS, height)) trackView[id] = height;
+    if (Object.keys(trackView).length) view.trackView = trackView;
+  }
+  return view;
+}
 
 /** What the gate returns. */
 export interface MergedProject {
@@ -601,8 +649,10 @@ function readProject(document: Record<string, unknown>, desktop: boolean, droppe
   if (layersRead > layers.length)
     dropped.push(`${layersRead - layers.length} layer(s) couldn’t be read and were left out.`);
   const { kind, format, fps, quality, fadeOut, magnetic } = settings;
+  const view = readView(document, tracks, projectLength({ tracks, clips: placed.clips, audio: [], layers: [], fadeOut }), dropped);
   return {
     version: 1,
+    ...view,
     kind,
     format,
     fps,

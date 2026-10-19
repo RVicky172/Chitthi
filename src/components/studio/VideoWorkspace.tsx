@@ -21,6 +21,7 @@ import { KeyButton } from './videoFields';
 import { VideoExport } from './VideoExport';
 import { watchLoudness } from '../../state/videoSound';
 import { AudioPanel } from './AudioPanel';
+import { MissingBar } from './ProjectStatus';
 import { EmptyStage, MediaPanel } from './VideoPanels';
 import { VideoStage } from './VideoStage';
 
@@ -242,6 +243,7 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
       dock={
         <>
           <Transport />
+          <MissingBar />
           <Timeline />
         </>
       }

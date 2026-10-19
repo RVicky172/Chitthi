@@ -42,7 +42,7 @@ _Release:_ 3.0.0
 | 206 | Transitions between clips (P2.6) | [spec](features/206-transitions/spec.md) | ✔️ | 201, 204 |
 | 207 | Speed: constant, reverse, freeze, ramps (P2.7) | [spec](features/207-speed/spec.md) | ✔️ | 201 |
 | 208 | Audio tracks, waveforms, ducking, loudness (P2.8) | [spec](features/208-audio-tracks/spec.md) | ✔️ | 201, 205 |
-| 209 | Voice-over (P2.9) | — | ⬜ | 208 |
+| 209 | Voice-over (P2.9) | [spec](features/209-voice-over/spec.md) | ✅ | 208, 408 |
 | 210 | Markers, in/out, range export, text animations, compound clips (P2.10) | — | ⬜ | 201 |
 | 211 | Proxies and frame cache, desktop first (P2.11) | — | ⬜ | 201 |
 | 212 | Agent tools and docs for the timeline (P2.12) | — | ⬜ | 202, 203, 205, 206 |
@@ -83,6 +83,7 @@ Print studio, site and anything outside the editor phases take the next free num
 | 405 | Roadmap dashboard revamp: a scrollable road, motion and live task progress | [spec](features/405-roadmap-revamp/spec.md) | ✔️ | 404 |
 | 406 | Roadmap improvements: next actions, task briefs and planning clarity | [spec](features/406-roadmap-actionable-workflow/spec.md) | ✔️ | — |
 | 407 | Code structure: a tests folder, coding standards, readable names and JSDoc | [spec](features/407-code-structure/spec.md) | ✔️ | — |
+| 408 | Saved photo and video projects | [spec](features/408-project-saving/spec.md) | ✔️ | — |
 
 ## Backlog (unscheduled ideas)
 

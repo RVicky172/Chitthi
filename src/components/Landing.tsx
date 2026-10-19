@@ -26,6 +26,7 @@ import { isDesktop } from '../platform/desktop';
 import { startProduct } from '../state/actions';
 import { setUI } from '../state/store';
 import type { ProductId } from '../types';
+import { ContinueLink } from './ContinueLink';
 import { EnvelopeScene, SpinCard } from './Landing3D';
 import { ProductExplorer, PrintReady } from './LandingInteractive';
 import { Journey } from './LandingJourney';
@@ -131,6 +132,7 @@ const FEATURES: [ReactNode, string, string][] = [
 function CTAs({ open }: Readonly<{ open: (p: ProductId) => void }>) {
   return (
     <div className="hero-cta">
+      <ContinueLink />
       <button type="button" className="btn primary big" onClick={() => open('postcard')}>
         Start a postcard
       </button>

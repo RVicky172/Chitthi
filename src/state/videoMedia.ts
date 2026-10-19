@@ -1,11 +1,14 @@
 import { limitVideos } from '../engine/edits';
 import { DEFAULT_EDIT } from '../engine/instagram';
+import { blobOf } from '../engine/mediaFile';
 import { checkFile, loadImage } from '../engine/photo';
 import { clipLength, pack, V_PHOTO_SECONDS } from '../engine/timeline';
 import { MAIN_VIDEO, addTrack as withNewTrack, lockedReason, type Track } from '../engine/tracks';
 import type { VLimits } from '../engine/videoFormats';
 import { logError } from '../lib/errors';
 import { isDesktop } from '../platform/desktop';
+import type { IgItem } from './instagram';
+import { keepMedia } from './projectSave';
 import { scanMedia } from './soundScan';
 import { endOn, insertOnTrack } from './videoClips';
 import { browserNote, change, editCtx, getVideo, limitText, limits, newId, setVideo, shareStrip, type VClip } from './videoStore';
@@ -145,7 +148,8 @@ async function makeStrip(id: string, url: string, duration: number): Promise<voi
   video.muted = true;
   video.preload = 'auto';
   try {
-    if (!url.startsWith('blob:')) return;
+    // The user's own files only: picked (blob:) or kept by a saved project on desktop (chitthi-media://, 408).
+    if (!url.startsWith('blob:') && !url.startsWith('chitthi-media://')) return;
     video.src = url;
     await new Promise<void>((resolve, reject) => {
       video.onloadeddata = () => {
@@ -180,7 +184,7 @@ export const NEW_TRACK = 'new';
 const NOT_PICTURE = 'Photos and videos go on a picture track.';
 
 /** A file to add. */
-export interface MediaFile {
+export interface MediaToAdd {
   name: string;
   blob: Blob;
   type?: string;
@@ -282,7 +286,7 @@ const fullMessage = (adding: Adding): string =>
  * @param isVideo whether it is a video
  * @returns the clip, or null when refused
  */
-async function readClip(adding: Adding, file: MediaFile, type: string, isVideo: boolean): Promise<VClip | null> {
+async function readClip(adding: Adding, file: MediaToAdd, type: string, isVideo: boolean): Promise<VClip | null> {
   const { limit } = adding;
   if (isVideo) {
     if (file.blob.size > limit.fileMB * 1048576) {
@@ -343,7 +347,7 @@ function placeClip(adding: Adding, name: string, clip: VClip): 'stop' | 'next' {
  * @param file the file
  * @returns 'stop' when nothing more fits, else 'next'
  */
-async function addFile(adding: Adding, file: MediaFile): Promise<'stop' | 'next'> {
+async function addFile(adding: Adding, file: MediaToAdd): Promise<'stop' | 'next'> {
   const { limit } = adding;
   if (getVideo().clips.length + adding.added.length >= limit.clips) {
     adding.messages.push(`A project holds up to ${limit.clips} clips${browserNote()}; the rest weren’t added.`);
@@ -379,7 +383,7 @@ async function addFile(adding: Adding, file: MediaFile): Promise<'stop' | 'next'
  * @param place the track and time
  * @returns messages for the user (files left out, trimmed)
  */
-export async function addMedia(files: MediaFile[], place: MediaPlace = {}): Promise<string[]> {
+export async function addMedia(files: MediaToAdd[], place: MediaPlace = {}): Promise<string[]> {
   const limit = limits();
   const target = targetTrack(place.track ?? MAIN_VIDEO);
   if ('error' in target) return [target.error];
@@ -395,6 +399,8 @@ export async function addMedia(files: MediaFile[], place: MediaPlace = {}): Prom
   if (first) {
     change('', { tracks: target.tracks, clips: withAdded(adding, adding.added) }, { selected: getVideo().selected ?? first.id });
     for (const clip of adding.added) {
+      // Kept for the saved project (408 §4) before the save that references it.
+      void keepMedia(clip.file, false);
       if (clip.kind !== 'video') continue;
       void mediaIO.strip(clip.id, clip.url, clip.srcDur);
       // Its sound's scan (208 D5), in the background: waveforms and ducking read it.
@@ -403,4 +409,24 @@ export async function addMedia(files: MediaFile[], place: MediaPlace = {}): Prom
   }
   setVideo({ busy: null });
   return adding.messages;
+}
+
+/**
+ * Adds the photo studio's photos to the video, each file read once (disk media is fetched); a missing or unreadable
+ * photo is said and the others added.
+ * @param photos the photo batch's photos
+ * @returns messages for what wasn't added, and why
+ */
+export async function addBatchPhotos(photos: readonly Pick<IgItem, 'name' | 'file'>[]): Promise<string[]> {
+  const unread: string[] = [];
+  const files: MediaToAdd[] = [];
+  for (const photo of photos) {
+    try {
+      files.push({ name: photo.name, blob: await blobOf(photo.file) });
+    } catch (error) {
+      logError('handled', error);
+      unread.push(error instanceof Error ? error.message : `“${photo.name}” couldn’t be read.`);
+    }
+  }
+  return [...unread, ...(files.length ? await addMedia(files) : [])];
 }

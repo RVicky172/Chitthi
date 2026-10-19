@@ -54,6 +54,11 @@ export const DUCK_DEFAULTS: Readonly<Ducking> = { amount: 12, threshold: -40 };
 /** Ducking's ranges (208 AC-6). */
 export const DUCK_RANGES = { amount: [3, 30], threshold: [-60, -20] } as const;
 
+/** A track's height on the timeline (Q5): small 40 px, medium 64 px (2.x's rows), large 96 px. */
+export type TrackHeight = 'small' | 'medium' | 'large';
+/** Every track height. */
+export const TRACK_HEIGHTS: readonly TrackHeight[] = ['small', 'medium', 'large'];
+
 /** The main video track and the music track: every project has them. */
 export const MAIN_VIDEO = 'V1';
 export const MUSIC = 'A1';

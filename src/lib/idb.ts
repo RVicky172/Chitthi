@@ -42,3 +42,27 @@ export function runRequest(database: IDBDatabase, storeName: string, mode: IDBTr
     transaction.onabort = fail;
   });
 }
+
+/**
+ * Runs work over several stores in one transaction: all of it lands, or (on an error or an abort) none of it.
+ * @param database the open database
+ * @param storeNames the stores the work touches
+ * @param mode read only or read-write
+ * @param work makes the requests on the stores; what it returns is the transaction's result
+ * @returns the work's result once the transaction completes
+ */
+export function runTransaction<T>(
+  database: IDBDatabase,
+  storeNames: readonly string[],
+  mode: IDBTransactionMode,
+  work: (store: (name: string) => IDBObjectStore) => () => T,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const transaction = database.transaction([...storeNames], mode);
+    const result = work((name) => transaction.objectStore(name));
+    const fail = () => reject(transaction.error ?? new DOMException('The storage transaction was aborted.', 'AbortError'));
+    transaction.oncomplete = () => resolve(result());
+    transaction.onerror = fail;
+    transaction.onabort = fail;
+  });
+}

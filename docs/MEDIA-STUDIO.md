@@ -16,7 +16,7 @@ All three modes share one layout (`src/components/studio/`), built like a deskto
 
 | Area | What it holds |
 | --- | --- |
-| Top bar | The Chitthi Studio mark (home), the three modes, undo and redo, the format menu, **Export** |
+| Top bar | The Chitthi Studio mark (home), **Projects**, the three modes, the save status, undo and redo, the format menu, **Export** |
 | Tool rail | Photos / Media, Text, Elements (shapes and stickers), Draw, Audio (video), Layers; a second click hides the panel |
 | Tool panel | The chosen tool: add media, text styles, shapes and stickers, brushes, sound and loudness, the layer list |
 | Stage | The canvas on a dark surface, sized to fit; layers are edited right on it |
@@ -26,6 +26,40 @@ All three modes share one layout (`src/components/studio/`), built like a deskto
 
 At 1280 px and wider every area has its own column; narrower windows put the tool panel and inspector in one column on
 the right; phones stack the stage, the dock, the tools and the panels in one scrolling column.
+
+## Saved projects
+
+Every photo post and every video is a **project**, saved on this device as you work; there is no Save button.
+
+- **Autosave.** A change is saved 2 seconds after the last one (a drag or a slider saves once, when you let go), and at
+  once when the tab is hidden, the window closes or the app quits. The top bar says **Saved**, **Saving…** or
+  **Not saved:** and why. A save is all or nothing: after a crash or a power cut a project opens as it was at its last
+  complete save, losing at most the last 2 seconds of edits.
+- **Projects.** The **Projects** button at the left of the top bar lists a studio's projects, newest first, with a
+  thumbnail, the kind (Reel, YouTube or photo post), the length or number of photos, when it last changed and the space
+  it takes. **New**, **Open**, **Rename** (F2), **Duplicate** and **Delete** (it asks first and says how much space it
+  frees). Arrow keys move through the list and Enter opens a project. A new project is named after its kind and the
+  time ("Reel · 19 Oct 14:02"). Reels, Shorts and YouTube videos share one list; opening one switches the studio to its
+  mode. Opening a studio reopens the project you used last; the home screen has **Continue:** with your latest one.
+- **What a project keeps.** The video's clips, tracks, sounds, layers, transitions, keyframes, speed changes, loudness
+  and settings, and where the playhead was; the photo batch with every edit, mask and layer, the caption and the export
+  settings. Thumbnails, filmstrips, previews and waveforms are kept beside it, so a project opens complete without
+  reading every file again (they are made again in the background if missing). Undo history starts empty.
+- **Media.** In the browser each photo, video and sound file is copied into the site's own storage the first time it
+  is added (once, however many projects use it). The desktop app doesn't copy your files: a project points to them
+  where they are, and only files the app made itself go into its data folder. Deleting a project removes the copies no
+  other project uses; your own files on disk are never deleted, moved or changed.
+- **Space.** The list shows the space projects take and, in the browser, how much the browser allows this site. At
+  90 % you are warned once. A file that doesn't fit is refused with the space left. Browsers may clear a site's storage
+  when the device runs low: **Keep my projects** asks the browser not to.
+- **Missing files.** A file that moved, changed or was deleted shows as a hatched placeholder with its name; the
+  project still opens and the rest plays, but exporting waits until the files are back. In the desktop app, **Find
+  file…** (in the clip's inspector, or the bar over the timeline) asks where it is now; other missing files in the same
+  folder are found with it.
+- **One window at a time.** Opening a project in a second tab or window takes it over: the first one stops saving and
+  says **This project is open in another window**, with **Open here again**.
+- **Moving projects** to another computer (a project file with its media) comes later (409). The print studio's
+  gallery is separate and unchanged.
 
 ## Instagram photos: formats
 
@@ -669,6 +703,7 @@ The longer plan for advanced features (masks, curves, multi-track timeline, keyf
 | Sound for reversed and ramped clips, and pitch-kept sound outside 0.5×–2× | Needs more audio work; those clips are silent for now |
 | Reverse together with a speed ramp; frame blending for slow motion | Rare, and doubles the cases to get right; slowed clips repeat frames |
 | Voice-over recording | Comes next (209), recording onto the audio tracks |
+| Moving a project to another computer, or between the browser and the desktop app | Needs a project file that carries gigabytes of media (409) |
 | A clip's sound as its own clip (J and L cuts), sound linked to a picture clip | Changes how clips and their sound are linked; with compound clips (210) |
 | Pan, track volume keyframes, EQ and noise removal | Reels and Shorts are mostly heard on phones; the loudness target is the master volume |
 | Agent tools for audio tracks, ducking and loudness | With the other timeline tools (212) |

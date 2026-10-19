@@ -1,0 +1,178 @@
+/* Saved projects (408): the Projects button in the media studio's top bar and its panel (ProjectsPanel.tsx). */
+
+.mst-projects-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mst-projects {
+  display: grid;
+  gap: 12px;
+}
+
+.mst-proj-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mst-proj-new .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mst-proj-list {
+  display: grid;
+  gap: 4px;
+  max-height: min(60dvh, 520px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.mst-proj {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+}
+.mst-proj-bad {
+  border-style: dashed;
+}
+
+.mst-proj-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.mst-proj-open:hover:not(:disabled),
+.mst-proj-open:focus-visible {
+  background: var(--accent-soft);
+}
+.mst-proj-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.mst-proj-open:disabled {
+  cursor: default;
+}
+
+.mst-proj-open img,
+.mst-proj-thumb {
+  flex: none;
+  width: 64px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  object-fit: cover;
+}
+
+.mst-proj-text {
+  display: grid;
+  min-width: 0;
+}
+.mst-proj-text strong,
+.mst-proj-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mst-proj-text span {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.mst-proj-name {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+}
+
+.mst-proj-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.mst-proj-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--r-sm);
+}
+.mst-proj-ask p {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.mst-proj-ask .btn.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.mst-proj-usage {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+/* Phones: the top bar keeps the icon only. */
+@media (max-width: 640px) {
+  .mst-projects-btn span {
+    display: none;
+  }
+  .mst-proj-text span {
+    white-space: normal;
+  }
+}
+
+/* The save status in the top bar (Saved / Saving… / Not saved / open elsewhere). */
+.mst-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.mst-save-failed,
+.mst-save-elsewhere {
+  color: var(--danger);
+}
+
+/* The bar over the timeline while files are missing. */
+.mst-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--danger);
+  background: var(--panel);
+  font-size: 0.9em;
+}
+.mst-missing span {
+  flex: 1 1 260px;
+}

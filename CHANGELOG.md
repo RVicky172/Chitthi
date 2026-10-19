@@ -7,6 +7,13 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Photo and video studios: **saved projects**. Every photo post and video is saved as you work (2 s after a change,
+  and at once when the tab is hidden or the app closes; the top bar says Saved / Saving… / Not saved: why). The
+  **Projects** button lists them with New, Open, Rename, Duplicate and Delete; opening a studio reopens the last one,
+  and the home screen has **Continue**. In the browser media is copied once into the site's own storage; the desktop
+  app uses your files where they are and never copies, moves or deletes them, with **Find file…** for files that
+  moved. Deleting a project frees the media no other project uses; one project is open in one window at a time.
+  Agent tools: `list_projects`, `new_project`, `open_project`, `rename_project`, `delete_project`.
 - Video editor: **overlay tracks** for picture-in-picture and B-roll. Add a track with **+** at the top left of the
   timeline (up to 4 picture tracks in the browser, 8 in the desktop app); drop photos or videos on a track's row, or on
   the time ruler for a new track; drag a clip up or down to another track, or use **Move to**. Higher tracks are drawn

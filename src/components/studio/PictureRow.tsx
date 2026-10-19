@@ -1,5 +1,6 @@
 import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Tool } from '../../engine/edits';
+import { isMissing } from '../../engine/mediaFile';
 import { clipLength, formatTime } from '../../engine/timeline';
 import { MAIN_VIDEO, type Track } from '../../engine/tracks';
 import { toast } from '../../lib/toast';
@@ -257,13 +258,18 @@ function filmstrip(clip: VClip, width: number): string[] {
   });
 }
 
+/** What a clip whose file is missing says (title, accessible name). */
+const MISSING_NOTE = 'The file is missing: find it to export the video.';
+
 /**
  * A clip's block: its filmstrip, length, trim edges and a button for screen readers.
  * @param props the clip, its labels, place, selection, drag state and handlers
  */
 function ClipBlock({ clip, label, labelInSentence, left, width, selected, dragging, locked, onBody, onEdge, track, mix }: Readonly<ClipBlockProps>) {
   // A clip the decoder pool can't decode previews from its <video>, but the export can't use it (204 §7).
-  const cantExport = useFallbackNote(clip.file);
+  // A missing file (408 D4) is drawn hatched on the timeline and the stage, and blocks the export until it is found.
+  const missing = isMissing(clip.file);
+  const cantExport = useFallbackNote(clip.file) ?? (missing ? MISSING_NOTE : null);
   const seconds = clipLength(clip).toFixed(1);
   const badge = speedBadge(clip);
   const spokenBadge = badge ? `, ${badge.replace('◀', 'reversed')}` : '';
@@ -273,7 +279,7 @@ function ClipBlock({ clip, label, labelInSentence, left, width, selected, draggi
   const { gain, silent, silence, spokenSilence } = useClipWave(clip, track, mix);
   return (
     <div
-      className={`tl-clip tl-${clip.kind}${clip.freeze === undefined ? '' : ' tl-still'}${selected ? ' on' : ''}${dragging !== null ? ' dragging' : ''}${locked ? ' locked' : ''}`}
+      className={`tl-clip tl-${clip.kind}${clip.freeze === undefined ? '' : ' tl-still'}${missing ? ' tl-missing' : ''}${selected ? ' on' : ''}${dragging !== null ? ' dragging' : ''}${locked ? ' locked' : ''}`}
       style={{ left, width: Math.max(8, width - 2), transform: dragging !== null ? `translateX(${dragging}px)` : undefined }}
       onPointerDown={onBody}
       title={`${clip.name} · ${seconds} s${source}${silence}${warning}`}

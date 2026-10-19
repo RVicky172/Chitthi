@@ -11,6 +11,81 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-19 — 408 (T070–T072, T110–T112): implemented
+**Done:** T070 ✔️ Projects panel (`ProjectsPanel.tsx`, lazy, `41-projects.css`) + `spaceFreed`, `projectsUsage`, entry
+thumbnails; the studios now start their project on opening (`showStudio` in `InstagramStudio`). T071 ✔️ save status
+(with Open here again), the missing-files bar and Find file… (`ProjectStatus.tsx`), Continue on the home screen
+(`ContinueLink.tsx`), `findMissing`, `recentProject`. T072 ✔️ agent tools (`agent/projectTools.ts`, 61 tools). T110 ✔️
+docs (MEDIA-STUDIO, DESKTOP, TROUBLESHOOTING, architecture §6–7, lld §4.11 + IPC, MCP, CHANGELOG, in-app, READMEs).
+T111 ✔️ 209 re-read (takes are owned project media). T112 ✔️ close: check (2,417), lint:full, build (entry 314 KB;
+Continue now lists through `lib/projectLibrary`, not the 513 KB studio chunk). AC-1, AC-3–9 ticked; status
+implemented.
+**Next:** commit `feat/408-project-saving` (nothing is committed yet), try it in `npm run dev` / `desktop:dev`, merge
+into `main`; then 209 (D2–D3) or 290.
+**Blockers:** none.
+
+## 2026-10-19 — 408 (T051, T052, T060–T064)
+**Done:** T051 ✔️ `electron/media.cjs` (main-only media index, owned files in `library/media/`, status, a sweep that
+never deletes a user file, the `chitthi-media://` handler with 200 / 206 / 404, Find file… reconnecting a folder's
+other files when name and size match). T052 ✔️ wired: CSP moved to `electron/csp.cjs`, scheme privileged, handlers
+registered, preload `projects` / `media` (paths only from `webUtils.getPathForFile`), the window's close waits ≤ 2 s
+for the page's flush, new files packaged. T060–T061 ✔️ `state/projectSave.ts` (autosave 2 s after the last document
+change, riders, hide / flush, status, retry every 30 s, 90 % warning, `keepMedia` at the add sites). T062 ✔️
+`state/projects.ts` (new / open / rename / duplicate / delete / startStudio; `ensureProjects()` wires the real stores
+lazily; new `lib/mediaLibrary.ts`, `loadPhotoBatch`; `loadVideoProject` takes the settings and playhead). T063 ✔️ the
+cache by media id with whole sound scans (D-060). T064 ✔️ `lib/projectLock.ts` (BroadcastChannel; the autosave stops
+on "open elsewhere"). 2,407 tests, check green.
+**Next:** T070 Projects panel, T071 save status / Continue / Find file… (nothing calls `ensureProjects` or
+`startStudio` yet: the studios still start empty until T070–T071 wire them), T072 agent tools, T110–T112.
+**Blockers:** none.
+
+## 2026-10-19 — 408 (T002, T012, T020–T022, T030–T033, T040–T042, T050)
+**Done:** T050 ✔️: `electron/projects.cjs` (one `<id>.project` file: header line + document, .tmp + rename,
+header-only listing; Windows device names refused); 2,348 tests. T042 ✔️: `lib/mediaDesktop.ts` over `MediaBridge` (user files referenced, app-made files in 4 MB pieces,
+`chitthi-media://` disk media); `keep` takes a `MediaFile`; 2,340 tests. T002 ✔️ (maintainer ran Safari and marked it done). T041 ✔️: `lib/mediaWeb.ts` (OPFS `media/<id>`,
+streamed, worker copy for Safari in `mediaWeb.worker.ts`, room check, `persist()` once, private windows) on
+`tests/support/fakeOpfs.ts`; `open` takes the type back (OPFS keeps none); 2,328 tests. T040 ✔️: `lib/mediaStore.ts` (`MediaStore`, `sizeText`, `noRoomMessage`), `mediaContract` (copies /
+references) and the in-memory stand-in `tests/support/memoryMedia.ts`; 2,313 tests. T033 ✔️: `lib/projectsDesktop.ts` over `ProjectsBridge` (JSON text both ways; `read` returns text),
+`lib/projectLibrary.ts` chooses the library per platform; 2,296 tests. T032 ✔️: `lib/projectsWeb.ts` (IndexedDB `chitthi-projects`, one transaction per save),
+`idb.runTransaction`; contract moved to `tests/support/projectsContract.ts`; check green: 2,283 tests. T030, T031 ✔️: `lib/projects.ts` (the `ProjectLibrary` interface and entry / cache types),
+`tests/support/memoryProjects.ts` (in-memory library with faults and a quota), `libraryContract` in
+`tests/unit/lib/projects.test.ts` for every implementation; check green: 2,269 tests. T022 ✔️: missing files draw a hatched placeholder with their name (`engine/missingDraw.ts`), are
+never decoded, play silent, are hatched on the timeline, and block both exports (“Find the missing files first: …”);
+check green: 2,258 tests. T021 ✔️: clips, sounds and photos hold a `MediaFile`; every decode site goes through `mediaInput` /
+`blobOf` (no `BlobSource` left in `src/`); videoMedia's `MediaFile` renamed `MediaToAdd`; `addBatchPhotos`; check
+green: 2,253 tests. T020 ✔️: `engine/mediaFile.ts` (`DiskMedia`, `MediaFile`, `OpenedMedia`, `missingMedia`, `isMissing`,
+`mediaInput` with no retries for disk files, `blobOf`); 6 tests; check green: 2,252 tests. T012 ✔️: `engine/photoProjectDoc.ts` (`PhotoProjectDoc`, `photoDocument` / `photoFromDocument`,
+`mergePhotoProject`); a photo's name and size come from its media entry like a clip's (plan sketch updated); `IgItem` /
+`IgState` extend the new `EditorPhoto` / `EditorBatch`. The video gate exports `ID`, `readMedia`, `readName`,
+`versionText`; `sortedKeys` exported. 18 tests; check green: 2,246 tests.
+**Next:** T051 (`electron/media.cjs` + the `chitthi-media://` handler), T052 (wiring).
+**Blockers:** T002 waits for the maintainer's Safari run (blocks T041 only).
+
+## 2026-10-19 — 408 (T002 blocked: Safari; T010, T011, T013)
+**Done:** T002 OPFS spike (scratchpad, nothing in the repo) in Chromium and Firefox via Playwright: a 1.16 GB H.264
+file streamed into OPFS in 2.3 s / 3.3 s, kept across reload and restart, decoded from `getFile()` as fast as the picked
+file. Firefox's `persist()` prompts and never settles unanswered; Firefox private windows have no OPFS (SecurityError).
+Playwright's Windows WebKit is broken for OPFS and no Safari stand-in. Numbers in T002's block note; learnings added.
+Installed Playwright's Firefox, WebKit and the new Chromium build (1248).
+Then T010, T011, T013 ✔️: `videoDocument` / `videoFromDocument` in `engine/projectDoc.ts` (name, playhead,
+trackView in the document only when set; layers and edits written with sorted keys so a reopened project saves the
+same bytes), the gate reads the new fields (`readView`: name ≤ 80 graphemes, playhead clamped, heights for known
+tracks), `TrackHeight` moved to `engine/tracks.ts`, `engine/mediaKey.ts` (size, type, FNV-1a of both 64 KB ends).
+`legacyDoc` moved into `tests/support/timeline.testkit.ts`. Check green: 2,228 tests.
+**Next:** T012 (photo project document, `mergePhotoProject`), then T020 (`MediaFile`). The maintainer runs T002's
+Safari check on another computer and marks T002 done; T041 waits for it.
+**Blockers:** none for the next tasks.
+
+## 2026-10-19 — chore (Dependabot #32, #33; install warnings)
+**Done:** merged #33 (CodeQL action 4.39.0) and #32 (dev tools; eslint-plugin-jsdoc 65.3.5 checks exported
+object-literal members, D-057; Anthropic SDK 0.134 brings `@opentelemetry/api`, tracing off). `npm i` warnings: the
+local Node 24.11.1 was below eslint-plugin-jsdoc's engine (`^22.22.2 || >=24.15.0`), so Node is now 26.8.1 like CI;
+`allowScripts` in package.json denies the install scripts of core-js (funding notice), electron-winstaller (Squirrel
+only, we build NSIS) and protobufjs. Check green on Node 26.
+**Next:** 209 (voice-over), branched from `main`, or the 290 test pass.
+**Blockers:** the 8 moderate audit findings are one advisory (sprintf-js ≤ 1.1.3 via electron-builder → roarr) with
+no patched release; wait for electron-builder, never `npm audit fix --force` (it downgrades electron-builder).
+
 ## 2026-10-19 — 208 (T072, T112) ✔️
 **Done:** T072 with the maintainer's option A (D-056): a Play to the end clip stops at the next sound on its track
 (`soundLength(clip, videoEnd, audio)`, `audioPlan` capped alike), an edit placing a sound after its start shortens it,

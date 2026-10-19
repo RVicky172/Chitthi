@@ -702,3 +702,42 @@ failed lint; documenting them then made `require-param` ask for every `PatternFn
 **Consequences:** new members of exported objects need a description, not repeated `@param` lines. The Anthropic SDK
 0.134 pulls in `@opentelemetry/api` (Apache-2.0, in the AI chunk only: 214 → 310 KB, gzip 53 → 70 KB); the client
 is built with `openTelemetry: false`.
+
+## D-058 — Project saving before voice-over (209 plan D1, 2026-10-19)
+
+**Context:** 209's spec assumed a recorded take is "saved with the project and found again after a reload", but the
+video and photo studios save nothing today: the timeline and the photo batch live in memory until a reload (only
+the photo studio's export preferences are in `localStorage`; the video project document and validator exist,
+nothing writes or opens one). An imported sound is still on the user's disk; a recorded voice would exist nowhere.
+**Decision:** the maintainer chose option C: video and photo projects are saved and reopened, as a feature of its
+own (408), before 209 is built. 209's take store then keeps only takes in progress, for crash recovery (AC-9).
+**Consequences:** 209's plan waits for 408's spec and plan; 209's AC-8 is re-read against what 408 calls "the
+project" (and whether `.chitthi` project files exist) before 209's tasks are written.
+
+## D-059 — How saved projects store media, per platform (408 plan D1–D6, 2026-10-19)
+
+**Context:** 408 saves photo and video projects. The maintainer asked for storage separate for the browser and the
+desktop app, following how each already stores the print gallery; the browser can't reopen a file by its path, and
+desktop videos can be 50 GB.
+**Decision (D1–D6 as recommended):** desktop references the user's files and serves them to the page through a
+privileged `chitthi-media://<id>` scheme with Range support, paths kept in `library/media-index.json` written only by
+the main process (the page sees ids only; paths come from the preload's `webUtils.getPathForFile` or a main-process
+dialog); app-made files go into `library/media/`. The browser copies media into the Origin Private File System
+(streamed), projects in a new IndexedDB database `chitthi-projects` (the print `chitthi` database is untouched).
+Media ids are a fingerprint (size, type, first and last 64 KB). Export is refused while files are missing. One video
+project list for Reels, Shorts and YouTube; opening one switches the studio's mode.
+**Consequences:** clips, sounds and photos hold a `MediaFile` (Blob or disk media) and every decode site goes through
+`mediaInput()`; a spike (408 T001, T002) checks the scheme's speed and OPFS in each browser first.
+
+## D-060 — A project's cache is keyed by media id and keeps whole sound scans (408 T063, 2026-10-19)
+
+**Context:** the plan's cache had thumbnails and filmstrips by clip, previews by photo and "waveform peaks" by sound.
+Thumbnails, filmstrips, previews and scans all depend on the file alone, and ducking reads the scan's RMS, not only
+its peaks: a cache of peaks alone would still rescan every sound on opening.
+**Decision:** `ProjectCache` is `{ thumbs, strips, previews, scans }`, each by media id; `scans` holds the whole scan
+(`SavedScan`: duration, peaks and Float32 RMS as base64, `engine/soundScan.ts` `encodeScan` / `decodeScan`). A
+changed file has a new id, so its old entries are simply unused ("rebuilt when the file changed" without a check).
+Written by the autosave after the document, only when its text changes; a finished scan or filmstrip triggers a
+save. A cache that can't be written is logged only (it is rebuilt on opening).
+**Consequences:** reopening restores waveforms and ducking without decoding; the cache can carry entries for media a
+project no longer uses until its next write (each write is the whole cache from the editor).

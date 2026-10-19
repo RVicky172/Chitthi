@@ -1,11 +1,12 @@
 import { useSyncExternalStore } from 'react';
-import { clampBatch, IG_FORMATS, type IgFileType, type IgFormatId } from '../data/instagram';
+import { clampBatch, IG_FORMATS, type IgFormatId } from '../data/instagram';
 import { brushDef, type BrushId } from '../data/layers';
 import type { Adjustments } from '../engine/adjust';
 import { DEFAULT_EDIT, LOOK_KEYS, type IgEdit } from '../engine/instagram';
-import { type Layer } from '../engine/layers';
 import { type Mask } from '../engine/masks';
 import { isPhotoType } from '../engine/photoExport';
+import type { MediaFile } from '../engine/mediaFile';
+import type { EditorBatch, EditorPhoto } from '../engine/photoProjectDoc';
 
 /*
  * The Instagram studio's state: a batch of photos, each with its own edits, the post format, the batch limit and the
@@ -19,23 +20,13 @@ import { isPhotoType } from '../engine/photoExport';
 /** Longest side of a photo's preview copy, in pixels. */
 export const PREVIEW_MAX = 1080;
 
-/** A photo in the batch. */
-export interface IgItem {
-  id: string;
-  name: string;
-  /** The original file; decoded again at full size only for export. */
-  file: Blob;
-  /** Natural width of the original. */
-  w: number;
-  /** Natural height of the original. */
-  h: number;
+/**
+ * A photo in the batch: its saved fields (engine/photoProjectDoc.ts); the original file is decoded again at full size
+ * only for export.
+ */
+export interface IgItem extends EditorPhoto<MediaFile> {
   /** A copy of at most PREVIEW_MAX px on the long side, for the preview and thumbnails. */
   preview: HTMLCanvasElement;
-  edit: IgEdit;
-  /** Text, shapes, stickers and drawings over the photo, bottom first (engine/layers.ts). */
-  layers: Layer[];
-  /** The file is a camera RAW, developed by the desktop app (P1.9) for the preview and again for each export. */
-  raw?: boolean;
 }
 
 /** Layer tools, shared by the photo and video editors. 'mask': the photo editor's mask brush paints on the stage. */
@@ -47,17 +38,9 @@ export interface LayerTools {
   brushScale: number;
 }
 
-/** The Instagram studio's whole state. */
-export interface IgState {
+/** The Instagram studio's whole state: the saved batch (engine/photoProjectDoc.ts) and the session's own fields. */
+export interface IgState extends EditorBatch<MediaFile> {
   items: IgItem[];
-  selected: string | null;
-  format: IgFormatId;
-  /** How many photos the batch may hold (1–20). */
-  limit: number;
-  fileType: IgFileType;
-  /** JPEG quality, 60–100. */
-  quality: number;
-  caption: string;
   /** Rendered files ready to share; cleared by any change. */
   ready: File[] | null;
   /** What a long task is doing, for its progress line; null when idle. */
@@ -162,6 +145,16 @@ export function setIgState(patch: Partial<IgState>): void {
  * @returns the state; replaced, never changed, on every update
  */
 export const getIg = (): IgState => state;
+
+/**
+ * Listens to the store outside React (the projects' autosave).
+ * @param listener called after every change
+ * @returns the unsubscribe function
+ */
+export function subscribeIg(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 /**
  * Subscribe a component to a slice of the store. Selectors must return stable references or primitives.
@@ -355,6 +348,22 @@ export function removePhoto(id: string): void {
   const items = state.items.filter((item) => item.id !== id);
   const selected = state.selected === id ? (items.at(Math.min(index, items.length - 1))?.id ?? null) : state.selected;
   change('', items, { selected, layerSel: null });
+}
+
+/** A saved batch to open: the photos and the settings saved with them (408). */
+export type LoadedBatch = Pick<IgState, 'items' | 'format' | 'limit' | 'fileType' | 'quality' | 'caption' | 'selected'>;
+
+/**
+ * Opens a batch (a saved photo project, 408): its photos and settings, no history, nothing rendered or selected inside
+ * a photo.
+ * @param batch the photos and settings
+ */
+export function loadPhotoBatch(batch: LoadedBatch): void {
+  past.length = 0;
+  future.length = 0;
+  lastKey = '';
+  const selected = batch.items.some((item) => item.id === batch.selected) ? batch.selected : (batch.items.at(0)?.id ?? null);
+  setIgState({ ...batch, selected, ready: null, busy: null, layerSel: null, picking: false, maskSel: null, partSel: null, ...flags() });
 }
 
 /** Remove every photo (undoable). */

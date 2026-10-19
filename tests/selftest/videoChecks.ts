@@ -20,6 +20,7 @@ import {
 import { renderIg } from '@/engine/instagram';
 import { drawLayers } from '@/engine/layerDraw';
 import { newShape, type Layer } from '@/engine/layers';
+import { mediaInput, type MediaFile } from '@/engine/mediaFile';
 import { clipLength, IDENTITY, isIdentity, presetTransform, type ClipTransform, type Project } from '@/engine/timeline';
 import { type Track } from '@/engine/tracks';
 import { fadeAmount, motionEdit, type FrameClip } from '@/engine/video';
@@ -36,6 +37,7 @@ import {
   required,
   sleep,
 } from './helpers';
+import { blobFile } from '../support/blobFile';
 
 /** Records one check: passed when `ok` is truthy, described by `what`. */
 type Check = (ok: unknown, what: string) => void;
@@ -216,11 +218,11 @@ export async function makeSyncClip(dur = 30, width = 640, height = 360): Promise
  * @returns one mean colour per time ([-1, -1, -1] when a frame can't be read); none when the file can't be decoded
  */
 export async function decodedColours(
-  file: Blob,
+  file: MediaFile,
   times: number[],
   at: [number, number] = [0.5, 0.5],
 ): Promise<[number, number, number][]> {
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  const input = new Input({ source: mediaInput(file), formats: ALL_FORMATS });
   try {
     const track = await input.getPrimaryVideoTrack();
     if (!track || !(await track.canDecode())) return [];
@@ -1097,7 +1099,7 @@ export async function overlayFixtureChecks(check: Check): Promise<string[]> {
       let got: (readonly number[])[];
       if (expected.kind === 'photo') {
         // The file the preview and the export load, decoded (not the still drawn from it).
-        const bmp = await createImageBitmap(clip.file);
+        const bmp = await createImageBitmap(blobFile(clip.file));
         const cv = document.createElement('canvas');
         cv.width = cv.height = 1;
         const x = context2d(cv, { willReadFrequently: true });
@@ -1307,8 +1309,8 @@ export function compareWithReference(
  * @param times the source times, seconds
  * @returns one canvas per time (1 × 1 when a frame can't be read); none when the file can't be decoded
  */
-async function decodeFrames(file: Blob, times: number[]): Promise<HTMLCanvasElement[]> {
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+async function decodeFrames(file: MediaFile, times: number[]): Promise<HTMLCanvasElement[]> {
+  const input = new Input({ source: mediaInput(file), formats: ALL_FORMATS });
   try {
     const track = await input.getPrimaryVideoTrack();
     if (!track || !(await track.canDecode())) return [];

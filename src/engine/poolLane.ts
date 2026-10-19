@@ -1,4 +1,5 @@
 import type { FrameSource, PoolClip, PoolFrame } from './decodePool';
+import type { MediaFile } from './mediaFile';
 
 /*
  * One lane of the decoder pool (decodePool.ts): what it holds and the bookkeeping of its frames, which frame covers a
@@ -42,7 +43,7 @@ export interface ExactAsk {
 /** One clip's decoding: its source, its reader and the frames it holds. */
 export interface Lane {
   id: string;
-  file: Blob;
+  file: MediaFile;
   clip: PoolClip;
   src: FrameSource | null;
   opening: boolean;

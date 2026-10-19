@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObjec
 import { lanePlan } from '../../engine/lanePlan';
 import { layerAt, layersAt } from '../../engine/keyframes';
 import { layerBox } from '../../engine/layerDraw';
+import { isMissing } from '../../engine/mediaFile';
 import { drawSelection } from '../../engine/layerPick';
 import { frameSourceAt } from '../../engine/speed';
 import { frameStack } from '../../engine/stack';
@@ -80,12 +81,22 @@ function useStageSources(draw: RefObject<DrawStage>): StageSources {
 }
 
 /**
- * Whether a clip's picture comes from the pool: not without one, nor for a clip it can't decode (noted on the clip).
+ * The project as the preview's sound plays it: clips and sounds whose file is missing are silent (408 D4).
+ * @param state the video's state
+ * @returns the project without them
+ */
+const audibleProject = (state: VState): ReturnType<typeof projectOf> =>
+  projectOf({ ...state, clips: state.clips.filter((clip) => !isMissing(clip.file)), sounds: state.sounds.filter((sound) => !isMissing(sound.file)) });
+
+/**
+ * Whether a clip's picture comes from the pool: not without one, nor for a clip it can't decode (noted on the clip),
+ * nor for a missing file (408 D4: never opened).
  * @param stage the picture source
  * @param clip the clip
  * @returns true when the pool decodes it
  */
 function usesPool(stage: StageSource, clip: VClip): boolean {
+  if (isMissing(clip.file)) return false;
   const { pool } = stage;
   const why = pool?.fallback(clip.id);
   if (why) noteFallback(clip.file, why);
@@ -97,10 +108,11 @@ function usesPool(stage: StageSource, clip: VClip): boolean {
  * @param sources the stage's sources
  * @param stackItem a clip showing now and the seconds into it
  * @returns a photo's still, the frame the pool has ready for a video, or a fallback clip's <video> once it has data;
- *   null when none is ready
+ *   null when none is ready, or the file is missing (drawPreview draws its placeholder)
  */
 function pictureNow(sources: StageSources, stackItem: { clip: VClip; local: number }): Picture | null {
   const { clip } = stackItem;
+  if (isMissing(clip.file)) return null;
   if (clip.kind === 'photo') return photoPicture(clip);
   const stage = sources.stage();
   if (stage.pool && usesPool(stage, clip)) {
@@ -186,11 +198,11 @@ function drawStage({ canvas, width, height, sources, last, drawBox }: StageDrawi
 function syncMedia(sources: StageSources, isPlaying: boolean): void {
   if (!sources.mounted.current) return;
   const state = getVideo();
-  sources.sound().update(soundPlan(projectOf(state), state.t), isPlaying, state.fps, previewMix(state));
+  sources.sound().update(soundPlan(audibleProject(state), state.t), isPlaying, state.fps, previewMix(state));
   const { pool } = sources.stage();
   const onScreen = frameStack(projectOf(state), state.t);
   for (const clip of state.clips) {
-    if (clip.kind !== 'video' || (pool && !pool.fallback(clip.id))) continue;
+    if (clip.kind !== 'video' || isMissing(clip.file) || (pool && !pool.fallback(clip.id))) continue;
     const shown = onScreen.find((stackItem) => stackItem.clip.id === clip.id);
     syncFallbackVideo(sources.videoFor(clip), shown ? frameSourceAt(clip, shown.local) : null, isPlaying);
   }

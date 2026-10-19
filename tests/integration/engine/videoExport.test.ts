@@ -9,15 +9,16 @@ import { mixWindow, openAudio, planLoudness, soundWindows, type ExportAudio } fr
 import type { ExportClip, ExportJob } from '@/engine/videoExport';
 import { defined } from '../../support/defined';
 import { FakeBuffer, FakeOfflineContext, type ParamCall } from '../../support/fakeAudio';
+import type { MediaFile } from '@/engine/mediaFile';
 
 /* 208 T060 (AC-3, AC-12): the export mixes every sound clip and track with the gain chain, window by window. */
 
 const RATE = 48_000;
 
 /** The stretches of source each file was asked for, as the fake decoder saw them. */
-let requests: { file: Blob; from: number; to: number }[] = [];
+let requests: { file: MediaFile; from: number; to: number }[] = [];
 /** Files that sound: a 1 kHz sine at this amplitude in both channels (the rest decode to silence). */
-const tones = new Map<Blob, number>();
+const tones = new Map<MediaFile, number>();
 
 /**
  * A decoded stretch of a file: its tone, or silence.
@@ -26,7 +27,7 @@ const tones = new Map<Blob, number>();
  * @param to source seconds
  * @returns the buffer
  */
-function decoded(file: Blob, from: number, to: number): FakeBuffer {
+function decoded(file: MediaFile, from: number, to: number): FakeBuffer {
   const buffer = new FakeBuffer(2, Math.max(1, Math.round((to - from) * RATE)), RATE);
   const amplitude = tones.get(file);
   if (amplitude)
@@ -40,7 +41,7 @@ function decoded(file: Blob, from: number, to: number): FakeBuffer {
  * @param file the file
  * @returns the opened sound
  */
-const fakeOpen = (file: Blob) =>
+const fakeOpen = (file: MediaFile) =>
   Promise.resolve({
     input: { dispose: () => undefined },
     sink: {
@@ -50,7 +51,7 @@ const fakeOpen = (file: Blob) =>
         yield { buffer: decoded(file, from, to), timestamp: from, duration: to - from };
       },
     },
-  }) as unknown as Parameters<typeof openAudio>[1] extends ((file: Blob) => infer R) | undefined ? R : never;
+  }) as unknown as Parameters<typeof openAudio>[1] extends ((file: MediaFile) => infer R) | undefined ? R : never;
 
 const audioTrack = (id: string, patch: Partial<Track> = {}): Track => ({
   id, kind: 'audio', name: id, hidden: false, muted: false, locked: false, role: 'effects', ...patch,
