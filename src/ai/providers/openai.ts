@@ -48,6 +48,10 @@ async function generate(ctx: AiCtx, req: ImageRequest): Promise<Blob[]> {
 }
 
 export const text = { generateJSON, listModels };
-export const image = { generate, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => /image|dall-e/i.test(model)) };
+export const image = {
+  generate,
+  /** The models that make images (GPT Image, DALL·E). */
+  listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => /image|dall-e/i.test(model)),
+};
 const providerModule: ProviderModule = { text, image };
 export default providerModule;

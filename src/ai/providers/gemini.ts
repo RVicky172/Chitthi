@@ -128,7 +128,15 @@ async function listModels(ctx: AiCtx): Promise<string[]> {
     .map((model) => (textField(model, 'name') ?? '').replace(/^models\//, ''));
 }
 
-export const text = { generateJSON, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => !/image|embedding|tts|audio/i.test(model)) };
-export const image = { generate, listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => /image/i.test(model)) };
+export const text = {
+  generateJSON,
+  /** The models that write text: all but the image, embedding and speech ones. */
+  listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => !/image|embedding|tts|audio/i.test(model)),
+};
+export const image = {
+  generate,
+  /** The models that make images. */
+  listModels: async (ctx: AiCtx) => (await listModels(ctx)).filter((model) => /image/i.test(model)),
+};
 const providerModule: ProviderModule = { text, image };
 export default providerModule;

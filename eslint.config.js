@@ -139,6 +139,9 @@ function typedStandards(files, severity) {
 function standards(files, severity) {
   // React components are documented by their props interface and return JSX: no `@returns` for them.
   const notComponent = ':not([id.name=/^[A-Z]/])';
+  // A member of an object literal (`PAT.confetti`, a provider's `listModels`) takes its parameters and result from
+  // the object's type (`PatternFn`, `ProviderModule`), which documents them: it needs a one-line description only.
+  const notMember = ':not(Property > *)';
   return [
     {
       files,
@@ -153,10 +156,13 @@ function standards(files, severity) {
             contexts: ['TSInterfaceDeclaration', 'TSTypeAliasDeclaration'],
           },
         ],
-        'jsdoc/require-param': [severity, { checkDestructuredRoots: false }],
+        'jsdoc/require-param': [
+          severity,
+          { checkDestructuredRoots: false, contexts: ['FunctionDeclaration', `FunctionExpression${notMember}`, `ArrowFunctionExpression${notMember}`] },
+        ],
         'jsdoc/require-returns': [
           severity,
-          { contexts: [`FunctionDeclaration${notComponent}`, 'FunctionExpression', 'ArrowFunctionExpression'] },
+          { contexts: [`FunctionDeclaration${notComponent}`, `FunctionExpression${notMember}`, `ArrowFunctionExpression${notMember}`] },
         ],
         'max-lines-per-function': [severity, { max: 80, skipBlankLines: true, skipComments: true }],
         // A long file asks for a review, never an error (Q4).

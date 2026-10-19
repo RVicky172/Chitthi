@@ -11,6 +11,7 @@ list are in [specs/licensing.md](specs/licensing.md).
 | [Lucide](https://lucide.dev) icons (`lucide-react`) | ISC | Interface icons |
 | [Electron](https://www.electronjs.org), electron-updater | MIT | Desktop app |
 | [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) (`@anthropic-ai/sdk`) | MIT | Claude requests for AI writing |
+| [OpenTelemetry API](https://github.com/open-telemetry/opentelemetry-js) (`@opentelemetry/api`) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) | Used by the Anthropic SDK; Chitthi turns its tracing off |
 | [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) (`@modelcontextprotocol/sdk`) | MIT | MCP server in the desktop app |
 | [Zod](https://zod.dev) | MIT | Used by the MCP SDK |
 | [Mediabunny](https://mediabunny.dev) | [MPL-2.0](https://www.mozilla.org/MPL/2.0/) | Video export (MP4 encoding and video decoding). Used unmodified; its source is at https://github.com/Vanilagy/mediabunny |
