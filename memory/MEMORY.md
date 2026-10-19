@@ -59,7 +59,7 @@
   (§1–§10). D1: video/photo projects aren't saved anywhere today (in memory until reload); the maintainer chose to
   add project saving first as its own feature (**408**, now implemented); 209 re-read against it (408 T111: takes are
   owned project media, the take store keeps takes in progress only). D2–D3 still open.
-- **408:** `408-project-saving` ✔️ Implemented 2026-10-19 (`301a7e0`), merged into `main` (`9b4d012`, not pushed;
+- **408:** `408-project-saving` ✔️ Implemented 2026-10-19 (`301a7e0`), merged into `main` (`9b4d012`) and pushed;
   209's spec and plan committed with it, `d7af03e`): saved photo and video projects with autosave (`state/projectSave.ts`), the Projects panel, Continue on the
   home screen, save status, Find file…, one window per project (`lib/projectLock.ts`), agent tools (61 now). Browser:
   IndexedDB `chitthi-projects` + OPFS media copies; desktop: `library/projects/`, user media referenced through
