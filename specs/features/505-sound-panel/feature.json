@@ -4,13 +4,13 @@
   "id": "505",
   "title": "Sound panel: recordings and voice listed for choosing",
   "workItem": null,
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-20",
     "approved": "2026-10-20",
-    "started": null,
-    "done": null
+    "started": "2026-10-20",
+    "done": "2026-10-20"
   },
   "git": {
     "branch": "feat/505-sound-panel"
@@ -48,19 +48,19 @@
           "group": "Recordings",
           "proof": "unit",
           "text": "The Recordings section lists every take of the project, newest first, with name, length, recorded date and time, microphone name, track and timeline position (or \"Not used\"); selecting a row selects and reveals its clip on the timeline; play previews it alone; rename changes the clip and pool name (one undo step); delete removes an unused take (a used one asks first).",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Separation",
           "proof": "unit",
           "text": "Sound is labelled by kind (Music, Voice, Effects) in the pool, the Audio panel, the track headers and the sound inspector, each with its own colour token from 501; takes are Voice.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "Structure",
           "proof": "unit",
           "text": "The Audio panel has the sections Add sound, Record voice, Recordings and Tracks as folding sections (503); opening Record voice opens the microphone and closing the section closes it (209 AC-7 still holds).",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Look",
@@ -94,6 +94,10 @@
       {
         "date": "2026-10-20",
         "text": "Every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Plan D1–D4: option A chosen by the maintainer (D-070); plan Approved; tasks written (T010–T091)."
       }
     ],
     "sections": [
@@ -129,6 +133,445 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (D1–D4 A; 2026-10-20, D-070) <!-- Draft | Approved -->",
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "After 503 and 504 the Audio panel (`studio/AudioPanel.tsx`) has Add sound above three folding sections (Record voice, Sound tracks, Loudness), a take is a sound clip whose file is marked `recorded` (504 D3) and listed under Recordings in the media pool, and the role colours `--sound-music`, `--sound-voice`, `--sound-fx` exist in both themes (501) but only the timeline's music bars use one. 505 adds what a take lacks (when and with which microphone it was recorded), a Recordings list, and the kind of every sound wherever sound is shown.\n\n**§1 Take details (AC-1, Q1).** A take's file gets two more fields beside `recorded`: `recordedAt` (ms since 1970, the recorder's start) and `microphone` (the device's label as the browser gives it). They travel the same way `recorded` does since 504: set by the recorder on the `TakeToPlace` → the take's `VSound` → `poolOf`'s item, and saved on the take's media entry (`DocMedia`), which the gate reads (a number in range, a string of at most 200 characters; anything else is dropped). One type, `TakeDetails = Pick<DocMedia, 'recorded' | 'recordedAt' | 'microphone'>`, is shared by `VSound`, `PoolItem`, `EditorSound` and `EditorPoolItem`. `videoDocument` merges these fields into an entry another use already listed, so details aren't lost to the order files are listed in. Takes from before 505 show \"—\" for both.\n\n**§2 Takes in the store (AC-1).** A new `state/videoTakes.ts` (pure selectors plus two actions): `takesOf(state)` lists every recorded file of `poolOf`, newest first (takes without a time last, by name), each with its uses (`usesOf`) and where its first use sits (track name and start time); `renameTake(key, name)` renames the file's pool item and every sound clip using it in one undo step (the clip shows its file's name, 208). Adding a take again is `addFromPool` (504: onto a Voice track at the playhead); deleting is `removeFromPool`, through the pool's question when it is used (504 D4).\n\n**§3 The Recordings section (AC-1).** In the Audio panel, a `ListRow` per take (`studio/TakeList.tsx`): the name, then \"0:41 · 20 Oct 14:02 · MacBook Microphone\" and the place (\"Voice at 0:12\", \"Voice at 0:12 and 1 more\", \"Not used\"); controls Play / Stop, Rename (the row's name becomes a field: Enter keeps, Esc cancels, as the Projects list does, 408), Add at the playhead, Delete. Choosing a row selects the take's first clip (`selectSound`) and reveals it: a `revealOnTimeline(time, track)` event the timeline listens for, scrolling the clip's start and row into view (the timeline follows the playhead only while playing today). Play previews the take alone through one `<audio>` element shared by the list (one plays at a time; leaving the panel stops it); it plays the whole file, not the clip's trimmed part. An empty list says how takes are made (Record voice).\n\n**§4 Kinds and colours (AC-2).** One rule, `soundKind(track)` → Music / Voice / Effects (the track's role, 208), and one class per kind, `kind-music`, `kind-voice`, `kind-fx`, which sets `--kind` from the role tokens; the parts use `var(--kind)`. Shown: the track header (a colour bar at its left edge and the role in its accessible name), the timeline's sound bars (today all music-coloured: each takes its track's kind), the Audio panel's track settings (a colour chip by the name), the Recordings rows (Voice), the sound inspector (\"Music 1 · Music\" with the chip), and the media pool's detail line (D2). Colour is never the only cue: the kind's name is written beside it.\n\n**§5 The Audio panel (AC-3).** Sections, in order: Add sound (D1), Record voice, Recordings, Tracks (Lower music under voice and each track's settings; the old Sound tracks section), and Loudness (D3). Record voice and the microphone (D4): a user opening the section opens the microphone (`openRecordVoice`), closing it or opening another section closes it (`onClosed`, 503), and a section opened by itself (remembered from last time, or as the default) shows the Record voice… button instead, so the microphone never opens unasked (209 AC-7). This needs one more `FoldSection` callback, `onOpened`, called only when the user opens the section. Record voice is never the panel's default section.\n\n**§6 Agent tools.** None (D-069 D5 stands: the video editor's tools are a feature of their own)."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/projectDoc.ts\ninterface DocMedia { /* … */ recorded?: true; recordedAt?: number; microphone?: string }\nexport type TakeDetails = Pick<DocMedia, 'recorded' | 'recordedAt' | 'microphone'>;\n// EditorSound, EditorPoolItem, VSound, PoolItem: … & TakeDetails\n\n// state/videoTakes.ts (new)\nexport interface TakeRow {\n  key: string;            // poolKey\n  item: PoolItem;\n  uses: PoolUse[];\n  /** Where its first use sits: \"Voice at 0:12\", or null when unused. */\n  place: { track: string; start: number } | null;\n}\nexport function takesOf(video: VState): TakeRow[];       // newest first\nexport function renameTake(key: string, name: string): string | null; // one undo step; why not\n\n// components/studio/soundKinds.ts (new)\nexport type SoundKind = 'music' | 'voice' | 'fx';\nexport const KIND_NAMES: Record<SoundKind, string>;     // Music, Voice, Effects\nexport function soundKind(track: Track): SoundKind;\nexport const kindClass = (kind: SoundKind): string => `kind-${kind}`;\n\n// components/panel/FoldSection.tsx\ninterface FoldSectionProps { /* … */ onOpened?: () => void }  // only when the user opens it\n\n// components/studio/timelineActions.ts (or CutMarks-style event)\nexport function revealOnTimeline(time: number, track: string): void;\n```\n\nSaved: a take's media entry gains `recordedAt` and `microphone`; a document from before 505 opens unchanged (no details)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **File details ride with the file:** the take's details go wherever `recorded` already goes (504), one shared type, so no second list of takes is kept in step.\n- **Merge on listing:** `videoDocument`'s `listed()` fills a take's detail fields into an entry already listed by another use, so the first use's order doesn't decide what is saved.\n- **User intent, not state:** the microphone follows the user's click on the section (`onOpened`), never the section's open state, which can come back from storage.\n- **One colour rule:** `kind-*` classes set `--kind` once; every part reads `var(--kind)`, so a new place to colour by kind is one class."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Kind |\n| --- | --- | --- |\n| AC-1 | `tests/integration/state/videoTakes.test.ts`: a placed take carries `recordedAt` and `microphone` into the pool; `takesOf` newest first (undated last), with uses and the first use's place; `renameTake` renames the pool item and every clip in one undo step, refuses an empty name. `projectDoc.test.ts` / `projectGate.test.ts`: the details round-trip, merge into an entry listed by another use, wrong values dropped. Selecting, revealing and playing a take are checked by eye | unit |\n| AC-2 | `tests/unit/components/studio/soundKinds.test.ts`: `soundKind` per role, the names; a CSS check that `kind-music`, `kind-voice`, `kind-fx` set `--kind` from the role tokens and that the three tokens exist in the light and dark themes; `poolDetail` names a sound's kind (D2) | unit |\n| AC-3 | `tests/unit/components/studio/audioPanel.test.ts` (source scan): the Audio panel's sections in order with their ids; Record voice has `onOpened` / `onClosed` and isn't the default; `foldMarkup.test.ts`: `onOpened` isn't called by rendering a section open | unit |\n| AC-4 | The Audio panel with 8 tracks and 20 takes at 1280 × 720 | manual (590) |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer",
+        "markdown": "_Chosen (the maintainer, 2026-10-20): A for all four (D-070)._\n\n**D1 Add sound: a section, or above the sections?** The spec's AC-3 makes Add sound a folding section; 503's D-068 D1 kept a panel's main action above its sections. **A (recommended)** follow the spec for the Audio panel: Add sound is the first section (and the panel's default), so the panel is only titles when nothing is open; D-068 D1 still holds elsewhere. **B** keep Add sound above (D-068 D1) and amend AC-3 to three sections plus it.\n\n**D2 How the media pool names a sound's kind.** A file isn't Music or Voice; the track it is on is. **A (recommended)** a recording is \"Voice\", a sound in use takes the kind of the track of its first use (\"Music\", \"Effects\"), an unused sound file says \"Sound\"; the pool's filter chips stay as 504 made them. **B** add Music / Voice / Effects filter chips to the pool in place of Sound / Recordings.\n\n**D3 Loudness.** The spec lists four sections; Loudness is a section today. **A (recommended)** keep it as a fifth section after Tracks: it is the whole mix's setting and is looked for by name. **B** put it at the end of Tracks.\n\n**D4 Opening Record voice and the microphone.** AC-3 says opening the section opens the microphone; a section can also open by itself (remembered from last time). **A (recommended)** only the user's own click on the section opens the microphone; a section opened by itself shows the Record voice… button; closing always closes it. **B** any open of the section opens the microphone (the browser asks the first time; afterwards the microphone could open whenever the Audio panel does)."
+      }
+    ],
+    "files": [
+      {
+        "file": "`src/engine/projectDoc.ts`, `src/engine/projectGate.ts`",
+        "change": "modify",
+        "purpose": "`recordedAt`, `microphone` on a take's media entry; `TakeDetails`; merged on listing; read by the gate (§1)"
+      },
+      {
+        "file": "`src/state/voiceRecorder.ts`, `src/state/videoSound.ts`, `src/state/videoStore.ts`, `src/state/videoPool.ts`",
+        "change": "modify",
+        "purpose": "A take's details from the recorder to its sound clip and pool item (§1)"
+      },
+      {
+        "file": "`src/state/videoTakes.ts`",
+        "change": "new",
+        "purpose": "`takesOf`, `renameTake` (§2)"
+      },
+      {
+        "file": "`src/components/studio/TakeList.tsx`",
+        "change": "new",
+        "purpose": "The Recordings section: rows, play, rename, add, delete, select and reveal (§3)"
+      },
+      {
+        "file": "`src/components/studio/soundKinds.ts`",
+        "change": "new",
+        "purpose": "`soundKind`, the names and classes (§4)"
+      },
+      {
+        "file": "`src/components/studio/{AudioPanel,TrackHead,SoundRow,SoundInspector,MediaPool}.tsx`, `src/components/studio/poolList.ts`, `src/components/studio/Timeline.tsx`",
+        "change": "modify",
+        "purpose": "The sections (§5), kinds and colours (§4), revealing a take (§3)"
+      },
+      {
+        "file": "`src/components/panel/FoldSection.tsx`",
+        "change": "modify",
+        "purpose": "`onOpened` (the user's own open, §5)"
+      },
+      {
+        "file": "`src/styles/36-media-studio.css`",
+        "change": "modify",
+        "purpose": "`kind-*` classes, the colour bar, chips and sound bars by kind, the take rows"
+      },
+      {
+        "file": "`tests/integration/state/videoTakes.test.ts`, `tests/unit/components/studio/{soundKinds,audioPanel}.test.ts`, `tests/unit/engine/{projectDoc,projectGate}.test.ts`, `tests/unit/components/panel/foldMarkup.test.ts`",
+        "change": "new / modify",
+        "purpose": "AC-1–AC-3"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `docs/DESIGN.md`, `specs/lld.md`, `CHANGELOG.md`",
+        "change": "modify",
+        "purpose": "Recordings, kinds and colours, the Audio panel's sections"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**The microphone opens without the user asking** (a remembered Record voice section). Mitigation: D4 A, `onOpened` fires only on the user's click; a test checks rendering a section open doesn't call it; Record voice is never the default."
+      },
+      {
+        "text": "**A take's details are lost when another use lists its file first.** Mitigation: `listed()` merges the detail fields; a test saves a take used twice and reopens it."
+      },
+      {
+        "text": "**Microphone labels leak personal names** (\"Asha's AirPods\"). Mitigation: kept only in the project on the device (spec Privacy), never sent anywhere; shown only in the Recordings list."
+      },
+      {
+        "text": "**Colour alone marks the kind.** Mitigation: the kind's name is always written beside the colour (track header's accessible name, chips with text); contrast checked in 590's screenshots."
+      },
+      {
+        "text": "**Previewing a take while the video plays mixes two sounds.** Mitigation: Play pauses the video first; starting the video stops the preview."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec Approved 2026-10-20; this plan waits for D1–D4."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "AC-1–AC-3 unit tests, test-first; AC-4 deferred to 590 (already listed there)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency; details ride with the file as `recorded` does."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D1–D4 into `memory/decisions.md` when chosen."
+      },
+      {
+        "principle": "V. Free and Open Source",
+        "status": "✅",
+        "notes": "Same on web and desktop."
+      },
+      {
+        "principle": "VI. On the User's Device",
+        "status": "✅",
+        "notes": "Microphone names stay in the project on the device."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "No preview or export path changes; documents still through the gate (two optional fields)."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No `electron/` changes; the microphone permission rules (209) unchanged."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "In the studio's lazy chunk; rows and controls are buttons; kind never by colour alone."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "⚠️",
+        "notes": "No video agent tools yet (D-069 D5); takes join that feature."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); AC-4 (the Audio panel with 8 tracks and 20 takes at 1280 × 720) is in `590` (\"Deferred checks collected from the phase\").\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 505 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Take details",
+        "intro": "§1: when and with which microphone a take was recorded, saved with its file."
+      },
+      {
+        "title": "Recordings",
+        "intro": "§2, §3: the takes in the store and the Recordings section."
+      },
+      {
+        "title": "Kinds",
+        "intro": "§4: Music, Voice and Effects named and coloured wherever sound is shown (D2)."
+      },
+      {
+        "title": "Audio panel",
+        "intro": "§5: the sections and the microphone (D1, D3, D4)."
+      },
+      {
+        "title": "Close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T020",
+        "T021",
+        "T022",
+        "T030",
+        "T031",
+        "T040",
+        "T041",
+        "T090",
+        "T091"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing tests for take details: a placed take (`addTake` with `recordedAt` and `microphone`) carries both onto its sound clip and `poolOf`'s item (`videoTakes.test.ts`); `videoDocument` writes them on the take's media entry, merged into an entry another use listed first, and `videoFromDocument` gives them back on sounds and pool items; a document from before 505 opens without them (`projectDoc.test.ts`); the gate keeps a `recordedAt` in range and a `microphone` string (cut to 200), drops other values (`projectGate.test.ts`).",
+          "section": "Take details",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/integration/state/videoTakes.test.ts",
+            "tests/unit/engine/projectDoc.test.ts",
+            "tests/unit/engine/projectGate.test.ts"
+          ],
+          "test": "the three files (new cases fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** 6 new cases fail first: take details on addTake → clip and pool item (videoTakes.test.ts), document write / merge / round trip (projectDoc.test.ts), gate keeps recordedAt in range and microphone cut to 200 (projectGate.test.ts)."
+          ]
+        },
+        "T011": {
+          "text": "`TakeDetails` in `projectDoc.ts` (on `DocMedia`, `EditorSound`, `EditorPoolItem`), `listed()` merging detail fields, `toDocument` writing them, the gate reading them; `VSound` / `PoolItem` take `TakeDetails`; the recorder sets `recordedAt` (its start time) and `microphone` (the device's label) on `TakeToPlace`, `addTake` and `poolOf` carry them, `placeSound` keeps them. T010 passes; every 209 and 504 test still passes.",
+          "section": "Take details",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/engine/projectDoc.ts",
+            "src/engine/projectGate.ts",
+            "src/state/videoStore.ts",
+            "src/state/videoSound.ts",
+            "src/state/voiceRecorder.ts",
+            "src/state/videoPool.ts"
+          ],
+          "test": "`videoTakes.test.ts`, `projectDoc.test.ts`, `projectGate.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** TakeDetails + takeDetails() in projectDoc.ts (on DocMedia, EditorSound, EditorPoolItem, VSound, PoolItem, SoundToPlace, TakeToPlace); listed() merges details into an entry listed first; gate readTakeDetails (0–8.64e15 ms, microphone ≤ 200, non-empty); the recorder sets recordedAt at the recorder's start and the chosen device's label; a recovered take gets its header's startedAt. Also a voiceRecorder.test case (fails without the recorder change). npm run check green, 2796 tests."
+          ]
+        },
+        "T020": {
+          "text": "Failing tests for the takes in the store: `takesOf` lists only recorded files, newest first (undated last, then by name), each with its uses and the first use's track and start; `renameTake` renames the pool item and every sound clip of the file in one undo step, trims the name, refuses an empty one with the reason.",
+          "section": "Recordings",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/integration/state/videoTakes.test.ts"
+          ],
+          "test": "`videoTakes.test.ts` (these cases fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** 5 failing cases in videoTakes.test.ts: takesOf order (newest, undated last by name), uses + first use's place (track name, earliest start), selector identity, renameTake over pool + clips in one undo step (trimmed), empty name refused."
+          ]
+        },
+        "T021": {
+          "text": "`state/videoTakes.ts`: `TakeRow`, `takesOf` (memoised like `poolOf`), `renameTake`; `revealOnTimeline(time, track)` (an event `Timeline.tsx` listens for, scrolling the time and the track's row into view). T020 passes.",
+          "section": "Recordings",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/state/videoTakes.ts",
+            "src/components/studio/timelineActions.ts",
+            "src/components/studio/Timeline.tsx"
+          ],
+          "test": "`videoTakes.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** state/videoTakes.ts: TakeRow, takesOf (memoised on poolOf's items, sounds, tracks; first use = earliest start, by track name), renameTake (pool + clips, one undo step). revealOnTimeline + REVEAL_ON_TIMELINE in timelineActions.ts; Timeline's useScroller listens (row scrollIntoView nearest, then scrollToX, shared with following the playhead). T020 passes; npm run check green, 2801 tests. voiceRecorder.ts kept at 800 lines (Take extends Pick<TakeToPlace, recordedAt | microphone>)."
+          ]
+        },
+        "T022": {
+          "text": "`TakeList.tsx`, the Recordings section: a `ListRow` per take (name; length, date and time, microphone or \"—\"; place or \"Not used\"), choosing a row selects its first clip and reveals it, Play / Stop through one shared `<audio>` (pauses the video; starting the video stops it; leaving the panel stops it), Rename in place (Enter keeps, Esc cancels), Add at the playhead (`addFromPool`), Delete (`removeFromPool`, asking when used); an empty list says how takes are made. Checked in Chromium with two recorded takes (or takes placed through `addTake` in the console).",
+          "section": "Recordings",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/components/studio/TakeList.tsx",
+            "src/components/studio/AudioPanel.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`videoTakes.test.ts`; checked by eye",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** TakeList.tsx (Recordings section, FoldSection audio.takes with the count): a ListRow per take with detail lines from takeListText.ts (length · when · microphone or —; place or Not used; tested), Play / Stop through one shared Audio element (pauses the video; stops when the video starts or the list unmounts), Rename in place (Enter keeps, Esc cancels), Add at the playhead and Delete (asking when used) via poolActions.ts (moved out of MediaPool), choosing selects the first clip and revealOnTimeline. TakePlace gains the clip and track ids. Checked in Chromium 1280 × 720 with two placed takes: order, details, select, play then video stops it, rename Enter / Esc, no console errors; detail lines wrap in the narrow panel. npm run check green, 2805 tests."
+          ]
+        },
+        "T030": {
+          "text": "Failing tests for kinds: `soundKind` per track role (Music, Voice, Effects; a track without a role is Music, as 208 reads it), `KIND_NAMES`; a CSS check (36-media-studio.css, 01-base.css) that `.kind-music`, `.kind-voice`, `.kind-fx` set `--kind` from `--sound-music`, `--sound-voice`, `--sound-fx` and that the three tokens exist in the light and both dark blocks; `poolDetail` names a recording \"Voice\", a used sound by its first use's kind, an unused one \"Sound\" (D2).",
+          "section": "Kinds",
+          "status": "done",
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/components/studio/soundKinds.test.ts",
+            "tests/unit/components/studio/poolList.test.ts"
+          ],
+          "test": "`soundKinds.test.ts`, `poolList.test.ts` (new cases fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** soundKinds.test.ts (soundKind per role; no role read as soundRole does: the Music track Music, others Effects — the task's 'Music' was 208 misread; KIND_NAMES, kindClass; .kind-* set --kind from the role tokens; the tokens in :root, the dark @media block and [data-theme=dark]) and poolList.test.ts (D2: a recording Voice, a used sound its first use's kind, unused Sound) fail first."
+          ]
+        },
+        "T031": {
+          "text": "`components/studio/soundKinds.ts`; the `kind-*` classes; the kind shown and coloured on the track header (a bar at its left edge, the kind in its accessible name), the timeline's sound bars (by their track's kind), the Audio panel's track settings (a chip with the name), the sound inspector (\"Music 1 · Music\" with a chip), the Recordings rows (Voice), the media pool's detail (`poolDetail` takes the kind, D2). T030 passes; checked in Chromium in both themes.",
+          "section": "Kinds",
+          "status": "done",
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/components/studio/soundKinds.ts",
+            "src/components/studio/TrackHead.tsx",
+            "src/components/studio/SoundRow.tsx",
+            "src/components/studio/AudioPanel.tsx",
+            "src/components/studio/SoundInspector.tsx",
+            "src/components/studio/MediaPool.tsx",
+            "src/components/studio/poolList.ts",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`soundKinds.test.ts`, `poolList.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** soundKinds.ts (SoundKind, KIND_NAMES, soundKind from soundRole, kindClass) and KindChip.tsx; .kind-music/-voice/-fx set --kind, .kind-chip, .tl-h-sound (3 px bar). Shown: track header (bar + 'Audio 2 track, Voice'), timeline sound bars (.tl-bar-music reads var(--kind)), Audio panel track legends and the sound inspector (chips), Recordings rows (Voice chip), media pool (poolDetail with firstSoundKinds: Voice / Music / Effects / Sound, D2). T030 passes; npm run check green, 2817 tests. Checked in Chromium 1280 × 720, light and dark: Music teal, Voice orange, Effects violet on heads and bars, pool details right, no console errors."
+          ]
+        },
+        "T040": {
+          "text": "Failing tests for the panel's structure: `audioPanel.test.ts` (source scan of `AudioPanel.tsx`): FoldSections `audio.add`, `audio.record`, `audio.takes`, `audio.tracks`, `audio.loudness` in that order (D1, D3); Record voice has `onOpened` and `onClosed` and `defaultOpen={false}` (D4); `foldMarkup.test.ts`: rendering a section open (default or remembered) doesn't call `onOpened`.",
+          "section": "Audio panel",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/components/studio/audioPanel.test.ts",
+            "tests/unit/components/panel/foldMarkup.test.ts"
+          ],
+          "test": "`audioPanel.test.ts`, `foldMarkup.test.ts` (fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** audioPanel.test.ts (source scan: AudioPanel's parts render FoldSections audio.add, audio.record, audio.takes, audio.tracks, audio.loudness with those titles; Record voice has onOpened, onClosed, defaultOpen={false}; openWhen kept for Shift + R and the track's record button) fails 3 / 3; foldMarkup.test.ts: rendering a section open by default or alone doesn't call onOpened (fails first at typecheck: no such prop)."
+          ]
+        },
+        "T041": {
+          "text": "`FoldSection` `onOpened` (called from the title's click when it opens the section); the Audio panel's sections: Add sound (the default), Record voice (`onOpened` opens the microphone, `onClosed` closes it, opened by itself it shows Record voice…), Recordings (`TakeList`), Tracks (Lower music under voice and the tracks), Loudness. T040 passes; checked in Chromium: opening Record voice asks for the microphone, opening Recordings closes it, a reload with Record voice remembered open shows the button and no microphone.",
+          "section": "Audio panel",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/components/panel/FoldSection.tsx",
+            "src/components/studio/AudioPanel.tsx"
+          ],
+          "test": "`audioPanel.test.ts`, `foldMarkup.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** FoldSection onOpened (called from the title's click only when it opens the section); the Audio panel: Add sound a section (the default, D1), Record voice (defaultOpen false, onOpened = openRecordVoice, onClosed = closeRecordVoice, openWhen kept for Shift + R / the record button; D4), Recordings, Tracks (was Sound tracks), Loudness (D3). T040 passes; npm run check green, 2821 tests; npm run build entry 312 KB. Checked in Chromium on the production build with a fake microphone: the panel opens on Add sound with no microphone; clicking Record voice opens it (1 live stream); opening Recordings closes it (0 live); a reload with Record voice remembered open shows Record voice… and opens nothing. Found a dev-only StrictMode bug from 209 (controls open then close at once in npm run dev; learnings.md) — not fixed here."
+          ]
+        },
+        "T090": {
+          "text": "Docs: `docs/MEDIA-STUDIO.md` (Recordings, take details, kinds and colours, the Audio panel's sections, when the microphone opens), `docs/DESIGN.md` (the kind classes and colours; the Audio panel in the panel map), `specs/lld.md` (take details, `videoTakes.ts`, `soundKinds.ts`, `onOpened`), CHANGELOG Unreleased.",
+          "section": "Close",
+          "status": "done",
+          "covers": [],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "docs/DESIGN.md",
+            "specs/lld.md",
+            "CHANGELOG.md"
+          ],
+          "test": "reviewed with the result note",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** docs/MEDIA-STUDIO.md (sections list, pool kinds, Kinds and colours, the Audio panel's five sections, Record voice opening the microphone only on the user's click, Recordings with take details), docs/DESIGN.md (kind classes and KindChip in §5, onOpened in §6, the Audio panel exception to D-068 D1, the Audio panel and pool kinds in §7), specs/lld.md (§1 videoTakes.ts, new §4.14), CHANGELOG Unreleased (two Added, one Changed). For review with this note."
+          ]
+        },
+        "T091": {
+          "text": "Close: `npm run check`, `npm run build` (entry ≤ 350 KB), `npm run lint:full`, `npm run check:licenses`; tick AC-1–AC-3 (AC-4 waits for 590); status Implemented; `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Close",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [],
+          "test": "`npm run build`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** npm run check green (2821 tests), npm run build entry 312 KB (budget 350), npm run lint:full 0 errors (1 old warning: engine/patterns.ts length), npm run check:licenses 169 packages allowed; AC-1–AC-3 ticked, AC-4 waits for 590."
+          ]
+        }
+      }
+    }
+  }
 }

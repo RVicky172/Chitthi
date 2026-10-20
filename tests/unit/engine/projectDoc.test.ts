@@ -276,6 +276,52 @@ describe('504: the media pool in the document', () => {
   });
 });
 
+describe('505: a take’s details in the document', () => {
+  const take: TestFile = { id: 'take', size: 300_000, type: 'audio/webm' };
+  const details = { recorded: true as const, recordedAt: Date.UTC(2026, 9, 20, 14, 2), microphone: 'MacBook Microphone' };
+  /**
+   * `everything()` with its voice clip a take with details, and a second take only in the pool.
+   * @returns the project
+   */
+  function withTakes(): EditorVideo<TestFile> {
+    const video = everything();
+    return {
+      ...video,
+      sounds: video.sounds.map((sound) => (sound.id === 's2' ? { ...sound, ...details } : sound)),
+      pool: [{ kind: 'audio', name: 'Voice 3', file: take, w: 0, h: 0, srcDur: 4, recorded: true, recordedAt: 5, microphone: 'USB' }],
+    };
+  }
+
+  it('writes them on the take’s media entry, not on its sound clip', () => {
+    const doc = videoDocument(withTakes(), 'Trip', idOf);
+    expect(doc.media.find((media) => media.id === 'voice')).toMatchObject(details);
+    expect(doc.media.find((media) => media.id === 'take')).toMatchObject({ recordedAt: 5, microphone: 'USB' });
+    expect(doc.audio.find((sound) => sound.id === 's2')).not.toHaveProperty('microphone');
+  });
+
+  it('merges them into an entry another use listed first', () => {
+    const video = withTakes();
+    const plain = { ...defined(video.sounds.find((sound) => sound.id === 's2')), id: 's9', start: 30 };
+    delete plain.recorded;
+    const doc = videoDocument({ ...video, sounds: [plain, ...video.sounds] }, 'Trip', idOf);
+    expect(doc.media.find((media) => media.id === 'voice')).toMatchObject(details);
+  });
+
+  it('gives them back on the sounds and the pool items', () => {
+    const { dropped, opened } = roundTrip(withTakes(), 'Trip');
+    expect(dropped).toEqual([]);
+    expect(opened.video.sounds.find((sound) => sound.id === 's2')).toMatchObject(details);
+    expect(opened.video.sounds.find((sound) => sound.id === 's1')).not.toHaveProperty('recordedAt');
+    expect(opened.video.pool).toEqual([{ kind: 'audio', name: 'Voice 3', file: take, w: 0, h: 0, srcDur: 4, recorded: true, recordedAt: 5, microphone: 'USB' }]);
+  });
+
+  it.each(legacyNames)('a project from before 505 (%s) opens without take details', (name) => {
+    const video = fromLegacy(name);
+    for (const sound of video.sounds) expect(sound).not.toHaveProperty('recordedAt');
+    for (const sound of video.sounds) expect(sound).not.toHaveProperty('microphone');
+  });
+});
+
 describe('408: documents from before 408 stay as they were', () => {
   it.each(legacyNames)('%s: the gate and toDocument add no name, playhead or track heights', (name) => {
     const once: ProjectDoc = toDocument(mergeProject(legacyDoc(defined(legacyFixtures()[name], name)), true).doc);

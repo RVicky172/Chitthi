@@ -11,6 +11,22 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-20 — 505 sound panel (T010–T091)
+
+**Done:** 505 tasks T010–T091 all done on `feat/505-sound-panel`: take details (`recordedAt`, `microphone`;
+`TakeDetails` / `takeDetails()` in projectDoc.ts, merged on listing, read by the gate, set by the recorder),
+`state/videoTakes.ts` (`takesOf`, `renameTake`), `revealOnTimeline`, the Recordings list (`TakeList.tsx`,
+`takeListText.ts`; add / delete shared with the pool in `poolActions.ts`), kinds of sound (`soundKinds.ts`,
+`KindChip.tsx`, `.kind-*` → `--kind`: track heads, sound bars, chips, pool detail D2), the Audio panel's five sections
+with `FoldSection.onOpened` (D1, D3, D4). Tests: videoTakes (7), takeListText (4), soundKinds (9), audioPanel (3),
+projectDoc / projectGate / poolList / foldMarkup / voiceRecorder (+18). Checked in Chromium (Recordings; kinds in
+both themes; the microphone on the production build with a fake device). check green (2821), build entry 312 KB,
+lint:full 0 errors, licences fine. AC-1–3 ticked; AC-4 waits for 590. Docs: MEDIA-STUDIO, DESIGN, lld §4.14,
+CHANGELOG. Not committed yet.
+**Next:** commit, merge into `main`; then 506. Follow-ups: a dev-only StrictMode bug from 209 (the Record voice
+controls close the microphone at once in `npm run dev`; learnings.md); a drop marker on sound rows (504).
+**Blockers:** none.
+
 ## 2026-10-20 — 504 media pool (plan, tasks, T010–T091)
 
 **Done:** 504 plan Approved (D-069, A for D1–D5), tasks T010–T091 all done on `feat/504-media-pool`: `pool` in the

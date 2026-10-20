@@ -278,7 +278,13 @@ Every text pair passes 4.5:1 in both themes, and every control edge 3:1:
 - **`--layer-sticker` in light** is below 3:1 (1.6), and that is fine. The sticker bars on the timeline are a pale mix of it with a 55 % border of it. They
   hold their own text in `--text`, and the bar is told apart by its label, so this is a fill, not a control edge.
 
-The three sound kinds are the colours 505 uses to tell Music, Voice and Effects apart.
+The three sound kinds are the colours 505 uses to tell Music, Voice and Effects apart. A part never reads them
+directly: a class per kind sets `--kind` (`.kind-music` from `--sound-music`, `.kind-voice` from `--sound-voice`,
+`.kind-fx` from `--sound-fx`, in `36-media-studio.css`) and the part reads `var(--kind)`: the sound track header's
+colour bar (`.tl-h-sound`), the timeline's sound bars, and the chip `KindChip` (a dot and the kind's name) in the
+Audio panel's track settings, the sound inspector and the Recordings rows. The kind comes from the track's role
+(`soundKind`, `src/components/studio/soundKinds.ts`), and its name is always written beside the colour.
+`tests/unit/components/studio/soundKinds.test.ts` checks the classes and that each token is in all three theme blocks.
 
 ## 6. Shared panel parts
 
@@ -289,7 +295,7 @@ own copy; `tests/unit/components/panel/sharedParts.test.ts` checks that both stu
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PanelHeader` | Eyebrow and actions on one line, the title, then a one-sentence lead                                                                                                                             | The top of every panel: the print steps (eyebrow = the step number, actions = Collapse all) and the media tools (eyebrow = Add or Edit, title = the rail label, lead = the tool's lead) |
 | `FoldGroup`   | Folding sections of which one is open at a time; the open one (or none) is remembered per group on this device (`chitthi-folds`). `collapseAll(group)`                                         | One panel in one mode (`reel:audio`), one kind of inspector (`photos:inspector:layer`), one print step (`print:Photos`): the shell and `Pane` set them                                              |
-| `FoldSection` | A titled group of settings that folds: a summary (`note`) in its title row, controls beside the title (`actions`), opening itself (`openWhen`), `onClosed`; `revealSection(id)` opens one     | Any group of settings in a panel or inspector with more than one. Its `id` must be unique across the app; `defaultOpen={false}` keeps it from being the group's default                             |
+| `FoldSection` | A titled group of settings that folds: a summary (`note`) in its title row, controls beside the title (`actions`), opening itself (`openWhen`), `onClosed`, `onOpened` (only the user's own open, 505); `revealSection(id)` opens one | Any group of settings in a panel or inspector with more than one. Its `id` must be unique across the app; `defaultOpen={false}` keeps it from being the group's default                             |
 | `ListRow`     | One row of a list: a lead (thumbnail or icon), the name shortened with an ellipsis (the full name is its accessible name and tooltip), a detail line, controls that never wrap, a selected state | Projects today; the media pool (504), the Recordings list (505), Layers (506)                                                                                                                        |
 | `EmptyState`  | An icon, a title, a sentence or two and the action that fills it; tone `stage` (large, on the dark stage) or `panel` (quiet, in a list)                                                          | An empty stage, an empty list                                                                                                                                                                        |
 | `RailFrame`   | The rail's frame: width, the toggle, Ctrl + \\, the foot                                                                                                                                         | Both rails; a new studio's rail goes inside it too                                                                                                                                                   |
@@ -300,9 +306,10 @@ there is nothing yet.
 **Folding (503, D-068).** In every panel and inspector only one section is open at a time: opening one closes the
 others, clicking the open one's title closes it, and the choice is remembered per panel and mode. With nothing
 remembered the first section opens (one marked `defaultOpen={false}` is skipped). What a panel is for stays above its
-sections, always in view: its main action or list (Add sound, the media and mask lists, Add text, the drop zones) and
+sections, always in view: its main action or list (the media and mask lists, Add text, the drop zones) and
 what the inspector shows with its warnings (the clip's or sound's name, a missing file). A panel or inspector with a
-single section keeps it plain. A closed section that holds edits says so in its summary ("Changed", "2×", "Fade").
+single section keeps it plain. The Audio panel is the exception (505 D1): Add sound is its first section and its
+default, so with nothing open the panel is only titles. A closed section that holds edits says so in its summary ("Changed", "2×", "Fade").
 `tests/unit/components/panel/foldCoverage.test.ts` fails on a panel section title that does not fold; its exceptions
 (the export dialogs, single-section inspectors) are listed there with the reason.
 
@@ -345,8 +352,14 @@ section of its own.
 
 The Media panel (Reel and YouTube) is the project's **media pool** (504): the import row (drop zone, picker, Use the
 photos from Photos) stays above, then filter chips (All, Video, Photo, Sound, Recordings), a search field and a
-`ListRow` per file (thumbnail or waveform, length, kind, use count, add and remove). A row goes on the timeline at the
+`ListRow` per file (thumbnail or waveform, length, kind, use count, add and remove; a sound's kind is its first use's
+track kind, a recording Voice, an unused sound Sound, 505 D2). A row goes on the timeline at the
 playhead (double-click, Enter, +) or where it is dragged; it is the panel's list, so it scrolls inside the panel.
+
+The Audio panel (Reel and YouTube, 505) is five sections: **Add sound** (the default), **Record voice** (never the
+default; the user opening it opens the microphone, `onOpened`, and closing it closes it), **Recordings** (a `ListRow`
+per voice take: name, length · when · microphone, where it is used; Play, Rename, Add, Delete), **Tracks** (Lower music
+under voice and each sound track's settings, with its kind chip) and **Loudness**.
 
 The dock holds the photo strip (photo) or the timeline: transport, edit tools, tracks (Reel and YouTube).
 

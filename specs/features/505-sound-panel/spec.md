@@ -2,7 +2,7 @@
 
 # 505 — Sound panel: recordings and voice listed for choosing
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** Phase UI — Studio design and UX (release 3.0.0) · **Created:** 2026-10-20
 
 ## Summary
@@ -19,15 +19,15 @@ The Audio panel mixes adding sound, recording voice and track settings in one lo
 
 ### Recordings
 
-- [ ] **AC-1:** The Recordings section lists every take of the project, newest first, with name, length, recorded date and time, microphone name, track and timeline position (or "Not used"); selecting a row selects and reveals its clip on the timeline; play previews it alone; rename changes the clip and pool name (one undo step); delete removes an unused take (a used one asks first). _(unit)_
+- [x] **AC-1:** The Recordings section lists every take of the project, newest first, with name, length, recorded date and time, microphone name, track and timeline position (or "Not used"); selecting a row selects and reveals its clip on the timeline; play previews it alone; rename changes the clip and pool name (one undo step); delete removes an unused take (a used one asks first). _(unit)_
 
 ### Separation
 
-- [ ] **AC-2:** Sound is labelled by kind (Music, Voice, Effects) in the pool, the Audio panel, the track headers and the sound inspector, each with its own colour token from 501; takes are Voice. _(unit)_
+- [x] **AC-2:** Sound is labelled by kind (Music, Voice, Effects) in the pool, the Audio panel, the track headers and the sound inspector, each with its own colour token from 501; takes are Voice. _(unit)_
 
 ### Structure
 
-- [ ] **AC-3:** The Audio panel has the sections Add sound, Record voice, Recordings and Tracks as folding sections (503); opening Record voice opens the microphone and closing the section closes it (209 AC-7 still holds). _(unit)_
+- [x] **AC-3:** The Audio panel has the sections Add sound, Record voice, Recordings and Tracks as folding sections (503); opening Record voice opens the microphone and closing the section closes it (209 AC-7 still holds). _(unit)_
 
 ### Look
 
@@ -55,3 +55,4 @@ The Audio panel mixes adding sound, recording voice and track settings in one lo
 
 - 2026-10-20 — Created: draft spec with 4 acceptance criteria and 2 open questions with proposed answers (Phase UI, D-063).
 - 2026-10-20 — Every proposed answer accepted by the maintainer; Approved.
+- 2026-10-20 — Plan D1–D4: option A chosen by the maintainer (D-070); plan Approved; tasks written (T010–T091).

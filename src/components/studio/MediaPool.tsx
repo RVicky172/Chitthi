@@ -1,12 +1,11 @@
 import { useMemo, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from 'react';
 import { isMissing } from '../../engine/mediaFile';
-import { toast } from '../../lib/toast';
 import { scanSnapshot, subscribeScans } from '../../state/soundScan';
-import { addFromPool, removeFromPool } from '../../state/videoPool';
-import { getVideo, poolKey, poolOf, usesOf, useVideo, type PoolItem } from '../../state/videoStore';
+import { poolKey, poolOf, useVideo, type PoolItem } from '../../state/videoStore';
 import { MusicIcon, PlusIcon, TrashIcon } from '../icons';
 import { EmptyState, ListRow } from '../panel';
-import { POOL_DRAG, POOL_FILTERS, filterPool, poolDetail, usageCounts, usesText, type PoolFilter } from './poolList';
+import { addToTimeline, removeAsking } from './poolActions';
+import { POOL_DRAG, POOL_FILTERS, filterPool, firstSoundKinds, poolDetail, usageCounts, type PoolFilter } from './poolList';
 import { FindFileButton } from './ProjectStatus';
 
 /*
@@ -56,27 +55,6 @@ function PoolThumb({ item }: Readonly<{ item: PoolItem }>) {
 }
 
 /**
- * Says what adding a file from the pool left out, if anything.
- * @param key the item's pool key
- */
-function add(key: string): void {
-  void addFromPool(key).then((messages) => messages.forEach((message) => toast(message)));
-}
-
-/**
- * Takes a file out of the project, asking first when clips use it (D4).
- * @param item the item
- */
-function remove(item: PoolItem): void {
-  const key = poolKey(item);
-  const video = getVideo();
-  const uses = usesText(video, key);
-  const goes = usesOf(video, key).length === 1 ? 'which goes too' : 'which all go too';
-  if (uses && !confirm(`Remove “${item.name}” from the project? It is used by ${uses}, ${goes}. You can undo this.`)) return;
-  removeFromPool(key);
-}
-
-/**
  * The row whose main button an event came from.
  * @param event a click or key on the list
  * @returns the row's pool key, or null
@@ -89,7 +67,9 @@ export function MediaPool() {
   const items = useVideo(poolOf);
   const clips = useVideo((state) => state.clips);
   const sounds = useVideo((state) => state.sounds);
+  const tracks = useVideo((state) => state.tracks);
   const counts = useMemo(() => usageCounts({ clips, sounds }), [clips, sounds]);
+  const kinds = useMemo(() => firstSoundKinds({ tracks, sounds }), [tracks, sounds]);
   const [filter, setFilter] = useState<PoolFilter>('all');
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
@@ -118,14 +98,14 @@ export function MediaPool() {
           aria-label="The project’s media"
           onDoubleClick={(event) => {
             const key = rowKey(event);
-            if (key !== null) add(key);
+            if (key !== null) addToTimeline(key);
           }}
           onKeyDown={(event) => {
             const key = rowKey(event);
             if (event.key !== 'Enter' || key === null) return;
             // Enter adds; Space still just chooses the row.
             event.preventDefault();
-            add(key);
+            addToTimeline(key);
           }}
         >
           {shown.map((item) => {
@@ -137,7 +117,7 @@ export function MediaPool() {
                 rowId={key}
                 lead={<PoolThumb item={item} />}
                 name={item.name}
-                detail={`${poolDetail(item, counts.get(key) ?? 0)}${missing ? ' · Missing' : ''}`}
+                detail={`${poolDetail(item, counts.get(key) ?? 0, kinds.get(key))}${missing ? ' · Missing' : ''}`}
                 selected={chosen === key}
                 onSelect={() => setChosen(key)}
                 draggable
@@ -150,10 +130,10 @@ export function MediaPool() {
                 controls={
                   <>
                     {missing && !(item.file instanceof Blob) && <FindFileButton file={item.file} />}
-                    <button type="button" className="pbtn" aria-label={`Add ${item.name} at the playhead`} title="Add at the playhead (or double-click, Enter)" onClick={() => add(key)}>
+                    <button type="button" className="pbtn" aria-label={`Add ${item.name} at the playhead`} title="Add at the playhead (or double-click, Enter)" onClick={() => addToTimeline(key)}>
                       <PlusIcon />
                     </button>
-                    <button type="button" className="pbtn" aria-label={`Remove ${item.name} from the project`} title="Remove from the project" onClick={() => remove(item)}>
+                    <button type="button" className="pbtn" aria-label={`Remove ${item.name} from the project`} title="Remove from the project" onClick={() => removeAsking(item)}>
                       <TrashIcon />
                     </button>
                   </>

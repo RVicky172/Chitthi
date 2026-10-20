@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FoldGroup, FoldSection } from '@/components/panel';
 
 /*
@@ -76,5 +76,18 @@ describe('folding section markup (AC-4)', () => {
   it('opens a section outside any group', () => {
     const alone = renderToStaticMarkup(section('fm-alone'));
     expect(titleButton(alone)).toMatch(/aria-expanded="true"/);
+  });
+});
+
+describe('onOpened: only the user’s own open (505 D4)', () => {
+  it('isn’t called when a section renders open by itself (the default, or the only one)', () => {
+    const opened = vi.fn();
+    const props = { title: 'Record voice', onOpened: opened, children: createElement('p', null, 'Controls') };
+    const markup = renderToStaticMarkup(
+      createElement(FoldGroup, { id: 'test:opened', defaultOpen: 'fm-rec', children: createElement(FoldSection, { id: 'fm-rec', ...props }) }),
+    );
+    expect(titleButton(markup)).toMatch(/aria-expanded="true"/);
+    renderToStaticMarkup(createElement(FoldSection, { id: 'fm-rec-alone', ...props }));
+    expect(opened).not.toHaveBeenCalled();
   });
 });

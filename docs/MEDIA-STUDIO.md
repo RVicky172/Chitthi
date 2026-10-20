@@ -28,11 +28,11 @@ At 1280 px and wider every area has its own column; narrower windows put the too
 the right; phones stack the stage, the dock, the tools and the panels in one scrolling column.
 
 **Sections fold, one open at a time.** The settings in a panel or the inspector are grouped in sections (Light,
-Colour, Detail…; Timing, Speed, Position and size…; Record voice, Sound tracks, Loudness). Clicking a section's title
+Colour, Detail…; Timing, Speed, Position and size…; Add sound, Record voice, Recordings, Tracks, Loudness). Clicking a section's title
 opens it and closes the others; clicking the open one closes it. Each panel remembers the section used last, for each
 mode, on this device, and opens it again next time. A closed section's title shows a short summary when it holds
-something ("Changed", "2×", "Music · 2 tracks"). What a panel is for (adding sound, the media and mask lists, adding
-text) and what the inspector is showing (the clip's or sound's name, a missing file) stay above the sections. A
+something ("Changed", "2×", "Music · 2 tracks"). What a panel is for (the media and mask lists, adding text) and what
+the inspector is showing (the clip's or sound's name, a missing file) stay above the sections. A
 section opens by itself when it is needed: **Shift + R** opens Record voice, choosing a mask opens Selected mask.
 Section titles are buttons: **Tab** moves between them, **Enter** or **Space** opens or closes one. The print studio's
 steps work the same way, with **Collapse all** to close the open one.
@@ -363,7 +363,8 @@ MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps;
 
 The **Media** tool lists every file in the project: videos, photos, sound files and voice recordings, each with a
 thumbnail (a sound shows a small waveform), its name, its length (video and sound), its kind and how often it is used
-("Used 2×", "Not used").
+("Used 2×", "Not used"). A sound's kind is the kind of the track its first use is on (**Music**, **Voice** or
+**Effects**); a recording is **Voice**, a sound nothing uses **Sound**.
 
 - **Importing:** the Media panel's drop zone or **Choose videos, photos or sound** (or **Use the photos from Photos**)
   puts files in the pool only, as one undo step. The empty stage's **Add videos or photos** and files dropped on the
@@ -650,6 +651,14 @@ after it, sound effects on the cuts, an ambience bed, a recorded voice.
   export will be turned up 4.4 dB"), taken in the background half a second after the last change. A true-peak
   **limiter** keeps peaks at or below −1 dBTP; the panel warns when it would turn the loudest moments down by more
   than 6 dB. Projects from before this version keep Off, so they sound as they did.
+- **Kinds and colours**: sound is shown by its kind, the track's role, everywhere: **Music** teal, **Voice** orange,
+  **Effects** violet (lighter in the dark theme). A sound track's header has a colour bar at its left edge and says its
+  kind to screen readers ("Audio 2 track, Voice"), its sound clips take its colour on the timeline, and the Audio
+  panel's track settings and the sound inspector ("Music 1 · Music") show the kind as a chip with its name. The colour
+  is never the only sign: the name is always written beside it.
+- **The Audio panel** folds into five sections: **Add sound** (open by default), **Record voice**, **Recordings** (the
+  voice takes, see [Voice-over](#voice-over)), **Tracks** (Lower music under voice and each sound track's role, volume
+  and ducking) and **Loudness**.
 - **The preview plays the export's mix**: every sound goes through the same gains (volume × fades × keyframes × track
   volume × ducking), then the loudness gain and the limiter (an AudioWorklet; where it can't load, the browser's own
   compressor stands in).
@@ -666,8 +675,10 @@ multiplied in one place (`src/engine/mixGain.ts`) for the preview and the export
 Record your voice over the video while it plays: the take is an ordinary sound clip on a Voice track, in sync with
 the picture it was spoken over.
 
-- **Record voice** is in the Audio panel; each Voice track's header also has a record button that opens it with that
-  track chosen. The take goes onto that track, else the selected sound clip's Voice track, else the first Voice track;
+- **Record voice** is a section of the Audio panel: opening it with its title opens the microphone, and closing it (or
+  opening another section) closes it. When it is open because it was the section used last, it shows **Record voice…**
+  instead, so the microphone never opens unasked. Each Voice track's header also has a record button that opens it with
+  that track chosen. The take goes onto that track, else the selected sound clip's Voice track, else the first Voice track;
   with none, a track named **Voice** is added (refused with the reason when there are already 8 audio tracks).
 - **The controls**: **Microphone** (the system default first; names show once the browser has been allowed to use
   it), a **level meter** (−60 to 0 dBFS, 30 readings a second, **Too loud** for 2 s after a peak at −1 dBFS or above),
@@ -684,6 +695,13 @@ the picture it was spoken over.
   project as its own media (408) and is in the export. The file is what the browser records: Opus in WebM (Chrome,
   Edge, Firefox and the desktop app) or AAC in M4A (Safari), mono, about 1 MB a minute; a take saved as a file can be
   added again with **Add sound** (a WebM's length is read from its packets when its header has none).
+- **Recordings** (a section of the Audio panel) lists every take of the project, newest first: its name, length, when
+  it was recorded, the microphone it was recorded with ("—" for takes from before this version), and where it is used
+  ("Voice at 0:12", "Voice at 0:12 and 1 more", "Not used"). Choosing a take selects its first clip and scrolls the
+  timeline to it. **Play** plays the whole take alone (the video pauses; starting the video stops it), **Rename** names
+  the take and all its clips (Enter keeps, Esc cancels; one undo step), **+** adds it again at the playhead on a Voice
+  track, and the bin deletes it from the project, asking first when it is used. When and with which microphone a take
+  was recorded is saved with the project, on the device only.
 - **Punch-in**: a take recorded over earlier sound on the same track replaces just the part it covers (clips inside
   it are deleted, clips over its edges trimmed, a clip around it split), so a fluffed sentence is re-recorded without
   redoing the rest. Other tracks are untouched. The take and what it replaced are one undo step.
@@ -712,7 +730,8 @@ the picture it was spoken over.
 
 The recorder is `src/state/voiceRecorder.ts` (loaded only when Record voice opens), the placement and punch-in
 `src/engine/voiceTake.ts` and `soundClips.ts` (`punchIn`, `placeTake`), the microphone `src/lib/microphone.ts`, the
-take store for recovery `src/lib/takeStore.ts`, and the controls `src/components/studio/RecordVoice.tsx`.
+take store for recovery `src/lib/takeStore.ts`, and the controls `src/components/studio/RecordVoice.tsx`; the Recordings list is `src/state/videoTakes.ts` and
+`src/components/studio/TakeList.tsx`.
 
 ### The preview
 

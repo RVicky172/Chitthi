@@ -463,7 +463,7 @@
       "505": {
         "title": "Sound panel: recordings and voice listed for choosing",
         "workItem": null,
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/505-sound-panel",
         "needs": [

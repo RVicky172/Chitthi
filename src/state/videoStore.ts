@@ -6,6 +6,7 @@ import type { IgEdit } from '../engine/instagram';
 import type { ClipKeyProp, Keyframes } from '../engine/keyframes';
 import type { Layer } from '../engine/layers';
 import type { MediaFile } from '../engine/mediaFile';
+import { takeDetails, type TakeDetails } from '../engine/projectDoc';
 import type { SpeedFields } from '../engine/speed';
 import { tidyTransitions, type Transition } from '../engine/transitions';
 import { pack, projectLength, type AudioClip, type ClipTransform, type Project } from '../engine/timeline';
@@ -71,16 +72,17 @@ export interface VClip extends SpeedFields {
   still: HTMLCanvasElement | null;
 }
 
-/** A sound clip in the store (208 D1): the clip, its file and the file's object URL (its media id, D-053). */
-export interface VSound extends AudioClip {
+/**
+ * A sound clip in the store (208 D1): the clip, its file and the file's object URL (its media id, D-053); a voice take
+ * recorded in the app is marked, with its details (209; 504 D3; 505 §1).
+ */
+export interface VSound extends AudioClip, TakeDetails {
   file: MediaFile;
   url: string;
-  /** Its file is a voice take recorded in the app (209; 504 D3). */
-  recorded?: true;
 }
 
-/** A file in the project's media pool (504): what the Media panel lists, and what placing it needs. */
-export interface PoolItem {
+/** A file in the project's media pool (504): what the Media panel lists, and what placing it needs; a take's details (505). */
+export interface PoolItem extends TakeDetails {
   /** The file's URL: its media id in the editor (D-053), shared with the clips that use it. */
   url: string;
   kind: 'video' | 'photo' | 'audio';
@@ -95,8 +97,6 @@ export interface PoolItem {
   thumb: string;
   /** A video's filmstrip, once a clip of it has one. */
   strip: string[];
-  /** A voice take recorded in the app (209, D-069). */
-  recorded?: true;
 }
 
 /** A clip or sound clip that uses a file of the pool. */
@@ -312,7 +312,10 @@ const clipItem = ({ url, kind, name, file, w, h, srcDur, thumb, strip }: VClip):
  * @param sound the sound clip
  * @returns the item
  */
-const soundItem = ({ url, name, file, srcDur, recorded }: VSound): PoolItem => ({ url, kind: 'audio', name: name ?? 'Sound', file, w: 0, h: 0, srcDur, thumb: '', strip: [], ...(recorded ? { recorded } : {}) });
+const soundItem = (sound: VSound): PoolItem => {
+  const { url, name, file, srcDur } = sound;
+  return { url, kind: 'audio', name: name ?? 'Sound', file, w: 0, h: 0, srcDur, thumb: '', strip: [], ...takeDetails(sound) };
+};
 
 /**
  * A file's key in the media pool: its URL, or, for a missing file (which has none, 408 D4), its media id.

@@ -635,3 +635,14 @@ the old object through their closures. Server-rendered unit tests cannot see it 
 non-ASCII character ("·" became "Â·", "×" "Ã—"): the read used the ANSI code page. Read and write with .NET and an
 explicit `UTF8Encoding($false)` (`[IO.File]::ReadAllText(path, enc)`), or edit with the Edit tool. Repair: encode the
 mangled text as Windows-1252 and decode as UTF-8, then grep for `Ã|Â|â€`.
+
+## 2026-10-20 — In dev, the Record voice controls open and close the microphone at once (StrictMode; 505 T041)
+
+`RecordVoice` opens the microphone in an effect and closes it in the cleanup. StrictMode in `npm run dev` runs mount →
+cleanup → mount: the cleanup's `closeControls()` bumps `generation`, and the second `openControls()` returns the first
+call's pending `opening` promise, which then sees the new generation and stops its tracks. The controls show
+"Try again" with no message. Production (`vite preview`, the desktop app) mounts once and works. Check microphone
+behaviour on a production build until it is fixed: `closeControls` should drop `opening`, and `openControls` should
+clear `opening` only when it is still its own (voiceRecorder.ts is at the 800-line limit, so it needs a trim too).
+Fake microphone in Playwright: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` plus
+`permissions: ['microphone']`; wrap `getUserMedia` in an init script to count opens and live tracks.

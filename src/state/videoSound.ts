@@ -19,6 +19,7 @@ import {
   type SoundCtx,
 } from '../engine/soundClips';
 import { MUSIC, lockedReason, soundRole, type Track } from '../engine/tracks';
+import { takeDetails, type TakeDetails } from '../engine/projectDoc';
 import { recordTarget } from '../engine/voiceTake';
 import type { MixMeasure, SoundJob } from '../engine/exportSound';
 import { logError } from '../lib/errors';
@@ -176,7 +177,7 @@ export async function addSoundFiles(files: File[], place: SoundPlace = {}): Prom
 }
 
 /** A sound file already in the project (the media pool, 504) to place. */
-export type SoundToPlace = Pick<VSound, 'url' | 'file' | 'srcDur' | 'recorded'> & { name: string };
+export type SoundToPlace = Pick<VSound, 'url' | 'file' | 'srcDur'> & TakeDetails & { name: string };
 
 /**
  * The sound track a pool item goes on by its kind (504 AC-3): a recording on a Voice track (made when there is none),
@@ -207,8 +208,8 @@ export function placeSound(sound: SoundToPlace, place: SoundPlace = {}): string 
   const id = newId();
   const result = addSound(video.sounds, target.tracks, { id, srcDur: sound.srcDur, name: sound.name }, place.at ?? video.t, target.track, soundCtx());
   if ('error' in result) return `${sound.name}: ${result.error}`;
-  const { url, file, recorded } = sound;
-  const sounds = result.audio.map((clip) => (clip.id === id ? { ...clip, file, url, ...(recorded ? { recorded } : {}) } : (clip as VSound)));
+  const { url, file } = sound;
+  const sounds = result.audio.map((clip) => (clip.id === id ? { ...clip, file, url, ...takeDetails(sound) } : (clip as VSound)));
   change('', { sounds, tracks: result.tracks });
   return null;
 }
@@ -524,8 +525,8 @@ export function watchLoudness(): () => void {
 export const masterGainDb = (video: VState): number =>
   video.loudness === 'off' || !video.measure ? 0 : video.measure.gain;
 
-/** A recorded voice take to put on the timeline (209 §5). */
-export interface TakeToPlace {
+/** A recorded voice take to put on the timeline (209 §5), with when and with which microphone (505 §1). */
+export interface TakeToPlace extends Omit<TakeDetails, 'recorded'> {
   file: File;
   name: string;
   /** The track it was recorded onto, and the tracks with it (a new Voice track not yet in the project). */
@@ -565,8 +566,8 @@ export function addTake(take: TakeToPlace): PlacedTake | { error: string } {
     name: take.name,
     file: take.file,
     url,
-    // Listed under Recordings in the media pool, and saved so (504 D3).
-    recorded: true,
+    // Listed under Recordings in the media pool, and saved so (504 D3), with its details (505).
+    ...takeDetails({ recorded: true, recordedAt: take.recordedAt, microphone: take.microphone }),
   };
   const placed = placeTake(
     video.sounds,

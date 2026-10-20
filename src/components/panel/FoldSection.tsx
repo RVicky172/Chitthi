@@ -124,6 +124,11 @@ export interface FoldSectionProps {
   openWhen?: boolean;
   /** Called when the section closes (its title clicked, or another section opened): Record voice closes the microphone. */
   onClosed?: () => void;
+  /**
+   * Called only when the user opens the section with its title, never when it opens by itself (remembered, the default,
+   * `openWhen`): Record voice opens the microphone only when asked (505 D4).
+   */
+  onOpened?: () => void;
   children: ReactNode;
 }
 
@@ -143,9 +148,10 @@ function isDefault(group: FoldGroupInfo, id: string, eligible: boolean): boolean
 /**
  * A titled group of settings that folds open and closed, one open per FoldGroup (503). Outside a group it is a group
  * of its own that remembers itself.
- * @param props the id, title, summary, whether it may be the default, actions, when to open itself, and the content
+ * @param props the id, title, summary, whether it may be the default, actions, when to open itself, what to do when
+ *   closed or opened by the user, and the content
  */
-export function FoldSection({ id, title, note, defaultOpen = true, actions, openWhen, onClosed, children }: Readonly<FoldSectionProps>) {
+export function FoldSection({ id, title, note, defaultOpen = true, actions, openWhen, onClosed, onOpened, children }: Readonly<FoldSectionProps>) {
   const outer = useContext(GroupContext);
   const [alone] = useState<FoldGroupInfo>(() => ({ id: `sec:${id}`, allowNone: true, defaultOpen: undefined, candidates: [], present: new Set() }));
   const group = outer ?? alone;
@@ -205,7 +211,11 @@ export function FoldSection({ id, title, note, defaultOpen = true, actions, open
           className="sec-h"
           aria-expanded={open}
           aria-controls={body}
-          onClick={() => setFold(group.id, toggleFold(open ? id : (saved ?? null), id, group.allowNone))}
+          onClick={() => {
+            const next = toggleFold(open ? id : (saved ?? null), id, group.allowNone);
+            setFold(group.id, next);
+            if (!open && next === id) onOpened?.();
+          }}
         >
           <span>{title}</span>
           {note && <small>{note}</small>}

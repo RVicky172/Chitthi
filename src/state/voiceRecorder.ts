@@ -35,7 +35,7 @@ import { toast } from '../lib/toast';
 import { desktop, isDesktop } from '../platform/desktop';
 import { keepMedia } from './projectSave';
 import { analyserMeter, mediaRecorder, type MicStream, type RecorderMeter, type TakeRecorder } from './recorderDevices';
-import { addTake } from './videoSound';
+import { addTake, type TakeToPlace } from './videoSound';
 import { getVideo, newId, setPlaying, setVideo, subscribeVideo, total, type VState } from './videoStore';
 
 /*
@@ -194,8 +194,8 @@ export function useRecorder<T>(select: (recorder: RecorderState) => T): T {
   );
 }
 
-/** A take while it is being recorded. */
-interface Take {
+/** A take while it is being recorded, with its details (505 §1): `recordedAt` once the recorder starts. */
+interface Take extends Pick<TakeToPlace, 'recordedAt' | 'microphone'> {
   /** Its id in the take store. */
   id: string;
   /** The track it goes onto, and the tracks with it (a new Voice track not yet in the project). */
@@ -475,6 +475,7 @@ function startRecorder(mime: string): void {
     current.captureWall = recorderIO.now();
     current.inputLatency = inputLatency(input?.getSettings() ?? {}, { baseLatency: meter.latency });
     const startedAt = recorderIO.clock();
+    current.recordedAt = startedAt;
     store(current, async () => {
       const project = (await recorderIO.projectId()) ?? '';
       await recorderIO.takes.begin({
@@ -533,6 +534,7 @@ export function record(): void {
     captureWall: 0,
     inputLatency: 0,
     offset: offsetFor(state.prefs, state.device),
+    microphone: state.microphones.find((device) => device.id === state.device)?.label,
     chunks: [],
     stored: Promise.resolve(),
     storeFailed: false,
@@ -671,6 +673,8 @@ async function placeFinished(current: Take): Promise<Partial<RecorderState>> {
     tracks: current.tracks,
     start: placeOf(current),
     length,
+    recordedAt: current.recordedAt,
+    microphone: current.microphone,
   });
   if ('error' in placed) {
     await keepForRecovery(current);
@@ -764,6 +768,7 @@ export async function recoverTake(id: string): Promise<string | null> {
     tracks: target.tracks,
     start: header.start,
     length,
+    recordedAt: header.startedAt,
   });
   if ('error' in placed) return placed.error;
   dropOffer(id);

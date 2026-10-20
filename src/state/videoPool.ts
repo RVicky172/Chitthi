@@ -1,5 +1,6 @@
 import { DEFAULT_EDIT } from '../engine/instagram';
 import { blobOf } from '../engine/mediaFile';
+import { takeDetails } from '../engine/projectDoc';
 import { MAIN_VIDEO } from '../engine/tracks';
 import { logError } from '../lib/errors';
 import type { VLimits } from '../engine/videoFormats';
@@ -144,7 +145,7 @@ export async function addFromPool(key: string, place: PoolPlace = {}): Promise<s
   const item = poolOf(getVideo()).find((entry) => poolKey(entry) === key);
   if (!item) return ['That file is no longer in the project’s media.'];
   if (item.kind === 'audio') {
-    const why = placeSound({ url: item.url, file: item.file, srcDur: item.srcDur, name: item.name, ...(item.recorded ? { recorded: item.recorded } : {}) }, place);
+    const why = placeSound({ url: item.url, file: item.file, srcDur: item.srcDur, name: item.name, ...takeDetails(item) }, place);
     return why ? [why] : [];
   }
   return placeClips([pictureSource(item)], { track: place.track ?? MAIN_VIDEO, at: place.at ?? getVideo().t });

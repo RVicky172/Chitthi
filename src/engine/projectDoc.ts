@@ -41,7 +41,25 @@ export interface DocMedia {
   srcDur: number;
   /** A voice take recorded in the app (504 D3); missing for other files and takes from before 504. */
   recorded?: true;
+  /** A take's start, ms since 1970 (505 §1); missing for takes from before 505. */
+  recordedAt?: number;
+  /** The microphone a take was recorded with, as the browser named it (505 §1). */
+  microphone?: string;
 }
+
+/** What a file says about the voice take it is (505 §1): saved on its media entry, carried by its clips and pool item. */
+export type TakeDetails = Pick<DocMedia, 'recorded' | 'recordedAt' | 'microphone'>;
+
+/**
+ * A take's details with only the fields it has, so a file that isn't a take carries none.
+ * @param details the clip's, pool item's or media entry's
+ * @returns the details
+ */
+export const takeDetails = ({ recorded, recordedAt, microphone }: TakeDetails): TakeDetails => ({
+  ...(recorded ? { recorded } : {}),
+  ...(recordedAt === undefined ? {} : { recordedAt }),
+  ...(microphone ? { microphone } : {}),
+});
 
 /** A picture clip as saved: its timing, look and motion, and the media it shows. */
 export interface DocClip extends TimedClip {
@@ -231,7 +249,7 @@ export function toDocument(project: ProjectDoc): ProjectDoc {
       };
     }),
     layers: project.layers,
-    media: project.media.map(({ id, kind, name, type, size, w: width, h: height, srcDur, recorded }) => ({
+    media: project.media.map(({ id, kind, name, type, size, w: width, h: height, srcDur, ...details }) => ({
       id,
       kind,
       name,
@@ -240,7 +258,7 @@ export function toDocument(project: ProjectDoc): ProjectDoc {
       w: width,
       h: height,
       srcDur,
-      ...(recorded ? { recorded } : {}),
+      ...takeDetails(details),
     })),
   };
 }
@@ -266,14 +284,13 @@ export interface EditorClip<F extends MediaLike> extends Omit<DocClip, 'media' |
   srcDur: number;
 }
 
-/** A sound clip in the editor: the clip and its file (a recorded take's marked, 504 D3). */
-export interface EditorSound<F extends MediaLike> extends AudioClip {
+/** A sound clip in the editor: the clip and its file (a recorded take's marked, 504 D3, with its details, 505). */
+export interface EditorSound<F extends MediaLike> extends AudioClip, TakeDetails {
   file: F;
-  recorded?: true;
 }
 
 /** A file in the editor's media pool (504) that no clip may use: what its media entry says, and its file. */
-export interface EditorPoolItem<F extends MediaLike> extends Pick<DocMedia, 'name' | 'w' | 'h' | 'srcDur' | 'recorded'> {
+export interface EditorPoolItem<F extends MediaLike> extends Pick<DocMedia, 'name' | 'w' | 'h' | 'srcDur'>, TakeDetails {
   kind: 'video' | 'photo' | 'audio';
   file: F;
 }
@@ -330,8 +347,10 @@ export function videoDocument<F extends MediaLike>(
   images: readonly DocMedia[] = [],
 ): ProjectDoc {
   const media = new Map<string, DocMedia>();
+  // A take's details are merged into an entry another use listed first (505 §1).
   const listed = (entry: DocMedia): string => {
-    if (!media.has(entry.id)) media.set(entry.id, entry);
+    const first = media.get(entry.id);
+    media.set(entry.id, first ? { ...first, ...takeDetails(first), ...takeDetails(entry) } : entry);
     return entry.id;
   };
   const clips = video.clips.map(({ file, name: fileName, w: width, h: height, srcDur, ...clip }): DocClip => {
@@ -339,17 +358,18 @@ export function videoDocument<F extends MediaLike>(
     const id = listed({ id: mediaId(file), kind: clip.kind, name: fileName, type, size, w: width, h: height, srcDur });
     return { ...clip, edit: sortedKeys(clip.edit), media: id };
   });
-  // A recorded take is marked on its file's entry, not on the sound clip (504 D3).
-  const audio = video.sounds.map(({ file, recorded, ...sound }): DocAudio => {
+  // A recorded take is marked on its file's entry, not on the sound clip (504 D3), with its details (505).
+  const audio = video.sounds.map(({ file, recorded, recordedAt, microphone, ...sound }): DocAudio => {
     const { size, type } = file;
-    const id = listed({ id: mediaId(file), kind: 'audio', name: sound.name ?? '', type, size, w: 0, h: 0, srcDur: sound.srcDur, ...(recorded ? { recorded } : {}) });
+    const details = takeDetails({ recorded, recordedAt, microphone });
+    const id = listed({ id: mediaId(file), kind: 'audio', name: sound.name ?? '', type, size, w: 0, h: 0, srcDur: sound.srcDur, ...details });
     return { ...sound, media: id };
   });
   images.forEach(listed);
   // The media pool's files no clip uses, after the rest (504 §4).
-  for (const { file, kind, name: fileName, w: width, h: height, srcDur, recorded } of video.pool) {
+  for (const { file, kind, name: fileName, w: width, h: height, srcDur, ...details } of video.pool) {
     const { size, type } = file;
-    listed({ id: mediaId(file), kind, name: fileName, type, size, w: width, h: height, srcDur, ...(recorded ? { recorded } : {}) });
+    listed({ id: mediaId(file), kind, name: fileName, type, size, w: width, h: height, srcDur, ...takeDetails(details) });
   }
   const { kind, format, fps, quality, tracks, layers, fadeOut, magnetic, loudness, t: playhead, trackView } = video;
   return toDocument({
@@ -397,14 +417,14 @@ export function videoFromDocument<F extends MediaLike>(doc: ProjectDoc, open: (m
   const sounds: EditorSound<F>[] = [];
   for (const { media, ...sound } of doc.audio) {
     const entry = entries.get(media);
-    if (entry) sounds.push({ ...sound, file: fileOf(entry), ...(entry.recorded ? { recorded: entry.recorded } : {}) });
+    if (entry) sounds.push({ ...sound, file: fileOf(entry), ...takeDetails(entry) });
   }
   // The media pool (504 §4): the files no clip or sound clip uses (an image layer's picture is no pool file).
   const pool: EditorPoolItem<F>[] = [];
   for (const entry of doc.media) {
-    const { id, kind, name, w, h, srcDur, recorded } = entry;
+    const { id, kind, name, w, h, srcDur } = entry;
     if (kind === 'image' || files.has(id)) continue;
-    pool.push({ kind, name, file: fileOf(entry), w, h, srcDur, ...(recorded ? { recorded } : {}) });
+    pool.push({ kind, name, file: fileOf(entry), w, h, srcDur, ...takeDetails(entry) });
   }
   const { kind, format, fps, quality, tracks, layers, fadeOut } = doc;
   return {
