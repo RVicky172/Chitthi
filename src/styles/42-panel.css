@@ -55,6 +55,9 @@
   padding-top: 4px;
 }
 .sec h3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0;
 }
 .pane .sec h3 {
@@ -62,9 +65,10 @@
 }
 .sec-h {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  min-width: 0;
   padding: 10px 2px;
   border: 0;
   background: none;
@@ -92,6 +96,13 @@
 }
 .sec-h:hover svg {
   color: var(--accent);
+}
+/* controls beside the title (keyframe arrows), outside its button */
+.sec-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
 }
 .sec-body {
   display: flex;

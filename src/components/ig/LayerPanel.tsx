@@ -16,6 +16,7 @@ import { toast } from '../../lib/toast';
 import type { LayerTools } from '../../state/instagram';
 import { Seg } from '../common';
 import { NextIcon, PlusIcon, PrevIcon, TrashIcon } from '../icons';
+import { FoldSection } from '../panel';
 import { formatClock, LpRange, Swatches } from './LayerControls';
 import { LayerProperties } from './LayerProperties';
 
@@ -157,9 +158,9 @@ export function AddElements(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'tim
     }
   };
   return (
+    // Shapes open first: the image section is not the default (503).
     <>
-      <div className="ig-group">
-        <h3>Image</h3>
+      <FoldSection id="elements.image" title="Image" defaultOpen={false}>
         <p className="hint">
           A logo, a frame or a texture over the photo. PNGs keep their transparency; try a blend mode for textures.
         </p>
@@ -175,9 +176,8 @@ export function AddElements(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'tim
             }
           />
         </label>
-      </div>
-      <div className="ig-group">
-        <h3>Shapes</h3>
+      </FoldSection>
+      <FoldSection id="elements.shapes" title="Shapes">
         <p className="hint">
           Boxes, labels, bubbles, bursts and ribbons hold words. Draw over any of them with the Draw tool.
         </p>
@@ -196,9 +196,8 @@ export function AddElements(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'tim
             </button>
           ))}
         </div>
-      </div>
-      <div className="ig-group">
-        <h3>Stickers</h3>
+      </FoldSection>
+      <FoldSection id="elements.stickers" title="Stickers">
         <div className="lp-stickers">
           {STICKERS.map((emoji) => (
             <button
@@ -211,7 +210,7 @@ export function AddElements(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'tim
             </button>
           ))}
         </div>
-      </div>
+      </FoldSection>
     </>
   );
 }

@@ -9,6 +9,7 @@ import { CurveEditor } from '../ig/CurveEditor';
 import { LookPicker } from '../ig/LookPicker';
 import { Slider } from '../ig/Slider';
 import { AdjustIcon, FlipIcon, PipetteIcon, ResetIcon, RotateLeftIcon, RotateRightIcon } from '../icons';
+import { FoldSection } from '../panel';
 
 /*
  * The photo editor's inspector for a photo: framing, presets and LUTs, light, colour (with the white-balance
@@ -32,7 +33,38 @@ const ROTATIONS: readonly IgRotation[] = [0, 90, 180, 270];
 const turned = (rotation: IgRotation, by: 90 | -90): IgRotation => ROTATIONS.find((turn) => turn === (((rotation + by) % 360) + 360) % 360) ?? 0;
 
 /**
- * The photo's name and size, how it fills the frame, its background, zoom, turns, mirror and centring.
+ * The summary of a closed section that holds edits.
+ * @param adjust the photo's settings
+ * @param keys the settings the section holds (each 0 when unchanged)
+ * @returns "Changed" when any of them is set, else nothing
+ */
+function changedNote(adjust: Adjustments, keys: readonly NumericAdjustment[]): string | undefined {
+  return keys.some((key) => adjust[key] !== 0) ? 'Changed' : undefined;
+}
+
+/** The photo settings that hold a number. */
+type NumericAdjustment = { [Key in keyof Adjustments]: Adjustments[Key] extends number ? Key : never }[keyof Adjustments];
+
+const LIGHT_KEYS: readonly NumericAdjustment[] = ['exposure', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'brightness'];
+const COLOUR_KEYS: readonly NumericAdjustment[] = ['temperature', 'tint', 'saturation', 'warmth'];
+const DETAIL_KEYS: readonly NumericAdjustment[] = ['sharpen', 'noise'];
+const EFFECT_KEYS: readonly NumericAdjustment[] = ['clarity', 'dehaze', 'vignette', 'grain'];
+
+/**
+ * The photo's name and size, always in view above the sections (as the clip inspector's, 503 D4).
+ * @param props the photo
+ */
+function PhotoName({ item }: Readonly<PhotoProps>) {
+  return (
+    <p className="hint ig-name" title={item.name}>
+      <AdjustIcon /> {item.name} · {item.w}×{item.h} px
+      {Math.max(item.w, item.h) < 1080 ? ' · smaller than Instagram’s 1080 px, so it may look soft' : ''}
+    </p>
+  );
+}
+
+/**
+ * How the photo fills the frame, its background, zoom, turns, mirror and centring.
  * @param props the photo
  */
 function FrameGroup({ item }: Readonly<PhotoProps>) {
@@ -41,14 +73,7 @@ function FrameGroup({ item }: Readonly<PhotoProps>) {
   const set = (patch: Partial<IgEdit>) => editPhoto(item.id, patch);
   const bgShows = showsBackground(item.preview.width, item.preview.height, edit, format.w, format.h);
   return (
-    <div className="ig-group">
-      <h3>
-        <AdjustIcon /> Photo
-      </h3>
-      <p className="hint ig-name" title={item.name}>
-        {item.name} · {item.w}×{item.h} px
-        {Math.max(item.w, item.h) < 1080 ? ' · smaller than Instagram’s 1080 px, so it may look soft' : ''}
-      </p>
+    <FoldSection id="photo.frame" title="Frame" defaultOpen={false}>
       <Seg<IgEdit['fit']>
         label="How the photo fills the frame"
         value={edit.fit}
@@ -91,7 +116,7 @@ function FrameGroup({ item }: Readonly<PhotoProps>) {
           Centre
         </button>
       </div>
-    </div>
+    </FoldSection>
   );
 }
 
@@ -107,8 +132,7 @@ interface AdjustProps {
  */
 function LightGroup({ adjust, setAdjust }: Readonly<AdjustProps>) {
   return (
-    <div className="ig-group">
-      <h3>Light</h3>
+    <FoldSection id="photo.light" title="Light" note={changedNote(adjust, LIGHT_KEYS)}>
       <Slider id="ig-ex" label="Exposure" value={adjust.exposure} min={-4} max={4} step={0.05} onChange={(exposure) => setAdjust({ exposure })} />
       <Slider id="ig-ct" label="Contrast" value={adjust.contrast} min={-100} max={100} onChange={(contrast) => setAdjust({ contrast })} />
       <Slider id="ig-hi" label="Highlights" value={adjust.highlights} min={-100} max={100} onChange={(highlights) => setAdjust({ highlights })} />
@@ -116,7 +140,7 @@ function LightGroup({ adjust, setAdjust }: Readonly<AdjustProps>) {
       <Slider id="ig-wh" label="Whites" value={adjust.whites} min={-100} max={100} onChange={(whites) => setAdjust({ whites })} />
       <Slider id="ig-bl" label="Blacks" value={adjust.blacks} min={-100} max={100} onChange={(blacks) => setAdjust({ blacks })} />
       {adjust.brightness !== 0 && <Slider id="ig-br" label="Brightness" value={adjust.brightness} min={-100} max={100} onChange={(brightness) => setAdjust({ brightness })} />}
-    </div>
+    </FoldSection>
   );
 }
 
@@ -127,8 +151,7 @@ function LightGroup({ adjust, setAdjust }: Readonly<AdjustProps>) {
 function ColourGroup({ adjust, setAdjust }: Readonly<AdjustProps>) {
   const isPicking = useIg((state) => state.picking);
   return (
-    <div className="ig-group">
-      <h3>Colour</h3>
+    <FoldSection id="photo.colour" title="Colour" note={changedNote(adjust, COLOUR_KEYS)}>
       <div className="inline ig-tools">
         <button
           type="button"
@@ -148,7 +171,7 @@ function ColourGroup({ adjust, setAdjust }: Readonly<AdjustProps>) {
       <Slider id="ig-ti" label="Tint" value={adjust.tint} min={-100} max={100} onChange={(tint) => setAdjust({ tint })} />
       <Slider id="ig-sa" label="Saturation" value={adjust.saturation} min={-100} max={100} onChange={(saturation) => setAdjust({ saturation })} />
       {adjust.warmth !== 0 && <Slider id="ig-wa" label="Warmth" value={adjust.warmth} min={-100} max={100} onChange={(warmth) => setAdjust({ warmth })} />}
-    </div>
+    </FoldSection>
   );
 }
 
@@ -159,8 +182,7 @@ function ColourGroup({ adjust, setAdjust }: Readonly<AdjustProps>) {
 function DetailGroups({ adjust, setAdjust }: Readonly<AdjustProps>) {
   return (
     <>
-      <div className="ig-group">
-        <h3>Detail</h3>
+      <FoldSection id="photo.detail" title="Detail" note={changedNote(adjust, DETAIL_KEYS)}>
         <Slider id="ig-sp" label="Sharpening" value={adjust.sharpen} min={0} max={100} onChange={(sharpen) => setAdjust({ sharpen })} />
         {adjust.sharpen > 0 && (
           <>
@@ -169,15 +191,14 @@ function DetailGroups({ adjust, setAdjust }: Readonly<AdjustProps>) {
           </>
         )}
         <Slider id="ig-nr" label="Noise reduction" value={adjust.noise} min={0} max={100} onChange={(noise) => setAdjust({ noise })} />
-      </div>
-      <div className="ig-group">
-        <h3>Effects</h3>
+      </FoldSection>
+      <FoldSection id="photo.effects" title="Effects" note={changedNote(adjust, EFFECT_KEYS)}>
         <Slider id="ig-cl" label="Clarity" value={adjust.clarity} min={-100} max={100} onChange={(clarity) => setAdjust({ clarity })} />
         <Slider id="ig-dh" label="Dehaze" value={adjust.dehaze} min={-100} max={100} onChange={(dehaze) => setAdjust({ dehaze })} />
         <Slider id="ig-vi" label="Vignette" value={adjust.vignette} min={0} max={100} onChange={(vignette) => setAdjust({ vignette })} />
         <Slider id="ig-gr" label="Grain" value={adjust.grain} min={0} max={100} onChange={(grain) => setAdjust({ grain })} />
         <p className="hint">Double-click a slider to reset it.</p>
-      </div>
+      </FoldSection>
     </>
   );
 }
@@ -196,21 +217,20 @@ export function PhotoEditPanel({ item }: Readonly<PhotoProps>) {
   };
   return (
     <div className="lp">
+      <PhotoName item={item} />
+      {/* Light opens first: Frame and Presets are not the default (503 T024). */}
       <FrameGroup item={item} />
-      <div className="ig-group">
-        <h3>Presets and LUTs</h3>
+      <FoldSection id="photo.looks" title="Presets and LUTs" defaultOpen={false}>
         <LookPicker idPrefix="ig" adjust={adjust} onChange={setAdjust} onApplyAll={hasMany ? applyToAll : undefined} />
-      </div>
+      </FoldSection>
       <LightGroup adjust={adjust} setAdjust={setAdjust} />
       <ColourGroup adjust={adjust} setAdjust={setAdjust} />
-      <div className="ig-group">
-        <h3>Tone curve</h3>
+      <FoldSection id="photo.curve" title="Tone curve">
         <CurveEditor curve={adjust.curve} onChange={(curve) => setAdjust({ curve })} />
-      </div>
-      <div className="ig-group">
-        <h3>Colour mixer</h3>
+      </FoldSection>
+      <FoldSection id="photo.mixer" title="Colour mixer">
         <ColourMixer idPrefix="ig-mix" mixer={adjust.mixer} onChange={(mixer) => setAdjust({ mixer })} />
-      </div>
+      </FoldSection>
       <DetailGroups adjust={adjust} setAdjust={setAdjust} />
       <div className="inline ig-tools">
         {hasMany && (

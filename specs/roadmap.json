@@ -442,7 +442,7 @@
       "503": {
         "title": "Folding panel sections: one open at a time",
         "workItem": null,
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/503-panel-accordions",
         "needs": [

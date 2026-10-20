@@ -27,6 +27,16 @@ All three modes share one layout (`src/components/studio/`), built like a deskto
 At 1280 px and wider every area has its own column; narrower windows put the tool panel and inspector in one column on
 the right; phones stack the stage, the dock, the tools and the panels in one scrolling column.
 
+**Sections fold, one open at a time.** The settings in a panel or the inspector are grouped in sections (Light,
+Colour, Detail…; Timing, Speed, Position and size…; Record voice, Sound tracks, Loudness). Clicking a section's title
+opens it and closes the others; clicking the open one closes it. Each panel remembers the section used last, for each
+mode, on this device, and opens it again next time. A closed section's title shows a short summary when it holds
+something ("Changed", "2×", "Music · 2 tracks"). What a panel is for (adding sound, the media and mask lists, adding
+text) and what the inspector is showing (the clip's or sound's name, a missing file) stay above the sections. A
+section opens by itself when it is needed: **Shift + R** opens Record voice, choosing a mask opens Selected mask.
+Section titles are buttons: **Tab** moves between them, **Enter** or **Space** opens or closes one. The print studio's
+steps work the same way, with **Collapse all** to close the open one.
+
 ## Saved projects
 
 Every photo post and every video is a **project**, saved on this device as you work; there is no Save button.

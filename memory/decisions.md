@@ -824,3 +824,16 @@ D3 a short named `value` group may be 600 (timeline time, recording count and le
 badges); the recording countdown keeps 700.
 **Consequences:** the allowed selectors are a fenced block in `docs/DESIGN.md` §3 that `weights.test.ts` reads; the
 font URL narrows to Geist 400..600 and Geist Mono 400..500.
+
+## D-068 — 503 plan D1–D4: what folds in the studio panels (2026-10-20)
+
+**Context:** 503 puts every studio panel and inspector into folding sections, one open at a time, remembered per
+panel and mode under `chitthi-folds`.
+**Decision (the maintainer, as recommended, A for all four):** D1 a panel's untitled top (Add sound, the media list,
+Add text and the layer list) stays above the sections, always visible. D2 every group may have none open: clicking the
+open title closes it, and "none" is remembered (the print studio's Collapse all uses it). D3 Masks has two sections,
+Selected mask (its type's settings inside, under a smaller title) and Found by AI; Selected mask opens itself when a
+mask is chosen. D4 the clip inspector's name and its missing-file / can't-export warnings stay above the sections; the
+timing and fade fold as "Timing".
+**Consequences:** `foldCoverage.test.ts` allows untitled groups above a panel's sections; `toggleFold` always passes
+`allowNone` true in the studios.

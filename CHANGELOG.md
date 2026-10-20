@@ -91,6 +91,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   heading face, section titles are in sentence case (no more small capitals), and labels, buttons, list items and the
   selected step or tool are medium weight, marked by their bar or fill instead. Bold in running text is kept for
   values to notice (a count, a limit, the playhead time). The web fonts load only the weights in use.
+- Shorter panels: the settings in every panel and inspector of both studios fold into sections, **one open at a time**
+  (Light, Colour, Detail…; Timing, Speed, Position and size…; Record voice, Sound tracks, Loudness). Each panel
+  remembers the section used last, per mode, on this device; a closed section shows a short summary ("Changed", "2×",
+  "Music · 2 tracks"). The panel's main action or list and the selected item's name and warnings stay in view above
+  the sections. Shift + R opens Record voice and choosing a mask opens Selected mask. The print studio's steps keep
+  **Collapse all**; Expand all is gone.
 - A message shown twice in a row is shown (and announced) again.
 - Video editor: the preview and the export decode clips through one **decoder pool**. Playback is smoother: the next
   clip is opened before its cut, so cuts no longer stall or flash black, and a late frame holds the last one while the

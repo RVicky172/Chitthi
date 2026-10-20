@@ -4,13 +4,13 @@
   "id": "503",
   "title": "Folding panel sections: one open at a time",
   "workItem": null,
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-20",
     "approved": "2026-10-20",
-    "started": null,
-    "done": null
+    "started": "2026-10-20",
+    "done": "2026-10-20"
   },
   "git": {
     "branch": "feat/503-panel-accordions"
@@ -49,25 +49,25 @@
           "group": "Behaviour",
           "proof": "unit",
           "text": "The folding section part opens one section per group at a time: opening a section closes the others in its group; a closed section shows its title and an optional one-line summary; a group can allow none open. Unit-tested on the open-state logic.",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Behaviour",
           "proof": "unit",
           "text": "The open section is remembered per panel and mode (local, per viewer) and restored when the panel opens again; a section whose content becomes needed (e.g. selecting a sound clip opens the Sound section of the inspector) opens itself.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "Coverage",
           "proof": "unit",
           "text": "Every media-studio panel and inspector with more than one section uses the folding section part: Media, Text, Elements, Draw, Transitions, Audio, Layers, the photo editor's Light / Colour / Detail / Masks …, the clip, layer and sound inspectors; and the print studio's steps. A unit test lists panels with more than one section that don't.",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Accessibility",
           "proof": "unit",
           "text": "Each section title is a button with `aria-expanded` and `aria-controls`; Enter and Space toggle it; the panel's sections are reachable with Tab in order.",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "group": "Fit",
@@ -101,6 +101,10 @@
       {
         "date": "2026-10-20",
         "text": "Every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Plan D1–D4: option A chosen by the maintainer (D-068); plan Approved; tasks written (T010–T091)."
       }
     ],
     "sections": [
@@ -136,6 +140,485 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (D1–D4 A; 2026-10-20, D-068) <!-- Draft | Approved -->",
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "503 changes how sections fold, never what they contain (Out of Scope). Today the print studio's steps use 501's `FoldSection` (`components/panel/FoldSection.tsx`), where each section folds on its own and remembers itself under `chitthi-sections`; the media studio's panels and inspectors are plain `<div className=\"ig-group\"><h3>…</h3>` blocks, all open.\n\n**§1 One open per group: pure logic (AC-1).** A new `components/panel/foldGroups.ts`, framework-free like `railWidth.ts`: a group's state is the id of its open section or `null`. `toggleFold(open, id, allowNone)` opens `id` (closing the rest) or, when `id` is already open, closes it if the group allows none. `resolveFold(saved, present, fallback)` gives the section to show: the saved one if it is on screen, else the group's default (its first section unless the panel names one), or `null` when `null` was saved in a group that allows none. Tested without React.\n\n**§2 Remembered per panel and mode (AC-2).** A small store in the same folder (`useSyncExternalStore`, like the rail width) keeps `{ [group]: sectionId | null }` in `localStorage` under a new key `chitthi-folds`, per viewer; storage blocked = it still works, just not remembered. The old per-section key `chitthi-sections` means nothing under one-open and is removed on the first write. Nothing goes into designs or projects, so every saved project opens unchanged.\n\n**§3 `FoldGroup` and `FoldSection`.** `FoldGroup` (new, replacing `FoldScope`) gives its sections a group id, `allowNone` and an optional default. `FoldSection` keeps its props (`id`, `title`, `note`) and gains: `actions` (controls drawn beside the title button, not in it: the keyframe arrows in `kf-head` titles today, since a button cannot hold a button) and `openWhen` (a boolean: when it turns true the section opens itself, AC-2). Its title stays `<h3><button aria-expanded aria-controls>` (AC-4); `note` is the one-line summary in the title row (e.g. \"Music · 2 tracks\"), shown open or closed. A `FoldSection` outside any group is a group of one that allows none, so dialogs keep working. `revealSection` (the feature finder) opens a section through the store; section ids stay unique across the app.\n\n**§4 Group ids.** The shell wraps its panel slot in `FoldGroup id={`${mode}:${tool}`}` and the inspector slot in `${mode}:inspector:${kind}` (clip, layer, sound, transition, project), so each panel and each kind of inspector remembers its own section, per mode (photo, reel, vlog). The print studio's `Pane` wraps its step in `print:${title}`.\n\n**§5 The panels (AC-3).** Each titled `ig-group` with an `<h3>` becomes a `FoldSection`. Panels (and the clip / layer / sound inspectors) with one section keep it plain. Per panel, as built in the tasks: Media (D1 lead + its groups), Text / Elements / Draw / Layers (`ig/LayerPanel.tsx`: Image, Shapes, Stickers, Brush; the layer properties), Transitions (Cut, the chosen transition), Audio (Record voice, Sound tracks with each track's settings inside, Loudness; Add sound per D1), the photo editor (Light, Colour, Detail, Effects, Presets and LUTs, Tone curve, Colour mixer), Masks (`ig/MaskPanel.tsx`, D3), the clip inspector (the clip, Speed, Position and size, Frame, Colour), the sound inspector, the layer inspector. Contextual cases open themselves with `openWhen`: Record voice when `openRecordVoice()` asks for it (Shift + R, a Voice track's record button, the recovery bar), the selected mask's section when a mask is chosen, the transition's section when a cut is clicked.\n\n**§6 The print studio (Q1).** Its steps already use `FoldSection`; they become one group per step with `allowNone` (D2). `Pane` keeps **Collapse all** (sets the group to `null`) and drops **Expand all**. The feature finder still opens the section it names.\n\n**§7 Keyboard (AC-4).** The title is a native `<button type=\"button\">`, so Enter and Space toggle it and Tab reaches the titles in document order with the existing focus ring; a closed section's body is `hidden`, so Tab skips its fields. No arrow-key roving (the ARIA accordion pattern makes it optional)."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// components/panel/foldGroups.ts (pure)\n/** A group's open section, or null for none. */\nexport type FoldOpen = string | null;\nexport function toggleFold(open: FoldOpen, id: string, allowNone: boolean): FoldOpen;\nexport function resolveFold(saved: FoldOpen | undefined, present: readonly string[], fallback: FoldOpen): FoldOpen;\nexport const FOLDS_KEY = 'chitthi-folds';\nexport function readFolds(storage?: FoldStorage): Record<string, FoldOpen>;\nexport function saveFold(group: string, open: FoldOpen, storage?: FoldStorage): void;\n\n// components/panel/FoldSection.tsx\ninterface FoldGroupProps { id: string; allowNone?: boolean; defaultOpen?: string; children: ReactNode }\ninterface FoldSectionProps {\n  id: string; title: ReactNode;\n  note?: ReactNode;      // one-line summary in the title row\n  actions?: ReactNode;   // beside the title button (keyframe arrows)\n  openWhen?: boolean;    // opens the section when it turns true\n  children: ReactNode;\n}\nexport function foldAll(group: string, open: false): void; // Collapse all\nexport function revealSection(id: string): void;            // unchanged signature\n```\n\nStored (per viewer, `localStorage`): `chitthi-folds` = `{ \"reel:audio\": \"audio-record\", \"photos:edit\": \"edit-light\", \"print:Photos\": null }`."
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Pure logic, thin component:** the open-state rules live in `foldGroups.ts` (tested in node); the component only reads the store and renders, as `railWidth.ts` does for the rail.\n- **Rendering checked without a DOM:** the unit tests run in node (no jsdom); AC-4's markup is checked with `react-dom/server`'s `renderToStaticMarkup` from a `.ts` test using `createElement`, already a dependency. No new library.\n- **Coverage as a source scan:** like 501's `sharedParts.test.ts`, the coverage test reads `src/components/{studio,ig,panes}` and fails on a panel heading (`<h3`) that is not a `FoldSection`, with a short exception list (export dialogs) each with a reason.\n- **Rising edge for `openWhen`:** the section opens when the value goes from false to true, not while it stays true, so the user can still close it."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Kind |\n| --- | --- | --- |\n| AC-1 | `tests/unit/components/panel/foldGroups.test.ts`: opening closes the others, toggling the open one with and without `allowNone`, the default section | unit |\n| AC-2 | `foldGroups.test.ts`: saved per group, restored, a saved section no longer on screen falls back, blocked storage still toggles, the old key removed; `openWhen` rising edge | unit |\n| AC-3 | `tests/unit/components/panel/foldCoverage.test.ts`: no panel component in `studio/`, `ig/`, `panes/` keeps an `<h3>` section of its own (exceptions listed with reasons and still needed); `Pane` has no Expand all; proven to fail by putting an `ig-group` `<h3>` back | unit |\n| AC-4 | `tests/unit/components/panel/foldMarkup.test.ts`: `renderToStaticMarkup` of a group of three: each title is a `<button type=\"button\">` with `aria-expanded` and an `aria-controls` naming its body, one body not `hidden`, titles in order, `actions` outside the button | unit |\n| AC-5 | At 1280 × 720 each media panel with its default section open has no panel scroll (lists scroll inside) | e2e (590) |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer",
+        "markdown": "_Chosen (the maintainer, 2026-10-20): A for all four (D-068)._\n\n**D1 A panel's untitled top.** Some panels start with an untitled group: Add sound (Audio), the media list and add button (Media), Add text / the layer list (Layers). **A (recommended)** it stays above the sections, always visible: it is the panel's main action or list. **B** it becomes a section of its own (\"Add sound\") and folds like the rest.\n\n**D2 Can a group have none open?** **A (recommended)** yes, everywhere: clicking the open title closes it (the print studio's Collapse all needs this anyway), and \"none\" is remembered. **B** only in the print studio; in the media studio one section is always open.\n\n**D3 Masks.** `MaskPanel` shows type settings only for the selected mask (Brush, Linear / Radial gradient, Colour / Brightness range, Found by AI). **A (recommended)** sections: Selected mask (with its type's settings inside, under a smaller title) and Found by AI; the selected mask's section opens itself when a mask is chosen. **B** every type group is its own section.\n\n**D4 The inspector's first section.** The clip inspector's first group (\"Clip 2 · video\": name, missing-file note, timing, fade) holds warnings. **A (recommended)** the name and any warning stay above the sections, always visible; the timing and fade become a \"Timing\" section. **B** the whole group folds like the rest."
+      }
+    ],
+    "files": [
+      {
+        "file": "`src/components/panel/foldGroups.ts`",
+        "change": "new",
+        "purpose": "Open-state rules and storage (§1, §2)"
+      },
+      {
+        "file": "`src/components/panel/FoldSection.tsx`, `src/components/panel/index.ts`",
+        "change": "modify",
+        "purpose": "`FoldGroup` (replaces `FoldScope`), `actions`, `openWhen`, one open per group, `revealSection` through the store (§3)"
+      },
+      {
+        "file": "`src/components/studio/Shell.tsx`",
+        "change": "modify",
+        "purpose": "Panel and inspector slots wrapped in their `FoldGroup` (§4)"
+      },
+      {
+        "file": "`src/components/common.tsx`",
+        "change": "modify",
+        "purpose": "`Pane`: `FoldGroup`, Collapse all only (§6)"
+      },
+      {
+        "file": "`src/components/studio/{AudioPanel,VideoPanels,PhotoPanels,PhotoEditPanel,TransitionPanel,ClipInspector,SoundInspector,SpeedGroup}.tsx`, `src/components/ig/{LayerPanel,LayerProperties,MaskPanel}.tsx`",
+        "change": "modify",
+        "purpose": "Titled `ig-group`s → `FoldSection`; `openWhen` for Record voice, the selected mask, a clicked cut (§5)"
+      },
+      {
+        "file": "`src/styles/42-panel.css`",
+        "change": "modify",
+        "purpose": "`.sec` in the media studio's panels and inspector; `actions` beside the title"
+      },
+      {
+        "file": "`tests/unit/components/panel/{foldGroups,foldCoverage,foldMarkup}.test.ts`",
+        "change": "new",
+        "purpose": "AC-1, AC-2, AC-3, AC-4"
+      },
+      {
+        "file": "`docs/DESIGN.md`, `docs/MEDIA-STUDIO.md`, `CHANGELOG.md`",
+        "change": "modify",
+        "purpose": "The folding rule and the panel map; what users see"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Photo editing gets slower when Light and Colour are both used** (one open at a time, Q2). Mitigation: the last section is remembered; the titles are one click; revisited after 590's manual check, as Q2 says."
+      },
+      {
+        "text": "**A control reached from elsewhere is hidden in a closed section** (Shift + R, the recovery bar, the feature finder, a clicked cut, agent tools that expect a field). Mitigation: `openWhen` and `revealSection` open it; the agent tools change data through `src/agent/tools.ts`, not the panels, so they are unaffected."
+      },
+      {
+        "text": "**Fields in a closed section are unmounted or hidden, losing local state** (a half-typed number, the open recorder). Mitigation: bodies are `hidden`, not unmounted, as `FoldSection` does today; the recorder closes the microphone when its section closes, as it does when the panel closes (209 AC-7)."
+      },
+      {
+        "text": "**The print studio loses sections users kept open.** Mitigation: Q1 accepted; the first open step section is the remembered one or the first; Collapse all stays."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec Approved 2026-10-20; this plan waits for D1–D4."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "AC-1–AC-4 unit tests, test-first; AC-5 deferred to 590."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency; `react-dom/server` is part of `react-dom`."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "Decisions D1–D4 into `memory/decisions.md` when chosen."
+      },
+      {
+        "principle": "V. Free and Open Source",
+        "status": "✅",
+        "notes": "Same in web and desktop."
+      },
+      {
+        "principle": "VI. On the User's Device",
+        "status": "✅",
+        "notes": "No network; state in `localStorage`."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "No preview or export code changes; no design data changes."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No `electron/` changes."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "Native buttons with `aria-expanded` / `aria-controls`; panel code is lazy, entry chunk unchanged (checked at close)."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "✅",
+        "notes": "A viewing preference, not a feature: agent tools act on data, unaffected; no new tool."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); AC-5 (panels fit at 1280 × 720) is in `590` (\"Deferred checks collected from the phase\").\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 503 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Open state",
+        "intro": "§1–§3, §7: one open per group, remembered per panel and mode; the part's markup."
+      },
+      {
+        "title": "Panels",
+        "intro": "§4–§6: every studio panel and inspector with more than one section folds (D1–D4, D-068)."
+      },
+      {
+        "title": "Close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T025",
+        "T026",
+        "T027",
+        "T090",
+        "T091"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing test for the open-state rules: `toggleFold` opens a section and closes the others, closes the open one when the group allows none (D2) and keeps it when not; `resolveFold` restores the saved section when it is on screen, falls back to the default (first section) when it is not, keeps a saved `null`; `readFolds` / `saveFold` keep one entry per group under `chitthi-folds` with an injected storage, still work when storage throws, and remove the old `chitthi-sections` key; `opensNow(previous, now)` is true only on false → true (`openWhen`).",
+          "section": "Open state",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/components/panel/foldGroups.test.ts"
+          ],
+          "test": "`tests/unit/components/panel/foldGroups.test.ts` (fails first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/panel/foldGroups.test.ts: toggleFold (opens one, closes the others; closing the open one only when the group allows none), resolveFold (saved section if on screen, else the default; a saved null kept), readFolds / saveFold (one entry per group under chitthi-folds, unreadable or non-string entries dropped, the old chitthi-sections key removed, blocked storage tolerated), opensNow (false → true only). Fails first as intended: the module does not exist yet."
+          ]
+        },
+        "T011": {
+          "text": "`components/panel/foldGroups.ts`: the pure rules and storage of §1–§2 (`FoldOpen`, `toggleFold`, `resolveFold`, `opensNow`, `FOLDS_KEY`, `readFolds`, `saveFold`). `foldGroups.test.ts` passes.",
+          "section": "Open state",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "src/components/panel/foldGroups.ts"
+          ],
+          "test": "`tests/unit/components/panel/foldGroups.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** src/components/panel/foldGroups.ts: FoldOpen, toggleFold, resolveFold, opensNow, FOLDS_KEY ('chitthi-folds'), readFolds (keeps only string or null entries), saveFold (also removes the pre-503 'chitthi-sections' key; storage blocked = not remembered). foldGroups.test.ts 13/13; proven: toggleFold made to keep the open section under allowNone fails it; restored. npm run check green: 105 files, 2697 tests."
+          ]
+        },
+        "T012": {
+          "text": "Failing test for the markup (AC-4): `renderToStaticMarkup` (from a `.ts` test with `createElement`) of a `FoldGroup` with three `FoldSection`s, the second the default: each title is an `<h3>` holding a `<button type=\"button\">` with `aria-expanded` and an `aria-controls` that names its body's id; only the second body lacks `hidden`; titles come in order; a `note` shows in the title row of a closed section; `actions` render beside the button, not inside it. A `FoldSection` outside any group renders open by default.",
+          "section": "Open state",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-4"
+          ],
+          "files": [
+            "tests/unit/components/panel/foldMarkup.test.ts"
+          ],
+          "test": "`tests/unit/components/panel/foldMarkup.test.ts` (fails first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/panel/foldMarkup.test.ts renders a FoldGroup of three FoldSections with react-dom/server's renderToStaticMarkup (node, createElement; no new dependency): sections in order; each title an <h3><button type=button> with aria-expanded and an aria-controls naming its body; only the default (second) body without hidden; the note in a closed section's title row; actions beside the title button, not inside; a section outside any group open. Fails first as intended: FoldGroup is not exported yet."
+          ]
+        },
+        "T013": {
+          "text": "`FoldGroup` and the new `FoldSection` (§3): a small store over `foldGroups.ts` read with `useSyncExternalStore`; `FoldGroup` (id, `allowNone` default true, optional default section) replaces `FoldScope`; `FoldSection` gains `actions` and `openWhen`; `foldAll(group, false)` and `revealSection` go through the store (the feature finder still opens, scrolls to and focuses its section); bodies stay mounted and `hidden`. Export from `components/panel/index.ts`; `.sec-actions` in `42-panel.css`. `foldMarkup.test.ts` passes; the print panes still build with the old `FoldScope` users moved to `FoldGroup`.",
+          "section": "Open state",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-4"
+          ],
+          "files": [
+            "src/components/panel/FoldSection.tsx",
+            "src/components/panel/index.ts",
+            "src/styles/42-panel.css",
+            "src/components/common.tsx"
+          ],
+          "test": "`tests/unit/components/panel/foldMarkup.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** FoldSection.tsx: a module store (useSyncExternalStore, server snapshot too) over foldGroups.ts holds each group's open section; FoldGroup (id, allowNone default true per D-068, optional defaultOpen) replaces FoldScope; with nothing remembered the default is the named one, else the first section rendered whose defaultOpen is not false (the print panes' defaultOpen={false} sections keep working); a remembered section no longer on screen falls back to the default without being saved. FoldSection gains actions (in the h3, beside the button: .sec-actions, .sec h3 now flex in 42-panel.css) and openWhen (rising edge via opensNow); revealSection opens through the store; bodies stay mounted and hidden; outside a group a section is its own group ('sec:<id>'). foldAll became collapseAll(group) (Collapse all only, Q1); Pane in common.tsx wraps its step in FoldGroup 'print:<title>' and drops Expand all. panel/index.ts exports FoldGroup, collapseAll and the foldGroups helpers. foldMarkup.test.ts 8/8; proven: actions moved inside the title button fails 'beside the title button'; restored. npm run check green: 106 files, 2705 tests; lint 0 errors. Not yet run in a browser (T021 checks the print step by eye)."
+          ]
+        },
+        "T020": {
+          "text": "Failing coverage test (AC-3): no component in `src/components/{studio,ig,panes}` keeps an `<h3>` section heading of its own outside `FoldSection` (exceptions listed with a reason and checked still needed: the export dialogs `PhotoExport` / `VideoExport`, and single-section panels such as `ProjectInspector`); `Shell.tsx` wraps its panel and inspector slots in `FoldGroup`; `common.tsx`'s `Pane` has a `FoldGroup` and no Expand all. Fails listing the media panels and inspectors.",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/components/panel/foldCoverage.test.ts"
+          ],
+          "test": "`tests/unit/components/panel/foldCoverage.test.ts` (fails first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/panel/foldCoverage.test.ts: every <h3> a component in studio/, ig/, panes/ writes itself must be excused (file + title, or '*' for the file; each with a reason and still needed): the export dialogs PhotoExport / VideoExport, and ClipInspector's single-section 'Project'; Shell.tsx wraps {panel} and {inspector} in a FoldGroup each; common.tsx's Pane has FoldGroup id={group}, Collapse all and no Expand all. Fails first as intended: 36 titles in 12 files (Audio 3, ClipInspector 4, PhotoEditPanel 8, PhotoPanels 2, SoundInspector 3, SpeedGroup 1, TransitionPanel 2, LayerPanel 4, LayerProperties 1, MaskPanel 8) and the Shell check; the print panes already pass."
+          ]
+        },
+        "T021": {
+          "text": "Groups (§4, §6): `Shell.tsx` wraps the panel in `FoldGroup id={`${mode}:${tool}`}` and the inspector in `${mode}:inspector:${kind}` (the workspaces pass the inspector's kind); `Pane` wraps its step in `print:${title}`, keeps Collapse all, drops Expand all. Checked by eye in a print step: one section open, Collapse all closes it, the feature finder opens its section.",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/Shell.tsx",
+            "src/components/studio/PhotoWorkspace.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/common.tsx"
+          ],
+          "test": "`foldCoverage.test.ts` (the Shell and Pane checks pass)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** Shell.tsx wraps the panel in FoldGroup '<mode>:<tool>' and the inspector in '<mode>:inspector:<kind>'; the shell takes a new inspectorKind prop, and each workspace's Inspector became a useInspector hook returning { kind, content } (video: sound, layer, transition, clip, project; photo: none, mask, layer, photo). Pane (T013) is 'print:<title>' with Collapse all only. Checked in Chromium at 1280 on the dev server (Photos step): one section open per step, clicking the open one closes it, a second click elsewhere moves it, the choice survives a reload, Collapse all leaves none open, no Expand all, chitthi-folds written and chitthi-sections gone; Ctrl+K 'Change the size' opens the Size section and focuses its first control; no console errors. Found and fixed on the way: under StrictMode a section's presence was registered in render and removed by the replayed cleanup, so a remembered section looked gone after a reload; registration moved into the effect (learnings.md). foldCoverage.test.ts: the Shell and Pane checks pass; npm run check red only on the panel sweep (36 titles, T022–T027)."
+          ]
+        },
+        "T022": {
+          "text": "Audio panel: Add sound stays above (D1); Record voice, Sound tracks (note e.g. \"Music · 2 tracks\") and Loudness become sections; Record voice has `openWhen` from `useRecordVoiceOpen()` (Shift + R, a Voice track's record button, the recovery bar's Recover…).",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/AudioPanel.tsx"
+          ],
+          "test": "`foldCoverage.test.ts` (AudioPanel passes)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** AudioPanel.tsx: Add sound stays above (D1); Record voice (audio.record), Sound tracks (audio.tracks, note from the tracks' roles and count, e.g. 'Music · 1 track') and Loudness (audio.loudness, note 'Off' or '−14 LUFS') are FoldSections. Record voice has openWhen from useRecordVoiceOpen() and the new FoldSection onClosed prop (called on open → closed) calls closeRecordVoice, so folding it away closes the microphone like leaving the panel (209 AC-7). Checked in Chromium at 1280 × 720 (Reel, Audio): Record voice open by default, opening Loudness closes it, Shift + R opens it again; no console errors. With the recorder open the panel is 588 px for 425 px of room (AC-5 is 590's). foldCoverage.test.ts: AudioPanel passes; npm run check red only on the remaining sweep (33 titles)."
+          ]
+        },
+        "T023": {
+          "text": "Video panels: the Media panel (the list and add button above, D1; its titled groups as sections) and Transitions (Cut and the chosen transition; the transition's section opens itself when a cut is clicked on the timeline).",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/VideoPanels.tsx",
+            "src/components/studio/TransitionPanel.tsx"
+          ],
+          "test": "`foldCoverage.test.ts` (these files pass)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** Nothing to fold in these panels: the Media panel's two groups are untitled (the drop zone and the limits note; D1 keeps them above, and there are no titled sections), and the Transitions panel is one untitled group. The transition inspector is one section in either state ('Cut' without a transition, the kind's name with one), so per §5 it stays plain: both titles join foldCoverage.test.ts's exceptions with their reason, next to ClipInspector's 'Project'. Clicking a cut already shows that inspector, so no openWhen was needed (the task's 'opens itself' does not apply to a single section). foldCoverage.test.ts: 31 titles left (T024–T027)."
+          ]
+        },
+        "T024": {
+          "text": "Photo studio panels: `PhotoPanels.tsx`'s titled groups and the photo editor (Light, Colour, Detail, Effects, Presets and LUTs, Tone curve, Colour mixer) as sections; the group's default is Light.",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/PhotoPanels.tsx",
+            "src/components/studio/PhotoEditPanel.tsx"
+          ],
+          "test": "`foldCoverage.test.ts` (these files pass)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** PhotoPanels.tsx: the drop zone stays above (D1); Batch size (photos.batch, note '<n> of <limit>', not the default) and From your photo library (photos.library, the default) are sections; the unused .ig-count rule is gone from 35-instagram.css. PhotoEditPanel.tsx: the photo's name, size and soft-photo warning stay above (PhotoName, as D4 does for clips); Frame and Presets and LUTs (defaultOpen={false}), Light (the default), Colour, Tone curve, Colour mixer, Detail, Effects are sections; Light, Colour, Detail and Effects show 'Changed' when closed with a value set, so edits are never hidden silently. Checked in Chromium at 1280 × 720 with a 1200 × 900 PNG: Photos panel 'Batch size 0 of 4' closed, library open; the inspector opens Light, Exposure +1 then opening Colour mixer leaves 'Light Changed'; no console errors. foldCoverage.test.ts: these files pass; 21 titles left (T025–T027)."
+          ]
+        },
+        "T025": {
+          "text": "Masks (D3): the mask list above; sections Selected mask (its type's settings inside under a smaller title: Brush, Linear / Radial gradient, Colour / Brightness range, the named mask) and Found by AI; Selected mask has `openWhen` on a mask being chosen.",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [
+            "src/components/ig/MaskPanel.tsx",
+            "src/styles/35-instagram.css"
+          ],
+          "test": "`foldCoverage.test.ts` (MaskPanel passes)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** MaskPanel.tsx per D3: the mask list (new mask buttons, the list) stays above; Selected mask (masks.selected, note = the mask's name, openWhen on mount so choosing a mask opens it) holds the name, invert, overlay, parts, Add, and the selected part's settings under a smaller title; Found by AI (masks.ai, note Subject / Sky, opens itself) is its own section. Brush, Linear / Radial gradient, Colour / Brightness range are .ig-sub blocks with an <h4> (35-instagram.css: .ig-sub, .ig-sub h4 at --fw-head in the heading face; DESIGN.md's weights list gained '.ig-sub h4 600', which fonts.test.ts needed: a heading-face rule without a weight counts as 400). PartSettings is shared with the layer mask in LayerProperties, which gets the same h4. With no mask selected the brush shows plain. The mask inspector's single '{mask.name}' title joins the coverage exceptions. Checked in Chromium at 1280 × 720: no mask = Brush plain; New linear = 'Selected mask · Mask 1' open with 'Linear gradient' inside; its title closes it; no console errors. The AI path was not run (model download). foldCoverage.test.ts: MaskPanel passes; 13 titles left (T026, T027)."
+          ]
+        },
+        "T026": {
+          "text": "Layers, Text, Elements and Draw (`LayerPanel.tsx`: add text and the layer list above, D1; Image, Shapes, Stickers, Brush as sections) and the layer inspector (`LayerProperties.tsx`: its keyframe arrows in `actions`).",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/components/ig/LayerPanel.tsx",
+            "src/components/ig/LayerProperties.tsx"
+          ],
+          "test": "`foldCoverage.test.ts` (these files pass)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** LayerPanel.tsx: Elements = Image (not the default), Shapes (the default), Stickers as sections; Add text and the layer list stay above (D1); the Draw panel has one titled section (Brush) and stays plain (coverage exception). LayerProperties.tsx (the layer inspector, both studios): the layer's name stays above (as D4); Text or Shape (the kind's own settings, the default), Position and size (new PlaceProps: position key, size, turn, opacity, blend; the keyframe arrows (keyNav) in the section's actions, beside its title), Mask (note Fade / Spot) and Timing (video) are sections; Duplicate and Centre stay below. Found in Chromium and fixed in FoldSection.tsx: the shell's FoldGroup stays mounted while its id changes, so the old panel's sections were still default candidates when the new panel rendered and nothing opened; the lists are now per id (useMemo on id; learnings.md). Checked in Chromium at 1280 × 720 (photo studio): Elements opens Shapes; a new text layer's inspector shows 'Text: Your words' above and opens Text; Mask → Fade gives 'Mask Fade' open; no console errors. Keyframe arrows not seen (need a video layer with keys). foldCoverage.test.ts: 8 titles left (T027)."
+          ]
+        },
+        "T027": {
+          "text": "Clip and sound inspectors: the clip's name and its missing-file / can't-export warnings stay above (D4); Timing (timing and fade), Speed, Position and size (keyframe arrows in `actions`), Frame and Colour as sections; the sound inspector's groups likewise. `foldCoverage.test.ts` passes; proven to fail by putting an `ig-group` `<h3>` back in a panel, then restored.",
+          "section": "Panels",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/ClipInspector.tsx",
+            "src/components/studio/SpeedGroup.tsx",
+            "src/components/studio/SoundInspector.tsx"
+          ],
+          "test": "`tests/unit/components/panel/foldCoverage.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** ClipInspector.tsx per D4: the clip's place and kind ('Clip 1 · photo', a .text-label), its name and size, the missing-file and can't-export notes stay above in a new .lp-head block; Timing (timing and fade, the default), Speed (SpeedGroup.tsx, note e.g. '2×', 'Ramp', '· reversed'; .v-speed kept as a wrapper inside), Position and size (keyframe arrows in actions), Frame and Colour (note 'Changed') are sections. SoundInspector.tsx likewise: track, name and span above; Volume and fades (keyframe arrows in actions) and Source fold. The unused .kf-head rule (36-media-studio.css) became .lp-head. Checked in Chromium at 1280 × 720 (Reel with a 1080 × 1920 photo clip): head 'Clip 1 · photo / still.png · 1080×1920', Timing open, Frame closes it; no console errors (sound clip and a video clip's Speed not seen in the browser). foldCoverage.test.ts passes (all 5): proven by putting an <h3> back in the Audio panel's Add sound group ('studio/AudioPanel.tsx: Add sound' listed), restored. npm run check green: 107 files, 2710 tests; lint 0 errors."
+          ]
+        },
+        "T090": {
+          "text": "Docs: `docs/DESIGN.md` (the folding rule: one open per group, untitled top above, the panel map's sections), `docs/MEDIA-STUDIO.md` (sections fold, the last one is remembered), `specs/lld.md` (`foldGroups.ts`, `FoldGroup`), CHANGELOG Unreleased › Changed.",
+          "section": "Close",
+          "status": "done",
+          "covers": [],
+          "files": [
+            "docs/DESIGN.md",
+            "docs/MEDIA-STUDIO.md",
+            "specs/lld.md",
+            "CHANGELOG.md"
+          ],
+          "test": "reviewed with the result note",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** docs/DESIGN.md §6: FoldGroup row (groups, chitthi-folds, collapseAll), FoldSection row (note, actions, openWhen, onClosed, defaultOpen={false}), PanelHeader's print actions = Collapse all, and a 'Folding' paragraph (one open, remembered per panel and mode, what stays above, single sections plain, summaries, foldCoverage.test.ts); §7's inspector table rewritten to the built sections (what stays above, then the sections) plus the Masks panel. docs/MEDIA-STUDIO.md 'The workspace': sections fold, remembered, summaries, what stays above, Shift + R / choosing a mask, Tab / Enter / Space, print Collapse all. specs/lld.md: the components map names FoldGroup and foldGroups.ts; the FoldSection paragraph now describes the groups, the store, the ids, the StrictMode and per-id rules, openWhen / onClosed / actions. CHANGELOG Unreleased › Changed has the entry. npm run check green."
+          ]
+        },
+        "T091": {
+          "text": "Close: `npm run check`, `npm run build` (entry ≤ 350 KB), `npm run lint:full`, `npm run check:licenses`; tick AC-1–AC-4 (AC-5 waits for 590); status Implemented; `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Close",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [],
+          "test": "`npm run build`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** npm run check green (107 files, 2710 tests); npm run build green, entry 312 KB (was 313; budget 350); npm run lint:full 0 errors (the pre-existing patterns.ts max-lines warning); check:licenses 169 packages allowed. Ticked AC-1 (foldGroups.test.ts, foldMarkup.test.ts), AC-2 (foldGroups.test.ts: per-group memory, fallback, openWhen; seen in Chromium: reload restores, Shift + R opens Record voice), AC-3 (foldCoverage.test.ts: no panel section title outside FoldSection, 7 reasoned exceptions), AC-4 (foldMarkup.test.ts: native buttons with aria-expanded / aria-controls, order). AC-5 (fit at 1280 × 720) waits for 590. Status Implemented."
+          ]
+        }
+      }
+    }
+  }
 }

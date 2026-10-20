@@ -5,6 +5,7 @@ import { lockedReason } from '../../engine/tracks';
 import { removeSound, setSoundFades, setSoundIn, setSoundToEnd, setSoundVolumeAt, soundVolumeAt } from '../../state/videoSound';
 import { setPlayhead, useVideo, videoLength, type VSound } from '../../state/videoStore';
 import { Check } from '../common';
+import { FoldSection } from '../panel';
 import { KeyframeNav } from './KeyframeButton';
 import { tell } from './timelineActions';
 import { KeyButton, Range } from './videoFields';
@@ -35,11 +36,11 @@ function VolumeGroup({ sound }: Readonly<SoundProps>) {
   const previous = adjacentKey(sound, local, -1);
   const next = adjacentKey(sound, local, 1);
   return (
-    <div className="ig-group">
-      <h3 className="kf-head">
-        Volume and fades
-        {sound.keys?.volume && <KeyframeNav what="sound" previous={previous === null ? null : sound.start + previous} next={next === null ? null : sound.start + next} onSeek={setPlayhead} />}
-      </h3>
+    <FoldSection
+      id="sound.volume"
+      title="Volume and fades"
+      actions={sound.keys?.volume && <KeyframeNav what="sound" previous={previous === null ? null : sound.start + previous} next={next === null ? null : sound.start + next} onSeek={setPlayhead} />}
+    >
       <div className="kf-row">
         <Range id="s-vol" label="Volume" value={volume} min={0} max={2} step={0.05} show={volume ? `${Math.round(volume * 100)}%` : 'silent'} onChange={(level) => tell(setSoundVolumeAt(sound.id, level))} />
         <KeyButton target={{ sound: sound.id }} props={['volume']} label="Volume" state={keyState(sound.keys?.volume, local)} time={time} />
@@ -67,7 +68,7 @@ function VolumeGroup({ sound }: Readonly<SoundProps>) {
       <Check checked={sound.toEnd} onChange={(on) => tell(setSoundToEnd(sound.id, on))}>
         Play to the end of the video
       </Check>
-    </div>
+    </FoldSection>
   );
 }
 
@@ -86,8 +87,9 @@ export function SoundInspector({ sound }: Readonly<SoundProps>) {
     <div className="lp">
       {locked && <p className="hint lp-locked">{locked}</p>}
       <fieldset className="lp-fs" disabled={!!locked}>
-        <div className="ig-group">
-          <h3>{trackName} · sound</h3>
+        {/* What the sound is and where it plays stay above the sections (503, as the clip's, D4). */}
+        <div className="lp-head">
+          <p className="text-label">{trackName} · sound</p>
           <p className="hint ig-name" title={name}>
             {name} · {formatTime(sound.srcDur)}
           </p>
@@ -96,8 +98,7 @@ export function SoundInspector({ sound }: Readonly<SoundProps>) {
           </p>
         </div>
         <VolumeGroup sound={sound} />
-        <div className="ig-group">
-          <h3>Source</h3>
+        <FoldSection id="sound.source" title="Source">
           <Range
             id="s-in"
             label="Plays its file from"
@@ -111,7 +112,7 @@ export function SoundInspector({ sound }: Readonly<SoundProps>) {
           <button type="button" className="btn" onClick={() => tell(removeSound(sound.id))}>
             Remove sound
           </button>
-        </div>
+        </FoldSection>
       </fieldset>
     </div>
   );

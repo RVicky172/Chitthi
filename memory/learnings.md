@@ -612,3 +612,19 @@ with `repr()` (build the character with `chr(92)`) instead of trusting what the 
 fonts.test.ts (82 tests instead of 5). Shared test helpers go in `tests/support/` (here `cssDeclarations.ts`), never
 in a `*.test.ts`. Also: a `@font-face` `font-weight: 600 800` is a range, not a rule drawing at 600; style tests read
 `textDeclarations()`, which skips `@font-face`.
+
+## 2026-10-20 — StrictMode cleans up effects once: register children in effects, not in render (503)
+
+`FoldSection` added itself to its group's "on screen" set during render and removed itself in an effect cleanup.
+In dev, StrictMode runs every cleanup once and then the effects again (not the render), so the set ended empty and
+`FoldGroup` treated the remembered section as gone: after a reload the default opened instead. Only seen in a real
+browser (the unit tests render on the server, where effects never run). Add in the effect body and remove in its
+cleanup; StrictMode's replay then rebuilds the list in document order.
+
+## 2026-10-20 — A provider that stays mounted while its id changes keeps the old children's state (503)
+
+The studio shell keeps one `FoldGroup` while the rail's tool changes; only its `id` prop changes. Its per-group lists
+(sections on screen, default candidates) lived in `useState`, so when Elements replaced Photos the new sections rendered
+while the old ones were still listed (they leave in the commit's cleanup, after the render): no new section was "first"
+and nothing opened. Per-id state goes in `useMemo(…, [id])` (or a `key={id}`); the old sections' cleanups still reach
+the old object through their closures. Server-rendered unit tests cannot see it (one render, no effects).
