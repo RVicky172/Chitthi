@@ -66,6 +66,22 @@ export interface Autosave {
   stop(): void;
 }
 
+/* ------------------------------------------------------------------ opened */
+
+/** Called with a project each time one opens (or is started) in a studio. */
+type OpenedListener = (studio: Studio, id: string) => void;
+const openedListeners = new Set<OpenedListener>();
+
+/**
+ * Listens for projects opening, e.g. so the video editor can offer voice takes left by a crash (209 AC-9).
+ * @param listener called with the studio and the project's id
+ * @returns the unsubscribe function
+ */
+export function onProjectOpened(listener: OpenedListener): () => void {
+  openedListeners.add(listener);
+  return () => openedListeners.delete(listener);
+}
+
 /* ------------------------------------------------------------------ status */
 
 let status: SaveStatus = { state: 'saved' };
@@ -144,9 +160,14 @@ export async function keepMedia(file: MediaFile, owned: boolean): Promise<string
   const keeping = running.deps.media.keep(file, owned);
   keptIds.set(
     file,
-    keeping.then((kept) => (typeof kept === 'string' ? kept : mediaKey(file)), () => mediaKey(file)),
+    keeping.then(
+      (kept) => (typeof kept === 'string' ? kept : mediaKey(file)),
+      () => mediaKey(file),
+    ),
   );
-  const kept = await keeping.catch((error: unknown) => ({ error: error instanceof Error ? error.message : String(error) }));
+  const kept = await keeping.catch((error: unknown) => ({
+    error: error instanceof Error ? error.message : String(error),
+  }));
   if (typeof kept !== 'string') running.deps.warn?.(kept.error);
   return kept;
 }
@@ -186,7 +207,11 @@ async function idsOf(files: readonly MediaFile[]): Promise<Map<MediaFile, string
  */
 export async function editorMediaIds(): Promise<Set<string>> {
   const video = getVideo();
-  const files = [...video.clips.map((clip) => clip.file), ...video.sounds.map((sound) => sound.file), ...getIg().items.map((item) => item.file)];
+  const files = [
+    ...video.clips.map((clip) => clip.file),
+    ...video.sounds.map((sound) => sound.file),
+    ...getIg().items.map((item) => item.file),
+  ];
   return new Set((await idsOf(files)).values());
 }
 
@@ -342,18 +367,38 @@ async function documentOf(studio: Studio, project: OpenProject): Promise<Saving>
     const doc = videoDocument(video, project.name, (file) => ids.get(file) ?? '');
     const first = video.clips.at(0);
     const thumb = first ? first.thumb || (first.strip.at(0) ?? '') : '';
-    return { doc, entry: { ...base, thumb, kind: video.kind, length: videoLength(video), photos: 0 }, cache: videoCache(video, ids) };
+    return {
+      doc,
+      entry: { ...base, thumb, kind: video.kind, length: videoLength(video), photos: 0 },
+      cache: videoCache(video, ids),
+    };
   }
   const batch = getIg();
   const ids = await idsOf(batch.items.map((item) => item.file));
   const doc = photoDocument(batch, project.name, (file) => ids.get(file) ?? '');
   const cover = batch.items.at(0);
   const thumb = cover && !isMissing(cover.file) ? thumbText(cover.preview) : '';
-  return { doc, entry: { ...base, thumb, kind: 'photo', length: 0, photos: batch.items.length }, cache: photoCache(batch, ids) };
+  return {
+    doc,
+    entry: { ...base, thumb, kind: 'photo', length: 0, photos: batch.items.length },
+    cache: photoCache(batch, ids),
+  };
 }
 
 /** The video fields a saved document holds (the playhead and track heights only ride along). */
-const VIDEO_FIELDS = ['kind', 'tracks', 'clips', 'sounds', 'layers', 'loudness', 'magnetic', 'format', 'fps', 'quality', 'fadeOut'] as const;
+const VIDEO_FIELDS = [
+  'kind',
+  'tracks',
+  'clips',
+  'sounds',
+  'layers',
+  'loudness',
+  'magnetic',
+  'format',
+  'fps',
+  'quality',
+  'fadeOut',
+] as const;
 /** The video fields saved with the next save, which don't call for one. */
 const VIDEO_RIDERS = ['t', 'trackView'] as const;
 /** The photo fields a saved document holds (the selected photo rides along). */
@@ -367,7 +412,8 @@ const PHOTO_RIDERS = ['selected'] as const;
  * @param fields the fields
  * @returns true when one differs
  */
-const changed = <S>(before: S, after: S, fields: readonly (keyof S)[]): boolean => fields.some((field) => before[field] !== after[field]);
+const changed = <S>(before: S, after: S, fields: readonly (keyof S)[]): boolean =>
+  fields.some((field) => before[field] !== after[field]);
 
 /* ------------------------------------------------------------------ the autosave */
 
@@ -392,7 +438,9 @@ async function warnIfNearlyFull(session: Session): Promise<void> {
   const usage = await session.deps.library.usage();
   if (usage.allowed === null || usage.used < WARN_SHARE * usage.allowed) return;
   session.warned = true;
-  session.deps.warn?.(`Projects use over 90 % of the space allowed here (${sizeText(usage.used)} of ${sizeText(usage.allowed)}). Delete projects you no longer need to keep saving.`);
+  session.deps.warn?.(
+    `Projects use over 90 % of the space allowed here (${sizeText(usage.used)} of ${sizeText(usage.allowed)}). Delete projects you no longer need to keep saving.`,
+  );
 }
 
 /**
@@ -570,7 +618,15 @@ function pageHide(save: () => void): () => void {
  */
 export function startAutosave(deps: AutosaveDeps): Autosave {
   active?.stop();
-  const session: Session = { deps, projects: new Map(), timers: new Map(), retry: null, chain: Promise.resolve(), warned: false, stopped: false };
+  const session: Session = {
+    deps,
+    projects: new Map(),
+    timers: new Map(),
+    retry: null,
+    chain: Promise.resolve(),
+    warned: false,
+    stopped: false,
+  };
   const flush = (): Promise<void> => (session.stopped ? session.chain : saveNow(session, ['video', 'photo']));
   const stopWatching = watchStores(session);
   const stopHide = (deps.onHide ?? pageHide)(() => {
@@ -591,6 +647,9 @@ export function startAutosave(deps: AutosaveDeps): Autosave {
       session.timers.delete(studio);
       session.projects.set(studio, { id, name, dirty: unsaved, lastText: '', lastCache: EMPTY_CACHE, failed: false });
       lock.hold(studio, id);
+      openedListeners.forEach((listener) => {
+        listener(studio, id);
+      });
     },
     close(studio) {
       clearTimeout(session.timers.get(studio));

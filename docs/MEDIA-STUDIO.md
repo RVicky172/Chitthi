@@ -580,7 +580,7 @@ exactly as before.
 A video's sound is its clips' own sound plus any number of **sound clips** on **audio tracks**: a song, a second song
 after it, sound effects on the cuts, an ambience bed, a recorded voice.
 
-- **Add sound** from **Audio** in the tool rail: MP3, M4A, AAC, WAV, OGG, Opus or FLAC files up to 100 MB each,
+- **Add sound** from **Audio** in the tool rail: MP3, M4A, AAC, WAV, OGG, Opus, WebM or FLAC files up to 100 MB each,
   several at once. They go at the playhead on the chosen track, or the first audio track with room there, or a new
   one. A song longer than the video, added as the first clip on the Music track, plays **to the end of the video**.
 - **Audio tracks**: every project has the **Music** track; **+** (the second button at the top left of the timeline)
@@ -631,6 +631,59 @@ with the project; the validator clamps every value and drops overlapping clips w
 multiplied in one place (`src/engine/mixGain.ts`) for the preview and the export; scans in `src/engine/soundScan.ts`
 (a Worker, `src/state/soundScan.worker.ts`), ducking in `ducking.ts`, loudness in `loudness.ts`, the limiter in
 `limiter.ts`.
+
+### Voice-over
+
+Record your voice over the video while it plays: the take is an ordinary sound clip on a Voice track, in sync with
+the picture it was spoken over.
+
+- **Record voice** is in the Audio panel; each Voice track's header also has a record button that opens it with that
+  track chosen. The take goes onto that track, else the selected sound clip's Voice track, else the first Voice track;
+  with none, a track named **Voice** is added (refused with the reason when there are already 8 audio tracks).
+- **The controls**: **Microphone** (the system default first; names show once the browser has been allowed to use
+  it), a **level meter** (−60 to 0 dBFS, 30 readings a second, **Too loud** for 2 s after a peak at −1 dBFS or above),
+  **Voice clean-up** (the browser's echo cancellation, noise suppression and automatic gain: off by default, because
+  it dulls the voice; turn it on for laptop speakers or a noisy room), **Hear the video while recording (use
+  headphones)** (off by default, so the speakers aren't recorded; the track being recorded is never played),
+  **Count-in** (Off, 3 s or 5 s, shown on the stage, silent) and **Recording offset**. The choices are remembered on
+  this device, the offset per microphone.
+- **Recording**: **Record** (or **Shift + R**) counts in, then plays the preview from the playhead and records until
+  **Stop** (Shift + R or Space), the end of the video, or 60 minutes. Esc or Stop during the count-in records nothing.
+  While recording a red **Recording** sign with the time shows on the stage and on the track.
+- **The take** is named Voice 1, Voice 2 … and starts where the playhead was when recording began. It has a waveform,
+  moves, trims, splits, fades and takes keyframes like any sound clip, counts as voice for ducking, is saved with the
+  project as its own media (408) and is in the export. The file is what the browser records: Opus in WebM (Chrome,
+  Edge, Firefox and the desktop app) or AAC in M4A (Safari), mono, about 1 MB a minute; a take saved as a file can be
+  added again with **Add sound** (a WebM's length is read from its packets when its header has none).
+- **Punch-in**: a take recorded over earlier sound on the same track replaces just the part it covers (clips inside
+  it are deleted, clips over its edges trimmed, a clip around it split), so a fluffed sentence is re-recorded without
+  redoing the rest. Other tracks are untouched. The take and what it replaced are one undo step.
+- **Sync** is worked out from the latencies the browser reports (the microphone's input latency, else the audio
+  context's). Some hardware misreports them (Bluetooth headsets most of all): move the **Recording offset** (−250 to
+  +250 ms) until a clap lands on its frame.
+- **Privacy**: the microphone is on only while the recording controls are open (for the meter) or a take records.
+  Closing them, choosing another tool, leaving the editor or hiding the tab (when not recording) turns it off at once,
+  and the browser's own recording sign goes out with it. Recordings stay on the device and are never uploaded. The
+  web app may use the microphone for its own page only; the desktop app allows its own page the microphone, audio
+  only, and refuses the camera and the screen.
+- **If the app closes mid-take**, nothing more than the last 2 s is lost: a take is written to the device every second
+  (IndexedDB, in the browser and the desktop app). The next time its project opens, a bar over the timeline says so;
+  **Recover…** opens the Audio panel, where each take is listed with its length and when it was recorded: **Add to the
+  timeline** puts it where it was recorded (with punch-in, one undo step), **Save as file** downloads it, **Discard**
+  deletes it. Takes left alone are deleted after 30 days.
+- **When it can't record**, it says why and what to do: the microphone not allowed (in the browser's site settings;
+  on Windows under Settings → Privacy & security → Microphone; on macOS under System Settings → Privacy & Security →
+  Microphone), no microphone, the microphone in use by another app, a page not served over https, or a browser that
+  can't record. A microphone unplugged mid-take keeps what was recorded ("Voice 3 kept: 41.2 s, the microphone
+  stopped."); unplugging the chosen microphone otherwise falls back to the default and says so. On a phone, locking
+  the screen or leaving the tab stops the take, which is kept.
+- **Screen readers** hear the count-in ("Recording in 3", "2", "1"), the start ("Recording on Voice"), Too loud at
+  most every 5 s, and the result ("Voice 2 added at 0:12.4, 8.6 s; replaced 2.1 s of Voice 1"). The meter has a text
+  value.
+
+The recorder is `src/state/voiceRecorder.ts` (loaded only when Record voice opens), the placement and punch-in
+`src/engine/voiceTake.ts` and `soundClips.ts` (`punchIn`, `placeTake`), the microphone `src/lib/microphone.ts`, the
+take store for recovery `src/lib/takeStore.ts`, and the controls `src/components/studio/RecordVoice.tsx`.
 
 ### The preview
 
@@ -702,7 +755,7 @@ The longer plan for advanced features (masks, curves, multi-track timeline, keyf
 | --- | --- |
 | Sound for reversed and ramped clips, and pitch-kept sound outside 0.5×–2× | Needs more audio work; those clips are silent for now |
 | Reverse together with a speed ramp; frame blending for slow motion | Rare, and doubles the cases to get right; slowed clips repeat frames |
-| Voice-over recording | Comes next (209), recording onto the audio tracks |
+| Take lanes (keeping every attempt at a voice-over), pre-roll before a punch-in, a guided sync check | Re-recording replaces the take's span (undo brings it back); the Recording offset fixes sync by hand |
 | Moving a project to another computer, or between the browser and the desktop app | Needs a project file that carries gigabytes of media (409) |
 | A clip's sound as its own clip (J and L cuts), sound linked to a picture clip | Changes how clips and their sound are linked; with compound clips (210) |
 | Pan, track volume keyframes, EQ and noise removal | Reels and Shorts are mostly heard on phones; the loudness target is the master volume |

@@ -2,7 +2,7 @@
   "$schema": "./schema/roadmap.schema.json",
   "schema": 1,
   "title": "Chitthi Studio — Roadmap",
-  "updated": "2026-10-19",
+  "updated": "2026-10-20",
   "lead": "Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.",
   "intro": "The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work\nitems (files, tests, notes and measurements for Phases 0–1) are in\n[vision/editor-implementation.md](vision/editor-implementation.md). From Phase 2 on, each work item is a feature\nfolder here and this file holds its status. Numbers follow the work-item IDs: **P2.1 → 201**, **P3.4 → 304**.",
   "currentPhase": "phase-2",
@@ -210,7 +210,7 @@
       "209": {
         "title": "Voice-over",
         "workItem": "P2.9",
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/209-voice-over",
         "needs": [

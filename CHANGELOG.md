@@ -7,6 +7,16 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Video editor: **voice-over recording**. **Record voice** in the Audio panel (or the record button on a Voice
+  track, or Shift + R) counts in, plays the video from the playhead and records your voice onto a Voice track; Stop,
+  Space or the end of the video ends the take. The take is an ordinary sound clip, in sync with the picture (a
+  Recording offset per microphone fixes hardware that misreports its delay), and a take over earlier sound on the
+  track replaces just that part (punch-in), as one undo step. Choose the microphone, watch the level meter (Too
+  loud), turn on Voice clean-up, hear the video on headphones, pick a count-in of Off, 3 or 5 s. The microphone is on
+  only while the recording controls are open, and recordings stay on the device. A take is saved every second, so if
+  the app closes mid-take the project offers to recover it. Works in the browser and the desktop app (which now asks
+  macOS for the microphone; the web app's Permissions-Policy allows the microphone for its own page only).
+- Video editor: **Add sound** takes WebM sound files (`.webm`, `.weba`), such as a voice take saved as a file.
 - Photo and video studios: **saved projects**. Every photo post and video is saved as you work (2 s after a change,
   and at once when the tab is hidden or the app closes; the top bar says Saved / Saving… / Not saved: why). The
   **Projects** button lists them with New, Open, Rename, Duplicate and Delete; opening a studio reopens the last one,

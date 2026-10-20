@@ -12,11 +12,11 @@ import { vFormat } from '../../engine/videoFormats';
 import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import { setVLayers, updateLayerAt, removeVLayer } from '../../state/videoLayers';
-import { endVStep, getVideo, projectOf, selectVLayer, setPlayhead, setPlaying, total as videoTotal, useVideo, videoLength, type VClip, type VState } from '../../state/videoStore';
+import { endVStep, getVideo, projectOf, selectVLayer, setPlayhead, setPlaying, setVideo, total as videoTotal, useVideo, videoLength, type VClip, type VState } from '../../state/videoStore';
 import { masterGainDb } from '../../state/videoSound';
 import { handleRadius, useFontsTick, useLayerPointer } from '../ig/useLayerPointer';
 import { drawPreview, heldStageFrame, noteFallback, pausedAt, pausedFrame, photoPicture, poolClip, stageSource, type Picture, type StageFrame } from './previewFrame';
-import { previewSound, soundPlan, type PreviewMix } from './previewSound';
+import { previewSound, recordingMix, soundPlan, withoutRecorded, type PreviewMix } from './previewSound';
 import { chainGainAt } from '../../engine/mixGain';
 import { audioPlan } from '../../engine/soundPlan';
 import { soundDucks } from '../../state/videoExportJob';
@@ -198,7 +198,8 @@ function drawStage({ canvas, width, height, sources, last, drawBox }: StageDrawi
 function syncMedia(sources: StageSources, isPlaying: boolean): void {
   if (!sources.mounted.current) return;
   const state = getVideo();
-  sources.sound().update(soundPlan(audibleProject(state), state.t), isPlaying, state.fps, previewMix(state));
+  // While a voice is recorded the recorded track is silent, and the rest too unless Hear the video is on (209 AC-5).
+  sources.sound().update(soundPlan(withoutRecorded(audibleProject(state), state.recording), state.t), isPlaying, state.fps, recordingMix(previewMix(state), state.recording));
   const { pool } = sources.stage();
   const onScreen = frameStack(projectOf(state), state.t);
   for (const clip of state.clips) {
@@ -267,6 +268,31 @@ function lookAhead(sources: StageSources, time: number): void {
 }
 
 /**
+ * The count-in and the Recording sign (209 Q4, AC-7): the seconds left before a voice take, then a red dot and the
+ * time recorded, on the stage. Screen readers hear "Recording" once; the running time isn't announced every frame.
+ */
+function RecordingSign() {
+  const recording = useVideo((state) => state.recording !== null);
+  const countIn = useVideo((state) => state.countIn);
+  const elapsed = useVideo((state) => (state.recording && state.playClock ? Math.max(0, state.t - state.playClock.startTime) : 0));
+  // The count-in, as numbers (no animation, no sound: Q4); the controls announce it.
+  if (countIn > 0)
+    return (
+      <p className="rv-countdown" aria-hidden="true">
+        {countIn}
+      </p>
+    );
+  if (!recording) return null;
+  return (
+    <p className="rv-sign">
+      <span className="tl-rec-dot" aria-hidden="true" />
+      <span role="status">Recording</span>
+      <span aria-hidden="true">{formatTime(elapsed)}</span>
+    </p>
+  );
+}
+
+/**
  * Playback: advances the playhead with the wall clock (from the start when at the end), keeps the clip media and the
  * music in step, and redraws each frame; stops at the end.
  * @param playing whether the video plays
@@ -280,6 +306,8 @@ function usePlayback(playing: boolean, sources: StageSources, draw: RefObject<Dr
     const startTime = startState.t >= videoLength(startState) - 0.05 ? 0 : startState.t;
     const startWall = performance.now();
     setPlayhead(startTime);
+    // The clock a voice take is placed by (209 §3).
+    setVideo({ playClock: { startTime, startWall } });
     // Play is a user gesture: the browser lets the sound's AudioContext start now (208 D3).
     void sources.sound().resume();
     let animationFrame = 0;
@@ -300,6 +328,7 @@ function usePlayback(playing: boolean, sources: StageSources, draw: RefObject<Dr
     animationFrame = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(animationFrame);
+      setVideo({ playClock: null });
       syncMedia(sources, false);
     };
   }, [playing, sources, draw]);
@@ -413,6 +442,7 @@ export function VideoStage() {
         onDoubleClick={() => document.getElementById('layer-text')?.focus()}
         {...handlers}
       />
+      <RecordingSign />
       <p className="mst-hint">{tools.tool === 'draw' ? 'Drawing: drag on the frame' : 'Drag a layer or an overlay clip to move it · Space plays'}</p>
     </div>
   );

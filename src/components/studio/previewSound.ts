@@ -161,6 +161,33 @@ export interface PreviewMix {
   gainOf: (ref: string) => number | null;
 }
 
+/** A voice take being recorded (209 §7): the track it goes onto, and whether the preview's mix is heard. */
+export interface Recording {
+  track: string;
+  hear: boolean;
+}
+
+/**
+ * The project as the preview plays it while a voice is recorded (209 AC-5): the track being recorded onto is silent.
+ * @param project the project
+ * @param recording the take being recorded, or null
+ * @returns the project (the same one when not recording)
+ */
+export function withoutRecorded<P extends Pick<Project, 'tracks'>>(project: P, recording: Recording | null): P {
+  if (!recording) return project;
+  return { ...project, tracks: project.tracks.map((track) => (track.id === recording.track ? { ...track, muted: true } : track)) };
+}
+
+/**
+ * The tick's gains while a voice is recorded (209 AC-5, Q3): silent, so the speakers aren't recorded into the take,
+ * unless Hear the video (headphones) is on. Each sound's gain goes to 0 as well, for a preview without Web Audio.
+ * @param mix the tick's gains
+ * @param recording the take being recorded, or null
+ * @returns the gains (the same ones when heard)
+ */
+export const recordingMix = (mix: PreviewMix, recording: Recording | null): PreviewMix =>
+  recording && !recording.hear ? { ...mix, master: 0, gainOf: () => 0 } : mix;
+
 /** The live graph: its context, the master gain every element plays into, and the limiter after it once loaded. */
 interface Graph {
   context: AudioContext;

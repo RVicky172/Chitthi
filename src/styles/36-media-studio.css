@@ -1727,3 +1727,95 @@
 .tl-clip-wave.tl-silent canvas {
   opacity: 0.4;
 }
+
+/* ---------- Record voice (209 §8) ---------- */
+.rv-meter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+.rv-meter {
+  flex: 1;
+  height: 10px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.rv-meter-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.rv-meter-bar.loud {
+  background: var(--danger);
+}
+.rv-meter-text {
+  min-width: 64px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.rv-loud {
+  color: var(--danger);
+  font-weight: 600;
+}
+.rv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.rv-stop {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.rv-recover {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.rv-recover-item p {
+  margin: 0 0 4px;
+}
+.tl-rec-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.tl-rec:not(.on) .tl-rec-dot {
+  opacity: 0.55;
+}
+.rv-sign {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.rv-count {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 4px 0;
+}
+.rv-countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: clamp(4rem, 14vmin, 9rem);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 60%);
+  pointer-events: none;
+}

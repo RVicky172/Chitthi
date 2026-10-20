@@ -741,3 +741,26 @@ Written by the autosave after the document, only when its text changes; a finish
 save. A cache that can't be written is logged only (it is rebuilt on opening).
 **Consequences:** reopening restores waveforms and ducking without decoding; the cache can carry entries for media a
 project no longer uses until its next write (each write is the whole cache from the editor).
+
+## D-061 — 209: takes in progress in IndexedDB on both platforms; an in-memory backend for tests (209 plan D2, D3, 2026-10-19)
+
+**Context:** a take in progress is saved every second for crash recovery (209 AC-9, Q8 says "the data folder on
+desktop"); Node has no IndexedDB for unit tests.
+**Decision (as recommended):** D2: the renderer's IndexedDB (`chitthi-takes`) on web and desktop; in the desktop app
+it already lives in the pinned data folder (`%APPDATA%\Chitthi`), so no IPC handler or file code is added. D3:
+`lib/takeStore.ts` keeps its logic over a small backend interface; unit tests use an in-memory backend
+(`tests/support/`), the thin IndexedDB backend is checked by the spike (T001) and 290's reload-mid-take e2e. No
+`fake-indexeddb`.
+**Consequences:** no new devDependency or attack surface; the IndexedDB code itself has no unit test.
+
+## D-062 — 209 Q7: Add sound accepts WebM, measured from its packets when the header has no length (2026-10-20)
+
+**Context:** voice takes are Opus in WebM (Safari: AAC in M4A), and **Save as file** gives `Voice 3.webm`, but 208's
+Add sound took only MP3, M4A, AAC, WAV, OGG, Opus and FLAC, so a saved take couldn't come back in. MediaRecorder's
+WebM has no duration in its header: the `<audio>` element reads Infinity (209 R1).
+**Decision (the maintainer):** Add sound takes `.webm` and `.weba` (whatever type the system gives, often
+`video/webm`). `soundIO.length` is the element's duration, else, only when it has none, the packet length from
+`engine/takeLength.ts` `measureTake` (loaded on use), the same measure a take gets. A file the element can't play is
+still refused without trying the packets.
+**Consequences:** a WebM video picked in Add sound is added as its sound only. The media panel still treats `.webm` as
+video, so an audio-only WebM goes through Add sound.

@@ -1,11 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { addAudioTrack, addTrack as withNewTrack, type Track } from '../../engine/tracks';
+import { addAudioTrack, addTrack as withNewTrack, soundRole, type Track } from '../../engine/tracks';
 import { isDesktop } from '../../platform/desktop';
-import type { TrackHeight } from '../../state/videoStore';
+import { useVideo, type TrackHeight } from '../../state/videoStore';
 import { addSoundTrack, addTrack, deleteTrack, moveTrack, renameTrack, setTrack, setTrackHeight } from '../../state/videoTracks';
 import { AdjustIcon, HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PlusIcon, SoloIcon } from '../icons';
 import { SoundTrackSettings } from './AudioPanel';
+import { openRecordVoice } from './recordVoiceOpen';
 import { tell } from './timelineActions';
 import { TRACK_PX } from './timelineDrag';
 
@@ -214,10 +215,33 @@ export function TrackHead({ track, height, clipCount = 0 }: Readonly<TrackHeadPr
         >
           <LockIcon on={track.locked} />
         </TrackSwitch>
+        {isSound && soundRole(track) === 'voice' && <RecordButton track={track} />}
         {isSound && <SoundSettingsButton track={track} />}
         <HeightMenu track={track} height={height} actions={actions} />
       </span>
     </div>
+  );
+}
+
+/**
+ * A Voice track's record button (209 AC-1): opens the Record voice controls with this track chosen; pressed (and red)
+ * while a take is recorded onto it.
+ * @param props the track
+ * @param props.track the Voice track
+ */
+function RecordButton({ track }: Readonly<{ track: Track }>) {
+  const recording = useVideo((state) => state.recording?.track === track.id);
+  return (
+    <button
+      type="button"
+      className={recording ? 'tl-tbtn tl-rec on' : 'tl-tbtn tl-rec'}
+      aria-pressed={recording}
+      aria-label={recording ? `Recording on ${track.name}` : `Record voice on ${track.name}`}
+      title={recording ? 'Recording: Stop in the Audio panel, Shift + R or Space' : 'Record your voice onto this track'}
+      onClick={() => openRecordVoice(track.id)}
+    >
+      <span className="tl-rec-dot" aria-hidden="true" />
+    </button>
   );
 }
 

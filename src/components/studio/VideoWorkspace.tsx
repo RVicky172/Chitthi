@@ -1,11 +1,44 @@
 import { useEffect, useState } from 'react';
 import { adjacentKey, keyState, layersAt, type LayerKeyProp } from '../../engine/keyframes';
 import { formatsFor, vFormat } from '../../engine/videoFormats';
+import { indexedDbTakes, makeTakeStore, takesToRecover, type TakeStore } from '../../lib/takeStore';
 import { isDesktop } from '../../platform/desktop';
+import { onProjectOpened } from '../../state/projectSave';
 import { addVLayer, removeVLayer, restackVLayer, setLayerTimes, updateLayerAt } from '../../state/videoLayers';
-import { getVideo, redoV, selectVLayer, setKind, setPlayhead, setPlaying, setVideoOptions, setVTools, undoV, useVideo, videoLength } from '../../state/videoStore';
-import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
-import { BrushIcon, DownloadIcon, ImageIcon, LayersIcon, MusicIcon, RedoIcon, ShapesIcon, TransitionIcon, TypeIcon, UndoIcon } from '../icons';
+import {
+  getVideo,
+  redoV,
+  selectVLayer,
+  setKind,
+  setPlayhead,
+  setPlaying,
+  setVideoOptions,
+  setVTools,
+  undoV,
+  useVideo,
+  videoLength,
+} from '../../state/videoStore';
+import {
+  AddElements,
+  AddText,
+  DrawPanel,
+  LayerList,
+  LayerProps,
+  typingIn,
+  type LayerPanelProps,
+} from '../ig/LayerPanel';
+import {
+  BrushIcon,
+  DownloadIcon,
+  ImageIcon,
+  LayersIcon,
+  MusicIcon,
+  RedoIcon,
+  ShapesIcon,
+  TransitionIcon,
+  TypeIcon,
+  UndoIcon,
+} from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { ClipInspector, ProjectInspector } from './ClipInspector';
 import { SoundInspector } from './SoundInspector';
@@ -14,6 +47,8 @@ import { StudioDialog } from './Dialog';
 import { KeyframeNav } from './KeyframeButton';
 import { StudioShell, type RailItem, type StudioMode } from './Shell';
 import { Timeline } from './Timeline';
+import { recordKeyAction } from './recordKeys';
+import { OPEN_RECORD_VOICE, closeRecordVoice, openRecordVoice, recordVoiceOpen } from './recordVoiceOpen';
 import { tell } from './timelineActions';
 import { TransitionInspector, TransitionPanel } from './TransitionPanel';
 import { Transport } from './Transport';
@@ -45,7 +80,10 @@ const RAIL: RailItem<Tool>[] = [
   { id: 'layers', label: 'Layers', icon: <LayersIcon /> },
 ];
 
-/** Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo and redo, and Space plays and pauses, anywhere but in a field. */
+/**
+ * Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo and redo, Space plays and pauses, and Shift + R records and stops a
+ * voice take (209 AC-10, opening the Record voice controls first), anywhere but in a field.
+ */
 function useWorkspaceKeys(): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -58,7 +96,16 @@ function useWorkspaceKeys(): void {
       } else if (withCommand && (key === 'y' || (key === 'z' && event.shiftKey))) {
         event.preventDefault();
         redoV();
-      } else if (key === ' ' && !(event.target instanceof HTMLButtonElement) && !(event.target instanceof Element && event.target.closest('.tl-scroll'))) {
+      } else if (recordKeyAction(event, false) === 'toggle') {
+        event.preventDefault();
+        const { open, track } = recordVoiceOpen();
+        if (!open) openRecordVoice();
+        void import('../../state/voiceRecorder').then((recorder) => recorder.toggleRecording(track ?? undefined));
+      } else if (
+        key === ' ' &&
+        !(event.target instanceof HTMLButtonElement) &&
+        !(event.target instanceof Element && event.target.closest('.tl-scroll'))
+      ) {
         event.preventDefault();
         setPlaying(!getVideo().playing);
       }
@@ -90,11 +137,28 @@ function useLayerPanelProps(): LayerPanelProps {
     onSelect: selectVLayer,
     onAdd: addVLayer,
     onUpdate: (id, patch, key) =>
-      tell(typeof patch === 'object' && 'start' in patch && !('end' in patch) ? setLayerTimes(id, { start: patch.start }, key) : updateLayerAt(id, patch, key)),
+      tell(
+        typeof patch === 'object' && 'start' in patch && !('end' in patch)
+          ? setLayerTimes(id, { start: patch.start }, key)
+          : updateLayerAt(id, patch, key),
+      ),
     keyframes: (props: LayerKeyProp[], label: string) =>
-      selectedLayer && <KeyButton target={{ layer: selectedLayer.id }} props={props} label={label} state={keyState(props[0] && selectedLayer.keys?.[props[0]], local)} time={time} />,
+      selectedLayer && (
+        <KeyButton
+          target={{ layer: selectedLayer.id }}
+          props={props}
+          label={label}
+          state={keyState(props[0] && selectedLayer.keys?.[props[0]], local)}
+          time={time}
+        />
+      ),
     keyNav: selectedLayer?.keys && (
-      <KeyframeNav what="layer" previous={previous === null ? null : start + previous} next={next === null ? null : start + next} onSeek={setPlayhead} />
+      <KeyframeNav
+        what="layer"
+        previous={previous === null ? null : start + previous}
+        next={next === null ? null : start + next}
+        onSeek={setPlayhead}
+      />
     ),
     onRemove: removeVLayer,
     onRestack: restackVLayer,
@@ -166,10 +230,24 @@ function WorkspaceActions({ kind, onExport }: Readonly<WorkspaceActionsProps>) {
   const format = vFormat(formatId);
   return (
     <>
-      <button type="button" className="btn icon ghost" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undoV}>
+      <button
+        type="button"
+        className="btn icon ghost"
+        aria-label="Undo (Ctrl+Z)"
+        title="Undo (Ctrl+Z)"
+        disabled={!canUndo}
+        onClick={undoV}
+      >
         <UndoIcon />
       </button>
-      <button type="button" className="btn icon ghost" aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redoV}>
+      <button
+        type="button"
+        className="btn icon ghost"
+        aria-label="Redo (Ctrl+Y)"
+        title="Redo (Ctrl+Y)"
+        disabled={!canRedo}
+        onClick={redoV}
+      >
         <RedoIcon />
       </button>
       <MoreMenu
@@ -189,6 +267,63 @@ function WorkspaceActions({ kind, onExport }: Readonly<WorkspaceActionsProps>) {
         <span className="mst-l">Export</span>
       </button>
     </>
+  );
+}
+
+/** The device's voice takes, read when a project opens (not the recorder's, which loads with Record voice: AC-12). */
+let takeStore: TakeStore | null = null;
+
+/**
+ * How many voice takes a crash left for the open video project (209 AC-9), checked when the editor opens and each time
+ * a project opens in it.
+ * @returns the count, and a setter (Recover… clears it)
+ */
+function useTakesToRecover(): [number, (count: number) => void] {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let live = true;
+    const check = (project: string) => {
+      takeStore ??= makeTakeStore(indexedDbTakes());
+      takeStore
+        .list()
+        .then((headers) => live && setCount(takesToRecover(headers, Date.now()).get(project) ?? 0))
+        .catch(() => undefined);
+    };
+    const stop = onProjectOpened((studio, id) => studio === 'video' && check(id));
+    import('../../state/projects')
+      .then(({ ensureProjects }) => ensureProjects())
+      .then((deps) => {
+        const open = deps.autosave.current('video');
+        if (open) check(open.id);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, []);
+  return [count, setCount];
+}
+
+/**
+ * The bar over the timeline when the open project has voice takes to recover: Recover… opens the Audio panel, where
+ * Recover voice recording lists them.
+ * @param props the count and opening the Audio panel
+ */
+function RecoverBar({ count, onOpen }: Readonly<{ count: number; onOpen: () => void }>) {
+  if (count === 0) return null;
+  return (
+    <div className="mst-missing" role="status">
+      <span>
+        {count === 1
+          ? 'A voice recording wasn’t added to this project'
+          : `${count} voice recordings weren’t added to this project`}
+        : the app closed while recording.
+      </span>
+      <button type="button" className="sbtn" onClick={onOpen}>
+        Recover…
+      </button>
+    </div>
   );
 }
 
@@ -217,6 +352,16 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
     document.addEventListener(OPEN_TRANSITIONS, open);
     return () => document.removeEventListener(OPEN_TRANSITIONS, open);
   }, []);
+  // A Voice track's record button and Shift + R open the Record voice controls in the Audio panel (209 §8); leaving
+  // the workspace closes them, and the microphone with them (AC-7).
+  useEffect(() => {
+    const open = () => setTool('audio');
+    document.addEventListener(OPEN_RECORD_VOICE, open);
+    return () => {
+      document.removeEventListener(OPEN_RECORD_VOICE, open);
+      closeRecordVoice();
+    };
+  }, []);
   useEffect(() => {
     setVTools({ tool: tool === 'draw' ? 'draw' : 'select' });
     return () => setVTools({ tool: 'select' });
@@ -224,6 +369,7 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
   useEffect(() => () => setPlaying(false), []);
   useWorkspaceKeys();
   const layerProps = useLayerPanelProps();
+  const [toRecover, setToRecover] = useTakesToRecover();
   const openExport = () => {
     setPlaying(false);
     setExporting(true);
@@ -235,7 +381,11 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
       onMode={onMode}
       rail={RAIL}
       tool={tool}
-      onTool={setTool}
+      onTool={(next) => {
+        // Another tool closes the Record voice controls, and the microphone with them (AC-7).
+        if (next !== 'audio') closeRecordVoice();
+        setTool(next);
+      }}
       actions={<WorkspaceActions kind={kind} onExport={openExport} />}
       panel={<ToolPanel tool={tool} layerProps={layerProps} />}
       inspector={<Inspector layerProps={layerProps} />}
@@ -244,11 +394,24 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
         <>
           <Transport />
           <MissingBar />
+          {tool !== 'audio' && (
+            <RecoverBar
+              count={toRecover}
+              onOpen={() => {
+                setToRecover(0);
+                setTool('audio');
+              }}
+            />
+          )}
           <Timeline />
         </>
       }
     >
-      <StudioDialog open={isExporting} onClose={() => setExporting(false)} title={kind === 'vlog' ? 'Export for YouTube' : 'Export and post'}>
+      <StudioDialog
+        open={isExporting}
+        onClose={() => setExporting(false)}
+        title={kind === 'vlog' ? 'Export for YouTube' : 'Export and post'}
+      >
         <VideoExport />
       </StudioDialog>
     </StudioShell>

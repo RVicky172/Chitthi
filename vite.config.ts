@@ -41,9 +41,11 @@ export default defineConfig(({ mode }) => {
         },
       }
     : {};
-  // vite preview serves the production Content Security Policy from the nginx config, so the browser tests
-  // (npm run test:e2e) catch anything the policy would block on a real server.
-  const csp = /Content-Security-Policy "([^"]+)"/.exec(readFileSync('nginx/security-headers.conf', 'utf8'))?.[1];
+  // vite preview serves the production Content Security Policy and Permissions-Policy from the nginx config, so the
+  // browser tests (npm run test:e2e) catch anything they would block on a real server (the microphone, 209).
+  const nginx = readFileSync('nginx/security-headers.conf', 'utf8');
+  const csp = /Content-Security-Policy "([^"]+)"/.exec(nginx)?.[1];
+  const permissions = /Permissions-Policy "([^"]+)"/.exec(nginx)?.[1];
   return {
     plugins: [react(), noTestCode()],
     // `@/` is `src/`: how tests (and, later, app code) import the app, whatever folder they are in (407 D1).
@@ -77,6 +79,10 @@ export default defineConfig(({ mode }) => {
       exclude: [...configDefaults.exclude, '.claude/**'],
     },
     // Preview adds the server's Pexels key to /api/pexels: keep it on this machine, never on a public address.
-    preview: { host: 'localhost', proxy, headers: csp ? { 'Content-Security-Policy': csp } : {} },
+    preview: {
+      host: 'localhost',
+      proxy,
+      headers: { ...(csp ? { 'Content-Security-Policy': csp } : {}), ...(permissions ? { 'Permissions-Policy': permissions } : {}) },
+    },
   };
 });

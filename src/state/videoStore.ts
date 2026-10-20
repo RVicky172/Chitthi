@@ -135,6 +135,12 @@ export interface VState {
   savedTo: string | null;
   canUndo: boolean;
   canRedo: boolean;
+  /** A voice take is being recorded onto this track (209 §7); `hear`: the preview's mix plays. Not saved, not undone. */
+  recording: { track: string; hear: boolean } | null;
+  /** The preview's clock while it plays (209 §3): the playhead and `performance.now()` when playback began. */
+  playClock: { startTime: number; startWall: number } | null;
+  /** Seconds left of a voice take's count-in, shown on the stage (209 Q4); 0 when none runs. */
+  countIn: number;
 }
 
 let state: VState = {
@@ -169,11 +175,14 @@ let state: VState = {
   savedTo: null,
   canUndo: false,
   canRedo: false,
+  recording: null,
+  playClock: null,
+  countIn: 0,
 };
 
 const listeners = new Set<() => void>();
 /** Fields whose changes leave the last export current (view settings and the export's own state). */
-const PURE = ['selected', 'layerSel', 'soundSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo', 'measure', 'measuring'];
+const PURE = ['selected', 'layerSel', 'soundSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo', 'measure', 'measuring', 'recording', 'playClock', 'countIn'];
 
 /**
  * Changes the state (not recorded for undo) and tells the subscribers.

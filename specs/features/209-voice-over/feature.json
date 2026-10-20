@@ -4,13 +4,13 @@
   "id": "209",
   "title": "Voice-over",
   "workItem": "P2.9",
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-19",
     "approved": "2026-10-19",
-    "started": null,
-    "done": null
+    "started": "2026-10-19",
+    "done": "2026-10-20"
   },
   "git": {
     "branch": "feat/209-voice-over"
@@ -69,55 +69,55 @@
           "group": "Recording",
           "proof": "unit",
           "text": "**Record voice** (in the Audio panel and on each Voice track's header, Q1) records onto a Voice track: the one whose button was used, else the selected Voice track, else the first Voice track; with no Voice track one named **Voice** is added (refused with the reason when there are already 8 audio tracks). Pressing Record starts a count-in (3 s by default; Off, 3 or 5 s, Q4), then the preview plays from the playhead and the microphone records until **Stop**, the end of the video, or a take length of 60 min (Q5, Q7). The take becomes one sound clip that starts on the timeline at the playhead's position when recording began and is as long as the recording, within 20 ms, named “Voice 1”, “Voice 2” … in recording order. Cancelling during the count-in records nothing.",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Recording",
           "proof": "unit",
           "text": "**Punch-in** (Q2): where a take overlaps sound clips on the track it was recorded on, the overlapped parts are removed (a clip fully covered is deleted, one partly covered is trimmed, one that covers the whole take is split around it), so the track never holds overlapping clips (208 AC-2). Other tracks are untouched. The take and these changes are **one undo step**: undo restores the earlier clips exactly and removes the take; redo puts it back.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "Recording",
           "proof": "unit",
           "text": "**Sync**: a word spoken while a frame is on screen lands on that frame in the take. The take is placed using the input and output latency the browser reports, plus a **Recording offset** of −250 to +250 ms (0 by default) remembered per microphone (Q10). For a fixture with a known reported latency and a simulated input delayed by it, the take's start is within 5 ms of the true position. (A clap test on real hardware, within one frame at 30 fps, is a deferred manual check.)",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Microphone",
           "proof": "unit",
           "text": "**Microphone choice and level**: the recording controls list the microphones (the system default first; names once permission is given) and remember the choice per device; unplugging the chosen one falls back to the default and says so. A **level meter** shows the input's peak in dBFS at least 20 times a second while the controls are open, whether or not recording, and marks **Too loud** for 2 s after a peak at or above −1 dBFS. **Voice clean-up** (the browser's echo cancellation, noise suppression and automatic gain, off by default, Q6) is one switch, remembered per device. For a fixture of tone bursts at known levels the meter's readings are within 0.5 dB.",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "group": "Microphone",
           "proof": "unit",
           "text": "**Hearing the video while recording** (Q3): by default the picture plays with its sound muted, so speakers aren't recorded into the take; **Hear the video (use headphones)** plays the preview's mix while recording. The track being recorded onto is never played back during the take.",
-          "done": false
+          "done": true
         },
         "AC-6": {
           "group": "Errors",
           "proof": "unit",
           "text": "**Every failure is explained, and nothing recorded is lost**: microphone permission refused (how to allow it in the browser or in the system settings on desktop), no microphone, the microphone in use by another app, not a secure page (web on plain http), recording not supported by the browser, and the microphone unplugged or failing mid-take. Each shows a message with the reason and what to do, is logged with `logError('handled', …)`, and leaves the project unchanged, except that a take cut short by a failure keeps everything recorded up to it and says so (“Voice 3 kept: 41.2 s, the microphone stopped”).",
-          "done": false
+          "done": true
         },
         "AC-7": {
           "group": "Privacy",
           "proof": "unit",
           "text": "**The microphone is open only while it is needed**: it is opened when the recording controls are opened (for the level meter) and every input track is stopped within 1 s of closing them, leaving the video workspace or the tab being hidden while not recording. While recording, a red **Recording** sign with the elapsed time shows on the stage and the timeline. The recording is stored only on the device, as imported sound files are, and sent nowhere. The web app's Permissions-Policy allows the microphone for its own page only (camera, geolocation and payment stay off), and the desktop app grants microphone access only to its own page and only for audio: a request for the camera, the screen or from any other origin is refused (Q12).",
-          "done": false
+          "done": true
         },
         "AC-8": {
           "group": "The take",
           "proof": "unit",
           "text": "**A take is an ordinary sound clip**: it has its waveform (208 AC-4), can be moved, trimmed, split, faded, keyframed and deleted like any sound clip, counts as voice for ducking on Music and Effects tracks (208 AC-6, updated within 1 s of the take ending), is saved with the project and found again after a reload or reopening the desktop app, and is in the export. Its file is a format the app's sound import accepts (Q7) and is kept as the project's own media (408: `keepMedia(file, true)`, copied into the browser's project storage, or into `library/media/` in the desktop app), so it is there whenever the project is reopened, and deleting the last project that uses it frees it.",
-          "done": false
+          "done": true
         },
         "AC-9": {
           "group": "The take",
           "proof": "unit",
           "text": "**Crash safety** (Q8): while recording, the take is saved to the device at least once a second. If the tab or app closes, crashes or loses power mid-take, the next time the project is opened it offers “Recover voice recording (Voice 3, 41 s, recorded 19 Oct 14:02)”: **Add to the timeline** places it where it was being recorded (with punch-in, one undo step) and **Discard** deletes it. At most the last 2 s are lost. Recordings not recovered or discarded within 30 days are deleted.",
-          "done": false
+          "done": true
         },
         "AC-10": {
           "group": "Keyboard and screen readers",
@@ -188,7 +188,7 @@
           "open": false
         },
         "Q7": {
-          "text": "What format and limits? _Answer (accepted 2026-10-19):_ whatever the browser records natively that our sound import accepts: Opus in WebM on Chromium, Electron and Firefox, AAC in MP4 on Safari, mono, at the microphone's rate; up to 60 min per take (about 60 MB at 128 kb/s, under 208's 100 MB per sound file). No re-encoding to WAV (it would be 10× larger and the export re-encodes to AAC anyway).",
+          "text": "What format and limits? _Answer (accepted 2026-10-19):_ whatever the browser records natively that our sound import accepts: Opus in WebM on Chromium, Electron and Firefox, AAC in MP4 on Safari, mono, at the microphone's rate; up to 60 min per take (about 60 MB at 128 kb/s, under 208's 100 MB per sound file). No re-encoding to WAV (it would be 10× larger and the export re-encodes to AAC anyway). **Add sound also accepts WebM** (`.webm` / `.weba`; the maintainer, 2026-10-20), so a take saved with **Save as file** (or any WebM sound) can be added again; a WebM without a duration in its header (MediaRecorder writes none) is measured from its packets, as a take is.",
           "open": false
         },
         "Q8": {
@@ -241,6 +241,22 @@
       {
         "date": "2026-10-19",
         "text": "AC-8 re-read against 408 (D-058, 408 T111): a finished take is the project's own media (`keepMedia(file, true)`) and reopens with the project; the `.chitthi` clause is dropped (project files are 409, 408 Q7). The take store keeps takes in progress only, for crash recovery (AC-9)."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Plan D2 (IndexedDB on both platforms) and D3 (in-memory take store backend for unit tests) chosen as recommended (D-061); plan Approved; tasks written; deferred checks added to 290."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Plan §6, §9 after the T001 spike: a take's length is its decoded length (computeDuration is one packet short on WebM); vite preview also sends the Permissions-Policy."
+      },
+      {
+        "date": "2026-10-19",
+        "text": "Task T063 added: recovery offered when a project opens (found during T060/T061: the offer otherwise shows only in the Audio panel)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Q7 extended by the maintainer: Add sound accepts WebM sound files (`.webm`, `.weba`), measured from their packets when the header has no duration (task T064, D-062)."
       }
     ],
     "sections": [
@@ -277,7 +293,7 @@
     ]
   },
   "plan": {
-    "header": "**Spec:** `./spec.md` · **Status:** Draft (D1: C chosen; 408 implemented and 209 re-read against it on 2026-10-19; D2–D3 for the maintainer) <!-- Draft | Approved -->",
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (D1: C, 408 implemented; D2, D3 as recommended, 2026-10-19) <!-- Draft | Approved -->",
     "files": [
       {
         "file": "`src/engine/voiceTake.ts`, `tests/unit/engine/voiceTake.test.ts`",
@@ -350,9 +366,9 @@
         "purpose": "§9: use permissions.cjs; `files:`; `NSMicrophoneUsageDescription`; audio-input entitlement"
       },
       {
-        "file": "`nginx/security-headers.conf`",
+        "file": "`nginx/security-headers.conf`, `vite.config.ts`",
         "change": "modify",
-        "purpose": "§9: `microphone=(self)`"
+        "purpose": "§9: `microphone=(self)`; preview sends the Permissions-Policy (T001)"
       },
       {
         "file": "`docs/MEDIA-STUDIO.md`, `docs/DESKTOP.md`, `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`",
@@ -376,7 +392,7 @@
         "text": "**R3 Sync accuracy** varies with hardware and browsers that misreport latency (Bluetooth). Mitigation: the manual Recording offset (Q10); the clap test in 290 on the maintainer's laptop with the built-in microphone and a USB one; if the reported latency makes it worse anywhere, fall back to 0 there."
       },
       {
-        "text": "**R4 IndexedDB in unit tests** (Node has none). Mitigation: `takeStore` behind an interface with an in-memory implementation for tests; the IndexedDB part is thin and checked by the spike and by 290's e2e (reload mid-take). No new devDependency unless the maintainer prefers `fake-indexeddb` (MIT/Apache-2.0)."
+        "text": "**R4 IndexedDB in unit tests** (Node has none). Mitigation: `takeStore` behind an interface with an in-memory implementation for tests; the IndexedDB part is thin and checked by the spike and by 290's e2e (reload mid-take). No new devDependency (D3, chosen 2026-10-19)."
       },
       {
         "text": "**R5 macOS microphone permission under the hardened runtime**: without the audio-input entitlement the system silently returns silence. Mitigation: entitlement + `NSMicrophoneUsageDescription` in this feature; checked on the maintainer's Mac in 290 (AC-11). Unsigned builds still ask (the prompt names the app)."
@@ -388,7 +404,7 @@
     "constitution": [
       {
         "principle": "I. Spec Before Code",
-        "status": "⚠️",
+        "status": "✅",
         "notes": "Spec approved 2026-10-19 (Q1–Q14 accepted). AC-8 re-read against 408 (D-058, 2026-10-19): a take is saved as the project's own media and reopens with the project; the take store keeps takes in progress only (AC-9)."
       },
       {
@@ -446,7 +462,7 @@
       {
         "kind": "markdown",
         "title": "Approach",
-        "markdown": "Today a voice can only come in as a file (208's **Add sound**). 209 adds a recorder that turns the microphone into the same thing: a `VSound` with a `Blob` and an object URL, placed on a Voice track by a pure engine function and committed with one `change()` (one undo step). Everything after the take ends (waveform, ducking, edits, export) is 208's code, unchanged. The browser's own pieces do the hard parts: `getUserMedia` for the microphone, `MediaRecorder` for encoding (Opus in WebM, AAC in MP4 on Safari, Q7), an `AnalyserNode` for the meter. No new dependency. Under D-033 every task is proven by unit tests on pure functions and on the recorder with injected fakes; the fake-microphone e2e, the clap test and the timing run go to 290.\n\n**§1 Where a take goes (`engine/voiceTake.ts`, AC-1).** `recordTarget(tracks, chosen, selected)` picks the Voice track (the button's, else the selected Voice track, else the first Voice track) or adds one named **Voice** with role Voice (`addAudioTrack` + `setAudioTrack`), or returns 208's eight-track refusal. `takeName(sounds)` is “Voice N”, N one more than the highest “Voice N” already in the project. `canRecord(video)` refuses with the reason when the video is empty, the playhead is at its end, or the track is locked.\n\n**§2 Punch-in (`engine/soundClips.ts`, AC-2).** `punchIn(audio, track, start, end, ctx)` clears `[start, end)` on one track: a clip inside it is deleted, one overlapping an edge is trimmed (its keys stay on the same sound, as `trimSound` does), one covering the whole span is split around it (`splitKeys`), a `toEnd` clip is first turned into a fixed length (as `moveSound` does past the end). `placeTake(audio, tracks, take, start, track, ctx)` = `punchIn` + the take on exactly that track, never another; it returns the new clips and what was replaced (seconds per clip name) for the announcement. Pure, so AC-2 is a unit test, and one `change('', { sounds, tracks })` makes the take, the punch-in and a new Voice track one undo step.\n\n**§3 Sync (`engine/voiceTake.ts`, AC-3).** The preview's clock is wall time: `usePlayback` (VideoStage.tsx) maps `performance.now()` to the playhead from a `(startTime, startWall)` pair. Recording starts playback from the recorder's `start` event, and the recorder reads that pair (§5). `takeStart({ playStart, playWall, captureWall, inputLatency, offset })` returns the timeline second of the take's first sample: the playhead at the moment capture began, minus the input latency (the microphone hears a word that much before the recorder gets it), plus the user's **Recording offset** (−250 to +250 ms, per microphone, Q10). Output latency matters only for the video's sound, which is muted by default (Q3), and the picture is drawn in the same frame as the playhead, so the input side is what is compensated. `inputLatency` comes from the track's `getSettings().latency` where the browser reports it, else the audio context's `baseLatency`, else 0. The take's length is measured from its file (§6), not the wall clock, and checked against it (within 20 ms, AC-1).\n\n**§4 The microphone (`lib/microphone.ts`, `engine/voiceLevel.ts`, AC-4, AC-5).** `lib/microphone.ts` wraps `navigator.mediaDevices`: `listMicrophones()` (default first), `openMicrophone(deviceId, cleanUp)` (audio only, mono; `echoCancellation`, `noiseSuppression`, `autoGainControl` all equal to the **Voice clean-up** switch, Q6), `onDevicesChanged()`, and `micFailure(error)` mapping `NotAllowedError`, `NotFoundError`, `NotReadableError`, `SecurityError` / no secure context, and a missing `MediaRecorder` to the messages of AC-6 (desktop: “Allow Chitthi Studio under Privacy → Microphone in System Settings” on macOS, “Settings → Privacy & security → Microphone” on Windows). The meter is an `AnalyserNode` on its own `AudioContext`; `engine/voiceLevel.ts` has `peakDbfs(samples)` and `tooLoud(history, now)` (≥ −1 dBFS, held 2 s) as pure functions, read at least 20 times a second (a rAF loop throttled to 30 Hz). Choices (microphone, clean-up, count-in, offset per microphone, Hear the video) are saved in `localStorage` (`chitthi.voice`, try/catch) and validated on read.\n\n**§5 The recorder (`state/voiceRecorder.ts`, AC-1, AC-5–AC-7).** A small store (`useSyncExternalStore`, like the others, no undo) with phases `closed → ready → countIn → recording → finishing`, and the current level, elapsed time and message. Its IO is injected (`recorderIO`: microphone, `MediaRecorder` maker, clock, timers, the take store), so unit tests drive it with fakes, time as input (Constitution II). `openControls(track)` opens the microphone for the meter (AC-7); `closeControls()`, leaving the workspace, and `visibilitychange` to hidden while not recording stop every input track at once (well under 1 s). `record()` runs the count-in (Off / 3 / 5 s, Esc or Stop cancels with nothing recorded), then `recorder.start(1000)`, and on its `start` event sets `recording` in the video store and starts playback (§3). It stops on Stop / Shift + R / Space, when playback reaches the end of the video (`playing` turns false), at 60 min, or when the track ends (unplugged, background tab on a phone, Q13), keeping what was recorded (AC-6). Then §6, §2, one `change()`, `scanMedia()` (208's waveform and ducking scan) and the announcement.\n\n**§6 Takes on the device (`lib/takeStore.ts`, AC-8, AC-9, D1, re-read against 408).** A take **in progress** is kept for crash recovery only: each `dataavailable` chunk (every second) is appended to IndexedDB, database `chitthi-takes` (its own, so `chitthi`'s version doesn't change), store `takes`: `{ id, name, startedAt, track, start, mime, chunks: Blob[], done }`. In the desktop app this IndexedDB lives in the pinned data folder (`%APPDATA%\\Chitthi`, Q8), so no new IPC is needed. On stop the chunks are joined into one `Blob`; its length comes from Mediabunny's `Input.computeDuration()` (MediaRecorder's WebM has no duration header, so the `<audio>` element reads Infinity: R1), which also proves the file decodes before it is placed. The finished take is then kept as the project's own media with 408's `keepMedia(file, true)` (owned: copied into OPFS in the browser, written into `library/media/<id>` on desktop) before `addTake()` places it, and its entry in `chitthi-takes` is deleted once the clip is on the timeline: from then on the project (408's autosave) holds it. A full disk (`QuotaExceededError`, or the media store's 'no room') keeps the take on the timeline in memory and says it can't be kept. Takes in progress older than 30 days are deleted when the store opens. Recovery of an interrupted take: AC-9, D1.\n\n**§7 The preview while recording (`state/videoStore.ts`, `components/studio/VideoStage.tsx`, `previewSound.ts`, AC-5).** `VState.recording: { track: string; hear: boolean } | null` (not saved, not undone, leaves the last export current). `soundsAt` skips the recorded track while `recording` is set, and the stage sets the master gain to 0 unless `hear`. `usePlayback` writes its `(startTime, startWall)` to `playClock` in the store, which the recorder reads (§3). The **Recording** sign (red dot, elapsed time, `role=\"status\"`) shows on the stage and on the track's row.\n\n**§8 The UI (`components/studio/RecordVoice.tsx`, `AudioPanel.tsx`, `TrackHead.tsx`, `VideoWorkspace.tsx`, AC-1, AC-10, AC-12).** A **Record voice** group in the Audio panel (Q1), loaded with `lazy()` so the recorder and the meter stay out of every other chunk: microphone menu, meter (a bar with −60…0 dBFS, Too loud), Voice clean-up, Hear the video (use headphones), count-in (Off / 3 / 5 s), Recording offset, the target track, **Record** / **Stop**, and the messages. Voice tracks' headers get a record button that opens the Audio panel with that track chosen. VideoWorkspace's key handler gets Shift + R (record / stop) and Esc (cancel a count-in); Space stops a take (Q11). Announcements go through 208's `tell()` live region (AC-10's wording, Too loud at most every 5 s).\n\n**§9 Permissions (`nginx/security-headers.conf`, `electron/permissions.cjs`, `electron/main.cjs`, `electron-builder.yml`, `build/entitlements.mac.plist`, AC-7, AC-11).** Web: `microphone=(self)`; camera, geolocation and payment stay `()` (vite preview reads the same file, so e2e sees it). Desktop: the request and check handlers move into a new `electron/permissions.cjs` with one pure predicate, `allowed(permission, details, appOrigin)`: today's two permissions, plus `media` only when the requesting origin is `app://chitthi` and the media types are exactly `['audio']` (the check handler: `mediaType === 'audio'`). On macOS the request handler first asks the system (`systemPreferences.getMediaAccessStatus('microphone')`, `askForMediaAccess`), and the build adds `NSMicrophoneUsageDescription` (`mac.extendInfo`) and the `com.apple.security.device.audio-input` entitlement, which the hardened runtime needs. No IPC handler is added. The new file goes into `files:` in `electron-builder.yml`. The CSP needs nothing: `media-src 'self' blob:` already covers playing the takes.\n\n**§10 Docs (AC-13).** `docs/MEDIA-STUDIO.md` (Record voice section, keys, limits, privacy, recovery; “Still to do” drops voice-over), `docs/DESKTOP.md` (microphone permission on Windows and macOS), `specs/lld.md` (recorder phases, placement formula, take store, permission predicate), `CHANGELOG.md`, the in-app docs (`src/data/docs.ts`)."
+        "markdown": "Today a voice can only come in as a file (208's **Add sound**). 209 adds a recorder that turns the microphone into the same thing: a `VSound` with a `Blob` and an object URL, placed on a Voice track by a pure engine function and committed with one `change()` (one undo step). Everything after the take ends (waveform, ducking, edits, export) is 208's code, unchanged. The browser's own pieces do the hard parts: `getUserMedia` for the microphone, `MediaRecorder` for encoding (Opus in WebM, AAC in MP4 on Safari, Q7), an `AnalyserNode` for the meter. No new dependency. Under D-033 every task is proven by unit tests on pure functions and on the recorder with injected fakes; the fake-microphone e2e, the clap test and the timing run go to 290.\n\n**§1 Where a take goes (`engine/voiceTake.ts`, AC-1).** `recordTarget(tracks, chosen, selected)` picks the Voice track (the button's, else the selected Voice track, else the first Voice track) or adds one named **Voice** with role Voice (`addAudioTrack` + `setAudioTrack`), or returns 208's eight-track refusal. `takeName(sounds)` is “Voice N”, N one more than the highest “Voice N” already in the project. `canRecord(video)` refuses with the reason when the video is empty, the playhead is at its end, or the track is locked.\n\n**§2 Punch-in (`engine/soundClips.ts`, AC-2).** `punchIn(audio, track, start, end, ctx)` clears `[start, end)` on one track: a clip inside it is deleted, one overlapping an edge is trimmed (its keys stay on the same sound, as `trimSound` does), one covering the whole span is split around it (`splitKeys`), a `toEnd` clip is first turned into a fixed length (as `moveSound` does past the end). `placeTake(audio, tracks, take, start, track, ctx)` = `punchIn` + the take on exactly that track, never another; it returns the new clips and what was replaced (seconds per clip name) for the announcement. Pure, so AC-2 is a unit test, and one `change('', { sounds, tracks })` makes the take, the punch-in and a new Voice track one undo step.\n\n**§3 Sync (`engine/voiceTake.ts`, AC-3).** The preview's clock is wall time: `usePlayback` (VideoStage.tsx) maps `performance.now()` to the playhead from a `(startTime, startWall)` pair. Recording starts playback from the recorder's `start` event, and the recorder reads that pair (§5). `takeStart({ playStart, playWall, captureWall, inputLatency, offset })` returns the timeline second of the take's first sample: the playhead at the moment capture began, minus the input latency (the microphone hears a word that much before the recorder gets it), plus the user's **Recording offset** (−250 to +250 ms, per microphone, Q10). Output latency matters only for the video's sound, which is muted by default (Q3), and the picture is drawn in the same frame as the playhead, so the input side is what is compensated. `inputLatency` comes from the track's `getSettings().latency` where the browser reports it, else the audio context's `baseLatency`, else 0. The take's length is measured from its file (§6), not the wall clock, and checked against it (within 20 ms, AC-1).\n\n**§4 The microphone (`lib/microphone.ts`, `engine/voiceLevel.ts`, AC-4, AC-5).** `lib/microphone.ts` wraps `navigator.mediaDevices`: `listMicrophones()` (default first), `openMicrophone(deviceId, cleanUp)` (audio only, mono; `echoCancellation`, `noiseSuppression`, `autoGainControl` all equal to the **Voice clean-up** switch, Q6), `onDevicesChanged()`, and `micFailure(error)` mapping `NotAllowedError`, `NotFoundError`, `NotReadableError`, `SecurityError` / no secure context, and a missing `MediaRecorder` to the messages of AC-6 (desktop: “Allow Chitthi Studio under Privacy → Microphone in System Settings” on macOS, “Settings → Privacy & security → Microphone” on Windows). The meter is an `AnalyserNode` on its own `AudioContext`; `engine/voiceLevel.ts` has `peakDbfs(samples)` and `tooLoud(history, now)` (≥ −1 dBFS, held 2 s) as pure functions, read at least 20 times a second (a rAF loop throttled to 30 Hz). Choices (microphone, clean-up, count-in, offset per microphone, Hear the video) are saved in `localStorage` (`chitthi.voice`, try/catch) and validated on read.\n\n**§5 The recorder (`state/voiceRecorder.ts`, AC-1, AC-5–AC-7).** A small store (`useSyncExternalStore`, like the others, no undo) with phases `closed → ready → countIn → recording → finishing`, and the current level, elapsed time and message. Its IO is injected (`recorderIO`: microphone, `MediaRecorder` maker, clock, timers, the take store), so unit tests drive it with fakes, time as input (Constitution II). `openControls(track)` opens the microphone for the meter (AC-7); `closeControls()`, leaving the workspace, and `visibilitychange` to hidden while not recording stop every input track at once (well under 1 s). `record()` runs the count-in (Off / 3 / 5 s, Esc or Stop cancels with nothing recorded), then `recorder.start(1000)`, and on its `start` event sets `recording` in the video store and starts playback (§3). It stops on Stop / Shift + R / Space, when playback reaches the end of the video (`playing` turns false), at 60 min, or when the track ends (unplugged, background tab on a phone, Q13), keeping what was recorded (AC-6). Then §6, §2, one `change()`, `scanMedia()` (208's waveform and ducking scan) and the announcement.\n\n**§6 Takes on the device (`lib/takeStore.ts`, AC-8, AC-9, D1, re-read against 408).** A take **in progress** is kept for crash recovery only: each `dataavailable` chunk (every second) is appended to IndexedDB, database `chitthi-takes` (its own, so `chitthi`'s version doesn't change), store `takes`: `{ id, name, startedAt, track, start, mime, chunks: Blob[], done }`. In the desktop app this IndexedDB lives in the pinned data folder (`%APPDATA%\\Chitthi`, Q8), so no new IPC is needed. On stop the chunks are joined into one `Blob`; its length is the decoded length (Mediabunny's `Input.computeDuration()` misses the last packet in WebM: 60 ms on Chromium, 20 ms on Firefox, T001) (MediaRecorder's WebM has no duration header, so the `<audio>` element reads Infinity: R1), which also proves the file decodes before it is placed. The finished take is then kept as the project's own media with 408's `keepMedia(file, true)` (owned: copied into OPFS in the browser, written into `library/media/<id>` on desktop) before `addTake()` places it, and its entry in `chitthi-takes` is deleted once the clip is on the timeline: from then on the project (408's autosave) holds it. A full disk (`QuotaExceededError`, or the media store's 'no room') keeps the take on the timeline in memory and says it can't be kept. Takes in progress older than 30 days are deleted when the store opens. Recovery of an interrupted take: AC-9, D1.\n\n**§7 The preview while recording (`state/videoStore.ts`, `components/studio/VideoStage.tsx`, `previewSound.ts`, AC-5).** `VState.recording: { track: string; hear: boolean } | null` (not saved, not undone, leaves the last export current). `soundsAt` skips the recorded track while `recording` is set, and the stage sets the master gain to 0 unless `hear`. `usePlayback` writes its `(startTime, startWall)` to `playClock` in the store, which the recorder reads (§3). The **Recording** sign (red dot, elapsed time, `role=\"status\"`) shows on the stage and on the track's row.\n\n**§8 The UI (`components/studio/RecordVoice.tsx`, `AudioPanel.tsx`, `TrackHead.tsx`, `VideoWorkspace.tsx`, AC-1, AC-10, AC-12).** A **Record voice** group in the Audio panel (Q1), loaded with `lazy()` so the recorder and the meter stay out of every other chunk: microphone menu, meter (a bar with −60…0 dBFS, Too loud), Voice clean-up, Hear the video (use headphones), count-in (Off / 3 / 5 s), Recording offset, the target track, **Record** / **Stop**, and the messages. Voice tracks' headers get a record button that opens the Audio panel with that track chosen. VideoWorkspace's key handler gets Shift + R (record / stop) and Esc (cancel a count-in); Space stops a take (Q11). Announcements go through 208's `tell()` live region (AC-10's wording, Too loud at most every 5 s).\n\n**§9 Permissions (`nginx/security-headers.conf`, `electron/permissions.cjs`, `electron/main.cjs`, `electron-builder.yml`, `build/entitlements.mac.plist`, AC-7, AC-11).** Web: `microphone=(self)`; camera, geolocation and payment stay `()` (vite preview reads the CSP from the same file; it is changed to send the Permissions-Policy too, so e2e sees it: T001 found it sends only the CSP). Desktop: the request and check handlers move into a new `electron/permissions.cjs` with one pure predicate, `allowed(permission, details, appOrigin)`: today's two permissions, plus `media` only when the requesting origin is `app://chitthi` and the media types are exactly `['audio']` (the check handler: `mediaType === 'audio'`). On macOS the request handler first asks the system (`systemPreferences.getMediaAccessStatus('microphone')`, `askForMediaAccess`), and the build adds `NSMicrophoneUsageDescription` (`mac.extendInfo`) and the `com.apple.security.device.audio-input` entitlement, which the hardened runtime needs. No IPC handler is added. The new file goes into `files:` in `electron-builder.yml`. The CSP needs nothing: `media-src 'self' blob:` already covers playing the takes.\n\n**§10 Docs (AC-13).** `docs/MEDIA-STUDIO.md` (Record voice section, keys, limits, privacy, recovery; “Still to do” drops voice-over), `docs/DESKTOP.md` (microphone permission on Windows and macOS), `specs/lld.md` (recorder phases, placement formula, take store, permission predicate), `CHANGELOG.md`, the in-app docs (`src/data/docs.ts`)."
       },
       {
         "kind": "files",
@@ -465,7 +481,7 @@
       {
         "kind": "markdown",
         "title": "Test Approach",
-        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `tests/unit/engine/voiceTake.test.ts` (target track, new Voice track, 8-track refusal, names, can't record); `tests/integration/state/voiceRecorder.test.ts` (count-in Off / 3 / 5 and cancel, stop by Stop, at the end of the video, at 60 min; clip start and length within 20 ms with the fake clock) | unit, integration |\n| AC-2 | `tests/unit/engine/soundClips.test.ts`: `punchIn` / `placeTake` for inside, each edge, covering, several clips, a `toEnd` clip, keyframes kept, other tracks untouched; `voiceRecorder.test.ts`: one undo step, undo restores exactly, redo | unit, integration |\n| AC-3 | `voiceTake.test.ts`: `takeStart` with a known latency and a simulated input delayed by it (within 5 ms), offset ±250 ms, clamped at 0. Clap test on real hardware: **290** (manual) | unit; manual in 290 |\n| AC-4 | `tests/unit/engine/voiceLevel.test.ts` (tone bursts at −40, −20, −6, −1, 0 dBFS within 0.5 dB; Too loud held 2 s); `tests/unit/lib/microphone.test.ts` (default first, saved choice, unplugged → default and message, clean-up constraints, prefs validated) | unit |\n| AC-5 | `tests/unit/components/studio/previewSound.test.ts` (or the integration test): the recorded track not in the plan while recording; the mix silent unless `hear` | unit |\n| AC-6 | `microphone.test.ts`: each failure → its message (web, macOS, Windows); `voiceRecorder.test.ts`: the track ending mid-take keeps the recording and says so, `logError('handled')` called, project unchanged on failures before recording | unit, integration |\n| AC-7 | `voiceRecorder.test.ts`: every track stopped on close, leaving, hidden tab (fake clock: within 1 s); `tests/unit/electron/permissions.test.ts`: audio from `app://chitthi` allowed; video, audio+video, display capture, other origins refused; check handler; a test reads `nginx/security-headers.conf` for `microphone=(self)` and `camera=()` | unit |\n| AC-8 | `voiceRecorder.test.ts`: the take is a `VSound` with the take's blob, scanned (`scanMedia` called), editable by 208's edits, role Voice counts for ducking | integration |\n| AC-9 | `tests/unit/lib/takeStore.test.ts` (with `fake-indexeddb` if already in devDependencies, else an in-memory stand-in behind the same interface: R4): chunks appended each second, list after a “crash”, join order, remove, 30-day sweep; `voiceRecorder.test.ts`: Add to the timeline places at the stored start with punch-in, one undo step | unit, integration |\n| AC-10 | Playwright with Chromium's fake microphone (`--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream`): keys, announcements, axe: **290** | e2e in 290 |\n| AC-11 | Same, desktop and phone projects: a 5 s take at the playhead, in the exported MP4 within 20 ms; desktop app manually on Windows and macOS: **290** | e2e, manual in 290 |\n| AC-12 | Timing run (10-minute take over 1080p 30 fps, dropped frames, memory) and the build's entry check: **290**; `npm run build` at the end of 209 checks the entry chunk | timing in 290; build |\n| AC-13 | Review of the docs at the end of 209 | review |"
+        "markdown": "| AC | Test | Type |\n| --- | --- | --- |\n| AC-1 | `tests/unit/engine/voiceTake.test.ts` (target track, new Voice track, 8-track refusal, names, can't record); `tests/integration/state/voiceRecorder.test.ts` (count-in Off / 3 / 5 and cancel, stop by Stop, at the end of the video, at 60 min; clip start and length within 20 ms with the fake clock) | unit, integration |\n| AC-2 | `tests/unit/engine/soundClips.test.ts`: `punchIn` / `placeTake` for inside, each edge, covering, several clips, a `toEnd` clip, keyframes kept, other tracks untouched; `voiceRecorder.test.ts`: one undo step, undo restores exactly, redo | unit, integration |\n| AC-3 | `voiceTake.test.ts`: `takeStart` with a known latency and a simulated input delayed by it (within 5 ms), offset ±250 ms, clamped at 0. Clap test on real hardware: **290** (manual) | unit; manual in 290 |\n| AC-4 | `tests/unit/engine/voiceLevel.test.ts` (tone bursts at −40, −20, −6, −1, 0 dBFS within 0.5 dB; Too loud held 2 s); `tests/unit/lib/microphone.test.ts` (default first, saved choice, unplugged → default and message, clean-up constraints, prefs validated) | unit |\n| AC-5 | `tests/unit/components/studio/previewSound.test.ts` (or the integration test): the recorded track not in the plan while recording; the mix silent unless `hear` | unit |\n| AC-6 | `microphone.test.ts`: each failure → its message (web, macOS, Windows); `voiceRecorder.test.ts`: the track ending mid-take keeps the recording and says so, `logError('handled')` called, project unchanged on failures before recording | unit, integration |\n| AC-7 | `voiceRecorder.test.ts`: every track stopped on close, leaving, hidden tab (fake clock: within 1 s); `tests/unit/electron/permissions.test.ts`: audio from `app://chitthi` allowed; video, audio+video, display capture, other origins refused; check handler; a test reads `nginx/security-headers.conf` for `microphone=(self)` and `camera=()` | unit |\n| AC-8 | `voiceRecorder.test.ts`: the take is a `VSound` with the take's blob, scanned (`scanMedia` called), editable by 208's edits, role Voice counts for ducking | integration |\n| AC-9 | `tests/unit/lib/takeStore.test.ts` (an in-memory backend behind the same interface, D3): chunks appended each second, list after a “crash”, join order, remove, 30-day sweep; `voiceRecorder.test.ts`: Add to the timeline places at the stored start with punch-in, one undo step | unit, integration |\n| AC-10 | Playwright with Chromium's fake microphone (`--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream`): keys, announcements, axe: **290** | e2e in 290 |\n| AC-11 | Same, desktop and phone projects: a 5 s take at the playhead, in the exported MP4 within 20 ms; desktop app manually on Windows and macOS: **290** | e2e, manual in 290 |\n| AC-12 | Timing run (10-minute take over 1080p 30 fps, dropped frames, memory) and the build's entry check: **290**; `npm run build` at the end of 209 checks the entry chunk | timing in 290; build |\n| AC-13 | Review of the docs at the end of 209 | review |"
       },
       {
         "kind": "risks",
@@ -478,9 +494,562 @@
       {
         "kind": "markdown",
         "title": "Decisions for the maintainer",
-        "markdown": "**D1 Video projects aren't saved, so what happens to takes after a reload?** The spec's AC-8 says a take is “saved with the project and found again after a reload … an exported `.chitthi` project carries it”, and AC-9 offers recovery “the next time the project is opened”. The video studio has no project saving today (the document shape and validator exist; nothing writes or opens a video project), so after a reload the timeline is empty and every clip is gone. Imported files are still on the user's disk; a recorded voice exists nowhere else.\n- **A (recommended):** keep every take, finished or interrupted, in the take store for 30 days. The Record voice group lists **Recent recordings** that aren't on the current timeline (name, length, when), each with **Add to the timeline** (at the time it was recorded, on a Voice track, with punch-in, one undo step), **Save as file** (`.webm` / `.m4a`) and **Delete**. An interrupted take is marked “stopped early”. AC-8's reload sentence becomes “stays on the timeline while the project is open; after a reload it is in Recent recordings”, and the `.chitthi` clause is dropped (it comes with project saving). AC-9 keeps its numbers.\n- **B:** keep only interrupted takes (as the spec has it); finished takes are lost on reload like the rest of the project; a **Save as file** button in the sound inspector.\n- **C (chosen by the maintainer, 2026-10-19):** video and photo projects are saved and reopened, as a feature of their own (408, spec to write) that 209 builds on. A take is then saved with its project like any sound; the take store keeps only takes in progress for crash recovery (AC-9 as written). AC-8 stays as written once 408 defines what “the project” is; its `.chitthi` clause follows 408’s answer on project files.\n\n**Re-read against 408 (2026-10-19, 408 T111):** projects now autosave with their media (408). A finished take is kept as owned media (`keepMedia(file, true)`) and saved with the project; the take store holds takes in progress only, for AC-9's recovery; AC-8's `.chitthi` clause is dropped until project files exist (409).\n\n**D2 Where takes are stored on desktop.** Q8 says “the data folder on desktop”. **Recommended:** the renderer's IndexedDB on both; in the desktop app it lives in the pinned data folder (`%APPDATA%\\Chitthi\\IndexedDB`), so no new IPC handler or file code is needed. Alternative: files under `userData/takes/` through new IPC (more code, more attack surface, same result).\n\n**D3 Tests for the take store.** **Recommended:** an in-memory implementation behind the same interface for unit tests, the thin IndexedDB part checked by the spike and 290 (R4). Alternative: add `fake-indexeddb` as a devDependency (MIT / Apache-2.0, not bundled)."
+        "markdown": "**D1 Video projects aren't saved, so what happens to takes after a reload?** The spec's AC-8 says a take is “saved with the project and found again after a reload … an exported `.chitthi` project carries it”, and AC-9 offers recovery “the next time the project is opened”. The video studio has no project saving today (the document shape and validator exist; nothing writes or opens a video project), so after a reload the timeline is empty and every clip is gone. Imported files are still on the user's disk; a recorded voice exists nowhere else.\n- **A (recommended):** keep every take, finished or interrupted, in the take store for 30 days. The Record voice group lists **Recent recordings** that aren't on the current timeline (name, length, when), each with **Add to the timeline** (at the time it was recorded, on a Voice track, with punch-in, one undo step), **Save as file** (`.webm` / `.m4a`) and **Delete**. An interrupted take is marked “stopped early”. AC-8's reload sentence becomes “stays on the timeline while the project is open; after a reload it is in Recent recordings”, and the `.chitthi` clause is dropped (it comes with project saving). AC-9 keeps its numbers.\n- **B:** keep only interrupted takes (as the spec has it); finished takes are lost on reload like the rest of the project; a **Save as file** button in the sound inspector.\n- **C (chosen by the maintainer, 2026-10-19):** video and photo projects are saved and reopened, as a feature of their own (408, spec to write) that 209 builds on. A take is then saved with its project like any sound; the take store keeps only takes in progress for crash recovery (AC-9 as written). AC-8 stays as written once 408 defines what “the project” is; its `.chitthi` clause follows 408’s answer on project files.\n\n**Re-read against 408 (2026-10-19, 408 T111):** projects now autosave with their media (408). A finished take is kept as owned media (`keepMedia(file, true)`) and saved with the project; the take store holds takes in progress only, for AC-9's recovery; AC-8's `.chitthi` clause is dropped until project files exist (409).\n\n**D2 Where takes are stored on desktop.** Q8 says “the data folder on desktop”. **Recommended:** the renderer's IndexedDB on both; in the desktop app it lives in the pinned data folder (`%APPDATA%\\Chitthi\\IndexedDB`), so no new IPC handler or file code is needed. Alternative: files under `userData/takes/` through new IPC (more code, more attack surface, same result). **Chosen by the maintainer (2026-10-19): IndexedDB, as recommended** (D-061).\n\n**D3 Tests for the take store.** **Recommended:** an in-memory implementation behind the same interface for unit tests, the thin IndexedDB part checked by the spike and 290 (R4). Alternative: add `fake-indexeddb` as a devDependency (MIT / Apache-2.0, not bundled). **Chosen by the maintainer (2026-10-19): the in-memory implementation, as recommended** (D-061)."
       }
     ]
   },
-  "tasks": null
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); the fake-microphone e2e, the clap test and the timing run are listed in `290` (\"Deferred checks collected from the phase\": 209 AC-3, AC-10, AC-11, AC-12).\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 209 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Spike",
+        "intro": "R1 and R2 first: MediaRecorder output must be measurable and recoverable before §6 relies on it."
+      },
+      {
+        "title": "Placement",
+        "intro": "Pure functions in `engine/` first (§1–§3): where a take goes, punch-in, sync."
+      },
+      {
+        "title": "Microphone and take store",
+        "intro": null
+      },
+      {
+        "title": "Recorder",
+        "intro": "The recorder store with injected IO (§5): fakes for the microphone, MediaRecorder, the clock and the take store."
+      },
+      {
+        "title": "Preview",
+        "intro": null
+      },
+      {
+        "title": "Permissions",
+        "intro": null
+      },
+      {
+        "title": "UI",
+        "intro": "Unit tests cover the pure helpers; the UI itself is checked in 290 (AC-10, AC-11)."
+      },
+      {
+        "title": "Docs and close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T001",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T040",
+        "T050",
+        "T060",
+        "T061",
+        "T062",
+        "T063",
+        "T064",
+        "T070",
+        "T071"
+      ],
+      "byId": {
+        "T001": {
+          "text": "Spike (throwaway, R1, R2): in the production build under `vite preview` (production CSP) and in the desktop app (with `media` allowed for audio by a temporary handler), Chromium's fake microphone (`--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream`) recorded 5 s with `MediaRecorder.start(1000)`; the joined chunks measured with Mediabunny `computeDuration()` (within 20 ms of the wall clock) and decoded; a recording cut by a reload, its saved chunks joined, still decodes up to its last whole chunk. Record the MIME chosen, the measured lengths and any fallback. Firefox and Safari go to 290.",
+          "section": "Spike",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [],
+          "files": [
+            "src/dev/voiceSpike.ts (removed after)"
+          ],
+          "test": "recorded in the result note (no committed test)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Spike passed; no fallback needed. Production build under vite preview (production CSP) in Chromium and Firefox with fake microphones, and the desktop app (app://chitthi, media allowed by a temporary handler): MediaRecorder picks audio/webm;codecs=opus everywhere; 5 s take = 5 chunks (Chromium 72.8 kB, 83 packets of 60 ms; Firefox 250 of 20 ms), decodes at 48 kHz with no console errors. R1: <audio> reads Infinity; Mediabunny computeDuration() is one packet short (4.92 vs 4.98 s decoded on Chromium/Electron, 4.986 vs 4.9935 on Firefox) because the last WebM packet has duration 0, so T032 uses the decoded length (plan §6 updated). R2: reload mid-take, the IndexedDB chunks joined decode (Chromium/Electron 4 chunks 4.02 s, Firefox 6 chunks 5.99 s). Found: vite preview sends only the CSP, not the Permissions-Policy, so T050 also changes vite.config.ts (plan §9 updated). Safari (AAC in MP4) goes to 290. Spike code and hooks removed; findings in memory/learnings.md."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T010": {
+          "text": "Failing tests for `engine/voiceTake.ts`: `recordTarget` (the chosen Voice track, else the selected one, else the first; a new **Voice** track with role Voice when there is none; 208's eight-track refusal; a non-Voice chosen track ignored), `takeName` (“Voice N”, one more than the highest), `canRecord` (empty video, playhead at the end, locked track → reason), `takeStart` (known latency, a simulated input delayed by it within 5 ms; offset ±250 ms clamped; never below 0).",
+          "section": "Placement",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/engine/voiceTake.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/voiceTake.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** tests/unit/engine/voiceTake.test.ts (new, 14 tests): recordTarget (chosen Voice track, else selected, else first; a non-Voice, picture or unknown chosen track ignored; a new audio track named Voice with role voice when there is none, the input unchanged; 8 audio tracks without a Voice track refused 'up to 8 sound tracks'), takeName (Voice 1; one more than the highest exact 'Voice N'), canRecord (empty video, playhead at the end, locked track; null otherwise), takeStart (playhead at capture; a word delayed by input latency 0-120 ms lands on its frame within 5 ms; offset clamped to RECORD_OFFSET_MAX 0.25 s; never below 0). Fails until T011: module missing."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T011": {
+          "text": "Implement `engine/voiceTake.ts` (§1, §3): `recordTarget`, `takeName`, `canRecord`, `takeStart`, `TakeTiming`.",
+          "section": "Placement",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-3"
+          ],
+          "files": [
+            "src/engine/voiceTake.ts",
+            "tests/unit/engine/voiceTake.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/voiceTake.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** src/engine/voiceTake.ts: recordTarget (chosen, selected, first Voice track; else addAudioTrack renamed 'Voice' with role voice; 208's limit refusal passed on), takeName (exact 'Voice N', highest + 1), canRecord({ tracks, length, playhead }, track) (empty video, playhead at the end, lockedReason; plain context instead of VState because engine can't import state), takeStart (playhead at capture - input latency + offset clamped to RECORD_OFFSET_MAX 0.25 s, at least 0). 15 tests pass; dropping the latency term fails the sync test. Check green (2,432)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T012": {
+          "text": "Failing tests for `punchIn` / `placeTake`: a clip inside the span deleted, each edge trimmed (keys kept as `trimSound` keeps them), a covering clip split around it (`splitKeys`), several clips, a `toEnd` clip made fixed first, other tracks untouched, the take always on the given track, `replaced` seconds per clip name.",
+          "section": "Placement",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/engine/soundClips.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundClips.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** 11 failing tests in tests/unit/engine/soundClips.test.ts ('punch-in', 209 AC-2): a clip inside deleted; start-edge and end-edge trims (keys shifted -2 s and kept on the sound, fades fitted); a covering clip split around the take (left keeps fade-in, right fade-out, volume line continuous 0.75 / 0.6, right id from splitId); several clips with no overlaps and replaced seconds per clip; same names summed; a toEnd clip fixed before the cut, the part after still toEnd; a remnant under SOUND_MIN dropped; other tracks and outside clips identical objects; the take on its track in start order; locked track refused. Signature adds splitId (the engine makes no ids)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T013": {
+          "text": "Implement `punchIn` and `placeTake` in `engine/soundClips.ts` (§2).",
+          "section": "Placement",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/engine/soundClips.ts",
+            "tests/unit/engine/soundClips.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/soundClips.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** engine/soundClips.ts: punchIn(audio, track, start, end, ctx, splitId) and placeTake(audio, take, ctx, splitId) with Replaced / PunchedIn; per overlapping clip cleared() keeps the part before (fixed out point, fades fitted), the part after (start/in moved, keys shifted, toEnd kept), both via splitAround (fades per part, splitKeys at both cuts), or nothing; parts under SOUND_MIN dropped and counted; seconds replaced summed per clip name; locked track refused. 42 sound clip tests pass; building the split's left part from the unfixed clip fails the toEnd test. Check green (2,443); the only lint note is the earlier patterns.ts max-lines warning."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T014": {
+          "text": "`engine/voiceLevel.ts` with its tests: `peakDbfs` (tone bursts at −40, −20, −6, −1, 0 dBFS within 0.5 dB; silence −Infinity), `tooLoud` (held 2 s after a peak ≥ −1 dBFS).",
+          "section": "Placement",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/voiceLevel.ts",
+            "tests/unit/engine/voiceLevel.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/engine/voiceLevel.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** engine/voiceLevel.ts: peakDbfs (largest |sample| in dBFS, -Infinity for silence), lastLoud (now when a peak >= LOUD_DBFS -1, else the time it had), tooLoud (within LOUD_HOLD_MS 2,000 ms). tests/unit/engine/voiceLevel.test.ts (6): 1 kHz bursts at -40/-20/-6/-1/0 dBFS at three phases within 0.5 dB, negative peaks, silence; a 30 Hz feed shows Too loud from frame 30 to 89 (2 s). Dropping Math.abs fails the negative-peak test. Check green (2,449; the existing patterns.ts max-lines warning only)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T020": {
+          "text": "`lib/microphone.ts` with its tests (§4): `listMicrophones` (default first), `pickMicrophone` (saved choice, unplugged → default and a message), the constraints (mono, audio only, clean-up switch sets all three), `recorderMime` (first supported of WebM Opus, MP4 AAC, MP4), `micFailure` for each error on web, macOS and Windows, and the `chitthi.voice` prefs read with validation (try/catch), offsets and clean-up per device.",
+          "section": "Microphone and take store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-4",
+            "AC-6"
+          ],
+          "files": [
+            "src/lib/microphone.ts",
+            "tests/unit/lib/microphone.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/microphone.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** lib/microphone.ts: listMicrophones (audio inputs only, 'default' first, 'Microphone N' before permission), pickMicrophone (saved while plugged in, else the default with a message), microphoneConstraints (mono audio only, clean-up sets all three), openMicrophone, onDevicesChanged, recorderMime (WebM Opus, MP4 AAC, MP4), inputLatency (track latency, else baseLatency, else 0), micFailure (refused on web / macOS / Windows, none, in use, insecure, other with its reason), missingSupport (insecure, no getUserMedia / MediaRecorder), VoicePrefs in 'chitthi.voice' validated on read (countIn 0/3/5, offsets clamped to ±0.25 per microphone), load/save surviving blocked storage, offsetFor. Browser objects come in as parameters. 16 tests; making NotAllowedError say 'https' fails the refusal test. Check green (2,465; the existing patterns.ts warning only)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T021": {
+          "text": "`lib/takeStore.ts` (§6, D2, D3): the store's logic (`begin`, `append`, `finish`, `list`, `join` in order, `remove`, the 30-day `sweep`) over a small backend interface; the IndexedDB backend (`chitthi-takes`, store `takes`) kept thin; an in-memory backend in `tests/support/` for the tests: chunks appended each second, list after a “crash”, join order, remove, sweep.",
+          "section": "Microphone and take store",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/lib/takeStore.ts",
+            "tests/support/memoryTakeBackend.ts",
+            "tests/unit/lib/takeStore.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/takeStore.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** lib/takeStore.ts: makeTakeStore(backend) with begin / append / finish / list(project) / join / remove / sweep (30 days, TAKE_KEEP_DAYS) over a TakeBackend; indexedDbTakes() on chitthi-takes v1 with two stores, takes (header by id) and chunks (keyPath [take, index]), so each second is one small put rather than rewriting a growing Blob[] record (plan §6's StoredTake split into TakeHeader + chunks); the header carries the project id so AC-9's offer comes when that project opens. Chunk indexes are claimed in call order and continue after a restart. tests/support/memoryTakeBackend.ts (D3) with delays and a failing write; 7 tests (shuffled writes join in order, crash, finished flag, project filter, unreadable headers dropped, restart numbering, remove, quota error keeps earlier chunks, sweep at exactly 30 days kept). Claiming the index after the write fails the order test. Check green (2,472)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T030": {
+          "text": "`tests/support/fakeMicrophone.ts` (stream, tracks that can end, a `MediaRecorder` that emits `start` / `dataavailable` / `stop`, a clock and timers) and failing tests for the recorder's phases: `openControls` opens the microphone and the meter, the count-in Off / 3 / 5 s and its cancel (nothing recorded), recording starts playback from the `start` event, stops by Stop, by playback reaching the end, at 60 min; `closeControls`, leaving and a hidden tab stop every track within 1 s; each failure before recording gives its message, calls `logError('handled')` and leaves the project unchanged.",
+          "section": "Recorder",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-6",
+            "AC-7"
+          ],
+          "files": [
+            "tests/support/fakeMicrophone.ts",
+            "tests/integration/state/voiceRecorder.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/voiceRecorder.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** tests/support/fakeMicrophone.ts (FakeTrack that can end, FakeStream, FakeRecorder whose start / chunk / stop events the test fires, FakeMeter with a settable peak, FakeDevices listing and opening microphones or failing, mediaError) and tests/integration/state/voiceRecorder.test.ts (17 tests, fake timers, in-memory take store): opening (saved microphone and clean-up constraints, meter level and Too loud held 2 s, unplugged saved mic → default + message), closing and a hidden tab stop every track and the meter (reopened when shown), failures (refused → message, logged, project unchanged; unsupported browser without asking; playhead at the end and locked track refused), count-in 3 / 0 / 5 s and cancel, recording start → 1 s chunks, playing, VState.recording {track, hear}, elapsed; stops by Stop, the preview stopping, 60 min (MAX_TAKE_SECONDS), the microphone ending (message, logged), not by a hidden tab, closing while recording. The recorder's IO (recorderIO) is defined by these tests. Fails until T031: module missing."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T031": {
+          "text": "Implement `state/voiceRecorder.ts` (§5): the store, `recorderIO`, `openControls`, `closeControls`, `record`, `stop`, one `release()`, the meter loop at 30 Hz with level and Too loud; `VState.recording` set while a take runs.",
+          "section": "Recorder",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-4",
+            "AC-6",
+            "AC-7"
+          ],
+          "files": [
+            "src/state/voiceRecorder.ts",
+            "src/state/videoStore.ts",
+            "tests/integration/state/voiceRecorder.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/voiceRecorder.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** state/voiceRecorder.ts: the store (getRecorder, useRecorder) with phases closed/ready/countIn/recording/finishing; recorderIO (devices, onDevicesChanged, support, place, storage, mime, makeRecorder wrapping MediaRecorder as TakeRecorder, makeMeter wrapping an AnalyserNode, takes, hidden/onVisibility, now, clock, projectId via import('./projects'), logError); openControls (missing support said without asking; saved or default microphone with the prefs' clean-up; meter every 33 ms with level and Too loud; device changes; a generation counter drops a stream opened after a close), closeControls (a recording take stopped, every track and the meter released), setVoicePrefs (new microphone or clean-up reopens), record (recordTarget, canRecord, MIME, count-in 0/3/5 with 1 s ticks), cancelCountIn, stop (count-in cancel, or recorder.stop + preview stop); recorder start → VState.recording, playing, 60-min stop; the preview stopping or the track ending stops the take (logged, 'kept: the microphone stopped'); hidden tab closes the microphone only while not recording and reopens it. VState gains recording and playClock (PURE). Meter on setInterval rather than plan §4's throttled rAF (same 30 Hz, testable). 18 tests; review found the 60-min timer surviving an early stop, fixed with a test that fails without it. Check green (2,490)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T032": {
+          "text": "Finishing a take (§5, §6): chunks to the take store every second, joined, measured (the decoded length: Mediabunny's `computeDuration` is one packet short on WebM, T001; injected), kept as owned media (`keepMedia(file, true)`), placed by `addTake()` in `state/videoSound.ts` (`recordTarget` + `placeTake` in one `change()`), `scanMedia`, the stored entry removed; a take cut short by the track ending is kept with “Voice 3 kept: 41.2 s, the microphone stopped”; no room → kept in memory and said. Tests: start and length within 20 ms with the fake clock, one undo step (undo exact, redo), a `VSound` with the take's blob, `scanMedia` called, role Voice for ducking.",
+          "section": "Recorder",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-6",
+            "AC-8"
+          ],
+          "files": [
+            "src/state/voiceRecorder.ts",
+            "src/state/videoSound.ts",
+            "tests/integration/state/voiceRecorder.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/voiceRecorder.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Takes are finished and placed. engine/takeLength.ts: lengthFromPackets (a last WebM packet of 0 s lasts as long as the one before) and measureTake (Mediabunny packets, no decoding; rejects an unreadable or empty file), 3 tests (Chromium 60 ms and Firefox 20 ms packet shapes from T001). state/videoSound.ts addTake: placeTake with punch-in, a new Voice track from the recorder's target, one change() (one undo step), scanMedia. state/voiceRecorder.ts: each take has a store id; begin (with the project id) on the recorder's start, each chunk appended in order; the preview's playClock captured while recording; placeOf = takeStart from the clock, input latency (track, else the meter's base latency) and the microphone's offset; on stop: measure → addTake → keep (keepMedia owned) → take store entry removed once kept, else marked finished for recovery; unreadable or unplaceable → left for recovery, said, logged; cut short → 'Voice 1 kept: 3.0 s, the microphone stopped.'; lastTake {name, start, length, replaced} for T062. 9 new integration tests (27 in the file). The typecheck caught the meter's latency passed under the wrong name; a test for that path now fails without the fix, and so do two others (placing without the play clock, ignoring the last packet). Check green (2,502)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T033": {
+          "text": "Recovery (AC-9): interrupted takes listed when the project opens (name, length, when), **Add to the timeline** at the stored start with punch-in (one undo step), **Discard**; a take that can't be read offers **Save as file**; the sweep runs on opening. Tests with the in-memory backend.",
+          "section": "Recorder",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/state/voiceRecorder.ts",
+            "tests/integration/state/voiceRecorder.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/voiceRecorder.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** state/voiceRecorder.ts recovery (AC-9): RecorderState.recovery (RecoverEntry: id, name, length or null when unreadable, startedAt, done); checkRecovery (sweep >30 days, then the open project's stored takes except the one recording now, each measured; storage failures logged, nothing offered); recoverTake (stored start, its Voice track or recordTarget's choice / a new Voice track, addTake = punch-in + one undo step, lastTake set, removed from the device once kept; unreadable → 'couldn't be read. Save it as a file'), discardTake, takeFile (joined File, Voice 3.webm / .m4a for Save as file). The UI that offers it on opening is T060. 6 new integration tests (33 in the file); dropping the 'not the take recording now' filter fails one. Check green (2,508). voiceRecorder.ts is 760 lines (the 800-line review mark is near)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T040": {
+          "text": "The preview while recording (§7): `soundsAt` / the preview plan skip the recorded track while `recording` is set, the mix is silent unless `hear`; `usePlayback` writes `playClock` to the store and the recorder reads it for `takeStart`. Tests: the plan without the track, silent without `hear`, with it when on.",
+          "section": "Preview",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-5",
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/previewSound.ts",
+            "src/components/studio/VideoStage.tsx",
+            "src/state/videoStore.ts",
+            "tests/unit/components/studio/previewSound.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/components/studio/previewSound.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** components/studio/previewSound.ts: Recording, withoutRecorded (the recorded track muted in the project the sound plan reads) and recordingMix (master 0 and every sound's gain 0 unless hear, so a preview without Web Audio is silent too). VideoStage: syncMedia plays withoutRecorded(audibleProject) with recordingMix(previewMix); usePlayback writes playClock { startTime, startWall } when playback starts and clears it when it stops (the recorder reads it, T032). 2 new tests in tests/integration/components/studio/previewSound.test.ts (beside the existing sound plan tests rather than a new unit file); not muting the track fails one. Check green (2,510)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T050": {
+          "text": "Permissions (§9): `electron/permissions.cjs` with `allowed(permission, details, appOrigin)` and the handlers (macOS asks the system first), used by `main.cjs`; the file in `files:`; `NSMicrophoneUsageDescription` and the audio-input entitlement; `microphone=(self)` in `nginx/security-headers.conf`, and `vite preview` sends that Permissions-Policy too (today it sends only the CSP, T001). Tests: audio from `app://chitthi` allowed; video, audio + video, display capture and other origins refused; the check handler; the conf has `microphone=(self)` and `camera=()`.",
+          "section": "Permissions",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7",
+            "AC-11"
+          ],
+          "files": [
+            "electron/permissions.cjs",
+            "electron/main.cjs",
+            "electron-builder.yml",
+            "build/entitlements.mac.plist",
+            "nginx/security-headers.conf",
+            "tests/unit/electron/permissions.test.ts",
+            "vite.config.ts"
+          ],
+          "test": "`npx vitest run tests/unit/electron/permissions.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** electron/permissions.cjs (no require('electron')): allowed(permission, details, appOrigin) keeps fullscreen and clipboard-sanitized-write, grants media only to the exact app://chitthi scheme+host and exactly ['audio'] (request) or mediaType 'audio' (check); installPermissions(session, { appOrigin, platform, systemPreferences }) with macOS asking the system first (granted / not-determined → askForMediaAccess / denied, restricted → refused) and never asking for a refused request. main.cjs uses it (ALLOWED_PERMISSIONS gone; systemPreferences imported); electron-builder.yml files: lists it and mac.extendInfo has NSMicrophoneUsageDescription; build/entitlements.mac.plist adds com.apple.security.device.audio-input; nginx Permissions-Policy microphone=(self) with camera, geolocation, payment ()'; vite preview now sends the Permissions-Policy as well as the CSP. tests/unit/electron/permissions.test.ts 11 tests; allowing audio+video and a prefix origin check (app://chitthi.evil) each fail one. No IPC handler added. Check green (2,521). On a Mac and Windows the real prompts wait for 290 (AC-11)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T060": {
+          "text": "The **Record voice** group (§8), `lazy()`-loaded in the Audio panel: microphone menu, meter (−60…0 dBFS with a text value, Too loud), Voice clean-up, Hear the video, count-in, Recording offset, target track, Record / Stop, messages, the recovery list. Pure helpers (meter fill, readout text) with tests.",
+          "section": "UI",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-4",
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/RecordVoice.tsx",
+            "src/components/studio/AudioPanel.tsx",
+            "src/styles/36-media-studio.css",
+            "tests/unit/components/studio/recordVoice.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/components/studio/recordVoice.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** The Record voice group in the Audio panel: a 'Record voice…' button (the microphone opens only then, AC-7) that lazy-loads RecordVoice.tsx (own chunk, 21.2 kB; entry still 314 KB); the controls: meter (role=meter, −60…0 dBFS bar, text value, Too loud), microphone menu, Voice clean-up, Hear the video (use headphones), count-in Off / 3 / 5 s, Recording offset ±250 ms per microphone, where the take goes, Record / Cancel (n) / Stop (elapsed) / Saving, messages, Try again after a failure, Close; RecoverVoice (lazy, checks the take store when shown) with Add to the timeline, Save as file (saveFile), Discard. components/studio/recordVoiceOpen.ts (open / track, for T061's track button) and recordVoiceText.ts (meterFill, meterText, offsetText, recoveryLabel 'Voice 3, 41 s, recorded 19 Oct 14:02[, stopped early | can’t be read]', targetText) with 7 tests; openControls now waits for an open already under way (two effects at mount opened two streams: test added, fails without the guard). Styles in 36-media-studio.css. The UI itself is checked in 290 (AC-10, AC-11). Check green (2,529)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T061": {
+          "text": "Voice track headers get a record button (opens the group with that track); VideoWorkspace keys Shift + R (record / stop), Esc (cancel a count-in), Space stops a take; the **Recording** sign with the elapsed time on the stage and the track row. Tests for the key mapping.",
+          "section": "UI",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-7",
+            "AC-10"
+          ],
+          "files": [
+            "src/components/studio/TrackHead.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/components/studio/VideoStage.tsx",
+            "src/styles/36-media-studio.css",
+            "tests/unit/components/studio/recordKeys.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/components/studio/recordKeys.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-19):** Voice track headers have a record button (TrackHead RecordButton: opens the controls with that track via openRecordVoice, which fires chitthi:record-voice so VideoWorkspace shows the Audio panel; pressed and red while that track records). VideoWorkspace: Shift + R (recordKeyAction 'toggle') opens the controls if closed and calls toggleRecording (closed → open + record, ready → record, countIn → cancel, recording → stop) through import(); choosing another tool or leaving the workspace closes the controls and the microphone. RecordVoice: Esc cancels the count-in, which is shown and announced (aria-live) in the panel and shown on the stage (VState.countIn, set with the recorder's countdown; Q4). Space already stops a take (the recorder follows the preview). VideoStage RecordingSign: red dot, role=status 'Recording' once, the elapsed time from playClock (aria-hidden). Styles in 36-media-studio.css. Tests: recordKeys.test.ts (3; dropping the Ctrl check fails one), toggleRecording and countIn in voiceRecorder.test.ts. Build: voiceRecorder 16.8 kB and RecordVoice 5.6 kB chunks, entry 314 KB. Check green (2,533)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-19"
+        },
+        "T062": {
+          "text": "Announcements through `tell()`: the count-in (“Recording in 3, 2, 1”), the start (“Recording on Voice”), Too loud at most every 5 s, the result (“Voice 2 added at 0:12.4, 8.6 s; replaced 2.1 s of Voice 1”). Tests for the wording and the throttle.",
+          "section": "UI",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-10"
+          ],
+          "files": [
+            "src/state/voiceRecorder.ts",
+            "tests/integration/state/voiceRecorder.test.ts"
+          ],
+          "test": "`npx vitest run tests/integration/state/voiceRecorder.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** Announcements through the toast's polite live region (the same one tell() uses), injected as recorderIO.announce so tests capture them. Wording is pure in engine/voiceTake.ts: announceCountIn (\"Recording in 3\", then \"2\", \"1\"), announceStart (\"Recording on <track>\"), announceResult (\"Voice 2 added at 0:12.4, 8.6 s; replaced 2.1 s of Voice 1\", several replaced joined with \"and\"), tooLoudDue + TOO_LOUD_EVERY_MS 5 s. The recorder says the count-in each second, the start on the recorder's start event, Too loud at most every 5 s while the meter runs, and the result for a finished or recovered take. Fixed on the way: the Too loud time (loudAt) outlived closing the controls, so a reopened meter began at Too loud; release() now clears it and the throttle. The count-in paragraph in RecordVoice lost its own aria-live (it would be said twice). Device adapters (MediaRecorder, analyser meter, their shapes) moved to state/recorderDevices.ts to keep voiceRecorder.ts under 800 lines (733). 4 unit tests (voiceTake), 2 integration tests (voiceRecorder); breaking the throttle fails its test. Still for 290: the timeline also announces the new sound clip, so check the two don't clash for a screen reader. Check green (2,539)."
+          ],
+          "startedOn": "2026-10-19",
+          "doneOn": "2026-10-20"
+        },
+        "T070": {
+          "text": "Docs (§10): `docs/MEDIA-STUDIO.md` (Record voice, punch-in, microphone, offset, privacy, recovery, keys, limits; “Still to do” drops voice-over), `docs/DESKTOP.md` (microphone permission on Windows and macOS), `specs/lld.md`, `CHANGELOG.md`, `src/data/docs.ts`.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-13"
+          ],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "docs/DESKTOP.md",
+            "specs/lld.md",
+            "CHANGELOG.md",
+            "src/data/docs.ts"
+          ],
+          "test": "review",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** docs/MEDIA-STUDIO.md: a Voice-over section (where Record voice is, the controls, recording and keys, the take and its file format, punch-in, sync and the Recording offset, privacy, recovery, failures, screen readers, the modules); Still to do drops voice-over and lists take lanes / pre-roll / guided sync instead. docs/DESKTOP.md: permissions.cjs (microphone for the app's page, audio only), macOS (usage description, audio-input entitlement, System Settings), Windows (privacy setting). specs/lld.md: §4.12 Voice-over (recorder phases, the placement formula, punch-in, take store, microphone, permission rules, announcements) and the new modules in the module map. CHANGELOG.md Unreleased → Added. src/data/docs.ts: two lines in the video editor's timeline section. AC-13 is for the maintainer's review. Check green (2,540)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T071": {
+          "text": "Close: `npm run build` (entry ≤ 350 KB, the recorder not in it), `npm run lint:full`, `npm run check:licenses`; the criteria ticked that unit tests prove; memory updated.",
+          "section": "Docs and close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-12"
+          ],
+          "files": [],
+          "test": "`npm run build`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** npm run build: entry 314 KB (budget 350); the recorder is its own chunk (voiceRecorder-*.js, RecordVoice-*.js) and none of its text is in the entry or the InstagramStudio chunk. npm run lint:full: 0 errors, 1 warning (src/engine/patterns.ts at 810 lines, the same on main). npm run check:licenses: 169 packages allowed (no new dependency). Added the AC-8 test the plan named (a take fades and splits like any sound clip; its track is Voice and counts as voice for ducking). AC-1–AC-9 ticked; AC-10–12 wait for 290 (its 209 entry now also checks that the result and the timeline's sound announcement don't clash, and the recovery bar); AC-13 for the maintainer's review of the docs. Check green (2,541)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T063": {
+          "text": "Recovery offered when a project opens (AC-9): when the video workspace opens a project, check the take store for that project with lib/takeStore only (not the recorder chunk, AC-12) and, when it holds takes, say so (toast or a note) with a way to the Audio panel, where RecoverVoice lists them. Pure helper tested (which projects have takes); the UI is checked in 290.",
+          "section": "UI",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-9"
+          ],
+          "files": [
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/lib/takeStore.ts",
+            "tests/unit/lib/takeStore.test.ts"
+          ],
+          "test": "`npx vitest run tests/unit/lib/takeStore.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** lib/takeStore.ts takesToRecover(headers, now): takes per project, leaving out those older than 30 days (the same expired() test the sweep now uses); 1 unit test (9 in the file). state/projectSave.ts onProjectOpened(listener): called from autosave.open, so the editor hears every project opened or started in it (no such signal existed; added beyond the task's files). VideoWorkspace: useTakesToRecover checks the device's take store (its own lib/takeStore instance, not the recorder, so the recorder stays out of the chunk: AC-12) when the editor opens (the open project via ensureProjects) and on each video project opened; RecoverBar over the timeline (the missing-files bar's style, role=status): 'A voice recording wasn’t added to this project: the app closed while recording.' with Recover…, which opens the Audio panel where RecoverVoice lists the takes; hidden while the Audio panel is open. The UI waits for 290. Check green (2,540)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T064": {
+          "text": "WebM in Add sound (Q7, D-062): `refusal` and the file picker accept `.webm` / `.weba` (the message names WebM); `soundIO.length` falls back to the packet length (`engine/takeLength` `measureTake`, loaded on use) when the <audio> element reports no finite duration. Tests: a WebM file is taken, its length from the packets when the element has none, an unreadable one refused.",
+          "section": "UI",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-8"
+          ],
+          "files": [
+            "src/state/videoSound.ts",
+            "src/components/studio/AudioPanel.tsx",
+            "tests/integration/state/video.test.ts"
+          ],
+          "test": "npx vitest run tests/integration/state/video.test.ts",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** Q7 extended by the maintainer (D-062): state/videoSound.ts AUDIO_EXT takes .webm / .weba (the refusal names WebM); soundIO split into element (<audio>) and packets (engine/takeLength measureTake, dynamic import), length = element, falling back to packets only on 'no duration' (MediaRecorder WebM); AudioPanel's picker accepts .webm, .weba. 5 tests in tests/integration/state/video.test.ts (a .webm typed video/webm and a .weba taken; element length used; packets when none; both failing rejects; unplayable doesn't try packets); breaking the fallback fails 2. Check green (2,546)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        }
+      }
+    }
+  }
 }

@@ -21,6 +21,7 @@ files:
   - electron/csp.cjs
   - electron/projects.cjs
   - electron/media.cjs
+  - electron/permissions.cjs
   - package.json
   - LICENSE
   - THIRD_PARTY_NOTICES.md
@@ -95,6 +96,9 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # The system shows this when the app first asks for the microphone (209 voice-over).
+  extendInfo:
+    NSMicrophoneUsageDescription: Chitthi Studio records your voice for voice-overs. The recording stays on this Mac.
   # Signing: CSC_LINK / CSC_KEY_PASSWORD with a "Developer ID Application" certificate.
   # Notarization runs automatically when APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID are set.
 

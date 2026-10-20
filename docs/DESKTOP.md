@@ -88,7 +88,16 @@ limited memory and is slowed down in the background. In the desktop app ([MEDIA-
   loads only from `app.asar`, and the archive is integrity-checked. `RunAsNode` stays on because `Chitthi --mcp`
   starts its stdio relay (`electron/mcp-stdio.cjs`) with `ELECTRON_RUN_AS_NODE`. Check a build with
   `npx @electron/fuses read --app "release/win-unpacked/Chitthi Studio.exe"`.
-- **Permissions**: every browser permission request is refused except fullscreen and writing to the clipboard.
+- **Permissions** (`electron/permissions.cjs`): every browser permission request is refused except fullscreen, writing
+  to the clipboard and, for voice-over (209), the microphone: only for the app's own `app://chitthi` page and only
+  for audio. The camera, screen capture and requests from any other origin are refused.
+- **The microphone on macOS**: the app declares `NSMicrophoneUsageDescription` (`extendInfo` in
+  `electron-builder.yml`) and the `com.apple.security.device.audio-input` entitlement (without it the hardened
+  runtime records silence). The first recording asks for the system's permission; once refused, the app says to
+  allow it in System Settings → Privacy & Security → Microphone (and to reopen the app).
+- **The microphone on Windows**: there is no per-app prompt for desktop apps; when Settings → Privacy & security →
+  Microphone turns off microphone access (or access for desktop apps), recording fails with a message saying where
+  to turn it on.
 - **IPC**: handlers are registered through `electron/ipc.cjs`, which refuses messages from any frame other than the
   app's own page. Add new handlers with its `handle` and `on`, never `ipcMain` directly.
 

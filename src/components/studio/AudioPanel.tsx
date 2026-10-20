@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { LOUDNESS_PRESETS, LOUDNESS_RANGE, loudnessReadout } from '../../engine/loudnessTargets';
 import { DUCK_DEFAULTS, DUCK_RANGES, countsAsVoice, lockedReason, soundRole, trackVolume, type SoundRole, type Track } from '../../engine/tracks';
 import { addSoundFiles, setLoudness } from '../../state/videoSound';
@@ -6,6 +6,7 @@ import { useVideo } from '../../state/videoStore';
 import { lowerMusicUnderVoice, setCountsAsVoice, setDucking, setLowerMusicUnderVoice, setTrackRole, setTrackVolume } from '../../state/videoTracks';
 import { Check, Seg } from '../common';
 import { MusicIcon } from '../icons';
+import { openRecordVoice, useRecordVoiceOpen } from './recordVoiceOpen';
 import { tell } from './timelineActions';
 import { Range } from './videoFields';
 
@@ -14,6 +15,10 @@ import { Range } from './videoFields';
  * music under voice, and the export's loudness target with the measured loudness. Sound clips themselves are edited
  * on the timeline and in their inspector.
  */
+
+// The recorder and its meter load only with the Record voice group (209 AC-12).
+const RecordVoice = lazy(() => import('./RecordVoice').then((module) => ({ default: module.RecordVoice })));
+const RecoverVoice = lazy(() => import('./RecordVoice').then((module) => ({ default: module.RecoverVoice })));
 
 const ROLES: [SoundRole, string][] = [
   ['music', 'Music'],
@@ -51,7 +56,7 @@ function AddSound() {
         <input
           type="file"
           multiple
-          accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac"
+          accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac,.webm,.weba"
           onChange={(event) => {
             const files = [...(event.target.files ?? [])];
             event.target.value = '';
@@ -181,11 +186,37 @@ function Loudness() {
   );
 }
 
+/** Record voice (209 §8): the controls open the microphone only when asked for (AC-7); takes to recover (AC-9). */
+function RecordVoiceGroup() {
+  const { open, track } = useRecordVoiceOpen();
+  return (
+    <div className="ig-group">
+      <h3>Record voice</h3>
+      {open ? (
+        <Suspense fallback={<p className="hint">Opening the microphone…</p>}>
+          <RecordVoice track={track} />
+        </Suspense>
+      ) : (
+        <>
+          <p className="hint">Talk over the video while it plays. The microphone is on only while the recording controls are open, and what you record stays on this device.</p>
+          <button type="button" className="sbtn" onClick={() => openRecordVoice()}>
+            Record voice…
+          </button>
+        </>
+      )}
+      <Suspense fallback={null}>
+        <RecoverVoice />
+      </Suspense>
+    </div>
+  );
+}
+
 /** The Audio panel. */
 export function AudioPanel() {
   return (
     <>
       <AddSound />
+      <RecordVoiceGroup />
       <SoundTracks />
       <Loudness />
     </>

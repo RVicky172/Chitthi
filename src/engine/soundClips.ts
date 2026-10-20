@@ -516,3 +516,129 @@ export function setToEnd<A extends AudioClip>(audio: A[], id: string, on: boolea
   delete next.out;
   return { audio: withClip(audio, fitFades(next, ctx.videoEnd, audio)) };
 }
+
+/** Seconds of one sound replaced by a take, for the result's announcement (209 AC-10). */
+export interface Replaced {
+  /** The sound clip's name. */
+  name: string;
+  seconds: number;
+}
+
+/** A punch-in that went through: the new sound clips and what the take replaced, per clip name. */
+export interface PunchedIn<A> extends SoundDone<A> {
+  replaced: Replaced[];
+}
+
+/**
+ * A clip without its fades and keys, for one part of a split (each part takes back only its own).
+ * @param clip the clip
+ * @returns the copy
+ */
+function bare<A extends AudioClip>(clip: A): A {
+  const rest: A = { ...clip };
+  delete rest.fadeIn;
+  delete rest.fadeOut;
+  delete rest.keys;
+  return rest;
+}
+
+/**
+ * A clip split around a stretch it covers: the part before keeps its fade-in, the part after its fade-out and `toEnd`;
+ * volume keys are split at both cuts so nothing jumps.
+ * @param clip the clip
+ * @param fixed the clip with a fixed out point (the part before ends at the stretch)
+ * @param before seconds kept before the stretch
+ * @param after seconds kept after it
+ * @param end the stretch's end, seconds
+ * @param splitId the part after's id
+ * @returns the two parts
+ */
+function splitAround<A extends AudioClip>(clip: A, fixed: A, before: number, after: number, end: number, splitId: string): A[] {
+  const cutIn = end - clip.start;
+  const [leftKeys] = splitKeys(clip.keys, before);
+  const [, rightKeys] = splitKeys(clip.keys, cutIn);
+  const fadeIn = Math.min(clip.fadeIn ?? 0, before);
+  const fadeOut = Math.min(clip.fadeOut ?? 0, after);
+  const left: A = { ...bare(fixed), out: clip.in + before, ...(fadeIn ? { fadeIn } : {}), ...(leftKeys ? { keys: leftKeys } : {}) };
+  const right: A = { ...bare(clip), id: splitId, start: end, in: clip.in + cutIn, ...(fadeOut ? { fadeOut } : {}), ...(rightKeys ? { keys: rightKeys } : {}) };
+  return [left, right];
+}
+
+/**
+ * What is left of one clip after a stretch of its track is cleared: the part before (cut at the stretch's start), the
+ * part after (starting at its end), both as a split, or nothing. A part shorter than SOUND_MIN is dropped.
+ * @param clip the clip, overlapping the stretch
+ * @param start the stretch's start, seconds
+ * @param end its end
+ * @param ctx the context
+ * @param audio the sound clips (for a `toEnd` clip's length)
+ * @param splitId the part after's id when both parts are kept
+ * @returns the parts kept and the seconds removed
+ */
+function cleared<A extends AudioClip>(clip: A, start: number, end: number, ctx: SoundCtx, audio: readonly AudioClip[], splitId: string) {
+  const length = soundLength(clip, ctx.videoEnd, audio);
+  const before = start - clip.start;
+  const after = clip.start + length - end;
+  const keepBefore = before >= SOUND_MIN - EPS;
+  const keepAfter = after >= SOUND_MIN - EPS;
+  const removed = length - (keepBefore ? before : 0) - (keepAfter ? after : 0);
+  // The part before ends at the take, so a Play to the end clip gets a fixed out point there (T072, option A).
+  const fixed: A = { ...clip, toEnd: false, out: clip.in + length };
+  const cutIn = end - clip.start;
+  if (keepBefore && keepAfter) return { parts: splitAround(clip, fixed, before, after, end, splitId), removed };
+  if (keepBefore) return { parts: [fitFades({ ...fixed, out: clip.in + before }, ctx.videoEnd, audio)], removed };
+  if (keepAfter) {
+    const keys = shiftKeys(clip.keys, -cutIn);
+    const trimmed: A = { ...clip, start: end, in: clip.in + cutIn, ...(keys ? { keys } : {}) };
+    return { parts: [fitFades(trimmed, ctx.videoEnd, audio)], removed };
+  }
+  return { parts: [], removed };
+}
+
+/**
+ * Punch-in (209 AC-2, Q2): a stretch of one track cleared for a take. A clip inside it is deleted, one over an edge is
+ * trimmed (its keys stay on the same sound), one covering it is split around it; other tracks are untouched.
+ * @param audio the sound clips
+ * @param track the track
+ * @param start the stretch's start, seconds
+ * @param end its end
+ * @param ctx the context
+ * @param splitId the id for the part after a split (the engine makes no ids)
+ * @returns the new clips and the seconds replaced per clip name, or why not
+ */
+export function punchIn<A extends AudioClip>(audio: A[], track: string, start: number, end: number, ctx: SoundCtx, splitId: string): PunchedIn<A> | Refusal {
+  const locked = ctx.locked(track);
+  if (locked) return { error: locked };
+  const replaced: Replaced[] = [];
+  const next: A[] = [];
+  for (const clip of audio) {
+    const clipEnd = clip.start + soundLength(clip, ctx.videoEnd, audio);
+    if (clip.track !== track || clipEnd <= start + EPS || clip.start >= end - EPS) {
+      next.push(clip);
+      continue;
+    }
+    const { parts, removed } = cleared(clip, start, end, ctx, audio, splitId);
+    next.push(...parts);
+    const name = clip.name ?? 'a sound';
+    const same = replaced.find((entry) => entry.name === name);
+    if (same) same.seconds += removed;
+    else replaced.push({ name, seconds: removed });
+  }
+  return { audio: next.toSorted((first, second) => first.start - second.start), replaced };
+}
+
+/**
+ * A take placed (209 AC-2): its stretch of its track cleared by `punchIn`, then the take put there, never on another
+ * track.
+ * @param audio the sound clips
+ * @param take the take as a sound clip, with its track and start
+ * @param ctx the context
+ * @param splitId the id for the part after a split
+ * @returns the new clips and what the take replaced, or why not
+ */
+export function placeTake<A extends AudioClip>(audio: A[], take: A, ctx: SoundCtx, splitId: string): PunchedIn<A> | Refusal {
+  const end = take.start + soundLength(take, ctx.videoEnd, audio);
+  const punched = punchIn(audio, take.track, take.start, end, ctx, splitId);
+  if ('error' in punched) return punched;
+  return { audio: withClip(punched.audio, take), replaced: punched.replaced };
+}
