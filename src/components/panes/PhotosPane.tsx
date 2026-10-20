@@ -12,7 +12,8 @@ import { AiArtworkEntry } from '../ai/AiEntry';
 import { PexelsSearch } from '../PexelsSearch';
 import { PhotoStore } from '../PhotoStore';
 import { shortName } from '../../lib/credits';
-import { Pane, PhotoCredit, Section } from '../common';
+import { Pane, PhotoCredit } from '../common';
+import { FoldSection } from '../panel';
 import { AddPhotoIcon, ArrangeIcon, CropIcon, ResetIcon, StarIcon, TrashIcon } from '../icons';
 import { autoArrange } from '../../state/traits';
 
@@ -112,18 +113,18 @@ export function PhotosPane() {
       )}
       <PexelsSearch />
       {/* AI pictures are their own section, apart from Pexels: made for this card, not found in a stock library. */}
-      <Section id="photos.ai" title="Create pictures with AI" defaultOpen={false}>
+      <FoldSection id="photos.ai" title="Create pictures with AI" defaultOpen={false}>
         <p className="hint">
           A picture made for the selected slot from a description, with your own AI key. It is marked as AI in the
           credits.
         </p>
         <AiArtworkEntry />
-      </Section>
-      <Section id="photos.store" title="Photo store">
+      </FoldSection>
+      <FoldSection id="photos.store" title="Photo store">
         <PhotoStore />
-      </Section>
+      </FoldSection>
       {photos.length > 0 && (
-        <Section id="photos.card" title="On this design" note={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}>
+        <FoldSection id="photos.card" title="On this design" note={`${photos.length} photo${photos.length > 1 ? 's' : ''}`}>
           <div className="inline">
             <button type="button" className="btn" onClick={autoArrange}>
               <ArrangeIcon />
@@ -227,9 +228,9 @@ export function PhotosPane() {
             Drag a photo on the card, or use the sliders above, to move it. Zoom enlarges it; with the card focused,
             arrow keys and + / − work too.
           </p>
-        </Section>
+        </FoldSection>
       )}
-      <Section id="photos.guide" title="Photo guide" defaultOpen={!photos.length}>
+      <FoldSection id="photos.guide" title="Photo guide" defaultOpen={!photos.length}>
         <ul className="guide-list">
           <li>
             Accepted: <b>JPG, PNG and WebP</b>, up to {MAX_MB} MB each.
@@ -252,7 +253,7 @@ export function PhotosPane() {
           </li>
           <li>iPhone photos in HEIC format need to be saved as JPG first.</li>
         </ul>
-      </Section>
+      </FoldSection>
     </Pane>
   );
 }

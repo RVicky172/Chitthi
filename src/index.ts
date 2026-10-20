@@ -44,7 +44,8 @@ export { PexelsSearch } from './components/PexelsSearch';
 export { ThemeTile, LayoutThumb, PhotoThumb } from './components/canvases';
 
 /* ---------- primitives ---------- */
-export { Seg, Check, Pane, StepLabel, Section, YearField, PhotoCredit } from './components/common';
+export { Seg, Check, Pane, StepLabel, YearField, PhotoCredit } from './components/common';
+export { FoldSection } from './components/panel';
 
 /* ---------- icons ---------- */
 export {

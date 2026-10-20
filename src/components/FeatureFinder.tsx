@@ -17,7 +17,7 @@ import { selectSlot } from '../state/photoSlots';
 import { autoArrange } from '../state/traits';
 import { getState, redo, setDesign, setPerf, setUI, undo, useApp } from '../state/store';
 import type { PaneId } from '../types';
-import { revealSection } from './common';
+import { revealSection } from './panel';
 import { SearchIcon } from './icons';
 
 /*

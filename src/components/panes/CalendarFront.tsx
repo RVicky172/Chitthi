@@ -4,7 +4,8 @@ import { calPages, resolveTheme } from '../../engine/design';
 import { calMonth } from '../../engine/calendarDraw';
 import { setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings, CalTextPlace, Design, HAlign, VAlign } from '../../types';
-import { Check, Pane, Section, Seg, YearField } from '../common';
+import { Check, Pane, Seg, YearField } from '../common';
+import { FoldSection } from '../panel';
 import { FontPicker } from '../FontPicker';
 import { AiWordsEntry } from '../ai/AiEntry';
 import { InstagramIcon } from '../icons';
@@ -182,7 +183,7 @@ interface FrontProps extends DesignProps {
 function StyleSection({ design }: Readonly<DesignProps>) {
   const current = styleOf(design.cal);
   return (
-    <Section id="calf.style" title="Style" note={STYLES.find(([id]) => id === current)?.[1] ?? 'Custom'}>
+    <FoldSection id="calf.style" title="Style" note={STYLES.find(([id]) => id === current)?.[1] ?? 'Custom'}>
       <p className="hint">Start from a look, then fine-tune the title and dates below.</p>
       <div className="calstyles" role="group" aria-label="Calendar style">
         {STYLES.map(([id, name, preset]) => (
@@ -219,7 +220,7 @@ function StyleSection({ design }: Readonly<DesignProps>) {
           </button>
         ))}
       </div>
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -230,7 +231,7 @@ function StyleSection({ design }: Readonly<DesignProps>) {
 function YearSection({ design }: Readonly<DesignProps>) {
   const cal = design.cal;
   return (
-    <Section id="calf.year" title="Year" note={`${cal.year}`}>
+    <FoldSection id="calf.year" title="Year" note={`${cal.year}`}>
       <div className="row">
         <YearField value={cal.year} onChange={(year) => setCal({ year })} />
         <label className="f">
@@ -253,7 +254,7 @@ function YearSection({ design }: Readonly<DesignProps>) {
         ]}
         onChange={(value) => setCal({ weekStart: +value as 0 | 1 })}
       />
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -265,7 +266,7 @@ function TitleSection({ design, page }: Readonly<FrontProps>) {
   const cal = design.cal,
     monthFont = cal.font || design.headFont;
   return (
-    <Section id="calf.title" title="Month title" note={monthFont}>
+    <FoldSection id="calf.title" title="Month title" note={monthFont}>
       <FontPicker
         label="Font"
         value={monthFont}
@@ -286,7 +287,7 @@ function TitleSection({ design, page }: Readonly<FrontProps>) {
       <Check checked={cal.showYear} onChange={(showYear) => setCal({ showYear })}>
         Show the year beside the month
       </Check>
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -297,7 +298,7 @@ function TitleSection({ design, page }: Readonly<FrontProps>) {
 function DatesSection({ design }: Readonly<DesignProps>) {
   const cal = design.cal;
   return (
-    <Section id="calf.dates" title="Dates" note={cal.numSync ? 'Same font as title' : cal.numFont || 'Hind'}>
+    <FoldSection id="calf.dates" title="Dates" note={cal.numSync ? 'Same font as title' : cal.numFont || 'Hind'}>
       <Check checked={cal.numSync} onChange={(numSync) => setCal({ numSync })}>
         Use the month title font for the dates
       </Check>
@@ -339,7 +340,7 @@ function DatesSection({ design }: Readonly<DesignProps>) {
         ]}
         onChange={(grid) => setCal({ grid })}
       />
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -350,7 +351,7 @@ function DatesSection({ design }: Readonly<DesignProps>) {
 function DaysSection({ design, page }: Readonly<FrontProps>) {
   const cal = design.cal;
   return (
-    <Section id="calf.days" title="Festivals and your dates" note={marksNote(cal)}>
+    <FoldSection id="calf.days" title="Festivals and your dates" note={marksNote(cal)}>
       <Seg<CalendarSettings['marks']>
         label="Marked days"
         value={cal.marks}
@@ -441,7 +442,7 @@ function DaysSection({ design, page }: Readonly<FrontProps>) {
           + Add a date
         </button>
       </div>
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -463,7 +464,7 @@ function WordsSection({ design, page }: Readonly<FrontProps>) {
   }));
   const filled = months.filter((month) => cal.captions[month.month]?.trim()).length;
   return (
-    <Section id="calf.words" title="Words on the months" note={wordsNote(cal.text)}>
+    <FoldSection id="calf.words" title="Words on the months" note={wordsNote(cal.text)}>
       <AiWordsEntry mode="captions" />
       <Seg<CalTextPlace>
         label="Where the words go"
@@ -564,7 +565,7 @@ function WordsSection({ design, page }: Readonly<FrontProps>) {
           {!onPhoto && <p className="hint">Above the month, the caption lines up with the month title.</p>}
         </>
       )}
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -574,7 +575,7 @@ function WordsSection({ design, page }: Readonly<FrontProps>) {
  */
 function PhotoWordsSection({ design }: Readonly<DesignProps>) {
   return (
-    <Section id="calf.photo" title="On the photo">
+    <FoldSection id="calf.photo" title="On the photo">
       <p className="hint">A quote and signature can follow the caption when the words sit on the photo.</p>
       <Check checked={design.showQuote} onChange={(showQuote) => setDesign({ showQuote })}>
         Quote
@@ -644,7 +645,7 @@ function PhotoWordsSection({ design }: Readonly<DesignProps>) {
           Ornament between caption and quote
         </Check>
       )}
-    </Section>
+    </FoldSection>
   );
 }
 
@@ -654,7 +655,7 @@ function PhotoWordsSection({ design }: Readonly<DesignProps>) {
  */
 function InstaSection({ design }: Readonly<DesignProps>) {
   return (
-    <Section
+    <FoldSection
       id="calf.insta"
       title="Instagram tag"
       note={design.insta ? `@${design.insta}` : undefined}
@@ -684,7 +685,7 @@ function InstaSection({ design }: Readonly<DesignProps>) {
           onChange={(font) => setDesign({ instaFont: font === 'Hind' ? '' : font })}
         />
       )}
-    </Section>
+    </FoldSection>
   );
 }
 

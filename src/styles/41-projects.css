@@ -32,46 +32,12 @@
   list-style: none;
 }
 
-.mst-proj {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-}
-.mst-proj-bad {
+/* beats .list-row's border, which loads later (42-panel.css) */
+.list-row.mst-proj-bad {
   border-style: dashed;
 }
 
-.mst-proj-open {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 4px;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-.mst-proj-open:hover:not(:disabled),
-.mst-proj-open:focus-visible {
-  background: var(--accent-soft);
-}
-.mst-proj-open:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.mst-proj-open:disabled {
-  cursor: default;
-}
-
-.mst-proj-open img,
+.mst-proj .list-row-lead img,
 .mst-proj-thumb {
   flex: none;
   width: 64px;
@@ -79,21 +45,6 @@
   border-radius: var(--r-sm);
   background: var(--sunk);
   object-fit: cover;
-}
-
-.mst-proj-text {
-  display: grid;
-  min-width: 0;
-}
-.mst-proj-text strong,
-.mst-proj-text span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mst-proj-text span {
-  color: var(--muted);
-  font-size: 0.85em;
 }
 
 .mst-proj-name {
@@ -105,12 +56,6 @@
   background: var(--field);
   color: var(--text);
   font: inherit;
-}
-
-.mst-proj-actions {
-  display: flex;
-  flex: none;
-  gap: 2px;
 }
 
 .mst-proj-ask {
@@ -129,7 +74,7 @@
 .mst-proj-ask .btn.danger {
   border-color: var(--danger);
   background: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
 }
 
 .mst-proj-usage {

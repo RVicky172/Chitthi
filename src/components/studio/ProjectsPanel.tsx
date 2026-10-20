@@ -17,6 +17,7 @@ import {
   type ProjectsUsage,
 } from '../../state/projects';
 import { CopyIcon, EditIcon, PlusIcon, TrashIcon } from '../icons';
+import { ListRow } from '../panel';
 
 /*
  * The Projects panel (408 §9, AC-3, AC-7, AC-9): a studio's saved projects, newest first, with New, Open, Rename (F2),
@@ -81,48 +82,51 @@ interface RowProps {
 function ProjectRow({ entry, renaming, onOpen, onRename, onStartRename, onDuplicate, onDelete }: Readonly<RowProps>) {
   const changed = new Date(entry.changed).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   return (
-    <li className={entry.readable ? 'mst-proj' : 'mst-proj mst-proj-bad'}>
-      {renaming ? (
-        <input
-          className="mst-proj-name"
-          aria-label={`New name for ${entry.name}`}
-          defaultValue={entry.name}
-          maxLength={NAME_MAX}
-          autoFocus
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') onRename(event.currentTarget.value);
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              onRename(null);
-            }
-          }}
-          onBlur={(event) => onRename(event.currentTarget.value)}
-        />
-      ) : (
-        <button type="button" className="mst-proj-open" data-id={entry.id} disabled={!entry.readable} onClick={onOpen}>
-          {entry.thumb ? <img src={entry.thumb} alt="" /> : <span className="mst-proj-thumb" aria-hidden="true" />}
-          <span className="mst-proj-text">
-            <strong>{entry.name}</strong>
-            <span>{entry.readable ? `${holdsText(entry)} · ${changed} · ${sizeText(entry.bytes)}` : 'Can’t be opened: the saved file is damaged'}</span>
-          </span>
-        </button>
-      )}
-      <span className="mst-proj-actions">
-        {entry.readable && (
-          <>
-            <button type="button" className="btn icon ghost" aria-label={`Rename ${entry.name} (F2)`} title="Rename (F2)" onClick={onStartRename}>
-              <EditIcon />
-            </button>
-            <button type="button" className="btn icon ghost" aria-label={`Duplicate ${entry.name}`} title="Duplicate" onClick={onDuplicate}>
-              <CopyIcon />
-            </button>
-          </>
-        )}
-        <button type="button" className="btn icon ghost" aria-label={`Delete ${entry.name}`} title="Delete" onClick={onDelete}>
-          <TrashIcon />
-        </button>
-      </span>
-    </li>
+    <ListRow
+      className={entry.readable ? 'mst-proj' : 'mst-proj mst-proj-bad'}
+      rowId={entry.id}
+      name={entry.name}
+      lead={entry.thumb ? <img src={entry.thumb} alt="" /> : <span className="mst-proj-thumb" aria-hidden="true" />}
+      detail={entry.readable ? `${holdsText(entry)} · ${changed} · ${sizeText(entry.bytes)}` : 'Can’t be opened: the saved file is damaged'}
+      disabled={!entry.readable}
+      onSelect={onOpen}
+      editor={
+        renaming ? (
+          <input
+            className="mst-proj-name"
+            aria-label={`New name for ${entry.name}`}
+            defaultValue={entry.name}
+            maxLength={NAME_MAX}
+            autoFocus
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') onRename(event.currentTarget.value);
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                onRename(null);
+              }
+            }}
+            onBlur={(event) => onRename(event.currentTarget.value)}
+          />
+        ) : undefined
+      }
+      controls={
+        <>
+          {entry.readable && (
+            <>
+              <button type="button" className="btn icon ghost" aria-label={`Rename ${entry.name} (F2)`} title="Rename (F2)" onClick={onStartRename}>
+                <EditIcon />
+              </button>
+              <button type="button" className="btn icon ghost" aria-label={`Duplicate ${entry.name}`} title="Duplicate" onClick={onDuplicate}>
+                <CopyIcon />
+              </button>
+            </>
+          )}
+          <button type="button" className="btn icon ghost" aria-label={`Delete ${entry.name}`} title="Delete" onClick={onDelete}>
+            <TrashIcon />
+          </button>
+        </>
+      }
+    />
   );
 }
 
@@ -160,7 +164,7 @@ function DeleteQuestion({ asking, onAnswer }: Readonly<{ asking: Asking; onAnswe
  * @param onRename starts renaming a project
  */
 function onListKey(event: KeyboardEvent<HTMLUListElement>, onRename: (id: string) => void): void {
-  const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('.mst-proj-open:not(:disabled)')];
+  const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('.list-row-main:not(:disabled)')];
   const at = buttons.findIndex((button) => button === document.activeElement);
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();

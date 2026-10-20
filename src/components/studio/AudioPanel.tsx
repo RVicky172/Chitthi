@@ -48,8 +48,7 @@ function AddSound() {
   const [message, setMessage] = useState('');
   return (
     <div className="ig-group">
-      <h3>Sound</h3>
-      <p className="hint">Add songs, voice-overs or effects from this device: they go at the playhead. Use music you have the right to post: Instagram and YouTube may mute or claim recognised songs.</p>
+      <p className="hint">Use music you have the right to post: Instagram and YouTube may mute or claim recognised songs.</p>
       <label className="sbtn mst-file">
         <MusicIcon />
         Add sound

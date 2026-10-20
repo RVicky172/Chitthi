@@ -5,7 +5,7 @@ import { getIg, redo, selectLayer, setIg, setTools, undo, useIg, type IgItem } f
 import { addLayer, copyLayersToAll, removeLayer, restackLayer, updateLayer } from '../../state/instagramLayers';
 import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { MaskInspector, MaskPanel } from '../ig/MaskPanel';
-import { BrushIcon, DownloadIcon, ImageIcon, LayersIcon, MaskIcon, RedoIcon, ShapesIcon, TypeIcon, UndoIcon } from '../icons';
+import { DownloadIcon, RedoIcon, UndoIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { StudioDialog } from './Dialog';
 import { PhotoEditPanel } from './PhotoEditPanel';
@@ -13,7 +13,8 @@ import { PhotoExport } from './PhotoExport';
 import { EmptyPhotoStage, PhotoMediaPanel } from './PhotoPanels';
 import { PhotoStage } from './PhotoStage';
 import { PhotoStrip } from './PhotoStrip';
-import { StudioShell, type RailItem, type StudioMode } from './Shell';
+import { StudioShell, type StudioMode } from './Shell';
+import { PHOTO_RAIL as RAIL, type PhotoTool as Tool } from './railTools';
 
 /*
  * The Instagram photo editor in the studio layout: up to 20 photos in one format, each with its own framing, colour
@@ -22,16 +23,6 @@ import { StudioShell, type RailItem, type StudioMode } from './Shell';
  * PhotoStrip.tsx, the export PhotoExport.tsx.
  */
 
-/** The tool rail's tools. */
-type Tool = 'media' | 'masks' | 'text' | 'elements' | 'draw' | 'layers';
-const RAIL: RailItem<Tool>[] = [
-  { id: 'media', label: 'Photos', icon: <ImageIcon /> },
-  { id: 'masks', label: 'Masks', icon: <MaskIcon /> },
-  { id: 'text', label: 'Text', icon: <TypeIcon /> },
-  { id: 'elements', label: 'Elements', icon: <ShapesIcon /> },
-  { id: 'draw', label: 'Draw', icon: <BrushIcon /> },
-  { id: 'layers', label: 'Layers', icon: <LayersIcon /> },
-];
 
 /** What the stage does with a press for each tool: draw layers, paint masks, or select. */
 const STAGE_TOOLS: Partial<Record<Tool, 'draw' | 'mask'>> = { draw: 'draw', masks: 'mask' };

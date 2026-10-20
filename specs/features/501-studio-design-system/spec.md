@@ -2,7 +2,7 @@
 
 # 501 — Studio design overview: one layout and type scale for every studio
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** Phase UI — Studio design and UX (release 3.0.0) · **Created:** 2026-10-20
 
 ## Summary
@@ -19,21 +19,21 @@ The print studio and the photo & video studio look like two products: the print 
 
 ### Design document
 
-- [ ] **AC-1:** A design document `docs/DESIGN.md` describes the shared studio layout (top bar, rail, panel, stage, inspector, dock), its widths at each breakpoint (phone, 1280, 1440, ≥ 1920), the type scale (sizes, weights, which text is a heading), the spacing scale, the colour tokens in both themes, and the shared panel parts; screenshots or sketches of each studio show it. The maintainer approves it before 502–506 are planned. _(manual)_
-- [ ] **AC-2:** The document has a **panel map**: every rail tool and inspector section of the photo, Reel and YouTube modes today, and every panel planned in Phases 2–3 (210 markers and in/out, 305 captions, 301–304 colour, 303 scopes), each placed in the layout (left: add and browse; right: change the selection; dock: time), with a rule for when the rail groups or folds tools so it never needs to scroll at 720 px tall. _(manual)_
+- [x] **AC-1:** A design document `docs/DESIGN.md` describes the shared studio layout (top bar, rail, panel, stage, inspector, dock), its widths at each breakpoint (phone, 1280, 1440, ≥ 1920), the type scale (sizes, weights, which text is a heading), the spacing scale, the colour tokens in both themes, and the shared panel parts; screenshots or sketches of each studio show it. The maintainer approves it before 502–506 are planned. _(manual)_
+- [x] **AC-2:** The document has a **panel map**: every rail tool and inspector section of the photo, Reel and YouTube modes today, and every panel planned in Phases 2–3 (210 markers and in/out, 305 captions, 301–304 colour, 303 scopes), each placed in the layout (left: add and browse; right: change the selection; dock: time), with a rule for when the rail groups or folds tools so it never needs to scroll at 720 px tall. _(manual)_
 
 ### Shared parts
 
-- [ ] **AC-3:** The shared panel parts (panel header with title and optional actions, folding section, list row, empty state) exist once in `src/components/` and are used by the print studio and the media studio; the media studio no longer has its own copies (checked by a unit test over the components or a lint rule). _(unit)_
+- [x] **AC-3:** The shared panel parts (panel header with title and optional actions, folding section, list row, empty state) exist once in `src/components/` and are used by the print studio and the media studio; the media studio no longer has its own copies (checked by a unit test over the components or a lint rule). _(unit)_
 
 ### Alignment
 
-- [ ] **AC-4:** The media studio's rail and panel use the print studio's widths, header style (step label, title, short description, Collapse all · Expand all where there are sections) and colour tokens, so the two left sides match; design tokens come from one place (`01-base.css` custom properties), checked by a unit test that the media-studio stylesheets use no raw colour or font-size values outside the tokens. _(unit)_
+- [x] **AC-4:** The media studio's rail and panel use the print studio's widths, header style (step label, title, short description, Collapse all · Expand all where there are sections) and colour tokens, so the two left sides match; design tokens come from one place (`01-base.css` custom properties), checked by a unit test that the media-studio stylesheets use no raw colour or font-size values outside the tokens. _(unit)_
 - [ ] **AC-5:** At 1440 × 900 and 1280 × 720 the left rail and panel of the print studio and of each media mode have the same widths and header positions within 2 px (deferred to 590). _(e2e)_
 
 ### Rail
 
-- [ ] **AC-6:** **Expandable rail** (both studios, D2): the rail has two widths, **expanded** (icon and label side by side, the Add / Edit group headings shown, about 184 px) and **compact** (icon only, about 64 px; the label is the button's accessible name and tooltip). A button at the foot of the rail (and Ctrl + \) switches between them, with a width animation that is skipped under reduced motion. The rail is **expanded by default** at every window width; when the user makes it compact (or expands it again) the choice is remembered on the device for both studios. Phones (rail across the bottom) are unaffected. Unit-tested on the pure rule that picks the width from the saved choice; the e2e check (both studios, both widths, the stage resizing with it) is deferred to 590. _(unit)_
+- [x] **AC-6:** **Expandable rail** (both studios, D2): the rail has two widths, **expanded** (icon and label side by side, the Add / Edit group headings shown, about 184 px) and **compact** (icon only, about 64 px; the label is the button's accessible name and tooltip). A button at the foot of the rail (and Ctrl + \) switches between them, with a width animation that is skipped under reduced motion. The rail is **expanded by default** at every window width; when the user makes it compact (or expands it again) the choice is remembered on the device for both studios. Phones (rail across the bottom) are unaffected. Unit-tested on the pure rule that picks the width from the saved choice; the e2e check (both studios, both widths, the stage resizing with it) is deferred to 590. _(unit)_
 
 ## Non-Functional Requirements
 

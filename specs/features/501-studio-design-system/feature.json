@@ -4,13 +4,13 @@
   "id": "501",
   "title": "Studio design overview: one layout and type scale for every studio",
   "workItem": null,
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-20",
     "approved": "2026-10-20",
-    "started": null,
-    "done": null
+    "started": "2026-10-20",
+    "done": "2026-10-20"
   },
   "git": {
     "branch": "feat/501-studio-design-system"
@@ -50,25 +50,25 @@
           "group": "Design document",
           "proof": "manual",
           "text": "A design document `docs/DESIGN.md` describes the shared studio layout (top bar, rail, panel, stage, inspector, dock), its widths at each breakpoint (phone, 1280, 1440, ≥ 1920), the type scale (sizes, weights, which text is a heading), the spacing scale, the colour tokens in both themes, and the shared panel parts; screenshots or sketches of each studio show it. The maintainer approves it before 502–506 are planned.",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Design document",
           "proof": "manual",
           "text": "The document has a **panel map**: every rail tool and inspector section of the photo, Reel and YouTube modes today, and every panel planned in Phases 2–3 (210 markers and in/out, 305 captions, 301–304 colour, 303 scopes), each placed in the layout (left: add and browse; right: change the selection; dock: time), with a rule for when the rail groups or folds tools so it never needs to scroll at 720 px tall.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "Shared parts",
           "proof": "unit",
           "text": "The shared panel parts (panel header with title and optional actions, folding section, list row, empty state) exist once in `src/components/` and are used by the print studio and the media studio; the media studio no longer has its own copies (checked by a unit test over the components or a lint rule).",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Alignment",
           "proof": "unit",
           "text": "The media studio's rail and panel use the print studio's widths, header style (step label, title, short description, Collapse all · Expand all where there are sections) and colour tokens, so the two left sides match; design tokens come from one place (`01-base.css` custom properties), checked by a unit test that the media-studio stylesheets use no raw colour or font-size values outside the tokens.",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "group": "Alignment",
@@ -80,7 +80,7 @@
           "group": "Rail",
           "proof": "unit",
           "text": "**Expandable rail** (both studios, D2): the rail has two widths, **expanded** (icon and label side by side, the Add / Edit group headings shown, about 184 px) and **compact** (icon only, about 64 px; the label is the button's accessible name and tooltip). A button at the foot of the rail (and Ctrl + \\) switches between them, with a width animation that is skipped under reduced motion. The rail is **expanded by default** at every window width; when the user makes it compact (or expands it again) the choice is remembered on the device for both studios. Phones (rail across the bottom) are unaffected. Unit-tested on the pure rule that picks the width from the saved choice; the e2e check (both studios, both widths, the stage resizing with it) is deferred to 590.",
-          "done": false
+          "done": true
         }
       }
     },
@@ -436,8 +436,8 @@
         "T001": {
           "text": "Before screenshots: the six print steps at 1280 × 720, 1440 × 900 and 1920 × 1080, and the photo, Reel and YouTube modes with a sample project (each rail tool open) at 1280 × 720 and 1440 × 900, light and dark, taken with a throwaway Playwright script against `npm run dev`; kept in `docs/screenshots/design/before/` (WebP).",
           "section": "Setup",
-          "status": "todo",
-          "blockedReason": null,
+          "status": "blocked",
+          "blockedReason": "Deferred by the maintainer (2026-10-20) to the end of Phase UI, since the phase makes many UI changes: take the before set from main at f789d4e (a worktree, before any Phase UI code) together with the after set (T042), then compare. Until then T013 checks the print steps by eye against main.",
           "parallel": false,
           "manual": false,
           "covers": [],
@@ -446,12 +446,14 @@
           ],
           "test": "recorded in the result note (no committed test)",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "startedOn": "2026-10-20",
+          "doneOn": null
         },
         "T010": {
           "text": "Failing test: no raw colour (hex, rgb, hsl, oklch) and no raw `font-size` outside custom-property definitions in `03-shell.css`, `35-instagram.css`, `36-media-studio.css`, `41-projects.css`, `42-panel.css`; `--rail-w-wide`, `--rail-w-narrow`, `--panel-w`, `--insp-w` defined once, in `01-base.css`, and read by `03-shell.css` and `36-media-studio.css`. Exceptions listed by name with the reason.",
           "section": "Tokens",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -463,12 +465,16 @@
           ],
           "test": "`tests/unit/styles/tokens.test.ts` (fails first)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/styles/tokens.test.ts: a small CSS walker (declarations with their selector or at-rule chain), raw-colour (hex, rgb/hsl/oklch/oklab/lab/lch/hwb, white/black) and raw font-size rules (rem/px outside var(); em and unitless line heights allowed), width tokens defined once in 01-base.css with no stylesheet setting --rail-w, and 03-shell / 36-media-studio reading var(--rail-w) and var(--panel-w); 42-panel.css is checked once T021 adds it; an EXCEPTIONS list (empty, each entry needs a reason and must still match). 10 tests: the 4 walker and exception tests pass, 6 fail as intended: 03-shell 6 font sizes; 35-instagram 7 colours, 18 font sizes; 36-media-studio 42 colours, 27 font sizes; 41-projects 1 colour; width tokens not in 01-base (36 defines its own); 03-shell has a fixed 88px 420px grid. Lint and typecheck clean. npm run check is red until T013 (the failing-first test), as planned."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T011": {
           "text": "New tokens in `01-base.css` for both themes: `--rail-w-wide` 184 px, `--rail-w-narrow` 64 px, `--panel-w: clamp(320px, 24vw, 420px)` (D1), `--insp-w: clamp(280px, 20vw, 340px)` (D3), `--fs-*`, `--fw-*`, `--sp-*`, `--sound-music` / `--sound-voice` / `--sound-fx`, and the `--stage-*` colours the media studio uses raw today (same values, so nothing changes colour). Contrast of each text token against its background noted for DESIGN.md.",
           "section": "Tokens",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -480,12 +486,16 @@
           ],
           "test": "`tests/unit/styles/tokens.test.ts` (the definitions part passes)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** 01-base.css :root: layout (--rail-w-wide 184px, --rail-w-narrow 64px, --panel-w clamp(320px, 24vw, 420px), --insp-w clamp(280px, 20vw, 340px)); type scale --fs-3xs 0.5625rem … --fs-display 4rem (11 steps: the 27 raw sizes in the four sheets snap to them in T012/T013) and --fw-body/label/head/strong 400/500/600/700; spacing --sp-1…6 (4–32px); colours for every raw value found (media paper/black/scrim/edge/handle/missing stripes, stage dot/veils/bar/ink-soft/dim/faint, backdrop, on-danger, five shadows, layer kinds, keyline), written as oklch equivalents of the raw values; a few near-identical alphas merged (scrim 0.6/0.62/0.65 → 0.62; clip edges 0.2/0.25 → 0.25, 0.35/0.55 → 0.5). Sound kinds: light music #1f7f74 (4.83:1 on the panel; today's #2a9d8f was 3.32), voice #c2410c (5.18), fx #7048e8 (5.55); dark music #2a9d8f (5.45), voice #ff8a5c (7.79), fx #a78bfa (6.65), in both dark blocks. Stage text tokens on the stage: ink-soft 11.2, ink-dim 9.2, ink-faint 6.1 (light) / 6.3 (dark); white on the scrim over a white photo 6.2. Nothing reads the new tokens yet, so nothing on screen changes. tokens.test.ts: still 6 failing as expected (the width test passes once 36 drops its own widths in T012)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T012": {
           "text": "Raw colours and font sizes in `36-media-studio.css` replaced by tokens (same rendered values); `.mst` reads the shared width tokens instead of its own `--rail-w` / `--panel-w` / `--insp-w`.",
           "section": "Tokens",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -497,12 +507,16 @@
           ],
           "test": "`tests/unit/styles/tokens.test.ts`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** 36-media-studio.css reads tokens only: 42 raw colours → media/stage/shadow/layer/sound tokens, 27 raw font sizes snapped to the --fs scale (nearest step: 1.35rem→xl 1.25, 0.88/0.86→md, 0.84/0.82/0.8→sm, 0.78/0.76/0.75/0.74/0.72→xs, 0.7/0.68/10px→2xs, 9px→3xs, 1.4/1.6→2xl, 2rem→3xl; weights via --fw-*). .mst no longer defines --stage-dot/--rail-w/--panel-w/--insp-w; its grids read var(--rail-w, var(--rail-w-narrow)) (64px icon rail until RailFrame sets --rail-w in T031), the shared --panel-w (clamp 320–420, was 300) and --insp-w (clamp 280–340, was 320). Three tokens added to 01-base: --stage-ink (#eee), --stage-wave (the clip-sound wave on the filmstrip, #2a9d8f kept), --fs-countdown (voice-over countdown clamp). The music bar now uses --sound-music (light #1f7f74, the contrast fix from T011). tokens.test.ts: colour check ignores token names (--media-black), width check accepts var(--rail-w, fallback); 36 passes (break-check: one raw stroke colour fails it), width-once passes; 4 left fail for T013's sheets. Rest of npm run check green (2552 tests)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T013": {
           "text": "The same for `35-instagram.css`, `41-projects.css` and `03-shell.css`; the print shell's `88px 420px` grid reads `--rail-w` and `--panel-w`. Then the print steps compared with T001's pictures at the three widths (photo grids, calendar captions, envelope, print pack): anything that breaks at the narrower panel is fixed here. `tokens.test.ts` passes.",
           "section": "Tokens",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -518,12 +532,16 @@
           ],
           "test": "`tests/unit/styles/tokens.test.ts`; screenshots compared in the result note",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** 35-instagram (5 colours, 18 font sizes), 41-projects (1 colour → --on-danger) and 03-shell (6 font sizes) read tokens; sizes snapped to the nearest --fs step (1.15/1.1/1.05→lg, 0.9/0.86/0.85→md, 0.84/0.83→sm, 0.78/0.72→xs, 0.7→2xs, 0.62→3xs, 1→base, 1.35→xl); scrims 0.6/0.65 → --media-scrim; the own-colour swatch → new --colour-wheel token. Print grid: var(--rail-w, 88px) var(--panel-w) (≤1180px: var(--rail-w, 80px) var(--panel-w) in 10-dialogs.css), so the print rail keeps its width until RailFrame sets --rail-w (T031/T032); the panel is 320px at 1280 (was 420), 346px at 1440, 420px from 1750. Print steps checked by eye (T001 deferred): throwaway Playwright at 1280/1440/1920, all six steps, against the same build with the old 88px 420px grid injected, plus an overflow scan of every step of postcard, calendar, frame and magnet at 1280: nothing clipped (only the intended pane track and Pexels credit ellipses); the photo-shape picker wraps to two rows (already did at 1440). One fix: paired dropdowns cut their options (\"3 mm (India, Europe)\" was already cut at 420px), so .panel is now an inline-size container (container: panel) and .row:has(select) stacks below 440px (04-controls.css). tokens.test.ts passes (10/10); npm run check green (2556 tests)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T020": {
           "text": "Failing test: no file in `src/components/{studio,ig,panes}` defines its own panel title (`<h2`), empty state (`mst-empty`) or folding toggle (`aria-expanded` on a section title outside `components/panel/`); `components/common.tsx` exports no `Section` or `revealSection`; the print `Pane`, `StudioShell` and the empty stages import from `components/panel`. Exceptions listed by name with the reason (dialogs keep their own titles).",
           "section": "Shared parts",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -535,12 +553,16 @@
           ],
           "test": "`tests/unit/components/panel/sharedParts.test.ts` (fails first)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/panel/sharedParts.test.ts (19 tests): no <h2 (panel title), mst-empty (empty state) or aria-expanded (fold toggle) in src/components/{studio,ig,panes} outside named exceptions (studio/Dialog.tsx title: a dialog; KeyframeLane lane expander and TrackHead menu buttons: not panel sections), each exception must still match; common.tsx exports no Section/revealSection; common.tsx and studio/Shell.tsx import PanelHeader, PhotoPanels/VideoPanels EmptyState, ProjectsPanel ListRow, FeatureFinder revealSection from components/panel. The media panels title themselves with <h3>, not <h2> as the spec assumed (the only panel <h2>s are the two empty stages), so the panel-titles part also names the <h3> headings that repeat the rail label and must go in T023: Add media, Add photos, Add text, Layers, Transitions, Sound, Masks (section headings such as Shapes, Brush, Stickers stay). 16 fail as intended, 3 pass (fold toggles: only the excepted ones today). Lint and typecheck clean; npm run check red on this file until T025, as planned."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T021": {
           "text": "`Section` and `revealSection` move from `common.tsx` to `components/panel/FoldSection.tsx` (exported as `FoldSection`, same storage key `chitthi-sections`, same ids, same reveal behaviour); every import moved (panes, feature finder, `ig/`); `.sec` styles move from `04-controls.css` to the new `42-panel.css`, imported last in `src/styles.css`.",
           "section": "Shared parts",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -559,12 +581,16 @@
           ],
           "test": "the existing feature-finder and section unit tests, unchanged",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** Section/revealSection moved from common.tsx to src/components/panel/FoldSection.tsx as FoldSection (same props, storage key chitthi-sections, sec-<id> ids, reveal and Collapse all · Expand all behaviour); the pane scope (FoldScope) and foldAll moved with it and Pane imports them until PanelHeader (T022); components/panel/index.ts is the barrel. Imports moved in the 8 panes (BackPane, CalendarFront, EnvelopeSection, LayoutPane, OccasionPane, PhotosPane, PrintPane, WordsPane), PexelsSearch and FeatureFinder; no ig/ file used Section. The library entry src/index.ts now exports FoldSection instead of Section (nothing in the repo reads the old name). Styles: the .sec rules were in 24-sections.css (not 04-controls.css as the task said); they moved to the new 42-panel.css, imported last, with tokens (section title 0.78rem→--fs-xs, note 0.76rem→--fs-xs, weights --fw-head/--fw-label); .pane-top/.pane-fold stay in 24-sections.css for T022. No other sheet styles .sec, so the later cascade position changes nothing. tokens.test.ts now checks 42-panel.css and passes; sharedParts.test.ts: common.tsx and FeatureFinder checks pass, 14 left for T022–T025; every other test unchanged and green (typecheck, lint clean)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T022": {
           "text": "`PanelHeader` (eyebrow, title as `<h2>`, lead, actions); the print `Pane` draws its top with it (Step n of 6, Collapse all · Expand all); `.pane-top` / `.pane h2` / `.lead` styles move to `42-panel.css`.",
           "section": "Shared parts",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -579,12 +605,16 @@
           ],
           "test": "`sharedParts.test.ts` (Pane part)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** src/components/panel/PanelHeader.tsx (eyebrow and actions on one line, title as <h2>, lead; header.panel-head) exported from components/panel; the print Pane draws its top with it (eyebrow Step n of 6, actions Collapse all · Expand all, title, lead). Styles moved to 42-panel.css under new class names (.panel-head, .panel-head-top, .panel-eyebrow, .panel-actions, .panel-head h2, .panel-lead), with tokens: from 04-controls.css (.pane .eyebrow, .pane h2, .pane .lead) and 24-sections.css (.pane-top, .pane-fold), which was then empty and is deleted (import dropped); the phone override of the title (11-phones.css 1.6rem) became a role token --fs-panel-title (1.75rem; 1.6rem under 860px, in 01-base.css), since 1.75rem is not on the scale and snapping would change the print title. Lead 0.9rem → --fs-md. Print step 1 at 1280 matches the T013 screenshot (lead 0.875rem, content 1–2px higher). sharedParts.test.ts: the Pane/common.tsx check passes; 13 left for T023–T025. Typecheck, lint clean; every other test green."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T023": {
           "text": "`StudioShell` draws a `PanelHeader` at the top of the panel from the rail item (eyebrow Add / Edit, label, `lead`); the media panels drop their own `<h2>` titles and opening sentence (moved to the rail items' `lead`): Media, Text, Elements, Draw, Transitions, Audio, Layers, Photos, Masks.",
           "section": "Shared parts",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -604,12 +634,16 @@
           ],
           "test": "`sharedParts.test.ts` (panel titles part)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** RailItem (studio/Shell.tsx) gained group ('add' | 'edit') and lead; StudioShell draws PanelHeader at the top of the open tool's panel (eyebrow Add / Edit, the rail label as title, the lead). Groups as spec Q2: Add = Media/Photos, Text, Elements, Draw, Audio; Edit = Transitions, Layers, Masks (photo mode, changes the selected photo). Leads: one sentence each, reusing the panels' opening hints where they had one (Audio: 'Add songs, voice-overs or effects from this device: they go at the playhead.'; Masks: 'A mask limits its own settings to part of the photo.'; the rest of each hint stays in the panel), new short ones for Media, Photos, Text, Elements, Draw (frame / photo by mode), Transitions, Layers; for review in T043. Panels dropped the headings that repeated the label: Add media, Add photos, Add text, Layers (with its count badge; the list shows the layers), Transitions, Sound, Masks. The rail order is unchanged until T034 groups it. Checked by eye at 1440: photo Photos panel and Reel Audio panel show the header and lead. sharedParts.test.ts: titles part passes; 5 left for T024/T025 (the empty stages' <h2> and mst-empty, EmptyState, ListRow). Typecheck, lint clean; 2571 other tests green. Gotcha in learnings.md (Prettier rewraps these files)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T024": {
           "text": "`EmptyState` (icon, title, text, action; `tone` stage or panel); `EmptyPhotoStage` and `EmptyStage` use it; `.mst-empty` styles move to `42-panel.css`.",
           "section": "Shared parts",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -625,12 +659,16 @@
           ],
           "test": "`sharedParts.test.ts` (empty-state part)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** src/components/panel/EmptyState.tsx (icon, title as <h2>, text in a <p>, action; tone 'stage' default or 'panel'), exported from components/panel. EmptyPhotoStage and EmptyStage render it: the description is its text, the add button with its error line (and LimitsNote on video) is its action. Styles: the .mst-empty rules left 36-media-studio.css and became .empty-state / .empty-stage in 42-panel.css unchanged (same values, same selector weights, so the stages look as before), plus a quieter .empty-panel tone (32px icon, --fs-lg title, muted text) for the panel lists 504–506 build. sharedParts.test.ts: titles and empty-state parts pass; 1 left (ListRow, T025). Typecheck, lint clean; 2575 other tests green."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T025": {
           "text": "`ListRow` (lead, name with ellipsis and full name as title and accessible name, detail, controls that never wrap, selected); the Projects list uses it. `sharedParts.test.ts` passes.",
           "section": "Shared parts",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -645,12 +683,16 @@
           ],
           "test": "`tests/unit/components/panel/sharedParts.test.ts`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** src/components/panel/ListRow.tsx (lead, name with ellipsis as the main button's aria-label and title, detail linked by aria-describedby, controls that never wrap, selected → aria-pressed and .on), plus three props the Projects list needs: disabled (a damaged project), editor (the rename field shown in place of the main button), rowId (data-id for the arrow keys and F2). ProjectRow renders it; onListKey now finds .list-row-main. Styles: the row rules left 41-projects.css for .list-row* in 42-panel.css (detail 0.85em → --fs-sm); Projects keeps its 64×40 thumbnail, the rename field and the dashed damaged row (now .list-row.mst-proj-bad, since 42-panel.css loads later and would win at equal weight). Not checked in a browser (needs saved projects): the Projects dialog goes to 590's checks. sharedParts.test.ts passes (19/19) and tokens.test.ts (10/10); npm run check green: 99 files, 2576 tests; typecheck, lint clean."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T030": {
           "text": "Failing test, then `railWidth(saved)`: wide by default; a saved `narrow` or `wide` is kept; any other value (null, garbage, storage that throws) gives wide. Plus the storage helpers (`readRailWidth`, `saveRailWidth`, try/catch).",
           "section": "Rail",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -663,12 +705,16 @@
           ],
           "test": "`tests/unit/components/panel/railWidth.test.ts`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** src/components/panel/railWidth.ts: railWidth(saved) gives narrow only for the exact string 'narrow', else wide (the default); readRailWidth(storage?) / saveRailWidth(width, storage?) keep it under RAIL_KEY 'chitthi-rail', reading the global localStorage inside the try so blocked or missing storage gives wide and a save that throws is ignored; exported from components/panel. tests/unit/components/panel/railWidth.test.ts (15 tests: saved choices, 9 bad values incl. 'Narrow', round trip, damaged value, throwing storage, no storage) failed first (module missing), then passes; break-check: accepting 'Narrow' fails it. npm run check green: 100 files, 2591 tests."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T031": {
           "text": "`RailFrame`: holds the width state (from `railWidth`), sets `--rail-w` on the studio root, the toggle at the rail's foot (Expand rail / Collapse rail, `aria-pressed`), Ctrl + \\ (ignored while typing), labels hidden but kept as `aria-label` and `title` when narrow, the width animated over `--dur` and not under `prefers-reduced-motion`; hidden on phones.",
           "section": "Rail",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -681,12 +727,16 @@
           ],
           "test": "`railWidth.test.ts` (logic); the UI is checked in 590",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** src/components/panel/RailFrame.tsx (exported with useRailWidth): renders the rail's <nav> (label, the studio's className, + rail-frame rail-wide|rail-narrow), width state from readRailWidth, sets --rail-w: var(--rail-w-wide|narrow) on its parent (the studio's grid) and removes it on unmount; toggle at the foot under an optional foot slot; Ctrl + \\ (or Cmd) switches, ignored in text fields, selects and editable elements (own 2-line check: importing ig/LayerPanel's typingIn would pull it into the print chunk); every switch saved with saveRailWidth. Toggle: one steady name 'Compact rail' with aria-pressed (pressed = narrow), aria-keyshortcuts Control+Backslash, title 'Compact rail (Ctrl+\\)', chevron pointing left/right; not 'Expand rail / Collapse rail' as the task said, because a label that changes with aria-pressed reads wrong and a visible label missing from the name fails WCAG 2.5.3. 42-panel.css: foot and toggle styles, .rail-narrow .rail-label visually hidden (stays the accessible name, so items need no aria-label), the grid's grid-template-columns animated over --dur (none under prefers-reduced-motion), toggle hidden on phones (print ≤860px, media ≤760px). Not mounted yet (T032, T034); UI checked in 590. npm run check green: 100 files, 2591 tests."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T032": {
           "text": "The print studio's `Rail` inside `RailFrame`: number beside the label when wide, number only when narrow; Gallery as the frame's foot; the phone layout (steps across the top) unchanged.",
           "section": "Rail",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -699,12 +749,16 @@
           ],
           "test": "checked in 590 (AC-6 e2e)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** The print Rail renders inside RailFrame (label Steps, class rail): wide 184 px shows the step number beside its label, narrow 64 px the number alone (the label is .rail-label: visually hidden, still the accessible name; title on every step); Gallery is the frame's foot with the Compact rail toggle under it. Styles: wide/narrow step layout in 03-shell.css (.galbtn's own top border dropped: the foot draws it); phones (11-phones.css) keep the row of index tabs with labels whatever width was chosen and put the foot at the row's end; RailFrame sets no layout itself (it overrode the phone row). Checked in Chromium (throwaway Playwright, 1280 × 720): grid 184px 320px 776px wide → 64px 320px 896px narrow (aria-pressed false → true); the choice survives a reload; Ctrl + \\ switches it, not while typing in a field; at 390 × 844 the toggle is hidden and labels show; no console errors. Fixed on the way: wide labels were centred, the phone rail wrapped Gallery to a second line. npm run check green (100 files, 2591 tests)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T033": {
           "text": "Failing test: every rail item of the photo, Reel and YouTube modes has a `group` (`add` / `edit`) and a `lead`; Add and Edit hold the tools the panel map lists (DESIGN.md §2); at most 6 non-`minor` items per mode.",
           "section": "Rail",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -716,12 +770,16 @@
           ],
           "test": "`tests/unit/components/studio/railGroups.test.ts` (fails first)",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/studio/railGroups.test.ts (8 tests): every photo and Reel/YouTube tool has a group, a label and a one-sentence lead; the Add and Edit groups hold spec Q2's tools (photo: add media, text, elements, draw; edit masks, layers; video: add media, text, elements, draw, audio; edit transitions, layers); at most 6 non-minor tools per rail; Add listed before Edit (so the headings group them). To test the rails without importing the workspaces, the RAIL lists moved to src/components/studio/railTools.tsx (VIDEO_RAIL, PHOTO_RAIL, VideoTool, PhotoTool; the workspaces import them as RAIL / Tool, their now-unused icon imports dropped); RailItem gained optional minor (no behaviour yet) and StudioShell takes a readonly rail. 3 fail as intended (video shows 7 tools; both rails mix Add and Edit), 5 pass; typecheck and lint clean; npm run check red on these 3 until T034."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T034": {
           "text": "The media rail in `RailFrame` with the print rail's look (button height, type, active bar and soft fill) and its icons; Add / Edit headings when wide (a divider when narrow); `minor` tools go into a **More** menu below 720 px of height (CSS only). `railGroups.test.ts` passes.",
           "section": "Rail",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -737,12 +795,16 @@
           ],
           "test": "`tests/unit/components/studio/railGroups.test.ts`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** The media rail (Shell.tsx ToolRail) renders inside RailFrame (label Tools, class mst-rail): Add and Edit groups (role=group with their names), headings when wide, a hairline between groups when narrow; tools are .rail-tool buttons with the print rail's look (hairline-split rows, accent bar on the edge + soft --sunk fill for the open tool, --fs-xs label type, icon beside the label when wide, icon alone when narrow; 48 px rows so the rail fits at 720 px). Minor tools (Reel/YouTube: Draw) get .rail-minor; under 720 px tall (and wider than 760 px) they hide and a More menu (MoreMenu, opens beside the rail) lists them; the rail stops scrolling there so the menu is not clipped. Phones keep one row of icons over labels (groups display: contents, no headings, no foot). Checked in Chromium (throwaway Playwright): rail 183 px wide at 1440×900 and 1280×720, scrollHeight = clientHeight in both modes (no scroll; Reel 609 / 429 px tall), More shows only at 720 tall and lists Draw, narrow 64 px shows icons, 390×844 a 53 px row; no console errors. railGroups.test.ts 8/8; npm run check green (101 files, 2599 tests; one pre-existing max-lines warning in engine/patterns.ts)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T040": {
           "text": "`docs/DESIGN.md`: the layout (top bar, rail, panel, stage, inspector, dock) and its widths at phone, 1280, 1440, ≥ 1920 with the rail wide and narrow; the type scale (role, size, line height, weight, font), spacing scale and colour tokens in both themes with their contrast; the shared parts and when to use each; the rail (groups, More, expanded by default). Linked from `docs/` index and the README's docs list.",
           "section": "Design document",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -754,12 +816,16 @@
           ],
           "test": "reviewed in T043",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** docs/DESIGN.md (219 lines): §1 the layout (six parts, the left add / right selection / bottom time rule, wide and narrower layouts, phone stacking order) with widths measured in Chromium at 390×844, 1280×720, 1440×900, 1920×1080, rail wide and compact, for #/studio and the three media modes (rail 184/64, panel 320/346/420, inspector 280/288/340; the token table); §2 the rail (widths, toggle, Ctrl + \\, remembered, Add/Edit, at most 6 shown, More ≤ 720 px); §3 type (every --fs token with its use, weights, a role table: font, size, line height, weight); §4 spacing (--sp-1…6; noted that only one rule reads them yet); §5 colour: 20 token pairs' contrast measured in both themes (all text ≥ 4.5:1; open: --line-strong is the field border at 2.5:1 light / 2.1:1 dark, under 1.4.11's 3:1, left for T043); §6 the shared parts and when to use each. Points to design.md for the identity. Linked from the README's documentation table (no separate docs index exists). Found on the way: the print top bar is 60 px and the media one 57 px (noted for 590's AC-5). Prettier-formatted; npm run check green (2599 tests). The panel map (T041) and before/after (T042) go into the same file."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T041": {
           "text": "The panel map in `DESIGN.md`: every rail tool and inspector section of the three modes today and every planned panel (210 markers, in/out, compound clips; 301–304 colour; 303 scopes; 305 captions; 309), each placed left / right / dock by the rule, in the Add or Edit group, with which are `minor`.",
           "section": "Design document",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -771,13 +837,17 @@
           ],
           "test": "reviewed in T043; `railGroups.test.ts` matches today's part",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** DESIGN.md §7 Panel map: the rail today per mode (Add, Edit, minor; the table railGroups.test.ts checks, 8/8 pass); the inspector today in its selection order (photo: nothing / mask / layer / photo with Light, Colour, Detail, Effects, Presets and LUTs, Tone curve, Colour mixer; video: sound / layer / cut / clip with Speed, Position and size, Frame, Colour / Project); the dock. Planned: 210 (markers in the dock + a minor Markers list tool, in/out in the dock, range export in Export, text animations and compound-clip settings in the inspector), 211/212/309 no panel, 301–302 inspector sections of the clip, 303 scopes at the top of a left Colour panel beside the inspector's grade, 304 under them, 305 Captions tool (Edit) with style in the inspector, 306/308 a photo Heal tool (Edit), 307 in Export. The rail once built: photo 7 tools (Layers minor), video 10 (Draw, Transitions, Layers, Markers minor), 6 shown each. Rule for More: height = 48 × tools + 25 × headings + 40; today's video rail 426 px fits the 429 px rail at 1280×720, so the threshold is 720 px; the feature adding the video rail's 8th tool must move the max-height query to about 870 px. Proposals (Colour panel left with scopes; Transitions minor) are for the maintainer's review in T043. npm run check green (2599 tests)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T042": {
           "text": "After screenshots matching T001's set in `docs/screenshots/design/after/`, with the rail wide and narrow; a before/after table in `DESIGN.md`.",
           "section": "Design document",
-          "status": "todo",
-          "blockedReason": null,
+          "status": "blocked",
+          "blockedReason": "Deferred with T001 (the maintainer, 2026-10-20): the before set comes from main at f789d4e and the after set is taken with it at the end of Phase UI, so both sets match and include 502–506. DESIGN.md's measured widths (§1) stand in until then.",
           "parallel": false,
           "manual": false,
           "covers": [
@@ -789,12 +859,13 @@
           ],
           "test": "reviewed in T043",
           "commits": [],
-          "notes": []
+          "notes": [],
+          "doneOn": null
         },
         "T043": {
           "text": "The maintainer reviews `DESIGN.md` (layout, scales, panel map) and the before/after screenshots and approves them, or lists changes (done before 502–506 are planned).",
           "section": "Design document",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": true,
@@ -805,12 +876,16 @@
           "files": [],
           "test": "the maintainer's approval, dated in the result note",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** The maintainer approved docs/DESIGN.md (layout and widths, type, spacing, colour, shared parts, panel map) and decided the open points (D-066): --line-strong raised to oklch(62%) light / oklch(54%) dark (field edges ≥ 3.1:1 on every surface, were 2.5 / 2.1); the top bars matched through --top-h (60 px) and the panel padding through --panel-pad (28/24/40 px), so in Chromium the rail and panel start at y 61 and the panel title sits at (208, 125) in #/studio and all three media modes at 1280×720 and 1440×900 (were 125 vs 109); minor tools once the rail grows as proposed (video Draw, Transitions, Layers, Markers; photo Layers); the Colour panel on the left; More moves to ~860 px with the 8th video tool. Rail headings lost 2 px so the 7-tool video rail fits from 721 px tall (checked at 700/720/721/722: no scroll). DESIGN.md updated with the new numbers. The before/after screenshots stay deferred with T001/T042 to the end of Phase UI (the maintainer's choice). npm run check green (2599 tests)."
+          ],
+          "doneOn": "2026-10-20",
+          "startedOn": "2026-10-20"
         },
         "T090": {
           "text": "`specs/lld.md` (module map: `components/panel/`, `42-panel.css`) and `specs/architecture.md` (styling rule: tokens in `01-base.css`, shared panel parts); `docs/MEDIA-STUDIO.md` mentions the rail toggle and Ctrl + \\.",
           "section": "Close",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -822,12 +897,16 @@
           ],
           "test": "link check in the result note",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** specs/lld.md: the module map lists components/panel/ (PanelHeader, FoldSection, ListRow, EmptyState, RailFrame + railWidth) and studio/railTools.tsx, styles/ runs to 42-panel.css (tokens in 01-base.css, shared parts in 42-panel.css); the Styles paragraph says tokens are defined once (three theme blocks), tokens.test.ts guards them, both grids read the width tokens and RailFrame sets --rail-w from localStorage['chitthi-rail']; steps are built from FoldSection under a PanelHeader (was Section in common.tsx). specs/architecture.md: the Styles convention adds the token rule and the shared panel parts, linking docs/DESIGN.md. docs/MEDIA-STUDIO.md: the tool rail row has Add / Edit, Compact rail and Ctrl + \\ (Cmd + \\), remembered for both studios, and More at ≤ 720 px. Link check: the four new links (lld, architecture → ../docs/DESIGN.md; DESIGN.md → ../design.md; README → docs/DESIGN.md) resolve. npm run check green (2599 tests)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         },
         "T091": {
           "text": "Close: `npm run check`, `npm run build` (entry ≤ 350 KB, no growth expected), `npm run lint:full`, `npm run check:licenses`; tick the ACs the unit tests and T043 prove (AC-5 and AC-6's e2e stay in 590); status Implemented; `memory/progress.md`, `memory/MEMORY.md`.",
           "section": "Close",
-          "status": "todo",
+          "status": "done",
           "blockedReason": null,
           "parallel": false,
           "manual": false,
@@ -841,7 +920,11 @@
           "files": [],
           "test": "`npm run build`",
           "commits": [],
-          "notes": []
+          "notes": [
+            "**Result (2026-10-20):** npm run check green (101 files, 2599 tests); npm run build green, entry 313 KB (budget 350, no growth); npm run lint:full 0 errors (1 max-lines warning in engine/patterns.ts, on main since the 2026-10-19 deps bump, not this branch); npm run check:licenses: 169 packages allowed. Ticked AC-1 (DESIGN.md approved in T043, layout sketch and measured widths; screenshots follow with T001/T042), AC-2 (panel map + railGroups.test.ts), AC-3 (sharedParts.test.ts), AC-4 (tokens.test.ts), AC-6 (railWidth.test.ts; its e2e in 590). AC-5 (e2e) waits for 590; measured by hand meanwhile: rail and panel at y 61, panel title at (208, 125) in all four studios at 1280×720 and 1440×900. CHANGELOG Unreleased › Changed has the entry. T001 and T042 stay deferred to the end of Phase UI (the maintainer). Status Implemented."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
         }
       }
     }

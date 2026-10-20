@@ -189,11 +189,7 @@ function MaskList({ item }: Readonly<MaskItemProps>) {
   const masks = item.edit.masks;
   return (
     <div className="ig-group">
-      <h3>Masks</h3>
-      <p className="hint">
-        A mask limits its own settings to part of the photo: shape it here and on the photo, then set them in the
-        inspector.
-      </p>
+      <p className="hint">Shape it here and on the photo, then set its settings in the inspector.</p>
       <div className="ig-newmask" role="group" aria-label="New mask">
         {PART_KINDS.map(([kind, short, long]) => (
           <button

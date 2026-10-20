@@ -424,7 +424,7 @@
       "501": {
         "title": "Studio design overview: one layout and type scale for every studio",
         "workItem": null,
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/501-studio-design-system",
         "needs": []

@@ -1,6 +1,7 @@
 import { setBack, setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings } from '../../types';
-import { Check, Pane, Section, Seg, YearField } from '../common';
+import { Check, Pane, Seg, YearField } from '../common';
+import { FoldSection } from '../panel';
 import { FontPicker } from '../FontPicker';
 import { AiWordsEntry } from '../ai/AiEntry';
 import { EnvelopeSection } from './EnvelopeSection';
@@ -14,7 +15,7 @@ export function BackPane() {
   if (product === 'magnet') return <MagnetBack />;
   return (
     <Pane title="Back of the card" next="print file" onNext={() => setUI({ pane: 'print' })}>
-      <Section id="back.message" title="Message">
+      <FoldSection id="back.message" title="Message">
         <AiWordsEntry mode="message" />
         <label className="f">
           Message (leave empty for ruled lines to write by hand)
@@ -48,8 +49,8 @@ export function BackPane() {
           weight="bw"
           onChange={(font) => setBack({ fromFont: font === back.font ? '' : font })}
         />
-      </Section>
-      <Section id="back.address" title="Address" note={back.to || undefined}>
+      </FoldSection>
+      <FoldSection id="back.address" title="Address" note={back.to || undefined}>
         <label className="f">
           To (name)
           <input type="text" value={back.to} onChange={(event) => setBack({ to: event.target.value })} />
@@ -80,8 +81,8 @@ export function BackPane() {
           weight="bw"
           onChange={(font) => setBack({ addrFont: font === back.font ? '' : font })}
         />
-      </Section>
-      <Section id="back.style" title="Stamp and style">
+      </FoldSection>
+      <FoldSection id="back.style" title="Stamp and style">
         <Check checked={back.stamp} onChange={(stamp) => setBack({ stamp })}>
           Stamp box
         </Check>
@@ -98,7 +99,7 @@ export function BackPane() {
         <Check checked={back.tint} onChange={(tint) => setBack({ tint })}>
           Tint the back with the card colour
         </Check>
-      </Section>
+      </FoldSection>
       <EnvelopeSection />
     </Pane>
   );
@@ -114,7 +115,7 @@ function CalendarBack() {
       next="print file"
       onNext={() => setUI({ pane: 'print' })}
     >
-      <Section id="back.year" title="Year page">
+      <FoldSection id="back.year" title="Year page">
         <YearField value={design.cal.year} onChange={(year) => setDesign({ cal: { ...design.cal, year } })} />
         <Check checked={design.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
           Title (otherwise the year is shown)
@@ -173,7 +174,7 @@ function CalendarBack() {
         <Check checked={design.back.tint} onChange={(tint) => setBack({ tint })}>
           Tint the page with the theme colour
         </Check>
-      </Section>
+      </FoldSection>
       <EnvelopeSection />
     </Pane>
   );
@@ -190,7 +191,7 @@ function FrameBack() {
       next="print file"
       onNext={() => setUI({ pane: 'print' })}
     >
-      <Section id="back.label" title="Dedication label">
+      <FoldSection id="back.label" title="Dedication label">
         <AiWordsEntry mode="message" />
         <label className="f">
           Title (uses the design name, or the greeting)
@@ -252,7 +253,7 @@ function FrameBack() {
         <Check checked={back.tint} onChange={(tint) => setBack({ tint })}>
           Tint with the theme colour
         </Check>
-      </Section>
+      </FoldSection>
       <EnvelopeSection />
     </Pane>
   );
@@ -267,14 +268,14 @@ function MagnetBack() {
       next="print file"
       onNext={() => setUI({ pane: 'print' })}
     >
-      <Section id="back.magnet" title="About the back">
+      <FoldSection id="back.magnet" title="About the back">
         <ul className="tips">
           <li>Easiest: print straight onto inkjet printable magnet sheet (A4), then cut.</li>
           <li>Sturdier: print on photo paper and stick it onto self-adhesive magnetic sheet (0.5–0.76 mm).</li>
           <li>Round button magnets: the bleed wraps around the badge, so keep words inside the blue safe circle.</li>
           <li>Round the corners of square and card magnets with a 3 mm corner punch.</li>
         </ul>
-      </Section>
+      </FoldSection>
       <EnvelopeSection />
     </Pane>
   );

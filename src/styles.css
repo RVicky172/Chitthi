@@ -33,7 +33,6 @@
 @import './styles/21-envelope.css';
 @import './styles/22-landing-refresh.css';
 @import './styles/23-landing-showcase.css';
-@import './styles/24-sections.css';
 @import './styles/25-loaders.css';
 @import './styles/26-feature-finder.css';
 @import './styles/27-landing-3d.css';
@@ -51,3 +50,4 @@
 @import './styles/39-docs.css';
 @import './styles/40-site-nav.css';
 @import './styles/41-projects.css';
+@import './styles/42-panel.css';

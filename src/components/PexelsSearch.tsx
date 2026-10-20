@@ -18,7 +18,8 @@ import { putOnCard, storePhotos } from '../state/library';
 import { usePhotoSlots } from '../state/photoSlots';
 import { setUI, useApp } from '../state/store';
 import type { Design } from '../types';
-import { Section, Seg } from './common';
+import { Seg } from './common';
+import { FoldSection } from './panel';
 import { ExpandIcon, SearchIcon } from './icons';
 import { logError } from '../lib/errors';
 
@@ -409,9 +410,9 @@ export function PexelsSearch({ wide = false }: Readonly<{ wide?: boolean }>) {
   return wide ? (
     body
   ) : (
-    <Section id="photos.pexels" title="Free photos from Pexels">
+    <FoldSection id="photos.pexels" title="Free photos from Pexels">
       {body}
-    </Section>
+    </FoldSection>
   );
 }
 

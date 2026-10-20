@@ -1,7 +1,9 @@
 import { Suspense, lazy, useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { isDesktop } from '../../platform/desktop';
 import { setUI } from '../../state/store';
-import { FolderIcon, ImageIcon, LaptopIcon, Logo, ReelIcon, YouTubeIcon } from '../icons';
+import { FolderIcon, ImageIcon, LaptopIcon, Logo, MoreIcon, ReelIcon, YouTubeIcon } from '../icons';
+import { MoreMenu } from '../MoreMenu';
+import { PanelHeader, RailFrame } from '../panel';
 import { StudioDialog } from './Dialog';
 import { SaveStatusLine } from './ProjectStatus';
 
@@ -50,6 +52,64 @@ export interface RailItem<T extends string> {
   id: T;
   label: string;
   icon: ReactNode;
+  /** The rail heading it sits under: Add (bring things in) or Edit (change what is there) (501 §2). */
+  group: 'add' | 'edit';
+  /** The panel's one-sentence lead, under its title. */
+  lead: string;
+  /** Used less: in the More menu when the window is under 720 px tall. */
+  minor?: boolean;
+}
+
+const GROUP_NAMES: Record<RailItem<string>['group'], string> = { add: 'Add', edit: 'Edit' };
+const GROUPS = Object.keys(GROUP_NAMES) as RailItem<string>['group'][];
+
+/** The tool rail's tools and the open one. */
+type ToolRailProps<T extends string> = Pick<StudioShellProps<T>, 'rail' | 'tool' | 'onTool'>;
+
+/**
+ * The tool rail (501 §2, §6): the tools under Add and Edit headings (a divider when narrow), in the expandable rail.
+ * Minor tools move into More when the window is under 720 px tall (CSS only: both are always rendered).
+ * @param props the tools, the open one and choosing one
+ */
+function ToolRail<T extends string>({ rail, tool, onTool }: Readonly<ToolRailProps<T>>) {
+  const toggle = (id: T) => onTool(tool === id ? null : id);
+  const minor = rail.filter((item) => item.minor);
+  return (
+    <RailFrame label="Tools" className="mst-rail">
+      {GROUPS.map((group) => (
+        <div key={group} className="rail-group" role="group" aria-label={GROUP_NAMES[group]}>
+          <span className="rail-heading" aria-hidden="true">
+            {GROUP_NAMES[group]}
+          </span>
+          {rail
+            .filter((item) => item.group === group)
+            .map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={item.minor ? 'rail-tool rail-minor' : 'rail-tool'}
+                aria-pressed={tool === item.id}
+                title={item.label}
+                onClick={() => toggle(item.id)}
+              >
+                {item.icon}
+                <span className="rail-label">{item.label}</span>
+              </button>
+            ))}
+        </div>
+      ))}
+      {minor.length > 0 && (
+        <MoreMenu
+          className="mst-more"
+          text="More"
+          label="More tools"
+          icon={<MoreIcon />}
+          align="left"
+          items={minor.map((item) => ({ key: item.id, label: item.label, icon: item.icon, current: tool === item.id, onSelect: () => toggle(item.id) }))}
+        />
+      )}
+    </RailFrame>
+  );
 }
 
 /** The workspace's parts. */
@@ -58,7 +118,7 @@ interface StudioShellProps<T extends string> {
   onMode: (mode: StudioMode) => void;
   /** The top bar's actions (undo, format, export). */
   actions: ReactNode;
-  rail: RailItem<T>[];
+  rail: readonly RailItem<T>[];
   /** The open tool, or null for none (the panel folds away). */
   tool: T | null;
   onTool: (tool: T | null) => void;
@@ -77,6 +137,7 @@ interface StudioShellProps<T extends string> {
 export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T>>) {
   const { mode, onMode, actions, rail, tool, onTool, panel, stage, inspector, dock, children } = props;
   const [isListing, setListing] = useState(false);
+  const openTool = rail.find((item) => item.id === tool);
   return (
     <div className={`mst mst-${mode}${tool ? '' : ' mst-nopanel'}`}>
       <header className="mst-top">
@@ -111,17 +172,11 @@ export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T
         <div className="mst-actions">{actions}</div>
       </header>
       <div className="mst-body">
-        <nav className="mst-rail" aria-label="Tools">
-          {rail.map((item) => (
-            <button key={item.id} type="button" aria-pressed={tool === item.id} onClick={() => onTool(tool === item.id ? null : item.id)}>
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
+        <ToolRail rail={rail} tool={tool} onTool={onTool} />
         <div className="mst-side">
-          {tool && (
-            <section className="mst-panel" aria-label={`${rail.find((item) => item.id === tool)?.label ?? ''} tools`}>
+          {openTool && (
+            <section className="mst-panel" aria-label={`${openTool.label} tools`}>
+              <PanelHeader eyebrow={GROUP_NAMES[openTool.group]} title={openTool.label} lead={openTool.lead} />
               {panel}
             </section>
           )}

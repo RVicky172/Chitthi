@@ -16,7 +16,8 @@ import {
 import { setBack, setExp, useApp } from '../../state/store';
 import type { ExportFormat, ExportSettings, SheetId } from '../../types';
 import { aiCreditOf, creditOf, isPexels } from '../../lib/credits';
-import { Check, Pane, Section } from '../common';
+import { Check, Pane } from '../common';
+import { FoldSection } from '../panel';
 import { PackIcon } from '../icons';
 
 const SHEET_OPTS: [SheetId, string][] = [
@@ -106,7 +107,7 @@ export function PrintPane() {
 
       <PexelsNotice />
 
-      <Section id="print.settings" title="Settings" note={`${exportSettings.dpi} dpi, ${bleedNote}`}>
+      <FoldSection id="print.settings" title="Settings" note={`${exportSettings.dpi} dpi, ${bleedNote}`}>
         <div className="row">
           <label className="f">
             Bleed
@@ -151,8 +152,8 @@ export function PrintPane() {
           PNG images in the print pack
           {pages.length > 3 ? ` (${pages.length} pages: turn off for a much smaller ZIP)` : ''}
         </Check>
-      </Section>
-      <Section id="print.format" title="File type">
+      </FoldSection>
+      <FoldSection id="print.format" title="File type">
         <div className="fmt" role="radiogroup" aria-label="File type">
           {FORMATS.map(([format, title, summary]) => (
             <label key={format}>
@@ -224,9 +225,9 @@ export function PrintPane() {
             </button>
           )}
         </div>
-      </Section>
+      </FoldSection>
       {design.env.on && (
-        <Section id="print.envelope" title="Envelope">
+        <FoldSection id="print.envelope" title="Envelope">
           <p className="hint">{envelopeSummary(design)}.</p>
           <div className="inline">
             <button
@@ -251,9 +252,9 @@ export function PrintPane() {
               Envelope in 3D
             </button>
           </div>
-        </Section>
+        </FoldSection>
       )}
-      <Section id="print.quote" title="Get a quote from a print shop">
+      <FoldSection id="print.quote" title="Get a quote from a print shop">
         <p className="hint">
           Send these to printers to compare prices. Both list the paper, weight, finish, colour sides and finishing,
           every size with bleed and sheet counts, and a blank price-per-piece grid for {QUOTE_QTY.join(', ')} pieces.
@@ -276,7 +277,7 @@ export function PrintPane() {
             {busy === 'catalog' ? 'Preparing…' : 'All products and sizes (PDF)'}
           </button>
         </div>
-      </Section>
+      </FoldSection>
       <ul className="tips">
         <li>Print at 100% or “actual size”, never “fit to page”.</li>
         <li>{prod.paper}</li>
@@ -319,17 +320,17 @@ function PexelsNotice() {
     .join(' · ');
   if (!pex.length)
     return (
-      <Section id="print.license" title="Photo credits and license" note={note}>
+      <FoldSection id="print.license" title="Photo credits and license" note={note}>
         <AiNotice made={ai} />
         {(design.product === 'postcard' || design.product === 'frame') && (
           <Check checked={design.back.credit} onChange={(credit) => setBack({ credit })}>
             Print “AI picture” in small type on the back
           </Check>
         )}
-      </Section>
+      </FoldSection>
     );
   return (
-    <Section id="print.license" title="Photo credits and license" note={note}>
+    <FoldSection id="print.license" title="Photo credits and license" note={note}>
       <ul className="tips">
         {credits.map((credit) => (
           <li key={credit.url ?? credit.photographer}>
@@ -365,7 +366,7 @@ function PexelsNotice() {
           Print the photo credit in small type on the back
         </Check>
       )}
-    </Section>
+    </FoldSection>
   );
 }
 

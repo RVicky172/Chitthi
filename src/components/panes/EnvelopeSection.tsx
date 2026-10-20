@@ -5,7 +5,8 @@ import { open3D } from '../../state/actions';
 import { setBack, setDesign, useApp } from '../../state/store';
 import type { Design, EnvelopeSettings, Photo } from '../../types';
 import { postmarkYear } from '../../engine/design';
-import { Check, Section, Seg, YearField } from '../common';
+import { Check, Seg, YearField } from '../common';
+import { FoldSection } from '../panel';
 import { CubeIcon } from '../icons';
 
 /** One face of the envelope and what it is drawn from. */
@@ -43,7 +44,7 @@ export function EnvelopeSection() {
     set = (patch: Partial<EnvelopeSettings>) => setDesign({ env: { ...design.env, ...patch } }),
     spec = envelopeSpec(design);
   return (
-    <Section id="env" title="Envelope" note={envelope.on ? spec.name : 'off'}>
+    <FoldSection id="env" title="Envelope" note={envelope.on ? spec.name : 'off'}>
       <Check checked={envelope.on} onChange={(on) => set({ on })}>
         Make a matching envelope ({spec.name})
       </Check>
@@ -134,7 +135,7 @@ export function EnvelopeSection() {
           )}
         </>
       )}
-    </Section>
+    </FoldSection>
   );
 }
 

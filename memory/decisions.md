@@ -797,3 +797,18 @@ would leave the video stage about 450 px wide at 1280.
 420px)` (346 px at 1440, 420 px from 1750 px). D3 A: `--insp-w: clamp(280px, 20vw, 340px)` (288 px at 1440).
 **Consequences:** the print panel gets narrower on laptops; 501 T013 checks every print step at 1280, 1440 and 1920
 against the before pictures. With the rail expanded (D-064) the video stage is about 500 px wide at 1280.
+
+## D-066 — 501 review: field edges at 3:1, one top bar height and panel padding, the future rail (2026-10-20)
+
+**Context:** the maintainer's review of `docs/DESIGN.md` (501 T043) with five open points: `--line-strong` (the field
+border) at 2.5:1 light / 2.1:1 dark, under WCAG 1.4.11's 3:1; the print top bar 60 px + rule against the media bar's
+57 px; which tools turn minor as the rail grows; the Colour panel's place; the More threshold.
+**Decision (the maintainer, as recommended):** raise `--line-strong` to `oklch(62% 0.005 90)` light and
+`oklch(54% 0.005 90)` dark (≥ 3.1:1 on every surface a field sits on). Match the bars: `--top-h` (60 px) read by both,
+and, to put the panel headers at the same place too, `--panel-pad` (28 / 24 / 40 px) read by the print panes and the
+media panel (rail and panel at y 61, the panel title at (208, 125) in all four studios at 1280 and 1440). Minor tools
+once 210 and 303–306 are built: video Draw, Transitions, Layers, Markers; photo Layers (6 shown in each). The Colour
+panel (scopes, copy/paste, match) on the left, the grade in the inspector. The feature that adds the video rail's
+8th tool moves the More `max-height` query from 720 px to about 860 px. DESIGN.md approved.
+**Consequences:** every field's border is darker in light and lighter in dark (590's axe and screenshots will show
+it); the Add / Edit headings lost 2 px of top padding so the 7-tool video rail fits from 721 px tall without scrolling.

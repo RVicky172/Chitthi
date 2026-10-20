@@ -3,6 +3,7 @@ import { useIg } from '../../state/instagram';
 import { addBatchPhotos, addMedia } from '../../state/videoMedia';
 import { limits, limitText, useVideo } from '../../state/videoStore';
 import { AddPhotoIcon, ReelIcon, YouTubeIcon } from '../icons';
+import { EmptyState } from '../panel';
 import { DesktopNote } from './Shell';
 
 /* The video editor's Media panel, the empty stage, and the browser's limits (the Audio panel is AudioPanel.tsx). */
@@ -44,29 +45,32 @@ interface EmptyStageProps {
 export function EmptyStage({ kind }: Readonly<EmptyStageProps>) {
   const [message, setMessage] = useState('');
   return (
-    <div className="mst-empty">
-      {kind === 'vlog' ? <YouTubeIcon /> : <ReelIcon />}
-      <h2>{kind === 'vlog' ? 'Make a YouTube video' : 'Make a Reel or Short'}</h2>
-      <p>
-        {kind === 'vlog'
-          ? 'Load your clips and photos, trim and arrange them on the timeline, add titles and music, and export a 16:9 MP4 for YouTube.'
-          : 'Photos and clips become a vertical video with movement, text, stickers and music, ready for Instagram Reels or YouTube Shorts.'}
-      </p>
-      <label className="btn primary mst-file">
-        <AddPhotoIcon />
-        Add videos or photos
-        <input
-          type="file"
-          accept={ACCEPT}
-          multiple
-          onChange={(event) => {
-            void addMedia(mediaOf(event.target.files ?? [])).then((messages) => setMessage(messages[0] ?? ''));
-          }}
-        />
-      </label>
-      {message && <p className="hint bad">{message}</p>}
-      <LimitsNote />
-    </div>
+    <EmptyState
+      icon={kind === 'vlog' ? <YouTubeIcon /> : <ReelIcon />}
+      title={kind === 'vlog' ? 'Make a YouTube video' : 'Make a Reel or Short'}
+      action={
+        <>
+          <label className="btn primary mst-file">
+            <AddPhotoIcon />
+            Add videos or photos
+            <input
+              type="file"
+              accept={ACCEPT}
+              multiple
+              onChange={(event) => {
+                void addMedia(mediaOf(event.target.files ?? [])).then((messages) => setMessage(messages[0] ?? ''));
+              }}
+            />
+          </label>
+          {message && <p className="hint bad">{message}</p>}
+          <LimitsNote />
+        </>
+      }
+    >
+      {kind === 'vlog'
+        ? 'Load your clips and photos, trim and arrange them on the timeline, add titles and music, and export a 16:9 MP4 for YouTube.'
+        : 'Photos and clips become a vertical video with movement, text, stickers and music, ready for Instagram Reels or YouTube Shorts.'}
+    </EmptyState>
   );
 }
 
@@ -80,7 +84,6 @@ export function MediaPanel() {
   return (
     <>
       <div className="ig-group">
-        <h3>Add media</h3>
         <label
           className="mst-drop"
           onDragOver={(event) => event.preventDefault()}

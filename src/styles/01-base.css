@@ -34,7 +34,8 @@
   --text: oklch(20% 0.005 90);
   --muted: oklch(50% 0.006 90);
   --line: oklch(90.5% 0.004 90);
-  --line-strong: oklch(72% 0.005 90);
+  /* field and control edges: at least 3:1 on every surface (WCAG 1.4.11; 501, docs/DESIGN.md §5) */
+  --line-strong: oklch(62% 0.005 90);
 
   /* graphite: warm-neutral greys, near-black actions in light and near-white in dark; the photos carry the colour.
      Marigold is the stage highlight; red and blue survive only in the airmail stripe (see design.md). */
@@ -82,6 +83,83 @@
   --dur-fast: 150ms;
   --dur: 220ms;
 
+  /* studio layout (501, docs/DESIGN.md): both studios read these, so their left sides match. The rail sets --rail-w
+     to the wide or narrow width as it is expanded or made compact. */
+  --rail-w-wide: 184px;
+  --rail-w-narrow: 64px;
+  --panel-w: clamp(320px, 24vw, 420px);
+  --insp-w: clamp(280px, 20vw, 340px);
+  /* the top bar of both studios, so their rails and panels start at the same height */
+  --top-h: 60px;
+  /* inside a panel (a print step, a media tool): its header sits at the same place in both studios */
+  --panel-pad: 28px 24px 40px;
+
+  /* type scale (body text is 15px): sizes, and the weights 502 limits headings to */
+  --fs-3xs: 0.5625rem;
+  --fs-2xs: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-base: 0.9375rem;
+  --fs-lg: 1.0625rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.5rem;
+  --fs-3xl: 2rem;
+  --fs-display: 4rem;
+  /* a panel title (PanelHeader); a little smaller on phones, below */
+  --fs-panel-title: 1.75rem;
+  --fs-countdown: clamp(4rem, 14vmin, 9rem);
+  --fw-body: 400;
+  --fw-label: 500;
+  --fw-head: 600;
+  --fw-strong: 700;
+
+  /* spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* on photos and video (the same in both themes: the media studio's stage is dark in both) */
+  --media-paper: oklch(100% 0 0);
+  --media-black: oklch(0% 0 0);
+  --on-media: oklch(100% 0 0);
+  --media-scrim: oklch(0% 0 0 / 0.62);
+  --media-edge: oklch(0% 0 0 / 0.25);
+  --media-edge-strong: oklch(0% 0 0 / 0.5);
+  --media-handle: oklch(100% 0 0 / 0.85);
+  --media-missing-a: oklch(29% 0.007 286);
+  --media-missing-b: oklch(41% 0.012 286);
+  --stage-dot: oklch(100% 0 0 / 0.05);
+  --stage-veil: oklch(100% 0 0 / 0.06);
+  --stage-veil-hi: oklch(100% 0 0 / 0.08);
+  --stage-bar: oklch(19.5% 0.006 70 / 0.78);
+  --stage-ink: oklch(94.9% 0 0);
+  --stage-ink-soft: oklch(100% 0 0 / 0.78);
+  --stage-ink-dim: oklch(100% 0 0 / 0.7);
+  --stage-ink-faint: oklch(100% 0 0 / 0.55);
+  --stage-wave: #2a9d8f;
+  --backdrop: oklch(12% 0.006 70 / 0.55);
+  --on-danger: oklch(100% 0 0);
+  --shadow-tab: 0 1px 2px oklch(0% 0 0 / 0.12);
+  --shadow-pop: 0 10px 24px -8px oklch(0% 0 0 / 0.4);
+  --shadow-drag: 0 10px 24px -6px oklch(0% 0 0 / 0.5);
+  --shadow-canvas: 0 18px 50px -12px oklch(0% 0 0 / 0.7), 0 0 0 1px var(--stage-veil);
+  --shadow-text: 0 2px 12px oklch(0% 0 0 / 0.6);
+
+  /* timeline kinds: layers, and sound by kind (505) */
+  --layer-shape: #2a9d8f;
+  --layer-sticker: #f4c430;
+  --layer-draw: #d81b60;
+  --sound-music: #1f7f74;
+  --sound-voice: #c2410c;
+  --sound-fx: #7048e8;
+  --keyline: #f4c430;
+  /* the "own colour" swatch */
+  --colour-wheel: conic-gradient(#e63946, #f4c430, #7cb518, #2a9d8f, #1d4ed8, #8e44ad, #e63946);
+
   --font: 'Geist', 'Hind', 'Mukta', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --display: 'Instrument Serif', 'Tiro Devanagari Hindi', Georgia, serif;
   /* headings: a newspaper grotesk, tight and confident; falls back to Geist */
@@ -104,7 +182,7 @@
     --text: oklch(95% 0.003 90);
     --muted: oklch(70% 0.005 90);
     --line: oklch(28.5% 0.004 90);
-    --line-strong: oklch(42% 0.005 90);
+    --line-strong: oklch(54% 0.005 90);
     --accent: oklch(95% 0.003 90);
     --on-accent: oklch(17% 0.003 90);
     --accent-soft: oklch(95% 0.003 90 / 0.1);
@@ -127,6 +205,9 @@
     --brand-ink: oklch(72% 0.08 255);
     --elev-1: 0 1px 2px oklch(0% 0 0 / 0.4);
     --elev-3: 0 16px 40px -8px oklch(0% 0 0 / 0.65);
+    --sound-music: #2a9d8f;
+    --sound-voice: #ff8a5c;
+    --sound-fx: #a78bfa;
     color-scheme: dark;
   }
 }
@@ -144,7 +225,7 @@
   --text: oklch(95% 0.003 90);
   --muted: oklch(70% 0.005 90);
   --line: oklch(28.5% 0.004 90);
-  --line-strong: oklch(42% 0.005 90);
+  --line-strong: oklch(54% 0.005 90);
   --accent: oklch(95% 0.003 90);
   --on-accent: oklch(17% 0.003 90);
   --accent-soft: oklch(95% 0.003 90 / 0.1);
@@ -167,6 +248,9 @@
   --brand-ink: oklch(72% 0.08 255);
   --elev-1: 0 1px 2px oklch(0% 0 0 / 0.4);
   --elev-3: 0 16px 40px -8px oklch(0% 0 0 / 0.65);
+  --sound-music: #2a9d8f;
+  --sound-voice: #ff8a5c;
+  --sound-fx: #a78bfa;
   color-scheme: dark;
 }
 :root {
@@ -237,4 +321,10 @@ button {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 860px) {
+  :root {
+    --fs-panel-title: 1.6rem;
+  }
 }

@@ -17,7 +17,7 @@ All three modes share one layout (`src/components/studio/`), built like a deskto
 | Area | What it holds |
 | --- | --- |
 | Top bar | The Chitthi Studio mark (home), **Projects**, the three modes, the save status, undo and redo, the format menu, **Export** |
-| Tool rail | Photos / Media, Text, Elements (shapes and stickers), Draw, Audio (video), Layers; a second click hides the panel |
+| Tool rail | Under **Add**: Photos / Media, Text, Elements (shapes and stickers), Draw, Audio (video); under **Edit**: Masks (photo), Transitions (video), Layers. A second click hides the panel. **Compact rail** at its foot (or **Ctrl + \\**, Cmd + \ on a Mac) switches between icons with labels and icons only, remembered on this device for both studios. In a window 720 px tall or less, Draw moves into **More** (video) |
 | Tool panel | The chosen tool: add media, text styles, shapes and stickers, brushes, sound and loudness, the layer list |
 | Stage | The canvas on a dark surface, sized to fit; layers are edited right on it |
 | Inspector | Whatever is selected: a layer's properties (and its timing on video), else the photo's or clip's settings |
