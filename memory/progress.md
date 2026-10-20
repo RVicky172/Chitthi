@@ -16,7 +16,8 @@ Newest first. One entry per working session.
 the packet length when `<audio>` has none). `/spec-verify 209`: check green (2,546), build entry 314 KB with the
 recorder in its own chunk, lint:full 0 errors (patterns.ts warning is main's), licences ok. AC-1–9 ticked; AC-10–12
 listed in 290; AC-13 docs for review. Status Implemented.
-**Next:** commit and merge `feat/209-voice-over` into `main`; then 210 (spec first).
+Committed `674f9d4`, merged into `main` (`cec7d50`, not pushed).
+**Next:** 210 (spec first); push `main` when the maintainer says.
 **Blockers:** none.
 
 ## 2026-10-20 — 209 voice-over (T062, T063, T070, T071)

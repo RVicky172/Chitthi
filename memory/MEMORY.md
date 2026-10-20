@@ -55,13 +55,13 @@
   waveforms (sound and video clips), ducking, loudness target (−14 LUFS) with a true-peak limiter, preview = export
   mix; `SoundRow.tsx`, `SoundInspector.tsx`, `AudioPanel.tsx`. AC-1–12, 17 ticked; AC-13–16 wait for 290. Decisions
   D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB.
-- **209:** `209-voice-over` ✔️ Implemented 2026-10-20 on `feat/209-voice-over` (not committed yet): record a voice
+- **209:** `209-voice-over` ✔️ Implemented 2026-10-20 (`674f9d4`), merged into `main` (`cec7d50`, not pushed): record a voice
   onto a Voice track (count-in, punch-in as one undo step, sync from the reported latency + Recording offset, meter,
   Voice clean-up, Hear the video), microphone open only with the controls, takes saved every second for crash
   recovery (`lib/takeStore.ts`, IndexedDB `chitthi-takes`, the recovery bar on project open), web
   `microphone=(self)`, desktop `electron/permissions.cjs` (own page, audio only; macOS prompt + entitlement); Add sound
   takes WebM (Q7, D-062). AC-1–9 ticked; AC-10–12 wait for 290; AC-13 docs for the maintainer's review. D-061, D-062.
-  Entry 314 KB. Next: commit, merge into `main`; then **210** (markers, in/out, range export, compound clips).
+  Entry 314 KB. Next: **210** (markers, in/out, range export, compound clips).
 - **408:** `408-project-saving` ✔️ Implemented 2026-10-19 (`301a7e0`), merged into `main` (`9b4d012`) and pushed;
   209's spec and plan committed with it, `d7af03e`): saved photo and video projects with autosave (`state/projectSave.ts`), the Projects panel, Continue on the
   home screen, save status, Find file…, one window per project (`lib/projectLock.ts`), agent tools (61 now). Browser:
