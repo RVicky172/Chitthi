@@ -1,0 +1,134 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "505",
+  "title": "Sound panel: recordings and voice listed for choosing",
+  "workItem": null,
+  "status": "approved",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-20",
+    "approved": "2026-10-20",
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/505-sound-panel"
+  },
+  "spec": {
+    "phase": "Phase UI — Studio design and UX (release 3.0.0)",
+    "summary": "The Audio panel mixes adding sound, recording voice and track settings in one long scroll, and recorded takes appear only as clips on the timeline: there is no list of recordings with their details, so finding, comparing or reusing a take means scanning the timeline. 505 restructures the sound side: the Audio panel gets folding sections (503) **Add sound**, **Record voice**, **Recordings** and **Tracks**; **Recordings** lists every voice take with name, length, date and time recorded, microphone, the track and time it sits at, and whether it is used; the user plays a take, renames it, selects it on the timeline, adds it again or deletes unused takes. Music, voice and effects are shown apart everywhere (pool filter, track colours, inspector).",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a narrator, I want to see all my takes with their details, so that I can pick the best one."
+        },
+        "US-2": {
+          "text": "As a creator, I want music, voice and effects kept apart, so that I can find and adjust each kind."
+        },
+        "US-3": {
+          "text": "As a user, I want the Audio panel to show one thing at a time instead of a long scroll."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Recordings",
+          "proof": "unit",
+          "text": "The Recordings section lists every take of the project, newest first, with name, length, recorded date and time, microphone name, track and timeline position (or \"Not used\"); selecting a row selects and reveals its clip on the timeline; play previews it alone; rename changes the clip and pool name (one undo step); delete removes an unused take (a used one asks first).",
+          "done": false
+        },
+        "AC-2": {
+          "group": "Separation",
+          "proof": "unit",
+          "text": "Sound is labelled by kind (Music, Voice, Effects) in the pool, the Audio panel, the track headers and the sound inspector, each with its own colour token from 501; takes are Voice.",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Structure",
+          "proof": "unit",
+          "text": "The Audio panel has the sections Add sound, Record voice, Recordings and Tracks as folding sections (503); opening Record voice opens the microphone and closing the section closes it (209 AC-7 still holds).",
+          "done": false
+        },
+        "AC-4": {
+          "group": "Look",
+          "proof": "manual",
+          "text": "The maintainer checks the Audio panel with 8 tracks and 20 takes at 1280 × 720 (deferred to 590).",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Store the microphone name and record time with a take? _Answer (accepted 2026-10-20):_ yes, as fields of the take's media entry; older takes show \"—\".",
+          "open": false
+        },
+        "Q2": {
+          "text": "Where is the per-track mixer (volume, solo, ducking)? _Answer (accepted 2026-10-20):_ the Tracks section of the Audio panel and the track header, as now; the sound inspector keeps clip settings only.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-20",
+        "text": "Created: draft spec with 4 acceptance criteria and 2 open questions with proposed answers (Phase UI, D-063)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Every proposed answer accepted by the maintainer; Approved."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** no new work on the preview or export path; the entry chunk stays ≤ 350 KB; panels open in under 100 ms.\n- **Accessibility:** every control works from the keyboard with a visible focus ring and is announced; axe passes; text contrast ≥ 4.5:1 in the light and dark themes.\n- **Compatibility:** web and desktop alike; phones (≤ 640 px) and laptops (1280 × 720) as well as wide screens; every saved project opens unchanged.\n- **Free and open source:** no new dependency unless cleared in `specs/licensing.md` first.\n- **Privacy:** recording details (microphone name) stay in the project on the device."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Comparing takes as lanes on one track (take lanes).\n- New audio processing."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

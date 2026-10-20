@@ -1,0 +1,112 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "590",
+  "title": "Phase UI test pass",
+  "workItem": null,
+  "status": "approved",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-20",
+    "approved": "2026-10-20",
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/590-phase-ui-test-pass"
+  },
+  "spec": {
+    "phase": "Phase UI — Studio design and UX (release 3.0.0)",
+    "summary": "The test pass for Phase UI (D-033): the e2e tests, axe checks and manual checks deferred by 501–507 are written and run here, with every Definition-of-Done gate, before 290 releases 3.0.0 (501 Q4).",
+    "stories": {
+      "order": [
+        "US-1"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As the maintainer, I want the redesign checked as a whole before it ships."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Deferred checks",
+          "proof": "e2e",
+          "text": "Every deferred e2e check of 501–507 is written in `tests/e2e/` and passes on the desktop and phone projects, with axe passing on each studio panel.",
+          "done": false
+        },
+        "AC-2": {
+          "group": "Deferred checks",
+          "proof": "manual",
+          "text": "The maintainer's manual checks of 501–507 pass (before/after screenshots in both themes, the Audio panel with 8 tracks and 20 takes, 1280 × 720).",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Gates",
+          "proof": "manual",
+          "text": "Every Definition-of-Done gate passes: `npm run check`, `npm run test:e2e`, `npm run build`, `npm test`, `npm run test:mcp`, `npm run check:licenses`.",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [],
+      "byId": {}
+    },
+    "changelog": [
+      {
+        "date": "2026-10-20",
+        "text": "Created: draft spec with 3 acceptance criteria and 0 open questions with proposed answers (Phase UI, D-063)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Approved by the maintainer."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- As each feature's."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- The release itself (290)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Deferred checks collected from the phase",
+        "markdown": "- 501 AC-5: left rail and panel widths match across studios.\n- 501 AC-6: the rail expands and shrinks (button, Ctrl + \\) in both studios, the stage re-fits, no animation under reduced motion.\n- 502 AC-4: before/after screenshots approved.\n- 503 AC-5: panels fit at 1280 × 720.\n- 504 AC-5: drag from pool; 200 items.\n- 505 AC-4: Audio panel with 8 tracks, 20 takes.\n- 506 AC-2: Layers panel fits with 40 long-named layers."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

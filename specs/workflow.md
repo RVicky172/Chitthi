@@ -13,7 +13,7 @@ Do not start a stage until the previous one is approved.
 
 Matching `roadmap.md`: `000–099` baseline and cross-cutting foundation (`000` baseline, `001` Phase 1 gate and
 2.10.0 release), `2xx` editor Phase 2 (multi-track timeline), `3xx` editor Phase 3 (colour and finishing), where the
-last two digits are the work-item ID (P2.1 → `201`), and `401+` everything else (print studio, site, desktop).
+last two digits are the work-item ID (P2.1 → `201`), `401+` everything else (print studio, site, desktop), and `5xx` the studio design and UX phase (D-063).
 Commit messages and the CHANGELOG may name both: `feat(201): track model (P2.1)`.
 
 Folder name: `NNN-kebab-name` (e.g. `012-user-login`).

@@ -1,0 +1,141 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "503",
+  "title": "Folding panel sections: one open at a time",
+  "workItem": null,
+  "status": "approved",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-20",
+    "approved": "2026-10-20",
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/503-panel-accordions"
+  },
+  "spec": {
+    "phase": "Phase UI — Studio design and UX (release 3.0.0)",
+    "summary": "Panels in the media studio show every section open, one under another (the Audio panel: Sound, Record voice, Sound tracks, each track …), so the user scrolls to find a control and long panels feel endless. 503 puts the sections of every studio panel and inspector into **folding sections** (accordions) where **only one is open at a time**: opening one closes the others; the open one is remembered per panel; the title row shows a short summary when closed (e.g. \"Music · 2 tracks\"). The print studio uses the same part (501).",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a creator, I want to see the list of what a panel offers at a glance and open the one I need, instead of scrolling past everything."
+        },
+        "US-2": {
+          "text": "As a returning user, I want the section I used last to be open when I come back to a panel."
+        },
+        "US-3": {
+          "text": "As a keyboard user, I want to move between sections and open them with the keyboard."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Behaviour",
+          "proof": "unit",
+          "text": "The folding section part opens one section per group at a time: opening a section closes the others in its group; a closed section shows its title and an optional one-line summary; a group can allow none open. Unit-tested on the open-state logic.",
+          "done": false
+        },
+        "AC-2": {
+          "group": "Behaviour",
+          "proof": "unit",
+          "text": "The open section is remembered per panel and mode (local, per viewer) and restored when the panel opens again; a section whose content becomes needed (e.g. selecting a sound clip opens the Sound section of the inspector) opens itself.",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Coverage",
+          "proof": "unit",
+          "text": "Every media-studio panel and inspector with more than one section uses the folding section part: Media, Text, Elements, Draw, Transitions, Audio, Layers, the photo editor's Light / Colour / Detail / Masks …, the clip, layer and sound inspectors; and the print studio's steps. A unit test lists panels with more than one section that don't.",
+          "done": false
+        },
+        "AC-4": {
+          "group": "Accessibility",
+          "proof": "unit",
+          "text": "Each section title is a button with `aria-expanded` and `aria-controls`; Enter and Space toggle it; the panel's sections are reachable with Tab in order.",
+          "done": false
+        },
+        "AC-5": {
+          "group": "Fit",
+          "proof": "e2e",
+          "text": "At 1280 × 720 no media-studio panel needs to scroll with its default section open, except lists (media, layers, sounds) which scroll inside their section (deferred to 590).",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1",
+        "Q2"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Print studio too? _Answer (accepted 2026-10-20):_ yes, one open at a time in the print studio's steps as well, keeping Collapse all; Expand all is removed. Alternative: keep Expand all in the print studio only.",
+          "open": false
+        },
+        "Q2": {
+          "text": "Can the user pin a second section open? _Answer (accepted 2026-10-20):_ no, for simplicity; revisit after 590's manual check.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-20",
+        "text": "Created: draft spec with 5 acceptance criteria and 2 open questions with proposed answers (Phase UI, D-063)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Every proposed answer accepted by the maintainer; Approved."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** no new work on the preview or export path; the entry chunk stays ≤ 350 KB; panels open in under 100 ms.\n- **Accessibility:** every control works from the keyboard with a visible focus ring and is announced; axe passes; text contrast ≥ 4.5:1 in the light and dark themes.\n- **Compatibility:** web and desktop alike; phones (≤ 640 px) and laptops (1280 × 720) as well as wide screens; every saved project opens unchanged.\n- **Free and open source:** no new dependency unless cleared in `specs/licensing.md` first."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Changing what controls a section contains (other features)."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

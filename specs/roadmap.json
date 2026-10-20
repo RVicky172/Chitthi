@@ -54,6 +54,7 @@
     "order": [
       "baseline",
       "phase-2",
+      "phase-ui",
       "phase-3",
       "other"
     ],
@@ -120,6 +121,23 @@
           "406",
           "407",
           "408"
+        ]
+      },
+      "phase-ui": {
+        "title": "Phase UI — Studio design and UX (release 3.0.0)",
+        "goal": "one design language across the print studio and the photo & video studio: calm typography, folding panels, a media pool, clear sound and layer lists, and a layout with room for the panels Phases 2 and 3 still add.",
+        "exit": "every studio panel follows one documented layout and type scale; no panel scrolls sideways or cuts off content at 1280×720 or on a phone; README and docs show the new design.",
+        "release": "3.0.0",
+        "intro": "Features 501–507 (D-063). 501 is the design overview the others build on; 590 is the phase's test pass.",
+        "items": [
+          "501",
+          "502",
+          "503",
+          "504",
+          "505",
+          "506",
+          "507",
+          "590"
         ]
       }
     }
@@ -269,7 +287,8 @@
           "209",
           "210",
           "211",
-          "212"
+          "212",
+          "590"
         ]
       },
       "301": {
@@ -401,6 +420,99 @@
         "note": "",
         "folder": "features/408-project-saving",
         "needs": []
+      },
+      "501": {
+        "title": "Studio design overview: one layout and type scale for every studio",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/501-studio-design-system",
+        "needs": []
+      },
+      "502": {
+        "title": "Typography: bold only for headings",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/502-studio-typography",
+        "needs": [
+          "501"
+        ]
+      },
+      "503": {
+        "title": "Folding panel sections: one open at a time",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/503-panel-accordions",
+        "needs": [
+          "501"
+        ]
+      },
+      "504": {
+        "title": "Media pool for Reels and YouTube",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/504-media-pool",
+        "needs": [
+          "501",
+          "503"
+        ]
+      },
+      "505": {
+        "title": "Sound panel: recordings and voice listed for choosing",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/505-sound-panel",
+        "needs": [
+          "501",
+          "503",
+          "504"
+        ]
+      },
+      "506": {
+        "title": "Layers panel: no overflow or cut-off items",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/506-layers-panel-fit",
+        "needs": [
+          "501",
+          "503"
+        ]
+      },
+      "507": {
+        "title": "README, docs and screenshots for the new design",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/507-readme-docs-refresh",
+        "needs": [
+          "501",
+          "502",
+          "503",
+          "504",
+          "505",
+          "506"
+        ]
+      },
+      "590": {
+        "title": "Phase UI test pass",
+        "workItem": null,
+        "status": "spec-approved",
+        "note": "",
+        "folder": "features/590-phase-ui-test-pass",
+        "needs": [
+          "501",
+          "502",
+          "503",
+          "504",
+          "505",
+          "506",
+          "507"
+        ]
       },
       "000": {
         "title": "Baseline: print studio, photo & video studio, desktop app, MCP, AI, GPU render graph (editor P0.1–P0.9), advanced photo editor (P1.1–P1.12)",

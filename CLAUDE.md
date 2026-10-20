@@ -35,7 +35,7 @@ optional Pexels search, optional AI with the user's own key, and desktop update 
   regenerates them after JSON edits). See `specs/workflow.md` "One JSON per feature".
 - If code must diverge from the spec, update the spec (and its Changelog) first.
 - Bug fixes and behaviour-neutral refactors may skip the spec; log them in `memory/progress.md`.
-- Numbering: `000–099` baseline, `2xx` / `3xx` = editor work items P2.x / P3.x (P2.1 → `201`), `x90` = a phase's
+- Numbering: `000–099` baseline, `2xx` / `3xx` = editor work items P2.x / P3.x (P2.1 → `201`), `5xx` = Phase UI (studio design, D-063), `x90` = a phase's
   test pass and release (`290`), `401+` other.
 - Slash commands: `/spec-new`, `/spec-plan`, `/spec-tasks`, `/spec-implement`, `/spec-verify`.
 

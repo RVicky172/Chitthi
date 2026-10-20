@@ -764,3 +764,36 @@ WebM has no duration in its header: the `<audio>` element reads Infinity (209 R1
 still refused without trying the packets.
 **Consequences:** a WebM video picked in Add sound is added as its sound only. The media panel still treats `.webm` as
 video, so an audio-only WebM goes through Add sound.
+
+## D-063 — Phase UI: studio design and UX as its own phase, numbered 5xx (2026-10-20)
+
+**Context:** the maintainer asked for a phase to track UI work: bold-heavy type, panels that scroll instead of
+folding, a media studio that doesn't match the print studio, no media pool, recordings not listed, the Layers panel
+overflowing, old README screenshots, and no room for the panels Phases 2–3 still add.
+**Decision (the maintainer asked for the phase; numbering proposed):** a new roadmap phase `phase-ui` between Phase 2
+and Phase 3, features `5xx` (`501` design overview, `502` typography, `503` folding sections, `504` media pool, `505`
+sound panel and recordings, `506` Layers panel fit, `507` README / docs / screenshots) and `590` its test pass (D-033).
+501 is the design document the others build on and is reviewed first.
+**Consequences:** `5xx` joins the numbering rule (CLAUDE.md, `specs/workflow.md`). 501 Q4 (accepted 2026-10-20): build
+Phase UI before 210–212 and ship it with Phase 2 as 3.0.0 (590 runs before 290; 290 needs 590). All Phase UI specs
+approved 2026-10-20 with every proposed answer (print studio is the reference; one section open in both studios).
+
+## D-064 — 501 plan D2: print-style rail with icons, expandable and compact in both studios (2026-10-20)
+
+**Context:** 501's plan offered three rail styles for aligning the media studio with the print studio.
+**Decision (the maintainer):** option A (the media rail takes the print rail's look and keeps its icons; the print rail
+keeps its step numbers) **plus** an expandable rail in both studios: expanded (~184 px, icon or number beside the
+label, Add / Edit headings) and compact (~64 px, icon or number only). It is **expanded by default** at every width (the
+maintainer's follow-up); the user toggles it (button at the rail's foot, Ctrl + \) and the choice is remembered per device for
+both studios.
+**Consequences:** spec AC-6 added; plan §6 (`components/panel/RailFrame.tsx`, pure `railWidth.ts`); the e2e check
+joins 590's deferred list. Phones keep their bottom/top bar. D1 (panel width) and D3 (inspector width) still open.
+
+## D-065 — 501 plan D1, D3: shared panel width and a flexible inspector (2026-10-20)
+
+**Context:** the print panel is 420 px; the media panel is 300 px beside a 320 px inspector, and 420 px everywhere
+would leave the video stage about 450 px wide at 1280.
+**Decision (the maintainer, as recommended):** D1 A: one token for both studios, `--panel-w: clamp(320px, 24vw,
+420px)` (346 px at 1440, 420 px from 1750 px). D3 A: `--insp-w: clamp(280px, 20vw, 340px)` (288 px at 1440).
+**Consequences:** the print panel gets narrower on laptops; 501 T013 checks every print step at 1280, 1440 and 1920
+against the before pictures. With the rail expanded (D-064) the video stage is about 500 px wide at 1280.
