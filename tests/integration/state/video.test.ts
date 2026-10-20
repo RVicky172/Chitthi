@@ -347,7 +347,17 @@ describe('Magnetic on: trims always ripple', () => {
 });
 
 describe('the music under the Slip keys (Q8)', () => {
-  const song: VSound = { id: 'music', track: MUSIC, start: 0, in: 1, volume: 1, toEnd: true, srcDur: 30, file: new Blob(), url: '' };
+  const song: VSound = {
+    id: 'music',
+    track: MUSIC,
+    start: 0,
+    in: 1,
+    volume: 1,
+    toEnd: true,
+    srcDur: 30,
+    file: new Blob(),
+    url: '',
+  };
   it('moves the song’s in point within the file', () => {
     loadVideoProject({ clips: [clip('a', 0, 5)], sounds: [song] });
     expect(slipMusic(2)).toBeNull();
@@ -362,9 +372,25 @@ describe('the music under the Slip keys (Q8)', () => {
 /* ---------- 208 T070: sounds in the store (D1) ---------- */
 
 describe('208: the sounds in the store (D1, Q4, Q7, Q12)', () => {
-  const song: VSound = { id: 'music', track: MUSIC, start: 0, in: 2, volume: 0.6, toEnd: true, srcDur: 60, file: new Blob(), url: 'blob:song' };
+  const song: VSound = {
+    id: 'music',
+    track: MUSIC,
+    start: 0,
+    in: 2,
+    volume: 0.6,
+    toEnd: true,
+    srcDur: 60,
+    file: new Blob(),
+    url: 'blob:song',
+  };
   /** Sound files by name: their length, seconds (undefined: can't be played). */
-  const lengths: Record<string, number | undefined> = { 'song.mp3': 60, 'whoosh.wav': 2, 'theme.m4a': 40 };
+  const lengths: Record<string, number | undefined> = {
+    'song.mp3': 60,
+    'whoosh.wav': 2,
+    'theme.m4a': 40,
+    'Voice 3.webm': 8.6,
+    'ambience.weba': 30,
+  };
   const fileOf = (name: string, type = 'audio/mpeg') => new File([name], name, { type });
   beforeEach(() => {
     vi.spyOn(soundIO, 'length').mockImplementation((file) => {
@@ -397,7 +423,11 @@ describe('208: the sounds in the store (D1, Q4, Q7, Q12)', () => {
       { track: MUSIC, start: 0, toEnd: true, name: 'song.mp3' },
       { track: 'A2', start: 0, toEnd: false, name: 'whoosh.wav' },
     ]);
-    expect(tracks.find((track) => track.id === 'A2')).toMatchObject({ kind: 'audio', name: 'Audio 2', role: 'effects' });
+    expect(tracks.find((track) => track.id === 'A2')).toMatchObject({
+      kind: 'audio',
+      name: 'Audio 2',
+      role: 'effects',
+    });
     expect(defined(sounds[1]).out).toBe(2);
     expect(sounds.every((sound) => sound.url.startsWith('blob:') && sound.file instanceof Blob)).toBe(true);
     // Each file is scanned in the background (the waveform and ducking read it).
@@ -417,19 +447,37 @@ describe('208: the sounds in the store (D1, Q4, Q7, Q12)', () => {
     await addSoundFiles([fileOf('song.mp3')]);
     setPlayhead(1);
     await addSoundFiles([fileOf('theme.m4a')]);
-    expect(defined(getVideo().sounds.find((sound) => sound.name === 'theme.m4a'))).toMatchObject({ track: 'A2', start: 1, toEnd: false, out: 40 });
+    expect(defined(getVideo().sounds.find((sound) => sound.name === 'theme.m4a'))).toMatchObject({
+      track: 'A2',
+      start: 1,
+      toEnd: false,
+      out: 40,
+    });
   });
 
   it('refuses files that aren’t sound, are over 100 MB or can’t be played, with the reason, adding the rest', async () => {
     const big = fileOf('song.mp3');
     Object.defineProperty(big, 'size', { value: 101 * 1048576 });
-    const messages = await addSoundFiles([fileOf('notes.txt', 'text/plain'), big, fileOf('broken.mp3'), fileOf('whoosh.wav', 'audio/wav')]);
+    const messages = await addSoundFiles([
+      fileOf('notes.txt', 'text/plain'),
+      big,
+      fileOf('broken.mp3'),
+      fileOf('whoosh.wav', 'audio/wav'),
+    ]);
     expect(messages).toEqual([
-      'notes.txt isn’t a sound file. Use MP3, M4A, WAV, OGG or FLAC.',
+      'notes.txt isn’t a sound file. Use MP3, M4A, WAV, OGG, WebM or FLAC.',
       'song.mp3 is too large. Sound files up to 100 MB can be added.',
       'broken.mp3 couldn’t be played here.',
     ]);
     expect(getVideo().sounds.map((sound) => sound.name)).toEqual(['whoosh.wav']);
+  });
+
+  it('takes WebM sound (Q7, D-062): a saved voice take, typed video/webm by the system, and .weba', async () => {
+    expect(await addSoundFiles([fileOf('Voice 3.webm', 'video/webm'), fileOf('ambience.weba', '')])).toEqual([]);
+    expect(getVideo().sounds.map(({ name, srcDur }) => ({ name, srcDur }))).toEqual([
+      { name: 'Voice 3.webm', srcDur: 8.6 },
+      { name: 'ambience.weba', srcDur: 30 },
+    ]);
   });
 
   it('a locked Music track takes nothing: the song goes on another sound track', async () => {
@@ -453,7 +501,18 @@ describe('208: the sounds in the store (D1, Q4, Q7, Q12)', () => {
   });
 
   it('T104: a sound clip’s volume keys (0–2): the keyframe button, the keyed volume at the playhead, Remove animation', () => {
-    const effect: VSound = { id: 's', track: MUSIC, start: 1, in: 0, out: 4, volume: 1.5, toEnd: false, srcDur: 4, file: new Blob(), url: 'blob:s' };
+    const effect: VSound = {
+      id: 's',
+      track: MUSIC,
+      start: 1,
+      in: 0,
+      out: 4,
+      volume: 1.5,
+      toEnd: false,
+      srcDur: 4,
+      file: new Blob(),
+      url: 'blob:s',
+    };
     loadVideoProject({ clips: [clip('a', 0, 6)], sounds: [effect] });
     setPlayhead(2);
     expect(toggleKey({ sound: 's' }, 'volume')).toBeNull();
@@ -479,7 +538,18 @@ describe('208: the sounds in the store (D1, Q4, Q7, Q12)', () => {
   });
 
   it('T072: a Play to the end song stops at the next sound on its track in the export’s plan (option A)', () => {
-    const fx: VSound = { id: 'fx', track: MUSIC, start: 3, in: 0, out: 1, volume: 1, toEnd: false, srcDur: 1, file: new Blob(), url: 'blob:fx' };
+    const fx: VSound = {
+      id: 'fx',
+      track: MUSIC,
+      start: 3,
+      in: 0,
+      out: 1,
+      volume: 1,
+      toEnd: false,
+      srcDur: 1,
+      file: new Blob(),
+      url: 'blob:fx',
+    };
     loadVideoProject({ clips: [clip('a', 0, 6)], sounds: [song, fx] });
     expect(audioPlan(projectOf()).map(({ ref, start, end }) => [ref, start, end])).toEqual([
       ['music', 0, 3],
@@ -488,7 +558,18 @@ describe('208: the sounds in the store (D1, Q4, Q7, Q12)', () => {
   });
 
   it('T104: Play to the end of the video, on and off, one undo step each', () => {
-    const effect: VSound = { id: 's', track: MUSIC, start: 1, in: 0, out: 2, volume: 1, toEnd: false, srcDur: 30, file: new Blob(), url: 'blob:s' };
+    const effect: VSound = {
+      id: 's',
+      track: MUSIC,
+      start: 1,
+      in: 0,
+      out: 2,
+      volume: 1,
+      toEnd: false,
+      srcDur: 30,
+      file: new Blob(),
+      url: 'blob:s',
+    };
     loadVideoProject({ clips: [clip('a', 0, 6)], sounds: [effect] });
     expect(setSoundToEnd('s', true)).toBeNull();
     expect(defined(getVideo().sounds[0]).toEnd).toBe(true);
@@ -1535,7 +1616,11 @@ describe('207: speed actions, one undo step each, refusals change nothing (AC-8)
   it('refusals leave the state as it was and give the reason', () => {
     loadVideoProject({
       clips: [video('a', 0, [1, 5]), clip('b', 4, 3), video('o', 1, [0, 1], 'V2'), clip('q', 2.2, 1, 'V2')],
-      tracks: [...defaultTracks().slice(0, 1), { id: 'V2', kind: 'overlay', name: 'V2', hidden: false, muted: false, locked: false }, ...defaultTracks().slice(1)],
+      tracks: [
+        ...defaultTracks().slice(0, 1),
+        { id: 'V2', kind: 'overlay', name: 'V2', hidden: false, muted: false, locked: false },
+        ...defaultTracks().slice(1),
+      ],
     });
     const before = getVideo().clips;
     const refusals: [SpeedOutcome, RegExp][] = [
@@ -1622,7 +1707,10 @@ describe('207: speed actions, one undo step each, refusals change nothing (AC-8)
         if (vClip.freeze !== undefined) {
           expect(vClip.freeze, where).toBeGreaterThanOrEqual(0);
           expect(vClip.freeze, where).toBeLessThanOrEqual(vClip.srcDur);
-          expect(['speed', 'reverse', 'ramp'].filter((field) => field in vClip), where).toEqual([]);
+          expect(
+            ['speed', 'reverse', 'ramp'].filter((field) => field in vClip),
+            where,
+          ).toEqual([]);
           continue;
         }
         if (vClip.speed !== undefined) expect(vClip.speed >= 0.1 && vClip.speed <= 10, where).toBe(true);
@@ -1641,7 +1729,9 @@ describe('207: speed actions, one undo step each, refusals change nothing (AC-8)
         const ordered = [...onTrack].sort((left, right) => left.start - right.start);
         for (let index = 1; index < ordered.length; index++) {
           const previous = defined(ordered[index - 1]);
-          expect(defined(ordered[index]).start, `${where} ${track}`).toBeGreaterThanOrEqual(previous.start + clipLength(previous) - 1e-6);
+          expect(defined(ordered[index]).start, `${where} ${track}`).toBeGreaterThanOrEqual(
+            previous.start + clipLength(previous) - 1e-6,
+          );
         }
       }
     }
@@ -1653,9 +1743,26 @@ describe('207: speed actions, one undo step each, refusals change nothing (AC-8)
 
 describe('208: sound clip and audio track actions as undo steps (AC-10)', () => {
   const sound = (id: string, track: string, start: number, length: number): VSound => ({
-    id, track, start, in: 0, out: length, volume: 1, toEnd: false, srcDur: 30, file: new Blob(), url: `blob:${id}`,
+    id,
+    track,
+    start,
+    in: 0,
+    out: length,
+    volume: 1,
+    toEnd: false,
+    srcDur: 30,
+    file: new Blob(),
+    url: `blob:${id}`,
   });
-  const voice: Track = { id: 'A2', kind: 'audio', name: 'Voice', hidden: false, muted: false, locked: false, role: 'voice' };
+  const voice: Track = {
+    id: 'A2',
+    kind: 'audio',
+    name: 'Voice',
+    hidden: false,
+    muted: false,
+    locked: false,
+    role: 'voice',
+  };
   beforeEach(() =>
     loadVideoProject({
       clips: [clip('a', 0, 10)],
@@ -1676,7 +1783,11 @@ describe('208: sound clip and audio track actions as undo steps (AC-10)', () => 
     expect(splitSoundAt('s1')).toBeNull();
     expect(duplicateSoundClip('s2')).toBeNull();
     expect(removeSound('s2')).toBeNull();
-    expect(getVideo().sounds.filter((candidate) => candidate.track === MUSIC).map(({ start, out }) => [start, out])).toEqual([
+    expect(
+      getVideo()
+        .sounds.filter((candidate) => candidate.track === MUSIC)
+        .map(({ start, out }) => [start, out]),
+    ).toEqual([
       [5, 1],
       [6, 3],
     ]);
@@ -1718,7 +1829,11 @@ describe('208: sound clip and audio track actions as undo steps (AC-10)', () => 
     setTrack('A2', { solo: true });
     setTrack('A2', { locked: true });
     setTrack('A2', { locked: false });
-    expect(getVideo().tracks.filter((track) => track.kind === 'audio').map((track) => track.id)).toEqual([MUSIC, 'A3', 'A2']);
+    expect(
+      getVideo()
+        .tracks.filter((track) => track.kind === 'audio')
+        .map((track) => track.id),
+    ).toEqual([MUSIC, 'A3', 'A2']);
     expect(trackOf('A2')).toMatchObject({ muted: true, solo: true, locked: false });
     expect(deleteTrack('A2')).toBeNull();
     expect(getVideo().sounds.map((candidate) => candidate.id)).toEqual(['s1']);
@@ -1770,7 +1885,14 @@ describe('208: sound clip and audio track actions as undo steps (AC-10)', () => 
       tracks: [...defaultTracks(), { ...voice, locked: true }],
       sounds: [sound('s2', 'A2', 1, 2)],
     });
-    for (const why of [moveSoundTo('s2', 3), trimSoundEdge('s2', 'start', 0.5), setSoundVolume('s2', 0.5), setSoundFades('s2', { fadeIn: 0.5 }), duplicateSoundClip('s2'), removeSound('s2')])
+    for (const why of [
+      moveSoundTo('s2', 3),
+      trimSoundEdge('s2', 'start', 0.5),
+      setSoundVolume('s2', 0.5),
+      setSoundFades('s2', { fadeIn: 0.5 }),
+      duplicateSoundClip('s2'),
+      removeSound('s2'),
+    ])
       expect(why).toMatch(/locked/);
     expect(undos()).toBe(0);
   });
@@ -1783,15 +1905,32 @@ describe('208: 1,000 random sound and track edits keep the sound model whole (AC
   // (T072, option A), so lengthening the video never runs it into that sound.
   it('no overlap on a track, no clip outside its file, no fade longer than its clip, at most 8 sound tracks', () => {
     const random = seededRandom(2080);
-    const pick = <T,>(list: readonly T[]): T => defined(list[Math.floor(random() * list.length)]);
+    const pick = <T>(list: readonly T[]): T => defined(list[Math.floor(random() * list.length)]);
     const sound = (id: string, track: string, start: number, length: number, srcDur = 20): VSound => ({
-      id, track, start, in: 0, out: length, volume: 1, toEnd: false, srcDur, file: new Blob(), url: `blob:${id}`,
+      id,
+      track,
+      start,
+      in: 0,
+      out: length,
+      volume: 1,
+      toEnd: false,
+      srcDur,
+      file: new Blob(),
+      url: `blob:${id}`,
     });
     const fresh = () =>
       loadVideoProject({
         clips: [clip('a', 0, 12)],
-        tracks: [...defaultTracks(), { id: 'A2', kind: 'audio', name: 'Voice', hidden: false, muted: false, locked: false, role: 'voice' }],
-        sounds: [{ ...sound('song', MUSIC, 0, 0, 90), toEnd: true, out: undefined }, sound('v1', 'A2', 1, 3), sound('v2', 'A2', 6, 2), sound('fx', MUSIC, 14, 1)],
+        tracks: [
+          ...defaultTracks(),
+          { id: 'A2', kind: 'audio', name: 'Voice', hidden: false, muted: false, locked: false, role: 'voice' },
+        ],
+        sounds: [
+          { ...sound('song', MUSIC, 0, 0, 90), toEnd: true, out: undefined },
+          sound('v1', 'A2', 1, 3),
+          sound('v2', 'A2', 6, 2),
+          sound('fx', MUSIC, 14, 1),
+        ],
         loudness: -14,
       });
     fresh();
@@ -1800,7 +1939,10 @@ describe('208: 1,000 random sound and track edits keep the sound model whole (AC
       if (getVideo().sounds.length < 2) fresh();
       const ids = getVideo().sounds.map((candidate) => candidate.id);
       const id = pick(ids);
-      const soundTracks = () => getVideo().tracks.filter((track) => track.kind === 'audio').map((track) => track.id);
+      const soundTracks = () =>
+        getVideo()
+          .tracks.filter((track) => track.kind === 'audio')
+          .map((track) => track.id);
       const before = getVideo();
       const [name, edit] = pick<[string, () => unknown]>([
         ['move', () => moveSoundTo(id, random() * 15, random() < 0.3 ? pick(soundTracks()) : undefined)],
@@ -1821,7 +1963,14 @@ describe('208: 1,000 random sound and track edits keep the sound model whole (AC
         ['delete track', () => deleteTrack(pick(soundTracks()))],
         ['role', () => setTrackRole(pick(soundTracks()), pick(['music', 'voice', 'effects'] as const))],
         ['track volume', () => setTrackVolume(pick(soundTracks()), random() * 2.5)],
-        ['ducking', () => setDucking(pick(soundTracks()), random() < 0.3 ? null : { amount: random() * 40, threshold: -80 + random() * 70 })],
+        [
+          'ducking',
+          () =>
+            setDucking(
+              pick(soundTracks()),
+              random() < 0.3 ? null : { amount: random() * 40, threshold: -80 + random() * 70 },
+            ),
+        ],
         ['lower music', () => setLowerMusicUnderVoice(random() < 0.5)],
         ['loudness', () => setLoudness(random() < 0.2 ? 'off' : -30 + random() * 25)],
         ['picture trim', () => trimClip('a', 'end', (random() - 0.6) * 6)],
@@ -1840,14 +1989,21 @@ describe('208: 1,000 random sound and track edits keep the sound model whole (AC
       for (const track of audioTracks) {
         expect(track.volume ?? 1, where).toBeLessThanOrEqual(2);
         if (track.duck) expect(track.role, where).not.toBe('voice');
-        const onTrack = sounds.filter((candidate) => candidate.track === track.id).sort((first, second) => first.start - second.start);
+        const onTrack = sounds
+          .filter((candidate) => candidate.track === track.id)
+          .sort((first, second) => first.start - second.start);
         for (let index = 1; index < onTrack.length; index++) {
           const previous = defined(onTrack[index - 1]);
-          expect(previous.start + soundLength(previous, videoEnd, sounds), where).toBeLessThanOrEqual(defined(onTrack[index]).start + 1e-9);
+          expect(previous.start + soundLength(previous, videoEnd, sounds), where).toBeLessThanOrEqual(
+            defined(onTrack[index]).start + 1e-9,
+          );
         }
       }
       for (const current of sounds) {
-        expect(audioTracks.some((track) => track.id === current.track), where).toBe(true);
+        expect(
+          audioTracks.some((track) => track.id === current.track),
+          where,
+        ).toBe(true);
         expect(current.in, where).toBeGreaterThanOrEqual(0);
         expect(current.volume, where).toBeLessThanOrEqual(2);
         if (current.toEnd) expect(current.in, where).toBeLessThan(current.srcDur);
@@ -1858,7 +2014,8 @@ describe('208: 1,000 random sound and track edits keep the sound model whole (AC
         const fadeIn = current.fadeIn ?? 0;
         const fadeOut = current.fadeOut ?? 0;
         expect(Math.max(fadeIn, fadeOut), where).toBeLessThanOrEqual(10);
-        if (!current.toEnd) expect(fadeIn + fadeOut, where).toBeLessThanOrEqual(soundLength(current, videoEnd, sounds) + 1e-9);
+        if (!current.toEnd)
+          expect(fadeIn + fadeOut, where).toBeLessThanOrEqual(soundLength(current, videoEnd, sounds) + 1e-9);
       }
     }
     expect(applied).toBeGreaterThan(400);
@@ -1868,9 +2025,25 @@ describe('208: 1,000 random sound and track edits keep the sound model whole (AC
 /* ---------- 208 T073: the background loudness measurement (AC-9) ---------- */
 
 describe('208: the loudness measured in the background (AC-9)', () => {
-  const sound: VSound = { id: 's', track: MUSIC, start: 0, in: 0, out: 4, volume: 1, toEnd: false, srcDur: 30, file: new Blob(), url: 'blob:s' };
+  const sound: VSound = {
+    id: 's',
+    track: MUSIC,
+    start: 0,
+    in: 0,
+    out: 4,
+    volume: 1,
+    toEnd: false,
+    srcDur: 30,
+    file: new Blob(),
+    url: 'blob:s',
+  };
   /** The measurements asked for: the job, the measurement handed in to reuse, and the abort signal. */
-  let asked: { job: Parameters<typeof measureIO.measure>[0]; previous: MixMeasure | null; signal: AbortSignal; done: (measure: MixMeasure) => void }[] = [];
+  let asked: {
+    job: Parameters<typeof measureIO.measure>[0];
+    previous: MixMeasure | null;
+    signal: AbortSignal;
+    done: (measure: MixMeasure) => void;
+  }[] = [];
   let stop: () => void = () => undefined;
   beforeEach(() => {
     vi.useFakeTimers();
@@ -1889,7 +2062,13 @@ describe('208: the loudness measured in the background (AC-9)', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
-  const measured = (job: Parameters<typeof measureIO.measure>[0], gain: number): MixMeasure => ({ key: mixKey(job), lufs: -14 - gain, peak: -6, gain, reduction: 0 });
+  const measured = (job: Parameters<typeof measureIO.measure>[0], gain: number): MixMeasure => ({
+    key: mixKey(job),
+    lufs: -14 - gain,
+    peak: -6,
+    gain,
+    reduction: 0,
+  });
 
   it('measures 500 ms after the last sound edit, once for a run of edits', async () => {
     setSoundVolume('s', 0.5);
@@ -1960,7 +2139,18 @@ describe('408: the export is refused while files are missing (D4)', () => {
   const goneVoice = missingMedia({ id: 'm2', name: 'voice.wav', size: 10, type: 'audio/wav' });
 
   it('lists the missing clips and sounds, once each, before anything starts', async () => {
-    const voice: VSound = { id: 's1', track: MUSIC, start: 0, in: 0, out: 2, volume: 1, toEnd: false, srcDur: 2, file: goneVoice, url: '' };
+    const voice: VSound = {
+      id: 's1',
+      track: MUSIC,
+      start: 0,
+      in: 0,
+      out: 2,
+      volume: 1,
+      toEnd: false,
+      srcDur: 2,
+      file: goneVoice,
+      url: '',
+    };
     loadVideoProject({
       clips: [{ ...clip('a', 0, 2), file: goneClip }, clip('b', 2, 2), { ...clip('c', 4, 2), file: goneClip }],
       sounds: [voice],
@@ -1970,3 +2160,33 @@ describe('408: the export is refused while files are missing (D4)', () => {
   });
 });
 
+describe('a sound file’s length (208, 209 Q7)', () => {
+  const file = new File(['take'], 'Voice 3.webm', { type: 'video/webm' });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('is the <audio> element’s duration when it has one', async () => {
+    vi.spyOn(soundIO, 'element').mockResolvedValue(12.5);
+    const packets = vi.spyOn(soundIO, 'packets');
+    expect(await soundIO.length(file, 'blob:take')).toBe(12.5);
+    expect(packets).not.toHaveBeenCalled();
+  });
+
+  it('is measured from the packets when the element has none (a MediaRecorder WebM)', async () => {
+    vi.spyOn(soundIO, 'element').mockRejectedValue(new Error('no duration'));
+    vi.spyOn(soundIO, 'packets').mockResolvedValue(8.6);
+    expect(await soundIO.length(file, 'blob:take')).toBe(8.6);
+  });
+
+  it('rejects a file neither can read', async () => {
+    vi.spyOn(soundIO, 'element').mockRejectedValue(new Error('no duration'));
+    vi.spyOn(soundIO, 'packets').mockRejectedValue(new Error('unreadable'));
+    await expect(soundIO.length(file, 'blob:take')).rejects.toThrow('unreadable');
+  });
+
+  it('doesn’t try the packets for a file the element can’t play', async () => {
+    vi.spyOn(soundIO, 'element').mockRejectedValue(new Error('unplayable'));
+    const packets = vi.spyOn(soundIO, 'packets').mockResolvedValue(1);
+    await expect(soundIO.length(file, 'blob:take')).rejects.toThrow('unplayable');
+    expect(packets).not.toHaveBeenCalled();
+  });
+});

@@ -4,7 +4,7 @@ import { EDGE_EPS, type Project, type TimedClip } from '@/engine/timeline';
 import { MAIN_VIDEO, MUSIC, defaultTracks } from '@/engine/tracks';
 import { edgeGain } from '@/engine/keyframes';
 import { limitsFor } from '@/engine/videoFormats';
-import { MAX_NUDGE, previewSound, soundFix, soundPlan, type SoundClip } from '@/components/studio/previewSound';
+import { MAX_NUDGE, previewSound, recordingMix, soundFix, soundPlan, withoutRecorded, type SoundClip } from '@/components/studio/previewSound';
 import { FakeAudio, FakeLiveContext, FakeWorkletNode } from '../../../support/fakeAudio';
 import type { AudioClip } from '@/engine/timeline';
 import { defined } from '../../../support/defined';
@@ -610,5 +610,27 @@ describe('208: the preview’s limiter (D3, T091)', () => {
     tick(sound, false);
     expect(master.to).toBe(context.destination);
     sound.dispose();
+  });
+});
+
+describe('preview sound while a voice is recorded (209 AC-5)', () => {
+  const voice = { id: 'A2', kind: 'audio' as const, name: 'Voice', hidden: false, muted: false, locked: false, role: 'voice' as const };
+  const sound = (id: string, track: string): AudioClip => ({ id, track, start: 0, in: 0, out: 5, volume: 1, toEnd: false, srcDur: 5 });
+  const withSounds = (): Project<C> & { audio: AudioClip[] } => ({ ...project(), tracks: [...project().tracks, voice], audio: [sound('song', MUSIC), sound('old take', 'A2')] });
+  const heard = (plan: ReturnType<typeof soundPlan<C>>) => plan.sounds.map((sounding) => sounding.clip.id);
+
+  it('never plays the track being recorded onto', () => {
+    expect(heard(soundPlan(withSounds(), 1))).toEqual(['song', 'old take']);
+    expect(heard(soundPlan(withoutRecorded(withSounds(), { track: 'A2', hear: true }), 1))).toEqual(['song']);
+    expect(withoutRecorded(withSounds(), null).tracks).toEqual(withSounds().tracks);
+  });
+
+  it('is silent unless Hear the video is on', () => {
+    const mix = { time: 1, master: 0.8, limit: true, gainOf: () => 0.5 };
+    const silent = recordingMix(mix, { track: 'A2', hear: false });
+    expect(silent.master).toBe(0);
+    expect(silent.gainOf('song')).toBe(0);
+    expect(recordingMix(mix, { track: 'A2', hear: true })).toBe(mix);
+    expect(recordingMix(mix, null)).toBe(mix);
   });
 });

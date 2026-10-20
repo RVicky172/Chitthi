@@ -85,6 +85,9 @@ src/
     speedEdges.ts            Trims and splits of a clip at speed (207): edgeRoom, moveEdge, splitSource
     speedGate.ts             mergeSpeed: the gate for speed, reverse, ramps and freezes from project files (207)
     timeStretch.ts           Same-pitch time-stretch (WSOLA) for the export's sound at speed (207)
+    voiceTake.ts             Voice-over (209): the take's track, name and start (takeStart), announcements
+    voiceLevel.ts            The level meter's peak (dBFS) and the Too loud hold (209)
+    takeLength.ts            A recorded take's length from its packets (209), loaded on use
     projectDoc.ts            The project document: its JSON shape, fromSequence (2.x), toDocument
     projectGate.ts           mergeProject: the gate for project files and 2.x projects
     photoProjectDoc.ts       The saved photo project (408): photoDocument / photoFromDocument, mergePhotoProject
@@ -133,6 +136,8 @@ src/
     videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
     projectSave.ts           Autosave of both studios' projects, the save status, keepMedia, the cache (408 §6)
     projects.ts              Saved projects: new, open, rename, duplicate, delete, the last per studio, Find file… (408)
+    voiceRecorder.ts         The voice-over recorder (209 §5): phases, count-in, takes, recovery (section 4.12)
+    recorderDevices.ts       The microphone, MediaRecorder and level meter in the shapes the recorder uses (209)
   lib/
     db.ts                    Storage API: IndexedDB in browsers, IPC to files on desktop
     idb.ts                   The IndexedDB helpers db, userFonts and userLuts share (open, one request per transaction)
@@ -152,6 +157,8 @@ src/
     mediaStore.ts            The MediaStore interface (408); mediaWeb.ts + mediaWeb.worker.ts (OPFS copies),
                              mediaDesktop.ts (references through electron/media.cjs), mediaLibrary.ts (chosen)
     projectLock.ts           One editor per project: a BroadcastChannel between tabs and windows (408 §8)
+    microphone.ts            Microphones, recording prefs, constraints, format and failure messages (209)
+    takeStore.ts             Voice takes in progress for crash recovery: IndexedDB chitthi-takes (209 §6)
   ai/                      Loaded with import() only when an AI feature is used (section 5, AI)
     types.ts                 TextAdapter, ImageAdapter, requests, AiError, aspect helpers
     registry.ts              Provider id → lazy adapter module; request context per call
@@ -874,6 +881,45 @@ bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: si
   the entry chunk) or `configureProjects()` in tests. The UI is `components/studio/ProjectsPanel.tsx` (lazy),
   `ProjectStatus.tsx` (save status, Find file…, the missing bar) and `components/ContinueLink.tsx`; agents use
   `agent/projectTools.ts`.
+
+### 4.12 Voice-over (209: `engine/voiceTake.ts`, `voiceLevel.ts`, `takeLength.ts`, `soundClips.ts`, `lib/microphone.ts`, `lib/takeStore.ts`, `state/voiceRecorder.ts`, `state/recorderDevices.ts`, `electron/permissions.cjs`)
+
+- **Recorder** (`voiceRecorder.ts`, loaded with `import()` when Record voice opens). A `useSyncExternalStore` store
+  without undo: phases `closed → ready → countIn → recording → finishing`, plus level, Too loud, countdown, elapsed,
+  message, the last take and the takes to recover. Its IO is `recorderIO` (devices, `MediaRecorder` and meter makers
+  from `recorderDevices.ts`, clocks, timers, the take store, `measure`, `keep`, `announce`), replaced by fakes in
+  tests. `openControls` opens the microphone and a 30 Hz meter; every way out (`closeControls`, another tool, leaving
+  the workspace, a hidden tab while not recording, a failure) goes through one `release()` that stops each input
+  track and closes the meter. `record()` runs the count-in, then `recorder.start(1000)`; its start event sets
+  `recording` in the video store and plays. A take stops on Stop / Shift + R / Space, the preview stopping, 60 min,
+  the track ending or a recorder error, keeping what was recorded.
+- **Placement** (`takeStart`): start = playStart + (captureWall − playWall) / 1000 − inputLatency + offset, at least 0.
+  `playStart` / `playWall` are the preview's play clock once it runs (else the playhead and capture time);
+  `captureWall` is the recorder's start event; `inputLatency` is the track's reported `latency`, else the meter's
+  `AudioContext.baseLatency`; the Recording offset is clamped to ±0.25 s, per microphone. The length is the file's
+  (`measureTake`: Mediabunny packets, a last 0 s WebM packet as long as the one before), not the wall clock.
+- **Punch-in** (`soundClips.ts`): `punchIn` clears `[start, end)` on one track (delete inside, trim at an edge, split
+  around, a `toEnd` clip fixed first); `placeTake` = `punchIn` + the take, returning what was replaced per clip name.
+  `state/videoSound.ts` `addTake` applies it with a new Voice track (when one was needed) as one `change()`, then
+  `scanMedia()`. Add sound (`soundIO.length`) uses the same packet measure for a WebM whose header has no duration
+  (D-062).
+- **Take store** (`lib/takeStore.ts`, D-061). IndexedDB `chitthi-takes` on web and desktop: a header per take (id,
+  project, name, startedAt, track, start, mime, done) and chunks keyed `[take, index]`, indexes claimed in call order
+  so out-of-order writes still join in order. `begin` on the recorder's start, `append` per chunk, `finish` when a take
+  can't be kept, `remove` once kept as project media (`keepMedia(file, true)`), `sweep` after 30 days.
+  `takesToRecover` counts a project's takes, so `VideoWorkspace` offers them when a project opens
+  (`projectSave.onProjectOpened`); `checkRecovery` / `recoverTake` / `discardTake` / `takeFile` serve the Audio panel.
+- **Microphone** (`lib/microphone.ts`): the device list (default first), the saved choice with fallback, constraints
+  (Voice clean-up = echo cancellation + noise suppression + auto gain, all off by default; mono), the format
+  (`audio/webm;codecs=opus`, else `audio/mp4`), prefs in `localStorage`, and the failure messages per error name and
+  platform. `engine/voiceLevel.ts` is the meter's peak in dBFS and the 2 s Too loud hold.
+- **Permissions**: web `Permissions-Policy: microphone=(self)` (camera, geolocation, payment `()`), in
+  `nginx/security-headers.conf` and so in `vite preview`. Desktop `electron/permissions.cjs` `allowed()`: fullscreen
+  and `clipboard-sanitized-write` always; `media` only from the app's origin and only `audio` (a request's
+  `mediaTypes` exactly `['audio']`, a check's `mediaType` `audio`); everything else refused. On macOS a granted request
+  then asks `systemPreferences` for the microphone.
+- **Announcements** (AC-10): `announceCountIn`, `announceStart`, `announceResult`, `tooLoudDue` (5 s) in
+  `voiceTake.ts`, said through the toast's polite live region.
 
 ## 5. Integrations
 

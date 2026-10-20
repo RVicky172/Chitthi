@@ -5,9 +5,10 @@
  * Content Security Policy. It runs sandboxed without Node; everything native (file dialogs, the on-disk library,
  * menus, updates) goes through the small bridge in preload.cjs.
  */
-const { app, BrowserWindow, Menu, dialog, protocol, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, protocol, session, shell, systemPreferences } = require('electron');
 const { handle, on } = require('./ipc.cjs');
 const { MEDIA_PRIVILEGES, MEDIA_SCHEME, registerMedia } = require('./media.cjs');
+const { installPermissions } = require('./permissions.cjs');
 const { registerProjects } = require('./projects.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -84,13 +85,10 @@ function serveApp() {
 }
 
 /* ------------------------------------------------------------------ permissions */
-// Electron grants every permission by default. The app needs only fullscreen and copying text to the clipboard.
-const ALLOWED_PERMISSIONS = new Set(['fullscreen', 'clipboard-sanitized-write']);
-
+// Electron grants every permission by default: permissions.cjs allows fullscreen, copying text and the microphone for
+// the app's own page, audio only (209).
 function restrictPermissions() {
-  const ses = session.defaultSession;
-  ses.setPermissionRequestHandler((_wc, permission, done) => done(ALLOWED_PERMISSIONS.has(permission)));
-  ses.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
+  installPermissions(session.defaultSession, { appOrigin: ORIGIN, platform: process.platform, systemPreferences });
 }
 
 /* ------------------------------------------------------------------ on-disk library (desktop storage) */

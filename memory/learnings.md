@@ -571,3 +571,15 @@ entry chunk, but Rollup put `state/projects` in one shared chunk with everything
 media code, RAW, …): 513 KB fetched on every home visit just to read one name. `check-bundle` doesn't catch it (only
 the entry is budgeted). Read the build's chunk list after adding an `import()` to an always-shown screen, and import
 the smallest module that answers the question (here `lib/projectLibrary`, 3.8 KB).
+
+## 2026-10-19 — MediaRecorder WebM: the last packet has no duration; preview sends no Permissions-Policy (209 T001)
+
+Chromium (and Electron) record Opus in WebM as 60 ms packets, Firefox as 20 ms ones; Mediabunny gives each packet the
+gap to the next one, so the **last packet's duration is 0** and `Input.computeDuration()` is one packet short (4.92 s
+for 4.98 s decoded). Use the decoded length (or add the previous packet's duration). `<audio>` reads `Infinity` for
+these files (R1). Chunks from `start(1000)` saved to IndexedDB and joined after a reload decode up to the last whole
+chunk in Chromium, Firefox and Electron. Fake microphones: Chromium `--use-fake-device-for-media-stream`
+(+ `--use-fake-ui-for-media-stream` on the web); Firefox prefs `media.navigator.streams.fake` and
+`media.navigator.permission.disabled`. **`vite preview` sends only the CSP** parsed from
+`nginx/security-headers.conf`, not its Permissions-Policy. **Electron + Playwright:** `page.goto` to a new query on
+`app://chitthi` closed the window; expose a loader on `window` from `main.tsx` and call it instead.

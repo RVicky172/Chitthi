@@ -87,5 +87,10 @@
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
   },
-  "types": "dist-lib/types/index.d.ts"
+  "types": "dist-lib/types/index.d.ts",
+  "allowScripts": {
+    "core-js": false,
+    "electron-winstaller": false,
+    "protobufjs": false
+  }
 }

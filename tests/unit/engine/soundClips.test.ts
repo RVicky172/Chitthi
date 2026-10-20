@@ -5,6 +5,8 @@ import {
   deleteSound,
   duplicateSound,
   moveSound,
+  placeTake,
+  punchIn,
   rippleSound,
   rollSound,
   setFades,
@@ -352,5 +354,124 @@ describe('a Play to the end clip followed by another sound (208 T072, option A)'
     const audio = [{ ...song, start: 20 }];
     const moved = byId(ok(moveSound(audio, 'm', 31, ctx)).audio, 'm');
     expect(moved).toMatchObject({ toEnd: false, start: 31, in: 0, out: 10 });
+  });
+});
+
+describe('punch-in: a take replaces the sound it overlaps on its track (209 AC-2)', () => {
+  const tracks = withAudio(2);
+  const ctx = ctxOf(tracks);
+  const named = (id: string, start: number, inPoint: number, out: number, extra: Partial<AudioClip> = {}) =>
+    sound(id, 'A2', start, inPoint, out, { name: `${id}.mp3`, ...extra });
+  const take = (start: number, length: number): AudioClip =>
+    sound('take', 'A2', start, 0, length, { name: 'Voice 2', srcDur: length });
+  const onTrack = (audio: AudioClip[], track = 'A2') => audio.filter((clip) => clip.track === track);
+  /**
+   * Whether any two clips on A2 overlap.
+   * @param audio the sound clips, in start order
+   * @param videoEnd the video's length
+   * @returns true when one starts before the one before it ends
+   */
+  const overlapping = (audio: AudioClip[], videoEnd = 60): boolean => {
+    let reach = -Infinity;
+    for (const clip of onTrack(audio)) {
+      if (clip.start < reach - 1e-9) return true;
+      reach = clip.start + soundLength(clip, videoEnd, audio);
+    }
+    return false;
+  };
+
+  it('deletes a clip inside the take', () => {
+    const result = ok(punchIn([named('a', 5, 0, 3)], 'A2', 4, 10, ctx, 'split'));
+    expect(result.audio).toEqual([]);
+    expect(result.replaced).toEqual([{ name: 'a.mp3', seconds: 3 }]);
+  });
+
+  it('trims a clip over the take’s start at the start', () => {
+    const result = ok(punchIn([named('a', 2, 1, 5, { fadeOut: 3 })], 'A2', 4, 10, ctx, 'split'));
+    expect(byId(result.audio, 'a')).toMatchObject({ start: 2, in: 1, out: 3 });
+    expect(byId(result.audio, 'a').fadeOut).toBeLessThanOrEqual(2);
+    expect(result.replaced).toEqual([{ name: 'a.mp3', seconds: 2 }]);
+  });
+
+  it('trims a clip over the take’s end, its keys staying on the same sound', () => {
+    const keys = { volume: [{ t: 0, v: 1, ease: 'linear' as const }, { t: 4, v: 0.5, ease: 'linear' as const }] };
+    const result = ok(punchIn([named('a', 8, 1, 7, { keys })], 'A2', 4, 10, ctx, 'split'));
+    expect(byId(result.audio, 'a')).toMatchObject({ start: 10, in: 3, out: 7 });
+    expect(byId(result.audio, 'a').keys?.volume?.map((key) => key.t)).toEqual([-2, 2]);
+    expect(result.replaced).toEqual([{ name: 'a.mp3', seconds: 2 }]);
+  });
+
+  it('splits a clip that covers the whole take around it', () => {
+    const keys = { volume: [{ t: 0, v: 1, ease: 'linear' as const }, { t: 20, v: 0, ease: 'linear' as const }] };
+    const result = ok(punchIn([named('a', 0, 0, 20, { fadeIn: 1, fadeOut: 2, keys })], 'A2', 5, 8, ctx, 'split'));
+    const left = byId(result.audio, 'a');
+    const right = byId(result.audio, 'split');
+    expect(left).toMatchObject({ start: 0, in: 0, out: 5, fadeIn: 1 });
+    expect(left.fadeOut).toBeUndefined();
+    expect(right).toMatchObject({ start: 8, in: 8, out: 20, fadeOut: 2, name: 'a.mp3' });
+    expect(right.fadeIn).toBeUndefined();
+    // The volume line is unchanged on both sides: 0.75 at the left part's end, 0.6 at the right part's start.
+    expect(left.keys?.volume?.at(-1)).toMatchObject({ t: 5, v: 0.75 });
+    expect(right.keys?.volume?.[0]).toMatchObject({ t: 0, v: 0.6 });
+    expect(result.replaced).toEqual([{ name: 'a.mp3', seconds: 3 }]);
+  });
+
+  it('handles several clips at once and never leaves overlaps', () => {
+    const audio = [named('a', 0, 0, 3), named('b', 3, 0, 3), named('c', 6, 0, 3)];
+    const result = ok(placeTake(audio, take(2, 5), ctx, 'split'));
+    expect(onTrack(result.audio).map((clip) => [clip.id, clip.start, soundLength(clip, 60, result.audio)])).toEqual([
+      ['a', 0, 2],
+      ['take', 2, 5],
+      ['c', 7, 2],
+    ]);
+    expect(overlapping(result.audio)).toBe(false);
+    expect(result.replaced).toEqual([
+      { name: 'a.mp3', seconds: 1 },
+      { name: 'b.mp3', seconds: 3 },
+      { name: 'c.mp3', seconds: 1 },
+    ]);
+  });
+
+  it('sums the seconds replaced of clips with the same name', () => {
+    const audio = [named('a', 0, 0, 3, { name: 'Voice 1' }), named('b', 3, 3, 6, { name: 'Voice 1' })];
+    expect(ok(punchIn(audio, 'A2', 2, 4, ctx, 'split')).replaced).toEqual([{ name: 'Voice 1', seconds: 2 }]);
+  });
+
+  it('gives a Play to the end clip a fixed length before cutting it, the part after the take still playing to the end', () => {
+    const song = { ...named('m', 0, 0, 0), out: undefined, toEnd: true };
+    const result = ok(placeTake([song], take(5, 3), ctxOf(tracks, 20), 'split'));
+    expect(byId(result.audio, 'm')).toMatchObject({ start: 0, in: 0, out: 5, toEnd: false });
+    expect(byId(result.audio, 'split')).toMatchObject({ start: 8, in: 8, toEnd: true });
+    expect(soundLength(byId(result.audio, 'split'), 20, result.audio)).toBe(12);
+    expect(overlapping(result.audio, 20)).toBe(false);
+  });
+
+  it('drops a remnant shorter than the shortest sound', () => {
+    const result = ok(punchIn([named('a', 0, 0, 4.05)], 'A2', 0, 4, ctx, 'split'));
+    expect(result.audio).toEqual([]);
+    expect(result.replaced[0]?.seconds).toBeCloseTo(4.05, 9);
+  });
+
+  it('leaves other tracks and clips outside the take untouched', () => {
+    const elsewhere = sound('x', 'A3', 4, 0, 6);
+    const before = named('a', 0, 0, 4);
+    const after = named('b', 10, 0, 2);
+    const result = ok(placeTake([before, elsewhere, after], take(4, 6), ctx, 'split'));
+    expect(byId(result.audio, 'x')).toBe(elsewhere);
+    expect(byId(result.audio, 'a')).toBe(before);
+    expect(byId(result.audio, 'b')).toBe(after);
+    expect(result.replaced).toEqual([]);
+  });
+
+  it('puts the take on its own track, in start order', () => {
+    const result = ok(placeTake([named('a', 0, 0, 2), named('b', 20, 0, 2)], take(6, 4), ctx, 'split'));
+    expect(byId(result.audio, 'take')).toMatchObject({ track: 'A2', start: 6, in: 0, out: 4 });
+    expect(result.audio.map((clip) => clip.id)).toEqual(['a', 'take', 'b']);
+  });
+
+  it('refuses a locked track and changes nothing', () => {
+    const locked = patchTrack(tracks, 'A2', { locked: true });
+    expect(err(placeTake([named('a', 0, 0, 10)], take(2, 3), ctxOf(locked), 'split'))).toMatch(/locked/);
+    expect(err(punchIn([named('a', 0, 0, 10)], 'A2', 2, 5, ctxOf(locked), 'split'))).toMatch(/locked/);
   });
 });

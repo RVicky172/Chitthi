@@ -2,7 +2,7 @@
 
 > Read this first every session. Keep ≤ 40 lines. Rules: `specs/memory-management.md`.
 
-## Current State (2026-10-19)
+## Current State (2026-10-20)
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
@@ -55,10 +55,13 @@
   waveforms (sound and video clips), ducking, loudness target (−14 LUFS) with a true-peak limiter, preview = export
   mix; `SoundRow.tsx`, `SoundInspector.tsx`, `AudioPanel.tsx`. AC-1–12, 17 ticked; AC-13–16 wait for 290. Decisions
   D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB.
-- **209:** `209-voice-over` spec Approved 2026-10-19 (Q1–Q14 accepted), plan drafted on `spec/209-voice-over`
-  (§1–§10). D1: video/photo projects aren't saved anywhere today (in memory until reload); the maintainer chose to
-  add project saving first as its own feature (**408**, now implemented); 209 re-read against it (408 T111: takes are
-  owned project media, the take store keeps takes in progress only). D2–D3 still open.
+- **209:** `209-voice-over` ✔️ Implemented 2026-10-20 on `feat/209-voice-over` (not committed yet): record a voice
+  onto a Voice track (count-in, punch-in as one undo step, sync from the reported latency + Recording offset, meter,
+  Voice clean-up, Hear the video), microphone open only with the controls, takes saved every second for crash
+  recovery (`lib/takeStore.ts`, IndexedDB `chitthi-takes`, the recovery bar on project open), web
+  `microphone=(self)`, desktop `electron/permissions.cjs` (own page, audio only; macOS prompt + entitlement); Add sound
+  takes WebM (Q7, D-062). AC-1–9 ticked; AC-10–12 wait for 290; AC-13 docs for the maintainer's review. D-061, D-062.
+  Entry 314 KB. Next: commit, merge into `main`; then **210** (markers, in/out, range export, compound clips).
 - **408:** `408-project-saving` ✔️ Implemented 2026-10-19 (`301a7e0`), merged into `main` (`9b4d012`) and pushed;
   209's spec and plan committed with it, `d7af03e`): saved photo and video projects with autosave (`state/projectSave.ts`), the Projects panel, Continue on the
   home screen, save status, Find file…, one window per project (`lib/projectLock.ts`), agent tools (61 now). Browser:

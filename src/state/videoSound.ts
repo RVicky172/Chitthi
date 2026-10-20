@@ -1,7 +1,24 @@
 import { LOUDNESS_RANGE } from '../engine/loudnessTargets';
 import { isAnimated, setKey, volumeAt } from '../engine/keyframes';
-import { addSound, deleteSound, duplicateSound, moveSound, rippleSound, rollSound, setFades, setToEnd, slideSound, slipSound, splitSound, trimSound, type FadeChange, type SoundCtx } from '../engine/soundClips';
-import { MUSIC, lockedReason } from '../engine/tracks';
+import {
+  addSound,
+  deleteSound,
+  duplicateSound,
+  moveSound,
+  placeTake,
+  rippleSound,
+  rollSound,
+  setFades,
+  setToEnd,
+  slideSound,
+  slipSound,
+  splitSound,
+  trimSound,
+  type FadeChange,
+  type Replaced,
+  type SoundCtx,
+} from '../engine/soundClips';
+import { MUSIC, lockedReason, type Track } from '../engine/tracks';
 import type { MixMeasure, SoundJob } from '../engine/exportSound';
 import { logError } from '../lib/errors';
 import { keepMedia } from './projectSave';
@@ -15,7 +32,7 @@ import { change, getVideo, newId, setVideo, subscribeVideo, total, type VSound, 
  * `change()` (one undo step; a drag's steps share a key). The edits themselves are engine/soundClips.ts's.
  */
 
-const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/i;
+const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|webm|weba)$/i;
 /** The largest sound file taken (Q4: as the music before 208). */
 const MAX_BYTES = 100 * 1048576;
 
@@ -40,7 +57,24 @@ const audioLength = (_file: Blob, url: string): Promise<number> =>
   });
 
 /** How sound files are read (tests put a stand-in here: Node plays no media). */
-export const soundIO = { length: audioLength };
+export const soundIO = {
+  /** The length as an <audio> element reads it. */
+  element: audioLength,
+  /** The length from the file's packets (engine/takeLength.ts, loaded on use). */
+  packets: async (file: Blob): Promise<number> => (await import('../engine/takeLength')).measureTake(file),
+  /**
+   * A sound file's length: the <audio> element's, else, for a file whose header has none (a WebM from MediaRecorder,
+   * such as a saved voice take, 209 Q7), measured from its packets.
+   * @param file the file
+   * @param url its object URL
+   * @returns seconds; rejects when it can't be read
+   */
+  length: (file: Blob, url: string): Promise<number> =>
+    soundIO.element(file, url).catch((error: unknown) => {
+      if (error instanceof Error && error.message === 'no duration') return soundIO.packets(file);
+      throw error;
+    }),
+};
 
 /**
  * What every sound edit checks: the tracks' locks and where the video ends.
@@ -60,7 +94,8 @@ export interface SoundPlace {
  * @returns the reason, or null
  */
 function refusal(file: File): string | null {
-  if (!file.type.startsWith('audio/') && !AUDIO_EXT.test(file.name)) return `${file.name} isn’t a sound file. Use MP3, M4A, WAV, OGG or FLAC.`;
+  if (!file.type.startsWith('audio/') && !AUDIO_EXT.test(file.name))
+    return `${file.name} isn’t a sound file. Use MP3, M4A, WAV, OGG, WebM or FLAC.`;
   if (file.size > MAX_BYTES) return `${file.name} is too large. Sound files up to 100 MB can be added.`;
   return null;
 }
@@ -141,7 +176,9 @@ export function setSoundVolume(id: string, volume: number): string | null {
   const locked = lockedReason(getVideo().tracks, clip.track);
   if (locked) return locked;
   const next = Math.min(2, Math.max(0, volume));
-  return commitSounds(`sound-volume:${id}`, { audio: sounds.map((sound) => (sound === clip ? { ...sound, volume: next } : sound)) });
+  return commitSounds(`sound-volume:${id}`, {
+    audio: sounds.map((sound) => (sound === clip ? { ...sound, volume: next } : sound)),
+  });
 }
 
 /**
@@ -231,7 +268,9 @@ export function setSoundVolumeAt(id: string, volume: number): string | null {
   if (locked) return locked;
   const keys = setKey(clip.keys, 'volume', video.t - clip.start, volume, keyEdit(clip));
   if ('error' in keys) return keys.error;
-  return commitSounds(`sound-volume:${id}`, { audio: video.sounds.map((sound) => (sound === clip ? { ...sound, keys } : sound)) });
+  return commitSounds(`sound-volume:${id}`, {
+    audio: video.sounds.map((sound) => (sound === clip ? { ...sound, keys } : sound)),
+  });
 }
 
 /**
@@ -332,7 +371,11 @@ const MEASURE_DELAY = 500;
  * @param signal stops it
  * @returns the measurement, or null when Loudness is Off
  */
-async function measureInBackground(job: SoundJob, previous: MixMeasure | null, signal: AbortSignal): Promise<MixMeasure | null> {
+async function measureInBackground(
+  job: SoundJob,
+  previous: MixMeasure | null,
+  signal: AbortSignal,
+): Promise<MixMeasure | null> {
   const { measureLoudness } = await import('../engine/exportSound');
   return measureLoudness({ ...job, signal, ...(previous ? { measured: previous } : {}) });
 }
@@ -345,7 +388,13 @@ export const measureIO = { measure: measureInBackground };
  * @param video the state
  * @returns the inputs
  */
-const mixInputs = (video: VState): unknown[] => [video.sounds, video.tracks, video.clips, video.loudness, scanSnapshot().scans];
+const mixInputs = (video: VState): unknown[] => [
+  video.sounds,
+  video.tracks,
+  video.clips,
+  video.loudness,
+  scanSnapshot().scans,
+];
 
 /**
  * Keeps `measure` current (AC-9): measures the mix 500 ms after the last change to its sound (and once at the start),
@@ -410,4 +459,62 @@ export function watchLoudness(): () => void {
  * @param video the state
  * @returns dB, 0 when Off or not measured yet
  */
-export const masterGainDb = (video: VState): number => (video.loudness === 'off' || !video.measure ? 0 : video.measure.gain);
+export const masterGainDb = (video: VState): number =>
+  video.loudness === 'off' || !video.measure ? 0 : video.measure.gain;
+
+/** A recorded voice take to put on the timeline (209 §5). */
+export interface TakeToPlace {
+  file: File;
+  name: string;
+  /** The track it was recorded onto, and the tracks with it (a new Voice track not yet in the project). */
+  track: string;
+  tracks: Track[];
+  /** Its place on the timeline, s. */
+  start: number;
+  /** Its length, s. */
+  length: number;
+}
+
+/** A take placed: its clip and what it replaced. */
+export interface PlacedTake {
+  sound: VSound;
+  replaced: Replaced[];
+}
+
+/**
+ * Puts a recorded take on its track (209 AC-1, AC-2, AC-8): what it overlaps there is replaced (punch-in), and the
+ * take, the punch-in and a new Voice track are one undo step. Its waveform and ducking scan starts.
+ * @param take the take
+ * @returns the clip and what it replaced, or why not
+ */
+export function addTake(take: TakeToPlace): PlacedTake | { error: string } {
+  const video = getVideo();
+  const tracks = video.tracks.some((track) => track.id === take.track) ? video.tracks : take.tracks;
+  const url = URL.createObjectURL(take.file);
+  const sound: VSound = {
+    id: newId(),
+    track: take.track,
+    start: take.start,
+    in: 0,
+    out: take.length,
+    volume: 1,
+    toEnd: false,
+    srcDur: take.length,
+    name: take.name,
+    file: take.file,
+    url,
+  };
+  const placed = placeTake(
+    video.sounds,
+    sound,
+    { locked: (track) => lockedReason(tracks, track), videoEnd: total() },
+    newId(),
+  );
+  if ('error' in placed) {
+    URL.revokeObjectURL(url);
+    return placed;
+  }
+  change('', { sounds: placed.audio, tracks });
+  scanMedia(url, take.file);
+  return { sound, replaced: placed.replaced };
+}

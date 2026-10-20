@@ -11,6 +11,28 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-20 — 209 verified; Q7 WebM in Add sound
+**Done:** the maintainer extended Q7: Add sound takes `.webm` / `.weba` (T064, D-062: `soundIO.length` falls back to
+the packet length when `<audio>` has none). `/spec-verify 209`: check green (2,546), build entry 314 KB with the
+recorder in its own chunk, lint:full 0 errors (patterns.ts warning is main's), licences ok. AC-1–9 ticked; AC-10–12
+listed in 290; AC-13 docs for review. Status Implemented.
+**Next:** commit and merge `feat/209-voice-over` into `main`; then 210 (spec first).
+**Blockers:** none.
+
+## 2026-10-20 — 209 voice-over (T062, T063, T070, T071)
+**Done:** T062 announcements (count-in, start, Too loud at most every 5 s, result) through the toast's live region,
+injected as `recorderIO.announce`; wording pure in `engine/voiceTake.ts`; fixed the Too loud time surviving a close;
+device adapters moved to `state/recorderDevices.ts` (voiceRecorder.ts 733 lines). T063 recovery offered on project
+open: `takesToRecover` (lib/takeStore), `onProjectOpened` (state/projectSave), RecoverBar in VideoWorkspace. Check
+green (2,540).
+Then T070 docs (MEDIA-STUDIO Voice-over section, DESKTOP microphone, lld §4.12 + module map, CHANGELOG, in-app docs)
+and T071 close: build entry 314 KB with the recorder in its own chunk, lint:full 0 errors (patterns.ts 810 lines is
+main's warning), licences ok; AC-8 test added; AC-1–9 ticked. 290's 209 entry also checks the result and the
+timeline's sound announcement don't clash.
+**Next:** maintainer reviews the docs (AC-13); `/spec-verify 209`; commit, merge into main.
+**Blockers:** none (Q7, WebM in Add sound, still open for the maintainer).
+
+
 ## 2026-10-19 — 408 (T070–T072, T110–T112): implemented
 **Done:** T070 ✔️ Projects panel (`ProjectsPanel.tsx`, lazy, `41-projects.css`) + `spaceFreed`, `projectsUsage`, entry
 thumbnails; the studios now start their project on opening (`showStudio` in `InstagramStudio`). T071 ✔️ save status
