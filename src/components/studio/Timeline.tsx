@@ -14,6 +14,8 @@ import { snapTargets, snapTime } from '../../engine/timeSnap';
 import type { Track } from '../../engine/tracks';
 import { toast } from '../../lib/toast';
 import { addMedia, NEW_TRACK } from '../../state/videoMedia';
+import { addFromPool } from '../../state/videoPool';
+import { isPoolDrag, POOL_DRAG } from './poolList';
 import {
   getVideo,
   setPlayhead,
@@ -340,9 +342,21 @@ export function Timeline() {
     const left = canvas.current?.getBoundingClientRect().left ?? 0;
     return Math.max(0, Math.min(total, (clientX - left) / zoom));
   };
-  // Files dragged over the timeline: a marker on the row (or above the top row: a new track) at the pointer's time.
+  // The sound row under a drag, by its track id (SoundRow's data-sound-track), or null.
+  const soundRowAt = (event: ReactDragEvent): string | null =>
+    event.target instanceof Element ? (event.target.closest<HTMLElement>('[data-sound-track]')?.dataset.soundTrack ?? null) : null;
+  // Files, or a media pool row (504), dragged over the timeline: a marker on the row (or above the top row: a new
+  // track) at the pointer's time.
   const onFilesOver = (event: ReactDragEvent) => {
-    if (!event.dataTransfer.types.includes('Files')) return;
+    const { types } = event.dataTransfer;
+    if (!types.includes('Files') && !isPoolDrag(types)) return;
+    // A pool row may also go on a sound row (its sound); no marker is drawn there.
+    if (isPoolDrag(types) && soundRowAt(event)) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setDropMarker(null);
+      return;
+    }
     const target = rowTargetAt(event.clientY);
     if (!target) {
       setDropMarker(null);
@@ -352,18 +366,18 @@ export function Timeline() {
     event.dataTransfer.dropEffect = 'copy';
     setDropMarker({ target, at: toFrame(timeAt(event.clientX)) });
   };
-  // Files dropped on a row land there at the drop time; above the top row, on a new overlay track.
+  // Files or a media pool row dropped on a row land there at the drop time; above the top row, on a new overlay track.
   const onFilesDrop = (event: ReactDragEvent) => {
-    const target = rowTargetAt(event.clientY);
+    const pooled = event.dataTransfer.getData(POOL_DRAG);
+    const target = rowTargetAt(event.clientY) ?? (pooled ? soundRowAt(event) : null);
     setDropMarker(null);
-    if (!target || !event.dataTransfer.files.length) return;
+    if (!target || (!pooled && !event.dataTransfer.files.length)) return;
     event.preventDefault();
+    const place = { track: target === 'new' ? NEW_TRACK : target, at: toFrame(timeAt(event.clientX)) };
     const files = [...event.dataTransfer.files].map((file) => ({ name: file.name, blob: file, type: file.type }));
-    void addMedia(files, { track: target === 'new' ? NEW_TRACK : target, at: toFrame(timeAt(event.clientX)) }).then(
-      (messages) => {
-        messages.forEach((message) => toast(message));
-      },
-    );
+    void (pooled ? addFromPool(pooled, place) : addMedia(files, place)).then((messages) => {
+      messages.forEach((message) => toast(message));
+    });
   };
 
   // Snaps a time to the nearest clip edge, layer edge, sound clip edge (208) or the playhead within a few pixels, leaving

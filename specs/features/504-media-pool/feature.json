@@ -4,13 +4,13 @@
   "id": "504",
   "title": "Media pool for Reels and YouTube",
   "workItem": null,
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-20",
     "approved": "2026-10-20",
-    "started": null,
-    "done": null
+    "started": "2026-10-20",
+    "done": "2026-10-20"
   },
   "git": {
     "branch": "feat/504-media-pool"
@@ -49,25 +49,25 @@
           "group": "Pool",
           "proof": "unit",
           "text": "Importing files adds them to the project's media pool without putting them on the timeline unless the import came from the timeline's or the stage's add button (which also places them, as today). The pool holds every file the project references, including recordings (209), and is saved and reopened with the project (408).",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Pool",
           "proof": "unit",
           "text": "Each item shows a thumbnail (first frame, the photo, or a waveform for sound), name, length for video and sound, kind, and a use count; filters All / Video / Photo / Sound / Recordings and a name search narrow the list.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "Adding",
           "proof": "unit",
           "text": "An item is added to the timeline by drag and drop onto a track, by double-click or Enter (at the playhead on the matching track), or by its add button; video and photos go to the main track, sound to a sound track of its kind; one undo step each.",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Tidying",
           "proof": "unit",
           "text": "Remove takes an unused item out of the project (one undo step); a used item asks first and lists where it is used. **Find file…** (408) works from the pool for missing files.",
-          "done": false
+          "done": true
         },
         "AC-5": {
           "group": "Fit",
@@ -101,6 +101,10 @@
       {
         "date": "2026-10-20",
         "text": "Every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Plan D1–D5: option A chosen by the maintainer (D-069); plan Approved; tasks written (T010–T091)."
       }
     ],
     "sections": [
@@ -136,6 +140,508 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (D1–D5 A; 2026-10-20, D-069) <!-- Draft | Approved -->",
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Today a file exists in a video project only as the clips and sound clips that use it: `addMedia` (`state/videoMedia.ts`) reads files into clips and places them in one go, `addSoundFiles` (`state/videoSound.ts`) does the same for sound, and the saved document lists each file once in `media` (`engine/projectDoc.ts`), only when something uses it. The Media panel (`studio/VideoPanels.tsx`) is a drop zone. 504 gives files a life of their own in the project.\n\n**§1 The pool in the store (AC-1).** `VState` gains `pool: PoolItem[]`: the files imported into the project that no clip may use yet. The pool the user sees is derived, never kept in step by hand: `poolOf(state)` (a selector) is every `pool` item plus one item for each file a clip or sound clip uses that isn't there, keyed by the file's URL (its media id in the editor, D-053), so files added by dropping on the timeline, by the empty stage's button, by recording (209) or by opening an older project are in it without each path knowing. `pool` is part of `Snap`, so an import and a removal are undone like any edit (D2).\n\n**§2 Reading and placing split.** `addMedia` becomes two steps: `readMedia(files)` turns files into pool items (the size and type checks, the thumbnail and filmstrip, the sound scan and `keepMedia`, as today) and `placeMedia(items, place)` turns items into clips with today's placement rules (append, insert, place; the limits; videos at once). `addMedia` = read + place, so the timeline's drop and the empty stage's **Add videos or photos** keep placing files (Q1). The Media panel's drop zone, its **Choose videos, photos or sound** button and **Use the photos from Photos** call `importToPool` = read only (one undo step). Sound files go through the same split (`readSound` / `placeSound` from `addSoundFiles`).\n\n**§3 Memory.** A pool item holds what the list shows and what a clip needs that is cheap: name, file, URL, kind, size, length, a 160 px thumbnail, a video's filmstrip; never a photo's 1080 px preview copy (200 photos would hold ~900 MB). A photo item is read again (`mediaIO.photo`, through `blobOf` for disk media) when it is placed, so placing a photo from the pool is async; videos and sounds place at once.\n\n**§4 Saved with the project (AC-1).** `videoDocument` lists the pool's unused files after the clips', sounds' and images' (`media` already holds one entry per file, so the document's shape doesn't change: an unused entry is simply one no clip names). `videoFromDocument` returns the entries no clip, sound or image layer uses as `pool`; `openVideo` (`state/projects.ts`) opens them like the others (their thumbnails and strips from the cache, which `videoCache` now writes for pool videos too; photos' thumbnails made again; sounds' scans from the cache). `editorMediaIds` counts pool files, so deleting another project never sweeps an unused pool file in the browser. Recordings: a take's media entry gains `recorded: true` (D3), read by the gate (`readMedia` in `engine/projectGate.ts`) and carried on the editor's `VSound` and pool item.\n\n**§5 The list (AC-2).** The Media panel becomes the pool: the import row stays above (503 D1), then filter chips **All · Video · Photo · Sound · Recordings**, a search field, and the items as `ListRow`s (501): a thumbnail (the video's thumbnail, the photo, or a waveform drawn from the sound's scan, 208 cache), the name, the length (video, sound), the kind and the use count (\"Used 2×\" / \"Not used\"), and the add and remove buttons. Filtering, searching, counting and the length text are pure (`components/studio/mediaPool.ts`). An empty pool shows `EmptyState`; a filter with no match says so. The list scrolls inside the panel; at 200 items it renders every row (no virtual list: a row is a 48 px image and text), checked in 590 (AC-5).\n\n**§6 Adding from the pool (AC-3).** `addFromPool(id, place)`: a video or photo goes on the main video track, a sound on a sound track of its kind (a recording on a Voice track, another sound on the Music track, made if missing, as `addSound` does), each one undo step with the messages of today's limits. Where: **double-click** or **Enter** on a row, and the row's add button, put it at the playhead (D1); **dragging** a row onto the timeline puts it on the row and time dropped, through the timeline's existing drop marker: the row's drag carries `application/x-chitthi-pool` with the item's id, and `Timeline.tsx`'s `onFilesOver` / `onFilesDrop` accept it beside files (a picture on a sound row, or sound on a picture row, is refused with today's \"Photos and videos go on a picture track.\" and its sound twin).\n\n**§7 Tidying (AC-4).** The row's remove button takes an unused item out of `pool` (one undo step). A used item asks first (`confirm`, as Clear batch does) listing where it is used (\"Clip 2 on Video, Clip 1 on Overlay 1, a sound on Music 1\", from `clipPlace` / the track names); confirmed, the item and every clip and sound clip using it go in one undo step (D4). A missing file's row shows **Find file…** (`FindFileButton`, 408), which relinks every clip using it."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// state/videoStore.ts\n/** A file in the project's media pool (504): what the list shows and what placing it needs. */\nexport interface PoolItem {\n  /** The file's URL: its media id in the editor (D-053), shared with the clips that use it. */\n  url: string;\n  kind: 'video' | 'photo' | 'audio';\n  name: string;\n  file: MediaFile;\n  /** Pixels (0 for sound). */\n  w: number;\n  h: number;\n  /** Seconds (0 for photos). */\n  srcDur: number;\n  /** 160 px JPEG (pictures); '' for sound, drawn from its scan. */\n  thumb: string;\n  /** A video's filmstrip. */\n  strip: string[];\n  /** A voice take recorded in the app (209). */\n  recorded?: true;\n}\ninterface VState { /* … */ pool: PoolItem[] }\ninterface Snap { /* … */ pool: PoolItem[] }\nexport function poolOf(video: VState): PoolItem[];          // pool ∪ files in use, by url\nexport function usesOf(video: VState, url: string): Use[];   // the clips and sound clips using a file\n\n// state/videoPool.ts (new)\nexport async function importToPool(files: File[]): Promise<string[]>;            // messages\nexport async function addFromPool(url: string, place?: PoolPlace): Promise<string[]>;\nexport function removeFromPool(url: string): void;                               // with its uses, one step\nexport interface PoolPlace { track?: string; at?: number }                       // default: the playhead\n\n// components/studio/mediaPool.ts (new, pure)\nexport type PoolFilter = 'all' | 'video' | 'photo' | 'sound' | 'recordings';\nexport function filterPool(items: readonly PoolItem[], filter: PoolFilter, query: string): PoolItem[];\nexport function useCounts(video: VState): Map<string, number>;\nexport function poolDetail(item: PoolItem, uses: number): string;             // \"0:12 · Video · Used 2×\"\n\n// engine/projectDoc.ts\ninterface DocMedia { /* … */ recorded?: true }\ninterface EditorVideo<F> { /* … */ pool: EditorPoolItem<F>[] }\n```\n\nThe document's shape is unchanged apart from the optional `recorded`: an unused file is a `media` entry nothing names. A project from before 504 opens with an empty `pool` (its files are all in use, so the derived pool shows them)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **Derived, not synchronised:** the visible pool is `pool` ∪ files in use, so no add, delete, undo or open path has to keep a second list in step; removing an unused item is the only write that needs `pool` alone.\n- **Read once, place many:** reading a file (decode, thumbnail, filmstrip, scan, keep) is separated from placing it, so a pool item placed five times is read once (a photo's preview copy excepted, §3).\n- **Drag data type:** the pool's drag uses its own MIME type, so the timeline tells a pool item from files and other drags; the item's URL is the payload, looked up again on drop (a removed item drops nothing).\n- **Stand-ins for media:** tests use `mediaIO` / `soundIO` stand-ins as today (Node decodes no media)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Kind |\n| --- | --- | --- |\n| AC-1 | `tests/integration/state/videoPool.test.ts`: importing puts files in the pool and not on the timeline; `addMedia` (timeline drop, stage button) still places and the file is in the pool; a recorded take is in the pool as a recording; undo of an import. `tests/unit/engine/projectDoc.test.ts`: an unused pool file is listed in `media` and comes back as `pool`; `recorded` round-trips; a document from before 504 opens with an empty pool. `tests/unit/engine/projectGate.test.ts`: `recorded` kept, a wrong value dropped | unit |\n| AC-2 | `tests/unit/components/studio/mediaPool.test.ts`: `filterPool` by each filter and by name (case-insensitive, accents as typed), `useCounts`, `poolDetail` (lengths, kinds, \"Not used\") | unit |\n| AC-3 | `videoPool.test.ts`: a video and a photo go on the main track at the playhead, a sound on Music, a recording on Voice, each one undo step; a given track and time (the drop); a sound on a picture track refused; the limits' messages | unit |\n| AC-4 | `videoPool.test.ts`: removing an unused item is one undo step; `usesOf` lists the clips and sounds; removing a used item takes its clips and sounds with it in one step, undo brings all back | unit |\n| AC-5 | Dragging a row onto the timeline places it where dropped; 200 items scroll without delay | e2e (590) |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer",
+        "markdown": "_Chosen (the maintainer, 2026-10-20): A for all five (D-069)._\n\n**D1 Where the add button and Enter put an item.** The spec's summary says \"at the playhead or at the end\". **A (recommended)** double-click, Enter and the add button all put it at the playhead (AC-3); the playhead is where the user is working, and one rule is easy to learn. **B** Enter and double-click at the playhead, the add button at the end of the main track (as importing did before 504).\n\n**D2 Is importing into the pool an undo step?** **A (recommended)** yes: Ctrl + Z takes back an import like any change, and a removal (AC-4) is one anyway. **B** no: only removals are undone; an import stays until removed.\n\n**D3 How recordings are told apart.** **A (recommended)** the take's media entry is saved with `recorded: true` (one optional field the gate reads); takes recorded before 504 show under Sound, not Recordings. **B** no new field: a sound whose file the app recorded is found by its name pattern (\"Voice 1 take 3\"), which a renamed file breaks.\n\n**D4 Removing a used item.** **A (recommended)** ask, listing where it is used, then remove the item and its clips and sound clips in one undo step (AC-4's \"asks first\"). **B** refuse while it is used (\"Delete its clips first\") and remove only unused items.\n\n**D5 Agent tools.** The video editor has no agent tools yet (Principle XI: none of 201–209 added one). **A (recommended)** none in 504 either; the video editor's tools are a feature of their own (to put on the roadmap), so the pool's list / add / remove join them there. **B** add `list_media_pool`, `add_from_pool`, `remove_from_pool` now, the first video tools."
+      }
+    ],
+    "files": [
+      {
+        "file": "`src/state/videoStore.ts`",
+        "change": "modify",
+        "purpose": "`PoolItem`, `pool` in the state and in `Snap`, `poolOf`, `usesOf`; `loadVideoProject` takes a pool (§1)"
+      },
+      {
+        "file": "`src/state/videoMedia.ts`, `src/state/videoSound.ts`",
+        "change": "modify",
+        "purpose": "`addMedia` / `addSoundFiles` split into read and place; reading gives pool items (§2, §3)"
+      },
+      {
+        "file": "`src/state/videoPool.ts`",
+        "change": "new",
+        "purpose": "`importToPool`, `addFromPool`, `removeFromPool` (§2, §6, §7)"
+      },
+      {
+        "file": "`src/state/voiceRecorder.ts`, `src/state/videoSound.ts` (`addTake`)",
+        "change": "modify",
+        "purpose": "A take's sound is marked `recorded` (§4, D3)"
+      },
+      {
+        "file": "`src/engine/projectDoc.ts`, `src/engine/projectGate.ts`",
+        "change": "modify",
+        "purpose": "Unused pool files in `media`, `pool` from a document, `recorded` (§4)"
+      },
+      {
+        "file": "`src/state/projectSave.ts`, `src/state/projects.ts`",
+        "change": "modify",
+        "purpose": "Save the pool's files and their cache; open the pool; `editorMediaIds` counts it (§4)"
+      },
+      {
+        "file": "`src/components/studio/mediaPool.ts`",
+        "change": "new",
+        "purpose": "Filter, search, use counts, the row's detail text (§5, AC-2)"
+      },
+      {
+        "file": "`src/components/studio/VideoPanels.tsx`, `src/components/studio/MediaPool.tsx` (new), `src/styles/36-media-studio.css`",
+        "change": "modify / new",
+        "purpose": "The Media panel as the pool: import row, filters, search, rows (`ListRow`), drag, keys, remove, Find file… (§5–§7)"
+      },
+      {
+        "file": "`src/components/studio/Timeline.tsx`",
+        "change": "modify",
+        "purpose": "Accept a pool item dropped on a row, with the drop marker (§6)"
+      },
+      {
+        "file": "`tests/integration/state/videoPool.test.ts`, `tests/unit/components/studio/mediaPool.test.ts`, `tests/unit/engine/projectDoc.test.ts`, `tests/unit/engine/projectGate.test.ts`",
+        "change": "new / modify",
+        "purpose": "AC-1–AC-4"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `docs/DESIGN.md` (panel map), `specs/lld.md`, `CHANGELOG.md`",
+        "change": "modify",
+        "purpose": "The pool for users; the panel map; the store and document"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Splitting `addMedia` changes how the timeline's drop and the stage's button place files** (many 203/207 tests cover them). Mitigation: `addMedia` keeps its signature and messages and becomes read + place; the existing `videoMedia` tests run unchanged and must pass before the pool uses the parts."
+      },
+      {
+        "text": "**Memory with many photos in the pool.** Mitigation: §3, pool items keep only a 160 px thumbnail; the preview copy is made when a photo is placed, as today."
+      },
+      {
+        "text": "**The derived pool and the saved one disagree** (a file both in `pool` and used, or a clip's file not listed). Mitigation: `poolOf` dedupes by URL; `videoDocument` lists each file once whatever lists it; a test saves and reopens a project with used, unused and recorded files."
+      },
+      {
+        "text": "**A browser sweep deletes an unused pool file's stored copy.** Mitigation: `editorMediaIds` includes `pool`, and saved documents list unused files in `media`, which `mediaInUse` already reads."
+      },
+      {
+        "text": "**Removing a used item by mistake.** Mitigation: it asks first and names the uses (D4), and it is one undo step."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec Approved 2026-10-20; this plan waits for D1–D5."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "AC-1–AC-4 unit tests, test-first; AC-5 deferred to 590 (already listed there)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency; the pool is derived from the clips plus one list."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D1–D5 into `memory/decisions.md` when chosen."
+      },
+      {
+        "principle": "V. Free and Open Source",
+        "status": "✅",
+        "notes": "Same on web and desktop."
+      },
+      {
+        "principle": "VI. On the User's Device",
+        "status": "✅",
+        "notes": "No network; files stay where 408 keeps them."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "Preview and export unchanged; documents still go through the gate (one optional field)."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No `electron/` changes; disk media read as today."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "Pool code in the studio's lazy chunk; rows are buttons with Enter, the drag has a keyboard twin; 200-item scroll in 590."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "⚠️",
+        "notes": "The video editor has no agent tools yet (pre-existing); D5 asks whether the pool's come now or with the video tools feature."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); AC-5 (dragging a pool item onto the timeline, 200 items scrolling) is in `590` (\"Deferred checks collected from the phase\").\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 504 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Pool in the store",
+        "intro": "§1–§3: the pool, reading split from placing, importing (D2)."
+      },
+      {
+        "title": "Adding and removing",
+        "intro": "§6, §7: from the pool to the timeline (D1), and tidying (D4)."
+      },
+      {
+        "title": "Saving",
+        "intro": "§4: unused files and recordings in the saved project (D3)."
+      },
+      {
+        "title": "Media panel",
+        "intro": "§5, §6: the list, its filters and search, and dragging onto the timeline."
+      },
+      {
+        "title": "Close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T090",
+        "T091"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing test for the pool in the store: `poolOf` is `pool` plus one item per file a clip or sound clip uses, deduped by URL, in import order; `importToPool` (pictures, with `mediaIO` stand-ins) adds items to the pool and no clip, as one undo step (undo takes it back, D2); `addMedia` (the timeline's drop, the stage's button) still places the clips and their files show in `poolOf`; `usesOf` lists the clips and sound clips using a URL; `loadVideoProject` takes a pool. The existing `video.test.ts` cases for `addMedia` stay as they are.",
+          "section": "Pool in the store",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/integration/state/videoPool.test.ts"
+          ],
+          "test": "`tests/integration/state/videoPool.test.ts` (fails first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/integration/state/videoPool.test.ts: poolOf = pool items, then each file a clip or sound clip uses, once, by URL (a used file's item takes name, thumbnail, length, size from its clip; a sound's thumbnail ''), loadVideoProject({ pool }) (none when left out), importToPool puts pictures in the pool and none on the timeline as one undo step (D2), keeps no photo preview copy, says why a file is left out without recording a step, addMedia (timeline drop, stage button) still places and the pool then shows the file, usesOf lists clips and sound clips by URL. mediaIO stand-ins give each file its own blob: URL. Fails first as intended: @/state/videoPool does not exist (and poolOf / usesOf / PoolItem are not in videoStore)."
+          ]
+        },
+        "T011": {
+          "text": "`PoolItem`, `pool` in `VState` and `Snap` (undo / redo restore it), `poolOf`, `usesOf`, `loadVideoProject({ pool })` in `videoStore.ts`; `addMedia` split into `readMedia` (files → pool items: checks, thumbnail, filmstrip, scan, `keepMedia`; no 1080 px preview kept, §3) and `placeMedia` (items → clips, today's rules and messages; a photo's preview made on placing); `state/videoPool.ts` with `importToPool` for pictures. T010's picture cases and every `video.test.ts` case pass.",
+          "section": "Pool in the store",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/state/videoStore.ts",
+            "src/state/videoMedia.ts",
+            "src/state/videoPool.ts"
+          ],
+          "test": "`tests/integration/state/videoPool.test.ts`, `tests/integration/state/video.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** videoStore.ts: PoolItem, PoolUse, pool in VState (in PURE: the pool doesn't change the video, so the last export stays current), in Snap / snapshot / restore (undone like edits, D2), LoadedProject.pool (none when left out); poolOf (pool, then each file a clip or sound clip uses, by URL, memoised on pool / clips / sounds so it can be a useVideo selector) and usesOf. videoMedia.ts: the read step is readMediaFile (checks, mediaIO read, failure messages; shared by addMedia and the pool) and settleMedia (keepMedia, a video's sound scan); addMedia unchanged in behaviour (its 203 tests pass). The place step stays inside addMedia until T021 needs it for pool items (plan §2's placeMedia split moves there). New state/videoPool.ts: importToPool for pictures (busy note, one undo step, no photo preview kept). videoPool.test.ts 8/8; proven: poolOf without de-duplication fails 'once'; restored. npm run check green: 108 files, 2718 tests."
+          ]
+        },
+        "T012": {
+          "text": "Failing test, then sound: `importToPool` takes sound files (into the pool, no sound clip; the refusals as `addSoundFiles` says them); `addSoundFiles` split into read and place, its tests unchanged; a placed take (`addTake`) is a sound marked `recorded`, in `poolOf` as a recording.",
+          "section": "Pool in the store",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/integration/state/videoPool.test.ts",
+            "src/state/videoSound.ts",
+            "src/state/videoPool.ts",
+            "src/state/videoStore.ts"
+          ],
+          "test": "`tests/integration/state/videoPool.test.ts` (sound cases fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** videoSound.ts: readSoundFile (the refusal checks, object URL, length; shared by addSoundFiles and the pool; addSoundFiles behaviour unchanged) and isSoundFile (audio type, or no type and a sound-only name; a typeless .webm stays video as adding media takes it); addTake's sound is recorded: true (D3). VSound.recorded, carried by poolOf's sound items. importToPool routes sound files to pool items (keepMedia and the scan after the step, as addSoundFiles does) and pictures through readMediaFile: pictures and sound in one undo step. videoPool.test.ts 11/11 (sound into the pool and no sound clip, one step with pictures, a typeless .m4a, 'bad.wav couldn’t be played here.', a placed take in the pool as a recording). Note for T031: recorded rides on the editor's sound, so videoDocument must move it to the media entry rather than the sound. npm run check green: 108 files, 2721 tests."
+          ]
+        },
+        "T013": {
+          "text": "The Media panel's import (drop zone, **Choose videos, photos or sound**, **Use the photos from Photos**) calls `importToPool`; the empty stage's **Add videos or photos** and the timeline's drop keep `addMedia` (Q1). Checked in Chromium: importing from the panel leaves the timeline empty, the stage's button places.",
+          "section": "Pool in the store",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/components/studio/VideoPanels.tsx"
+          ],
+          "test": "`videoPool.test.ts` (the store paths); checked by eye",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** VideoPanels.tsx: the Media panel's drop zone and picker call importToPool (now also sound: 'Choose videos, photos or sound', POOL_ACCEPT adds audio types and extensions), 'Use the N photos from Photos' calls the new importBatchPhotos (videoPool.ts, sharing the new batchFiles helper with addBatchPhotos in videoMedia.ts); the hint says files wait in the project's media. The empty stage's button and the timeline's drop keep addMedia (Q1). importToPool split for the complexity rule (readPoolItem, settleItem). Checked in Chromium at 1280 × 720 (Reel): a PNG imported from the panel leaves the empty stage and no clip; the empty stage's button places it ('Clip 1 · photo'); no console errors. The pool isn't listed yet (T042). npm run check green: 108 files, 2721 tests."
+          ]
+        },
+        "T020": {
+          "text": "Failing test for adding and removing: `addFromPool` puts a video and a photo on the main track at the playhead, a sound on Music, a recording on Voice (made if missing), each one undo step (D1); with a track and time (a drop) there; a sound onto a picture track and a picture onto a sound track refused with the reason; today's limit messages. `removeFromPool`: an unused item is one undo step; a used one goes with its clips and sound clips in one step, and undo brings all back (D4).",
+          "section": "Adding and removing",
+          "status": "done",
+          "covers": [
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [
+            "tests/integration/state/videoPool.test.ts"
+          ],
+          "test": "`tests/integration/state/videoPool.test.ts` (these cases fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** videoPool.test.ts gained 8 cases: addFromPool puts a video on the main track at the playhead (inserted between a and b with Magnetic on, sharing the pool's file and filmstrip, one undo step), a photo with its preview made again through mediaIO.photo but the pool's URL and file kept, a sound on Music, a recording on a new Voice track (recorded kept), each one step; a given track and time (a drop); refusals for a picture on a sound track ('Photos and videos go on a picture track.'), sound on a picture track ('Sound goes on a sound track.') and a URL no longer there, with no step recorded. removeFromPool: an unused file in one step (undo brings it back); a used file with all its clips and sound clips in one step (undo restores all); a file both imported and used leaves both lists. Fails first as intended: addFromPool / removeFromPool don't exist."
+          ]
+        },
+        "T021": {
+          "text": "`addFromPool` (pictures through `placeMedia`, sound through the sound place step, a recording onto a Voice track) and `removeFromPool` in `videoPool.ts`. T020's cases pass.",
+          "section": "Adding and removing",
+          "status": "done",
+          "covers": [
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [
+            "src/state/videoPool.ts",
+            "src/state/videoMedia.ts",
+            "src/state/videoSound.ts"
+          ],
+          "test": "`tests/integration/state/videoPool.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** videoMedia.ts: addMedia is now placeClips over ClipSources (name, fresh, read): files read now (addMedia) or pool items; placing split into startAdding / hasRoom / placeClip / finishAdding (complexity rule). Only a fresh clip's URL is revoked when left out and only a fresh clip is kept and scanned; a video gets a filmstrip unless the pool's has 2+ frames. videoSound.ts: placeSound (SoundToPlace) with soundTarget: a recording onto a Voice track (recordTarget, made when missing), other sound on the first Music track, a dropped track must be a sound track ('Sound goes on a sound track.'); recorded carried. videoPool.ts: addFromPool (pictures on the main track at the playhead through placeClips; a photo's preview re-read from the file through blobOf with the pool's URL and file kept; a missing file said; sound through placeSound) and removeFromPool (pool, clips and sound clips using the URL, one change; a removed selection moves on). videoPool.test.ts 19/19; every video.test.ts case unchanged and passing; proven: removeFromPool keeping the sounds fails the used-file case; restored. npm run check green: 108 files, 2729 tests."
+          ]
+        },
+        "T030": {
+          "text": "Failing tests for saving: `videoDocument` lists an unused pool file in `media` after the used ones (each file once); `videoFromDocument` returns the entries no clip, sound or image layer names as `pool`; `recorded: true` round-trips; a document from before 504 opens with an empty `pool`; the gate keeps `recorded: true` and drops any other value.",
+          "section": "Saving",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/unit/engine/projectDoc.test.ts",
+            "tests/unit/engine/projectGate.test.ts"
+          ],
+          "test": "`projectDoc.test.ts`, `projectGate.test.ts` (new cases fail first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** projectDoc.test.ts: everything() has pool: []; new '504: the media pool in the document' cases: unused pool files listed after the used ones and images, each file once (a pool item whose file a clip uses isn't listed twice); a recorded take marked on its media entry, not its sound clip; reopened, the entries nothing uses come back as pool (kind, name, file, size, length, recorded) and a recorded sound as recorded; the same bytes saved again after reopening; each 201 fixture opens with an empty pool. projectGate.test.ts: recorded: true kept; false / 'yes' / 1 left out; an entry nothing uses kept. Fails first as intended: 16 + 1 cases (the pool doesn't exist on EditorVideo, the gate drops recorded)."
+          ]
+        },
+        "T031": {
+          "text": "`projectDoc.ts` (`DocMedia.recorded`, `EditorVideo.pool`, both directions), `projectGate.ts` (`readMedia` keeps `recorded`), `projectSave.ts` (the pool's files and their ids in `documentOf`, pool videos' thumbnails and strips and pool sounds' scans in `videoCache`, `editorMediaIds` counts the pool), `projects.ts` (`openVideo` opens the pool: thumbnails from the cache, photos' made again, sounds' scans). T030 passes; a save and reopen of a project with used, unused and recorded files is checked in Chromium.",
+          "section": "Saving",
+          "status": "done",
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/engine/projectDoc.ts",
+            "src/engine/projectGate.ts",
+            "src/state/projectSave.ts",
+            "src/state/projects.ts"
+          ],
+          "test": "`projectDoc.test.ts`, `projectGate.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** projectDoc.ts: DocMedia.recorded; EditorSound.recorded; EditorPoolItem; EditorVideo.pool. videoDocument lists the pool's unused files after clips, sounds and images (each once) and puts a take's recorded on its media entry, not its sound clip; toDocument writes recorded; videoFromDocument gives sounds their recorded and returns as pool the non-image entries no clip or sound names. projectGate.ts readMedia keeps recorded only when true. projectSave.ts: videoFiles (clips, sounds, pool) for the saved ids and editorMediaIds (a browser sweep keeps unused pool files), the pool's video thumbnails / strips and sound scans in the cache (cachePoolItem), 'pool' in VIDEO_FIELDS so an import or removal saves. projects.ts: openVideo opens the pool (openPoolItem: video thumbnail and strip from the cache, photo thumbnail made again, scans restored for pool videos and sounds); Find file… relinks pool files too. New poolKey (URL, or missing:<media id> for a missing file, which has no URL) now keys poolOf, usesOf, addFromPool and removeFromPool, so two missing files stay two items. projectDoc 45 + projectGate 20 pass; proven: videoDocument not listing the pool fails 3 cases; restored. npm run check green: 108 files, 2750 tests. The save-and-reopen check by eye moves to T042, where the panel lists the pool."
+          ]
+        },
+        "T040": {
+          "text": "Failing test for the list's rules: `filterPool` by All / Video / Photo / Sound / Recordings (recordings also count as Sound) and by a name search (case-insensitive, trimmed); `useCounts` from the clips and sound clips; `poolDetail` (\"0:12 · Video · Used 2×\", \"Photo · Not used\", a recording's kind \"Recording\").",
+          "section": "Media panel",
+          "status": "done",
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/components/studio/mediaPool.test.ts"
+          ],
+          "test": "`tests/unit/components/studio/mediaPool.test.ts` (fails first)",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/studio/mediaPool.test.ts: filterPool by All / Video / Photo / Sound (recordings included) / Recordings, a name search ignoring case and surrounding spaces, the same array back when nothing narrows it; usageCounts by pool key over clips and sound clips; lengthText in whole seconds (0:00, 0:12, 2:06, 1:02:05; formatTime's m:ss.s is the timeline's); poolDetail ('0:12 · Video · Not used', 'Photo · Used 2×', 'Recording'); POOL_DRAG / isPoolDrag. The plan's useCounts is named usageCounts (a use* name reads as a React hook to the hooks lint). Fails first as intended: the module doesn't exist."
+          ]
+        },
+        "T041": {
+          "text": "`components/studio/mediaPool.ts`: `PoolFilter`, `filterPool`, `useCounts`, `poolDetail`, and the drag type `POOL_DRAG` with `isPoolDrag(types)`. `mediaPool.test.ts` passes.",
+          "section": "Media panel",
+          "status": "done",
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/components/studio/mediaPool.ts"
+          ],
+          "test": "`tests/unit/components/studio/mediaPool.test.ts`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** src/components/studio/mediaPool.ts: PoolFilter and POOL_FILTERS (the chips' labels), filterPool, usageCounts (by poolKey), lengthText, poolDetail, POOL_DRAG ('application/x-chitthi-pool') and isPoolDrag. mediaPool.test.ts 17/17; proven: the Sound filter leaving out recordings fails 'sound' and the search case; restored. npm run check green: 109 files, 2768 tests."
+          ]
+        },
+        "T042": {
+          "text": "`MediaPool.tsx` in the Media panel: the import row above (503 D1), filter chips and a search field, the rows as `ListRow`s (thumbnail; a sound's waveform drawn from its scan; name; detail; add and remove buttons), double-click and Enter add at the playhead, remove asks for a used item naming its uses, a missing file's row has **Find file…**, `EmptyState` for an empty pool and a sentence for no match; styles in `36-media-studio.css`. Checked in Chromium at 1280 × 720: import, filter, search, add, remove, undo.",
+          "section": "Media panel",
+          "status": "done",
+          "covers": [
+            "AC-2",
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [
+            "src/components/studio/MediaPool.tsx",
+            "src/components/studio/VideoPanels.tsx",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`mediaPool.test.ts`, `videoPool.test.ts`; checked by eye",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** src/components/studio/MediaPool.tsx, below the Media panel's import row (503 D1): filter chips (POOL_FILTERS), a search field, the rows as ListRows (a 48 × 32 thumbnail, or a 16-bar waveform from the file's scan; name; poolDetail; ' · Missing' and Find file… for a missing file; add and remove buttons), Enter or double-click on a row adds at the playhead (delegated on the list; Space still chooses), remove asks first naming the uses ('…used by Clip 1 on Video, which goes too. You can undo this.'), EmptyState 'No media yet', a sentence when nothing matches; styles at the end of 36-media-studio.css. New usesText (+1 test, 18/18). The rules module is src/components/studio/poolList.ts (the plan's mediaPool.ts would clash with MediaPool.tsx on Windows' case-blind file system: './MediaPool' resolved to the .ts); its test is tests/unit/components/studio/poolList.test.ts. Checked in Chromium at 1280 × 720 on a fresh dev server (the running one cached the clash): empty state, a PNG and a WAV imported ('sky.png Photo · Not used', 'tone.wav 0:03 · Sound · Not used'), Sound filter, search 'SKY', Enter places the photo (Used 1×, stage shows it), double-click places the sound, remove asks and takes the clip, Ctrl+Z brings it back, and after the autosave a reload shows both rows with their counts (saved and reopened, T031); no console errors. npm run check green: 109 files, 2769 tests."
+          ]
+        },
+        "T043": {
+          "text": "Dragging a row onto the timeline: the row's drag sets `POOL_DRAG` with the item's URL; `Timeline.tsx`'s `onFilesOver` / `onFilesDrop` accept it beside files, show the drop marker and call `addFromPool` with the row and time (a new overlay track above the top row). Checked in Chromium (the e2e check is 590's AC-5).",
+          "section": "Media panel",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/components/studio/MediaPool.tsx",
+            "src/components/studio/Timeline.tsx"
+          ],
+          "test": "`mediaPool.test.ts` (`isPoolDrag`); checked by eye",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** ListRow takes draggable / onDragStart (on its li); a pool row's drag carries POOL_DRAG with its pool key (effect copy). Timeline.tsx: onFilesOver accepts files or a pool row, with today's drop marker on picture rows; a pool row over a sound row (found by SoundRow's data-sound-track) is accepted there too, without a marker (PictureRow draws markers; sound rows have none yet); onFilesDrop calls addFromPool(key, { track, at }) for a pool row (the new-track strip above the top row too), addMedia for files. Checked in Chromium at 1280 × 720 (dev server on 5174): with one photo placed by Enter, dragging a second photo onto the main row placed it (2 clips, 'Used 1×') and dragging a WAV onto the Music row placed a sound clip; no console errors. The e2e check (AC-5, 200 items) stays in 590. npm run check green: 109 files, 2769 tests."
+          ]
+        },
+        "T090": {
+          "text": "Docs: `docs/MEDIA-STUDIO.md` (the media pool: importing, filters, adding, dragging, removing, recordings, saved with the project), `docs/DESIGN.md` §7 (the Media panel as the pool), `specs/lld.md` (`pool`, `poolOf`, read / place, the document's unused entries and `recorded`), CHANGELOG Unreleased › Added.",
+          "section": "Close",
+          "status": "done",
+          "covers": [],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "docs/DESIGN.md",
+            "specs/lld.md",
+            "CHANGELOG.md"
+          ],
+          "test": "reviewed with the result note",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** docs/MEDIA-STUDIO.md: a 'The media pool' section (what a row shows; importing into the pool vs the stage button and timeline drops; filters and search; adding by double-click, Enter, + or drag and where each kind goes; removing with its uses and undo; missing files and Find file…; saved with the project, older projects) and the workspace table's tool panel. docs/DESIGN.md §7: the Media panel as the pool (import row above, chips, search, ListRows, adding, scrolling). specs/lld.md: the state map (videoMedia.ts read / place, new videoPool.ts) and a new §4.13 Media pool (state, read then place, actions, saved, panel and drag). CHANGELOG Unreleased › Added: the media pool. npm run check green."
+          ]
+        },
+        "T091": {
+          "text": "Close: `npm run check`, `npm run build` (entry ≤ 350 KB), `npm run lint:full`, `npm run check:licenses`; tick AC-1–AC-4 (AC-5 waits for 590); status Implemented; `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Close",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [],
+          "test": "`npm run build`",
+          "blockedReason": null,
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** npm run check green (109 files, 2769 tests); npm run build green, entry 312 KB (unchanged; the pool is in the studio's lazy chunk); npm run lint:full 0 errors (the pre-existing patterns.ts max-lines warning); check:licenses 169 packages allowed. Ticked AC-1 (videoPool.test.ts import / derived pool / recordings; projectDoc + projectGate save and reopen; seen in Chromium after a reload), AC-2 (poolList.test.ts filters, search, counts, detail), AC-3 (videoPool.test.ts placing by kind, drops, refusals; Enter, double-click and drag seen in Chromium), AC-4 (videoPool.test.ts removal with uses; the question seen in Chromium). AC-5 (drag e2e, 200 items) waits for 590. Status Implemented."
+          ]
+        }
+      }
+    }
+  }
 }

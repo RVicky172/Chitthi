@@ -837,3 +837,16 @@ mask is chosen. D4 the clip inspector's name and its missing-file / can't-export
 timing and fade fold as "Timing".
 **Consequences:** `foldCoverage.test.ts` allows untitled groups above a panel's sections; `toggleFold` always passes
 `allowNone` true in the studios.
+
+## D-069 — 504 plan D1–D5: the media pool's adding, undo, recordings, removal, agent tools (2026-10-20)
+
+**Context:** 504 gives Reels and YouTube projects a media pool: imported files listed in the Media panel, placed from
+there, saved with the project.
+**Decision (the maintainer, as recommended, A for all five):** D1 double-click, Enter and the row's add button all put
+an item at the playhead (dragging puts it where dropped). D2 importing into the pool is an undo step, like removing.
+D3 a voice take's media entry is saved with `recorded: true`; takes from before 504 show under Sound. D4 removing a
+used item asks first, naming its uses, then removes it with its clips and sound clips in one undo step. D5 no agent
+tools in 504: the video editor has none yet (201–209 added none), so its tools, the pool's among them, are a feature
+of their own to put on the roadmap.
+**Consequences:** `DocMedia` gains the optional `recorded` (read by the gate); `pool` joins `VState` and the undo
+`Snap`; Principle XI stays an open gap for the video editor until that feature.

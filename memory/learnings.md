@@ -628,3 +628,10 @@ The studio shell keeps one `FoldGroup` while the rail's tool changes; only its `
 while the old ones were still listed (they leave in the commit's cleanup, after the render): no new section was "first"
 and nothing opened. Per-id state goes in `useMemo(…, [id])` (or a `key={id}`); the old sections' cleanups still reach
 the old object through their closures. Server-rendered unit tests cannot see it (one render, no effects).
+
+## 2026-10-20 — PowerShell 5.1's Get-Content -Raw reads UTF-8 without a BOM as ANSI (504)
+
+`(Get-Content f -Raw).Replace(…) | Set-Content f -Encoding utf8` on a BOM-less UTF-8 file double-encodes every
+non-ASCII character ("·" became "Â·", "×" "Ã—"): the read used the ANSI code page. Read and write with .NET and an
+explicit `UTF8Encoding($false)` (`[IO.File]::ReadAllText(path, enc)`), or edit with the Edit tool. Repair: encode the
+mangled text as Windows-1252 and decode as UTF-8, then grep for `Ã|Â|â€`.

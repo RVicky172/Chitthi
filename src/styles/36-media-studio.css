@@ -1894,3 +1894,52 @@
   text-shadow: var(--shadow-text);
   pointer-events: none;
 }
+
+/* The media pool (504): filters, search, and its rows (ListRow) with a picture or waveform */
+.mst-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mst-pool-filters .chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.mst-pool-search {
+  width: 100%;
+}
+.mst-pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mst-pool-thumb {
+  display: block;
+  width: 48px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  object-fit: cover;
+}
+.mst-pool-wave {
+  width: 48px;
+  height: 32px;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  fill: var(--accent);
+}
+.mst-pool-list .list-row-lead > svg:not(.mst-pool-wave) {
+  width: 48px;
+  height: 32px;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+}
+.mst-pool-missing .list-row-detail {
+  color: var(--danger);
+}

@@ -11,6 +11,20 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-20 — 504 media pool (plan, tasks, T010–T091)
+
+**Done:** 504 plan Approved (D-069, A for D1–D5), tasks T010–T091 all done on `feat/504-media-pool`: `pool` in the
+video store (in Snap), `poolOf` / `usesOf` / `poolKey`, read and place split (`readMediaFile`, `placeClips`,
+`readSoundFile`, `placeSound`), `state/videoPool.ts` (import, add at the playhead or a drop, remove with uses), takes
+`recorded` (saved on the media entry), unused files saved / reopened / relinked, the Media panel's pool
+(`MediaPool.tsx`, rules in `poolList.ts`), drags onto picture and sound rows. Tests: videoPool (20), poolList (18),
+projectDoc / projectGate (+8). Checked in Chromium incl. save and reopen. check green (2769), build entry 312 KB,
+lint:full 0 errors, licences fine. AC-1–4 ticked; AC-5 waits for 590. Gotchas (learnings.md): PowerShell
+`Get-Content -Raw` double-encodes UTF-8; `mediaPool.ts` and `MediaPool.tsx` clash on Windows (renamed `poolList.ts`).
+Not committed yet.
+**Next:** commit 504 and merge into `main`, then 505. Sound rows show no drop marker yet (a small follow-up).
+**Blockers:** none.
+
 ## 2026-10-20 — 502 merged; 503 folding panel sections (plan, tasks, T010–T091)
 
 **Done:** 502 merged into `main` (`3be7d97`) and memory fixed (`a4e139d`). 503 plan Approved (D-068, A for D1–D4),

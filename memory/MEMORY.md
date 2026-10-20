@@ -81,7 +81,11 @@
   (fonts.test.ts). AC-4 screenshots wait for 590.
 - **503 ✔️ Implemented 2026-10-20** (`fd65e93`), merged into `main` (`0188d61`, not pushed): every studio panel and
   inspector folds, one section open per panel and mode, remembered (`chitthi-folds`); D-068 (A for D1–D4). AC-1–4
-  ticked; AC-5 (fit at 1280 × 720) waits for 590. Entry 312 KB. Next: 504 (branch from `main`).
+  ticked; AC-5 (fit at 1280 × 720) waits for 590. Entry 312 KB.
+- **504 ✔️ Implemented 2026-10-20** on `feat/504-media-pool` (not committed yet): the media pool in Reels / YouTube
+  (`state/videoPool.ts`, `MediaPool.tsx`, rules in `poolList.ts`; lld §4.13); D-069 (A for D1–D5). AC-1–4 ticked;
+  AC-5 (drag e2e, 200 items) waits for 590. Entry 312 KB. Next: commit and merge, then 505. Follow-ups: a drop marker
+  on sound rows; from D5, a feature for the video editor's agent tools (Principle XI) to put on the roadmap.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

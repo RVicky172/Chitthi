@@ -132,7 +132,9 @@ src/
     videoLayers.ts           Layer actions; updateLayerAt (keyed at the playhead), setLayerTimes
     videoTransitions.ts      Transition actions: set, remove, on every cut
     videoSpeed.ts            Speed actions (207): speed, reverse, ramp and its points, reset, freeze at the playhead
-    videoMedia.ts            Photos and videos into clips (addMedia, filmstrips), the music
+    videoMedia.ts            Photos and videos into clips: readMediaFile (read), placeClips over ClipSources (place),
+                             addMedia = both; filmstrips
+    videoPool.ts             The media pool (504): importToPool, importBatchPhotos, addFromPool, removeFromPool
     videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
     projectSave.ts           Autosave of both studios' projects, the save status, keepMedia, the cache (408 §6)
     projects.ts              Saved projects: new, open, rename, duplicate, delete, the last per studio, Find file… (408)
@@ -923,6 +925,32 @@ bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: si
   then asks `systemPreferences` for the microphone.
 - **Announcements** (AC-10): `announceCountIn`, `announceStart`, `announceResult`, `tooLoudDue` (5 s) in
   `voiceTake.ts`, said through the toast's polite live region.
+
+### 4.13 Media pool (504: `state/videoPool.ts`, `videoStore.ts`, `videoMedia.ts`, `videoSound.ts`, `engine/projectDoc.ts`, `components/studio/MediaPool.tsx`, `poolList.ts`)
+
+- **State**: `VState.pool: PoolItem[]` holds the imported files (URL, kind, name, file, size, length, a 160 px thumbnail,
+  a video's strip, `recorded`); it is in `Snap`, so imports and removals are undone like edits (D-069 D2), and in
+  `PURE` (the pool doesn't make the last export stale). Never a photo's 1080 px preview: it is read again when the photo
+  is placed. The list is derived: `poolOf(state)` = `pool`, then one item per file a clip or sound clip uses, deduped by
+  `poolKey` (the URL, or `missing:<media id>` for a missing file, which has none); memoised on pool / clips / sounds so
+  it is a `useVideo` selector. `usesOf(state, key)` lists the clips and sound clips using a file.
+- **Read, then place**: `readMediaFile` / `readSoundFile` are the read step (checks, decode, URL, length);
+  `placeClips(sources, place)` places `ClipSource`s (a file read now, `fresh`, or a pool item) with 203's rules and
+  limits, one undo step; `addMedia` = read + place, as before. Only a fresh clip's URL is revoked when it is left out,
+  and only a fresh clip is kept and scanned (`settleMedia`). `placeSound` puts a pool sound on the track of its kind:
+  a recording on a Voice track (`recordTarget`, made when missing), other sound on the first Music track, a dropped
+  track only when it is a sound track.
+- **Actions**: `importToPool(files)` (pictures and sound, one step), `importBatchPhotos`, `addFromPool(key, { track,
+  at })` (default: the playhead, D1), `removeFromPool(key)` (the item with every clip and sound clip using it, one step,
+  D4).
+- **Saved**: `videoDocument` lists the pool's unused files in `media` after the rest; `DocMedia.recorded` marks a take
+  (the gate keeps only `true`); `videoFromDocument` returns the non-image entries no clip or sound names as `pool`.
+  `projectSave` saves the pool's ids, thumbnails, strips and scans and counts its files in `editorMediaIds` (so a sweep
+  keeps them); `projects.ts` opens them (`openPoolItem`) and Find file… relinks them.
+- **Panel**: `MediaPool.tsx` below the Media panel's import row: `POOL_FILTERS` chips, search, `ListRow`s (thumbnail
+  or a waveform from the scan, `poolDetail`, add / remove), Enter and double-click delegated on the list, `usesText`
+  in the remove question. A row's drag carries `POOL_DRAG`; `Timeline.tsx` accepts it on picture rows (with the drop
+  marker, or the new-track strip) and on sound rows (`data-sound-track`, no marker yet).
 
 ## 5. Integrations
 

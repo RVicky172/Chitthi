@@ -10,7 +10,7 @@ import type { ProjectCache, ProjectEntry, ProjectLibrary, Studio } from '../lib/
 import { desktop } from '../platform/desktop';
 import { getIg, subscribeIg, type IgState } from './instagram';
 import { scanOf, scanSnapshot, subscribeScans } from './soundScan';
-import { getVideo, subscribeVideo, videoLength, type VState } from './videoStore';
+import { getVideo, subscribeVideo, videoLength, type PoolItem, type VState } from './videoStore';
 
 /*
  * Autosave for saved photo and video projects (408 §6, AC-1, AC-9). Each studio's open project is saved 2 s after the
@@ -202,16 +202,23 @@ async function idsOf(files: readonly MediaFile[]): Promise<Map<MediaFile, string
 }
 
 /**
+ * The video editor's files: its clips', sound clips' and media pool's (504: unused files are kept too).
+ * @param video the editor
+ * @returns the files, some more than once
+ */
+const videoFiles = (video: VState): MediaFile[] => [
+  ...video.clips.map((clip) => clip.file),
+  ...video.sounds.map((sound) => sound.file),
+  ...video.pool.map((item) => item.file),
+];
+
+/**
  * The media ids the editors use now, saved or not (a delete's sweep keeps them).
  * @returns the ids
  */
 export async function editorMediaIds(): Promise<Set<string>> {
   const video = getVideo();
-  const files = [
-    ...video.clips.map((clip) => clip.file),
-    ...video.sounds.map((sound) => sound.file),
-    ...getIg().items.map((item) => item.file),
-  ];
+  const files = [...videoFiles(video), ...getIg().items.map((item) => item.file)];
   return new Set((await idsOf(files)).values());
 }
 
@@ -327,7 +334,24 @@ function videoCache(video: VState, ids: ReadonlyMap<MediaFile, string>): Project
     const id = ids.get(sound.file);
     if (id) scanned(sound.url, id);
   }
+  for (const item of video.pool) cachePoolItem(cache, item, ids.get(item.file), scanned);
   return cache;
+}
+
+/**
+ * Adds a media pool file's thumbnail, filmstrip and scan to the cache, unless a clip already did (504).
+ * @param cache the cache being made
+ * @param item the pool item
+ * @param id its media id, if kept
+ * @param scanned adds a file's scan under its id
+ */
+function cachePoolItem(cache: ProjectCache, item: PoolItem, id: string | undefined, scanned: (url: string, id: string) => void): void {
+  if (!id || item.kind === 'photo') return;
+  if (item.kind === 'video') {
+    if (item.thumb) cache.thumbs[id] ??= item.thumb;
+    if (item.strip.length) cache.strips[id] ??= item.strip;
+  }
+  if (!cache.scans[id]) scanned(item.url, id);
 }
 
 /**
@@ -363,7 +387,7 @@ async function documentOf(studio: Studio, project: OpenProject): Promise<Saving>
   const base = { id: project.id, studio, name: project.name, changed: Date.now(), bytes: 0, thumb: '', readable: true };
   if (studio === 'video') {
     const video = getVideo();
-    const ids = await idsOf([...video.clips.map((clip) => clip.file), ...video.sounds.map((sound) => sound.file)]);
+    const ids = await idsOf(videoFiles(video));
     const doc = videoDocument(video, project.name, (file) => ids.get(file) ?? '');
     const first = video.clips.at(0);
     const thumb = first ? first.thumb || (first.strip.at(0) ?? '') : '';
@@ -398,6 +422,7 @@ const VIDEO_FIELDS = [
   'fps',
   'quality',
   'fadeOut',
+  'pool',
 ] as const;
 /** The video fields saved with the next save, which don't call for one. */
 const VIDEO_RIDERS = ['t', 'trackView'] as const;
