@@ -21,8 +21,8 @@ video store (in Snap), `poolOf` / `usesOf` / `poolKey`, read and place split (`r
 projectDoc / projectGate (+8). Checked in Chromium incl. save and reopen. check green (2769), build entry 312 KB,
 lint:full 0 errors, licences fine. AC-1–4 ticked; AC-5 waits for 590. Gotchas (learnings.md): PowerShell
 `Get-Content -Raw` double-encodes UTF-8; `mediaPool.ts` and `MediaPool.tsx` clash on Windows (renamed `poolList.ts`).
-Not committed yet.
-**Next:** commit 504 and merge into `main`, then 505. Sound rows show no drop marker yet (a small follow-up).
+Committed `1def69b`, merged into `main` `1751b97` (not pushed).
+**Next:** 505. Sound rows show no drop marker yet (a small follow-up).
 **Blockers:** none.
 
 ## 2026-10-20 — 502 merged; 503 folding panel sections (plan, tasks, T010–T091)
