@@ -11,6 +11,17 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-20 — Phase UI (501–507, 590) specs drafted
+**Done:** new roadmap phase `phase-ui` (D-063) with draft specs: 501 design overview (layout, type scale, panel map; the
+print studio is the reference), 502 bold only for headings, 503 folding sections (one open), 504 media pool for Reels /
+YouTube, 505 Audio panel sections + Recordings list, 506 Layers panel fit, 507 README / docs / scripted screenshots,
+590 test pass. Each has proposed answers to its open questions. Branch `spec/5xx-studio-ui`, not committed.
+The maintainer approved all eight with every proposed answer (290 now needs 590).
+501 plan Approved (D1 A, D3 A: D-065; D2 A + expandable rail, expanded by default: D-064, spec AC-6 added);
+501 tasks T001–T091 written (22; T043 is the maintainer's review of DESIGN.md).
+**Next:** commit this branch and merge it into `main`, then `feat/501-studio-design-system` from `main`; start 501 T001.
+**Blockers:** none.
+
 ## 2026-10-20 — 209 verified; Q7 WebM in Add sound
 **Done:** the maintainer extended Q7: Add sound takes `.webm` / `.weba` (T064, D-062: `soundIO.length` falls back to
 the packet length when `<audio>` has none). `/spec-verify 209`: check green (2,546), build entry 314 KB with the

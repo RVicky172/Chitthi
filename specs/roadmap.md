@@ -46,10 +46,31 @@ _Release:_ 3.0.0
 | 210 | Markers, in/out, range export, text animations, compound clips (P2.10) | — | ⬜ | 201 |
 | 211 | Proxies and frame cache, desktop first (P2.11) | — | ⬜ | 201 |
 | 212 | Agent tools and docs for the timeline (P2.12) | — | ⬜ | 202, 203, 205, 206 |
-| 290 | Phase 2 test pass and 3.0.0 release | [spec](features/290-phase2-test-pass-release/spec.md) | 📝 The phase's deferred e2e, self-test, timing and manual checks, every gate, release (D-033) | 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212 |
+| 290 | Phase 2 test pass and 3.0.0 release | [spec](features/290-phase2-test-pass-release/spec.md) | 📝 The phase's deferred e2e, self-test, timing and manual checks, every gate, release (D-033) | 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 590 |
 
 **Exit criteria:** a 4K multi-track timeline (3 video and 2 audio tracks, transitions) plays smoothly on desktop;
 every 2.x project opens unchanged.
+
+## Phase UI — Studio design and UX (release 3.0.0)
+
+_Goal:_ one design language across the print studio and the photo & video studio: calm typography, folding panels, a media pool, clear sound and layer lists, and a layout with room for the panels Phases 2 and 3 still add.
+
+_Release:_ 3.0.0
+
+Features 501–507 (D-063). 501 is the design overview the others build on; 590 is the phase's test pass.
+
+| #   | Feature | Spec | Status | Needs |
+| --- | ------- | ---- | ------ | ----- |
+| 501 | Studio design overview: one layout and type scale for every studio | [spec](features/501-studio-design-system/spec.md) | ✅ | — |
+| 502 | Typography: bold only for headings | [spec](features/502-studio-typography/spec.md) | ✅ | 501 |
+| 503 | Folding panel sections: one open at a time | [spec](features/503-panel-accordions/spec.md) | ✅ | 501 |
+| 504 | Media pool for Reels and YouTube | [spec](features/504-media-pool/spec.md) | ✅ | 501, 503 |
+| 505 | Sound panel: recordings and voice listed for choosing | [spec](features/505-sound-panel/spec.md) | ✅ | 501, 503, 504 |
+| 506 | Layers panel: no overflow or cut-off items | [spec](features/506-layers-panel-fit/spec.md) | ✅ | 501, 503 |
+| 507 | README, docs and screenshots for the new design | [spec](features/507-readme-docs-refresh/spec.md) | ✅ | 501, 502, 503, 504, 505, 506 |
+| 590 | Phase UI test pass | [spec](features/590-phase-ui-test-pass/spec.md) | ✅ | 501, 502, 503, 504, 505, 506, 507 |
+
+**Exit criteria:** every studio panel follows one documented layout and type scale; no panel scrolls sideways or cuts off content at 1280×720 or on a phone; README and docs show the new design.
 
 ## Phase 3 — Colour and finishing (release 3.1.0)
 

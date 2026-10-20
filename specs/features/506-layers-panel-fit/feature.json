@@ -1,0 +1,125 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "506",
+  "title": "Layers panel: no overflow or cut-off items",
+  "workItem": null,
+  "status": "approved",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-20",
+    "approved": "2026-10-20",
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/506-layers-panel-fit"
+  },
+  "spec": {
+    "phase": "Phase UI — Studio design and UX (release 3.0.0)",
+    "summary": "The Layers panel overflows: rows with long names, nested controls (visibility, lock, order, delete) or many layers are cut off at the panel's edge or push the panel sideways, and on narrower windows some controls can't be reached. 506 makes the layer list fit: rows have a fixed layout (thumbnail, name that shortens with an ellipsis and shows in full on hover and to screen readers, then always-visible controls), the list scrolls only vertically inside its section, and the layer properties move to the inspector so the panel holds the list only.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As a creator with many layers, I want to see and reach every layer and its controls without anything being cut off."
+        },
+        "US-2": {
+          "text": "As a user on a laptop, I want the Layers panel to work at 1280 × 720 and on a phone."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Fit",
+          "proof": "unit",
+          "text": "A layer row lays out as thumbnail · name · controls with the name shrinking first; controls never wrap or leave the row; the list has no horizontal scroll. Proven by a unit test on the row's class contract plus 590's e2e check.",
+          "done": false
+        },
+        "AC-2": {
+          "group": "Fit",
+          "proof": "e2e",
+          "text": "With 40 layers with 80-character names, at 1280 × 720, 1440 × 900 and 390 × 844, no element of the Layers panel is wider than the panel and every control can be clicked (deferred to 590).",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Structure",
+          "proof": "unit",
+          "text": "The Layers panel shows the list only; the selected layer's properties are in the inspector (in folding sections, 503), in the photo, Reel and YouTube modes alike.",
+          "done": false
+        },
+        "AC-4": {
+          "group": "Accessibility",
+          "proof": "unit",
+          "text": "Each row is reachable with the keyboard; its full name is its accessible name; reorder works with Alt + ↑/↓ as well as dragging.",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Is a quick fix wanted before the phase? _Answer (accepted 2026-10-20):_ no; the overflow is fixed here, early in the phase (it needs only 501's row part).",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-20",
+        "text": "Created: draft spec with 4 acceptance criteria and 1 open questions with proposed answers (Phase UI, D-063)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Every proposed answer accepted by the maintainer; Approved."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Performance:** no new work on the preview or export path; the entry chunk stays ≤ 350 KB; panels open in under 100 ms.\n- **Accessibility:** every control works from the keyboard with a visible focus ring and is announced; axe passes; text contrast ≥ 4.5:1 in the light and dark themes.\n- **Compatibility:** web and desktop alike; phones (≤ 640 px) and laptops (1280 × 720) as well as wide screens; every saved project opens unchanged.\n- **Free and open source:** no new dependency unless cleared in `specs/licensing.md` first."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- Layer groups."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

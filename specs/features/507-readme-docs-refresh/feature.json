@@ -1,0 +1,118 @@
+{
+  "$schema": "../../schema/feature.schema.json",
+  "schema": 2,
+  "id": "507",
+  "title": "README, docs and screenshots for the new design",
+  "workItem": null,
+  "status": "approved",
+  "owner": null,
+  "dates": {
+    "created": "2026-10-20",
+    "approved": "2026-10-20",
+    "started": null,
+    "done": null
+  },
+  "git": {
+    "branch": "feat/507-readme-docs-refresh"
+  },
+  "spec": {
+    "phase": "Phase UI — Studio design and UX (release 3.0.0)",
+    "summary": "The README's screenshots show the media studio before Phase 2 and before this redesign, and the README and docs don't describe the timeline features added since 2.10.0 (tracks, edit tools, picture-in-picture, keyframes, transitions, speed, audio tracks, voice-over, saved projects). 507 retakes every screenshot with a script so they can be taken again at each release, updates the README's feature list and pictures, and updates `docs/MEDIA-STUDIO.md`, `docs/DESIGN.md` and the in-app docs (`src/data/docs.ts`) to the new design.",
+    "stories": {
+      "order": [
+        "US-1",
+        "US-2"
+      ],
+      "byId": {
+        "US-1": {
+          "text": "As someone finding Chitthi on GitHub, I want screenshots and a feature list that show what the app does today."
+        },
+        "US-2": {
+          "text": "As a maintainer, I want screenshots made by a script, so that they stay current with one command."
+        }
+      }
+    },
+    "criteria": {
+      "order": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "byId": {
+        "AC-1": {
+          "group": "Screenshots",
+          "proof": "manual",
+          "text": "`npm run screenshots` opens the production build with sample projects (no photos of people, per the sample-photo rule) and writes every README and docs screenshot as WebP to `docs/screenshots/`, in the light theme and, for the phone shot, the dark theme; it runs on web without the desktop app.",
+          "done": false
+        },
+        "AC-2": {
+          "group": "README",
+          "proof": "manual",
+          "text": "The README lists the features of the photo, Reel and YouTube modes as of this phase (multi-track timeline, edit tools, picture-in-picture, keyframes, transitions, speed, audio tracks and ducking, voice-over, saved projects, the media pool) with new screenshots, each with alt text that describes it; no screenshot is older than this phase.",
+          "done": false
+        },
+        "AC-3": {
+          "group": "Docs",
+          "proof": "manual",
+          "text": "`docs/MEDIA-STUDIO.md`, `docs/DESIGN.md` and the in-app docs describe the new layout, folding panels, media pool, Recordings and Layers; every link checks out.",
+          "done": false
+        }
+      }
+    },
+    "questions": {
+      "order": [
+        "Q1"
+      ],
+      "byId": {
+        "Q1": {
+          "text": "Scripted screenshots? _Answer (accepted 2026-10-20):_ yes, a Playwright script (`scripts/screenshots.mjs`, Playwright is already a devDependency) with sample projects in `tests/support/`.",
+          "open": false
+        }
+      }
+    },
+    "changelog": [
+      {
+        "date": "2026-10-20",
+        "text": "Created: draft spec with 3 acceptance criteria and 1 open questions with proposed answers (Phase UI, D-063)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Every proposed answer accepted by the maintainer; Approved."
+      }
+    ],
+    "sections": [
+      {
+        "kind": "summary",
+        "title": "Summary"
+      },
+      {
+        "kind": "stories",
+        "title": "User Stories"
+      },
+      {
+        "kind": "criteria",
+        "title": "Acceptance Criteria"
+      },
+      {
+        "kind": "markdown",
+        "title": "Non-Functional Requirements",
+        "markdown": "- **Licences:** sample media used in screenshots is cleared in `specs/licensing.md` and credited.\n- **Size:** each screenshot ≤ 300 KB."
+      },
+      {
+        "kind": "markdown",
+        "title": "Out of Scope",
+        "markdown": "- A product video or website."
+      },
+      {
+        "kind": "questions",
+        "title": "Open Questions"
+      },
+      {
+        "kind": "changelog",
+        "title": "Changelog"
+      }
+    ]
+  },
+  "plan": null,
+  "tasks": null
+}

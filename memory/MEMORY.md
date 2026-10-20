@@ -69,6 +69,9 @@
   `chitthi-media://` + a main-only `media-index.json` (`electron/media.cjs`). D-059, D-060 (cache by media id with
   whole sound scans). AC-1, AC-3–9 ticked; AC-2 (export identity), AC-10–13 wait for 290; AC-14 docs for review.
   The studios now start their project on opening (`showStudio`): not yet run in a browser. Entry 314 KB.
+- **Phase UI (D-063, 2026-10-20):** specs 501–507 and 590 **Approved** (all proposed answers) on `spec/5xx-studio-ui`.
+  Built next, before 210; ships with Phase 2 as 3.0.0 (290 needs 590). 501 plan Approved (D-064 expandable rail,
+  D-065 widths), tasks T001–T091 written. Next: 501 T001.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
