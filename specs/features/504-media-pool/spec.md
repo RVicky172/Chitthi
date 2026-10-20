@@ -2,7 +2,7 @@
 
 # 504 — Media pool for Reels and YouTube
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** Phase UI — Studio design and UX (release 3.0.0) · **Created:** 2026-10-20
 
 ## Summary
@@ -19,16 +19,16 @@ In Reels and YouTube videos the Media panel is only an import box: once a clip i
 
 ### Pool
 
-- [ ] **AC-1:** Importing files adds them to the project's media pool without putting them on the timeline unless the import came from the timeline's or the stage's add button (which also places them, as today). The pool holds every file the project references, including recordings (209), and is saved and reopened with the project (408). _(unit)_
-- [ ] **AC-2:** Each item shows a thumbnail (first frame, the photo, or a waveform for sound), name, length for video and sound, kind, and a use count; filters All / Video / Photo / Sound / Recordings and a name search narrow the list. _(unit)_
+- [x] **AC-1:** Importing files adds them to the project's media pool without putting them on the timeline unless the import came from the timeline's or the stage's add button (which also places them, as today). The pool holds every file the project references, including recordings (209), and is saved and reopened with the project (408). _(unit)_
+- [x] **AC-2:** Each item shows a thumbnail (first frame, the photo, or a waveform for sound), name, length for video and sound, kind, and a use count; filters All / Video / Photo / Sound / Recordings and a name search narrow the list. _(unit)_
 
 ### Adding
 
-- [ ] **AC-3:** An item is added to the timeline by drag and drop onto a track, by double-click or Enter (at the playhead on the matching track), or by its add button; video and photos go to the main track, sound to a sound track of its kind; one undo step each. _(unit)_
+- [x] **AC-3:** An item is added to the timeline by drag and drop onto a track, by double-click or Enter (at the playhead on the matching track), or by its add button; video and photos go to the main track, sound to a sound track of its kind; one undo step each. _(unit)_
 
 ### Tidying
 
-- [ ] **AC-4:** Remove takes an unused item out of the project (one undo step); a used item asks first and lists where it is used. **Find file…** (408) works from the pool for missing files. _(unit)_
+- [x] **AC-4:** Remove takes an unused item out of the project (one undo step); a used item asks first and lists where it is used. **Find file…** (408) works from the pool for missing files. _(unit)_
 
 ### Fit
 
@@ -57,3 +57,4 @@ In Reels and YouTube videos the Media panel is only an import box: once a clip i
 
 - 2026-10-20 — Created: draft spec with 5 acceptance criteria and 2 open questions with proposed answers (Phase UI, D-063).
 - 2026-10-20 — Every proposed answer accepted by the maintainer; Approved.
+- 2026-10-20 — Plan D1–D5: option A chosen by the maintainer (D-069); plan Approved; tasks written (T010–T091).

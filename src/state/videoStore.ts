@@ -75,6 +75,35 @@ export interface VClip extends SpeedFields {
 export interface VSound extends AudioClip {
   file: MediaFile;
   url: string;
+  /** Its file is a voice take recorded in the app (209; 504 D3). */
+  recorded?: true;
+}
+
+/** A file in the project's media pool (504): what the Media panel lists, and what placing it needs. */
+export interface PoolItem {
+  /** The file's URL: its media id in the editor (D-053), shared with the clips that use it. */
+  url: string;
+  kind: 'video' | 'photo' | 'audio';
+  name: string;
+  file: MediaFile;
+  /** Pixels (0 for sound). */
+  w: number;
+  h: number;
+  /** Seconds (0 for photos). */
+  srcDur: number;
+  /** A small JPEG of a picture; '' for sound (its waveform is drawn from its scan). */
+  thumb: string;
+  /** A video's filmstrip, once a clip of it has one. */
+  strip: string[];
+  /** A voice take recorded in the app (209, D-069). */
+  recorded?: true;
+}
+
+/** A clip or sound clip that uses a file of the pool. */
+export interface PoolUse {
+  kind: 'clip' | 'sound';
+  id: string;
+  track: string;
 }
 
 /** A track's height on the timeline (engine/tracks.ts). */
@@ -106,6 +135,8 @@ export interface VState {
   tools: LayerTools;
   /** The sound clips on the audio tracks (208), in start order. */
   sounds: VSound[];
+  /** Files imported into the media pool (504), used or not; `poolOf` adds the files the clips use. Undone with edits. */
+  pool: PoolItem[];
   /** The export's loudness target, LUFS, or Off (208 AC-8). */
   loudness: 'off' | number;
   /** The mix's last loudness measurement (208 AC-9; the export reuses it while its key is the mix's). Not saved. */
@@ -157,6 +188,7 @@ let state: VState = {
   soundSel: null,
   tools: { tool: 'select', brush: 'marker', brushColor: '#ffffff', brushScale: 1 },
   sounds: [],
+  pool: [],
   // New projects aim at YouTube's and Instagram's −14 LUFS (Q12).
   loudness: LOUDNESS_PRESETS.youtube,
   measure: null,
@@ -182,7 +214,7 @@ let state: VState = {
 
 const listeners = new Set<() => void>();
 /** Fields whose changes leave the last export current (view settings and the export's own state). */
-const PURE = ['selected', 'layerSel', 'soundSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo', 'measure', 'measuring', 'recording', 'playClock', 'countIn'];
+const PURE = ['selected', 'layerSel', 'soundSel', 'tools', 'tool', 'snapping', 'trackView', 't', 'zoom', 'playing', 'busy', 'progress', 'result', 'savedTo', 'canUndo', 'canRedo', 'measure', 'measuring', 'recording', 'playClock', 'countIn', 'pool'];
 
 /**
  * Changes the state (not recorded for undo) and tells the subscribers.
@@ -267,6 +299,65 @@ export const projectOf = (video: VState = state): Project<VClip> & { audio: VSou
  * @returns seconds
  */
 export const videoLength = (video: VState): number => projectLength(projectOf(video));
+
+/**
+ * A used file's pool item, from a clip that uses it.
+ * @param clip the clip
+ * @returns the item
+ */
+const clipItem = ({ url, kind, name, file, w, h, srcDur, thumb, strip }: VClip): PoolItem => ({ url, kind, name, file, w, h, srcDur, thumb, strip });
+
+/**
+ * A used file's pool item, from a sound clip that uses it.
+ * @param sound the sound clip
+ * @returns the item
+ */
+const soundItem = ({ url, name, file, srcDur, recorded }: VSound): PoolItem => ({ url, kind: 'audio', name: name ?? 'Sound', file, w: 0, h: 0, srcDur, thumb: '', strip: [], ...(recorded ? { recorded } : {}) });
+
+/**
+ * A file's key in the media pool: its URL, or, for a missing file (which has none, 408 D4), its media id.
+ * @param media the item, clip or sound clip
+ * @returns the key
+ */
+export const poolKey = ({ url, file }: Pick<PoolItem, 'url' | 'file'>): string =>
+  url || (file instanceof Blob ? '' : `missing:${file.id}`);
+
+/** `poolOf`'s last answer and what it was made from (a store selector must give the same value for the same state). */
+let poolMemo: { pool: PoolItem[]; clips: VClip[]; sounds: VSound[]; items: PoolItem[] } | null = null;
+
+/**
+ * The media pool as the Media panel lists it (504 §1): the imported files, then each file a clip or sound clip uses
+ * that isn't one of them, once, by URL. A selector: the same array until the pool, clips or sounds change.
+ * @param video the state
+ * @returns the items
+ */
+export function poolOf(video: VState): PoolItem[] {
+  const { pool, clips, sounds } = video;
+  if (poolMemo?.pool === pool && poolMemo.clips === clips && poolMemo.sounds === sounds) return poolMemo.items;
+  const items = [...pool];
+  const listed = new Set(pool.map(poolKey));
+  const add = (entry: PoolItem): void => {
+    const key = poolKey(entry);
+    if (listed.has(key)) return;
+    listed.add(key);
+    items.push(entry);
+  };
+  clips.forEach((clip) => add(clipItem(clip)));
+  sounds.forEach((sound) => add(soundItem(sound)));
+  poolMemo = { pool, clips, sounds, items };
+  return items;
+}
+
+/**
+ * The clips and sound clips that use a file (504 §7).
+ * @param video the state
+ * @param key the file's pool key (`poolKey`: its URL)
+ * @returns them, clips first, each in the store's order
+ */
+export const usesOf = (video: Pick<VState, 'clips' | 'sounds'>, key: string): PoolUse[] => [
+  ...video.clips.filter((clip) => poolKey(clip) === key).map((clip): PoolUse => ({ kind: 'clip', id: clip.id, track: clip.track })),
+  ...video.sounds.filter((sound) => poolKey(sound) === key).map((sound): PoolUse => ({ kind: 'sound', id: sound.id, track: sound.track })),
+];
 
 /**
  * The current video's length.
@@ -429,6 +520,8 @@ export interface Snap {
   sounds: VSound[];
   /** The loudness target (208 AC-10: undone like any edit). */
   loudness: 'off' | number;
+  /** The imported files (504 D2: an import and a removal are undone like any edit). */
+  pool: PoolItem[];
 }
 
 const past: Snap[] = [];
@@ -440,7 +533,7 @@ let lastAt = 0;
  * The undoable part of the state now.
  * @returns a snapshot
  */
-const snapshot = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers, magnetic: state.magnetic, sounds: state.sounds, loudness: state.loudness });
+const snapshot = (): Snap => ({ tracks: state.tracks, clips: state.clips, layers: state.layers, magnetic: state.magnetic, sounds: state.sounds, loudness: state.loudness, pool: state.pool });
 
 /**
  * Records an undo step, unless it continues the last one (the same key within 800 ms: a drag).
@@ -483,6 +576,7 @@ function restore(snap: Snap): void {
     magnetic: snap.magnetic,
     sounds: snap.sounds,
     loudness: snap.loudness,
+    pool: snap.pool,
     selected: snap.clips.some((clip) => clip.id === state.selected) ? state.selected : (snap.clips.at(0)?.id ?? null),
     layerSel: snap.layers.some((layer) => layer.id === state.layerSel) ? state.layerSel : null,
     transitionSel: snap.clips.some((clip) => clip.id === state.transitionSel) ? state.transitionSel : null,
@@ -583,6 +677,8 @@ export interface LoadedProject extends Partial<Pick<VState, 'kind' | 'format' | 
   /** Missing: a project from before 208, Off (Q12). */
   loudness?: 'off' | number;
   layers?: Layer[];
+  /** The imported files (504); missing: none (a project from before 504, whose files are all in use). */
+  pool?: PoolItem[];
   /** The playhead, seconds (0 when left out). */
   t?: number;
 }
@@ -608,7 +704,7 @@ export function loadVideoProject(project: LoadedProject): void {
   const { kind, format, fps, quality, fadeOut, trackView } = project;
   const settings = Object.fromEntries(Object.entries({ kind, format, fps, quality, fadeOut, trackView }).filter(([, value]) => value !== undefined));
   const playhead = Math.min(Math.max(0, project.t ?? 0), lengthOf(clips, tracks, magnetic));
-  setVideo({ ...settings, clips, tracks, magnetic, sounds: project.sounds ?? [], loudness: project.loudness ?? 'off', measure: null, measuring: false, layers: project.layers ?? [], layerSel: null, transitionSel: null, soundSel: null, selected: clips.at(0)?.id ?? null, t: playhead, ...flags() });
+  setVideo({ ...settings, clips, tracks, magnetic, sounds: project.sounds ?? [], pool: project.pool ?? [], loudness: project.loudness ?? 'off', measure: null, measuring: false, layers: project.layers ?? [], layerSel: null, transitionSel: null, soundSel: null, selected: clips.at(0)?.id ?? null, t: playhead, ...flags() });
 }
 
 /**

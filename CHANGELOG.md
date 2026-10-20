@@ -7,6 +7,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Video editor: a **media pool**. The Media panel lists every video, photo, sound file and voice recording in the
+  project with a thumbnail (or waveform), its length and how often it is used; filter by kind and search by name.
+  Files imported there wait in the pool until you put them on the timeline: double-click, Enter or **+** places one at
+  the playhead (sound on the Music track, a recording on a Voice track), or drag it onto a track. Remove takes a file
+  out of the project, asking first when clips use it (they go too; undo brings everything back). The pool is saved
+  with the project, unused files included.
 - Video editor: **voice-over recording**. **Record voice** in the Audio panel (or the record button on a Voice
   track, or Shift + R) counts in, plays the video from the playhead and records your voice onto a Voice track; Stop,
   Space or the end of the video ends the take. The take is an ordinary sound clip, in sync with the picture (a

@@ -56,6 +56,25 @@ describe('408: the gate reads the playhead', () => {
   });
 });
 
+describe('504: the gate reads a media entry’s recorded mark', () => {
+  const take = { id: 'take', kind: 'audio', name: 'Voice 1', type: 'audio/webm', size: 300, w: 0, h: 0, srcDur: 2 };
+  const mediaOf = (entry: Record<string, unknown>) => mergeProject(saved({ media: [...(saved({}).media as unknown[]), entry] }), true);
+
+  it('keeps recorded: true', () => {
+    const { doc, dropped } = mediaOf({ ...take, recorded: true });
+    expect(doc.media.find((media) => media.id === 'take')).toEqual({ ...take, recorded: true });
+    expect(dropped).toEqual([]);
+  });
+
+  it.each([['false', false], ['text', 'yes'], ['a number', 1]])('leaves out a recorded mark that is %s', (_, recorded) => {
+    expect(mediaOf({ ...take, recorded }).doc.media.find((media) => media.id === 'take')).toEqual(take);
+  });
+
+  it('keeps an entry nothing uses (a file in the media pool)', () => {
+    expect(mediaOf(take).doc.media.map((media) => media.id)).toContain('take');
+  });
+});
+
 describe('408: the gate reads the track heights', () => {
   it('keeps heights of the project’s tracks', () => {
     expect(mergeProject(saved({ trackView: { V1: 'large', A1: 'small' } }), true).doc.trackView).toEqual({

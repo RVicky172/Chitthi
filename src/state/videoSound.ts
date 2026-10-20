@@ -18,7 +18,8 @@ import {
   type Replaced,
   type SoundCtx,
 } from '../engine/soundClips';
-import { MUSIC, lockedReason, type Track } from '../engine/tracks';
+import { MUSIC, lockedReason, soundRole, type Track } from '../engine/tracks';
+import { recordTarget } from '../engine/voiceTake';
 import type { MixMeasure, SoundJob } from '../engine/exportSound';
 import { logError } from '../lib/errors';
 import { keepMedia } from './projectSave';
@@ -101,6 +102,41 @@ function refusal(file: File): string | null {
 }
 
 /**
+ * Whether a file is sound rather than a picture: an audio type, or no type and a sound-only name (a .webm without a
+ * type is taken as video, as adding media does).
+ * @param file the file
+ * @returns true for sound
+ */
+export const isSoundFile = (file: File): boolean =>
+  file.type.startsWith('audio/') || (!file.type && AUDIO_EXT.test(file.name) && !/\.webm$/i.test(file.name));
+
+/**
+ * Reads a sound file: the checks, its object URL and its length; what went wrong goes into `messages`. The read step
+ * of adding sound, shared with the media pool (504 §2).
+ * @param file the file
+ * @param messages where a refusal or failure is said
+ * @returns its URL and length, or null
+ */
+export async function readSoundFile(file: File, messages: string[]): Promise<{ url: string; srcDur: number } | null> {
+  const why = refusal(file);
+  if (why) {
+    messages.push(why);
+    return null;
+  }
+  const url = URL.createObjectURL(file);
+  const srcDur = await soundIO.length(file, url).catch((error: unknown) => {
+    logError('handled', error);
+    return null;
+  });
+  if (srcDur === null) {
+    URL.revokeObjectURL(url);
+    messages.push(`${file.name} couldn’t be played here.`);
+    return null;
+  }
+  return { url, srcDur };
+}
+
+/**
  * Adds sound files at the playhead (AC-2, Q4): each on the chosen track when it has room, else the first sound track
  * that has, else a new one; the first song on the Music track plays to the end of the video when it is longer (Q7).
  * All of them are one undo step, and each is scanned in the background (waveforms and ducking read it).
@@ -114,21 +150,9 @@ export async function addSoundFiles(files: File[], place: SoundPlace = {}): Prom
   let { sounds, tracks } = getVideo();
   const added: VSound[] = [];
   for (const file of files) {
-    const why = refusal(file);
-    if (why) {
-      messages.push(why);
-      continue;
-    }
-    const url = URL.createObjectURL(file);
-    const srcDur = await soundIO.length(file, url).catch((error: unknown) => {
-      logError('handled', error);
-      return null;
-    });
-    if (srcDur === null) {
-      URL.revokeObjectURL(url);
-      messages.push(`${file.name} couldn’t be played here.`);
-      continue;
-    }
+    const read = await readSoundFile(file, messages);
+    if (!read) continue;
+    const { url, srcDur } = read;
     const id = newId();
     const result = addSound(sounds, tracks, { id, srcDur, name: file.name }, at, place.track ?? null, soundCtx());
     if ('error' in result) {
@@ -149,6 +173,44 @@ export async function addSoundFiles(files: File[], place: SoundPlace = {}): Prom
     }
   }
   return messages;
+}
+
+/** A sound file already in the project (the media pool, 504) to place. */
+export type SoundToPlace = Pick<VSound, 'url' | 'file' | 'srcDur' | 'recorded'> & { name: string };
+
+/**
+ * The sound track a pool item goes on by its kind (504 AC-3): a recording on a Voice track (made when there is none),
+ * other sound on the first Music track; a given track must be a sound track.
+ * @param tracks the project's tracks
+ * @param sound the sound
+ * @param given the track it was dropped on, if any
+ * @returns the track (null: addSound's first with room) and the tracks, or why not
+ */
+function soundTarget(tracks: Track[], sound: SoundToPlace, given: string | undefined): { track: string | null; tracks: Track[] } | { error: string } {
+  if (given !== undefined) return tracks.some((track) => track.id === given && track.kind === 'audio') ? { track: given, tracks } : { error: 'Sound goes on a sound track.' };
+  if (sound.recorded) return recordTarget(tracks, null, null);
+  const music = tracks.find((track) => track.kind === 'audio' && soundRole(track) === 'music');
+  return { track: music?.id ?? null, tracks };
+}
+
+/**
+ * Places a sound file already in the project (504 AC-3): on the track its kind goes on, or the one given, at the time
+ * given (default: the playhead); one undo step.
+ * @param sound the sound
+ * @param place the track and time
+ * @returns null once placed, else why not
+ */
+export function placeSound(sound: SoundToPlace, place: SoundPlace = {}): string | null {
+  const video = getVideo();
+  const target = soundTarget(video.tracks, sound, place.track);
+  if ('error' in target) return target.error;
+  const id = newId();
+  const result = addSound(video.sounds, target.tracks, { id, srcDur: sound.srcDur, name: sound.name }, place.at ?? video.t, target.track, soundCtx());
+  if ('error' in result) return `${sound.name}: ${result.error}`;
+  const { url, file, recorded } = sound;
+  const sounds = result.audio.map((clip) => (clip.id === id ? { ...clip, file, url, ...(recorded ? { recorded } : {}) } : (clip as VSound)));
+  change('', { sounds, tracks: result.tracks });
+  return null;
 }
 
 /**
@@ -503,6 +565,8 @@ export function addTake(take: TakeToPlace): PlacedTake | { error: string } {
     name: take.name,
     file: take.file,
     url,
+    // Listed under Recordings in the media pool, and saved so (504 D3).
+    recorded: true,
   };
   const placed = placeTake(
     video.sounds,

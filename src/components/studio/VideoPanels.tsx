@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useIg } from '../../state/instagram';
-import { addBatchPhotos, addMedia } from '../../state/videoMedia';
+import { addMedia } from '../../state/videoMedia';
+import { importBatchPhotos, importToPool } from '../../state/videoPool';
 import { limits, limitText, useVideo } from '../../state/videoStore';
 import { AddPhotoIcon, ReelIcon, YouTubeIcon } from '../icons';
 import { EmptyState } from '../panel';
+import { MediaPool } from './MediaPool';
 import { DesktopNote } from './Shell';
 
 /* The video editor's Media panel, the empty stage, and the browser's limits (the Audio panel is AudioPanel.tsx). */
 
-/** The files the media pickers take. */
+/** The files the empty stage's picker takes. */
 const ACCEPT = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.mov,.m4v,.mkv';
+/** The files the Media panel imports: pictures and sound (504). */
+const POOL_ACCEPT = `${ACCEPT},audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac,.weba`;
 
 /**
  * Files as media to add.
@@ -74,12 +78,15 @@ export function EmptyStage({ kind }: Readonly<EmptyStageProps>) {
   );
 }
 
-/** The Media panel: add videos and photos (picked, dropped, or from the photo studio). */
+/**
+ * The Media panel: import videos, photos and sound into the project's media pool (picked, dropped, or from the photo
+ * studio); none goes on the timeline from here (504 Q1).
+ */
 export function MediaPanel() {
   const photos = useIg((state) => state.items);
   const [messages, setMessages] = useState<string[]>([]);
   const add = async (files: FileList | null) => {
-    if (files?.length) setMessages(await addMedia(mediaOf(files)));
+    if (files?.length) setMessages(await importToPool([...files]));
   };
   return (
     <>
@@ -94,12 +101,12 @@ export function MediaPanel() {
         >
           <AddPhotoIcon />
           <span>
-            <span className="text-label">Choose videos or photos</span> or drop them here
+            <span className="text-label">Choose videos, photos or sound</span> or drop them here
           </span>
-          <small>MP4, MOV, WebM, MKV · JPG, PNG, WebP</small>
+          <small>MP4, MOV, WebM, MKV · JPG, PNG, WebP · MP3, M4A, WAV, OGG, FLAC</small>
           <input
             type="file"
-            accept={ACCEPT}
+            accept={POOL_ACCEPT}
             multiple
             onChange={(event) => {
               const input = event.target;
@@ -110,7 +117,7 @@ export function MediaPanel() {
           />
         </label>
         {photos.length > 0 && (
-          <button type="button" className="sbtn" onClick={() => void addBatchPhotos(photos).then(setMessages)}>
+          <button type="button" className="sbtn" onClick={() => void importBatchPhotos(photos).then(setMessages)}>
             Use the {photos.length} photo{photos.length === 1 ? '' : 's'} from Photos
           </button>
         )}
@@ -126,8 +133,10 @@ export function MediaPanel() {
         )}
       </div>
       <div className="ig-group">
+        <MediaPool />
+      </div>
+      <div className="ig-group">
         <LimitsNote />
-        <p className="hint">New clips go to the end of the timeline. Drag them there to reorder; drag their edges to trim.</p>
       </div>
     </>
   );

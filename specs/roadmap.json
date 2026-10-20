@@ -452,7 +452,7 @@
       "504": {
         "title": "Media pool for Reels and YouTube",
         "workItem": null,
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/504-media-pool",
         "needs": [

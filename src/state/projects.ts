@@ -1,7 +1,7 @@
 import { blobOf, isMissing, missingMedia, type DiskMedia, type MediaFile } from '../engine/mediaFile';
 import { missingPicture } from '../engine/missingDraw';
 import { mergePhotoProject, photoFromDocument, type PhotoProjectDoc } from '../engine/photoProjectDoc';
-import { videoFromDocument, type DocMedia, type ProjectDoc } from '../engine/projectDoc';
+import { videoFromDocument, type DocMedia, type EditorPoolItem, type ProjectDoc } from '../engine/projectDoc';
 import { mergeProject } from '../engine/projectGate';
 import { loadImage } from '../engine/photo';
 import { decodeScan, encodeScan } from '../engine/soundScan';
@@ -18,7 +18,7 @@ import { previewOf } from './instagramMedia';
 import { addScan, clearScans, scanMedia } from './soundScan';
 import { editorMediaIds, rememberMedia, startAutosave, type Autosave } from './projectSave';
 import { mediaIO } from './videoMedia';
-import { getVideo, loadVideoProject, setVideo, type VClip, type VSound } from './videoStore';
+import { getVideo, loadVideoProject, setVideo, type PoolItem, type VClip, type VSound } from './videoStore';
 
 /*
  * Saved projects for the photo and video studios (408 §7, AC-3, AC-7): new, open, rename, duplicate and delete, the
@@ -280,6 +280,22 @@ function restoreScans(cache: ProjectCache, sounding: ReadonlyMap<string, Reopene
 }
 
 /**
+ * A reopened media pool file no clip uses (504 §4): a video's thumbnail and strip from the cache, a photo's thumbnail
+ * made again, a sound's waveform drawn from its scan.
+ * @param entry the pool item as the document gave it
+ * @param reopened its file's URL and media id, unless it is missing
+ * @param cache the project's cache
+ * @returns the item
+ */
+async function openPoolItem(entry: EditorPoolItem<MediaFile>, reopened: Reopened | undefined, cache: ProjectCache): Promise<PoolItem> {
+  const { url = '', id = '' } = reopened ?? {};
+  if (entry.kind === 'photo') return { ...entry, url, thumb: (await openIO.look(entry.name, entry.file)).thumb, strip: [] };
+  if (entry.kind === 'audio') return { ...entry, url, thumb: '', strip: [] };
+  const strip = cache.strips[id] ?? [];
+  return { ...entry, url, thumb: cache.thumbs[id] ?? strip[0] ?? '', strip };
+}
+
+/**
  * Puts a video document in the editor: thumbnails, filmstrips and scans from the cache, the rest made again in the
  * background.
  * @param deps the media store
@@ -299,11 +315,12 @@ async function openVideo(deps: ProjectsDeps, doc: ProjectDoc, cache: ProjectCach
     }),
   );
   const sounds = video.sounds.map((sound): VSound => ({ ...sound, url: byFile.get(sound.file)?.url ?? '' }));
+  const pool = await Promise.all(video.pool.map((entry) => openPoolItem(entry, byFile.get(entry.file), cache)));
   const { kind, format, fps, quality, fadeOut, tracks, layers, magnetic, loudness, t } = video;
   const trackView = Object.fromEntries(Object.entries(video.trackView).flatMap(([track, height]) => (height ? [[track, height] as const] : [])));
-  loadVideoProject({ clips, sounds, kind, format, fps, quality, fadeOut, tracks, layers, magnetic, loudness, t, trackView });
+  loadVideoProject({ clips, sounds, pool, kind, format, fps, quality, fadeOut, tracks, layers, magnetic, loudness, t, trackView });
   const sounding = new Map<string, Reopened>();
-  for (const item of [...clips.filter((clip) => clip.kind === 'video'), ...sounds]) {
+  for (const item of [...clips.filter((clip) => clip.kind === 'video'), ...sounds, ...pool.filter((entry) => entry.kind !== 'photo')]) {
     const reopened = byFile.get(item.file);
     if (reopened) sounding.set(item.url, reopened);
   }
@@ -598,7 +615,7 @@ export async function deleteProject(id: string): Promise<number> {
 function missingFiles(): Map<string, DiskMedia> {
   const missing = new Map<string, DiskMedia>();
   const video = getVideo();
-  for (const file of [...video.clips.map((clip) => clip.file), ...video.sounds.map((sound) => sound.file), ...getIg().items.map((item) => item.file)]) {
+  for (const file of [...video.clips.map((clip) => clip.file), ...video.sounds.map((sound) => sound.file), ...video.pool.map((item) => item.file), ...getIg().items.map((item) => item.file)]) {
     if (!(file instanceof Blob) && file.missing) missing.set(file.id, file);
   }
   return missing;
@@ -631,10 +648,19 @@ async function replaceMissing(found: ReadonlyMap<string, Opened>): Promise<void>
       return opened ? { ...item, file: opened.file, preview: await openIO.preview(item.name, opened.file, item.raw === true) } : item;
     }),
   );
-  setVideo({ clips, sounds });
+  // The media pool's unused files (504): a photo's thumbnail made again.
+  const pool = await Promise.all(
+    video.pool.map(async (item): Promise<PoolItem> => {
+      const opened = foundFor(item.file);
+      if (!opened) return item;
+      const thumb = item.kind === 'photo' ? (await openIO.look(item.name, opened.file)).thumb : item.thumb;
+      return { ...item, file: opened.file, url: opened.url, thumb };
+    }),
+  );
+  setVideo({ clips, sounds, pool });
   setIgState({ items });
   for (const clip of clips) if (clip.kind === 'video' && found.has(mediaIdOf(clip.file))) openIO.strip(clip.id, clip.url, clip.srcDur);
-  for (const item of [...clips.filter((clip) => clip.kind === 'video'), ...sounds]) if (found.has(mediaIdOf(item.file))) scanMedia(item.url, item.file);
+  for (const item of [...clips.filter((clip) => clip.kind === 'video'), ...sounds, ...pool.filter((entry) => entry.kind !== 'photo')]) if (found.has(mediaIdOf(item.file))) scanMedia(item.url, item.file);
 }
 
 /**

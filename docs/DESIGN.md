@@ -343,6 +343,11 @@ In the Masks panel the list stays above; Selected mask (opened when a mask is ch
 settings (Brush, Linear or Radial gradient, Colour or Brightness range) under a smaller title, and Found by AI is a
 section of its own.
 
+The Media panel (Reel and YouTube) is the project's **media pool** (504): the import row (drop zone, picker, Use the
+photos from Photos) stays above, then filter chips (All, Video, Photo, Sound, Recordings), a search field and a
+`ListRow` per file (thumbnail or waveform, length, kind, use count, add and remove). A row goes on the timeline at the
+playhead (double-click, Enter, +) or where it is dragged; it is the panel's list, so it scrolls inside the panel.
+
 The dock holds the photo strip (photo) or the timeline: transport, edit tools, tracks (Reel and YouTube).
 
 ### Planned panels

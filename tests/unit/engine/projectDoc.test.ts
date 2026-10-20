@@ -133,6 +133,7 @@ function everything(): EditorVideo<TestFile> {
       },
     ],
     layers: [textLayer, imageLayer],
+    pool: [],
   };
 }
 
@@ -216,6 +217,62 @@ describe('408: media in the document', () => {
     const { video } = videoFromDocument(doc, (media) => (opened.push(media), fileFor(media)));
     expect(opened.map((media) => media.id).sort(codeUnitOrder)).toEqual(['clipA', 'photoB', 'song', 'voice']);
     expect(video.clips.find((clip) => clip.id === 'c3')).toMatchObject({ name: 'trip.mp4', w: 1920, h: 1080, srcDur: 20, file: clipFile });
+  });
+});
+
+describe('504: the media pool in the document', () => {
+  const spare: TestFile = { id: 'spare', size: 5_000_000, type: 'video/mp4' };
+  const still: TestFile = { id: 'still', size: 1_000_000, type: 'image/jpeg' };
+  const take: TestFile = { id: 'take', size: 300_000, type: 'audio/webm' };
+  /**
+   * `everything()` with unused files in its pool (and one that a clip uses), and its voice clip a recorded take.
+   * @returns the project
+   */
+  function withPool(): EditorVideo<TestFile> {
+    const video = everything();
+    return {
+      ...video,
+      sounds: video.sounds.map((sound) => (sound.id === 's2' ? { ...sound, recorded: true as const } : sound)),
+      pool: [
+        { kind: 'video', name: 'spare.mp4', file: spare, w: 1280, h: 720, srcDur: 8 },
+        { kind: 'video', name: 'trip.mp4', file: clipFile, w: 1920, h: 1080, srcDur: 20 },
+        { kind: 'photo', name: 'still.jpg', file: still, w: 3000, h: 2000, srcDur: 0 },
+        { kind: 'audio', name: 'Voice 3', file: take, w: 0, h: 0, srcDur: 4, recorded: true },
+      ],
+    };
+  }
+
+  it('lists the unused files after the used ones, each file once', () => {
+    const doc = videoDocument(withPool(), 'Trip', idOf, [logo]);
+    expect(doc.media.map((media) => media.id)).toEqual(['photoB', 'clipA', 'song', 'voice', 'img1', 'spare', 'still', 'take']);
+    expect(doc.media.find((media) => media.id === 'still')).toEqual({ id: 'still', kind: 'photo', name: 'still.jpg', type: 'image/jpeg', size: 1_000_000, w: 3000, h: 2000, srcDur: 0 });
+  });
+
+  it('marks a recorded take on its media entry, not on its sound clip', () => {
+    const doc = videoDocument(withPool(), 'Trip', idOf, [logo]);
+    expect(doc.media.filter((media) => media.recorded).map((media) => media.id)).toEqual(['voice', 'take']);
+    expect(doc.audio.find((sound) => sound.id === 's2')).not.toHaveProperty('recorded');
+  });
+
+  it('gives back the files no clip, sound or image layer uses as the pool, and the takes as recorded', () => {
+    const { dropped, opened } = roundTrip(withPool(), 'Trip');
+    expect(dropped).toEqual([]);
+    expect(opened.video.pool).toEqual([
+      { kind: 'video', name: 'spare.mp4', file: spare, w: 1280, h: 720, srcDur: 8 },
+      { kind: 'photo', name: 'still.jpg', file: still, w: 3000, h: 2000, srcDur: 0 },
+      { kind: 'audio', name: 'Voice 3', file: take, w: 0, h: 0, srcDur: 4, recorded: true },
+    ]);
+    expect(opened.video.sounds.find((sound) => sound.id === 's2')).toMatchObject({ recorded: true });
+    expect(opened.video.sounds.find((sound) => sound.id === 's1')).not.toHaveProperty('recorded');
+  });
+
+  it('saves the same bytes again after reopening', () => {
+    const first = roundTrip(withPool(), 'Trip');
+    expect(JSON.stringify(videoDocument(first.opened.video, first.opened.name, idOf, [logo]))).toBe(first.json);
+  });
+
+  it.each(legacyNames)('a project from before 504 (%s) opens with an empty pool', (name) => {
+    expect(fromLegacy(name).pool).toEqual([]);
   });
 });
 

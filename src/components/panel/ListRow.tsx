@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react';
+import { useId, type DragEventHandler, type ReactNode } from 'react';
 
 /** One row of a panel list: what it shows and what it does. */
 export interface ListRowProps {
@@ -19,6 +19,9 @@ export interface ListRowProps {
   rowId?: string;
   /** Extra classes on the row. */
   className?: string;
+  /** The row can be dragged (a media pool row onto the timeline); `onDragStart` sets what it carries. */
+  draggable?: boolean;
+  onDragStart?: DragEventHandler<HTMLLIElement>;
 }
 
 /**
@@ -27,11 +30,11 @@ export interface ListRowProps {
  * @param props the row's content, state and actions
  */
 export function ListRow(props: Readonly<ListRowProps>) {
-  const { lead, name, detail, controls, selected, onSelect, disabled, editor, rowId, className } = props;
+  const { lead, name, detail, controls, selected, onSelect, disabled, editor, rowId, className, draggable, onDragStart } = props;
   const detailId = useId();
   const classes = ['list-row', selected ? 'on' : '', className ?? ''].filter(Boolean).join(' ');
   return (
-    <li className={classes}>
+    <li className={classes} draggable={draggable} onDragStart={onDragStart}>
       {editor ?? (
         <button
           type="button"

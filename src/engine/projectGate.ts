@@ -305,6 +305,8 @@ export function readMedia(raw: unknown, dropped: string[]): DocMedia[] {
       w: Math.round(numberIn(entry.w, 0, 100000) ?? 0),
       h: Math.round(numberIn(entry.h, 0, 100000) ?? 0),
       srcDur: numberIn(entry.srcDur, 0, MAX_TIME) ?? 0,
+      // A recorded take (504 D3): only `true` is kept.
+      ...(entry.recorded === true ? { recorded: true as const } : {}),
     });
   }
   return media;

@@ -18,7 +18,7 @@ All three modes share one layout (`src/components/studio/`), built like a deskto
 | --- | --- |
 | Top bar | The Chitthi Studio mark (home), **Projects**, the three modes, the save status, undo and redo, the format menu, **Export** |
 | Tool rail | Under **Add**: Photos / Media, Text, Elements (shapes and stickers), Draw, Audio (video); under **Edit**: Masks (photo), Transitions (video), Layers. A second click hides the panel. **Compact rail** at its foot (or **Ctrl + \\**, Cmd + \ on a Mac) switches between icons with labels and icons only, remembered on this device for both studios. In a window 720 px tall or less, Draw moves into **More** (video) |
-| Tool panel | The chosen tool: add media, text styles, shapes and stickers, brushes, sound and loudness, the layer list |
+| Tool panel | The chosen tool: the project's media pool, text styles, shapes and stickers, brushes, sound and loudness, the layer list |
 | Stage | The canvas on a dark surface, sized to fit; layers are edited right on it |
 | Inspector | Whatever is selected: a layer's properties (and its timing on video), else the photo's or clip's settings |
 | Dock | The photo strip (drag to reorder), or the video transport and timeline |
@@ -358,6 +358,25 @@ which Instagram requires and YouTube processes fastest. Instagram's requirements
 MP4, `moov` at the front, no edit lists; H.264, progressive, 4:2:0, 23–60 fps; AAC at most 48 kHz, mono or stereo;
 3 seconds to 15 minutes; at most 300 MB. YouTube's bitrates are from its
 [recommended upload encoding settings](https://support.google.com/youtube/answer/1722171).
+
+### The media pool
+
+The **Media** tool lists every file in the project: videos, photos, sound files and voice recordings, each with a
+thumbnail (a sound shows a small waveform), its name, its length (video and sound), its kind and how often it is used
+("Used 2×", "Not used").
+
+- **Importing:** the Media panel's drop zone or **Choose videos, photos or sound** (or **Use the photos from Photos**)
+  puts files in the pool only, as one undo step. The empty stage's **Add videos or photos** and files dropped on the
+  timeline still go straight onto the timeline, and show in the pool too.
+- **Finding:** filter **All · Video · Photo · Sound · Recordings** (recordings are sound too) and search by name.
+- **Adding:** double-click a file, press **Enter** on it, or its **+** button to put it at the playhead: a video or photo
+  on the main video track, a sound on the Music track, a recording on a Voice track (made when there is none). Or drag
+  it onto a track at the time you want (above the top track for a new overlay track). Each is one undo step.
+- **Removing:** the bin button takes a file out of the project. A file in use asks first and names the clips that use it,
+  which go with it; Ctrl + Z brings everything back.
+- A file that is missing (moved, changed or cleared) says so and offers **Find file…** in the desktop app.
+- The pool is saved with the project: files nothing uses are kept and reopen with it, and a recording stays listed as
+  a recording. Projects from before the pool open with every file they use in it.
 
 ### The timeline
 
