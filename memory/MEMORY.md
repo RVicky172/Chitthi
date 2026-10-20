@@ -75,10 +75,10 @@
   01-base.css (widths, --top-h, --panel-pad, type, colours; --line-strong raised to 3:1, D-066), shared panel parts in
   components/panel/ + 42-panel.css, the expandable rail in both studios (Add / Edit, More ≤ 720 px), docs/DESIGN.md
   (approved, panel map). AC-5 waits for 590; T001/T042 screenshots deferred to the end of Phase UI. 
-- **502 ✔️ Implemented 2026-10-20** on `feat/502-studio-typography` (not committed yet): only headings bold
+- **502 ✔️ Implemented 2026-10-20** (`8f4d8de`), merged into `main` (`3be7d97`, not pushed): only headings bold
   (weights.test.ts reads DESIGN.md §3's list; selected states 500, D-067), <b>/<strong> only for values
   (inlineBold.test.ts, .text-label for names), fonts load Geist 400–700, Mono 400–600, Schibsted 600–800
-  (fonts.test.ts). AC-4 screenshots wait for 590. Next: commit and merge, then 503.
+  (fonts.test.ts). AC-4 screenshots wait for 590. Next: 503 (plan on `feat/503-panel-accordions`).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
