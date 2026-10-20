@@ -37,6 +37,7 @@ import {
 } from '../../state/videoStore';
 import { LockIcon } from '../icons';
 import { sayOnce, tell } from './timelineActions';
+import { kindClass, soundKind } from './soundKinds';
 import type { SnapTime } from './TimelineBars';
 import { startDrag, toFrame } from './timelineDrag';
 import {
@@ -455,7 +456,7 @@ function SoundBar({ mix, height, selected, siblings, clip, track, total, zoom, t
   const spoken = `${track.name}: ${name}, ${formatTime(clip.start)} to ${formatTime(clip.start + length)}, ${length.toFixed(1)} seconds${spokenWhy}`;
   return (
     <div
-      className={`tl-bar tl-bar-music tl-sound${selected ? ' on' : ''}${locked ? ' locked' : ''}${silent ? ' tl-silent' : ''}`}
+      className={`tl-bar tl-bar-music tl-sound ${kindClass(soundKind(track))}${selected ? ' on' : ''}${locked ? ' locked' : ''}${silent ? ' tl-silent' : ''}`}
       style={{ left: box.left, width: Math.max(10, box.width) }}
       onPointerDown={(event) => onSoundBody(event, drag)}
       title={`${name} · ${length.toFixed(1)} s · source ${formatTime(clip.in)}${why}${measuring}`}

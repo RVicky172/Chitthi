@@ -307,9 +307,25 @@ export function readMedia(raw: unknown, dropped: string[]): DocMedia[] {
       srcDur: numberIn(entry.srcDur, 0, MAX_TIME) ?? 0,
       // A recorded take (504 D3): only `true` is kept.
       ...(entry.recorded === true ? { recorded: true as const } : {}),
+      ...readTakeDetails(entry),
     });
   }
   return media;
+}
+
+/** The latest time a JavaScript date can hold, ms since 1970. */
+const MAX_DATE = 8.64e15;
+
+/**
+ * A take's time and microphone (505 §1): a time in range and a non-empty name of at most 200 characters; anything else
+ * is left out.
+ * @param entry the document's media entry
+ * @returns the details kept
+ */
+function readTakeDetails(entry: Record<string, unknown>): Pick<DocMedia, 'recordedAt' | 'microphone'> {
+  const recordedAt = numberIn(entry.recordedAt, 0, MAX_DATE);
+  const microphone = textOf(entry.microphone, 200);
+  return { ...(recordedAt === null ? {} : { recordedAt }), ...(microphone ? { microphone } : {}) };
 }
 
 /**

@@ -7,6 +7,14 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Added
 
+- Video editor: **Recordings** in the Audio panel. Every voice take is listed, newest first, with its length, when it
+  was recorded, the microphone it was recorded with and where it is used ("Voice at 0:12", "Not used"). Choose one to
+  select it on the timeline, play it alone, rename it (with its clips, one undo step), add it again at the playhead or
+  delete it (asking first when it is used). New takes keep when and with which microphone they were recorded, saved
+  with the project on the device.
+- Video editor: **Music, Voice and Effects** are told apart everywhere: each kind has its own colour on the track
+  headers and the timeline's sound clips, and its name on a chip in the Audio panel and the sound inspector; the media
+  pool names a sound by the kind of track it is used on.
 - Video editor: a **media pool**. The Media panel lists every video, photo, sound file and voice recording in the
   project with a thumbnail (or waveform), its length and how often it is used; filter by kind and search by name.
   Files imported there wait in the pool until you put them on the timeline: double-click, Enter or **+** places one at
@@ -87,6 +95,9 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Video editor: the **Audio panel** folds into Add sound, Record voice, Recordings, Tracks (was Sound tracks) and
+  Loudness. Opening Record voice turns the microphone on and closing it turns it off; when it opens because it was the
+  section used last, it shows Record voice… instead, so the microphone never turns on unasked.
 - Both studios share one design (`docs/DESIGN.md`): the photo & video studio's rail and panel now match the print
   studio's widths, header and spacing. The rail can be **expanded** (icons with labels, the default) or made
   **compact** (icons only) with the button at its foot or **Ctrl + \\**, remembered for both studios. The media rail

@@ -992,9 +992,9 @@
   top: 4px;
   bottom: 4px;
   padding: 0;
-  color: var(--sound-music);
-  background: color-mix(in srgb, var(--sound-music) 14%, var(--panel));
-  border-color: color-mix(in srgb, var(--sound-music) 45%, transparent);
+  color: var(--kind, var(--sound-music));
+  background: color-mix(in srgb, var(--kind, var(--sound-music)) 14%, var(--panel));
+  border-color: color-mix(in srgb, var(--kind, var(--sound-music)) 45%, transparent);
 }
 .tl-bar-music canvas {
   position: absolute;
@@ -1942,4 +1942,66 @@
 }
 .mst-pool-missing .list-row-detail {
   color: var(--danger);
+}
+
+/* The Recordings list (505 §3): a ListRow per voice take, its name a field while it is renamed */
+.mst-takes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* The details wrap (a narrow panel beside four controls); each line is a block of its own. */
+.mst-takes .list-row-detail {
+  white-space: normal;
+}
+.mst-take-line {
+  display: block;
+}
+.mst-take-name {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+}
+
+/* Kinds of sound (505 §4): each kind-* class sets --kind; a colour bar, a chip or a sound bar reads it */
+.kind-music {
+  --kind: var(--sound-music);
+}
+.kind-voice {
+  --kind: var(--sound-voice);
+}
+.kind-fx {
+  --kind: var(--sound-fx);
+}
+.kind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--kind) 45%, transparent);
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--kind) 12%, var(--panel));
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-body);
+  line-height: 1.5;
+  vertical-align: middle;
+}
+.kind-chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--kind);
+}
+.tl-h-sound {
+  box-shadow: inset 3px 0 0 var(--kind);
 }

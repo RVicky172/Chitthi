@@ -7,6 +7,7 @@ import { addSoundTrack, addTrack, deleteTrack, moveTrack, renameTrack, setTrack,
 import { AdjustIcon, HeightIcon, HideIcon, LockIcon, MusicIcon, MuteIcon, PlusIcon, SoloIcon } from '../icons';
 import { SoundTrackSettings } from './AudioPanel';
 import { openRecordVoice } from './recordVoiceOpen';
+import { KIND_NAMES, kindClass, soundKind } from './soundKinds';
 import { tell } from './timelineActions';
 import { TRACK_PX } from './timelineDrag';
 
@@ -169,11 +170,19 @@ export function TrackHead({ track, height, clipCount = 0 }: Readonly<TrackHeadPr
     { label: 'Move down', onSelect: () => tell(moveTrack(track.id, 1)) },
     { label: `Delete ${track.name}`, onSelect: confirmDelete },
   ];
+  // A sound track's kind: a colour bar at its left edge and its name in the header's accessible name (505 §4).
+  const kind = isSound ? soundKind(track) : null;
+  const kindClasses = kind ? ' tl-h-sound ' + kindClass(kind) : '';
   let actions: TrackMenuAction[] = [];
   if (isOverlay) actions = overlayActions;
   else if (isSound) actions = soundActions;
   return (
-    <div className={`tl-h tl-h-track tl-h-${height}${isOverlay ? ' tl-h-overlay' : ''}`} style={{ height: TRACK_PX[height] }} role="group" aria-label={`${track.name} track`}>
+    <div
+      className={`tl-h tl-h-track tl-h-${height}${isOverlay ? ' tl-h-overlay' : ''}${kindClasses}`}
+      style={{ height: TRACK_PX[height] }}
+      role="group"
+      aria-label={kind ? `${track.name} track, ${KIND_NAMES[kind]}` : `${track.name} track`}
+    >
       <TrackName track={track} isRenaming={isRenaming} setRenaming={setRenaming} />
       <span className="tl-h-tools">
         {isPicture && (

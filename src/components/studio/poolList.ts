@@ -1,4 +1,5 @@
 import { poolKey, usesOf, type PoolItem, type VState } from '../../state/videoStore';
+import { KIND_NAMES, soundKind as kindOfTrack, type SoundKind } from './soundKinds';
 
 /*
  * The Media panel's rules (504 §5, AC-2): which files a filter and a search show, how often each is used, and what a
@@ -71,16 +72,41 @@ export function lengthText(seconds: number): string {
 }
 
 /** What each kind of item is called on its row. */
-const KIND_NAMES: Record<PoolItem['kind'], string> = { video: 'Video', photo: 'Photo', audio: 'Sound' };
+const ITEM_NAMES: Record<PoolItem['kind'], string> = { video: 'Video', photo: 'Photo', audio: 'Sound' };
+
+/**
+ * What a row calls its file (505 D2): a sound in use by the kind of its first use's track, else the item's kind.
+ * @param item the item
+ * @param soundKind the kind of the track its first sound clip is on, if any
+ * @returns e.g. "Video", "Music", "Sound"
+ */
+const itemKind = (item: PoolItem, soundKind: SoundKind | undefined): string =>
+  item.kind === 'audio' && soundKind ? KIND_NAMES[soundKind] : ITEM_NAMES[item.kind];
+
+/**
+ * The kind of each sound file in use (505 D2): the kind of the track its first sound clip is on.
+ * @param video the editor's tracks and sound clips
+ * @returns the kind by pool key
+ */
+export function firstSoundKinds(video: Pick<VState, 'tracks' | 'sounds'>): Map<string, SoundKind> {
+  const kinds = new Map<string, SoundKind>();
+  for (const sound of video.sounds) {
+    const key = poolKey(sound);
+    const track = video.tracks.find((entry) => entry.id === sound.track);
+    if (track && !kinds.has(key)) kinds.set(key, kindOfTrack(track));
+  }
+  return kinds;
+}
 
 /**
  * A row's detail line: the length (video and sound), the kind and how often it is used.
  * @param item the item
  * @param uses the clips and sound clips using it
- * @returns e.g. "0:12 · Video · Used 2×", "Photo · Not used"
+ * @param soundKind a sound's kind, from the track of its first use (505 D2)
+ * @returns e.g. "0:12 · Video · Used 2×", "2:06 · Music · Used 1×", "Photo · Not used"
  */
-export function poolDetail(item: PoolItem, uses: number): string {
-  const kind = item.recorded ? 'Recording' : KIND_NAMES[item.kind];
+export function poolDetail(item: PoolItem, uses: number, soundKind?: SoundKind): string {
+  const kind = item.recorded ? KIND_NAMES.voice : itemKind(item, soundKind);
   const parts = [...(item.kind === 'photo' ? [] : [lengthText(item.srcDur)]), kind, uses ? `Used ${uses}×` : 'Not used'];
   return parts.join(' · ');
 }

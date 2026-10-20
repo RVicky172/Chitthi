@@ -135,6 +135,7 @@ src/
     videoMedia.ts            Photos and videos into clips: readMediaFile (read), placeClips over ClipSources (place),
                              addMedia = both; filmstrips
     videoPool.ts             The media pool (504): importToPool, importBatchPhotos, addFromPool, removeFromPool
+    videoTakes.ts            The voice takes (505): takesOf (the Recordings list), renameTake
     videoExportJob.ts        The export: in memory or streamed to a file, progress, cancel
     projectSave.ts           Autosave of both studios' projects, the save status, keepMedia, the cache (408 §6)
     projects.ts              Saved projects: new, open, rename, duplicate, delete, the last per studio, Find file… (408)
@@ -951,6 +952,33 @@ bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: si
   or a waveform from the scan, `poolDetail`, add / remove), Enter and double-click delegated on the list, `usesText`
   in the remove question. A row's drag carries `POOL_DRAG`; `Timeline.tsx` accepts it on picture rows (with the drop
   marker, or the new-track strip) and on sound rows (`data-sound-track`, no marker yet).
+
+### 4.14 Recordings and kinds of sound (505: `engine/projectDoc.ts`, `projectGate.ts`, `state/videoTakes.ts`, `voiceRecorder.ts`, `components/studio/TakeList.tsx`, `takeListText.ts`, `soundKinds.ts`, `KindChip.tsx`, `AudioPanel.tsx`, `components/panel/FoldSection.tsx`)
+
+- **Take details**: `TakeDetails = Pick<DocMedia, 'recorded' | 'recordedAt' | 'microphone'>` rides with the file as
+  `recorded` does (504): on `DocMedia`, `EditorSound`, `EditorPoolItem`, `VSound`, `PoolItem`, `SoundToPlace` and
+  `TakeToPlace`; `takeDetails()` copies only the fields that are set. The recorder sets `recordedAt` at the recorder's
+  start (`recorderIO.clock()`) and `microphone` from the chosen device's label; a recovered take gets its header's
+  `startedAt`. `videoDocument`'s `listed()` merges the details into an entry another use listed first; the gate keeps
+  `recordedAt` in 0–8.64e15 ms and a non-empty `microphone` cut to 200 characters (`readTakeDetails`).
+- **Takes in the store**: `takesOf(state)` = the recorded items of `poolOf`, newest first (undated last, by name,
+  numeric), each a `TakeRow` with its `uses` and `place` (its earliest sound clip: id, track id and name, start);
+  memoised on `poolOf`'s array, sounds and tracks. `renameTake(key, name)` renames the pool item and every sound clip
+  of the file in one `change` (trimmed; empty refused with the reason).
+- **The Recordings list** (`TakeList.tsx`): a `ListRow` per take, its text from `takeListText.ts` (`takeDetail`,
+  `takePlaceText`, `whenText`, shared with the recovery label). Choosing a row: `selectSound` + `revealOnTimeline(time,
+  track)` (`timelineActions.ts`: a `REVEAL_ON_TIMELINE` document event; `Timeline.tsx`'s scroller scrolls the row,
+  then the time, with `scrollToX` as the playhead follow does). Play: one `Audio` element per list (`useTakePreview`):
+  the video pauses first, `subscribeVideo` stops the preview when the video plays, unmounting pauses it. Add and
+  Delete are `poolActions.ts` (`addToTimeline`, `removeAsking`), shared with `MediaPool.tsx`.
+- **Kinds**: `soundKind(track)` (`soundKinds.ts`) maps `soundRole` to `music` / `voice` / `fx`; `kindClass` gives
+  `kind-*`, which sets `--kind` from `--sound-*` (`36-media-studio.css`). Read by `.tl-h-sound` (TrackHead's bar; the
+  kind in its `aria-label`), `.tl-bar-music` (SoundRow's bars), `KindChip` (AudioPanel's legends, SoundInspector's
+  head, TakeList's rows). The pool: `firstSoundKinds({ tracks, sounds })` → `poolDetail(item, uses, kind)` (D2).
+- **The Audio panel**: FoldSections `audio.add` (default), `audio.record` (`defaultOpen={false}`, `openWhen` for
+  Shift + R and the track's record button, `onOpened={openRecordVoice}`, `onClosed={closeRecordVoice}`), `audio.takes`,
+  `audio.tracks`, `audio.loudness`. `FoldSection.onOpened` is called from the title's click only when it opens the
+  section, so a remembered or default open never opens the microphone (D4).
 
 ## 5. Integrations
 

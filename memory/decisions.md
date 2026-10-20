@@ -850,3 +850,15 @@ tools in 504: the video editor has none yet (201–209 added none), so its tools
 of their own to put on the roadmap.
 **Consequences:** `DocMedia` gains the optional `recorded` (read by the gate); `pool` joins `VState` and the undo
 `Snap`; Principle XI stays an open gap for the video editor until that feature.
+
+## D-070 — 505 plan D1–D4: the Audio panel's sections, kinds in the pool, Loudness, the microphone (2026-10-20)
+
+**Context:** 505 gives the Audio panel folding sections and a Recordings list, and shows Music / Voice / Effects
+wherever sound is shown.
+**Decision (the maintainer, as recommended, A for all four):** D1 Add sound is the Audio panel's first folding section
+(and its default), as the spec's AC-3 says; D-068 D1 (a panel's main action above its sections) still holds in the
+other panels. D2 the media pool names a recording "Voice", a sound in use by the kind of the track of its first use,
+an unused sound file "Sound"; the pool's filter chips stay as 504 made them. D3 Loudness stays a fifth section after
+Tracks. D4 only the user's own click on Record voice opens the microphone (`FoldSection` `onOpened`); a section
+opened by itself (remembered, default) shows the Record voice… button; closing it always closes the microphone.
+**Consequences:** `FoldSection` gains `onOpened`; a take's media entry gains `recordedAt` and `microphone`.

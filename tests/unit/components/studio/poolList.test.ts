@@ -89,9 +89,17 @@ describe('poolDetail', () => {
     [0, 0, '0:12 · Video · Not used'],
     [1, 2, 'Photo · Used 2×'],
     [2, 1, '2:06 · Sound · Used 1×'],
-    [3, 0, '0:04 · Recording · Not used'],
+    [3, 0, '0:04 · Voice · Not used'],
   ])('item %i used %i times', (index, uses, text) => {
     expect(poolDetail(defined(items[index], `item ${index}`), uses)).toBe(text);
+  });
+
+  it('names a used sound by the kind of its first use’s track, an unused one Sound, a recording Voice (505 D2)', () => {
+    const song = defined(items[2], 'song');
+    expect(poolDetail(song, 1, 'music')).toBe('2:06 · Music · Used 1×');
+    expect(poolDetail(song, 2, 'fx')).toBe('2:06 · Effects · Used 2×');
+    expect(poolDetail(song, 0)).toBe('2:06 · Sound · Not used');
+    expect(poolDetail(defined(items[3], 'take'), 1, 'music')).toBe('0:04 · Voice · Used 1×');
   });
 });
 

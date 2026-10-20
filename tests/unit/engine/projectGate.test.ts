@@ -75,6 +75,34 @@ describe('504: the gate reads a media entry’s recorded mark', () => {
   });
 });
 
+describe('505: the gate reads a take’s details', () => {
+  const take = { id: 'take', kind: 'audio', name: 'Voice 1', type: 'audio/webm', size: 300, w: 0, h: 0, srcDur: 2, recorded: true };
+  const entryOf = (entry: Record<string, unknown>) =>
+    mergeProject(saved({ media: [...(saved({}).media as unknown[]), entry] }), true).doc.media.find((media) => media.id === 'take');
+
+  it('keeps a recordedAt in range and a microphone name', () => {
+    const recordedAt = Date.UTC(2026, 9, 20, 14, 2);
+    expect(entryOf({ ...take, recordedAt, microphone: 'MacBook Microphone' })).toEqual({ ...take, recordedAt, microphone: 'MacBook Microphone' });
+  });
+
+  it('cuts a microphone name to 200 characters', () => {
+    expect(entryOf({ ...take, microphone: 'm'.repeat(300) })?.microphone).toBe('m'.repeat(200));
+  });
+
+  it.each([
+    ['text', 'yesterday'],
+    ['negative', -1],
+    ['not finite', Number.POSITIVE_INFINITY],
+    ['far in the future', 1e16],
+  ])('leaves out a recordedAt that is %s', (_, recordedAt) => {
+    expect(entryOf({ ...take, recordedAt })).toEqual(take);
+  });
+
+  it.each([['a number', 3], ['empty', ''], ['an object', { name: 'x' }]])('leaves out a microphone that is %s', (_, microphone) => {
+    expect(entryOf({ ...take, microphone })).toEqual(take);
+  });
+});
+
 describe('408: the gate reads the track heights', () => {
   it('keeps heights of the project’s tracks', () => {
     expect(mergeProject(saved({ trackView: { V1: 'large', A1: 'small' } }), true).doc.trackView).toEqual({

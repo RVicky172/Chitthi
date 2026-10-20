@@ -29,7 +29,7 @@ import {
 } from '../../state/videoStore';
 import { KeyframeLane, KeyframeLaneHeads, animatedProps } from './KeyframeLane';
 import { PictureRow, type DropMarker } from './PictureRow';
-import { onTimelineKey, selectedItem, type SelectedItem } from './timelineActions';
+import { REVEAL_ON_TIMELINE, onTimelineKey, selectedItem, type Reveal, type SelectedItem } from './timelineActions';
 import { SoundRow, useSoundMix } from './SoundRow';
 import { LayerRow, type SnapTime } from './TimelineBars';
 import { RULER_PX, rulerLabel, SNAP_PX, startDrag, tickStep, toFrame, TRACK_PX } from './timelineDrag';
@@ -120,9 +120,19 @@ function useAnnouncements(clips: VClip[], sounds: VSound[], keyed: SelectedItem 
 }
 
 /**
+ * Scrolls a point of the timeline into view, a quarter of the way in, when it is near an edge or off screen.
+ * @param element the scrolling element
+ * @param x the point, px from the timeline's start
+ */
+function scrollToX(element: HTMLElement, x: number): void {
+  if (x < element.scrollLeft + 40 || x > element.scrollLeft + element.clientWidth - 60)
+    element.scrollLeft = Math.max(0, x - element.clientWidth * 0.25);
+}
+
+/**
  * The scrolling element: its width (followed as it resizes; a ResizeObserver reports it once on observing), following
- * the playhead while playing, and Ctrl + wheel zooming around the pointer (a native listener: React's wheel events are
- * passive).
+ * the playhead while playing, revealing a time and row when asked (`revealOnTimeline`, 505), and Ctrl + wheel zooming
+ * around the pointer (a native listener: React's wheel events are passive).
  * @param time the playhead
  * @param zoom pixels per second
  * @param playing whether the video plays
@@ -145,9 +155,7 @@ function useScroller(
   useEffect(() => {
     const element = scroller.current;
     if (!element || !playing) return;
-    const x = time * zoom;
-    if (x < element.scrollLeft + 40 || x > element.scrollLeft + element.clientWidth - 60)
-      element.scrollLeft = Math.max(0, x - element.clientWidth * 0.25);
+    scrollToX(element, time * zoom);
   }, [time, zoom, playing]);
   useEffect(() => {
     const element = scroller.current;
@@ -166,6 +174,18 @@ function useScroller(
     };
     element.addEventListener('wheel', onWheel, { passive: false });
     return () => element.removeEventListener('wheel', onWheel);
+  }, []);
+  useEffect(() => {
+    const onReveal = (event: Event) => {
+      const element = scroller.current;
+      const { time: at, track } = (event as CustomEvent<Reveal>).detail;
+      if (!element) return;
+      // The row first (it may scroll sideways too), then the time, as playing follows it.
+      element.querySelector(`[data-sound-track="${CSS.escape(track)}"]`)?.scrollIntoView({ block: 'nearest' });
+      scrollToX(element, at * getVideo().zoom);
+    };
+    document.addEventListener(REVEAL_ON_TIMELINE, onReveal);
+    return () => document.removeEventListener(REVEAL_ON_TIMELINE, onReveal);
   }, []);
   return { scroller, viewWidth };
 }

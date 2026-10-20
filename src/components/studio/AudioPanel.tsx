@@ -3,18 +3,23 @@ import { LOUDNESS_PRESETS, LOUDNESS_RANGE, loudnessReadout } from '../../engine/
 import { DUCK_DEFAULTS, DUCK_RANGES, countsAsVoice, lockedReason, soundRole, trackVolume, type SoundRole, type Track } from '../../engine/tracks';
 import { addSoundFiles, setLoudness } from '../../state/videoSound';
 import { useVideo } from '../../state/videoStore';
+import { takesOf } from '../../state/videoTakes';
 import { lowerMusicUnderVoice, setCountsAsVoice, setDucking, setLowerMusicUnderVoice, setTrackRole, setTrackVolume } from '../../state/videoTracks';
 import { Check, Seg } from '../common';
 import { MusicIcon } from '../icons';
 import { FoldSection } from '../panel';
 import { closeRecordVoice, openRecordVoice, useRecordVoiceOpen } from './recordVoiceOpen';
+import { KindChip } from './KindChip';
+import { soundKind } from './soundKinds';
+import { TakeList } from './TakeList';
 import { tell } from './timelineActions';
 import { Range } from './videoFields';
 
 /*
- * The video editor's Audio panel (208 §9, AC-13): add sound files, each sound track's role, volume and ducking, Lower
- * music under voice, and the export's loudness target with the measured loudness. Sound clips themselves are edited
- * on the timeline and in their inspector.
+ * The video editor's Audio panel (208 §9, AC-13; 505 §5): folding sections Add sound (the default), Record voice,
+ * Recordings (the voice takes), Tracks (each sound track's role, volume and ducking, and Lower music under voice) and
+ * Loudness (the export's target with the measured loudness). Sound clips themselves are edited on the timeline and in
+ * their inspector.
  */
 
 // The recorder and its meter load only with the Record voice group (209 AC-12).
@@ -44,11 +49,11 @@ const percent = (share: number): string => `${Math.round(share * 100)} %`;
  */
 const level = (value: number): string => String(value).replace('-', '−');
 
-/** Adds sound files at the playhead (several at once, Q4), with what was left out. */
+/** Adds sound files at the playhead (several at once, Q4), with what was left out: the panel's default section (505 D1). */
 function AddSound() {
   const [message, setMessage] = useState('');
   return (
-    <div className="ig-group">
+    <FoldSection id="audio.add" title="Add sound">
       <p className="hint">Use music you have the right to post: Instagram and YouTube may mute or claim recognised songs.</p>
       <label className="sbtn mst-file">
         <MusicIcon />
@@ -69,7 +74,7 @@ function AddSound() {
           {message}
         </p>
       )}
-    </div>
+    </FoldSection>
   );
 }
 
@@ -84,7 +89,9 @@ export function SoundTrackSettings({ track }: Readonly<{ track: Track }>) {
   const duck = track.duck;
   return (
     <fieldset className="lp-fs ap-track" disabled={!!locked}>
-      <legend>{track.name}</legend>
+      <legend>
+        {track.name} <KindChip kind={soundKind(track)} />
+      </legend>
       {locked && <p className="hint lp-locked">{locked}</p>}
       <Seg<SoundRole> label={`${track.name}: role`} value={role} options={ROLES} onChange={(next) => tell(setTrackRole(track.id, next))} />
       <Range id={`ap-vol-${track.id}`} label="Track volume" value={trackVolume(track)} min={0} max={2} step={0.05} show={percent(trackVolume(track))} onChange={(volume) => tell(setTrackVolume(track.id, volume))} />
@@ -126,7 +133,7 @@ function SoundTracks() {
   const lowered = useVideo(lowerMusicUnderVoice);
   const sound = tracks.filter((track) => track.kind === 'audio');
   return (
-    <FoldSection id="audio.tracks" title="Sound tracks" note={tracksNote(sound)}>
+    <FoldSection id="audio.tracks" title="Tracks" note={tracksNote(sound)}>
       <Check checked={lowered} onChange={setLowerMusicUnderVoice}>
         Lower music under voice
       </Check>
@@ -198,11 +205,13 @@ function Loudness() {
 /**
  * Record voice (209 §8): the controls open the microphone only when asked for (AC-7); takes to recover (AC-9). The
  * section opens itself when the recorder is asked for (Shift + R, a Voice track's record button, Recover…; 503 AC-2).
+ * The user opening the section opens the microphone; opened by itself (remembered) it shows Record voice…, and it is
+ * never the default (505 D4).
  */
 function RecordVoiceGroup() {
   const { open, track } = useRecordVoiceOpen();
   return (
-    <FoldSection id="audio.record" title="Record voice" openWhen={open} onClosed={closeRecordVoice}>
+    <FoldSection id="audio.record" title="Record voice" defaultOpen={false} openWhen={open} onOpened={openRecordVoice} onClosed={closeRecordVoice}>
       {open ? (
         <Suspense fallback={<p className="hint">Opening the microphone…</p>}>
           <RecordVoice track={track} />
@@ -222,12 +231,23 @@ function RecordVoiceGroup() {
   );
 }
 
+/** Recordings (505 §3): the project's voice takes. */
+function Recordings() {
+  const count = useVideo(takesOf).length;
+  return (
+    <FoldSection id="audio.takes" title="Recordings" note={count ? String(count) : ''}>
+      <TakeList />
+    </FoldSection>
+  );
+}
+
 /** The Audio panel. */
 export function AudioPanel() {
   return (
     <>
       <AddSound />
       <RecordVoiceGroup />
+      <Recordings />
       <SoundTracks />
       <Loudness />
     </>

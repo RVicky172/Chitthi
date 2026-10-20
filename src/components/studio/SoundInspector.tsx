@@ -7,6 +7,8 @@ import { setPlayhead, useVideo, videoLength, type VSound } from '../../state/vid
 import { Check } from '../common';
 import { FoldSection } from '../panel';
 import { KeyframeNav } from './KeyframeButton';
+import { KindChip } from './KindChip';
+import { soundKind } from './soundKinds';
 import { tell } from './timelineActions';
 import { KeyButton, Range } from './videoFields';
 
@@ -77,7 +79,7 @@ function VolumeGroup({ sound }: Readonly<SoundProps>) {
  * @param props the sound clip
  */
 export function SoundInspector({ sound }: Readonly<SoundProps>) {
-  const trackName = useVideo((state) => state.tracks.find((track) => track.id === sound.track)?.name ?? 'Sound');
+  const track = useVideo((state) => state.tracks.find((entry) => entry.id === sound.track));
   const locked = useVideo((state) => lockedReason(state.tracks, sound.track));
   const total = useVideo(videoLength);
   const sounds = useVideo((state) => state.sounds);
@@ -89,7 +91,9 @@ export function SoundInspector({ sound }: Readonly<SoundProps>) {
       <fieldset className="lp-fs" disabled={!!locked}>
         {/* What the sound is and where it plays stay above the sections (503, as the clip's, D4). */}
         <div className="lp-head">
-          <p className="text-label">{trackName} · sound</p>
+          <p className="text-label">
+            {track?.name ?? 'Sound'} · {track ? <KindChip kind={soundKind(track)} /> : 'sound'}
+          </p>
           <p className="hint ig-name" title={name}>
             {name} · {formatTime(sound.srcDur)}
           </p>

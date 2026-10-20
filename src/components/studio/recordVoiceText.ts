@@ -1,6 +1,7 @@
 import type { Track } from '../../engine/tracks';
 import { recordTarget } from '../../engine/voiceTake';
 import type { RecoverEntry } from '../../state/voiceRecorder';
+import { whenText } from './takeListText';
 
 /*
  * What the Record voice controls show (209 §8): the meter's fill and readout, the Recording offset, the recovery
@@ -9,7 +10,6 @@ import type { RecoverEntry } from '../../state/voiceRecorder';
 
 /** The meter's floor, dBFS. */
 const FLOOR = -60;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
  * How full the meter's bar is (AC-4).
@@ -59,9 +59,7 @@ function lengthText(seconds: number): string {
  * @returns the label, saying when it stopped early or can't be read
  */
 export function recoveryLabel(entry: RecoverEntry): string {
-  const when = new Date(entry.startedAt);
-  const time = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
-  const recorded = `recorded ${when.getDate()} ${MONTHS[when.getMonth()] ?? ''} ${time}`;
+  const recorded = `recorded ${whenText(entry.startedAt)}`;
   if (entry.length === null) return `${entry.name}, ${recorded}, can’t be read`;
   return `${entry.name}, ${lengthText(entry.length)}, ${recorded}${entry.done ? '' : ', stopped early'}`;
 }

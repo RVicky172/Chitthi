@@ -21,6 +21,25 @@ import { clipLabel, keyTimes } from './timelineRows';
  * it, K and Alt + [ / ], and the timeline's keyboard.
  */
 
+/** Fired on the document to scroll a time and a sound track's row into view (505 §3); the detail is a `Reveal`. */
+export const REVEAL_ON_TIMELINE = 'chitthi:reveal-on-timeline';
+
+/** What to scroll into view: a time, s, and the track whose row shows it. */
+export interface Reveal {
+  time: number;
+  track: string;
+}
+
+/**
+ * Scrolls the timeline to a time and a track's row (the Recordings list revealing a take's clip, 505 AC-1); the
+ * timeline otherwise follows the playhead only while playing.
+ * @param time the time, s
+ * @param track the track's id
+ */
+export function revealOnTimeline(time: number, track: string): void {
+  if (typeof document !== 'undefined') document.dispatchEvent(new CustomEvent<Reveal>(REVEAL_ON_TIMELINE, { detail: { time, track } }));
+}
+
 /**
  * Shows a refusal's reason, if any.
  * @param why the reason, or null when the edit went through

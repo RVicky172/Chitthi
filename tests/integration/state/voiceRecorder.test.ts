@@ -441,6 +441,15 @@ describe('a finished take on the timeline (AC-1, AC-2, AC-6, AC-8)', () => {
     expect(getRecorder()).toMatchObject({ phase: 'ready', lastTake: { name: 'Voice 1', length: 8.6, replaced: [] } });
   });
 
+  it('is marked with when it started and the microphone it was recorded with (505 §1)', async () => {
+    const before = Date.now();
+    await recordTake();
+    await stopTake();
+    const { recordedAt, microphone } = takeClip();
+    expect(recordedAt).toBeGreaterThanOrEqual(before);
+    expect(microphone).toBe('Default - Built-in');
+  });
+
   it('uses the meter’s base latency when the microphone reports none', async () => {
     prefs({ countIn: 0 });
     await openControls();

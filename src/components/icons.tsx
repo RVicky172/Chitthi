@@ -51,6 +51,7 @@ import {
   VolumeX,
   Package,
   Pause,
+  Square,
   Pencil,
   Play,
   Plus,
@@ -387,6 +388,10 @@ export function PlayIcon() {
 /** The pause icon. */
 export function PauseIcon() {
   return <Pause {...base} />;
+}
+/** The stop icon. */
+export function StopIcon() {
+  return <Square {...base} />;
 }
 /** The skip back icon. */
 export function SkipBackIcon() {
