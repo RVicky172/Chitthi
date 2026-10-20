@@ -22,7 +22,7 @@
 .setbody h3 {
   margin: 0;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: var(--fw-head);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -43,7 +43,7 @@
   border-radius: var(--r-md);
   background: var(--sunk);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .setstatus i {
   width: 9px;

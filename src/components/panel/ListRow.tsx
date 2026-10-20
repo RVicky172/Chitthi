@@ -46,7 +46,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
         >
           {lead && <span className="list-row-lead">{lead}</span>}
           <span className="list-row-text">
-            <strong className="list-row-name">{name}</strong>
+            <span className="list-row-name">{name}</span>
             {detail && (
               <span id={detailId} className="list-row-detail">
                 {detail}

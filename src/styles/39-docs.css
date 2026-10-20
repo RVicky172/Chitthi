@@ -18,7 +18,7 @@
 }
 .docs-side h2 {
   margin: 18px 0 6px;
-  font: 600 0.74rem / 1.2 var(--font);
+  font: var(--fw-head) 0.74rem / 1.2 var(--font);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -45,7 +45,7 @@
 .docs-side a[aria-current='page'] {
   background: var(--accent);
   color: var(--on-accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .docs-pick {
   display: none;
@@ -65,7 +65,7 @@
 }
 .docs-head h1 {
   margin: 0 0 8px;
-  font: 700 clamp(2rem, 4.4vw, 3rem) / 1.05 var(--font-head);
+  font: var(--fw-strong) clamp(2rem, 4.4vw, 3rem) / 1.05 var(--font-head);
 }
 .docs-toc {
   display: flex;
@@ -90,7 +90,7 @@
 }
 .docs-sec h2 {
   margin: 0 0 10px;
-  font: 700 1.45rem / 1.2 var(--font-head);
+  font: var(--fw-strong) 1.45rem / 1.2 var(--font-head);
 }
 .docs-sec p,
 .docs-sec ul,
@@ -150,10 +150,10 @@
 .docs-table thead th {
   border-top: 0;
   background: var(--sunk);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .docs-table tbody th {
-  font-weight: 600;
+  font-weight: var(--fw-label);
   white-space: nowrap;
 }
 .docs-pager {
@@ -172,7 +172,7 @@
   border-radius: var(--r-md);
   color: var(--text);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .docs-pager a.next {
   margin-left: auto;
@@ -200,7 +200,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-weight: 600;
+    font-weight: var(--fw-label);
   }
   .docs-pick select {
     flex: 1;

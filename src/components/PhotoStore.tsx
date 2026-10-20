@@ -72,7 +72,7 @@ export function PhotoStore() {
                 onClick={() => void putOnCard(stored)}
               >
                 <img src={stored.thumb ?? stored.url} alt={stored.name} loading="lazy" decoding="async" />
-                {at >= 0 && <b>{count > 1 ? `Slot ${at + 1}` : 'On card'}</b>}
+                {at >= 0 && <span className="text-label">{count > 1 ? `Slot ${at + 1}` : 'On card'}</span>}
               </button>
               <button
                 type="button"

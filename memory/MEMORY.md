@@ -74,7 +74,11 @@
   D-065 widths), tasks T001–T091 written. **501 ✔️ Implemented 2026-10-20** (`ec1cd98`), merged into `main` (`8c774b1`, not pushed): tokens in
   01-base.css (widths, --top-h, --panel-pad, type, colours; --line-strong raised to 3:1, D-066), shared panel parts in
   components/panel/ + 42-panel.css, the expandable rail in both studios (Add / Edit, More ≤ 720 px), docs/DESIGN.md
-  (approved, panel map). AC-5 waits for 590; T001/T042 screenshots deferred to the end of Phase UI. Next: 502.
+  (approved, panel map). AC-5 waits for 590; T001/T042 screenshots deferred to the end of Phase UI. 
+- **502 ✔️ Implemented 2026-10-20** on `feat/502-studio-typography` (not committed yet): only headings bold
+  (weights.test.ts reads DESIGN.md §3's list; selected states 500, D-067), <b>/<strong> only for values
+  (inlineBold.test.ts, .text-label for names), fonts load Geist 400–700, Mono 400–600, Schibsted 600–800
+  (fonts.test.ts). AC-4 screenshots wait for 590. Next: commit and merge, then 503.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

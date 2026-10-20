@@ -27,7 +27,7 @@ const families = [...src.matchAll(/\[\s*'([^']+)',\s*'[a-z]+',\s*\[([\d,\s]+)\]/
 if (!families.length) throw new Error('No fonts found in src/data/fonts.ts');
 
 const UI_URL =
-  'https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&family=Hind:wght@400;600&family=Mukta:wght@400;700&family=Tiro+Devanagari+Hindi&display=swap';
+  'https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&family=Hind:wght@400;600&family=Mukta:wght@400;700&family=Tiro+Devanagari+Hindi&display=swap';
 
 async function get(url, as) {
   for (let attempt = 1; ; attempt++) {

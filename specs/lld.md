@@ -1092,7 +1092,10 @@ on Escape or an outside click and supports arrow keys, Home and End.
 **Styles.** `src/styles.css` is an ordered list of `@import`s of `src/styles/NN-feature.css` (numbers = cascade
 order; Vite inlines them). Add rules to their feature's file and keep a media query next to the rules it adjusts.
 Sizes, widths, spacing and colours are custom properties defined once in `01-base.css` (light, system dark, chosen
-dark); `tests/unit/styles/tokens.test.ts` keeps raw colours and font sizes out of the studio stylesheets. The layout
+dark); `tests/unit/styles/tokens.test.ts` keeps raw colours and font sizes out of the studio stylesheets. Only headings
+are bold: `weights.test.ts` allows a weight above 500 only on the selectors listed in DESIGN.md §3 (as a `--fw-head` /
+`--fw-strong` token), `inlineBold.test.ts` keeps `<b>` / `<strong>` to the components listed there (values), and
+`fonts.test.ts` keeps the loaded font weights to those in use. The layout
 widths (`--rail-w-wide`, `--rail-w-narrow`, `--panel-w`, `--insp-w`) are read by both studios' grids, and
 `RailFrame` sets `--rail-w` on the grid from the remembered width (`localStorage['chitthi-rail']`). See
 [DESIGN.md](../docs/DESIGN.md).

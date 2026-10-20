@@ -22,7 +22,7 @@ export function OccasionPane() {
         <input type="checkbox" checked={design.useOccasion} onChange={(event) => setOccasion(event.target.checked)} />
         <span className="track" />
         <span>
-          <b>Add an occasion</b>
+          <span className="text-label">Add an occasion</span>
           <small>{design.useOccasion ? `Using ${theme.name}` : 'Off: plain card with your own colours'}</small>
         </span>
       </label>

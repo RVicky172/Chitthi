@@ -108,6 +108,7 @@
   background: var(--accent);
   color: var(--on-accent);
   font-size: 0.7rem;
+  font-weight: var(--fw-label);
 }
 .lib-badge.muted {
   background: rgba(0, 0, 0, 0.55);
@@ -122,7 +123,7 @@
 }
 .lib-name {
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

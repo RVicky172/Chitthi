@@ -17,7 +17,7 @@
   border-radius: 9px;
   background: var(--accent);
   color: var(--on-accent);
-  font: 700 0.68rem/18px var(--font);
+  font: var(--fw-head) 0.68rem/18px var(--font);
   text-align: center;
 }
 
@@ -159,7 +159,7 @@
 }
 .mm-list button[aria-checked='true'] {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 
 /* A divider above the first row of a group. */
@@ -177,7 +177,7 @@
 .mm-list button[aria-current='page'] {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .mm-list button[aria-current='page'] svg {
   color: var(--accent);

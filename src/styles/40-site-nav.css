@@ -106,7 +106,7 @@
 }
 .snav-links a[aria-current='page'] {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .snav-links a[aria-current='page']::after {
   content: '';
@@ -155,7 +155,7 @@
   border-radius: 9px;
   background: none;
   color: inherit;
-  font: 600 0.92rem/1 var(--font);
+  font: var(--fw-label) 0.92rem/1 var(--font);
   white-space: nowrap;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease);

@@ -124,26 +124,99 @@ root.
 | `--fs-3xl`         | 32 px                             | an empty stage's title                               |
 | `--fs-display`     | 64 px                             | not used yet                                         |
 
-Weights are tokens too: `--fw-body` 400, `--fw-label` 500, `--fw-head` 600, `--fw-strong` 700. Bold (700) is for
-headings only (502).
+Weights are tokens too: `--fw-body` 400, `--fw-label` 500, `--fw-head` 600, `--fw-strong` 700. Only headings are
+bold (502, D-067): panel and section titles 600, dialog, page and empty-stage titles 700. Labels, buttons, tabs, list
+items, timeline text and selected states are 500; body text and hints 400. A selected item is marked by its bar, fill
+or tick, not by weight. Section titles are in sentence case.
 
-| Role                         | Font                  | Size               | Line height | Weight              | Notes                                                                   |
-| ---------------------------- | --------------------- | ------------------ | ----------- | ------------------- | ----------------------------------------------------------------------- |
-| Empty stage title            | `--font-head`         | `--fs-3xl`         | 1.1         | 700                 | `EmptyState`, stage tone                                                |
-| Panel title                  | `--font-head`         | `--fs-panel-title` | 1.08        | 700                 | `PanelHeader`, letter spacing −0.035em                                  |
-| Panel eyebrow                | `--mono`              | `--fs-xs`          | 1.2         | 500                 | the step number or Add / Edit, muted                                    |
-| Panel lead                   | `--font`              | `--fs-md`          | 1.5         | 400                 | muted, one sentence                                                     |
-| Section title                | `--font`              | `--fs-xs`          | 1.5         | 600                 | `FoldSection`: upper case, letter spacing 0.06em, muted                 |
-| Section title, media (today) | `--font`              | `--fs-md`          | 1.5         | 600                 | `.igs h3`; 503 moves these to `FoldSection`                             |
-| Rail heading                 | `--font`              | `--fs-2xs`         | 1           | 500                 | upper case, letter spacing 0.06em, muted                                |
-| Rail label                   | `--font`              | `--fs-xs`          | 1.15        | 500 (600 when open) |                                                                         |
-| Label                        | `--font`              | 13 px              | 1.5         | 500                 | `label.f`, muted                                                        |
-| Body                         | `--font`              | `--fs-base`        | 1.5         | 400                 |                                                                         |
-| Hint                         | `--font`              | 13 px              | 1.5         | 400                 | `.hint`, muted                                                          |
-| Number                       | as the text around it |                    |             |                     | `font-variant-numeric: tabular-nums` for times, counts and step numbers |
+| Role                  | Font                  | Size               | Line height | Weight                   | Notes                                                                   |
+| --------------------- | --------------------- | ------------------ | ----------- | ------------------------ | ----------------------------------------------------------------------- |
+| Empty stage title     | `--font-head`         | `--fs-3xl`         | 1.1         | 700                      | `EmptyState`, stage tone                                                |
+| Panel title           | `--font-head`         | `--fs-panel-title` | 1.08        | 600                      | `PanelHeader`, letter spacing −0.035em                                  |
+| Panel eyebrow         | `--mono`              | `--fs-xs`          | 1.2         | 500                      | the step number or Add / Edit, muted                                    |
+| Panel lead            | `--font`              | `--fs-md`          | 1.5         | 400                      | muted, one sentence                                                     |
+| Section title         | `--font-head`         | `--fs-md`          | 1.3         | 600                      | `FoldSection`, `.pane h3`, `.igs h3`: sentence case                     |
+| Dialog and page title | `--font-head`         | `--fs-2xl` and up  | 1.1         | 700                      | `.dhead h2`, the guides' and docs' titles                               |
+| Rail heading          | `--font`              | `--fs-2xs`         | 1           | 500                      | upper case, letter spacing 0.06em, muted                                |
+| Rail label            | `--font`              | `--fs-xs`          | 1.15        | 500 (open: bar and fill) |                                                                         |
+| Label                 | `--font`              | 13 px              | 1.5         | 500                      | `label.f`, muted                                                        |
+| Body                  | `--font`              | `--fs-base`        | 1.5         | 400                      |                                                                         |
+| Hint                  | `--font`              | 13 px              | 1.5         | 400                      | `.hint`, muted                                                          |
+| Number                | as the text around it |                    |             |                          | `font-variant-numeric: tabular-nums` for times, counts and step numbers |
 
-Labels and hints in `04-controls.css` still use raw sizes (0.82rem). They are not in AC-4's list of stylesheets, and
-502 moves them to `--fs-sm`.
+Labels and hints in `04-controls.css` still use raw sizes (0.82rem). They are not in 501 AC-4's list of stylesheets;
+they move to `--fs-sm` when that stylesheet is tokenised (502 changed weights only).
+
+### Weights allowed above 500
+
+Only headings are bold (502). Every rule that sets a weight above 500 is listed here, with the most it may set;
+`tests/unit/styles/weights.test.ts` reads this list and checks every stylesheet except the landing page's (`07`,
+`23`, `27`, `38`). A rule with several selectors needs each one listed. The `value` group holds numbers the user must
+notice (D-067).
+
+<!-- weights-allowed: read by tests/unit/styles/weights.test.ts; selector, the most it may set, its role -->
+
+```text
+:where(h1, h2, h3, h4, b, strong):where(:not(.ld *))  600  headings and <b> / <strong> values (base, 01-base.css)
+.panel-head h2           600  panel title
+.sec-h                   600  section title (FoldSection)
+.pane h3                 600  section title (print panes)
+.igs h3                  600  section title (media panels)
+.galgroup h3             600  section title (gallery)
+.setbody h3              600  section title (settings)
+.lib-h3                  600  section title (envelope library)
+.finder-group            600  section title (feature finder)
+.ap-track > legend       600  section title (audio track)
+.guide summary           600  section title (folding guide)
+.mcaps-box summary       600  section title (calendar captions)
+.ig-presets summary      600  section title (photo presets)
+.p3-list summary         600  section title (paper sizes)
+.aiprov > summary        600  section title (AI provider)
+.docs-side h2            600  section title (docs list)
+.empty-panel h2          600  empty panel title
+.pm-title                600  panel title (performance monitor)
+.empty-stage h2          700  empty stage title
+.dhead h2                700  dialog title
+.vbar h2                 700  dialog title (3D viewer)
+.galbar h2               700  dialog title (gallery)
+.mst-dialog-body h2      700  dialog title (media studio)
+.sg-head h1              700  page title (sizes guide)
+.sg-detail h2            700  page section title (sizes guide)
+.sg-h2                   700  page section title (sizes guide)
+.p3-det h2               700  page section title (paper sizes)
+.docs-head h1            700  page title (docs)
+.docs-sec h2             700  page section title (docs)
+.q                       600  value: a photo's print sharpness
+.tl-time b               600  value: the playhead time
+.rv-count                600  value: recording time
+.rv-loud                 600  value: level warning
+.rv-countdown            700  value: the count-in, display-sized
+.pm-val                  600  value: performance readings
+.count-badge             600  value: count badges
+```
+
+### Inline bold
+
+`<b>` and `<strong>` mark only a value the user must notice: a limit, a count, a reading (502). Names, titles, terms
+and labels are plain text or a classed `<span>`. `tests/unit/components/inlineBold.test.ts` checks that the
+components using them are exactly these:
+
+<!-- inline-bold: read by tests/unit/components/inlineBold.test.ts; file, what it marks -->
+
+```text
+src/components/Header.tsx                  the count on the gallery button
+src/components/PerfMonitor.tsx             the readings
+src/components/studio/Transport.tsx        the playhead time
+src/components/ig/LayerProperties.tsx      the B on the text tool's Bold button (it shows what bold looks like)
+src/components/panes/CalendarFront.tsx     the zoom percentage
+src/components/panes/PhotosPane.tsx        the photo count, the accepted formats and the minimum pixel size
+src/components/GalleryDialog.tsx           how many designs are picked for a quote
+src/components/Paper3D.tsx                 how many sizes are shown
+src/components/PhotoLibraryParts.tsx       a photo's match score
+src/components/DocsPage.tsx                bold written in the docs text (**…**)
+src/components/Landing.tsx                 the landing page (out of 502's scope, D-067)
+src/components/LandingJourney.tsx          the landing page (out of 502's scope, D-067)
+```
 
 ## 4. Spacing
 

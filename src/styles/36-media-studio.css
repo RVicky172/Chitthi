@@ -182,7 +182,7 @@
 }
 .rail-tool[aria-pressed='true'] {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-label);
   background: var(--sunk);
 }
 .rail-tool[aria-pressed='true']::before {
@@ -369,7 +369,7 @@
   height: 26px;
   color: var(--accent);
 }
-.mst-drop b {
+.mst-drop .text-label {
   color: var(--text);
 }
 .mst-drop:hover {
@@ -560,7 +560,7 @@
 }
 .tl-time b {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .tl-sep {
   width: 1px;
@@ -650,7 +650,7 @@
   padding: 0 8px;
   color: var(--muted);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-label);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -1659,7 +1659,7 @@
 }
 .ap-track > legend {
   padding: 0 4px;
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .ap-track .seg {
   margin-bottom: 6px;
@@ -1829,7 +1829,7 @@
 }
 .rv-loud {
   color: var(--danger);
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .rv-actions {
   display: flex;
@@ -1875,7 +1875,7 @@
 }
 .rv-count {
   font-size: var(--fs-2xl);
-  font-weight: 600;
+  font-weight: var(--fw-head);
   margin: 4px 0;
 }
 .rv-countdown {
@@ -1885,7 +1885,7 @@
   place-items: center;
   margin: 0;
   font-size: var(--fs-countdown);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   color: var(--on-media);
   text-shadow: var(--shadow-text);
   pointer-events: none;

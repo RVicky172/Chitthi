@@ -94,7 +94,7 @@ export function MediaPanel() {
         >
           <AddPhotoIcon />
           <span>
-            <b>Choose videos or photos</b> or drop them here
+            <span className="text-label">Choose videos or photos</span> or drop them here
           </span>
           <small>MP4, MOV, WebM, MKV · JPG, PNG, WebP</small>
           <input

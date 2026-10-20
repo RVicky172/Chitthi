@@ -38,7 +38,7 @@
 }
 .panel-head h2 {
   margin: 0;
-  font: var(--fw-strong) var(--fs-panel-title)/1.08 var(--font-head);
+  font: var(--fw-head) var(--fs-panel-title)/1.08 var(--font-head);
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
 }
@@ -68,20 +68,15 @@
   padding: 10px 2px;
   border: 0;
   background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-head);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--text);
+  /* a heading in sentence case (502): the heading face at 600, the size of the media studio's section titles */
+  font: var(--fw-head) var(--fs-md)/1.3 var(--font-head);
   text-align: left;
   cursor: pointer;
 }
 .sec-h small {
-  font-weight: var(--fw-label);
-  letter-spacing: 0;
-  text-transform: none;
-  font-size: var(--fs-xs);
+  color: var(--muted);
+  font: var(--fw-body) var(--fs-xs)/1.3 var(--font);
 }
 .sec-h svg {
   width: 16px;
@@ -211,6 +206,9 @@
   display: grid;
   min-width: 0;
 }
+.list-row-name {
+  font-weight: var(--fw-label);
+}
 .list-row-name,
 .list-row-detail {
   overflow: hidden;
@@ -319,4 +317,9 @@
     overflow: visible;
     clip-path: none;
   }
+}
+
+/* a name, title or term in running text: label weight, not bold (502; <b> and <strong> mark only values) */
+.text-label {
+  font-weight: var(--fw-label);
 }

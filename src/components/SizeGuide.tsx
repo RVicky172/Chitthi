@@ -401,21 +401,21 @@ function SizeDetail({ product, size, orient, square, design, onOrient }: Readonl
         </h2>
         <ul className="sg-facts">
           <li>
-            <b>Trim</b> {r1(w)} × {r1(h)} mm ({inch(w)} × {inch(h)} in)
+            <span className="text-label">Trim</span> {r1(w)} × {r1(h)} mm ({inch(w)} × {inch(h)} in)
           </li>
           <li>
-            <b>File with bleed</b> {r1(w + 2 * BLEED)} × {r1(h + 2 * BLEED)} mm, {px(w + 2 * BLEED).toLocaleString()} ×{' '}
+            <span className="text-label">File with bleed</span> {r1(w + 2 * BLEED)} × {r1(h + 2 * BLEED)} mm, {px(w + 2 * BLEED).toLocaleString()} ×{' '}
             {px(h + 2 * BLEED).toLocaleString()} px
           </li>
           <li>
-            <b>Safe area</b> {r1(w - 2 * SAFE)} × {r1(h - 2 * SAFE)} mm
+            <span className="text-label">Safe area</span> {r1(w - 2 * SAFE)} × {r1(h - 2 * SAFE)} mm
           </li>
           <li>
-            <b>Full-bleed photo</b> at least {px(w + 2 * BLEED).toLocaleString()} × {px(h + 2 * BLEED).toLocaleString()}{' '}
+            <span className="text-label">Full-bleed photo</span> at least {px(w + 2 * BLEED).toLocaleString()} × {px(h + 2 * BLEED).toLocaleString()}{' '}
             px for a sharp print
           </li>
           <li>
-            <b>On a sheet</b>{' '}
+            <span className="text-label">On a sheet</span>{' '}
             {SHEET_NAMES.map(([id, name]) => {
               const count = perSheet(design, id);
               return count ? `${count} per ${name}` : `doesn’t fit on ${name}`;
@@ -455,7 +455,7 @@ function LayoutGrid({ layouts, design, width, height, thumbPhotos, fontTick, onU
             <div className="cv">
               <LayoutThumb layout={id} design={layoutDesign} photos={thumbPhotos} fontTick={fontTick} />
             </div>
-            <b>{name}</b>
+            <span className="text-label">{name}</span>
             <small className="count">{photoCount(count)}</small>
             <small className="need">{slotNeeds(layoutDesign, id, width, height)}</small>
             <button type="button" className="sbtn accent" onClick={() => onUse(id)}>
@@ -597,7 +597,7 @@ export function SizeGuide() {
           />
         </div>
         <p className="hint sg-paper">
-          <b>{prod.name}:</b> {prod.blurb} Paper: {prod.paper}
+          <span className="text-label">{prod.name}:</span> {prod.blurb} Paper: {prod.paper}
         </p>
 
         <SizeTable

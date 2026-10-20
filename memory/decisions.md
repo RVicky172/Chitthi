@@ -812,3 +812,15 @@ panel (scopes, copy/paste, match) on the left, the grade in the inspector. The f
 8th tool moves the More `max-height` query from 720 px to about 860 px. DESIGN.md approved.
 **Consequences:** every field's border is darker in light and lighter in dark (590's axe and screenshots will show
 it); the Add / Edit headings lost 2 px of top padding so the 7-tool video rail fits from 721 px tall without scrolling.
+
+## D-067 — 502 plan D1–D3: where the weight rule applies, selected states, values (2026-10-20)
+
+**Context:** 502 makes only headings bold (above 500). About 90 rules outside the landing page are 600/700 today,
+among them selected states and numbers that must stand out.
+**Decision (the maintainer, as recommended, A for all three):** D1 the weight test covers every stylesheet except the
+landing page's four (`07`, `23`, `27`, `38`); the guides and docs page follow the scale. D2 selected states (current
+step, pressed segment, open rail tool, checked menu row) are 500 like any label; their bar, fill or tick marks them.
+D3 a short named `value` group may be 600 (timeline time, recording count and level warning, performance values, count
+badges); the recording countdown keeps 700.
+**Consequences:** the allowed selectors are a fenced block in `docs/DESIGN.md` §3 that `weights.test.ts` reads; the
+font URL narrows to Geist 400..600 and Geist Mono 400..500.

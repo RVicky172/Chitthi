@@ -4,13 +4,13 @@
   "id": "502",
   "title": "Typography: bold only for headings",
   "workItem": null,
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-20",
     "approved": "2026-10-20",
-    "started": null,
-    "done": null
+    "started": "2026-10-20",
+    "done": "2026-10-20"
   },
   "git": {
     "branch": "feat/502-studio-typography"
@@ -44,19 +44,19 @@
           "group": "Weights",
           "proof": "unit",
           "text": "Only the heading selectors listed in `docs/DESIGN.md` (panel titles, section titles, dialog titles, the stage's empty-state title) use a weight above 500; labels, buttons, tabs, list items and timeline text use 400 or 500; hints use 400. A unit test reads every stylesheet under `src/styles/` and fails on a `font-weight` above 500 outside the allowed selectors.",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Weights",
           "proof": "unit",
           "text": "Inline `<b>`/`<strong>` in panel text is used only for a value the user must notice (a limit, a count); a unit test lists the components that still use them and the list matches the design document.",
-          "done": false
+          "done": true
         },
         "AC-3": {
           "group": "Fonts",
           "proof": "unit",
           "text": "The font files loaded cover the weights used (400, 500 for body; the heading weight) and no others, so no weight is synthesised by the browser; checked against the `@font-face` rules.",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Look",
@@ -90,6 +90,18 @@
       {
         "date": "2026-10-20",
         "text": "Every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Plan drafted (§1–§6, D1–D3 for the maintainer)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Plan D1–D3: option A chosen by the maintainer (D-067); plan Approved; tasks written (T010–T091)."
+      },
+      {
+        "date": "2026-10-20",
+        "text": "Plan §6 corrected from measurement (T030): Geist 400..700 and Geist Mono 400..600 stay loaded (the landing page, the countdown and the performance readings use them); only Geist 300 and Schibsted 500 go."
       }
     ],
     "sections": [
@@ -125,6 +137,424 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (D1 A, D2 A, D3 A; 2026-10-20, D-067) <!-- Draft | Approved -->",
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "502 changes weights only: which text is bold, never sizes, colours or layout (501 set those). On 2026-10-20 about 90 rules outside the landing page set a weight above 500 (`font-weight` 600/700 or a `font` shorthand), plus the browser's own bold for `h1`–`h4`, `th`, `b` and `strong`.\n\n**§1 The weights, by role (spec Q1, Q2).** Four tokens already exist in `01-base.css`: `--fw-body` 400, `--fw-label` 500, `--fw-head` 600, `--fw-strong` 700. The roles: body text and hints `--fw-body`; labels, buttons, tabs, list items, timeline text and selected states `--fw-label`; panel titles and section titles `--fw-head` in `--font-head`; dialog titles and the empty stage's title `--fw-strong`. Section titles (`FoldSection`'s `.sec-h`, the print panes' `.pane h3`, the media studio's `.igs h3`) leave capitals and letter spacing for sentence case in `--font-head` 600; their text in the components is already sentence case, so only CSS changes. `docs/DESIGN.md` §3 is updated (it gives the panel title 700 today).\n\n**§2 One list of allowed selectors.** `docs/DESIGN.md` §3 gets a fenced block listing every selector allowed above 500 (headings, plus D3's values if chosen). A unit test (`tests/unit/styles/weights.test.ts`) reads that block and every stylesheet under `src/styles/` except the landing page's (D1), and fails on any rule that sets a weight above 500 (number, `bold`, `bolder`, a `--fw-head` / `--fw-strong` token, or the weight in a `font` shorthand) whose selector is not in the list. The list lives in the document, so the test and the design cannot drift.\n\n**§3 The browser's own bold.** `01-base.css` sets `h1`–`h4` to `--fw-head` and `th` to `--fw-label`, so an unstyled heading follows the scale; `b` and `strong` become `--fw-head` (§5).\n\n**§4 The sweep.** File by file (print studio, media studio and timeline, dialogs, guides and docs page), each rule the test finds either moves to its role's token or, for a heading, joins the list. Selected states (current step, pressed segment, open rail tool, checked menu row) lose their weight change and keep their bar, fill or tick (D2). The `.tray-add` plus sign (300) moves to 400.\n\n**§5 Inline `<b>` and `<strong>` (AC-2).** 26 components use them. Each use is kept only for a value the user must notice (a limit, a count, a size) and otherwise becomes plain text or a `<span>` with a class. A unit test (`tests/unit/components/inlineBold.test.ts`) lists the component files that still contain `<b>` / `<strong>` and compares the list with a second fenced block in `DESIGN.md` §3, one line per file saying what it marks.\n\n**§6 Fonts (AC-3).** The fonts load the weights in use and no others; every stylesheet counts, the landing page's too, since it loads the same fonts. Measured on 2026-10-20 (T030): Geist is drawn at 400–700 (the landing page uses 500–700, the recording countdown 700), Geist Mono at 400–600 (the performance readings are 600), Schibsted Grotesk at 600–800 (the landing page uses 800). So the Google Fonts URL (`index.html`, the `@import` in `styles.css`, `scripts/fetch-fonts.mjs` for the desktop app's offline copy) narrows Geist from `300..700` to `400..700` (300 was used only by the tray's plus sign, now 400), Geist Mono stays `400..600`, and the local `@font-face` for Schibsted declares `600 800` (was `500 800`). A unit test (`tests/unit/styles/fonts.test.ts`) checks that the three URLs are the same and that each family's loaded range runs exactly from its lightest to its heaviest weight in use, so no weight is synthesised and none is fetched unused. Hind and Mukta (Devanagari fallbacks) keep their weights."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "No code interfaces change. Two fenced blocks in `docs/DESIGN.md` §3, read by the tests, each found by its marker comment, one entry per line, the first field the selector or file:\n\n```text\n<!-- weights-allowed: selectors that may set a weight above 500 -->\n.panel-head h2        600  panel title\n.dhead h2             700  dialog title\n...\n```\n\n```text\n<!-- inline-bold: components that may use <b> or <strong> -->\nsrc/components/SizeGuide.tsx   sizes in mm and px\n...\n```"
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **CSS read as text, no parser dependency:** the tests split each stylesheet into rules with a small brace-matching loop (comments removed, `@media` blocks entered), as `tokens.test.ts` does.\n- **Weights through tokens:** a heading uses `var(--fw-head)` or `var(--fw-strong)`, never a number, so the test recognises four forms (number, keyword, token, shorthand).\n- **Variable fonts:** one Geist file serves the whole range; narrowing the URL's range gives a smaller file, and a weight outside it shows up in the test rather than as a synthesised glyph."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Kind |\n| --- | --- | --- |\n| AC-1 | `tests/unit/styles/weights.test.ts`: no weight above 500 outside `DESIGN.md`'s allowed list, in every stylesheet but the landing page's; proven to fail by adding `font-weight: 600` to a label rule | unit |\n| AC-2 | `tests/unit/components/inlineBold.test.ts`: the files using `<b>` / `<strong>` equal `DESIGN.md`'s list; proven to fail by adding a `<b>` to a panel | unit |\n| AC-3 | `tests/unit/styles/fonts.test.ts`: the three font URLs match; every used weight is inside its family's loaded range | unit |\n| AC-4 | Before/after screenshots of each studio in both themes, the maintainer's approval (deferred to 590, with 501's T001 / T042 set) | manual (590) |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer",
+        "markdown": "**D1 Which stylesheets the weight test covers.** _Chosen (the maintainer, 2026-10-20):_ A. The spec puts the landing page out of scope but AC-1 says every stylesheet. **A (recommended)** every stylesheet except the landing page's (`07-landing`, `23-landing-showcase`, `27-landing-3d`, `38-landing-studios`), listed by name in the test; the sizes and paper guides and the docs page follow the scale too. **B** only the studio stylesheets (print, media, timeline, dialogs); the guides and docs keep their own weights. **C** every stylesheet, the landing page included.\n\n**D2 Selected states.** _Chosen (the maintainer, 2026-10-20):_ A. The current print step, a pressed segment, the open rail tool and a checked menu row are 600 today. **A (recommended)** 500 like any label: each already has a stronger cue (the accent bar, a fill, a tick). **B** allow 600 for selected states as a named group in the list.\n\n**D3 Values that must be noticed.** _Chosen (the maintainer, 2026-10-20):_ A. A few rules make a number bold: the timeline's time (`.tl-time b`), the recording countdown and level warning (`.rv-countdown`, `.rv-count`, `.rv-loud`), the performance monitor's values, count badges. **A (recommended)** allow 600 for these as a short named `value` group in the list (the countdown keeps 700: it is display-sized); everything else in the sweep goes to 500. **B** no exceptions: values are 500 and stand out by size and colour."
+      }
+    ],
+    "files": [
+      {
+        "file": "`docs/DESIGN.md`",
+        "change": "modify",
+        "purpose": "§3 weights by role (panel title 600), sentence-case section titles, the allowed-selectors and inline-bold lists the tests read (§1, §2, §5)"
+      },
+      {
+        "file": "`src/styles/01-base.css`",
+        "change": "modify",
+        "purpose": "Base weights for `h1`–`h4`, `th`, `b`, `strong`; Schibsted `@font-face` declares 600–700 (§3, §6)"
+      },
+      {
+        "file": "`src/styles/42-panel.css`, `04-controls.css`, `35-instagram.css`",
+        "change": "modify",
+        "purpose": "Section titles in sentence case, `--font-head` 600; panel title 600 (§1)"
+      },
+      {
+        "file": "`src/styles/*.css` (about 25 files, not the landing page)",
+        "change": "modify",
+        "purpose": "Every weight above 500 moved to its role token or listed as a heading (§4)"
+      },
+      {
+        "file": "`index.html`, `src/styles.css`, `scripts/fetch-fonts.mjs`",
+        "change": "modify",
+        "purpose": "Geist 400..700 in the font URL (300 unused) (§6)"
+      },
+      {
+        "file": "Components using `<b>` / `<strong>` (26 files)",
+        "change": "modify",
+        "purpose": "Keep them only for values the user must notice (§5)"
+      },
+      {
+        "file": "`tests/unit/styles/weights.test.ts`, `tests/unit/styles/fonts.test.ts`, `tests/unit/components/inlineBold.test.ts`",
+        "change": "new",
+        "purpose": "AC-1, AC-3, AC-2"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**Text loses emphasis where weight was the only cue** (a selected item, a total). Mitigation: §4 changes a selected state only where it has another cue (bar, fill, tick); D2 and D3 for the maintainer; 590's before/after screenshots in both themes (AC-4)."
+      },
+      {
+        "text": "**Dark-theme text looks thin at 400.** Mitigation: body text stays 15 px at 400 (as most text is today); labels go to 500, not 400; checked in 590's dark-theme screenshots (US-2)."
+      },
+      {
+        "text": "**Narrowing the font URL misses a weight in use** (e.g. 700 in a guide), which the browser then synthesises. Mitigation: `fonts.test.ts` derives the used weights from the stylesheets, so the URL cannot be narrowed below them."
+      },
+      {
+        "text": "**Sentence-case section titles wrap in a 320 px panel.** Mitigation: they lose letter spacing, so they are no wider than before; checked by eye at 1280 in each print step and media tool."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec before code",
+        "status": "✅",
+        "notes": "Spec approved 2026-10-20; plan approved 2026-10-20 (D1–D3 A, D-067)."
+      },
+      {
+        "principle": "II. Test-gated delivery",
+        "status": "✅",
+        "notes": "AC-1–AC-3 unit tests, each proven to fail; AC-4 manual in 590 (D-033)."
+      },
+      {
+        "principle": "III. Small dependencies",
+        "status": "✅",
+        "notes": "No new dependency; the tests read CSS as text."
+      },
+      {
+        "principle": "IV. Memory maintained",
+        "status": "✅",
+        "notes": "D1–D3 go into `memory/decisions.md` when chosen."
+      },
+      {
+        "principle": "V. Free and open source",
+        "status": "✅",
+        "notes": "Same for everyone."
+      },
+      {
+        "principle": "VI. On device, no backend",
+        "status": "✅",
+        "notes": "The font URL gets smaller; no new request."
+      },
+      {
+        "principle": "VII. Permissive licences",
+        "status": "✅",
+        "notes": "Same fonts (SIL OFL), fewer weights."
+      },
+      {
+        "principle": "VIII. WYSIWYG, one code path",
+        "status": "✅",
+        "notes": "UI text only; text drawn on designs and frames uses its own fonts and weights, untouched."
+      },
+      {
+        "principle": "IX. Secure desktop shell",
+        "status": "✅",
+        "notes": "No Electron change; `fetch-fonts.mjs` fetches the same families."
+      },
+      {
+        "principle": "X. Budgets and accessibility",
+        "status": "✅",
+        "notes": "CSS only, no entry growth; contrast unchanged (weights only); headings keep their elements."
+      },
+      {
+        "principle": "XI. Agents use the same code",
+        "status": "✅",
+        "notes": "No agent tool changes."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); AC-4 (before/after screenshots in both themes) is in `590` (\"Deferred checks collected from the phase\").\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 502 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Weights",
+        "intro": "§1–§4: only headings above 500, one list in DESIGN.md that the test reads."
+      },
+      {
+        "title": "Inline bold",
+        "intro": "§5: `<b>` / `<strong>` only for values the user must notice."
+      },
+      {
+        "title": "Fonts",
+        "intro": "§6: load the weights in use, no others."
+      },
+      {
+        "title": "Close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T090",
+        "T091"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing test: every stylesheet under `src/styles/` except the landing page's (`07-landing`, `23-landing-showcase`, `27-landing-3d`, `38-landing-studios`; D1) sets no weight above 500 (number, `bold`, `bolder`, `var(--fw-head)` / `var(--fw-strong)`, or the weight in a `font` shorthand) outside the selectors in `DESIGN.md` §3's `weights-allowed` block; the block is parsed from the document (marker comment, one selector per line). Add the block to `DESIGN.md` with the headings (panel, section, dialog and empty-stage titles) and D3's `value` group.",
+          "section": "Weights",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "tests/unit/styles/weights.test.ts",
+            "docs/DESIGN.md"
+          ],
+          "test": "`tests/unit/styles/weights.test.ts` (fails first)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/styles/weights.test.ts reads DESIGN.md §3's new 'Weights allowed above 500' list (marker comment + text fence, CRLF-safe; 40 selectors: base h1–h4 / b / strong, panel, section, dialog, page and empty-state titles, and the D3 value group at 600, countdown 700) and checks every stylesheet but the landing page's four: any weight above 500 (number, bold/bolder, --fw-head / --fw-strong, or the weight in a font shorthand) on a selector not listed, or above its listed weight, fails; a comma rule needs every selector listed. The CSS walker moved from tokens.test.ts to tests/support/cssDeclarations.ts (now with the rule's own selector, since ' > ' is also the child combinator); tokens.test.ts imports it (11/11 pass). Fails first as intended: 19 stylesheets, 49 rules (e.g. .btn.primary 600, .stepper li.now button 600, .count-badge 700, .panel-head h2 700 against its listed 600); 20 tests pass (parsing, weight forms, the 18 clean files). Typecheck and lint clean; npm run check red only on this file until T013."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T011": {
+          "text": "Headings on the scale (§1, §3): `01-base.css` sets `h1`–`h4` to `--fw-head`, `th` to `--fw-label`, `b` / `strong` to `--fw-head`; the panel title goes to 600; section titles (`.sec-h`, `.pane h3`, `.igs h3`) to sentence case in `--font-head` 600 without capitals or letter spacing. `DESIGN.md` §3's role table updated.",
+          "section": "Weights",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/styles/01-base.css",
+            "src/styles/42-panel.css",
+            "src/styles/04-controls.css",
+            "src/styles/35-instagram.css",
+            "docs/DESIGN.md"
+          ],
+          "test": "`weights.test.ts` (the heading rules pass)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** 01-base.css: :where(h1, h2, h3, h4, b, strong):where(:not(.ld *)) at --fw-head and :where(th):where(:not(.ld *)) at --fw-label (zero specificity, so every part's own rule wins; the landing page .landing.ld keeps the browser's bold, the guides and docs, also .landing, follow). Panel title (.panel-head h2) 700 → 600. Section titles .sec-h (FoldSection), .pane h3 (print) and .igs h3 (media) in sentence case: --font-head 600 at --fs-md / 1.3 in --text, no capitals or letter spacing (the print titles were 12 px muted capitals: they now match the media studio's 14 px section titles, so both studios' section titles are one style); .sec-h small is 400 muted. weights.test.ts splits a rule only at top-level commas (new test) and DESIGN.md lists the base rule as one selector; §3's weights paragraph and role table updated (panel title 600, section title row, dialog and page titles 700). 42-panel.css, 35-instagram.css, 01-base.css pass; 18 files (49 → 47 rules) left for T012/T013. Checked in Chromium at 1280: Photos step 'Free photos from Pexels', the Audio panel; no console errors. Seen on the way: the Audio panel's h3s (Record voice, Sound tracks) are not .igs h3 and keep the browser's h3 size: for 503/505. Typecheck, lint clean; npm run check red only on weights.test.ts."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T012": {
+          "text": "Sweep the print studio, controls and dialogs (`02-header`, `03-shell`, `04-controls`, `06-stage`, `08-photo-store`, `09-gallery`, `10-dialogs`, `13-calendar-captions`, `16-settings`, `18-photo-library`, `20-user-fonts`, `21-envelope`, `25-loaders`, `26-feature-finder`, `28-photo-dock`, `30-calendar-dock`, `32-header-nav`): labels, buttons and selected states to `--fw-label` (D2), headings to the list; `.tray-add` 300 → 400. Checked by eye at 1280 in each print step.",
+          "section": "Weights",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/styles/0*.css",
+            "src/styles/1*.css",
+            "src/styles/2*.css",
+            "src/styles/30-calendar-dock.css",
+            "src/styles/32-header-nav.css"
+          ],
+          "test": "`weights.test.ts` (these files pass)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** 36 rules in 17 stylesheets (02-header, 03-shell, 04-controls, 06-stage, 08-photo-store, 09-gallery, 16-settings, 18-photo-library, 20-user-fonts, 25-loaders, 28-photo-dock, 30-calendar-dock, 32-header-nav): labels, buttons (.btn.primary, .linkbtn, .sbtn.accent), the drop zone, size and layout cards, docks, badges on photos and the selected states (current step, current Gallery, pressed segment, checked / current menu rows; D2) to var(--fw-label); listed headings to tokens instead of numbers (.galbar h2 → --fw-strong, .galgroup h3, .setbody h3, .guide summary → --fw-head); .count-badge 700 → --fw-head (D3); .tray-add's plus 300 → --fw-body. .q (a photo's print-sharpness rating) joined DESIGN.md's value group at 600; .pane .grp (a size-group label in Layout) and .layout .count (a filled tag) are 500. weights.test.ts: every T012 file passes (35 of 40 tests); 5 left for T013 (17-sizes-guide, 31-paper3d, 36-media-studio, 39-docs, 40-site-nav). Checked in Chromium at 1280 (Photos and Layout steps, header, dock): the current step reads by its bar and fill; no console errors. Typecheck, lint clean; npm run check red only on weights.test.ts."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T013": {
+          "text": "Sweep the media studio, timeline, guides and docs (`31-paper3d`, `33-perf-monitor`, `35-instagram`, `36-media-studio`, `17-sizes-guide`, `39-docs`, `40-site-nav`, `42-panel`): the open rail tool and timeline text to `--fw-label`, the D3 values listed. `weights.test.ts` passes; proven to fail by setting a label rule to 600.",
+          "section": "Weights",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1"
+          ],
+          "files": [
+            "src/styles/17-sizes-guide.css",
+            "src/styles/31-paper3d.css",
+            "src/styles/33-perf-monitor.css",
+            "src/styles/35-instagram.css",
+            "src/styles/36-media-studio.css",
+            "src/styles/39-docs.css",
+            "src/styles/40-site-nav.css",
+            "src/styles/42-panel.css"
+          ],
+          "test": "`tests/unit/styles/weights.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** The last 17 rules to var(--fw-label): sizes guide (terms, table header extras, facts, layout count), paper 3D (labels, facts), the open media rail tool (D2) and the timeline's track names (.tl-h: labels, not headings), docs (current page link, table headers, pager, picker), site nav (current link, studio buttons). Every selector in DESIGN.md's list now sets its weight with a token (22 rules moved off 600 / 700 numbers, e.g. .dhead h2, .docs-sec h2, .rv-countdown), and weights.test.ts gained a check for it: a weight above 500 must be var(--fw-head) or var(--fw-strong). weights.test.ts 77/77 (27 stylesheets × 2 + the parsing tests). Proven: .tl-h set back to 600 fails both the list check and the token check; restored. DESIGN.md's rail label row: 500, open marked by bar and fill. Checked in Chromium at 1280: Reel editor (rail, timeline), docs, sizes guide; no console errors. npm run check green: 102 files, 2676 tests; lint 0 errors (the pre-existing patterns.ts max-lines warning)."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T020": {
+          "text": "Failing test: the component files containing `<b>` or `<strong>` equal `DESIGN.md` §3's `inline-bold` block (one file per line with what it marks). Write the block with the files that will keep them (values the user must notice: limits, counts, sizes).",
+          "section": "Inline bold",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "tests/unit/components/inlineBold.test.ts",
+            "docs/DESIGN.md"
+          ],
+          "test": "`tests/unit/components/inlineBold.test.ts` (fails first)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/components/inlineBold.test.ts: the .tsx files under src/components with an opening <b> or <strong> must equal DESIGN.md §3's new 'Inline bold' list (marker + text fence, CRLF-safe, each file with what it marks and existing on disk). The list keeps 11 files: counts (Header's gallery count, Paper3D's sizes shown, GalleryDialog's picked count, PhotosPane's photo count), readings (PerfMonitor), the playhead time (Transport), the calendar zoom percentage (CalendarFront), limits (PhotosPane's accepted formats and minimum pixels), the match score (PhotoLibraryParts), bold authored in the docs text (DocsPage), and the landing page (Landing, LandingJourney; out of scope, D-067). Fails first as intended: 15 components outside the list (AiSettings, AiWords, LayerProperties, ListRow, LayoutPane, OccasionPane, PrintPane, PhotoPanels, VideoPanels, Paper3DParts, PhotoLibrary, PhotoStore, PhotoTray, SampleGallery, SizeGuide); the listed files' other uses (names, badges, the month) also go in T021. Typecheck, lint clean; npm run check red only on this test."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T021": {
+          "text": "Replace the other `<b>` / `<strong>` uses (26 files today) with plain text or a classed `<span>`; `inlineBold.test.ts` passes; proven to fail by adding a `<b>` to a panel.",
+          "section": "Inline bold",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-2"
+          ],
+          "files": [
+            "src/components/**/*.tsx"
+          ],
+          "test": "`tests/unit/components/inlineBold.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** 33 <b> / <strong> that marked a name, title or term became <span className=\"text-label\"> (a new class in 42-panel.css at --fw-label) in 18 components: AI settings and words, Layout's size names, the Occasion and print toggles and the Print pack title, the media drop zones, the photo store and library badges, the gallery and sample cards, the photo name and the drop zone in Photos, the calendar captions' months, the sizes guide's and paper sizes' fact terms and names; ListRow's name and PhotoTray's slot number keep their classes on a <span>. CSS that targeted them follows (.switch, .size, .drop, .photo .meta, .pack (06, 08), .store-ph, .gcard, .mcaps label (2), .sg-facts, .p3-det .sg-facts, .mst-drop → .text-label); .list-row-name and .lib-badge, bold only through the browser default, now set --fw-label. Kept: the 11 listed files' values, plus the B on the text tool's Bold button (LayerProperties, added to DESIGN.md's list). No test or agent tool selects these by b/strong (only .tl-time b, kept). inlineBold.test.ts passes; proven: a <b> put back in OccasionPane fails it naming the file; restored. Checked in Chromium at 1280 (Photos and Layout steps, sizes guide): names read at 500; no console errors. npm run check green: 103 files, 2679 tests."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T030": {
+          "text": "Failing test: the Google Fonts URL is the same in `index.html`, `src/styles.css` and `scripts/fetch-fonts.mjs`; every weight the stylesheets use is inside the loaded range of its family (headings in `--font-head`: Schibsted's `@font-face` range; other rules: Geist's URL range; `--mono`: Geist Mono's); the loaded ranges hold no weight that nothing uses.",
+          "section": "Fonts",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/styles/fonts.test.ts"
+          ],
+          "test": "`tests/unit/styles/fonts.test.ts` (fails first)",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** tests/unit/styles/fonts.test.ts: the Google Fonts URL is one string in index.html, src/styles.css and scripts/fetch-fonts.mjs; Geist's and Geist Mono's URL ranges and Schibsted's @font-face range each run exactly from the lightest to the heaviest weight drawn in that family (from every stylesheet, the landing page's included: it loads the same fonts; a rule's family is the heading or mono face when it names it, else the body face; a rule naming a face without a weight counts 400; @font-face rules are skipped). weightOf moved to tests/support/cssDeclarations.ts so both tests share it (importing it from weights.test.ts re-ran that file). Measured: Geist 400–700, Geist Mono 400–600, Schibsted 600–800, so the plan's §6 guess (Geist 400..600, Mono 400..500, Schibsted 600..700) would have synthesised bold on the landing page, the countdown and the performance readings: plan §6 and T031 corrected (spec changelog). Fails first as intended: Geist loads from 300, Schibsted from 500. Typecheck, lint clean; npm run check red only on these 2 tests."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T031": {
+          "text": "Narrow the URL to Geist `400..700` (Geist Mono stays `400..600`) in all three places; Schibsted's `@font-face` declares `600 800`. `fonts.test.ts` passes; the desktop app's offline copy (`npm run fetch:fonts`) is refreshed or noted for the release.",
+          "section": "Fonts",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "index.html",
+            "src/styles.css",
+            "scripts/fetch-fonts.mjs",
+            "src/styles/01-base.css"
+          ],
+          "test": "`tests/unit/styles/fonts.test.ts`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** The fonts URL loads Geist 400..700 (was 300..700) in index.html, src/styles.css and scripts/fetch-fonts.mjs; Geist Mono stays 400..600; both Schibsted Grotesk @font-face rules declare 600 800 (was 500 800). fonts.test.ts 5/5. Proven: index.html's Geist put back to 300..700 fails 'one URL' and 'Geist range'; restored. The weight test read the @font-face range '600 800' as a rule at 600: both tests now read text declarations only (textDeclarations in tests/support/cssDeclarations.ts skips @font-face). The desktop app's offline copy (electron/resources/fonts) is gitignored and fetched by the release workflow (desktop-release.yml runs fetch:fonts), so nothing to refresh by hand. npm run check green: 104 files, 2684 tests."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T090": {
+          "text": "`docs/DESIGN.md` §3 final (roles, the two lists); CHANGELOG Unreleased › Changed; `specs/lld.md` Styles paragraph mentions the weight rule.",
+          "section": "Close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2"
+          ],
+          "files": [
+            "docs/DESIGN.md",
+            "CHANGELOG.md",
+            "specs/lld.md"
+          ],
+          "test": "reviewed with the result note",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** DESIGN.md §3 is final: the weights paragraph and role table (T011, T013), the 'Weights allowed above 500' list (41 selectors) and the 'Inline bold' list (12 files) the tests read; the stale line saying 502 would resize labels now says 502 changed weights only. CHANGELOG Unreleased › Changed has the entry. specs/lld.md's Styles paragraph names weights.test.ts, inlineBold.test.ts and fonts.test.ts and what each keeps."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        },
+        "T091": {
+          "text": "Close: `npm run check`, `npm run build` (entry ≤ 350 KB), `npm run lint:full`, `npm run check:licenses`; tick AC-1–AC-3 (AC-4 waits for 590); status Implemented; `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Close",
+          "status": "done",
+          "blockedReason": null,
+          "parallel": false,
+          "manual": false,
+          "covers": [
+            "AC-1",
+            "AC-2",
+            "AC-3"
+          ],
+          "files": [],
+          "test": "`npm run build`",
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-20):** npm run check green (104 files, 2684 tests); npm run build green, entry 313 KB (no growth); npm run lint:full 0 errors (the pre-existing patterns.ts max-lines warning); check:licenses 169 packages allowed. Ticked AC-1 (weights.test.ts: 27 stylesheets, DESIGN.md's list of 36 selectors, tokens only), AC-2 (inlineBold.test.ts: 12 listed files), AC-3 (fonts.test.ts: Geist 400–700, Geist Mono 400–600, Schibsted 600–800, one URL in three places). AC-4 (before/after screenshots in both themes) waits for 590. (T090's note says 41 selectors; the list holds 36.) Status Implemented."
+          ],
+          "startedOn": "2026-10-20",
+          "doneOn": "2026-10-20"
+        }
+      }
+    }
+  }
 }

@@ -71,11 +71,9 @@
 }
 .pane h3 {
   margin: 8px 0 -4px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
+  /* a section title in sentence case (502), as FoldSection's */
+  font: var(--fw-head) var(--fs-md)/1.3 var(--font-head);
+  color: var(--text);
 }
 .next {
   align-self: flex-end;
@@ -251,9 +249,9 @@ input[type='color'] {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
-.switch b {
+.switch .text-label {
   display: block;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .switch small {
   display: block;
@@ -298,7 +296,7 @@ input[type='color'] {
   box-shadow:
     var(--elev-1),
     0 0 0 1px var(--line);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .seg button[aria-pressed='true'] svg {
   color: var(--accent);
@@ -347,9 +345,9 @@ input[type='color'] {
 .size[aria-pressed='true'] svg {
   color: var(--accent);
 }
-.size b {
+.size .text-label {
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   line-height: 1.2;
 }
 .size span {
@@ -362,7 +360,7 @@ input[type='color'] {
   align-self: flex-start;
   font-style: normal;
   font-size: 0.66rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   letter-spacing: 0.02em;
   color: var(--accent);
   background: var(--accent-soft);
@@ -406,7 +404,7 @@ input[type='color'] {
 .layout .count {
   margin-top: -3px;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   color: var(--accent);
   background: var(--accent-soft);
   padding: 1px 8px;
@@ -415,7 +413,7 @@ input[type='color'] {
 .pane .grp {
   margin: 4px 0 8px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   color: var(--text);
 }
 .linkbtn {
@@ -423,7 +421,7 @@ input[type='color'] {
   background: none;
   padding: 0;
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -455,10 +453,10 @@ input[type='color'] {
   width: 1px;
   height: 1px;
 }
-.drop strong {
+.drop .text-label {
   color: var(--accent);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .drop span {
   font-size: 0.82rem;
@@ -518,7 +516,7 @@ input[type='color'] {
   flex-direction: column;
   gap: 4px;
 }
-.photo .meta b {
+.photo .meta .text-label {
   color: var(--text);
   font-weight: 500;
   white-space: nowrap;
@@ -560,10 +558,10 @@ input[type='color'] {
   border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .q {
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .q.good {
   color: var(--good);
@@ -582,7 +580,7 @@ input[type='color'] {
 }
 .guide summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: var(--fw-head);
   font-size: 0.9rem;
 }
 .guide ul {
