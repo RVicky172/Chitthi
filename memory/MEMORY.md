@@ -79,9 +79,9 @@
   (weights.test.ts reads DESIGN.md §3's list; selected states 500, D-067), <b>/<strong> only for values
   (inlineBold.test.ts, .text-label for names), fonts load Geist 400–700, Mono 400–600, Schibsted 600–800
   (fonts.test.ts). AC-4 screenshots wait for 590.
-- **503 ✔️ Implemented 2026-10-20** on `feat/503-panel-accordions` (not committed yet): every studio panel and
+- **503 ✔️ Implemented 2026-10-20** (`fd65e93`), merged into `main` (`0188d61`, not pushed): every studio panel and
   inspector folds, one section open per panel and mode, remembered (`chitthi-folds`); D-068 (A for D1–D4). AC-1–4
-  ticked; AC-5 (fit at 1280 × 720) waits for 590. Entry 312 KB. Next: commit and merge, then 504.
+  ticked; AC-5 (fit at 1280 × 720) waits for 590. Entry 312 KB. Next: 504 (branch from `main`).
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)

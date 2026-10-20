@@ -20,8 +20,8 @@ only, shell groups per panel and per inspector kind (`inspectorKind`, each works
 panel and inspector folds (Audio, Photos, photo editor, Masks, Elements, layer / clip / sound inspectors). Two browser-
 only bugs found in Chromium and fixed (learnings.md: StrictMode cleanup, per-id lists). Tests: foldGroups (13),
 foldMarkup (8), foldCoverage (5). check green (2710), build entry 312 KB, lint:full 0 errors, licences fine. AC-1–4
-ticked; AC-5 waits for 590. Not committed yet.
-**Next:** commit 503 and merge into `main`, then 504.
+ticked; AC-5 waits for 590. Committed `fd65e93`, merged into `main` `0188d61` (not pushed).
+**Next:** 504.
 **Blockers:** none.
 
 ## 2026-10-20 — 502 typography (plan, tasks, T010–T013)
