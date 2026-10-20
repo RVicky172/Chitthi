@@ -19,7 +19,7 @@ MEDIA-STUDIO updated (T090). The maintainer approved DESIGN.md and decided D-066
 edges ≥ 3.1:1), --top-h and --panel-pad shared so rail, panel and panel title line up in all four studios (title at
 208,125 at 1280 and 1440), future minor tools, More to ~860 px at the 8th video tool. T091: check (2599 tests), build
 (entry 313 KB), lint:full 0 errors, licences ok; AC-1–4, AC-6 ticked; Implemented; CHANGELOG entry.
-**Next:** commit 501 and merge into main (maintainer's call), then 502.
+**Next:** 502. 501 committed (`ec1cd98`) and merged into `main` (`8c774b1`), not pushed.
 **Blockers:** none. T001 / T042 (before/after screenshots) and AC-5 wait for the end of Phase UI / 590.
 
 ## 2026-10-20 — 501 studio design system (T012, T013, T020–T025, T030–T032)
