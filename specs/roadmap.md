@@ -61,7 +61,7 @@ Features 501–507 (D-063). 501 is the design overview the others build on; 590 
 
 | #   | Feature | Spec | Status | Needs |
 | --- | ------- | ---- | ------ | ----- |
-| 501 | Studio design overview: one layout and type scale for every studio | [spec](features/501-studio-design-system/spec.md) | ✅ | — |
+| 501 | Studio design overview: one layout and type scale for every studio | [spec](features/501-studio-design-system/spec.md) | ✔️ | — |
 | 502 | Typography: bold only for headings | [spec](features/502-studio-typography/spec.md) | ✅ | 501 |
 | 503 | Folding panel sections: one open at a time | [spec](features/503-panel-accordions/spec.md) | ✅ | 501 |
 | 504 | Media pool for Reels and YouTube | [spec](features/504-media-pool/spec.md) | ✅ | 501, 503 |

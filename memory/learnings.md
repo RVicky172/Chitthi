@@ -583,3 +583,25 @@ chunk in Chromium, Firefox and Electron. Fake microphones: Chromium `--use-fake-
 `media.navigator.permission.disabled`. **`vite preview` sends only the CSP** parsed from
 `nginx/security-headers.conf`, not its Permissions-Policy. **Electron + Playwright:** `page.goto` to a new query on
 `app://chitthi` closed the window; expose a loader on `window` from `main.tsx` and call it instead.
+
+## 2026-10-20 — `prettier --write` reflows whole files; stopping a background `npx vite` leaves Vite running (501 T023)
+
+Many `src/components/studio/*.tsx` files are not at `.prettierrc.json`'s width (long one-line JSX), so
+`npx prettier --write` on one of them rewraps every long line in the file, not just yours (Shell.tsx: 56 changed lines
+for a 13-line edit). Edit by hand to match the file, or run Prettier only on new files. On Windows, stopping a
+background `npx vite` task kills `npx` but not the Vite child, which keeps the port (`--strictPort` then fails on the
+next start); stop the process that owns the port (`Get-NetTCPConnection -LocalPort <port>`).
+
+## 2026-10-20 — A dropdown inside a scrolling rail is clipped (501 T034)
+
+`MoreMenu`'s list is absolutely positioned inside its `.mm`; in a rail with `overflow-y: auto` it cannot paint past
+the rail's edge, so the rail just scrolls and the menu looks missing. The media rail drops its overflow under 720 px
+tall (where More shows and the rail fits by design). Elsewhere, a menu in a scroller needs the scroller's overflow
+visible or the menu moved out of it. Playwright scripts that import `playwright` must run from the repo (a script in
+the scratchpad cannot resolve the package).
+
+## 2026-10-20 — Backslashes in Markdown written through the Bash tool (501)
+
+A `\` written just before `**` escapes the asterisk, so `**Ctrl + \**` breaks the bold: write `\` in the file. Text
+passed through the Bash tool into a heredoc or a Python string can lose a level of backslashes, so check the result
+with `repr()` (build the character with `chr(92)`) instead of trusting what the command looked like.

@@ -20,7 +20,7 @@ dialog,
   margin: 12px 12px 0;
   padding: 8px 10px 8px 14px;
   border-radius: var(--r-lg);
-  height: 60px;
+  height: var(--top-h);
   position: relative;
   z-index: 6;
 }

@@ -202,9 +202,12 @@ src/
                            timelineActions, timelineRows), ig/ = editing
                            panels shared by photos and video (LayerPanel with LayerProperties and LayerControls, MaskPanel, curves, colour
                            mixer, looks), panes/ = the
-                           print studio's step panes, ai/ = AI settings, words and artwork dialogs
+                           print studio's step panes, ai/ = AI settings, words and artwork dialogs, panel/ = the
+                           parts both studios build panels from (PanelHeader, FoldSection, ListRow, EmptyState, RailFrame
+                           with the railWidth rule; docs/DESIGN.md §6); studio/railTools.tsx = the media rails' tools
   styles.css               Ordered @imports of styles/ (section 8, Styles)
-  styles/                  The stylesheet split by feature: 01-base.css … 41-projects.css, in cascade order
+  styles/                  The stylesheet split by feature: 01-base.css … 42-panel.css, in cascade order (tokens in
+                           01-base.css; the shared panel parts in 42-panel.css)
 electron/
   main.cjs                 Main process: window, app:// protocol + CSP, file library, dialogs, menus, updater
   preload.cjs              contextBridge: the only system access for the page
@@ -1088,6 +1091,11 @@ on Escape or an outside click and supports arrow keys, Home and End.
 
 **Styles.** `src/styles.css` is an ordered list of `@import`s of `src/styles/NN-feature.css` (numbers = cascade
 order; Vite inlines them). Add rules to their feature's file and keep a media query next to the rules it adjusts.
+Sizes, widths, spacing and colours are custom properties defined once in `01-base.css` (light, system dark, chosen
+dark); `tests/unit/styles/tokens.test.ts` keeps raw colours and font sizes out of the studio stylesheets. The layout
+widths (`--rail-w-wide`, `--rail-w-narrow`, `--panel-w`, `--insp-w`) are read by both studios' grids, and
+`RailFrame` sets `--rail-w` on the grid from the remembered width (`localStorage['chitthi-rail']`). See
+[DESIGN.md](../docs/DESIGN.md).
 `npm run build:lib` also writes `dist-lib/styles.css`, the same stylesheet flattened, for the design-system sync.
 
 **Performance monitor** (`lib/perf.ts`, `PerfMonitor.tsx`; More → Performance monitor, Find a feature, or View →
@@ -1097,8 +1105,8 @@ while open and pauses while the page is hidden: frames drawn, long tasks (`Perfo
 storage use; on desktop also CPU and memory per process type from `desktop:metrics`. **Copy report** puts the last
 two minutes of samples and a summary on the clipboard as JSON. See [PERFORMANCE.md](../docs/PERFORMANCE.md).
 
-Steps are built from `Section` (`components/common.tsx`): a titled, collapsible group whose open state is kept in
-`localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
+Steps are built from `FoldSection` (`components/panel/FoldSection.tsx`, under a `PanelHeader`): a titled, collapsible
+group whose open state is kept in `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
 when its step isn't on screen yet; the feature finder uses it. `lib/fullscreen.ts` wraps the Fullscreen API.
 
 The 3D viewer (`Viewer3D.tsx`; its motion maths in `viewer3dMotion.ts`, the four views in `Viewer3DFaces.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,

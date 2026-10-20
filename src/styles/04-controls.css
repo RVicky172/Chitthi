@@ -6,6 +6,7 @@
   flex-direction: column;
   min-height: 0;
   timeline-scope: --steps;
+  container: panel / inline-size;
 }
 .progress {
   position: absolute;
@@ -63,30 +64,10 @@
 }
 /* No entrance animation: the snap track already slides the step in. */
 .pane {
-  padding: 28px 24px 40px;
+  padding: var(--panel-pad);
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-.pane .eyebrow {
-  align-self: flex-start;
-  margin: 0 0 -8px;
-  font: 500 0.72rem/1.2 var(--mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-}
-.pane h2 {
-  margin: 0;
-  font: 700 1.75rem/1.08 var(--font-head);
-  letter-spacing: -0.035em;
-  overflow-wrap: anywhere;
-}
-.pane .lead {
-  margin: -6px 0 4px;
-  color: var(--muted);
-  font-size: 0.9rem;
-  text-wrap: pretty;
 }
 .pane h3 {
   margin: 8px 0 -4px;
@@ -173,6 +154,13 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+/* Two dropdowns side by side cut their options ("3 mm (India, Europe)") in the studio's panel (320–420px, 501),
+   so they stack whenever the panel is that narrow; a wider panel (tablets) keeps the pair. */
+@container panel (width < 440px) {
+  .row:has(select) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .inline {
   display: flex;

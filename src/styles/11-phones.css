@@ -93,6 +93,19 @@
   .galfoot .hint {
     display: none;
   }
+  /* the rail's foot (Gallery; the width toggle is hidden) ends the row; steps keep the number above the label */
+  .rail .rail-foot {
+    flex-direction: row;
+    margin: 0 0 0 auto;
+    border-top: 0;
+  }
+  .rail-frame .stepper button,
+  .rail-frame .galbtn {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 9px 12px;
+  }
   .galbtn {
     margin: 0 0 0 auto;
     flex: none;
@@ -107,9 +120,6 @@
   }
   .pane {
     padding: 20px 16px 36px;
-  }
-  .pane h2 {
-    font-size: 1.6rem;
   }
 }
 

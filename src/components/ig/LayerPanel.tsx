@@ -88,7 +88,6 @@ const placed = (props: Pick<LayerPanelProps, 'timing'>, layer: Layer): Layer =>
 export function AddText(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'timing'>>) {
   return (
     <div className="ig-group">
-      <h3>Add text</h3>
       <div className="lp-styles">
         {TEXT_STYLES.map((style) => (
           <button
@@ -231,7 +230,6 @@ export function LayerList(props: Readonly<LayerListProps>) {
   const { layers, selected, timing } = props;
   return (
     <div className="ig-group">
-      <h3>Layers {layers.length > 0 && <span className="ig-count">{layers.length}</span>}</h3>
       {layers.length === 0 ? (
         <p className="hint">Nothing added yet. Text, shapes, stickers and drawings appear here, the top one first.</p>
       ) : (

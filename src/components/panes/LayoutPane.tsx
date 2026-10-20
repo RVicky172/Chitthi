@@ -7,7 +7,8 @@ import { selectSize } from '../../state/actions';
 import { setDesign, setUI, useApp } from '../../state/store';
 import type { CalendarSettings, FrameStyle, MatWidth, ProductId, SizeDef } from '../../types';
 import { LayoutThumb } from '../canvases';
-import { Pane, photoCount, Section, Seg } from '../common';
+import { Pane, photoCount, Seg } from '../common';
+import { FoldSection } from '../panel';
 
 function SizeIcon({ s, land }: Readonly<{ s: SizeDef; land: boolean }>) {
   const long = s.L || 150,
@@ -81,7 +82,7 @@ export function LayoutPane() {
         ]}
         onChange={(orient) => setDesign({ orient })}
       />
-      <Section
+      <FoldSection
         id="layout.layouts"
         title="Layout"
         note={layoutsFor(design.product).find(([id]) => id === design.layout)?.[1]}
@@ -112,9 +113,9 @@ export function LayoutPane() {
             </button>
           ))}
         </div>
-      </Section>
+      </FoldSection>
       {design.product === 'calendar' && (
-        <Section id="layout.calendar" title="Pages" note={design.layout === 'cal-strip' ? 'One page' : pagesNote}>
+        <FoldSection id="layout.calendar" title="Pages" note={design.layout === 'cal-strip' ? 'One page' : pagesNote}>
           {design.layout === 'cal-strip' ? (
             <p className="hint">The Year strip puts all twelve months on one page under your photo.</p>
           ) : (
@@ -135,10 +136,10 @@ export function LayoutPane() {
             Each month takes the next photo in your list, so add one photo per month for a full year. The year, the
             first month and the week start are in the Front step.
           </p>
-        </Section>
+        </FoldSection>
       )}
       {design.product === 'frame' && (
-        <Section id="layout.mat" title="Mat border">
+        <FoldSection id="layout.mat" title="Mat border">
           <Seg<MatWidth>
             label="Mat border"
             value={design.mat}
@@ -150,9 +151,9 @@ export function LayoutPane() {
             ]}
             onChange={(mat) => setDesign({ mat })}
           />
-        </Section>
+        </FoldSection>
       )}
-      <Section id="layout.frame" title={frameLabel}>
+      <FoldSection id="layout.frame" title={frameLabel}>
         {design.product === 'postcard' && (
           <p className="hint" style={{ marginTop: 2 }}>
             For Polaroid, Instax frame and Photo strip layouts.
@@ -174,8 +175,8 @@ export function LayoutPane() {
           ]}
           onChange={(frame) => setDesign({ frame })}
         />
-      </Section>
-      <Section id="layout.size" title="Size" note={sizes.find((size) => size.id === design.sizeId)?.name}>
+      </FoldSection>
+      <FoldSection id="layout.size" title="Size" note={sizes.find((size) => size.id === design.sizeId)?.name}>
         <p className="hint">
           Not sure which size?{' '}
           <button type="button" className="linkbtn" onClick={() => setUI({ screen: 'sizes' })}>
@@ -225,7 +226,7 @@ export function LayoutPane() {
             ))}
           </div>
         )}
-      </Section>
+      </FoldSection>
     </Pane>
   );
 }

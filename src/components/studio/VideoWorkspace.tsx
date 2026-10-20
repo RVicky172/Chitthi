@@ -27,25 +27,15 @@ import {
   typingIn,
   type LayerPanelProps,
 } from '../ig/LayerPanel';
-import {
-  BrushIcon,
-  DownloadIcon,
-  ImageIcon,
-  LayersIcon,
-  MusicIcon,
-  RedoIcon,
-  ShapesIcon,
-  TransitionIcon,
-  TypeIcon,
-  UndoIcon,
-} from '../icons';
+import { DownloadIcon, RedoIcon, UndoIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { ClipInspector, ProjectInspector } from './ClipInspector';
 import { SoundInspector } from './SoundInspector';
 import { OPEN_TRANSITIONS } from './CutMarks';
 import { StudioDialog } from './Dialog';
 import { KeyframeNav } from './KeyframeButton';
-import { StudioShell, type RailItem, type StudioMode } from './Shell';
+import { StudioShell, type StudioMode } from './Shell';
+import { VIDEO_RAIL as RAIL, type VideoTool as Tool } from './railTools';
 import { Timeline } from './Timeline';
 import { recordKeyAction } from './recordKeys';
 import { OPEN_RECORD_VOICE, closeRecordVoice, openRecordVoice, recordVoiceOpen } from './recordVoiceOpen';
@@ -68,17 +58,6 @@ import { VideoStage } from './VideoStage';
  * VideoExport.tsx).
  */
 
-/** The tool rail's tools. */
-type Tool = 'media' | 'text' | 'elements' | 'draw' | 'transitions' | 'audio' | 'layers';
-const RAIL: RailItem<Tool>[] = [
-  { id: 'media', label: 'Media', icon: <ImageIcon /> },
-  { id: 'text', label: 'Text', icon: <TypeIcon /> },
-  { id: 'elements', label: 'Elements', icon: <ShapesIcon /> },
-  { id: 'draw', label: 'Draw', icon: <BrushIcon /> },
-  { id: 'transitions', label: 'Transitions', icon: <TransitionIcon /> },
-  { id: 'audio', label: 'Audio', icon: <MusicIcon /> },
-  { id: 'layers', label: 'Layers', icon: <LayersIcon /> },
-];
 
 /**
  * Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo and redo, Space plays and pauses, and Shift + R records and stops a

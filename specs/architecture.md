@@ -248,6 +248,9 @@ Every change follows these; [CLAUDE.md](../CLAUDE.md) → *Things that bite* has
   `electron/main.cjs`.
 - **Errors.** Caught-and-shown failures call `logError('handled', e)` (`src/lib/errors.ts`).
 - **Styles.** Numbered files imported in cascade order from `src/styles.css`; new ones go at the end. Media studio UI
-  uses the root class `.mst`, never `.ig`.
+  uses the root class `.mst`, never `.ig`. Colours, font sizes, spacing and the studio widths are tokens in
+  `01-base.css` (never a raw colour or font size in a studio stylesheet; a unit test checks). Panels in either studio
+  are built from the shared parts in `src/components/panel/` (styled in `42-panel.css`), not a studio's own copy. The
+  layout, scales and panel map: [docs/DESIGN.md](../docs/DESIGN.md).
 - **Agents.** Every user-facing feature is reachable through a tool in `src/agent/tools.ts`, documented in
   [docs/MCP.md](../docs/MCP.md).

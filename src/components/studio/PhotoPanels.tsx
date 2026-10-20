@@ -10,6 +10,7 @@ import { addPhotos } from '../../state/instagramMedia';
 import { fullUrl, useLibrary } from '../../state/library';
 import type { StoredPhoto } from '../../types';
 import { AddPhotoIcon, InstagramIcon, PhotosIcon, TrashIcon } from '../icons';
+import { EmptyState } from '../panel';
 import { dataUrlToBlob } from './photoRender';
 
 /* The photo editor's empty stage, its Photos panel (add photos, the batch size, the photo library). */
@@ -37,27 +38,32 @@ interface EmptyStageProps {
 export function EmptyPhotoStage({ onAdd }: Readonly<EmptyStageProps>) {
   const [messages, setMessages] = useState<string[]>([]);
   return (
-    <div className="mst-empty">
-      <InstagramIcon />
-      <h2>Make Instagram posts</h2>
-      <p>Add up to {IG_MAX_BATCH} photos. Each one is shaped to the post format; add text, stickers and drawings, then export or share.</p>
-      <label className="btn primary mst-file">
-        <AddPhotoIcon />
-        Add photos
-        <input
-          type="file"
-          accept={PHOTO_ACCEPT}
-          multiple
-          onChange={(event) => {
-            void addPhotos(photosOf(event.target.files ?? [])).then((added) => {
-              setMessages(added);
-              onAdd();
-            });
-          }}
-        />
-      </label>
-      {messages.length > 0 && <p className="hint bad">{messages[0]}</p>}
-    </div>
+    <EmptyState
+      icon={<InstagramIcon />}
+      title="Make Instagram posts"
+      action={
+        <>
+          <label className="btn primary mst-file">
+            <AddPhotoIcon />
+            Add photos
+            <input
+              type="file"
+              accept={PHOTO_ACCEPT}
+              multiple
+              onChange={(event) => {
+                void addPhotos(photosOf(event.target.files ?? [])).then((added) => {
+                  setMessages(added);
+                  onAdd();
+                });
+              }}
+            />
+          </label>
+          {messages.length > 0 && <p className="hint bad">{messages[0]}</p>}
+        </>
+      }
+    >
+      Add up to {IG_MAX_BATCH} photos. Each one is shaped to the post format; add text, stickers and drawings, then export or share.
+    </EmptyState>
   );
 }
 
@@ -168,7 +174,6 @@ export function PhotoMediaPanel() {
   return (
     <>
       <div className="ig-group">
-        <h3>Add photos</h3>
         <label className="mst-drop">
           <AddPhotoIcon />
           <span>

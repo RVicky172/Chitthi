@@ -1,7 +1,8 @@
 import { resolveTheme } from '../../engine/design';
 import { setDesign, setUI, useApp } from '../../state/store';
 import type { HAlign, ProductId, VAlign } from '../../types';
-import { Check, Pane, Section, Seg } from '../common';
+import { Check, Pane, Seg } from '../common';
+import { FoldSection } from '../panel';
 import { FontPicker } from '../FontPicker';
 import { InstagramIcon } from '../icons';
 import { AiWordsEntry } from '../ai/AiEntry';
@@ -27,7 +28,7 @@ function CardWords() {
   const theme = resolveTheme(design);
   return (
     <Pane title="Front" lead={WORDS_LEADS[design.product]} next="back" onNext={() => setUI({ pane: 'back' })}>
-      <Section id="words.text" title="Greeting, quote and signature">
+      <FoldSection id="words.text" title="Greeting, quote and signature">
         <AiWordsEntry mode="card" />
         <Check checked={design.showHeading} onChange={(showHeading) => setDesign({ showHeading })}>
           Greeting
@@ -101,13 +102,13 @@ function CardWords() {
           weight="bw"
           onChange={(font) => setDesign({ sigFont: font === design.quoteFont ? '' : font })}
         />
-      </Section>
+      </FoldSection>
       {design.layout === 'stamp' && (
-        <Section id="words.postmark" title="Postmark" note={String(design.postYear || new Date().getFullYear())}>
+        <FoldSection id="words.postmark" title="Postmark" note={String(design.postYear || new Date().getFullYear())}>
           <PostmarkYear />
-        </Section>
+        </FoldSection>
       )}
-      <Section
+      <FoldSection
         id="words.insta"
         title="Instagram tag"
         note={design.insta ? `@${design.insta}` : undefined}
@@ -135,8 +136,8 @@ function CardWords() {
           weight="hw"
           onChange={(font) => setDesign({ instaFont: font === 'Hind' ? '' : font })}
         />
-      </Section>
-      <Section id="words.fonts" title="Text size" note={`${Math.round(design.textScale * 100)}%`}>
+      </FoldSection>
+      <FoldSection id="words.fonts" title="Text size" note={`${Math.round(design.textScale * 100)}%`}>
         <label className="f">
           Text size
           <input
@@ -148,8 +149,8 @@ function CardWords() {
             onChange={(event) => setDesign({ textScale: +event.target.value })}
           />
         </label>
-      </Section>
-      <Section id="words.place" title="Position and colour">
+      </FoldSection>
+      <FoldSection id="words.place" title="Position and colour">
         <div className="inline">
           <Seg<VAlign>
             label="Vertical position"
@@ -189,7 +190,7 @@ function CardWords() {
         <Check checked={design.ornament} onChange={(ornament) => setDesign({ ornament })}>
           Ornament between greeting and quote
         </Check>
-      </Section>
+      </FoldSection>
     </Pane>
   );
 }

@@ -11,6 +11,28 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-20 — 501 studio design system closed (T033–T034, T040–T043, T090–T091)
+
+**Done:** media rail in RailFrame (Add / Edit, print-rail look, More ≤ 720 px; T034). docs/DESIGN.md with measured
+widths, type, spacing, contrast, shared parts and the panel map (T040, T041), linked from README; lld, architecture,
+MEDIA-STUDIO updated (T090). The maintainer approved DESIGN.md and decided D-066: --line-strong to 62% / 54% (field
+edges ≥ 3.1:1), --top-h and --panel-pad shared so rail, panel and panel title line up in all four studios (title at
+208,125 at 1280 and 1440), future minor tools, More to ~860 px at the 8th video tool. T091: check (2599 tests), build
+(entry 313 KB), lint:full 0 errors, licences ok; AC-1–4, AC-6 ticked; Implemented; CHANGELOG entry.
+**Next:** commit 501 and merge into main (maintainer's call), then 502.
+**Blockers:** none. T001 / T042 (before/after screenshots) and AC-5 wait for the end of Phase UI / 590.
+
+## 2026-10-20 — 501 studio design system (T012, T013, T020–T025, T030–T032)
+
+**Done:** tokens done: 36-media-studio, 35-instagram, 41-projects, 03-shell read only tokens (sizes snapped to the --fs scale); the print panel reads --panel-w (320 px at 1280, was 420) and paired dropdowns stack in the narrow panel (container query). Shared panel parts in `src/components/panel/`: FoldSection (moved from common.tsx; library entry exports FoldSection, not Section), PanelHeader (print Pane and the media panels, eyebrow Add / Edit from RailItem.group, lead from RailItem.lead), EmptyState (both empty stages), ListRow (Projects list); styles in the new 42-panel.css, 24-sections.css deleted. tokens.test.ts and sharedParts.test.ts pass; npm run check green (2576 tests). Nothing committed yet.
+Rail: railWidth rule + storage (T030, 15 tests), RailFrame (T031: --rail-w on the studio grid, Compact rail toggle with aria-pressed, Ctrl + \, narrow labels visually hidden), the print rail inside it (T032, checked in Chromium: 184 ↔ 64 px, remembered, phones unchanged).
+**Next:** the maintainer reviews docs/DESIGN.md (T043, blocked on them), then T091 closes 501. T042 is deferred with T001.
+**Also done:** T090 (lld, architecture, MEDIA-STUDIO docs). T091 gates dry run: build green, entry 313 KB (budget 350), lint:full 0 errors (1 max-lines warning in engine/patterns.ts, from main since the 2026-10-19 deps bump, not this branch), check:licenses 169 packages ok.
+**Also done:** T041 panel map (DESIGN.md §7: today, planned 210–309, the rail once built, the More height rule).
+**Also done:** T040 docs/DESIGN.md (layout and widths measured at 4 sizes, rail, type, spacing, colour contrast in both themes, shared parts; README link).
+**Also done:** T033 (railGroups.test.ts), T034 (media rail in RailFrame: Add / Edit, print-rail look, More under 720 px; checked in Chromium).
+**Blockers:** none. T001 is deferred to the end of Phase UI (before/after shots together).
+
 ## 2026-10-20 — Phase UI (501–507, 590) specs drafted
 **Done:** new roadmap phase `phase-ui` (D-063) with draft specs: 501 design overview (layout, type scale, panel map; the
 print studio is the reference), 502 bold only for headings, 503 folding sections (one open), 504 media pool for Reels /

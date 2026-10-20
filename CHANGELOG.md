@@ -81,6 +81,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Both studios share one design (`docs/DESIGN.md`): the photo & video studio's rail and panel now match the print
+  studio's widths, header and spacing. The rail can be **expanded** (icons with labels, the default) or made
+  **compact** (icons only) with the button at its foot or **Ctrl + \\**, remembered for both studios. The media rail
+  groups its tools under **Add** and **Edit**; in a window 720 px tall or less, Draw moves into **More**. Every panel
+  starts with the same header (Add / Edit or the step number, the title and one sentence), and field borders are
+  darker in the light theme and lighter in the dark one so their edges are easier to see (3:1 contrast).
 - A message shown twice in a row is shown (and announced) again.
 - Video editor: the preview and the export decode clips through one **decoder pool**. Playback is smoother: the next
   clip is opened before its cut, so cuts no longer stall or flash black, and a late frame holds the last one while the

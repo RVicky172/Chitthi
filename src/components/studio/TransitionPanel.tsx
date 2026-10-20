@@ -120,7 +120,6 @@ export function TransitionPanel() {
   };
   return (
     <div className="ig-group tr-panel">
-      <h3>Transitions</h3>
       {'why' in target ? (
         <p className="hint">{target.why}</p>
       ) : (

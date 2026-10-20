@@ -19,7 +19,7 @@
   flex: 1;
   min-height: 520px;
   display: grid;
-  grid-template-columns: 88px 420px minmax(0, 1fr);
+  grid-template-columns: var(--rail-w, 88px) var(--panel-w) minmax(0, 1fr);
   border-top: 1px solid var(--line);
 }
 .rail {
@@ -59,7 +59,7 @@
   justify-content: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 500;
   line-height: 1.15;
   text-align: left;
@@ -76,7 +76,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font: 500 0.72rem/1 var(--mono);
+  font: var(--fw-label) var(--fs-xs)/1 var(--mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
@@ -111,9 +111,18 @@
 .stepper li.now .dot {
   color: var(--accent);
 }
-.galbtn {
-  margin-top: auto;
-  border-top: 1px solid var(--line);
+/* wide rail: the number beside the label; narrow: the number alone, centred (RailFrame, 42-panel.css) */
+.rail-wide .stepper button,
+.rail-wide .galbtn {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.rail-narrow .stepper button,
+.rail-narrow .galbtn {
+  align-items: center;
+  padding-inline: 0;
 }
 .galbtn .ico {
   display: block;
@@ -197,14 +206,14 @@
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .calstyle-t {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   line-height: 1;
 }
 .calstyle-g {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
-  font-size: 0.62rem;
+  font-size: var(--fs-3xs);
   font-style: normal;
 }
 .calstyle-g i {
@@ -223,7 +232,7 @@
   border-radius: 3px;
 }
 .calstyle small {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -254,7 +263,7 @@
   border-radius: var(--r-sm);
   background: var(--field);
   color: var(--text);
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   cursor: pointer;
   box-shadow: var(--elev-1);
 }

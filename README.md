@@ -454,6 +454,7 @@ reader; not yet tested end to end with screen readers): [docs/ACCESSIBILITY.md](
 | [OPERATIONS](docs/OPERATIONS.md) | Running the web app in production: container, TLS and HSTS, headers, upgrade, rollback |
 | **Engineering (`specs/`)** | |
 | [specs/](specs/README.md) | How Chitthi is built: the [constitution](specs/constitution.md) (principles and Definition of Done), the spec-driven [workflow](specs/workflow.md) and the [roadmap](specs/roadmap.md) |
+| [Studio design](docs/DESIGN.md) | The studios' layout and widths, the rail, the type, spacing and colour scales with contrast, the shared panel parts |
 | [Architecture](specs/architecture.md) · [LLD](specs/lld.md) | High-level design (context, deployment, flows, storage, security, decisions, conventions); low-level design (modules, data model, store, rendering, export, IPC) |
 | [Tech stack](specs/tech-stack.md) | The stack, why each piece is used, and what was rejected |
 | [Testing](specs/testing-strategy.md) | The test suites, what each covers, and how to add tests |

@@ -71,7 +71,10 @@
   The studios now start their project on opening (`showStudio`): not yet run in a browser. Entry 314 KB.
 - **Phase UI (D-063, 2026-10-20):** specs 501–507 and 590 **Approved** (all proposed answers) on `spec/5xx-studio-ui`.
   Built next, before 210; ships with Phase 2 as 3.0.0 (290 needs 590). 501 plan Approved (D-064 expandable rail,
-  D-065 widths), tasks T001–T091 written. Next: 501 T001.
+  D-065 widths), tasks T001–T091 written. **501 ✔️ Implemented 2026-10-20** on `feat/501-studio-design-system` (not committed yet): tokens in
+  01-base.css (widths, --top-h, --panel-pad, type, colours; --line-strong raised to 3:1, D-066), shared panel parts in
+  components/panel/ + 42-panel.css, the expandable rail in both studios (Add / Edit, More ≤ 720 px), docs/DESIGN.md
+  (approved, panel map). AC-5 waits for 590; T001/T042 screenshots deferred to the end of Phase UI. Next: 502.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
