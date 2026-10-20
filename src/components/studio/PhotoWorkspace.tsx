@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { IG_FORMATS, igFormat } from '../../data/instagram';
 import { toast } from '../../lib/toast';
 import { getIg, redo, selectLayer, setIg, setTools, undo, useIg, type IgItem } from '../../state/instagram';
@@ -105,24 +105,26 @@ function ToolPanel({ tool, item, layerProps }: Readonly<ToolPanelProps>) {
   return <LayersPanel item={item} layerProps={layerProps} />;
 }
 
-/** The inspector. */
-interface InspectorProps {
-  tool: Tool | null;
-  item: IgItem | undefined;
-  layerProps: LayerPanelProps | null;
+/** What the inspector shows, and which kind it is (each kind remembers its open section, 503). */
+interface InspectorView {
+  kind: 'none' | 'mask' | 'layer' | 'photo';
+  content: ReactNode;
 }
 
 /**
  * The inspector: the selected mask (with the Masks tool open), else the selected layer, else the photo.
- * @param props the tool, the selected photo and the layer panels' props
+ * @param tool the open tool
+ * @param item the selected photo
+ * @param layerProps the layer panels' props
+ * @returns its kind and content
  */
-function Inspector({ tool, item, layerProps }: Readonly<InspectorProps>) {
+function useInspector(tool: Tool | null, item: IgItem | undefined, layerProps: LayerPanelProps | null): InspectorView {
   const maskSel = useIg((state) => state.maskSel);
   const layerSel = useIg((state) => state.layerSel);
-  if (!item) return <p className="hint mst-pad">Nothing selected yet.</p>;
-  if (tool === 'masks' && maskSel && item.edit.masks.some((mask) => mask.id === maskSel)) return <MaskInspector item={item} />;
-  if (layerSel && layerProps) return <LayerProps {...layerProps} />;
-  return <PhotoEditPanel item={item} />;
+  if (!item) return { kind: 'none', content: <p className="hint mst-pad">Nothing selected yet.</p> };
+  if (tool === 'masks' && maskSel && item.edit.masks.some((mask) => mask.id === maskSel)) return { kind: 'mask', content: <MaskInspector item={item} /> };
+  if (layerSel && layerProps) return { kind: 'layer', content: <LayerProps {...layerProps} /> };
+  return { kind: 'photo', content: <PhotoEditPanel item={item} /> };
 }
 
 /**
@@ -186,6 +188,7 @@ export function PhotoWorkspace({ mode, onMode }: Readonly<PhotoWorkspaceProps>) 
   }, [tool]);
   useUndoKeys();
   const layerProps = current ? layerPanelProps(current, layerSel) : null;
+  const inspector = useInspector(tool, current, layerProps);
 
   return (
     <StudioShell
@@ -196,7 +199,8 @@ export function PhotoWorkspace({ mode, onMode }: Readonly<PhotoWorkspaceProps>) 
       onTool={setTool}
       actions={<WorkspaceActions onExport={() => setExporting(true)} />}
       panel={<ToolPanel tool={tool} item={current} layerProps={layerProps} />}
-      inspector={<Inspector tool={tool} item={current} layerProps={layerProps} />}
+      inspector={inspector.content}
+      inspectorKind={inspector.kind}
       stage={current ? <PhotoStage item={current} /> : <EmptyPhotoStage onAdd={() => setTool('media')} />}
       dock={<PhotoStrip />}
     >

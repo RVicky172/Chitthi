@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { DEFAULT_ADJUST, type Adjustments } from '../../engine/adjust';
 import { isOneOf } from '../../engine/guards';
 import {
@@ -15,6 +16,7 @@ import type { AiTarget } from '../../engine/segments';
 import { selectMask, setMaskBrush, setMasks, updateMask, useIg, type IgItem } from '../../state/instagram';
 import { Check, Seg } from '../common';
 import { TrashIcon } from '../icons';
+import { FoldSection } from '../panel';
 import { Slider } from './Slider';
 import { findWithAi, useAiStatus, type AiStatus } from './useAiMask';
 
@@ -155,11 +157,26 @@ export function MaskPanel({ item }: Readonly<MaskItemProps>) {
     updateMask(item.id, mask.id, (old) => ({ ...old, parts }), key);
   };
 
+  // 503 D3: the list stays above; the selected mask is a section holding its selected part's settings; an AI part's
+  // settings are a section of their own. With no mask selected, the brush (which starts one) shows plain.
   return (
     <div className="lp">
       <MaskList item={item} />
-      {mask && <SelectedMask item={item} mask={mask} replacePart={replacePart} />}
-      {(!part || part.kind === 'brush') && <BrushSettings hasMask={!!mask} />}
+      {mask ? (
+        <SelectedMask item={item} mask={mask} replacePart={replacePart}>
+          {(!part || part.kind === 'brush') && <BrushSettings hasMask />}
+          {part && part.kind !== 'brush' && part.kind !== 'ai' && (
+            <PartSettings
+              part={part}
+              onPatch={(patch, setting) => replacePart({ ...part, ...patch }, `maskpart:${part.id}:${setting}`)}
+            />
+          )}
+        </SelectedMask>
+      ) : (
+        <div className="ig-group">
+          <BrushSettings hasMask={false} />
+        </div>
+      )}
       {part?.kind === 'ai' && (
         <AiPartSettings
           item={item}
@@ -168,12 +185,6 @@ export function MaskPanel({ item }: Readonly<MaskItemProps>) {
             replacePart({ ...part, target });
             void findWithAi(item, target);
           }}
-        />
-      )}
-      {part && part.kind !== 'brush' && part.kind !== 'ai' && (
-        <PartSettings
-          part={part}
-          onPatch={(patch, setting) => replacePart({ ...part, ...patch }, `maskpart:${part.id}:${setting}`)}
         />
       )}
     </div>
@@ -267,14 +278,16 @@ interface SelectedMaskProps {
   mask: Mask;
   /** Replaces one of its parts (same id); `key` groups changes into one undo step. */
   replacePart: (part: MaskPart, key?: string) => void;
+  /** The selected part's settings (brush, gradient, range), under the parts. */
+  children?: ReactNode;
 }
 
 /**
- * The selected mask: its name, invert, the red overlay, its parts (select, join, invert, clear, delete) and adding
- * parts.
- * @param props the photo, the mask and replacing a part
+ * The selected mask: its name, invert, the red overlay, its parts (select, join, invert, clear, delete), adding
+ * parts, and the selected part's settings. It opens itself when a mask is chosen (503 D3).
+ * @param props the photo, the mask, replacing a part and the part's settings
  */
-function SelectedMask({ item, mask, replacePart }: Readonly<SelectedMaskProps>) {
+function SelectedMask({ item, mask, replacePart, children }: Readonly<SelectedMaskProps>) {
   const partSel = useIg((state) => state.partSel),
     brush = useIg((state) => state.maskBrush);
   const masks = item.edit.masks;
@@ -286,8 +299,7 @@ function SelectedMask({ item, mask, replacePart }: Readonly<SelectedMaskProps>) 
     selectMask(mask.id, part.id);
   };
   return (
-    <div className="ig-group">
-      <h3>Selected mask</h3>
+    <FoldSection id="masks.selected" title="Selected mask" note={mask.name} openWhen>
       <div className="ig-slider">
         <label htmlFor="mk-name">Name</label>
         <input
@@ -356,7 +368,8 @@ function SelectedMask({ item, mask, replacePart }: Readonly<SelectedMaskProps>) 
           </button>
         ))}
       </div>
-    </div>
+      {children}
+    </FoldSection>
   );
 }
 
@@ -450,8 +463,8 @@ interface BrushSettingsProps {
 function BrushSettings({ hasMask }: Readonly<BrushSettingsProps>) {
   const brush = useIg((state) => state.maskBrush);
   return (
-    <div className="ig-group">
-      <h3>Brush</h3>
+    <div className="ig-sub">
+      <h4>Brush</h4>
       <Seg<'paint' | 'erase'>
         label="Brush mode"
         value={brush.erase ? 'erase' : 'paint'}
@@ -556,8 +569,8 @@ export function PartSettings({ part, onPatch, idPrefix = 'mk', inLayer = false }
   };
   if (part.kind === 'linear')
     return (
-      <div className="ig-group">
-        <h3>Linear gradient</h3>
+      <div className="ig-sub">
+        <h4>Linear gradient</h4>
         <p className="hint">
           Full on one side, fading to nothing across its length.{' '}
           {inLayer ? 'Positions are within the layer.' : 'Drag on the photo to draw it, or move its handles.'}
@@ -570,8 +583,8 @@ export function PartSettings({ part, onPatch, idPrefix = 'mk', inLayer = false }
     );
   if (part.kind === 'radial')
     return (
-      <div className="ig-group">
-        <h3>Radial gradient</h3>
+      <div className="ig-sub">
+        <h4>Radial gradient</h4>
         <p className="hint">
           Full inside, fading out towards its edge.{' '}
           {inLayer
@@ -589,8 +602,8 @@ export function PartSettings({ part, onPatch, idPrefix = 'mk', inLayer = false }
   if (part.kind === 'colour') {
     const hex = `#${[part.r, part.g, part.b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
     return (
-      <div className="ig-group">
-        <h3>Colour range</h3>
+      <div className="ig-sub">
+        <h4>Colour range</h4>
         <p className="ig-swatch">
           <span style={{ background: hex }} aria-hidden="true" /> Picked colour {hex}
         </p>
@@ -600,8 +613,8 @@ export function PartSettings({ part, onPatch, idPrefix = 'mk', inLayer = false }
     );
   }
   return (
-    <div className="ig-group">
-      <h3>Brightness range</h3>
+    <div className="ig-sub">
+      <h4>Brightness range</h4>
       <p className="hint">Click the photo to choose the tones around that brightness, or set the range.</p>
       {plain('lo', 'Darkest')}
       {plain('hi', 'Lightest', 100)}
@@ -641,9 +654,9 @@ interface AiPartSettingsProps {
  */
 function AiPartSettings({ item, part, onTarget }: Readonly<AiPartSettingsProps>) {
   const status = useAiStatus(item.id, part.target);
+  // Its own section (503 D3), opened when an AI part is chosen.
   return (
-    <div className="ig-group">
-      <h3>Found by AI</h3>
+    <FoldSection id="masks.ai" title="Found by AI" note={TARGETS[part.target]} openWhen>
       <Seg<AiTarget>
         label="What to find"
         value={part.target}
@@ -666,7 +679,7 @@ function AiPartSettings({ item, part, onTarget }: Readonly<AiPartSettingsProps>)
           Try again
         </button>
       )}
-    </div>
+    </FoldSection>
   );
 }
 

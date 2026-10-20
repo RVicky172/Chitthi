@@ -3,6 +3,7 @@ import { clipLength } from '../../engine/timeline';
 import { resetSpeed, setClipRamp, setClipReverse, setClipSpeed } from '../../state/videoSpeed';
 import type { VClip } from '../../state/videoStore';
 import { Check, Seg } from '../common';
+import { FoldSection } from '../panel';
 import { RampEditor } from './RampEditor';
 import { sliderToSpeed, speedText, speedToSlider } from './speedUi';
 import { tellSpeed } from './timelineActions';
@@ -89,31 +90,46 @@ export function SpeedGroup({ clip }: Readonly<SpeedGroupProps>) {
   const muted = soundMuted(clip);
   const atOne = !clip.ramp && !clip.reverse && (clip.speed ?? 1) === 1;
   return (
-    <div className="ig-group v-speed">
-      <h3>Speed</h3>
-      <Seg<'constant' | 'ramp'>
-        label="Speed kind"
-        value={mode}
-        options={[
-          ['constant', 'Constant'],
-          ['ramp', 'Ramp'],
-        ]}
-        onChange={(next) => {
-          if (next === mode) return;
-          tellSpeed(next === 'ramp' ? setClipRamp(clip.id, 'montage') : setClipSpeed(clip.id, 1, ''));
-        }}
-      />
-      {mode === 'ramp' ? <RampSpeed clip={clip} /> : <ConstantSpeed clip={clip} />}
-      <Check checked={!!clip.reverse} onChange={(reverse) => tellSpeed(setClipReverse(clip.id, reverse))}>
-        Reverse
-      </Check>
-      <p className="hint" role="status">
-        Plays for {clipLength(clip).toFixed(1)} s{muted ? `. ${muted}` : ''}
-      </p>
-      <button type="button" className="sbtn" disabled={atOne} onClick={() => tellSpeed(resetSpeed(clip.id))}>
-        Reset speed
-      </button>
-    </div>
+    <FoldSection id="clip.speed" title="Speed" note={speedNote(clip)}>
+      <div className="v-speed">
+        <Seg<'constant' | 'ramp'>
+          label="Speed kind"
+          value={mode}
+          options={[
+            ['constant', 'Constant'],
+            ['ramp', 'Ramp'],
+          ]}
+          onChange={(next) => {
+            if (next === mode) return;
+            tellSpeed(next === 'ramp' ? setClipRamp(clip.id, 'montage') : setClipSpeed(clip.id, 1, ''));
+          }}
+        />
+        {mode === 'ramp' ? <RampSpeed clip={clip} /> : <ConstantSpeed clip={clip} />}
+        <Check checked={!!clip.reverse} onChange={(reverse) => tellSpeed(setClipReverse(clip.id, reverse))}>
+          Reverse
+        </Check>
+        <p className="hint" role="status">
+          Plays for {clipLength(clip).toFixed(1)} s{muted ? `. ${muted}` : ''}
+        </p>
+        <button type="button" className="sbtn" disabled={atOne} onClick={() => tellSpeed(resetSpeed(clip.id))}>
+          Reset speed
+        </button>
+      </div>
+    </FoldSection>
   );
+}
+
+/**
+ * The Speed section's summary when the clip does not play at normal speed.
+ * @param clip the video clip
+ * @returns e.g. "2×", "Ramp", "0.5× · reversed"; nothing at 1×
+ */
+function speedNote(clip: VClip): string | undefined {
+  const parts: string[] = [];
+  const speed = clip.speed ?? 1;
+  if (clip.ramp) parts.push('Ramp');
+  else if (speed !== 1) parts.push(`${speed}×`);
+  if (clip.reverse) parts.push('reversed');
+  return parts.length ? parts.join(' · ') : undefined;
 }
 

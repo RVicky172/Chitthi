@@ -3,7 +3,7 @@ import { isDesktop } from '../../platform/desktop';
 import { setUI } from '../../state/store';
 import { FolderIcon, ImageIcon, LaptopIcon, Logo, MoreIcon, ReelIcon, YouTubeIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
-import { PanelHeader, RailFrame } from '../panel';
+import { FoldGroup, PanelHeader, RailFrame } from '../panel';
 import { StudioDialog } from './Dialog';
 import { SaveStatusLine } from './ProjectStatus';
 
@@ -125,6 +125,8 @@ interface StudioShellProps<T extends string> {
   panel: ReactNode;
   stage: ReactNode;
   inspector: ReactNode;
+  /** What the inspector shows ("clip", "layer", "sound" …): each kind remembers its own open section (503). */
+  inspectorKind: string;
   dock: ReactNode;
   /** Dialogs. */
   children?: ReactNode;
@@ -135,7 +137,7 @@ interface StudioShellProps<T extends string> {
  * @param props the mode, actions, rail and tool, and the panel, stage, inspector, dock and dialogs
  */
 export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T>>) {
-  const { mode, onMode, actions, rail, tool, onTool, panel, stage, inspector, dock, children } = props;
+  const { mode, onMode, actions, rail, tool, onTool, panel, stage, inspector, inspectorKind, dock, children } = props;
   const [isListing, setListing] = useState(false);
   const openTool = rail.find((item) => item.id === tool);
   return (
@@ -177,11 +179,12 @@ export function StudioShell<T extends string>(props: Readonly<StudioShellProps<T
           {openTool && (
             <section className="mst-panel" aria-label={`${openTool.label} tools`}>
               <PanelHeader eyebrow={GROUP_NAMES[openTool.group]} title={openTool.label} lead={openTool.lead} />
-              {panel}
+              {/* One section open at a time, remembered per panel and mode (503). */}
+              <FoldGroup id={`${mode}:${openTool.id}`}>{panel}</FoldGroup>
             </section>
           )}
           <aside className="mst-inspector" aria-label="Inspector">
-            {inspector}
+            <FoldGroup id={`${mode}:inspector:${inspectorKind}`}>{inspector}</FoldGroup>
           </aside>
         </div>
         <main className="mst-stage">{stage}</main>

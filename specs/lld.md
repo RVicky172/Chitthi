@@ -203,7 +203,7 @@ src/
                            panels shared by photos and video (LayerPanel with LayerProperties and LayerControls, MaskPanel, curves, colour
                            mixer, looks), panes/ = the
                            print studio's step panes, ai/ = AI settings, words and artwork dialogs, panel/ = the
-                           parts both studios build panels from (PanelHeader, FoldSection, ListRow, EmptyState, RailFrame
+                           parts both studios build panels from (PanelHeader, FoldGroup / FoldSection with foldGroups.ts, ListRow, EmptyState, RailFrame
                            with the railWidth rule; docs/DESIGN.md §6); studio/railTools.tsx = the media rails' tools
   styles.css               Ordered @imports of styles/ (section 8, Styles)
   styles/                  The stylesheet split by feature: 01-base.css … 42-panel.css, in cascade order (tokens in
@@ -1108,9 +1108,17 @@ while open and pauses while the page is hidden: frames drawn, long tasks (`Perfo
 storage use; on desktop also CPU and memory per process type from `desktop:metrics`. **Copy report** puts the last
 two minutes of samples and a summary on the clipboard as JSON. See [PERFORMANCE.md](../docs/PERFORMANCE.md).
 
-Steps are built from `FoldSection` (`components/panel/FoldSection.tsx`, under a `PanelHeader`): a titled, collapsible
-group whose open state is kept in `localStorage['chitthi-sections']`. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount
-when its step isn't on screen yet; the feature finder uses it. `lib/fullscreen.ts` wraps the Fullscreen API.
+Steps, studio panels and inspectors are built from `FoldSection` inside a `FoldGroup`
+(`components/panel/FoldSection.tsx`, under a `PanelHeader`; 503): one section open per group. The rules are pure, in
+`components/panel/foldGroups.ts` (`toggleFold`, `resolveFold`, `opensNow`, `readFolds` / `saveFold`); a module store
+read with `useSyncExternalStore` keeps each group's open section (or `null`) in `localStorage['chitthi-folds']`
+(the pre-503 per-section `chitthi-sections` is removed on the first write). Groups: `print:<step title>` (`Pane`),
+`<mode>:<tool>` and `<mode>:inspector:<kind>` (`StudioShell`, from each workspace's `useInspector`). A group's
+sections register in effects (StrictMode replays them) and its lists are per id (the shell's group outlives a tool
+change); with nothing remembered the first section not marked `defaultOpen={false}` opens. `openWhen` opens a section
+on false → true, `onClosed` runs on open → closed (Record voice closes the microphone), `actions` sit beside the title
+button. `revealSection(id)` opens, scrolls to and focuses a section, waiting for it to mount when its step isn't on
+screen yet; the feature finder uses it. `lib/fullscreen.ts` wraps the Fullscreen API.
 
 The 3D viewer (`Viewer3D.tsx`; its motion maths in `viewer3dMotion.ts`, the four views in `Viewer3DFaces.tsx`) runs one animation loop: drag with momentum (velocity from the last pointer move,
 decaying 7% a frame), hover tilt towards the pointer, smoothed zoom (wheel, pinch, buttons, 50–260%), and per-face

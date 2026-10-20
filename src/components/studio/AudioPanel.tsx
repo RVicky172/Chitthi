@@ -6,7 +6,8 @@ import { useVideo } from '../../state/videoStore';
 import { lowerMusicUnderVoice, setCountsAsVoice, setDucking, setLowerMusicUnderVoice, setTrackRole, setTrackVolume } from '../../state/videoTracks';
 import { Check, Seg } from '../common';
 import { MusicIcon } from '../icons';
-import { openRecordVoice, useRecordVoiceOpen } from './recordVoiceOpen';
+import { FoldSection } from '../panel';
+import { closeRecordVoice, openRecordVoice, useRecordVoiceOpen } from './recordVoiceOpen';
 import { tell } from './timelineActions';
 import { Range } from './videoFields';
 
@@ -108,14 +109,24 @@ export function SoundTrackSettings({ track }: Readonly<{ track: Track }>) {
   );
 }
 
+/**
+ * The Sound tracks section's summary: how many tracks of each role.
+ * @param tracks the sound tracks
+ * @returns e.g. "Music · 2 tracks", "Music, Voice · 2 tracks"; empty with none
+ */
+function tracksNote(tracks: readonly Track[]): string {
+  if (!tracks.length) return '';
+  const roles = ROLES.filter(([role]) => tracks.some((track) => soundRole(track) === role)).map(([, name]) => name);
+  return `${roles.join(', ')} · ${tracks.length} track${tracks.length === 1 ? '' : 's'}`;
+}
+
 /** The sound tracks' settings, and Lower music under voice for every Music track (Q9). */
 function SoundTracks() {
   const tracks = useVideo((state) => state.tracks);
   const lowered = useVideo(lowerMusicUnderVoice);
   const sound = tracks.filter((track) => track.kind === 'audio');
   return (
-    <div className="ig-group">
-      <h3>Sound tracks</h3>
+    <FoldSection id="audio.tracks" title="Sound tracks" note={tracksNote(sound)}>
       <Check checked={lowered} onChange={setLowerMusicUnderVoice}>
         Lower music under voice
       </Check>
@@ -123,7 +134,7 @@ function SoundTracks() {
       {sound.map((track) => (
         <SoundTrackSettings key={track.id} track={track} />
       ))}
-    </div>
+    </FoldSection>
   );
 }
 
@@ -156,8 +167,7 @@ function Loudness() {
     else setLoudness(LOUDNESS_PRESETS[next]);
   };
   return (
-    <div className="ig-group">
-      <h3>Loudness</h3>
+    <FoldSection id="audio.loudness" title="Loudness" note={loudness === 'off' ? 'Off' : `${level(loudness)} LUFS`}>
       <Seg<LoudnessChoice>
         label="Loudness"
         value={choice}
@@ -181,16 +191,18 @@ function Loudness() {
         </p>
       )}
       <p className="hint">The export turns the whole mix up or down to the target and keeps peaks under −1 dBTP. YouTube and Instagram turn louder videos down to −14 LUFS.</p>
-    </div>
+    </FoldSection>
   );
 }
 
-/** Record voice (209 §8): the controls open the microphone only when asked for (AC-7); takes to recover (AC-9). */
+/**
+ * Record voice (209 §8): the controls open the microphone only when asked for (AC-7); takes to recover (AC-9). The
+ * section opens itself when the recorder is asked for (Shift + R, a Voice track's record button, Recover…; 503 AC-2).
+ */
 function RecordVoiceGroup() {
   const { open, track } = useRecordVoiceOpen();
   return (
-    <div className="ig-group">
-      <h3>Record voice</h3>
+    <FoldSection id="audio.record" title="Record voice" openWhen={open} onClosed={closeRecordVoice}>
       {open ? (
         <Suspense fallback={<p className="hint">Opening the microphone…</p>}>
           <RecordVoice track={track} />
@@ -206,7 +218,7 @@ function RecordVoiceGroup() {
       <Suspense fallback={null}>
         <RecoverVoice />
       </Suspense>
-    </div>
+    </FoldSection>
   );
 }
 

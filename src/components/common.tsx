@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { aiCreditOf, creditOf } from '../lib/credits';
 import { ArrowIcon } from './icons';
-import { FoldScope, foldAll, PanelHeader } from './panel';
+import { collapseAll, FoldGroup, PanelHeader } from './panel';
 
 /** Small label shown above each pane title, e.g. "Step 2 of 7". */
 export const StepLabel = createContext<string | null>(null);
@@ -80,6 +80,8 @@ export function Pane({
   onNext?: () => void;
 }>) {
   const step = useContext(StepLabel);
+  // One section open at a time in each step (503 Q1), remembered per step.
+  const group = `print:${title}`;
   return (
     <div className="pane">
       <PanelHeader
@@ -87,18 +89,12 @@ export function Pane({
         title={title}
         lead={lead}
         actions={
-          <>
-            <button type="button" className="linkbtn" onClick={() => foldAll(title, false)}>
-              Collapse all
-            </button>
-            <span aria-hidden="true">·</span>
-            <button type="button" className="linkbtn" onClick={() => foldAll(title, true)}>
-              Expand all
-            </button>
-          </>
+          <button type="button" className="linkbtn" onClick={() => collapseAll(group)}>
+            Collapse all
+          </button>
         }
       />
-      <FoldScope.Provider value={title}>{children}</FoldScope.Provider>
+      <FoldGroup id={group}>{children}</FoldGroup>
       {next && onNext && (
         <button type="button" className="btn next" onClick={onNext}>
           Next: {next}

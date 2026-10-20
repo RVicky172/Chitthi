@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { adjacentKey, keyState, layersAt, type LayerKeyProp } from '../../engine/keyframes';
 import { formatsFor, vFormat } from '../../engine/videoFormats';
 import { indexedDbTakes, makeTakeStore, takesToRecover, type TakeStore } from '../../lib/takeStore';
@@ -168,27 +168,29 @@ function ToolPanel({ tool, layerProps }: Readonly<ToolPanelProps>) {
   return <LayerList {...layerProps} />;
 }
 
-/** The inspector. */
-interface InspectorProps {
-  layerProps: LayerPanelProps;
+/** What the inspector shows, and which kind it is (each kind remembers its open section, 503). */
+interface InspectorView {
+  kind: 'sound' | 'layer' | 'transition' | 'clip' | 'project';
+  content: ReactNode;
 }
 
 /**
  * The inspector: the selected sound clip (208), else the selected layer, else the selected cut's transition (206), else the selected clip, else the project.
- * @param props the layer panels' props
+ * @param layerProps the layer panels' props
+ * @returns its kind and content
  */
-function Inspector({ layerProps }: Readonly<InspectorProps>) {
+function useInspector(layerProps: LayerPanelProps): InspectorView {
   const clips = useVideo((state) => state.clips);
   const layerSel = useVideo((state) => state.layerSel);
   const selected = useVideo((state) => state.selected);
   const transitionSel = useVideo((state) => state.transitionSel);
   const sound = useVideo((state) => state.sounds.find((candidate) => candidate.id === state.soundSel));
-  if (sound) return <SoundInspector sound={sound} />;
-  if (layerSel) return <LayerProps {...layerProps} />;
+  if (sound) return { kind: 'sound', content: <SoundInspector sound={sound} /> };
+  if (layerSel) return { kind: 'layer', content: <LayerProps {...layerProps} /> };
   const cut = clips.find((clip) => clip.id === transitionSel);
-  if (cut) return <TransitionInspector clip={cut} />;
+  if (cut) return { kind: 'transition', content: <TransitionInspector clip={cut} /> };
   const clip = clips.find((candidate) => candidate.id === selected);
-  return clip ? <ClipInspector clip={clip} /> : <ProjectInspector />;
+  return clip ? { kind: 'clip', content: <ClipInspector clip={clip} /> } : { kind: 'project', content: <ProjectInspector /> };
 }
 
 /** The top bar's actions. */
@@ -348,6 +350,7 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
   useEffect(() => () => setPlaying(false), []);
   useWorkspaceKeys();
   const layerProps = useLayerPanelProps();
+  const inspector = useInspector(layerProps);
   const [toRecover, setToRecover] = useTakesToRecover();
   const openExport = () => {
     setPlaying(false);
@@ -367,7 +370,8 @@ export function VideoWorkspace({ mode, onMode }: Readonly<VideoWorkspaceProps>) 
       }}
       actions={<WorkspaceActions kind={kind} onExport={openExport} />}
       panel={<ToolPanel tool={tool} layerProps={layerProps} />}
-      inspector={<Inspector layerProps={layerProps} />}
+      inspector={inspector.content}
+      inspectorKind={inspector.kind}
       stage={hasClips ? <VideoStage /> : <EmptyStage kind={kind} />}
       dock={
         <>

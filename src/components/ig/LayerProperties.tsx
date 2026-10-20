@@ -17,6 +17,7 @@ import type { LayerKeyProp } from '../../engine/keyframes';
 import { Check, Seg } from '../common';
 import { FontPicker } from '../FontPicker';
 import { PlusIcon } from '../icons';
+import { FoldSection } from '../panel';
 import { formatClock, LpRange, Swatches } from './LayerControls';
 import type { LayerPanelProps } from './LayerPanel';
 import { PartSettings } from './MaskPanel';
@@ -63,23 +64,91 @@ export function LayerProperties({
     ) : (
       control
     );
+  // 503: the layer's name stays above; its own settings, placement, mask and timing fold, one open at a time.
   return (
-    <div className="ig-group lp-props">
-      <h3 className={keyNav ? 'kf-head' : undefined}>
-        {layerName(layer)}
-        {keyNav}
-      </h3>
-
-      {layer.kind === 'text' && <TextProps layer={layer} update={update} />}
-      {layer.kind === 'shape' && <ShapeProps layer={layer} update={update} />}
+    <div className="lp-props">
+      <p className="hint ig-name">{layerName(layer)}</p>
       {layer.kind === 'draw' && (
         <p className="hint">
           A drawing. Move, resize or turn it like any layer; with the Draw tool, new strokes go into it while it is
           selected and not turned.
         </p>
       )}
+      {layer.kind === 'text' && (
+        <FoldSection id="layer.text" title="Text">
+          <TextProps layer={layer} update={update} />
+        </FoldSection>
+      )}
+      {layer.kind === 'shape' && (
+        <FoldSection id="layer.shape" title="Shape">
+          <ShapeProps layer={layer} update={update} />
+        </FoldSection>
+      )}
+      <FoldSection id="layer.place" title="Position and size" actions={keyNav}>
+        <PlaceProps layer={layer} update={update} onUpdate={onUpdate} keyed={keyed} hasKeys={!!keyframes} />
+      </FoldSection>
+      <FoldSection id="layer.mask" title="Mask" note={maskNote(layer)}>
+        <LayerMaskProps layer={layer} update={update} />
+      </FoldSection>
+      {timing && (
+        <FoldSection id="layer.timing" title="Timing">
+          <LayerTiming layer={layer} duration={timing.duration} update={update} />
+        </FoldSection>
+      )}
 
-      {keyframes && keyed(<span className="lp-label">Position</span>, ['x', 'y'], 'Position')}
+      <div className="inline ig-tools">
+        <button
+          type="button"
+          className="sbtn"
+          onClick={() =>
+            onAdd({
+              ...layer,
+              id: `${layer.id}d${Date.now().toString(36)}`,
+              x: Math.min(0.95, layer.x + 0.04),
+              y: Math.min(0.95, layer.y + 0.04),
+            })
+          }
+        >
+          <PlusIcon />
+          Duplicate
+        </button>
+        <button type="button" className="sbtn" onClick={() => update({ x: 0.5, y: 0.5, rot: 0 }, '')}>
+          Centre and straighten
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The Mask section's summary.
+ * @param layer the layer
+ * @returns "Fade", "Spot" or nothing
+ */
+function maskNote(layer: Layer): string | undefined {
+  const part = layer.mask?.parts[0];
+  if (part?.kind === 'linear') return 'Fade';
+  if (part?.kind === 'radial') return 'Spot';
+  return undefined;
+}
+
+/** A layer's placement and how to change it. */
+interface PlacePropsProps extends LayerEditProps {
+  onUpdate: LayerPanelProps['onUpdate'];
+  /** A control with its keyframe button beside it (video), or alone. */
+  keyed: (control: ReactNode, props: LayerKeyProp[], label: string) => ReactNode;
+  /** Whether the layer can have keyframes (video). */
+  hasKeys: boolean;
+}
+
+/**
+ * A layer's position key (video), size, turn, opacity and blend.
+ * @param props the layer, its updates, the keyframe buttons and whether they apply
+ */
+function PlaceProps({ layer, update, onUpdate, keyed, hasKeys }: Readonly<PlacePropsProps>) {
+  return (
+    <>
+      {hasKeys && keyed(<span className="lp-label">Position</span>, ['x', 'y'], 'Position')}
       {keyed(
         <LpRange
           id="lp-size"
@@ -137,31 +206,7 @@ export function LayerProperties({
           ))}
         </select>
       </div>
-      <LayerMaskProps layer={layer} update={update} />
-
-      {timing && <LayerTiming layer={layer} duration={timing.duration} update={update} />}
-
-      <div className="inline ig-tools">
-        <button
-          type="button"
-          className="sbtn"
-          onClick={() =>
-            onAdd({
-              ...layer,
-              id: `${layer.id}d${Date.now().toString(36)}`,
-              x: Math.min(0.95, layer.x + 0.04),
-              y: Math.min(0.95, layer.y + 0.04),
-            })
-          }
-        >
-          <PlusIcon />
-          Duplicate
-        </button>
-        <button type="button" className="sbtn" onClick={() => update({ x: 0.5, y: 0.5, rot: 0 }, '')}>
-          Centre and straighten
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 

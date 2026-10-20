@@ -162,6 +162,7 @@ notice (D-067).
 .sec-h                   600  section title (FoldSection)
 .pane h3                 600  section title (print panes)
 .igs h3                  600  section title (media panels)
+.ig-sub h4               600  sub-title inside a section (a mask part's settings, 503)
 .galgroup h3             600  section title (gallery)
 .setbody h3              600  section title (settings)
 .lib-h3                  600  section title (envelope library)
@@ -286,14 +287,24 @@ own copy; `tests/unit/components/panel/sharedParts.test.ts` checks that both stu
 
 | Part          | What it is                                                                                                                                                                                       | Use it for                                                                                                                                                                                           |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PanelHeader` | Eyebrow and actions on one line, the title, then a one-sentence lead                                                                                                                             | The top of every panel: the print steps (eyebrow = the step number, actions = Collapse all · Expand all) and the media tools (eyebrow = Add or Edit, title = the rail label, lead = the tool's lead) |
-| `FoldSection` | A titled group of settings that folds; each remembers its state on this device. `foldAll(scope, open)` and `revealSection(id)`                                                                   | Any group of settings in a panel or inspector. Its `id` must be unique across the app                                                                                                                |
+| `PanelHeader` | Eyebrow and actions on one line, the title, then a one-sentence lead                                                                                                                             | The top of every panel: the print steps (eyebrow = the step number, actions = Collapse all) and the media tools (eyebrow = Add or Edit, title = the rail label, lead = the tool's lead) |
+| `FoldGroup`   | Folding sections of which one is open at a time; the open one (or none) is remembered per group on this device (`chitthi-folds`). `collapseAll(group)`                                         | One panel in one mode (`reel:audio`), one kind of inspector (`photos:inspector:layer`), one print step (`print:Photos`): the shell and `Pane` set them                                              |
+| `FoldSection` | A titled group of settings that folds: a summary (`note`) in its title row, controls beside the title (`actions`), opening itself (`openWhen`), `onClosed`; `revealSection(id)` opens one     | Any group of settings in a panel or inspector with more than one. Its `id` must be unique across the app; `defaultOpen={false}` keeps it from being the group's default                             |
 | `ListRow`     | One row of a list: a lead (thumbnail or icon), the name shortened with an ellipsis (the full name is its accessible name and tooltip), a detail line, controls that never wrap, a selected state | Projects today; the media pool (504), the Recordings list (505), Layers (506)                                                                                                                        |
 | `EmptyState`  | An icon, a title, a sentence or two and the action that fills it; tone `stage` (large, on the dark stage) or `panel` (quiet, in a list)                                                          | An empty stage, an empty list                                                                                                                                                                        |
 | `RailFrame`   | The rail's frame: width, the toggle, Ctrl + \\, the foot                                                                                                                                         | Both rails; a new studio's rail goes inside it too                                                                                                                                                   |
 
 A new panel is a `PanelHeader` followed by `FoldSection`s, with lists built from `ListRow` and an `EmptyState` when
 there is nothing yet.
+
+**Folding (503, D-068).** In every panel and inspector only one section is open at a time: opening one closes the
+others, clicking the open one's title closes it, and the choice is remembered per panel and mode. With nothing
+remembered the first section opens (one marked `defaultOpen={false}` is skipped). What a panel is for stays above its
+sections, always in view: its main action or list (Add sound, the media and mask lists, Add text, the drop zones) and
+what the inspector shows with its warnings (the clip's or sound's name, a missing file). A panel or inspector with a
+single section keeps it plain. A closed section that holds edits says so in its summary ("Changed", "2×", "Fade").
+`tests/unit/components/panel/foldCoverage.test.ts` fails on a panel section title that does not fold; its exceptions
+(the export dialogs, single-section inspectors) are listed there with the reason.
 
 ## 7. Panel map
 
@@ -313,19 +324,24 @@ selected item's settings open in the inspector.
 
 ### The inspector today
 
-What the inspector shows depends on what is selected, in this order (the first that applies).
+What the inspector shows depends on what is selected, in this order (the first that applies). Sections fold, one open
+at a time (§6); what comes before the first ";" stays above them.
 
 | Mode             | Selected            | Sections                                                                                                                                           |
 | ---------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Photo            | nothing             | "Nothing selected yet."                                                                                                                            |
-| Photo            | a mask (Masks open) | Selected mask; the mask's shape (Brush, Linear gradient, Radial gradient, Colour range, Brightness range, Found by AI); the mask's own adjustments |
-| Photo            | a layer             | the layer's properties (by kind: text, shape, sticker, drawing, image)                                                                             |
-| Photo            | a photo             | Photo (name and size), Light, Colour, Detail, Effects, Presets and LUTs, Tone curve, Colour mixer                                                  |
-| Reel and YouTube | a sound             | the track and sound, Source, volume, fades and keyframes                                                                                           |
-| Reel and YouTube | a layer             | the layer's properties, with keyframes                                                                                                             |
-| Reel and YouTube | a cut               | Cut, then the transition's settings                                                                                                                |
-| Reel and YouTube | a clip              | the clip (name and size, timing), Speed, Position and size, Frame, Colour                                                                          |
-| Reel and YouTube | nothing             | Project                                                                                                                                            |
+| Photo            | a mask (Masks open) | the mask's own adjustments (one section)                                                                                                           |
+| Photo            | a layer             | the layer's name; Text or Shape, Position and size, Mask, then Duplicate and Centre                                                                |
+| Photo            | a photo             | the photo's name and size; Frame, Presets and LUTs, Light (opens first), Colour, Tone curve, Colour mixer, Detail, Effects                        |
+| Reel and YouTube | a sound             | the track, sound and where it plays; Volume and fades (with keyframes), Source                                                                     |
+| Reel and YouTube | a layer             | the layer's name; Text or Shape, Position and size (with keyframes), Mask, Timing                                                                  |
+| Reel and YouTube | a cut               | Cut, or the transition's settings (one section)                                                                                                    |
+| Reel and YouTube | a clip              | the clip's place, name, size and warnings; Timing, Speed, Position and size (with keyframes), Frame, Colour                                       |
+| Reel and YouTube | nothing             | Project (one section)                                                                                                                              |
+
+In the Masks panel the list stays above; Selected mask (opened when a mask is chosen) holds the selected part's
+settings (Brush, Linear or Radial gradient, Colour or Brightness range) under a smaller title, and Found by AI is a
+section of its own.
 
 The dock holds the photo strip (photo) or the timeline: transport, edit tools, tracks (Reel and YouTube).
 

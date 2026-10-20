@@ -1325,11 +1325,15 @@
   align-items: center;
   gap: 4px;
 }
-.kf-head {
+/* what an inspector shows (a clip, a sound) and its warnings, above its folding sections (503 D4) */
+.lp-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 10px;
+}
+.lp-head p {
+  margin: 0;
 }
 .kf,
 .kf-nav {

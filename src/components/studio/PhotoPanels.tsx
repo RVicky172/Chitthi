@@ -10,7 +10,7 @@ import { addPhotos } from '../../state/instagramMedia';
 import { fullUrl, useLibrary } from '../../state/library';
 import type { StoredPhoto } from '../../types';
 import { AddPhotoIcon, InstagramIcon, PhotosIcon, TrashIcon } from '../icons';
-import { EmptyState } from '../panel';
+import { EmptyState, FoldSection } from '../panel';
 import { dataUrlToBlob } from './photoRender';
 
 /* The photo editor's empty stage, its Photos panel (add photos, the batch size, the photo library). */
@@ -128,13 +128,7 @@ function BatchSize() {
     if (kept > size) toast(`The batch already has ${kept} photos. Remove some to go lower.`);
   };
   return (
-    <div className="ig-group">
-      <h3>
-        Batch size{' '}
-        <span className="ig-count">
-          {itemCount} of {limit}
-        </span>
-      </h3>
+    <FoldSection id="photos.batch" title="Batch size" note={`${itemCount} of ${limit}`} defaultOpen={false}>
       <div className="ig-limit" role="group" aria-label="Batch size">
         {IG_BATCH_PRESETS.map((size) => (
           <button key={size} type="button" className="chip" aria-pressed={limit === size} disabled={size < itemCount} onClick={() => chooseLimit(size)}>
@@ -160,7 +154,7 @@ function BatchSize() {
       <p className="hint">
         {format.ratio} {format.label.toLowerCase()}: {format.use} Instagram crops every photo of a carousel to the first photo’s shape, so one post uses one format.
       </p>
-    </div>
+    </FoldSection>
   );
 }
 
@@ -206,12 +200,16 @@ export function PhotoMediaPanel() {
         )}
       </div>
       <BatchSize />
-      <div className="ig-group">
-        <h3>
-          <PhotosIcon /> From your photo library
-        </h3>
+      <FoldSection
+        id="photos.library"
+        title={
+          <>
+            <PhotosIcon /> From your photo library
+          </>
+        }
+      >
         <LibraryPicker onMessages={setMessages} />
-      </div>
+      </FoldSection>
       {itemCount > 0 && (
         <button
           type="button"

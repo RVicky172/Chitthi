@@ -2,7 +2,7 @@
 
 # 503 — Folding panel sections: one open at a time
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** Phase UI — Studio design and UX (release 3.0.0) · **Created:** 2026-10-20
 
 ## Summary
@@ -19,16 +19,16 @@ Panels in the media studio show every section open, one under another (the Audio
 
 ### Behaviour
 
-- [ ] **AC-1:** The folding section part opens one section per group at a time: opening a section closes the others in its group; a closed section shows its title and an optional one-line summary; a group can allow none open. Unit-tested on the open-state logic. _(unit)_
-- [ ] **AC-2:** The open section is remembered per panel and mode (local, per viewer) and restored when the panel opens again; a section whose content becomes needed (e.g. selecting a sound clip opens the Sound section of the inspector) opens itself. _(unit)_
+- [x] **AC-1:** The folding section part opens one section per group at a time: opening a section closes the others in its group; a closed section shows its title and an optional one-line summary; a group can allow none open. Unit-tested on the open-state logic. _(unit)_
+- [x] **AC-2:** The open section is remembered per panel and mode (local, per viewer) and restored when the panel opens again; a section whose content becomes needed (e.g. selecting a sound clip opens the Sound section of the inspector) opens itself. _(unit)_
 
 ### Coverage
 
-- [ ] **AC-3:** Every media-studio panel and inspector with more than one section uses the folding section part: Media, Text, Elements, Draw, Transitions, Audio, Layers, the photo editor's Light / Colour / Detail / Masks …, the clip, layer and sound inspectors; and the print studio's steps. A unit test lists panels with more than one section that don't. _(unit)_
+- [x] **AC-3:** Every media-studio panel and inspector with more than one section uses the folding section part: Media, Text, Elements, Draw, Transitions, Audio, Layers, the photo editor's Light / Colour / Detail / Masks …, the clip, layer and sound inspectors; and the print studio's steps. A unit test lists panels with more than one section that don't. _(unit)_
 
 ### Accessibility
 
-- [ ] **AC-4:** Each section title is a button with `aria-expanded` and `aria-controls`; Enter and Space toggle it; the panel's sections are reachable with Tab in order. _(unit)_
+- [x] **AC-4:** Each section title is a button with `aria-expanded` and `aria-controls`; Enter and Space toggle it; the panel's sections are reachable with Tab in order. _(unit)_
 
 ### Fit
 
@@ -54,3 +54,4 @@ Panels in the media studio show every section open, one under another (the Audio
 
 - 2026-10-20 — Created: draft spec with 5 acceptance criteria and 2 open questions with proposed answers (Phase UI, D-063).
 - 2026-10-20 — Every proposed answer accepted by the maintainer; Approved.
+- 2026-10-20 — Plan D1–D4: option A chosen by the maintainer (D-068); plan Approved; tasks written (T010–T091).

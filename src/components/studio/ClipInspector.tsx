@@ -9,6 +9,7 @@ import { adjustClip, editClip, updateClipWhy } from '../../state/videoClips';
 import { limits, limitText, setPlayhead, useVideo, videoLength, type VClip } from '../../state/videoStore';
 import { clipPlace } from '../../state/videoTracks';
 import { Check, Seg } from '../common';
+import { FoldSection } from '../panel';
 import { FindFileButton } from './ProjectStatus';
 import { LookPicker } from '../ig/LookPicker';
 import { KeyframeNav } from './KeyframeButton';
@@ -61,11 +62,11 @@ function PositionGroup({ clip, time }: Readonly<ClipAtProps>) {
   const previous = adjacentKey(clip, local, -1);
   const next = adjacentKey(clip, local, 1);
   return (
-    <div className="ig-group">
-      <h3 className="kf-head">
-        Position and size
-        {clip.keys && <KeyframeNav what="clip" previous={previous === null ? null : clip.start + previous} next={next === null ? null : clip.start + next} onSeek={setPlayhead} />}
-      </h3>
+    <FoldSection
+      id="clip.position"
+      title="Position and size"
+      actions={clip.keys && <KeyframeNav what="clip" previous={previous === null ? null : clip.start + previous} next={next === null ? null : clip.start + next} onSeek={setPlayhead} />}
+    >
       <div className="chips" role="group" aria-label="Place the clip">
         {PRESETS.map(([preset, label]) => (
           <button key={preset} type="button" className="chip" onClick={() => tell(applyPreset(clip.id, preset))}>
@@ -88,7 +89,7 @@ function PositionGroup({ clip, time }: Readonly<ClipAtProps>) {
           </div>
         ))}
       </div>
-    </div>
+    </FoldSection>
   );
 }
 
@@ -214,8 +215,7 @@ function PictureGroups({ clip }: Readonly<ClipProps>) {
   const { adjust } = edit;
   return (
     <>
-      <div className="ig-group">
-        <h3>Frame</h3>
+      <FoldSection id="clip.frame" title="Frame">
         <Seg<'fill' | 'fit'>
           label="How the picture fills the frame"
           value={edit.fit}
@@ -233,15 +233,14 @@ function PictureGroups({ clip }: Readonly<ClipProps>) {
         <Range id="v-zoom" label="Zoom" value={edit.zoom} min={1} max={3} step={0.01} show={edit.zoom.toFixed(2)} onChange={(zoom) => editClip(clip.id, { zoom })} />
         <Range id="v-px" label="Left–right" value={edit.px} min={-1} max={1} step={0.01} show={edit.px.toFixed(2)} onChange={(px) => editClip(clip.id, { px })} />
         <Range id="v-py" label="Up–down" value={edit.py} min={-1} max={1} step={0.01} show={edit.py.toFixed(2)} onChange={(py) => editClip(clip.id, { py })} />
-      </div>
-      <div className="ig-group">
-        <h3>Colour</h3>
+      </FoldSection>
+      <FoldSection id="clip.colour" title="Colour" note={adjust.brightness || adjust.contrast || adjust.saturation || adjust.warmth ? 'Changed' : undefined}>
         <LookPicker idPrefix="v" adjust={adjust} onChange={(patch) => adjustClip(clip.id, patch)} />
         <Range id="v-br" label="Brightness" value={adjust.brightness} min={-100} max={100} step={1} show={String(adjust.brightness)} onChange={(brightness) => adjustClip(clip.id, { brightness })} />
         <Range id="v-ct" label="Contrast" value={adjust.contrast} min={-100} max={100} step={1} show={String(adjust.contrast)} onChange={(contrast) => adjustClip(clip.id, { contrast })} />
         <Range id="v-sa" label="Saturation" value={adjust.saturation} min={-100} max={100} step={1} show={String(adjust.saturation)} onChange={(saturation) => adjustClip(clip.id, { saturation })} />
         <Range id="v-wa" label="Warmth" value={adjust.warmth} min={-100} max={100} step={1} show={String(adjust.warmth)} onChange={(warmth) => adjustClip(clip.id, { warmth })} />
-      </div>
+      </FoldSection>
     </>
   );
 }
@@ -267,10 +266,11 @@ export function ClipInspector({ clip }: Readonly<ClipProps>) {
     <div className="lp">
       {locked && <p className="hint lp-locked">{locked}</p>}
       <fieldset className="lp-fs" disabled={!!locked}>
-        <div className="ig-group">
-          <h3>
+        {/* 503 D4: what the clip is, and any warning, stay above the sections. */}
+        <div className="lp-head">
+          <p className="text-label">
             {placeLabel} · {kindName(clip)}
-          </h3>
+          </p>
           <p className="hint ig-name" title={clip.name}>
             {clip.name} · {clip.w}×{clip.h}
             {clip.kind === 'video' ? ` · ${formatTime(clip.srcDur)}` : ''}
@@ -285,11 +285,13 @@ export function ClipInspector({ clip }: Readonly<ClipProps>) {
               {cantExport}
             </p>
           )}
+        </div>
+        <FoldSection id="clip.timing" title="Timing">
           <TimingGroup clip={clip} time={time} room={room} />
           <Check checked={clip.fade} onChange={(fade) => updateClip(clip.id, { fade }, '')}>
             Fade in from black
           </Check>
-        </div>
+        </FoldSection>
         {clip.kind === 'video' && clip.freeze === undefined && <SpeedGroup clip={clip} />}
         <PositionGroup clip={clip} time={time} />
         <PictureGroups clip={clip} />
