@@ -7,7 +7,7 @@
 }
 .mcaps-box summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: var(--fw-head);
   font-size: 0.9rem;
 }
 .mcaps-box summary small {
@@ -39,14 +39,14 @@
   flex-direction: column;
   line-height: 1.1;
 }
-.mcaps label b {
+.mcaps label .text-label {
   font-size: 0.86rem;
 }
 .mcaps label small {
   font: 0.68rem var(--mono);
   color: var(--muted);
 }
-.mcaps li.on label b {
+.mcaps li.on label .text-label {
   color: var(--accent);
 }
 .mcaps input {

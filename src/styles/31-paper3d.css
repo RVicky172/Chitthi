@@ -128,7 +128,7 @@
   color: #5b4516;
 }
 .p3-plain {
-  font-weight: 600;
+  font-weight: var(--fw-label);
   color: #475569;
   text-align: center;
   padding: 4px;
@@ -147,7 +147,7 @@
   position: absolute;
   left: 0;
   color: #e8f5ef;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
@@ -217,7 +217,7 @@
 .p3-det h2 {
   margin: 2px 0 8px;
   font-family: var(--font-head);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   font-size: 1.6rem;
 }
 .p3-grp {
@@ -251,7 +251,7 @@
 }
 .p3-list summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .p3-list summary small {
   color: var(--muted);
@@ -261,10 +261,10 @@
 .p3-det .sg-facts li {
   display: block;
 }
-.p3-det .sg-facts b {
+.p3-det .sg-facts .text-label {
   display: block;
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
@@ -417,7 +417,7 @@
 }
 .aiprov > summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .aiprow {
   border-top: 1px solid var(--line);

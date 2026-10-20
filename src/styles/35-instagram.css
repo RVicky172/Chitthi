@@ -22,8 +22,7 @@
 }
 .igs h3 {
   margin: 0 0 8px;
-  font-size: var(--fs-md);
-  font-weight: 600;
+  font: var(--fw-head) var(--fs-md)/1.3 var(--font-head);
 }
 .igs section + section,
 .ig-work {
@@ -779,7 +778,7 @@
 }
 .ig-presets summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: var(--fw-head);
 }
 .ig-presets ul {
   list-style: none;

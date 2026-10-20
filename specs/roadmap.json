@@ -432,7 +432,7 @@
       "502": {
         "title": "Typography: bold only for headings",
         "workItem": null,
-        "status": "spec-approved",
+        "status": "done",
         "note": "",
         "folder": "features/502-studio-typography",
         "needs": [

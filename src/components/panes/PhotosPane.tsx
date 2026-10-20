@@ -91,7 +91,7 @@ export function PhotosPane() {
         <span className="drop-ico">
           <AddPhotoIcon />
         </span>
-        <strong>Choose photos or drop them here</strong>
+        <span className="text-label">Choose photos or drop them here</span>
         <span>JPG, PNG or WebP, up to {MAX_MB} MB each</span>
       </label>
       {msgs.length > 0 && (
@@ -137,7 +137,7 @@ export function PhotosPane() {
               <li key={photo.id} className="photo">
                 <PhotoThumb photo={photo} />
                 <div className="meta">
-                  <b>{shortName(photo.name)}</b>
+                  <span className="text-label">{shortName(photo.name)}</span>
                   <PhotoCredit name={photo.name} />
                   <span>
                     {photo.sw}×{photo.sh} px{photo.src !== photo.orig ? ' after edits' : ''},{' '}
@@ -249,7 +249,7 @@ export function PhotosPane() {
             Keep faces and writing a little away from the edges, because a thin strip is trimmed off when cards are cut.
           </li>
           <li>
-            Use <b>Crop</b> to choose the part of the photo you want, rotate it or match the shape of your layout.
+            Use <span className="text-label">Crop</span> to choose the part of the photo you want, rotate it or match the shape of your layout.
           </li>
           <li>iPhone photos in HEIC format need to be saved as JPG first.</li>
         </ul>

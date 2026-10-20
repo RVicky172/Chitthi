@@ -105,7 +105,7 @@ function SampleCard({ sample }: Readonly<SampleCardProps>) {
           <img className="b" src={sample.back} alt="" />
         </div>
       </button>
-      <b>{sample.def.title}</b>
+      <span className="text-label">{sample.def.title}</span>
       <Credit credits={sample.credits} />
       <div className="acts">
         <button type="button" className="sbtn accent" onClick={() => void applySample(sample)}>

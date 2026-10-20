@@ -87,6 +87,10 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
   groups its tools under **Add** and **Edit**; in a window 720 px tall or less, Draw moves into **More**. Every panel
   starts with the same header (Add / Edit or the step number, the title and one sentence), and field borders are
   darker in the light theme and lighter in the dark one so their edges are easier to see (3:1 contrast).
+- Calmer text in every studio, dialog and guide: only headings are bold. Panel and section titles are semi-bold in the
+  heading face, section titles are in sentence case (no more small capitals), and labels, buttons, list items and the
+  selected step or tool are medium weight, marked by their bar or fill instead. Bold in running text is kept for
+  values to notice (a count, a limit, the playhead time). The web fonts load only the weights in use.
 - A message shown twice in a row is shown (and announced) again.
 - Video editor: the preview and the export decode clips through one **decoder pool**. Playback is smoother: the next
   clip is opened before its cut, so cuts no longer stall or flash black, and a late frame holds the last one while the

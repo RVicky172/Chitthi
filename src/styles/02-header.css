@@ -93,7 +93,7 @@ dialog,
   border-color: transparent;
   /* umber in light, cream in dark: --on-accent keeps the text >= 7:1 on either */
   color: var(--on-accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
   box-shadow: var(--glow);
 }
 .btn.primary:hover {

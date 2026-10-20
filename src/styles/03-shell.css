@@ -98,7 +98,7 @@
 }
 .stepper li.now button {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-label);
   background: var(--sunk);
 }
 .stepper li.now button::before {
@@ -134,7 +134,7 @@
 }
 .galbtn[aria-current='page'] {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .galbtn[aria-current='page'] .ico {
   color: var(--accent);
@@ -247,7 +247,7 @@
   min-width: 0;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   -moz-appearance: textfield;
   appearance: textfield;
 }

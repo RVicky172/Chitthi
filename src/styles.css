@@ -3,7 +3,7 @@
    Every text/background pair below is checked to WCAG AA (4.5:1) in light and dark. */
 /* UI fonts (also linked from index.html so they start downloading before this stylesheet is parsed).
    Card fonts (the 46 families in data/fonts.ts) load on demand via ensureFonts(). */
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&family=Hind:wght@400;600&family=Mukta:wght@400;700&family=Tiro+Devanagari+Hindi&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&family=Hind:wght@400;600&family=Mukta:wght@400;700&family=Tiro+Devanagari+Hindi&display=swap');
 
 /*
  * The stylesheet is split by feature in src/styles/. The numbers keep the cascade order: a later file wins ties

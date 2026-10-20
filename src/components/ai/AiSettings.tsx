@@ -181,7 +181,7 @@ function ModelsOnDevice() {
           {rows.map((row) => (
             <li key={row.target}>
               <span>
-                <b>{row.title}</b> <small>{row.size}</small>
+                <span className="text-label">{row.title}</span> <small>{row.size}</small>
               </span>
               <span className="hint">{row.status}</span>
               {row.canDelete && (
@@ -349,7 +349,7 @@ function ProviderRow({ p, info }: Readonly<{ p: AiProviderDef; info?: KeyInfo }>
   return (
     <details className="aiprow">
       <summary>
-        <b>{p.name}</b>
+        <span className="text-label">{p.name}</span>
         <small>
           {p.kinds.map((kind) => (kind === 'text' ? 'words' : 'pictures')).join(' + ')}
           {p.web === 'desktop' ? ' · desktop app' : ''}

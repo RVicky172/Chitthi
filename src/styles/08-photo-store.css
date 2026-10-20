@@ -21,12 +21,12 @@
   width: 24px;
   height: 24px;
 }
-.pack b {
+.pack .text-label {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.pack b svg {
+.pack .text-label svg {
   width: 20px;
   height: 20px;
   color: var(--accent);
@@ -129,7 +129,7 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.store-ph b {
+.store-ph .text-label {
   position: absolute;
   left: 5px;
   bottom: 5px;
@@ -138,7 +138,7 @@
   background: var(--accent);
   color: var(--on-accent);
   font-size: 0.66rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .store-del {
   /* 22px to look at, 44px to hit: see ::before */
@@ -166,7 +166,7 @@
   /* fixed red, not --danger: the lighter dark-mode red can't carry white text */
   background: #c81e41;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 @media (hover: none) {
   .store-del {

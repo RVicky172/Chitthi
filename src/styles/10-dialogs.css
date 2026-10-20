@@ -42,7 +42,7 @@ dialog::backdrop {
 }
 .dhead h2 {
   margin: 0;
-  font: 700 1.6rem/1.2 var(--font-head);
+  font: var(--fw-strong) 1.6rem/1.2 var(--font-head);
   margin-right: auto;
 }
 .cropstage {
@@ -99,7 +99,7 @@ dialog::backdrop {
 }
 .vbar h2 {
   margin: 0 auto 0 0;
-  font: 700 1.7rem/1.2 var(--font-head);
+  font: var(--fw-strong) 1.7rem/1.2 var(--font-head);
 }
 .vscene {
   flex: 1;

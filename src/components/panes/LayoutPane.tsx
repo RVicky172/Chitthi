@@ -199,7 +199,7 @@ export function LayoutPane() {
                     onClick={() => selectSize(size)}
                   >
                     <SizeIcon s={size} land={land} />
-                    <b>{size.name}</b>
+                    <span className="text-label">{size.name}</span>
                     <span>{sizeLabel(size)}</span>
                     {size.tag && <em>{size.tag}</em>}
                   </button>

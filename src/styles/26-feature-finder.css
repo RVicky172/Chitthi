@@ -53,7 +53,7 @@ kbd {
 .finder-group {
   margin: 10px 10px 4px;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: var(--fw-head);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);

@@ -302,34 +302,34 @@ export function Details({ pc, onDesign, onSheet }: Readonly<DetailsProps>) {
       <h2>{pc.name}</h2>
       <ul className="sg-facts">
         <li>
-          <b>Size</b> {sizeText(pc)} ({inch(pc.w)}
+          <span className="text-label">Size</span> {sizeText(pc)} ({inch(pc.w)}
           {pc.circle ? '' : ` × ${inch(pc.h)}`} in)
         </li>
         <li>
-          <b>Compared</b> {area(pc)}
+          <span className="text-label">Compared</span> {area(pc)}
         </li>
         {envelope && (
           <>
             <li>
-              <b>File with bleed</b> {r1(pc.w + 2 * BLEED)} × {r1(pc.h + 2 * BLEED)} mm,{' '}
+              <span className="text-label">File with bleed</span> {r1(pc.w + 2 * BLEED)} × {r1(pc.h + 2 * BLEED)} mm,{' '}
               {px300(pc.w + 2 * BLEED).toLocaleString()} × {px300(pc.h + 2 * BLEED).toLocaleString()} px at 300 dpi
             </li>
             <li>
-              <b>Per sheet</b> {per('a4') || '–'} on A4 · {per('a3') || '–'} on A3 · {per('1319') || '–'} on 13×19 in
+              <span className="text-label">Per sheet</span> {per('a4') || '–'} on A4 · {per('a3') || '–'} on A3 · {per('1319') || '–'} on 13×19 in
             </li>
             <li>
-              <b>Envelope</b> {envelope.name} ({envelope.w} × {envelope.h} mm)
+              <span className="text-label">Envelope</span> {envelope.name} ({envelope.w} × {envelope.h} mm)
             </li>
           </>
         )}
         {pc.fits && (
           <li>
-            <b>Holds</b> {pc.fits.join(', ')}
+            <span className="text-label">Holds</span> {pc.fits.join(', ')}
           </li>
         )}
         {spec && (
           <li>
-            <b>Paper</b> {spec.stock}, {spec.weight}
+            <span className="text-label">Paper</span> {spec.stock}, {spec.weight}
           </li>
         )}
         {pc.note && <li>{pc.note}</li>}

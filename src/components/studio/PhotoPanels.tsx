@@ -177,7 +177,7 @@ export function PhotoMediaPanel() {
         <label className="mst-drop">
           <AddPhotoIcon />
           <span>
-            <b>Choose photos</b> or drop them here
+            <span className="text-label">Choose photos</span> or drop them here
           </span>
           <small>
             JPG, PNG or WebP up to {MAX_MB} MB; camera RAW {isDesktop ? 'in 16 bits' : '(its built-in preview)'}

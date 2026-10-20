@@ -2,7 +2,7 @@
 
 # 502 — Typography: bold only for headings
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** Phase UI — Studio design and UX (release 3.0.0) · **Created:** 2026-10-20
 
 ## Summary
@@ -18,12 +18,12 @@ Most text in the studios is bold or semi-bold (labels, buttons, hints, list item
 
 ### Weights
 
-- [ ] **AC-1:** Only the heading selectors listed in `docs/DESIGN.md` (panel titles, section titles, dialog titles, the stage's empty-state title) use a weight above 500; labels, buttons, tabs, list items and timeline text use 400 or 500; hints use 400. A unit test reads every stylesheet under `src/styles/` and fails on a `font-weight` above 500 outside the allowed selectors. _(unit)_
-- [ ] **AC-2:** Inline `<b>`/`<strong>` in panel text is used only for a value the user must notice (a limit, a count); a unit test lists the components that still use them and the list matches the design document. _(unit)_
+- [x] **AC-1:** Only the heading selectors listed in `docs/DESIGN.md` (panel titles, section titles, dialog titles, the stage's empty-state title) use a weight above 500; labels, buttons, tabs, list items and timeline text use 400 or 500; hints use 400. A unit test reads every stylesheet under `src/styles/` and fails on a `font-weight` above 500 outside the allowed selectors. _(unit)_
+- [x] **AC-2:** Inline `<b>`/`<strong>` in panel text is used only for a value the user must notice (a limit, a count); a unit test lists the components that still use them and the list matches the design document. _(unit)_
 
 ### Fonts
 
-- [ ] **AC-3:** The font files loaded cover the weights used (400, 500 for body; the heading weight) and no others, so no weight is synthesised by the browser; checked against the `@font-face` rules. _(unit)_
+- [x] **AC-3:** The font files loaded cover the weights used (400, 500 for body; the heading weight) and no others, so no weight is synthesised by the browser; checked against the `@font-face` rules. _(unit)_
 
 ### Look
 
@@ -50,3 +50,6 @@ Most text in the studios is bold or semi-bold (labels, buttons, hints, list item
 
 - 2026-10-20 — Created: draft spec with 4 acceptance criteria and 2 open questions with proposed answers (Phase UI, D-063).
 - 2026-10-20 — Every proposed answer accepted by the maintainer; Approved.
+- 2026-10-20 — Plan drafted (§1–§6, D1–D3 for the maintainer).
+- 2026-10-20 — Plan D1–D3: option A chosen by the maintainer (D-067); plan Approved; tasks written (T010–T091).
+- 2026-10-20 — Plan §6 corrected from measurement (T030): Geist 400..700 and Geist Mono 400..600 stay loaded (the landing page, the countdown and the performance readings use them); only Geist 300 and Schibsted 500 go.

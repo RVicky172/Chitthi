@@ -344,11 +344,11 @@ export function PhotoLibrary() {
       {count > 0 && (
         <div className="lib-context">
           <span>
-            <b>{productOf(design.product).name}</b>, {layoutName(design.layout)}
+            <span className="text-label">{productOf(design.product).name}</span>, {layoutName(design.layout)}
             {slot && (
               <>
                 {' '}
-                · {where} is <b>{SHAPE_LABEL[slot.shape].toLowerCase()}</b>, {Math.round(slot.wmm)} ×{' '}
+                · {where} is <span className="text-label">{SHAPE_LABEL[slot.shape].toLowerCase()}</span>, {Math.round(slot.wmm)} ×{' '}
                 {Math.round(slot.hmm)} mm
               </>
             )}

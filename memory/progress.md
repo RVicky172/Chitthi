@@ -11,6 +11,19 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-20 — 502 typography (plan, tasks, T010–T013)
+
+**Done:** 502 plan and tasks (D-067, A for D1–D3). T010 weights.test.ts reads DESIGN.md §3's allowed list (CSS walker
+moved to tests/support/cssDeclarations.ts). T011 base weights (:where(h1–h4, b, strong) 600, th 500, the landing page
+excluded), panel title 600, section titles sentence case in --font-head 600 at --fs-md. T012/T013 swept 53 rules to
+--fw-label (selected states included) and moved every listed heading and value to a weight token (a test checks it).
+npm run check green (2676 tests). Not committed yet.
+**Also done (same day):** T020/T021 inline bold (33 names to .text-label, 12 files keep values), T030/T031 fonts
+(measured: Geist 400–700, Mono 400–600, Schibsted 600–800; plan §6 corrected), T090 docs, T091 close (2684 tests,
+entry 313 KB, lint:full 0 errors). 502 Implemented; AC-4 waits for 590.
+**Next:** commit 502 and merge into main (maintainer's call), then 503.
+**Blockers:** none. Seen: the Audio panel's h3s keep the browser's h3 size (for 503/505).
+
 ## 2026-10-20 — 501 studio design system closed (T033–T034, T040–T043, T090–T091)
 
 **Done:** media rail in RailFrame (Add / Edit, print-rail look, More ≤ 720 px; T034). docs/DESIGN.md with measured

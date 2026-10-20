@@ -62,8 +62,8 @@ export function LibraryCard(props: Readonly<LibraryCardProps>) {
         disabled={!count}
       >
         <img src={item.view} alt={item.name} loading="lazy" decoding="async" />
-        {inSlot >= 0 && <b className="lib-badge">{count > 1 ? `Slot ${inSlot + 1}` : 'On design'}</b>}
-        {inSlot < 0 && item.card >= 0 && <b className="lib-badge muted">On design</b>}
+        {inSlot >= 0 && <span className="lib-badge">{count > 1 ? `Slot ${inSlot + 1}` : 'On design'}</span>}
+        {inSlot < 0 && item.card >= 0 && <span className="lib-badge muted">On design</span>}
       </button>
       <div className="lib-meta">
         <span className="lib-name">{shortName(item.name)}</span>

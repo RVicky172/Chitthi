@@ -605,3 +605,10 @@ the scratchpad cannot resolve the package).
 A `\` written just before `**` escapes the asterisk, so `**Ctrl + \**` breaks the bold: write `\` in the file. Text
 passed through the Bash tool into a heredoc or a Python string can lose a level of backslashes, so check the result
 with `repr()` (build the character with `chr(92)`) instead of trusting what the command looked like.
+
+## 2026-10-20 — Importing a helper from a test file re-runs its tests (502)
+
+`import { weightOf } from './weights.test'` made Vitest run every `describe` in weights.test.ts again inside
+fonts.test.ts (82 tests instead of 5). Shared test helpers go in `tests/support/` (here `cssDeclarations.ts`), never
+in a `*.test.ts`. Also: a `@font-face` `font-weight: 600 800` is a range, not a rule drawing at 600; style tests read
+`textDeclarations()`, which skips `@font-face`.

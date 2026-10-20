@@ -74,10 +74,10 @@ export function PrintPane() {
     <Pane title="Print and export">
       <div className="pack">
         <div>
-          <b>
+          <span className="text-label">
             <PackIcon />
             Print pack
-          </b>
+          </span>
           <small>
             One ZIP with the print PDF
             {exportSettings.pngs && (
@@ -175,7 +175,7 @@ export function PrintPane() {
                 }}
               />
               <span>
-                <b>{title}</b>
+                <span className="text-label">{title}</span>
                 <small>{summary}</small>
               </span>
             </label>

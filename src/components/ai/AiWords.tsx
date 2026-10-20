@@ -190,7 +190,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
         <ul className="aiopts">
           {cards.map((option, index) => (
             <li key={index}>
-              <b>{option.greeting}</b>
+              <span className="text-label">{option.greeting}</span>
               <span>{option.quote}</span>
               <small>{option.signature}</small>
               <div className="inline">
@@ -230,7 +230,7 @@ export default function AiWords({ mode }: Readonly<{ mode: WordsMode }>) {
           <ol>
             {caps.map((caption, index) => (
               <li key={index}>
-                <b>{(MONTHS.at(caption.month) ?? '').slice(0, 3)}</b>
+                <span className="text-label">{(MONTHS.at(caption.month) ?? '').slice(0, 3)}</span>
                 <input
                   type="text"
                   aria-label={`${MONTHS[caption.month]} caption`}

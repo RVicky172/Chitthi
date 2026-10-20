@@ -61,7 +61,7 @@ function GalleryCard({
           <img className="b" src={d.back} alt="" style={{ borderRadius: radius }} />
         </div>
       </button>
-      <b>{d.name}</b>
+      <span className="text-label">{d.name}</span>
       <small>
         {d.size},{' '}
         {new Date(d.updated).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}

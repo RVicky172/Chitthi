@@ -513,7 +513,7 @@ function WordsSection({ design, page }: Readonly<FrontProps>) {
                 {months.map(({ p, month, year }) => (
                   <li key={p} className={p === page ? 'on' : undefined}>
                     <label htmlFor={`cap-${p}`}>
-                      <b>{(MONTHS.at(month) ?? '').slice(0, 3)}</b>
+                      <span className="text-label">{(MONTHS.at(month) ?? '').slice(0, 3)}</span>
                       <small>{year}</small>
                     </label>
                     <input

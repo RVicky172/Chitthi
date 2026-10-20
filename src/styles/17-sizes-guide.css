@@ -11,7 +11,7 @@
 }
 .sg-head h1 {
   margin: 0 0 8px;
-  font: 700 clamp(2.2rem, 5vw, 3.4rem) / 1.05 var(--font-head);
+  font: var(--fw-strong) clamp(2.2rem, 5vw, 3.4rem) / 1.05 var(--font-head);
 }
 .sg-terms {
   display: grid;
@@ -29,7 +29,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .sg-terms dd {
   margin: 4px 0 0;
@@ -117,14 +117,14 @@
   margin-left: 8px;
   font-style: normal;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   padding: 1px 7px;
   border-radius: 99px;
   background: var(--accent-soft);
   color: var(--accent);
 }
 .sg-table th .linkbtn {
-  font-weight: 600;
+  font-weight: var(--fw-label);
   color: var(--text);
 }
 .sg-detail {
@@ -170,7 +170,7 @@
 }
 .sg-detail h2 {
   margin: 0 0 10px;
-  font: 700 2rem/1.1 var(--font-head);
+  font: var(--fw-strong) 2rem/1.1 var(--font-head);
 }
 .sg-detail h2 small {
   font: 500 0.9rem var(--font);
@@ -185,14 +185,14 @@
   gap: 8px;
   font-size: 0.92rem;
 }
-.sg-facts b {
+.sg-facts .text-label {
   display: inline-block;
   min-width: 130px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: var(--fw-label);
 }
 .sg-h2 {
-  font: 700 1.7rem/1.2 var(--font-head);
+  font: var(--fw-strong) 1.7rem/1.2 var(--font-head);
   margin: 28px 0 14px;
 }
 .sg-layouts {
@@ -229,7 +229,7 @@
 }
 .sg-layout .count {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--fw-label);
   font-size: 0.78rem;
 }
 .sg-layout .need {

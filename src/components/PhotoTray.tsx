@@ -162,7 +162,7 @@ function CardDock() {
             >
               {photo ? <PhotoThumb photo={photo} /> : <PlusIcon />}
             </button>
-            {count > 1 && <b className="dock-num">{slot + 1}</b>}
+            {count > 1 && <span className="dock-num">{slot + 1}</span>}
           </div>
         ))}
         {current && (

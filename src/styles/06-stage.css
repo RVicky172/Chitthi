@@ -220,7 +220,7 @@
   border-radius: 8px;
   background: var(--accent);
   color: var(--on-accent);
-  font: 700 0.62rem/16px var(--font);
+  font: var(--fw-label) 0.62rem/16px var(--font);
   text-align: center;
 }
 .tray-slot b {
@@ -270,7 +270,7 @@
   cursor: pointer;
   color: rgba(255, 255, 255, 0.8);
   font-size: 1.4rem;
-  font-weight: 300;
+  font-weight: var(--fw-body);
   border: 1.5px dashed rgba(255, 255, 255, 0.35);
 }
 .tray-add:hover {
@@ -295,7 +295,7 @@
   border-left: 3px solid var(--accent);
   background: var(--sunk);
 }
-.pack b {
+.pack .text-label {
   display: block;
   font-size: 1rem;
 }
@@ -316,7 +316,7 @@
 .pill.month {
   gap: 2px;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   font-variant-numeric: tabular-nums;
 }
 .pill.month span {

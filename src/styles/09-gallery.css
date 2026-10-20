@@ -27,7 +27,7 @@
 }
 .galbar h2 {
   margin: 0 8px 0 0;
-  font: 700 2rem/1.1 var(--font-head);
+  font: var(--fw-strong) 2rem/1.1 var(--font-head);
 }
 .galname {
   flex: 1 1 220px;
@@ -54,7 +54,7 @@
 .galgroup h3 {
   margin: 18px 0 12px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: var(--fw-head);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -141,9 +141,9 @@
   inset: 0;
   transform: rotateY(180deg);
 }
-.gcard b {
+.gcard .text-label {
   font-size: 0.87rem;
-  font-weight: 600;
+  font-weight: var(--fw-label);
   line-height: 1.25;
 }
 .gcard small {
