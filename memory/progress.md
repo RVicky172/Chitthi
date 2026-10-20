@@ -22,8 +22,8 @@ with `FoldSection.onOpened` (D1, D3, D4). Tests: videoTakes (7), takeListText (4
 projectDoc / projectGate / poolList / foldMarkup / voiceRecorder (+18). Checked in Chromium (Recordings; kinds in
 both themes; the microphone on the production build with a fake device). check green (2821), build entry 312 KB,
 lint:full 0 errors, licences fine. AC-1–3 ticked; AC-4 waits for 590. Docs: MEDIA-STUDIO, DESIGN, lld §4.14,
-CHANGELOG. Not committed yet.
-**Next:** commit, merge into `main`; then 506. Follow-ups: a dev-only StrictMode bug from 209 (the Record voice
+CHANGELOG. Committed `d26f061`, merged into `main` `19807de` (not pushed).
+**Next:** 506. Follow-ups: a dev-only StrictMode bug from 209 (the Record voice
 controls close the microphone at once in `npm run dev`; learnings.md); a drop marker on sound rows (504).
 **Blockers:** none.
 

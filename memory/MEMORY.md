@@ -85,7 +85,7 @@
 - **504 ✔️ Implemented 2026-10-20** (`1def69b`), merged into `main` (`1751b97`, not pushed): the media pool in Reels / YouTube
   (`state/videoPool.ts`, `MediaPool.tsx`, rules in `poolList.ts`; lld §4.13); D-069 (A for D1–D5). AC-1–4 ticked;
   AC-5 (drag e2e, 200 items) waits for 590. Entry 312 KB.
-- **505 ✔️ Implemented 2026-10-20** on `feat/505-sound-panel` (not committed yet): Recordings in the Audio panel
+- **505 ✔️ Implemented 2026-10-20** (`d26f061`), merged into `main` (`19807de`, not pushed): Recordings in the Audio panel
   (`state/videoTakes.ts`, `TakeList.tsx`; takes keep `recordedAt` and `microphone` on their media entry), Music / Voice /
   Effects by kind everywhere (`soundKinds.ts`, `KindChip.tsx`, `.kind-*` → `--kind`), the Audio panel's five sections
   with `FoldSection.onOpened` (D-070, A for D1–D4). AC-1–3 ticked; AC-4 waits for 590. Entry 312 KB. Follow-ups: the
