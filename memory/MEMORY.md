@@ -6,7 +6,7 @@
 
 - **Released:** **2.10.0** (2026-10-06, tag `v2.10.0` on `main` `1f3b2bc`): editor Phases 0–1. GitHub Release has the
   Windows installer, macOS x64 and arm64 DMGs and update manifests; unsigned.
-- **`main` (2026-10-10):** has 201, 401, 404, 202 and 405 (`e27d04a`, not pushed yet); releasable. The software
+- **`main` (2026-10-10):** has 201, 401, 404, 202 and 405 (`e27d04a`, pushed); releasable. The software
   factory (402, 403) was removed on 2026-10-09 (D-024): plain spec-driven workflow, `/spec-*` commands run inline.
 - **Phase:** Editor Phase 2 (multi-track timeline): 201 and 202 done (on `main`), 204 done (on `main`); 203 in progress. Spec-driven development since 2026-10-06 (D-001).
 - **Features:** `000-baseline` ✔️. `001-phase1-gate-release` 🚧: released (T040–T043); open: post-release checks on
@@ -55,7 +55,7 @@
   waveforms (sound and video clips), ducking, loudness target (−14 LUFS) with a true-peak limiter, preview = export
   mix; `SoundRow.tsx`, `SoundInspector.tsx`, `AudioPanel.tsx`. AC-1–12, 17 ticked; AC-13–16 wait for 290. Decisions
   D-052–D-056 (T072: toEnd clips stop at the next sound, option A). Entry 314 KB.
-- **209:** `209-voice-over` ✔️ Implemented 2026-10-20 (`674f9d4`), merged into `main` (`cec7d50`, not pushed): record a voice
+- **209:** `209-voice-over` ✔️ Implemented 2026-10-20 (`674f9d4`), merged into `main` (`cec7d50`, pushed 2026-10-20): record a voice
   onto a Voice track (count-in, punch-in as one undo step, sync from the reported latency + Recording offset, meter,
   Voice clean-up, Hear the video), microphone open only with the controls, takes saved every second for crash
   recovery (`lib/takeStore.ts`, IndexedDB `chitthi-takes`, the recovery bar on project open), web
@@ -71,21 +71,21 @@
   The studios now start their project on opening (`showStudio`): not yet run in a browser. Entry 314 KB.
 - **Phase UI (D-063, 2026-10-20):** specs 501–507 and 590 **Approved** (all proposed answers) on `spec/5xx-studio-ui`.
   Built next, before 210; ships with Phase 2 as 3.0.0 (290 needs 590). 501 plan Approved (D-064 expandable rail,
-  D-065 widths), tasks T001–T091 written. **501 ✔️ Implemented 2026-10-20** (`ec1cd98`), merged into `main` (`8c774b1`, not pushed): tokens in
+  D-065 widths), tasks T001–T091 written. **501 ✔️ Implemented 2026-10-20** (`ec1cd98`), merged into `main` (`8c774b1`, pushed 2026-10-20): tokens in
   01-base.css (widths, --top-h, --panel-pad, type, colours; --line-strong raised to 3:1, D-066), shared panel parts in
   components/panel/ + 42-panel.css, the expandable rail in both studios (Add / Edit, More ≤ 720 px), docs/DESIGN.md
   (approved, panel map). AC-5 waits for 590; T001/T042 screenshots deferred to the end of Phase UI. 
-- **502 ✔️ Implemented 2026-10-20** (`8f4d8de`), merged into `main` (`3be7d97`, not pushed): only headings bold
+- **502 ✔️ Implemented 2026-10-20** (`8f4d8de`), merged into `main` (`3be7d97`, pushed 2026-10-20): only headings bold
   (weights.test.ts reads DESIGN.md §3's list; selected states 500, D-067), <b>/<strong> only for values
   (inlineBold.test.ts, .text-label for names), fonts load Geist 400–700, Mono 400–600, Schibsted 600–800
   (fonts.test.ts). AC-4 screenshots wait for 590.
-- **503 ✔️ Implemented 2026-10-20** (`fd65e93`), merged into `main` (`0188d61`, not pushed): every studio panel and
+- **503 ✔️ Implemented 2026-10-20** (`fd65e93`), merged into `main` (`0188d61`, pushed 2026-10-20): every studio panel and
   inspector folds, one section open per panel and mode, remembered (`chitthi-folds`); D-068 (A for D1–D4). AC-1–4
   ticked; AC-5 (fit at 1280 × 720) waits for 590. Entry 312 KB.
-- **504 ✔️ Implemented 2026-10-20** (`1def69b`), merged into `main` (`1751b97`, not pushed): the media pool in Reels / YouTube
+- **504 ✔️ Implemented 2026-10-20** (`1def69b`), merged into `main` (`1751b97`, pushed 2026-10-20): the media pool in Reels / YouTube
   (`state/videoPool.ts`, `MediaPool.tsx`, rules in `poolList.ts`; lld §4.13); D-069 (A for D1–D5). AC-1–4 ticked;
   AC-5 (drag e2e, 200 items) waits for 590. Entry 312 KB.
-- **505 ✔️ Implemented 2026-10-20** (`d26f061`), merged into `main` (`19807de`, not pushed): Recordings in the Audio panel
+- **505 ✔️ Implemented 2026-10-20** (`d26f061`), merged into `main` (`19807de`, pushed 2026-10-20): Recordings in the Audio panel
   (`state/videoTakes.ts`, `TakeList.tsx`; takes keep `recordedAt` and `microphone` on their media entry), Music / Voice /
   Effects by kind everywhere (`soundKinds.ts`, `KindChip.tsx`, `.kind-*` → `--kind`), the Audio panel's five sections
   with `FoldSection.onOpened` (D-070, A for D1–D4). AC-1–3 ticked; AC-4 waits for 590. Entry 312 KB. Follow-ups: the
