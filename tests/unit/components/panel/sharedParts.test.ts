@@ -93,6 +93,7 @@ describe('the panel parts are shared (501 AC-3)', () => {
     ['studio/PhotoPanels.tsx', 'EmptyState'],
     ['studio/VideoPanels.tsx', 'EmptyState'],
     ['studio/ProjectsPanel.tsx', 'ListRow'],
+    ['ig/LayerList.tsx', 'ListRow'],
     ['FeatureFinder.tsx', 'revealSection'],
   ])('%s uses %s from components/panel', (file, part) => {
     expect(importsPart(file, part)).toBe(true);
@@ -103,7 +104,7 @@ describe('the panel parts are shared (501 AC-3)', () => {
     ['studio/VideoPanels.tsx', 'Add media'],
     ['studio/PhotoPanels.tsx', 'Add photos'],
     ['ig/LayerPanel.tsx', 'Add text'],
-    ['ig/LayerPanel.tsx', 'Layers'],
+    ['ig/LayerList.tsx', 'Layers'],
     ['studio/TransitionPanel.tsx', 'Transitions'],
     ['studio/AudioPanel.tsx', 'Sound'],
     ['ig/MaskPanel.tsx', 'Masks'],

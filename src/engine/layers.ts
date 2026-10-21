@@ -180,31 +180,49 @@ let idCount = 0;
 export const layerId = (): string => `l${Date.now().toString(36)}${(idCount++).toString(36)}`;
 
 /**
- * The first line of a text, cut short.
+ * The first line of a text, whole (the screen shortens it, 506).
  * @param text the text
- * @param length the most characters
- * @returns its first line's start
+ * @returns its first line
  */
-const firstLine = (text: string, length: number): string => (text.split('\n').at(0) ?? '').slice(0, length);
+const firstLine = (text: string): string => text.split('\n').at(0) ?? '';
 
 /**
- * A layer's name in the layer list.
+ * A layer's name in the layer list, whole: the list, the inspector and the timeline shorten it on screen, and the full
+ * name is the row's accessible name and tooltip (506).
  * @param layer the layer
  * @returns such as "Text: Happy birthday" or "Drawing (3 strokes)"
  */
 export function layerName(layer: Layer): string {
   switch (layer.kind) {
     case 'text':
-      return `Text: ${firstLine(layer.text, 24) || '(empty)'}`;
+      return `Text: ${firstLine(layer.text) || '(empty)'}`;
     case 'shape':
-      return layer.text ? `${shapeDef(layer.shape).name}: ${firstLine(layer.text, 18)}` : shapeDef(layer.shape).name;
+      return layer.text ? `${shapeDef(layer.shape).name}: ${firstLine(layer.text)}` : shapeDef(layer.shape).name;
     case 'sticker':
       return `Sticker ${layer.emoji}`;
     case 'image':
-      return `Image: ${layer.name.slice(0, 24) || 'picture'}`;
+      return `Image: ${layer.name || 'picture'}`;
     case 'draw':
       return `Drawing (${String(layer.strokes.length)} stroke${layer.strokes.length === 1 ? '' : 's'})`;
   }
+}
+
+/**
+ * The layers with one moved to a place in the stack (dragging a row of the layer list, Alt + ↑/↓, 506).
+ * @param layers the layers, back first
+ * @param id the layer to move
+ * @param to its new stack index (0 = the back), clamped to the stack
+ * @returns the new list; the same array when the layer is unknown or already there
+ */
+export function moveLayer(layers: Layer[], id: string, to: number): Layer[] {
+  const from = layers.findIndex((layer) => layer.id === id),
+    place = Math.max(0, Math.min(layers.length - 1, to));
+  const moving = layers.at(from);
+  if (from < 0 || from === place || !moving) return layers;
+  const moved = layers.slice();
+  moved.splice(from, 1);
+  moved.splice(place, 0, moving);
+  return moved;
 }
 
 /**

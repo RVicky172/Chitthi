@@ -2,7 +2,7 @@
 
 # 506 — Layers panel: no overflow or cut-off items
 
-**Status:** Approved
+**Status:** Implemented
 **Roadmap phase:** Phase UI — Studio design and UX (release 3.0.0) · **Created:** 2026-10-20
 
 ## Summary
@@ -18,16 +18,16 @@ The Layers panel overflows: rows with long names, nested controls (visibility, l
 
 ### Fit
 
-- [ ] **AC-1:** A layer row lays out as thumbnail · name · controls with the name shrinking first; controls never wrap or leave the row; the list has no horizontal scroll. Proven by a unit test on the row's class contract plus 590's e2e check. _(unit)_
+- [x] **AC-1:** A layer row lays out as thumbnail · name · controls with the name shrinking first; controls never wrap or leave the row; the list has no horizontal scroll. Proven by a unit test on the row's class contract plus 590's e2e check. _(unit)_
 - [ ] **AC-2:** With 40 layers with 80-character names, at 1280 × 720, 1440 × 900 and 390 × 844, no element of the Layers panel is wider than the panel and every control can be clicked (deferred to 590). _(e2e)_
 
 ### Structure
 
-- [ ] **AC-3:** The Layers panel shows the list only; the selected layer's properties are in the inspector (in folding sections, 503), in the photo, Reel and YouTube modes alike. _(unit)_
+- [x] **AC-3:** The Layers panel shows the list only; the selected layer's properties are in the inspector (in folding sections, 503), in the photo, Reel and YouTube modes alike. _(unit)_
 
 ### Accessibility
 
-- [ ] **AC-4:** Each row is reachable with the keyboard; its full name is its accessible name; reorder works with Alt + ↑/↓ as well as dragging. _(unit)_
+- [x] **AC-4:** Each row is reachable with the keyboard; its full name is its accessible name; reorder works with Alt + ↑/↓ as well as dragging. _(unit)_
 
 ## Non-Functional Requirements
 
@@ -48,3 +48,5 @@ The Layers panel overflows: rows with long names, nested controls (visibility, l
 
 - 2026-10-20 — Created: draft spec with 4 acceptance criteria and 1 open questions with proposed answers (Phase UI, D-063).
 - 2026-10-20 — Every proposed answer accepted by the maintainer; Approved.
+- 2026-10-21 — Plan drafted (D1–D3 for the maintainer).
+- 2026-10-21 — Plan Approved: D1–D3 A (D-071).

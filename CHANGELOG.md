@@ -95,6 +95,12 @@ and versions follow [Semantic Versioning](https://semver.org/). Each release's t
 
 ### Changed
 
+- Photo and video editors: the **Layers panel** fits. Each layer is a row with a thumbnail of its kind, its full name
+  (shortened to fit, shown in full on hover and read in full by screen readers), its times on a video, and Show / Hide,
+  Bring forward, Send back and Delete, which no longer get cut off or push the panel sideways, however long the name
+  or the list. Drag a row to change the order (by its thumbnail on a touch screen), or press **Alt + ↑ / ↓** on it.
+  The layer's settings stay in the inspector.
+
 - Video editor: the **Audio panel** folds into Add sound, Record voice, Recordings, Tracks (was Sound tracks) and
   Loudness. Opening Record voice turns the microphone on and closing it turns it off; when it opens because it was the
   section used last, it shows Record voice… instead, so the microphone never turns on unasked.

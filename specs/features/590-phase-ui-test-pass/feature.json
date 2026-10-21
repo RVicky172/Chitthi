@@ -95,7 +95,7 @@
       {
         "kind": "markdown",
         "title": "Deferred checks collected from the phase",
-        "markdown": "- 501 AC-5: left rail and panel widths match across studios.\n- 501 AC-6: the rail expands and shrinks (button, Ctrl + \\) in both studios, the stage re-fits, no animation under reduced motion.\n- 502 AC-4: before/after screenshots approved.\n- 503 AC-5: panels fit at 1280 × 720.\n- 504 AC-5: drag from pool; 200 items.\n- 505 AC-4: Audio panel with 8 tracks, 20 takes.\n- 506 AC-2: Layers panel fits with 40 long-named layers."
+        "markdown": "- 501 AC-5: left rail and panel widths match across studios.\n- 501 AC-6: the rail expands and shrinks (button, Ctrl + \\) in both studios, the stage re-fits, no animation under reduced motion.\n- 502 AC-4: before/after screenshots approved.\n- 503 AC-5: panels fit at 1280 × 720.\n- 504 AC-5: drag from pool; 200 items.\n- 505 AC-4: Audio panel with 8 tracks, 20 takes.\n- 506 AC-2: Layers panel fits with 40 long-named layers.\n- 506 AC-4: drag a layer row to a new place with a mouse and with touch (from its thumbnail); a click without a move still selects; swiping the names scrolls the list on a phone."
       },
       {
         "kind": "questions",

@@ -4,7 +4,7 @@ import { formatsFor, vFormat } from '../../engine/videoFormats';
 import { indexedDbTakes, makeTakeStore, takesToRecover, type TakeStore } from '../../lib/takeStore';
 import { isDesktop } from '../../platform/desktop';
 import { onProjectOpened } from '../../state/projectSave';
-import { addVLayer, removeVLayer, restackVLayer, setLayerTimes, updateLayerAt } from '../../state/videoLayers';
+import { addVLayer, moveVLayerTo, removeVLayer, restackVLayer, setLayerTimes, updateLayerAt } from '../../state/videoLayers';
 import {
   getVideo,
   redoV,
@@ -22,11 +22,11 @@ import {
   AddElements,
   AddText,
   DrawPanel,
-  LayerList,
   LayerProps,
   typingIn,
   type LayerPanelProps,
 } from '../ig/LayerPanel';
+import { LayerList } from '../ig/LayerList';
 import { DownloadIcon, RedoIcon, UndoIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
 import { ClipInspector, ProjectInspector } from './ClipInspector';
@@ -141,6 +141,7 @@ function useLayerPanelProps(): LayerPanelProps {
     ),
     onRemove: removeVLayer,
     onRestack: restackVLayer,
+    onMove: moveVLayerTo,
     timing: { duration: total, now: time },
   };
 }
