@@ -21,7 +21,7 @@ only, `useListKeys` with Alt + ↑/↓ keeping the focus), the all-in-one `Layer
 list only). Tests: layerMoves (4), layerListMoves (7), layerList (11), layerStructure (4), layers (+3). Checked by
 hand in Chromium: no overflow at 1280 × 720 and 390 × 844, keys, mouse drag, click, Esc, touch drag. check green
 (2851), build entry 312 KB, lint:full 0 errors, licences fine. AC-1, AC-3, AC-4 ticked; AC-2 and dragging by hand wait
-for 590 (listed there). Docs: MEDIA-STUDIO, DESIGN, lld §4.15, CHANGELOG. Committed `44b73e3`, merged into `main` `45d0215` (not pushed).
+for 590 (listed there). Docs: MEDIA-STUDIO, DESIGN, lld §4.15, CHANGELOG. Committed `44b73e3`, merged into `main` `45d0215` (pushed 2026-10-21).
 **Next:** 507. Follow-ups: a photo added right after the
 photo studio opens is sometimes dropped (408's project opening; learnings.md); at 1280 × 720 the 320 px panel leaves a
 layer's name ~70 px (smaller row buttons would help).
