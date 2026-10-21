@@ -91,11 +91,10 @@
   with `FoldSection.onOpened` (D-070, A for D1–D4). AC-1–3 ticked; AC-4 waits for 590. Entry 312 KB. Follow-ups: the
   dev-only StrictMode microphone bug (learnings.md), a drop marker on sound rows, a feature for the video editor's agent
   tools (D-069 D5) to put on the roadmap.
-- **506 ✔️ Implemented 2026-10-21** on `feat/506-layers-panel-fit` (not committed): the Layers list as `ListRow`s in
+- **506 ✔️ Implemented 2026-10-21** (`44b73e3`), merged into `main` (`45d0215`, not pushed): the Layers list as `ListRow`s in
   `ig/LayerList.tsx` (kind thumbnails, whole names, Show / Hide, forward, back, delete), reordering by dragging (touch
   from the thumbnail) and Alt + ↑/↓ (`layerListMoves.ts`, `moveLayer`, `moveLayerTo` / `moveVLayerTo`), the panel the
-  list only (D-071, A for D1–D3). AC-1, 3, 4 ticked; AC-2 and dragging by hand wait for 590. Entry 312 KB. Next: commit
-  and merge, then 507.
+  list only (D-071, A for D1–D3). AC-1, 3, 4 ticked; AC-2 and dragging by hand wait for 590. Entry 312 KB. Next: 507.
 - **CI:** only at a release (D-006): `desktop-release.yml` runs `ci.yml` first; one dry run per release allowed;
   CodeQL still scans PRs. `gh` is installed and signed in (`C:\Program Files\GitHub CLI\gh.exe`).
 - **Blockers:** none (001's checks wait on the maintainer's hardware, by choice)
