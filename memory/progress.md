@@ -11,6 +11,22 @@ Newest first. One entry per working session.
 
 ---
 
+## 2026-10-21 — 506 layers panel fit (plan, tasks, T010–T091)
+
+**Done:** 506 plan Approved (D-071: A for D1–D3) and tasks written; T010–T091 all done on `feat/506-layers-panel-fit`:
+`moveLayer` and whole-line `layerName` (engine/layers.ts), `moveLayerTo` / `moveVLayerTo` (restack goes through
+them; no empty undo step at an edge), `components/ig/layerListMoves.ts` (keys, stack index, drop gap, `movedRow`),
+`components/ig/LayerList.tsx` (a `ListRow` per layer with a kind thumbnail, `useRowDrag` with touch from the thumbnail
+only, `useListKeys` with Alt + ↑/↓ keeping the focus), the all-in-one `LayerPanel` component removed (the panel is the
+list only). Tests: layerMoves (4), layerListMoves (7), layerList (11), layerStructure (4), layers (+3). Checked by
+hand in Chromium: no overflow at 1280 × 720 and 390 × 844, keys, mouse drag, click, Esc, touch drag. check green
+(2851), build entry 312 KB, lint:full 0 errors, licences fine. AC-1, AC-3, AC-4 ticked; AC-2 and dragging by hand wait
+for 590 (listed there). Docs: MEDIA-STUDIO, DESIGN, lld §4.15, CHANGELOG. Not committed.
+**Next:** commit 506 and merge into `main` (maintainer's call), then 507. Follow-ups: a photo added right after the
+photo studio opens is sometimes dropped (408's project opening; learnings.md); at 1280 × 720 the 320 px panel leaves a
+layer's name ~70 px (smaller row buttons would help).
+**Blockers:** none.
+
 ## 2026-10-20 — 505 sound panel (T010–T091)
 
 **Done:** 505 tasks T010–T091 all done on `feat/505-sound-panel`: take details (`recordedAt`, `microphone`;

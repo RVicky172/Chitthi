@@ -5,7 +5,7 @@
 > Phased plan. Each phase is a set of feature specs. Statuses change with `npm run specs -- status`.
 > Status legend: ⬜ Not started · 📝 Spec drafted · ✅ Spec approved · 🚧 In progress · ✔️ Done
 
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-21
 
 The what and why for the editor phases is in [vision/editor-roadmap.md](vision/editor-roadmap.md); the original work
 items (files, tests, notes and measurements for Phases 0–1) are in
@@ -66,7 +66,7 @@ Features 501–507 (D-063). 501 is the design overview the others build on; 590 
 | 503 | Folding panel sections: one open at a time | [spec](features/503-panel-accordions/spec.md) | ✔️ | 501 |
 | 504 | Media pool for Reels and YouTube | [spec](features/504-media-pool/spec.md) | ✔️ | 501, 503 |
 | 505 | Sound panel: recordings and voice listed for choosing | [spec](features/505-sound-panel/spec.md) | ✔️ | 501, 503, 504 |
-| 506 | Layers panel: no overflow or cut-off items | [spec](features/506-layers-panel-fit/spec.md) | ✅ | 501, 503 |
+| 506 | Layers panel: no overflow or cut-off items | [spec](features/506-layers-panel-fit/spec.md) | ✔️ | 501, 503 |
 | 507 | README, docs and screenshots for the new design | [spec](features/507-readme-docs-refresh/spec.md) | ✅ | 501, 502, 503, 504, 505, 506 |
 | 590 | Phase UI test pass | [spec](features/590-phase-ui-test-pass/spec.md) | ✅ | 501, 502, 503, 504, 505, 506, 507 |
 

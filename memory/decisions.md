@@ -862,3 +862,17 @@ an unused sound file "Sound"; the pool's filter chips stay as 504 made them. D3 
 Tracks. D4 only the user's own click on Record voice opens the microphone (`FoldSection` `onOpened`); a section
 opened by itself (remembered, default) shows the Record voice… button; closing it always closes the microphone.
 **Consequences:** `FoldSection` gains `onOpened`; a take's media entry gains `recordedAt` and `microphone`.
+
+## D-071 — 506 plan D1–D3: the layer row's thumbnail, no lock, dragging (2026-10-21)
+
+**Context:** 506 rebuilds the Layers list on `ListRow` (thumbnail · name · controls) and adds reordering by dragging
+and Alt + ↑/↓.
+**Decision (the maintainer, as recommended, A for all three):** D1 the thumbnail is a picture of the layer's kind (a
+sticker's emoji, an image layer's picture, a shape's outline, "Aa" in a text layer's font and colour, a brush for a
+drawing), not the layer drawn small. D2 no lock control in 506 (layers have none; a lock would be a feature of its
+own). D3 rows drag with pointer events: a mouse or pen from anywhere on the row, a finger from the thumbnail only, so
+swiping over the names still scrolls the list on a phone.
+**Alternatives:** D1 B the layer drawn into a 32 px canvas per row; D2 B a `locked` field and a fifth control; D3 B
+HTML drag and drop (no touch on most phones).
+**Consequences:** the forward / back buttons stay as the single-pointer way to reorder (WCAG 2.5.7); `layerName`
+keeps the whole first line; saved projects unchanged.

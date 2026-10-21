@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { TEXT_STYLES } from '@/data/layers';
+import { shapeDef, TEXT_STYLES } from '@/data/layers';
 import {
   activeAt,
   addStroke,
   BLEND_MODES,
   layerName,
+  moveLayer,
   newImageLayer,
   newShape,
   newSticker,
@@ -321,5 +322,28 @@ describe('mergeLayers: the gate for layers from project files', () => {
 
   it('holds at most 100 layers', () => {
     expect(mergeLayers(Array.from({ length: 150 }, () => newSticker('✨')))).toHaveLength(100);
+  });
+});
+
+describe('506: whole names and moving a layer to a place', () => {
+  const long = 'A'.repeat(80);
+  it('names keep the whole first line (the list shortens them on screen)', () => {
+    expect(layerName({ ...newText(TEXT_STYLES[0]), text: `${long}\nsecond line` })).toBe(`Text: ${long}`);
+    expect(layerName({ ...newShape('bubble'), text: long })).toBe(`${shapeDef('bubble').name}: ${long}`);
+    expect(layerName(newImageLayer('img1', 10, 10, long))).toBe(`Image: ${long}`);
+  });
+  const stack = ['a', 'b', 'c', 'd'].map((id) => ({ ...newSticker('✨'), id }));
+  const ids = (layers: readonly { id: string }[]) => layers.map((layer) => layer.id).join('');
+  it('moves a layer to a stack index, keeping the others in order', () => {
+    expect(ids(moveLayer(stack, 'a', 3))).toBe('bcda');
+    expect(ids(moveLayer(stack, 'd', 0))).toBe('dabc');
+    expect(ids(moveLayer(stack, 'b', 2))).toBe('acbd');
+    expect(ids(stack)).toBe('abcd');
+  });
+  it('clamps the index and gives the same array back when nothing moves', () => {
+    expect(ids(moveLayer(stack, 'a', 99))).toBe('bcda');
+    expect(ids(moveLayer(stack, 'd', -5))).toBe('dabc');
+    expect(moveLayer(stack, 'b', 1)).toBe(stack);
+    expect(moveLayer(stack, 'zz', 0)).toBe(stack);
   });
 });

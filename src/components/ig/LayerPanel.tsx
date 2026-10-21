@@ -2,7 +2,6 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { BRUSHES, SHAPES, STICKERS, TEXT_STYLES, shapeDef, type BrushId } from '../../data/layers';
 import {
   addLayerImage,
-  layerName,
   newImageLayer,
   newShape,
   newSticker,
@@ -15,15 +14,15 @@ import { logError } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import type { LayerTools } from '../../state/instagram';
 import { Seg } from '../common';
-import { NextIcon, PlusIcon, PrevIcon, TrashIcon } from '../icons';
+import { PlusIcon } from '../icons';
 import { FoldSection } from '../panel';
-import { formatClock, LpRange, Swatches } from './LayerControls';
+import { LpRange, Swatches } from './LayerControls';
 import { LayerProperties } from './LayerProperties';
 
 /*
- * The layer controls shared by the photo and video editors: add text, shapes, stickers and images; the layer list; the
- * selected layer's properties (with its blend mode and mask); and the drawing brush. Changes go out through callbacks, so each editor keeps its own
- * state and undo history.
+ * The layer controls shared by the photo and video editors: add text, shapes, stickers and images; the selected
+ * layer's properties (with its blend mode and mask, shown in the inspector); and the drawing brush. The list is in
+ * LayerList.tsx (506). Changes go out through callbacks, so each editor keeps its own state and undo history.
  */
 
 /** The layers, the selection and the editor's handlers, for every part of the layer panel. */
@@ -35,6 +34,8 @@ export interface LayerPanelProps {
   onUpdate: (id: string, patch: Partial<Layer> | ((layer: Layer) => Layer), key?: string) => void;
   onRemove: (id: string) => void;
   onRestack: (id: string, by: 1 | -1) => void;
+  /** Moves a layer to a stack index (0 = the back): dragging a row, Alt + ↑/↓ (506). */
+  onMove: (id: string, to: number) => void;
   /** Video: the timeline length and playhead, to set when each layer shows. */
   timing?: { duration: number; now: number };
   /** Extra actions under the list (e.g. "Copy layers to every photo"). */
@@ -54,7 +55,7 @@ interface ShapeIconProps {
  * A shape's icon, drawn in the text colour on a small canvas.
  * @param props the shape
  */
-function ShapeIcon({ shape }: Readonly<ShapeIconProps>) {
+export function ShapeIcon({ shape }: Readonly<ShapeIconProps>) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current,
@@ -215,89 +216,6 @@ export function AddElements(props: Readonly<Pick<LayerPanelProps, 'onAdd' | 'tim
   );
 }
 
-/** What the layer list needs from the panel's props. */
-type LayerListProps = Pick<
-  LayerPanelProps,
-  'layers' | 'selected' | 'onSelect' | 'onUpdate' | 'onRestack' | 'onRemove' | 'timing' | 'extra'
->;
-
-/**
- * Every layer, front first: select, show or hide, restack, delete.
- * @param props the layers, the selection, the handlers, the timing (video) and extra actions
- */
-export function LayerList(props: Readonly<LayerListProps>) {
-  const { layers, selected, timing } = props;
-  return (
-    <div className="ig-group">
-      {layers.length === 0 ? (
-        <p className="hint">Nothing added yet. Text, shapes, stickers and drawings appear here, the top one first.</p>
-      ) : (
-        <ol className="lp-list" aria-label="Layers, front first">
-          {[...layers].reverse().map((layer, fromFront) => {
-            const index = layers.length - 1 - fromFront,
-              name = layerName(layer);
-            return (
-              <li key={layer.id} className={layer.id === selected ? 'on' : ''}>
-                <button
-                  type="button"
-                  className="lp-name"
-                  aria-pressed={layer.id === selected}
-                  onClick={() => props.onSelect(layer.id === selected ? null : layer.id)}
-                >
-                  {name}
-                  {timing && (
-                    <small>
-                      {' '}
-                      {formatClock(layer.start ?? 0)}–
-                      {formatClock(Math.min(layer.end ?? timing.duration, timing.duration))}
-                    </small>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="pbtn"
-                  aria-label={`${layer.hidden ? 'Show' : 'Hide'} ${name}`}
-                  aria-pressed={!layer.hidden}
-                  onClick={() => props.onUpdate(layer.id, { hidden: !layer.hidden }, '')}
-                >
-                  {layer.hidden ? '○' : '●'}
-                </button>
-                <button
-                  type="button"
-                  className="pbtn lp-up"
-                  aria-label={`Bring ${name} forward`}
-                  disabled={index === layers.length - 1}
-                  onClick={() => props.onRestack(layer.id, 1)}
-                >
-                  <PrevIcon />
-                </button>
-                <button
-                  type="button"
-                  className="pbtn lp-down"
-                  aria-label={`Send ${name} back`}
-                  disabled={index === 0}
-                  onClick={() => props.onRestack(layer.id, -1)}
-                >
-                  <NextIcon />
-                </button>
-                <button
-                  type="button"
-                  className="pbtn"
-                  aria-label={`Delete ${name}`}
-                  onClick={() => props.onRemove(layer.id)}
-                >
-                  <TrashIcon />
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-      {props.extra}
-    </div>
-  );
-}
-
 /**
  * The selected layer's properties (and its timing on a video); nothing when no layer is selected.
  * @param props the panel's props
@@ -305,21 +223,6 @@ export function LayerList(props: Readonly<LayerListProps>) {
 export function LayerProps(props: Readonly<LayerPanelProps>) {
   const layer = props.layers.find((candidate) => candidate.id === props.selected);
   return layer ? <LayerProperties {...props} layer={layer} /> : null;
-}
-
-/**
- * Everything in one column (adding, the list and the properties).
- * @param props the panel's props
- */
-export function LayerPanel(props: Readonly<LayerPanelProps>) {
-  return (
-    <div className="lp">
-      <AddText {...props} />
-      <AddElements {...props} />
-      <LayerList {...props} />
-      <LayerProps {...props} />
-    </div>
-  );
 }
 
 /** The drawing tool's settings and actions. */

@@ -203,7 +203,8 @@ src/
                            Timeline, Dialog, previewFrame / previewSound: section 4.10; the timeline is
                            Timeline, PictureRow, CutMarks, TimelineBars, TrackHead, Transport, timelineDrag,
                            timelineActions, timelineRows), ig/ = editing
-                           panels shared by photos and video (LayerPanel with LayerProperties and LayerControls, MaskPanel, curves, colour
+                           panels shared by photos and video (LayerPanel with LayerProperties and LayerControls, LayerList with
+                           layerListMoves: section 4.15, MaskPanel, curves, colour
                            mixer, looks), panes/ = the
                            print studio's step panes, ai/ = AI settings, words and artwork dialogs, panel/ = the
                            parts both studios build panels from (PanelHeader, FoldGroup / FoldSection with foldGroups.ts, ListRow, EmptyState, RailFrame
@@ -979,6 +980,25 @@ bounds on the real editor) and `CHITTHI_TEST_ONLY=poolcount npm test` (AC-15: si
   Shift + R and the track's record button, `onOpened={openRecordVoice}`, `onClosed={closeRecordVoice}`), `audio.takes`,
   `audio.tracks`, `audio.loudness`. `FoldSection.onOpened` is called from the title's click only when it opens the
   section, so a remembered or default open never opens the microphone (D4).
+
+### 4.15 The Layers list (506: `engine/layers.ts`, `state/instagramLayers.ts`, `videoLayers.ts`, `components/ig/LayerList.tsx`, `layerListMoves.ts`)
+
+- **Names and moves**: `layerName` keeps the whole first line (text, shape text) or file name (image); the screen
+  shortens it (`.list-row-name`, `.ig-name`, `.tl-bar > span`). `moveLayer(layers, id, to)` moves a layer to a stack
+  index (0 = the back, clamped) and returns the same array when nothing moves; `moveLayerTo(itemId, id, to)` and
+  `moveVLayerTo(id, to)` are one `change` each, none when nothing moves; `restackLayer` / `restackVLayer` go through
+  them (±1). `LayerPanelProps.onMove` carries them to the list.
+- **The rows** (`LayerList.tsx`): a `ListRow` per layer, front first, `rowId` = the layer's id; `LayerThumb` (D1, no
+  frame render); `layerDetail` (times, Hidden). `LayerPanel.tsx` keeps the add panels, `LayerProps` (the inspector),
+  `DrawPanel` and exports `ShapeIcon`; no panel shows the list and the properties together.
+- **The rules** (`layerListMoves.ts`, pure): `layerListKey` (Alt + ↑ forward, Alt + ↓ back, ↑ / ↓ focus; Ctrl, Cmd,
+  Shift ignored), `stackIndex(row, count)`, `dropRow(y, rowEdges)` (the gap 0…count by row halves), `movedRow(from,
+  gap)`, `DRAG_START_PX` = 4.
+- **Keys and dragging**: `useListKeys` on the `<ol>` (a move gives the focus back to the row by `data-id` in a layout
+  effect); `useRowDrag` with pointer events on the `<ol>`: a mouse or pen from a row's main button, touch only from
+  `.lp-thumb` (D3); past 4 px it captures the pointer and shows `.lp-drop-before` / `.lp-drop-after` and
+  `.lp-dragging`; release calls `onMove` once and swallows the click (reset on the next press); Esc and
+  `pointercancel` cancel.
 
 ## 5. Integrations
 

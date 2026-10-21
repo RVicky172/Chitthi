@@ -41,6 +41,7 @@ The test pass for Phase UI (D-033): the e2e tests, axe checks and manual checks 
 - 504 AC-5: drag from pool; 200 items.
 - 505 AC-4: Audio panel with 8 tracks, 20 takes.
 - 506 AC-2: Layers panel fits with 40 long-named layers.
+- 506 AC-4: drag a layer row to a new place with a mouse and with touch (from its thumbnail); a click without a move still selects; swiping the names scrolls the list on a phone.
 
 ## Open Questions
 

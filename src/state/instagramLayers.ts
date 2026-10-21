@@ -1,4 +1,4 @@
-import type { Layer } from '../engine/layers';
+import { moveLayer, type Layer } from '../engine/layers';
 import { change, getIg } from './instagram';
 
 /*
@@ -59,22 +59,15 @@ export function removeLayer(itemId: string, layerId: string): void {
 }
 
 /**
- * The layers with one moved a place (unchanged when it can't move that way).
- * @param layers the layers, bottom first
+ * Moves a layer to a place in the photo's stack, one undo step; nothing (no step) when it is already there (506).
+ * @param itemId the photo
  * @param layerId the layer
- * @param by +1 towards the front, -1 towards the back
- * @returns the new list
+ * @param to its new stack index (0 = the back)
  */
-function swapLayer(layers: Layer[], layerId: string, by: 1 | -1): Layer[] {
-  const from = layers.findIndex((layer) => layer.id === layerId),
-    to = from + by;
-  const moving = layers.at(from),
-    other = layers.at(to);
-  if (from < 0 || to < 0 || !moving || !other) return layers;
-  const out = layers.slice();
-  out[from] = other;
-  out[to] = moving;
-  return out;
+export function moveLayerTo(itemId: string, layerId: string, to: number): void {
+  const layers = getIg().items.find((item) => item.id === itemId)?.layers ?? [];
+  const moved = moveLayer(layers, layerId, to);
+  if (moved !== layers) change('', withLayers(itemId, () => moved));
 }
 
 /**
@@ -84,10 +77,9 @@ function swapLayer(layers: Layer[], layerId: string, by: 1 | -1): Layer[] {
  * @param by the direction
  */
 export function restackLayer(itemId: string, layerId: string, by: 1 | -1): void {
-  change(
-    '',
-    withLayers(itemId, (layers) => swapLayer(layers, layerId, by)),
-  );
+  const layers = getIg().items.find((item) => item.id === itemId)?.layers ?? [];
+  const from = layers.findIndex((layer) => layer.id === layerId);
+  if (from >= 0) moveLayerTo(itemId, layerId, from + by);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { countKeys, isAnimated, layerAt, LAYER_KEY_PROPS, setKey, shiftKeys, type Keyframes, type LayerKeyProp } from '../engine/keyframes';
-import { scaleLayer, type Layer } from '../engine/layers';
+import { moveLayer, scaleLayer, type Layer } from '../engine/layers';
 import { keyEdit, LAYER_GONE, projectKeyCount } from './videoKeys';
 import { change, getVideo } from './videoStore';
 
@@ -43,14 +43,19 @@ export function removeVLayer(id: string): void {
  * @param by up (1) or down (-1)
  */
 export function restackVLayer(id: string, by: 1 | -1): void {
-  const layers = getVideo().layers.slice();
-  const index = layers.findIndex((layer) => layer.id === id);
-  const moving = layers.at(index);
-  const other = layers.at(index + by);
-  if (index < 0 || index + by < 0 || !moving || !other) return;
-  layers[index] = other;
-  layers[index + by] = moving;
-  change('', { layers });
+  const from = getVideo().layers.findIndex((layer) => layer.id === id);
+  if (from >= 0) moveVLayerTo(id, from + by);
+}
+
+/**
+ * Moves a layer to a place in the stack, one undo step; nothing (no step) when it is already there (506).
+ * @param id the layer
+ * @param to its new stack index (0 = the back)
+ */
+export function moveVLayerTo(id: string, to: number): void {
+  const { layers } = getVideo();
+  const moved = moveLayer(layers, id, to);
+  if (moved !== layers) change('', { layers: moved });
 }
 
 /**

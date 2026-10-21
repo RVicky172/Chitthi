@@ -517,43 +517,49 @@
 .lp-list {
   display: grid;
   gap: 4px;
+  min-width: 0;
   margin: 0 0 8px;
   padding: 0;
   list-style: none;
 }
-.lp-list li {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
+/* Dragging a row (506 D3): the line where it lands, the row being dragged */
+.lp-list .lp-drop-before {
+  box-shadow: 0 -3px 0 -1px var(--accent);
+}
+.lp-list .lp-drop-after {
+  box-shadow: 0 3px 0 -1px var(--accent);
+}
+.lp-list .lp-dragging {
+  opacity: 0.5;
+}
+/* A layer's thumbnail: a picture of its kind (506 D1) */
+.lp-thumb {
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
   border-radius: var(--r-sm);
   background: var(--field);
-}
-.lp-list li.on {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.lp-name {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  border: 0;
-  background: none;
   color: var(--text);
-  font-size: var(--fs-sm);
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.lp-name small {
-  color: var(--muted);
+.lp-thumb canvas {
+  max-width: 100%;
+  max-height: 100%;
 }
-.lp-list .pbtn {
-  width: 26px;
-  height: 26px;
-  font-size: var(--fs-2xs);
+.lp-thumb-emoji {
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+.lp-thumb-words {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  font-size: var(--fs-md);
+  line-height: 1.2;
 }
 .lp-list .lp-up svg,
 .lp-list .lp-down svg {

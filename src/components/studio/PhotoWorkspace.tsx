@@ -2,8 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { IG_FORMATS, igFormat } from '../../data/instagram';
 import { toast } from '../../lib/toast';
 import { getIg, redo, selectLayer, setIg, setTools, undo, useIg, type IgItem } from '../../state/instagram';
-import { addLayer, copyLayersToAll, removeLayer, restackLayer, updateLayer } from '../../state/instagramLayers';
-import { AddElements, AddText, DrawPanel, LayerList, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
+import { addLayer, copyLayersToAll, moveLayerTo, removeLayer, restackLayer, updateLayer } from '../../state/instagramLayers';
+import { LayerList } from '../ig/LayerList';
+import { AddElements, AddText, DrawPanel, LayerProps, typingIn, type LayerPanelProps } from '../ig/LayerPanel';
 import { MaskInspector, MaskPanel } from '../ig/MaskPanel';
 import { DownloadIcon, RedoIcon, UndoIcon } from '../icons';
 import { MoreMenu } from '../MoreMenu';
@@ -60,6 +61,7 @@ const layerPanelProps = (item: IgItem, layerSel: string | null): LayerPanelProps
   onUpdate: (id, patch, key) => updateLayer(item.id, id, patch, key),
   onRemove: (id) => removeLayer(item.id, id),
   onRestack: (id, by) => restackLayer(item.id, id, by),
+  onMove: (id, to) => moveLayerTo(item.id, id, to),
 });
 
 /** The panel for the rail's tool. */

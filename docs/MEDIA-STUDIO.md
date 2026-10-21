@@ -206,6 +206,15 @@ nudged with the arrow keys, sized with + and −, made transparent, hidden, move
 deleted (Delete key). Double-clicking text jumps to its text box. **Copy these layers to every photo** puts the same
 title or sticker on the whole batch.
 
+**The Layers panel** lists the layers only, the front one first; the selected layer's settings are in the inspector
+(the same in photos, Reels and YouTube videos). Each row has a thumbnail of its kind (the sticker, the picture, the
+shape, "Aa" in the text's font and colour, a brush for a drawing), its name, which shortens to fit and shows in full on
+hover and to screen readers, its times on a video and "Hidden" when hidden, then **Show / Hide**, **Bring forward**,
+**Send back** and **Delete**, which always stay on the row. Choose a row to select the layer (again to clear it). To
+change the order, drag a row up or down (with a finger, drag it by its thumbnail, so swiping the names still scrolls;
+Esc cancels), use the buttons, or press **Alt + ↑ / ↓** on a row; ↑ and ↓ move between rows. Each move is one undo
+step.
+
 **Draw.** Pen, marker, highlighter and neon brushes, any colour, 0.5–4× size. Strokes go into the selected drawing,
 so a drawing stays one layer; **Start a new drawing** begins another. Draw over shapes to write or sketch on them.
 
@@ -271,7 +280,7 @@ step.
 | Placement, applying the colour, drawing a post (no UI); `mergeEdit()` validates edits from outside the app | `src/engine/instagram.ts` |
 | Batch state, adding photos, rendering and zipping | `src/state/instagram.ts` (state, undo, edits); `instagramLayers.ts`, `instagramMedia.ts`, `instagramExport.ts` |
 | Layers: text, shapes, stickers, drawings; drawing, picking, handles | `src/data/layers.ts`, `src/engine/layers.ts`, `layerDraw.ts`, `layerPick.ts`, `layerGate.ts` |
-| Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` (adding, the list, the brush), `LayerProperties.tsx` (the selected layer), `LayerControls.tsx` (swatches, range) |
+| Layer editing on a preview, layer panels (shared by photos and video) | `src/components/ig/useLayerPointer.ts`, `src/components/ig/LayerPanel.tsx` (adding, the brush), `LayerList.tsx` and `layerListMoves.ts` (the Layers list, its keys and dragging), `LayerProperties.tsx` (the selected layer), `LayerControls.tsx` (swatches, range) |
 | Video formats and limits; frame drawing; MP4 export (frames from `framePlan`, sound from `audioPlan`) | `src/engine/videoFormats.ts`; `src/engine/video.ts`; `src/engine/videoExport.ts` |
 | Decoder pool (lanes, look-ahead, frame and byte limits) and its frames from Mediabunny; the preview's picture source, the fallback note, clip sound | `src/engine/decodePool.ts`, `src/engine/frameSource.ts`; `src/components/studio/previewFrame.ts`, `src/components/studio/previewSound.ts` |
 | Video project as tracks: clips at a start time, gaps, hide / mute / lock, the frame and sound plans, the project document and its validator `mergeProject()` (layers through `mergeLayers()`) | `src/engine/timeline.ts`, `tracks.ts`, `soundPlan.ts`, `projectDoc.ts`, `projectGate.ts`; `src/engine/layerGate.ts` |

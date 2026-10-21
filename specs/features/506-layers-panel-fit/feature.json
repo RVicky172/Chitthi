@@ -4,13 +4,13 @@
   "id": "506",
   "title": "Layers panel: no overflow or cut-off items",
   "workItem": null,
-  "status": "approved",
+  "status": "implemented",
   "owner": null,
   "dates": {
     "created": "2026-10-20",
     "approved": "2026-10-20",
-    "started": null,
-    "done": null
+    "started": "2026-10-21",
+    "done": "2026-10-21"
   },
   "git": {
     "branch": "feat/506-layers-panel-fit"
@@ -44,7 +44,7 @@
           "group": "Fit",
           "proof": "unit",
           "text": "A layer row lays out as thumbnail · name · controls with the name shrinking first; controls never wrap or leave the row; the list has no horizontal scroll. Proven by a unit test on the row's class contract plus 590's e2e check.",
-          "done": false
+          "done": true
         },
         "AC-2": {
           "group": "Fit",
@@ -56,13 +56,13 @@
           "group": "Structure",
           "proof": "unit",
           "text": "The Layers panel shows the list only; the selected layer's properties are in the inspector (in folding sections, 503), in the photo, Reel and YouTube modes alike.",
-          "done": false
+          "done": true
         },
         "AC-4": {
           "group": "Accessibility",
           "proof": "unit",
           "text": "Each row is reachable with the keyboard; its full name is its accessible name; reorder works with Alt + ↑/↓ as well as dragging.",
-          "done": false
+          "done": true
         }
       }
     },
@@ -85,6 +85,14 @@
       {
         "date": "2026-10-20",
         "text": "Every proposed answer accepted by the maintainer; Approved."
+      },
+      {
+        "date": "2026-10-21",
+        "text": "Plan drafted (D1–D3 for the maintainer)."
+      },
+      {
+        "date": "2026-10-21",
+        "text": "Plan Approved: D1–D3 A (D-071)."
       }
     ],
     "sections": [
@@ -120,6 +128,443 @@
       }
     ]
   },
-  "plan": null,
-  "tasks": null
+  "plan": {
+    "header": "**Spec:** `./spec.md` · **Status:** Approved (D1–D3 A; 2026-10-21, D-071) <!-- Draft | Approved -->",
+    "sections": [
+      {
+        "kind": "markdown",
+        "title": "Approach",
+        "markdown": "Today (after 501–505) the Layers tool's panel already shows only the list (`LayerList` in `ig/LayerPanel.tsx`) and the inspector shows the selected layer's properties in folding sections (`LayerProps` → `LayerProperties`, 503) in the photo, Reel and YouTube modes. What overflows is the row: `.lp-list li` (35-instagram.css) is a flex row of a name button and four 26 px buttons with no thumbnail, the name is cut to 24 characters by `layerName` (so the full name is never shown or announced), the video's start–end times sit inside the name, and there is no dragging and no Alt + ↑/↓. 506 rebuilds the row on 501's `ListRow` and adds reordering by dragging and keys.\n\n**§1 The row (AC-1, AC-4).** `LayerList` moves to its own file, `ig/LayerList.tsx`, and draws each layer, front first, as a `ListRow`: lead = `LayerThumb` (D1), name = the layer's full name, detail = its times on a video (\"0:02–0:05\") and \"Hidden\" when hidden, controls = Show / Hide (a new `EyeIcon` in place of ●/○), Bring forward, Send back, Delete. `ListRow`'s contract does the fitting: the main button is `flex: 1; min-width: 0`, the name and detail shorten with an ellipsis, the controls are `flex: none` and never wrap; the full name is the button's accessible name and tooltip. The old `.lp-list li`, `.lp-name` and `.lp-list .pbtn` rules go; `.lp-list` keeps only the list's gap and `min-width: 0`. The forward / back buttons stay: they are the single-pointer way to reorder that WCAG 2.2's 2.5.7 (Dragging Movements) asks for. No lock control: none exists today (D2).\n\n**§2 Full names (AC-1, AC-4).** `layerName` (engine/layers.ts) stops cutting text: it keeps the first line whole (\"Text: <first line>\", \"<Shape>: <first line>\", \"Image: <file name>\"); every place that shows it (the list, the inspector's name line, the timeline's layer bars, the timeline's live region) shortens with CSS or reads it out, so nothing widens. `layers.test.ts`'s name cases are updated.\n\n**§3 Reordering (AC-4).** One pure move, `moveLayer(layers, id, to)` in engine/layers.ts (to = the stack index, 0 = back), and one store action each, `moveLayerTo(itemId, id, to)` (state/instagramLayers.ts) and `moveVLayerTo(id, to)` (state/videoLayers.ts), each one undo step; `LayerPanelProps` gains `onMove`. The list's own rules live in a pure module, `ig/layerListMoves.ts`: `layerListKey(event)` → forward / back / previous / next / none (Alt + ↑ forward, Alt + ↓ back, ↑ / ↓ move focus between rows as the Projects list does; Ctrl / Meta / Shift combinations and typing are left alone), `stackIndex(row, count)` (the list is front first, the stack back first), and `dropRow(y, rowEdges)` (where a dragged row lands). Keys are handled on the `<ol>` (rows carry `data-id`, as in the media pool) and focus stays on the moved row (refocused by id after the move). Dragging (D3) uses pointer events on the list, as the photo strip does: past a 4 px move a press becomes a drag, a line marks where the row will land, and release calls `onMove` once; a press without a move is a click and selects. Esc cancels a drag.\n\n**§4 The list only (AC-3).** The all-in-one `LayerPanel` component (adding, list and properties in one column) is no longer used by either workspace and goes; `LayerPanel.tsx` keeps `AddText`, `AddElements`, `LayerProps`, `DrawPanel` and the shared `LayerPanelProps`. Both workspaces' Layers tool renders `LayerList` (the photo's with Copy these layers to every photo under it) and their inspector renders `LayerProps` for a selected layer; a source test holds this so a later change can't put properties back in the panel.\n\n**§5 Agent tools.** None: there are no layer tools today; moving a layer joins the video editor's agent tools feature (D-069 D5)."
+      },
+      {
+        "kind": "files",
+        "title": "Files"
+      },
+      {
+        "kind": "markdown",
+        "title": "Data Structures & Interfaces",
+        "markdown": "```ts\n// engine/layers.ts\nexport function moveLayer(layers: Layer[], id: string, to: number): Layer[]; // same array when nothing moves\nexport function layerName(layer: Layer): string;                         // now the whole first line\n\n// state/instagramLayers.ts, state/videoLayers.ts\nexport function moveLayerTo(itemId: string, layerId: string, to: number): void; // one undo step\nexport function moveVLayerTo(id: string, to: number): void;\n\n// components/ig/LayerPanel.tsx\nexport interface LayerPanelProps { /* … */ onMove: (id: string, to: number) => void }\n\n// components/ig/layerListMoves.ts (new, pure)\nexport type LayerListKey = 'forward' | 'back' | 'previous' | 'next' | null;\nexport function layerListKey(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>): LayerListKey;\nexport const stackIndex = (row: number, count: number): number => count - 1 - row;\n/** The row a dragged row lands on, from the pointer's y and the rows' top edges (and the last row's bottom). */\nexport function dropRow(y: number, rowEdges: readonly number[]): number;\nexport const DRAG_START_PX = 4;\n\n// components/ig/LayerList.tsx (new)\nexport function LayerList(props: Readonly<LayerListProps>): JSX.Element; // ListRow per layer, keys, drag\nfunction LayerThumb({ layer }: Readonly<{ layer: Layer }>): JSX.Element;  // D1\n\n// components/icons.tsx\nexport function EyeIcon({ open }: Readonly<{ open: boolean }>): JSX.Element;\n```\n\nSaved projects: unchanged (no new fields; a move only reorders `layers`)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Techniques",
+        "markdown": "- **One row part:** the row is `ListRow` (501), whose class contract already fits any name; 506 removes the Layers list's own row CSS rather than patching it.\n- **CSS shortens, data doesn't:** names are whole in the data and shortened only on screen, so the tooltip and the accessible name are the full name.\n- **Pure rules, thin component:** keys, index conversion and the drop position are pure functions tested in Node; the component wires pointer and key events to them.\n- **Pointer events with a threshold** (as `PhotoStrip`): works with mouse, pen and touch; a press under 4 px stays a click. Pointer capture keeps the drag when the pointer leaves the list.\n- **Every drag has a click and a key:** forward / back buttons and Alt + ↑/↓ do what dragging does (WCAG 2.5.7, 2.1.1)."
+      },
+      {
+        "kind": "markdown",
+        "title": "Test Approach",
+        "markdown": "| AC | Test | Kind |\n| --- | --- | --- |\n| AC-1 | `tests/unit/components/ig/layerList.test.ts`: `renderToStaticMarkup` of `LayerList` with 40 layers with 80-character names (photo and video props): each row is `li.list-row` with `button.list-row-main` (lead, name) and `span.list-row-controls` holding the four controls, in that order; a CSS check that `.list-row-main` has `flex: 1` and `min-width: 0`, `.list-row-name` has `white-space: nowrap` and `text-overflow: ellipsis`, `.list-row-controls` is `flex: none` with no `flex-wrap`, and the old `.lp-list li` / `.lp-name` rules are gone | unit |\n| AC-2 | 40 layers with 80-character names at 1280 × 720, 1440 × 900 and 390 × 844: no element wider than the panel, every control clickable | e2e (590, already listed there) |\n| AC-3 | `tests/unit/components/ig/layerStructure.test.ts` (source scan): `LayerList.tsx` doesn't import `LayerProperties`; `LayerPanel` (all-in-one) isn't exported; in `PhotoWorkspace.tsx` and `VideoWorkspace.tsx` the Layers tool renders `LayerList` / `LayersPanel` and the inspector's `layer` kind renders `LayerProps`; `foldCoverage.test.ts` already holds `LayerProperties`' folding sections | unit |\n| AC-4 | `tests/unit/components/ig/layerListMoves.test.ts`: `layerListKey` (Alt + ↑/↓, ↑/↓, Ctrl / Meta / Shift ignored), `stackIndex`, `dropRow` (above the first row, between rows, below the last); `tests/unit/engine/layers.test.ts`: `moveLayer` to the front, the back, the same place, an unknown id, out of range; `layerName` keeps an 80-character first line whole; `tests/integration/state/layerMoves.test.ts`: `moveLayerTo` / `moveVLayerTo` are one undo step and keep the selection; `layerList.test.ts`: each row's main button's `aria-label` and `title` are the full name, rows carry `data-id`. Dragging with a mouse and with touch is checked in 590 | unit |"
+      },
+      {
+        "kind": "risks",
+        "title": "Risks & Mitigations"
+      },
+      {
+        "kind": "constitution",
+        "title": "Constitution Check"
+      },
+      {
+        "kind": "markdown",
+        "title": "Decisions for the maintainer",
+        "markdown": "_Chosen (the maintainer, 2026-10-21): A for all three (D-071)._\n\n**D1 The row's thumbnail.** **A (recommended)** a picture of the kind, drawn without rendering the frame: a sticker's emoji, an image layer's picture, a shape's outline (the Elements panel's `ShapeIcon`), \"Aa\" in a text layer's font and colour, a brush for a drawing; cheap for 40 rows and legible at 32 px. **B** the layer itself drawn small (`drawLayers` into a 32 px canvas per row, redrawn on each change): truer, but text is unreadable at that size and 40 canvases redraw while dragging a slider.\n\n**D2 A lock control.** The spec's summary names \"lock\" among the row's controls, but layers have no lock today and no criterion asks for one. **A (recommended)** no lock in 506 (four controls: show / hide, forward, back, delete); a lock, if wanted, is a feature of its own (the stage would have to skip locked layers). **B** add a lock now (a `locked` field through the gate, the stage's pointer skips it, a fifth control).\n\n**D3 How a row is dragged.** **A (recommended)** pointer events: a mouse or pen drags from anywhere on the row; a finger drags from the thumbnail only (`touch-action: none` there), so swiping over the names still scrolls the list on a phone. **B** HTML drag and drop (`draggable`, as the media pool): less code, but no touch dragging on most phones (the buttons and keys would be the only way there)."
+      }
+    ],
+    "files": [
+      {
+        "file": "`src/components/ig/LayerList.tsx`",
+        "change": "new",
+        "purpose": "The list: a `ListRow` per layer, `LayerThumb`, keys, dragging (§1, §3)"
+      },
+      {
+        "file": "`src/components/ig/layerListMoves.ts`",
+        "change": "new",
+        "purpose": "`layerListKey`, `stackIndex`, `dropRow` (§3)"
+      },
+      {
+        "file": "`src/components/ig/LayerPanel.tsx`",
+        "change": "modify",
+        "purpose": "`LayerList` moves out; the all-in-one `LayerPanel` goes; `onMove` on `LayerPanelProps` (§3, §4)"
+      },
+      {
+        "file": "`src/engine/layers.ts`",
+        "change": "modify",
+        "purpose": "`moveLayer`; `layerName` keeps the whole first line (§2, §3)"
+      },
+      {
+        "file": "`src/state/instagramLayers.ts`, `src/state/videoLayers.ts`",
+        "change": "modify",
+        "purpose": "`moveLayerTo`, `moveVLayerTo` (§3)"
+      },
+      {
+        "file": "`src/components/studio/PhotoWorkspace.tsx`, `src/components/studio/VideoWorkspace.tsx`",
+        "change": "modify",
+        "purpose": "Import `LayerList` from its file; pass `onMove` (§3, §4)"
+      },
+      {
+        "file": "`src/components/icons.tsx`",
+        "change": "modify",
+        "purpose": "`EyeIcon` for Show / Hide (§1)"
+      },
+      {
+        "file": "`src/styles/35-instagram.css`, `src/styles/42-panel.css`",
+        "change": "modify",
+        "purpose": "Old row rules out; the thumbnail, drop line and dragged row (§1, §3)"
+      },
+      {
+        "file": "`tests/unit/components/ig/{layerList,layerStructure,layerListMoves}.test.ts`, `tests/unit/engine/layers.test.ts`, `tests/integration/state/layerMoves.test.ts`",
+        "change": "new / modify",
+        "purpose": "AC-1, AC-3, AC-4"
+      },
+      {
+        "file": "`docs/MEDIA-STUDIO.md`, `docs/DESIGN.md`, `specs/lld.md`, `CHANGELOG.md`",
+        "change": "modify",
+        "purpose": "The Layers list, reordering by dragging and Alt + ↑/↓; `ListRow` used by Layers; `LayerList.tsx`"
+      }
+    ],
+    "risks": [
+      {
+        "text": "**A drag swallows clicks, or a click starts a drag.** Mitigation: a press becomes a drag only past 4 px (`DRAG_START_PX`, as the photo strip); `dropRow` and the threshold are unit-tested; 590 checks it by hand with a mouse and touch."
+      },
+      {
+        "text": "**Dragging on a phone stops the list scrolling.** Mitigation: D3 A, touch drags only from the thumbnail; the rest of the row keeps `touch-action` as is."
+      },
+      {
+        "text": "**Focus is lost after Alt + ↑/↓** (the row moves in the DOM). Mitigation: rows are keyed by layer id so React moves the node; the list refocuses the row by `data-id` after the move anyway."
+      },
+      {
+        "text": "**Whole names widen other places** (the timeline's layer bars, the inspector's name line, live-region announcements). Mitigation: each is checked while building §2 and shortened with CSS where it isn't yet; announcements reading a full name is wanted (AC-4)."
+      },
+      {
+        "text": "**Alt + ↑/↓ clashes with a shortcut** (the timeline's keys, the desktop app's Alt menu key). Mitigation: handled only on the list's rows and `preventDefault`ed there; the timeline's Alt keys act on its own focus."
+      }
+    ],
+    "constitution": [
+      {
+        "principle": "I. Spec Before Code",
+        "status": "✅",
+        "notes": "Spec Approved 2026-10-20; plan Approved 2026-10-21 (D-071)."
+      },
+      {
+        "principle": "II. Test-Gated Delivery",
+        "status": "✅",
+        "notes": "AC-1, AC-3, AC-4 unit tests, test-first; AC-2 and dragging by hand deferred to 590 (already listed there)."
+      },
+      {
+        "principle": "III. Simplicity and Small Dependencies",
+        "status": "✅",
+        "notes": "No new dependency; reuses `ListRow` and the photo strip's pointer pattern."
+      },
+      {
+        "principle": "IV. Memory Is Maintained",
+        "status": "✅",
+        "notes": "D1–D3 recorded as D-071."
+      },
+      {
+        "principle": "V. Free and Open Source",
+        "status": "✅",
+        "notes": "Same on web and desktop."
+      },
+      {
+        "principle": "VI. On the User's Device",
+        "status": "✅",
+        "notes": "No network."
+      },
+      {
+        "principle": "VII. Permissive Licences Only",
+        "status": "✅",
+        "notes": "Nothing new; `EyeIcon` drawn in-house."
+      },
+      {
+        "principle": "VIII. What You See Is What You Get",
+        "status": "✅",
+        "notes": "No preview or export path changes; a move only reorders `layers`, drawn by the same `drawLayers`."
+      },
+      {
+        "principle": "IX. Secure Desktop Shell",
+        "status": "✅",
+        "notes": "No `electron/` changes."
+      },
+      {
+        "principle": "X. Budgets and Accessibility",
+        "status": "✅",
+        "notes": "In the studio's lazy chunk; rows keyboard-reachable, full names announced, a click and a key for every drag (WCAG 2.5.7); fit checked in 590."
+      },
+      {
+        "principle": "XI. Agents Use the Same Code",
+        "status": "⚠️",
+        "notes": "No layer agent tools yet; moving a layer joins the video editor's agent tools feature (D-069 D5)."
+      }
+    ]
+  },
+  "tasks": {
+    "intro": "**Plan:** `./plan.md`\nLegend: `[P]` = can run in parallel with the previous task; 👤 = needs a person. Each task lists files and the proving test.\nTest-first: each \"failing\" task must fail before its paired implementation makes it pass. Tasks run one at a time in the main session.\nTasks are proven by unit tests only (D-033); AC-2 (40 layers with 80-character names at 1280 × 720, 1440 × 900 and 390 × 844) and dragging by mouse and touch are in `590` (\"Deferred checks collected from the phase\").\nWhen a task is done, record a **Result (YYYY-MM-DD):** note with `npm run specs -- done 506 Txxx --result \"…\"`.",
+    "sections": [
+      {
+        "title": "Names and moves",
+        "intro": "§2, §3: whole names, and moving a layer to a place in one undo step."
+      },
+      {
+        "title": "List rules",
+        "intro": "§3: the list's keys, index and drop position as pure functions."
+      },
+      {
+        "title": "The row",
+        "intro": "§1, §3: the row on `ListRow` (D1, D2), then keys and dragging (D3)."
+      },
+      {
+        "title": "List only",
+        "intro": "§4: the panel holds the list; properties stay in the inspector."
+      },
+      {
+        "title": "Close",
+        "intro": null
+      }
+    ],
+    "items": {
+      "order": [
+        "T010",
+        "T011",
+        "T020",
+        "T021",
+        "T030",
+        "T031",
+        "T032",
+        "T040",
+        "T041",
+        "T090",
+        "T091"
+      ],
+      "byId": {
+        "T010": {
+          "text": "Failing tests for the moves and names: `moveLayer` to the front, to the back, to the same place (same array back), an unknown id and an index out of range (clamped), the other layers' order kept (`layers.test.ts`); `layerName` keeps an 80-character first line whole for text, shape text and image names (the old 24 / 18 cuts' cases updated); `moveLayerTo` (photo) and `moveVLayerTo` (video) are one undo step each, keep the selection, and do nothing (no undo step) when the layer is already there (`layerMoves.test.ts`).",
+          "section": "Names and moves",
+          "status": "done",
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "tests/unit/engine/layers.test.ts",
+            "tests/integration/state/layerMoves.test.ts"
+          ],
+          "test": "the two files (new cases fail first)",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** 7 new cases fail first: layerName keeps an 80-character first line (text, shape text, image), moveLayer to a stack index / clamped / same array when nothing moves (layers.test.ts); moveLayerTo and moveVLayerTo one undo step, selection kept, no step when already there (new tests/integration/state/layerMoves.test.ts)."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T011": {
+          "text": "`moveLayer` and the whole-first-line `layerName` in `engine/layers.ts`; `moveLayerTo` in `state/instagramLayers.ts` and `moveVLayerTo` in `state/videoLayers.ts` (one `change` each); `restackLayer` / `restackVLayer` go through `moveLayer` too; check that the inspector's name line and the timeline's layer bars shorten a long name with CSS (fix where they don't). T010 passes.",
+          "section": "Names and moves",
+          "status": "done",
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/engine/layers.ts",
+            "src/state/instagramLayers.ts",
+            "src/state/videoLayers.ts",
+            "src/styles/36-media-studio.css"
+          ],
+          "test": "`layers.test.ts`, `layerMoves.test.ts`",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** moveLayer (engine/layers.ts; clamped, same array when nothing moves) and layerName keeping the whole first line / file name; moveLayerTo (instagramLayers.ts) and moveVLayerTo (videoLayers.ts), one undo step, none when already there; restackLayer / restackVLayer go through them (swapLayer gone; an edge restack no longer records an empty step). The inspector's .ig-name and the timeline's .tl-bar > span already shorten with an ellipsis: no CSS change. T010 passes (breaking the no-step guard fails it); npm run check green, 2828 tests."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T020": {
+          "text": "Failing tests for the list's rules (`layerListMoves.test.ts`): `layerListKey` gives forward for Alt + ↑, back for Alt + ↓, previous / next for ↑ / ↓, and null with Ctrl, Meta or Shift held or for other keys; `stackIndex` turns a front-first row into a stack index and back; `dropRow` above the first row (0), on each half of a row, between rows and below the last row (the count); `DRAG_START_PX` is 4.",
+          "section": "List rules",
+          "status": "done",
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "tests/unit/components/ig/layerListMoves.test.ts"
+          ],
+          "test": "`layerListMoves.test.ts` (fails first: no module)",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** tests/unit/components/ig/layerListMoves.test.ts, 7 cases, failed first (no module): layerListKey (Alt + ↑/↓ forward / back, ↑/↓ previous / next, Ctrl / Cmd / Shift and other keys null), stackIndex both ways, dropRow (gaps by row halves, above / below, no rows), movedRow (the dragged row's own gap left out), DRAG_START_PX 4."
+          ],
+          "parallel": true,
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T021": {
+          "text": "`components/ig/layerListMoves.ts`: `layerListKey`, `stackIndex`, `dropRow`, `DRAG_START_PX`, with JSDoc. T020 passes.",
+          "section": "List rules",
+          "status": "done",
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/components/ig/layerListMoves.ts"
+          ],
+          "test": "`layerListMoves.test.ts`",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** src/components/ig/layerListMoves.ts: layerListKey, stackIndex, dropRow (returns the gap 0…count, from each row's top and the last bottom), DRAG_START_PX, and movedRow (gap → the dragged row's new place), which the plan's interface didn't list: dropRow gives a gap, so the list needs it. T020 passes (7 / 7); npm run check green, 2835 tests."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T030": {
+          "text": "Failing tests for the row (`layerList.test.ts`, `renderToStaticMarkup` of `LayerList` from `ig/LayerList.tsx` with 40 layers with 80-character names, photo and video props): one `li.list-row` per layer, front first; each has `button.list-row-main` with `.list-row-lead` and `.list-row-name`, then `span.list-row-controls` with Show / Hide, Bring forward, Send back, Delete in that order; the main button's `aria-label` and `title` are the full name and it carries `data-id`; the video's detail line gives the times, a hidden layer's says Hidden; the empty list shows its hint. A CSS check: `.list-row-main` `flex: 1` and `min-width: 0`, `.list-row-name` `white-space: nowrap` and `text-overflow: ellipsis`, `.list-row-controls` `flex: none` without `flex-wrap`; `.lp-list li` and `.lp-name` are gone from 35-instagram.css.",
+          "section": "The row",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-4"
+          ],
+          "files": [
+            "tests/unit/components/ig/layerList.test.ts"
+          ],
+          "test": "`layerList.test.ts` (fails first: no module)",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** tests/unit/components/ig/layerList.test.ts (10 cases), fails first (no LayerList module): 40 text layers with 80-character names render as li.list-row front first with data-id; lead → name → four controls (Show / Hide, Bring … forward, Send … back, Delete); the main button's aria-label and title are the full name; one row pressed; Hidden on the detail line; a video's times on the detail line, not the name; the empty hint; CSS: .list-row-main flex 1 / min-width 0, .list-row-name nowrap / ellipsis / overflow hidden, .list-row-controls flex none without flex-wrap, no .lp-list li / .lp-name / .lp-list .pbtn rules."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T031": {
+          "text": "`ig/LayerList.tsx`: `LayerList` moved out of `LayerPanel.tsx` and drawn with `ListRow` (lead `LayerThumb` per D1: a sticker's emoji, an image layer's picture, a shape's outline through `ShapeIcon`, \"Aa\" in a text layer's font and colour, a brush for a drawing; detail line; four controls, the eye from a new `EyeIcon`); the workspaces import it from there; the old row CSS goes (`.lp-list` keeps its gap and `min-width: 0`), the thumbnail's styles go in. T030 passes; checked by eye in Chromium at 1280 × 720 and 390 × 844 with long names.",
+          "section": "The row",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-4"
+          ],
+          "files": [
+            "src/components/ig/LayerList.tsx",
+            "src/components/ig/LayerPanel.tsx",
+            "src/components/icons.tsx",
+            "src/components/studio/PhotoWorkspace.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/styles/35-instagram.css",
+            "src/styles/42-panel.css"
+          ],
+          "test": "`layerList.test.ts`",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** src/components/ig/LayerList.tsx: a ListRow per layer, front first (LayerThumb per D1: emoji, the picture drawn small, ShapeIcon, \"Aa\" in the text's font and colour on its own background or a dark / light backing by lum(), a brush), whole name, detail line (a video's times; Hidden), Show / Hide (the existing HideIcon reused in place of a new EyeIcon), Bring forward, Send back, Delete. LayerPanel.tsx keeps the add panels, LayerProps, DrawPanel, the props (now with onMove; both workspaces pass moveLayerTo / moveVLayerTo) and exports ShapeIcon; the all-in-one LayerPanel component went here, not in T041 (it rendered the list, and importing it back would be a cycle). Old .lp-list li / .lp-name / .lp-list .pbtn rules gone; .lp-thumb styles. T030 passes (10 / 10); npm run check green, 2845 tests. By eye in Chromium (dev server, 6 long text layers + a bubble): no element past the panel's right edge, panel scrollWidth = clientWidth at 1280 × 720 (panel 320 px) and 390 × 844; first try showed white Aa invisible on the light panel (fixed with the backing) and a class clash (.lp-thumb-text on both the box and the words; the words are .lp-thumb-words). At 1280 the 320 px panel leaves the name ~70 px (\"Speech b…\"). Seen once in 7 runs: a photo added right after the studio opens is dropped (408's project opening on start, not 506)."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T032": {
+          "text": "Keys and dragging: `onMove` on `LayerPanelProps`, given by both workspaces (`moveLayerTo`, `moveVLayerTo`); the `<ol>` handles keys through `layerListKey` (Alt + ↑/↓ move the focused row and keep focus on it, refocused by `data-id`; ↑ / ↓ move focus); pointer dragging per D3 (a mouse or pen from the whole row, touch from the thumbnail with `touch-action: none` there; a drag past `DRAG_START_PX`, a drop line from `dropRow`, one `onMove` on release, Esc cancels, a press without a move still selects). Tests from T020 and T030 still pass; checked by hand in Chromium with the mouse and with touch emulation.",
+          "section": "The row",
+          "status": "done",
+          "covers": [
+            "AC-4"
+          ],
+          "files": [
+            "src/components/ig/LayerList.tsx",
+            "src/components/ig/LayerPanel.tsx",
+            "src/components/studio/PhotoWorkspace.tsx",
+            "src/components/studio/VideoWorkspace.tsx",
+            "src/styles/35-instagram.css"
+          ],
+          "test": "`layerListMoves.test.ts`, `layerList.test.ts`",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** LayerList.tsx: useRowDrag (pointer events on the <ol>: mouse / pen from a row's main button, touch from .lp-thumb only, which has touch-action: none; a drag past DRAG_START_PX with pointer capture; dropRow over the rows' rects; .lp-drop-before / .lp-drop-after line and .lp-dragging; one onMove on release via movedRow + stackIndex; the click after a drop swallowed, reset on the next press; Esc and pointercancel cancel) and useListKeys (layerListKey: Alt + ↑/↓ onMove ±1 and the focus given back by data-id in a layout effect; ↑/↓ move the focus); a hint under 2+ layers (Drag … or press Alt + ↑ / ↓) as the list's description. New CSS case in layerList.test.ts (touch-action on the thumbnail only, the drop lines) failed first; npm run check green, 2846 tests. By hand in Chromium (dev server, 4 text layers): Alt + ↑ / Alt + ↓ ×2 reorder with focus kept on the row; ↓ moves the focus; a mouse drag top → bottom shows 1 drop line and 1 dragged row and moves it; a click still selects; Esc mid-drag leaves the order and no marks; a touch drag from the bottom row's thumbnail to the top moves it (CDP touch events); no console errors."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T040": {
+          "text": "Failing tests for the panel's structure (`layerStructure.test.ts`, source scan): `LayerList.tsx` doesn't import `LayerProperties`; `LayerPanel.tsx` exports no `LayerPanel` component; in `PhotoWorkspace.tsx` and `VideoWorkspace.tsx` the Layers tool's branch renders `LayerList` (the photo's through `LayersPanel`) and the inspector's `layer` kind renders `LayerProps`.",
+          "section": "List only",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "tests/unit/components/ig/layerStructure.test.ts"
+          ],
+          "test": "`layerStructure.test.ts` (fails first: `LayerPanel` still exported)",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** tests/unit/components/ig/layerStructure.test.ts (4 cases, source scan): LayerList.tsx never names LayerProperties / LayerProps; LayerPanel.tsx exports no LayerPanel component; in PhotoWorkspace (through LayersPanel) and VideoWorkspace the Layers tool's ToolPanel renders the list and no properties, and useInspector's layer kind renders LayerProps. It passed at once (T031 had already removed the all-in-one LayerPanel); putting LayerProps back into the video ToolPanel fails it (1 / 4), restored."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T041": {
+          "text": "The all-in-one `LayerPanel` component goes from `LayerPanel.tsx` (its file comment says what the file keeps); `foldCoverage.test.ts` and `sharedParts.test.ts` entries follow the move of the list. T040 passes.",
+          "section": "List only",
+          "status": "done",
+          "covers": [
+            "AC-3"
+          ],
+          "files": [
+            "src/components/ig/LayerPanel.tsx",
+            "tests/unit/components/panel/foldCoverage.test.ts",
+            "tests/unit/components/panel/sharedParts.test.ts"
+          ],
+          "test": "`layerStructure.test.ts`",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** The all-in-one LayerPanel component had already gone in T031; LayerPanel.tsx's file comment says what it keeps and where the list is. sharedParts.test.ts: LayerList.tsx uses ListRow, and the 'drops its panel title Layers' check now reads LayerList.tsx (the list moved); foldCoverage.test.ts needed no change (its LayerPanel.tsx entry is the Draw panel's Brush). T040 passes; npm run check green, 2851 tests."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T090": {
+          "text": "Docs: `docs/MEDIA-STUDIO.md` (the Layers list, reordering by dragging, the buttons and Alt + ↑/↓), `docs/DESIGN.md` (Layers on `ListRow`), `specs/lld.md` (`LayerList.tsx`, `layerListMoves.ts`, `moveLayer`), CHANGELOG Unreleased.",
+          "section": "Close",
+          "status": "done",
+          "covers": [],
+          "files": [
+            "docs/MEDIA-STUDIO.md",
+            "docs/DESIGN.md",
+            "specs/lld.md",
+            "CHANGELOG.md"
+          ],
+          "test": "reviewed with the result note",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** docs/MEDIA-STUDIO.md (a Layers panel paragraph: the list only, the row's parts, reordering by drag / buttons / Alt + ↑ ↓, touch by the thumbnail, Esc, one undo step; the code map names LayerList.tsx and layerListMoves.ts), docs/DESIGN.md (ListRow's users; the Layers panel in the panel map), specs/lld.md (§1's ig/ line, new §4.15 The Layers list), CHANGELOG Unreleased (one Changed). For review with this note."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        },
+        "T091": {
+          "text": "Close: `npm run check`, `npm run build` (entry ≤ 350 KB), `npm run lint:full`, `npm run check:licenses`; tick AC-1, AC-3, AC-4 (AC-2 waits for 590); status Implemented; `memory/progress.md`, `memory/MEMORY.md`.",
+          "section": "Close",
+          "status": "done",
+          "covers": [
+            "AC-1",
+            "AC-3",
+            "AC-4"
+          ],
+          "files": [],
+          "test": "`npm run build`",
+          "blockedReason": null,
+          "commits": [],
+          "notes": [
+            "**Result (2026-10-21):** npm run check green (2851 tests), npm run build entry 312 KB (budget 350; InstagramStudio chunk 242 KB), npm run lint:full 0 errors (1 old warning: engine/patterns.ts length), npm run check:licenses 169 packages allowed; AC-1, AC-3, AC-4 ticked, AC-2 (and dragging by mouse and touch) waits for 590."
+          ],
+          "startedOn": "2026-10-21",
+          "doneOn": "2026-10-21"
+        }
+      }
+    }
+  }
 }

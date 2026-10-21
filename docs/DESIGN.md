@@ -296,7 +296,7 @@ own copy; `tests/unit/components/panel/sharedParts.test.ts` checks that both stu
 | `PanelHeader` | Eyebrow and actions on one line, the title, then a one-sentence lead                                                                                                                             | The top of every panel: the print steps (eyebrow = the step number, actions = Collapse all) and the media tools (eyebrow = Add or Edit, title = the rail label, lead = the tool's lead) |
 | `FoldGroup`   | Folding sections of which one is open at a time; the open one (or none) is remembered per group on this device (`chitthi-folds`). `collapseAll(group)`                                         | One panel in one mode (`reel:audio`), one kind of inspector (`photos:inspector:layer`), one print step (`print:Photos`): the shell and `Pane` set them                                              |
 | `FoldSection` | A titled group of settings that folds: a summary (`note`) in its title row, controls beside the title (`actions`), opening itself (`openWhen`), `onClosed`, `onOpened` (only the user's own open, 505); `revealSection(id)` opens one | Any group of settings in a panel or inspector with more than one. Its `id` must be unique across the app; `defaultOpen={false}` keeps it from being the group's default                             |
-| `ListRow`     | One row of a list: a lead (thumbnail or icon), the name shortened with an ellipsis (the full name is its accessible name and tooltip), a detail line, controls that never wrap, a selected state | Projects today; the media pool (504), the Recordings list (505), Layers (506)                                                                                                                        |
+| `ListRow`     | One row of a list: a lead (thumbnail or icon), the name shortened with an ellipsis (the full name is its accessible name and tooltip), a detail line, controls that never wrap, a selected state | Projects, the media pool (504), the Recordings list (505), the Layers list (506)                                                                                                                     |
 | `EmptyState`  | An icon, a title, a sentence or two and the action that fills it; tone `stage` (large, on the dark stage) or `panel` (quiet, in a list)                                                          | An empty stage, an empty list                                                                                                                                                                        |
 | `RailFrame`   | The rail's frame: width, the toggle, Ctrl + \\, the foot                                                                                                                                         | Both rails; a new studio's rail goes inside it too                                                                                                                                                   |
 
@@ -360,6 +360,12 @@ The Audio panel (Reel and YouTube, 505) is five sections: **Add sound** (the def
 default; the user opening it opens the microphone, `onOpened`, and closing it closes it), **Recordings** (a `ListRow`
 per voice take: name, length · when · microphone, where it is used; Play, Rename, Add, Delete), **Tracks** (Lower music
 under voice and each sound track's settings, with its kind chip) and **Loudness**.
+
+The Layers panel (every mode, 506) is the list only: a `ListRow` per layer, front first, with a 32 px thumbnail of its
+kind (`.lp-thumb`; text as "Aa" in its font and colour on its own or a contrasting background), the whole name, a
+detail line (times on a video, Hidden) and four controls (Show / Hide, Bring forward, Send back, Delete). Rows reorder by
+dragging (a line marks where the row lands; a finger drags by the thumbnail only, `touch-action: none` there), by the
+buttons and by Alt + ↑ / ↓; the selected layer's properties are in the inspector, never in the panel.
 
 The dock holds the photo strip (photo) or the timeline: transport, edit tools, tracks (Reel and YouTube).
 

@@ -646,3 +646,11 @@ behaviour on a production build until it is fixed: `closeControls` should drop `
 clear `opening` only when it is still its own (voiceRecorder.ts is at the 800-line limit, so it needs a trim too).
 Fake microphone in Playwright: `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` plus
 `permissions: ['microphone']`; wrap `getUserMedia` in an init script to count opens and live tracks.
+
+## 2026-10-21 — A photo added right after the photo studio opens can be dropped (seen in 506 T031)
+
+In a scripted Chromium run (dev server, fresh profile), `setInputFiles` on the drop zone as soon as `#/instagram` loads
+added the photo (`.mst-thumb` appeared), then the batch went back to 0 photos with no console error: most likely the
+studio's project opening on start (408, `showStudio`) finishing after the add and replacing the batch. Once in 7 runs.
+Not fixed (not 506); scripts and 590's e2e should wait for the studio's project to be open (the save status) before
+adding files, and the race wants its own fix: an add before the project opens should land in it.
